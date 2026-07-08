@@ -1,0 +1,24 @@
+# macOS
+.DS_Store
+
+# Environment / секреты — никогда не коммитим
+.env
+.env.local
+.env.*.local
+
+# IDE (корневой уровень; Flutter-подпапка имеет свой .gitignore)
+.idea/
+.vscode/
+*.iml
+
+# Go
+/apps/backend/bin/
+/apps/backend/server
+*.exe
+*.out
+*.test
+*.prof
+coverage.out
+
+# Логи
+*.log
