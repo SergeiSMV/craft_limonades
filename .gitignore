@@ -1,6 +1,9 @@
 # macOS
 .DS_Store
 
+# Локальные dev-документы (не для репозитория)
+dev.md
+
 # Environment / секреты — никогда не коммитим
 .env
 .env.local
