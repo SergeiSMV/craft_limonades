@@ -1,0 +1,20 @@
+# Что НЕ отправлять в build-контекст docker (влияет на `COPY . .` в Dockerfile).
+# Механизм независим от .gitignore.
+
+# Локально собранные бинари и артефакты Go
+server
+*.exe
+*.out
+*.test
+coverage.out
+
+# Логи и временные файлы
+*.log
+
+# IDE
+.idea/
+.vscode/
+
+# Не нужны внутри образа
+Dockerfile
+.dockerignore
