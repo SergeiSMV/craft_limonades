@@ -1,8 +1,14 @@
 # macOS
 .DS_Store
 
+# Временные/lock-файлы Microsoft Office (напр. ~$plan_v3.docx, пока документ открыт)
+~$*
+
 # Локальные dev-документы (не для репозитория)
 dev.md
+docs/roadmap.md
+docs/progress.md
+scripts/roadmap_flatten.lua
 
 # Environment / секреты — никогда не коммитим
 .env
