@@ -4,7 +4,7 @@
 
 **Стек:** Flutter (Android 11+, Urovo DT50) · Go · PostgreSQL · Docker · nginx · SMTP · Excel (XLSX).
 Ключевые свойства: **offline-first** на устройстве, идемпотентность операций по `operation_id`,
-авторизация по бейджу сотрудника (без ролей). Обмен с 1С — без прямой интеграции: по завершении
+авторизация по бейджу сотрудника, роли `employee`/`admin`. Обмен с 1С — без прямой интеграции: по завершении
 операции бэкенд формирует Excel-отчёт и отправляет на e-mail, загрузку в 1С делает человек.
 
 ## Структура репозитория
@@ -26,12 +26,14 @@ docs/               # документация
 colima start                        # поднять docker-демон (macOS)
 cp .env.example .env                # настройки окружения
 make up                             # собрать и поднять стек: postgres + backend + nginx
+make migrate-up                     # накатить миграции схемы БД
 make ps                             # статус контейнеров (ждём healthy)
-curl http://localhost:8080/health   # проверка: {"status":"ok"}
+curl http://localhost:8080/health   # liveness: {"status":"ok"}
+curl http://localhost:8080/ready    # readiness (БД доступна): {"status":"ready"}
 make down                           # остановить
 ```
 
-Детали и проверка критериев — [docs/p0-01.md](docs/p0-01.md).
+Детали и проверка критериев по задачам — в [docs/](docs/) (`p0-01.md`, `p0-02.md`, `p0-03.md`).
 
 ## Документация
 
