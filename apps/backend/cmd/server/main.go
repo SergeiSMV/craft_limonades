@@ -1,8 +1,9 @@
 // Package main — точка входа backend-сервиса Craft WMS.
 //
-// P0-02: минимальный, но «правильный» каркас HTTP-сервиса — конфиг из окружения,
-// структурированный логгер, chi-роутер и graceful shutdown. Бизнес-логики ещё нет:
-// это «розетка», в которую дальше подключаются auth, справочники и операции.
+// P0-02: каркас HTTP-сервиса — конфиг из окружения, структурированный логгер,
+// chi-роутер и graceful shutdown.
+// P0-03: подключение к PostgreSQL (пул pgx) + readiness-проба /ready.
+// Бизнес-логики пока нет — это «розетка», в которую дальше подключаются auth и операции.
 package main
 
 import (
@@ -15,8 +16,11 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
+
 	"craftwms/internal/config"
 	"craftwms/internal/handler"
+	"craftwms/internal/repository"
 )
 
 // shutdownTimeout — сколько ждём завершения текущих запросов при мягкой остановке.
@@ -30,19 +34,50 @@ func main() {
 	log := newLogger(cfg.LogLevel)
 	slog.SetDefault(log)
 
-	// 3. HTTP-сервер с собранным роутером транспортного слоя.
+	// 3. Пул соединений к БД. Если DATABASE_URL пуст — стартуем без БД (удобно для локальной
+	//    отладки каркаса); /ready в этом случае вернёт 503.
+	var pool *pgxpool.Pool
+	if cfg.DatabaseURL != "" {
+		p, err := repository.NewPool(context.Background(), cfg.DatabaseURL)
+		if err != nil {
+			log.Error("cannot init database pool", "error", err)
+			os.Exit(1)
+		}
+		pool = p
+		defer pool.Close()
+
+		// Ранняя проверка доступности БД. Не роняем сервис при неудаче: процесс живой,
+		// а неготовность видно по /ready — так контейнер не флапает из-за кратких сбоев БД.
+		pingCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		if err := pool.Ping(pingCtx); err != nil {
+			log.Warn("database unreachable at startup", "error", err)
+		} else {
+			log.Info("database connected")
+		}
+		cancel()
+	} else {
+		log.Warn("DATABASE_URL is empty — starting without database")
+	}
+
+	// handler.Pinger — интерфейс; передаём nil-интерфейс, если пула нет (иначе /ready паникнет).
+	var pinger handler.Pinger
+	if pool != nil {
+		pinger = pool
+	}
+
+	// 4. HTTP-сервер с собранным роутером транспортного слоя.
 	srv := &http.Server{
 		Addr:              ":" + cfg.AppPort,
-		Handler:           handler.NewRouter(log),
+		Handler:           handler.NewRouter(log, pinger),
 		ReadHeaderTimeout: 5 * time.Second, // защита от медленных клиентов (Slowloris)
 	}
 
-	// 4. Контекст, отменяемый по SIGINT/SIGTERM — сигнал начать мягкую остановку
+	// 5. Контекст, отменяемый по SIGINT/SIGTERM — сигнал начать мягкую остановку
 	//    (SIGTERM прилетает при `docker compose down` / редеплое).
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	// 5. Запускаем приём соединений в отдельной горутине, чтобы main мог ждать сигнал.
+	// 6. Запускаем приём соединений в отдельной горутине, чтобы main мог ждать сигнал.
 	go func() {
 		log.Info("backend listening", "addr", srv.Addr, "log_level", cfg.LogLevel.String())
 		// ErrServerClosed — штатное завершение после Shutdown, ошибкой не считаем.
@@ -52,13 +87,13 @@ func main() {
 		}
 	}()
 
-	// 6. Блокируемся до сигнала остановки.
+	// 7. Блокируемся до сигнала остановки.
 	<-ctx.Done()
 	log.Info("shutdown signal received, draining connections")
 
-	// 7. Graceful shutdown: перестаём принимать новые соединения и даём текущим запросам
+	// 8. Graceful shutdown: перестаём принимать новые соединения и даём текущим запросам
 	//    до-обработаться в пределах таймаута. Зачем: не рвать операцию на полуслове —
-	//    в WMS это критично для консистентности остатков.
+	//    в WMS это критично для консистентности остатков. Пул БД закроется по defer.
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
 	if err := srv.Shutdown(shutdownCtx); err != nil {

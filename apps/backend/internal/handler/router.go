@@ -13,20 +13,21 @@ import (
 // NewRouter собирает HTTP-роутер сервиса: общие middleware + маршруты.
 //
 // Что: единая точка сборки транспортного слоя.
-// Зачем: сюда по мере роста подключаются все будущие ручки (auth, справочники, операции) —
-// это та самая «розетка» из описания задачи.
-// Как: chi-роутер с цепочкой middleware и регистрацией конкретных обработчиков.
-func NewRouter(log *slog.Logger) http.Handler {
+// Зачем: сюда по мере роста подключаются все будущие ручки (auth, справочники, операции).
+// Как: chi-роутер с цепочкой middleware и регистрацией обработчиков.
+// db (Pinger) может быть nil — тогда /ready ответит 503.
+func NewRouter(log *slog.Logger, db Pinger) http.Handler {
 	r := chi.NewRouter()
 
 	// Общие middleware для всех маршрутов:
-	r.Use(chimw.RequestID)            // уникальный ID запроса — для трассировки в логах
-	r.Use(chimw.Recoverer)            // перехват паник → 500 вместо падения процесса
-	r.Use(appmw.RequestLogger(log))   // структурированное логирование каждого запроса
+	r.Use(chimw.RequestID)          // уникальный ID запроса — для трассировки в логах
+	r.Use(chimw.Recoverer)          // перехват паник → 500 вместо падения процесса
+	r.Use(appmw.RequestLogger(log)) // структурированное логирование каждого запроса
 
 	// Маршруты.
-	health := NewHealthHandler()
-	r.Get("/health", health.Health)
+	health := NewHealthHandler(db)
+	r.Get("/health", health.Health) // liveness: процесс жив
+	r.Get("/ready", health.Ready)   // readiness: БД доступна
 
 	return r
 }

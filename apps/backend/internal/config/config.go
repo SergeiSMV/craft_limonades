@@ -12,8 +12,9 @@ import (
 
 // Config — набор настроек сервиса, считывается один раз при старте.
 type Config struct {
-	AppPort  string     // порт HTTP-сервера (env APP_PORT)
-	LogLevel slog.Level // уровень логирования (env LOG_LEVEL: debug|info|warn|error)
+	AppPort     string     // порт HTTP-сервера (env APP_PORT)
+	LogLevel    slog.Level // уровень логирования (env LOG_LEVEL: debug|info|warn|error)
+	DatabaseURL string     // DSN подключения к Postgres (env DATABASE_URL); пусто → сервис стартует без БД
 }
 
 // Load читает конфиг из окружения, подставляя безопасные значения по умолчанию.
@@ -21,8 +22,9 @@ type Config struct {
 // а даёт разумный дефолт (удобно для локального запуска вне docker).
 func Load() Config {
 	return Config{
-		AppPort:  getEnv("APP_PORT", "8080"),
-		LogLevel: parseLevel(getEnv("LOG_LEVEL", "info")),
+		AppPort:     getEnv("APP_PORT", "8080"),
+		LogLevel:    parseLevel(getEnv("LOG_LEVEL", "info")),
+		DatabaseURL: getEnv("DATABASE_URL", ""),
 	}
 }
 

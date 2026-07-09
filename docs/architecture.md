@@ -9,12 +9,12 @@ WMS для терминала сбора данных (ТСД). Пилот на 
 |-----------------------------|---------------------------------------------------------------|
 | Мобильное приложение (ТСД)  | Flutter, Android 11+ (Urovo DT50)                             |
 | Бэкенд                      | Go (chi-роутер, slog-логгер), REST                            |
-| БД                          | PostgreSQL (pgx/sqlx + golang-migrate)                        |
+| БД                          | PostgreSQL (pgx v5 / pgxpool + golang-migrate)                |
 | Инфраструктура              | Docker · docker-compose · nginx                               |
 | Обмен с 1С                  | без прямой интеграции — Excel-отчёты (XLSX) на e-mail по SMTP |
 
 Ключевые свойства: **offline-first** на устройстве, идемпотентность операций по `operation_id`,
-авторизация по бейджу сотрудника (без ролей).
+авторизация по бейджу сотрудника, роли `employee` / `admin` (admin — управление пользователями).
 
 ## Монорепозиторий
 
@@ -29,15 +29,16 @@ craft_wms_app/
 │   │
 │   └── backend/                # Go-сервис
 │       ├── cmd/
-│       │   └── server/         # точка входа (main.go), сборка бинаря
+│       │   ├── server/         # точка входа сервиса (main.go)
+│       │   └── migrate/        # раннер миграций (golang-migrate, встроенные .sql)
 │       ├── internal/           # приватный код сервиса
-│       │   ├── handler/        # HTTP-обработчики (транспортный слой)
+│       │   ├── handler/        # HTTP-обработчики (транспортный слой): health, ready
 │       │   ├── service/        # бизнес-логика (домен, use-cases)
-│       │   ├── repository/     # доступ к данным (Postgres)
+│       │   ├── repository/     # доступ к данным (пул pgx, репозитории)
 │       │   ├── model/          # сущности / DTO
 │       │   ├── config/         # чтение конфигурации из env
 │       │   └── middleware/     # auth, логирование, rate limiting
-│       ├── migrations/         # SQL-миграции (golang-migrate) — единый источник схемы БД
+│       ├── migrations/         # SQL-миграции + embed.go (golang-migrate) — единый источник схемы БД
 │       ├── Dockerfile          # (добавляется в P0-01)
 │       ├── go.mod
 │       └── go.sum
