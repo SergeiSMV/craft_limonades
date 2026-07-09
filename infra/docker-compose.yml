@@ -31,7 +31,8 @@ services:
       dockerfile: Dockerfile
     environment:
       APP_PORT: 8080
-      # Готово для P0-02 (подключение к БД). Минимальный /health-сервер это пока не использует.
+      LOG_LEVEL: ${LOG_LEVEL:-info}   # уровень логов сервиса; дефолт info, если не задан в .env
+      # Готово для P0-03 (подключение к БД). Каркас P0-02 (/health) это пока не использует.
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable
     depends_on:
       db:
