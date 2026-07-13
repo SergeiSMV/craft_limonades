@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+	"time"
 )
 
 // Config — набор настроек сервиса, считывается один раз при старте.
@@ -15,6 +16,11 @@ type Config struct {
 	AppPort     string     // порт HTTP-сервера (env APP_PORT)
 	LogLevel    slog.Level // уровень логирования (env LOG_LEVEL: debug|info|warn|error)
 	DatabaseURL string     // DSN подключения к Postgres (env DATABASE_URL); пусто → сервис стартует без БД
+
+	// Auth (P0-04)
+	JWTSecret  string        // секрет подписи JWT (env JWT_SECRET); пусто → эфемерный секрет на время процесса
+	AccessTTL  time.Duration // время жизни access-токена (env ACCESS_TTL), дефолт 12h
+	RefreshTTL time.Duration // время жизни refresh-токена (env REFRESH_TTL), дефолт 720h (30 дней)
 }
 
 // Load читает конфиг из окружения, подставляя безопасные значения по умолчанию.
@@ -25,7 +31,19 @@ func Load() Config {
 		AppPort:     getEnv("APP_PORT", "8080"),
 		LogLevel:    parseLevel(getEnv("LOG_LEVEL", "info")),
 		DatabaseURL: getEnv("DATABASE_URL", ""),
+		JWTSecret:   getEnv("JWT_SECRET", ""),
+		AccessTTL:   parseDuration(getEnv("ACCESS_TTL", "12h"), 12*time.Hour),
+		RefreshTTL:  parseDuration(getEnv("REFRESH_TTL", "720h"), 720*time.Hour),
 	}
+}
+
+// parseDuration разбирает строку длительности (напр. "12h", "720h"); при ошибке — дефолт.
+func parseDuration(s string, def time.Duration) time.Duration {
+	d, err := time.ParseDuration(strings.TrimSpace(s))
+	if err != nil {
+		return def
+	}
+	return d
 }
 
 // getEnv возвращает значение переменной окружения или дефолт, если она пуста/не задана.

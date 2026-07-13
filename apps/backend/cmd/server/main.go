@@ -8,6 +8,8 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -18,9 +20,11 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"craftwms/internal/auth"
 	"craftwms/internal/config"
 	"craftwms/internal/handler"
 	"craftwms/internal/repository"
+	"craftwms/internal/service"
 )
 
 // shutdownTimeout — сколько ждём завершения текущих запросов при мягкой остановке.
@@ -65,19 +69,36 @@ func main() {
 		pinger = pool
 	}
 
-	// 4. HTTP-сервер с собранным роутером транспортного слоя.
+	// 4. Менеджер JWT-токенов. Секрет — из env; если пуст, генерируем эфемерный (токены не
+	//    переживут рестарт, но каркас запустится — удобно для локальной отладки).
+	secret := cfg.JWTSecret
+	if secret == "" {
+		secret = randomSecret()
+		log.Warn("JWT_SECRET is empty — using ephemeral secret (tokens won't survive restart)")
+	}
+	tokens := auth.NewTokenManager(secret, cfg.AccessTTL, cfg.RefreshTTL)
+
+	// Сервис аутентификации доступен только при наличии БД (нужен репозиторий пользователей).
+	var authSvc *service.AuthService
+	if pool != nil {
+		authSvc = service.NewAuthService(repository.NewUserRepository(pool), tokens)
+	} else {
+		log.Warn("no database — auth endpoints disabled")
+	}
+
+	// 5. HTTP-сервер с собранным роутером транспортного слоя.
 	srv := &http.Server{
 		Addr:              ":" + cfg.AppPort,
-		Handler:           handler.NewRouter(log, pinger),
+		Handler:           handler.NewRouter(log, pinger, authSvc, tokens),
 		ReadHeaderTimeout: 5 * time.Second, // защита от медленных клиентов (Slowloris)
 	}
 
-	// 5. Контекст, отменяемый по SIGINT/SIGTERM — сигнал начать мягкую остановку
+	// 6. Контекст, отменяемый по SIGINT/SIGTERM — сигнал начать мягкую остановку
 	//    (SIGTERM прилетает при `docker compose down` / редеплое).
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	// 6. Запускаем приём соединений в отдельной горутине, чтобы main мог ждать сигнал.
+	// 7. Запускаем приём соединений в отдельной горутине, чтобы main мог ждать сигнал.
 	go func() {
 		log.Info("backend listening", "addr", srv.Addr, "log_level", cfg.LogLevel.String())
 		// ErrServerClosed — штатное завершение после Shutdown, ошибкой не считаем.
@@ -87,11 +108,11 @@ func main() {
 		}
 	}()
 
-	// 7. Блокируемся до сигнала остановки.
+	// 8. Блокируемся до сигнала остановки.
 	<-ctx.Done()
 	log.Info("shutdown signal received, draining connections")
 
-	// 8. Graceful shutdown: перестаём принимать новые соединения и даём текущим запросам
+	// 9. Graceful shutdown: перестаём принимать новые соединения и даём текущим запросам
 	//    до-обработаться в пределах таймаута. Зачем: не рвать операцию на полуслове —
 	//    в WMS это критично для консистентности остатков. Пул БД закроется по defer.
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
@@ -106,4 +127,11 @@ func main() {
 // newLogger собирает JSON-логгер slog с заданным уровнем.
 func newLogger(level slog.Level) *slog.Logger {
 	return slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level}))
+}
+
+// randomSecret генерирует случайный секрет подписи JWT (fallback, если JWT_SECRET не задан).
+func randomSecret() string {
+	b := make([]byte, 32)
+	_, _ = rand.Read(b)
+	return base64.StdEncoding.EncodeToString(b)
 }

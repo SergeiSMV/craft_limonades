@@ -20,9 +20,11 @@ scripts/roadmap_flatten.lua
 .vscode/
 *.iml
 
-# Go
+# Go — бинари, случайно собранные `go build ./cmd/X` в корне модуля
 /apps/backend/bin/
 /apps/backend/server
+/apps/backend/migrate
+/apps/backend/seed
 *.exe
 *.out
 *.test
