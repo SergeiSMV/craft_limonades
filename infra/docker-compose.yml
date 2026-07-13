@@ -32,8 +32,11 @@ services:
     environment:
       APP_PORT: 8080
       LOG_LEVEL: ${LOG_LEVEL:-info}   # уровень логов сервиса; дефолт info, если не задан в .env
-      # Готово для P0-03 (подключение к БД). Каркас P0-02 (/health) это пока не использует.
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable
+      # Auth (P0-04):
+      JWT_SECRET: ${JWT_SECRET}
+      ACCESS_TTL: ${ACCESS_TTL:-12h}
+      REFRESH_TTL: ${REFRESH_TTL:-720h}
     depends_on:
       db:
         condition: service_healthy   # стартуем только после «живой» БД

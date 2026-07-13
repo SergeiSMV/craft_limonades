@@ -30,14 +30,16 @@ craft_wms_app/
 │   └── backend/                # Go-сервис
 │       ├── cmd/
 │       │   ├── server/         # точка входа сервиса (main.go)
-│       │   └── migrate/        # раннер миграций (golang-migrate, встроенные .sql)
+│       │   ├── migrate/        # раннер миграций (golang-migrate, встроенные .sql)
+│       │   └── seed/           # сидер стартового админа
 │       ├── internal/           # приватный код сервиса
-│       │   ├── handler/        # HTTP-обработчики (транспортный слой): health, ready
-│       │   ├── service/        # бизнес-логика (домен, use-cases)
-│       │   ├── repository/     # доступ к данным (пул pgx, репозитории)
-│       │   ├── model/          # сущности / DTO
+│       │   ├── handler/        # HTTP-обработчики (транспортный слой): health, ready, auth
+│       │   ├── service/        # бизнес-логика (домен, use-cases): AuthService
+│       │   ├── repository/     # доступ к данным (пул pgx, UserRepository)
+│       │   ├── model/          # сущности / DTO (User, роли)
+│       │   ├── auth/           # JWT-токены + argon2 (примитивы аутентификации)
 │       │   ├── config/         # чтение конфигурации из env
-│       │   └── middleware/     # auth, логирование, rate limiting
+│       │   └── middleware/     # аутентификация (JWT), логирование, rate limiting
 │       ├── migrations/         # SQL-миграции + embed.go (golang-migrate) — единый источник схемы БД
 │       ├── Dockerfile          # (добавляется в P0-01)
 │       ├── go.mod

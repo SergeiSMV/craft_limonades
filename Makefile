@@ -4,7 +4,7 @@
 
 COMPOSE = docker compose --env-file .env -f infra/docker-compose.yml
 
-.PHONY: up down logs ps build restart migrate-up migrate-down
+.PHONY: up down logs ps build restart migrate-up migrate-down seed
 
 # Раннер миграций с хоста: БД опубликована на localhost:$${POSTGRES_PORT}.
 # POSTGRES_* берём из .env (читаем прямо в команде), собираем из них DATABASE_URL.
@@ -34,3 +34,8 @@ migrate-up: ## Накатить миграции схемы БД (up)
 
 migrate-down: ## Откатить все миграции схемы БД (down)
 	$(MIGRATE) down
+
+seed: ## Засеять стартового админа из .env (ADMIN_BADGE)
+	cd apps/backend && set -a && . ../../.env && set +a && \
+	DATABASE_URL="postgres://$$POSTGRES_USER:$$POSTGRES_PASSWORD@localhost:$$POSTGRES_PORT/$$POSTGRES_DB?sslmode=disable" \
+	go run ./cmd/seed
