@@ -1,0 +1,16 @@
+{
+    "login_screen": {
+        "title": "Вход по бейджу",
+        "badge_label": "Бейдж (16 цифр)",
+        "login_button": "Войти",
+        "error_snackbar": "Ошибка входа: проверьте бейдж"
+    },
+    "home_screen": {
+        "title": "Главное меню",
+        "logs_tooltip": "Логи",
+        "logout_tooltip": "Выход",
+        "logged_in_as": "Вошли: ${name}",
+        "login_role": "логин ${login} · роль ${role}",
+        "operations_placeholder": "Экраны операций появятся в P1–P6"
+    }
+}
