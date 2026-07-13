@@ -1,7 +1,7 @@
 # Архитектура проекта Craft WMS
 
 WMS для терминала сбора данных (ТСД). Пилот на одном складе.
-Подробный план разработки — `source/artifacts/artifact_08.07.26_plans.md` (v3).
+План разработки — внутренний `docs/roadmap.md` (v3).
 
 ## Стек
 
@@ -21,10 +21,14 @@ WMS для терминала сбора данных (ТСД). Пилот на 
 ```
 craft_wms_app/
 ├── apps/
-│   ├── craft_wms/              # Flutter-приложение для ТСД
-│   │   ├── lib/                # исходники Dart
-│   │   ├── test/
-│   │   ├── android/            # Android-обвязка (сборка APK)
+│   ├── craft_wms/              # Flutter-приложение для ТСД (Android 11+)
+│   │   ├── lib/
+│   │   │   ├── core/           # di (get_it/injectable), router (auto_route),
+│   │   │   │                   #   network (dio + JWT-интерсептор), auth, error, theme, logging (talker)
+│   │   │   ├── features/       # экраны по фичам (presentation/domain/data)
+│   │   │   ├── app.dart        # MaterialApp.router + гейт навигации по auth-состоянию
+│   │   │   └── main.dart       # bootstrap: DI → runApp
+│   │   ├── android/            # minSdk 30, сборка APK
 │   │   └── pubspec.yaml
 │   │
 │   └── backend/                # Go-сервис
@@ -83,6 +87,19 @@ handler  →  service  →  repository  →  PostgreSQL
 - **repository** — SQL-доступ к Postgres, изоляция БД от домена.
 - **model** — сущности предметной области (товар, ячейка, партия, остаток, грузовая единица).
 - **middleware** — auth по бейджу (JWT), логирование, rate limiting на `/auth/login`.
+
+## Слои клиента (Flutter)
+
+Чистая архитектура: **presentation → domain → data**, зависимости направлены внутрь.
+Стек: **auto_route** (навигация), **flutter_bloc** + **freezed** (состояние), **get_it/injectable** (DI),
+**dio** + JWT-интерсептор (сеть), **either_dart** + `Failure` (ошибки), **talker** (логирование),
+**slang** (i18n — весь текст в `assets/i18n`).
+
+- **presentation** — экраны и bloc/cubit; не знают про источники данных.
+- **domain** — сущности и use-cases, независимы от Flutter и способа хранения.
+- **data** — репозитории (`Either<Failure, T>`), сетевой клиент dio, локальный стор (offline — P2), кэш справочников.
+- **JWT-интерсептор** — клиентская пара к middleware бэкенда: подставляет access-токен, на 401 молча
+  обновляет его по refresh и повторяет запрос.
 
 ## Обмен и офлайн (кратко)
 
