@@ -1,9 +1,11 @@
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:injectable/injectable.dart';
 
 /// Хранилище JWT-токенов. Абстракция, чтобы верхние слои не знали, где токены лежат.
 ///
-/// В P0-05 — in-memory (реализация ниже). В P0-06 добавится реализация поверх
-/// flutter_secure_storage, а эта останется для тестов.
+/// Реализация по умолчанию — [SecureTokenStorage] поверх flutter_secure_storage
+/// (Android Keystore). [InMemoryTokenStorage] оставлена для unit-тестов (P0-08),
+/// где платформенное хранилище недоступно.
 abstract class TokenStorage {
   Future<String?> readAccess();
   Future<String?> readRefresh();
@@ -12,9 +14,50 @@ abstract class TokenStorage {
   Future<void> clear();
 }
 
-/// In-memory реализация: токены живут в памяти процесса и сбрасываются при перезапуске.
-/// Достаточно для скелета; постоянное хранилище — задача P0-06.
+/// Реализация поверх flutter_secure_storage — токены в зашифрованном хранилище ОС.
+///
+/// Что: постоянно и безопасно хранит пару токенов между запусками приложения.
+/// Зачем: кладовщик сканирует бейдж один раз — сессия должна пережить перезапуск ТСД,
+///        при этом токены нельзя держать в открытом виде (иначе кража с устройства).
+/// Как: на Android v10 плагин шифрует данные ключами из Keystore по умолчанию
+///      (доп. настроек не требует).
 @LazySingleton(as: TokenStorage)
+class SecureTokenStorage implements TokenStorage {
+  SecureTokenStorage() : _storage = const FlutterSecureStorage();
+
+  final FlutterSecureStorage _storage;
+
+  /// Ключи записей в хранилище.
+  static const _kAccess = 'access_token';
+  static const _kRefresh = 'refresh_token';
+
+  @override
+  Future<String?> readAccess() => _storage.read(key: _kAccess);
+
+  @override
+  Future<String?> readRefresh() => _storage.read(key: _kRefresh);
+
+  @override
+  Future<void> save({required String access, required String refresh}) async {
+    // Пишем оба токена; порядок не критичен — читаем их независимо.
+    await _storage.write(key: _kRefresh, value: refresh);
+    await _storage.write(key: _kAccess, value: access);
+  }
+
+  @override
+  Future<void> saveAccess(String access) =>
+      _storage.write(key: _kAccess, value: access);
+
+  @override
+  Future<void> clear() async {
+    await _storage.delete(key: _kAccess);
+    await _storage.delete(key: _kRefresh);
+  }
+}
+
+/// In-memory реализация для unit-тестов (P0-08): токены живут в памяти процесса
+/// и сбрасываются при перезапуске. В DI не регистрируется — на устройстве
+/// работает [SecureTokenStorage]; тесты создают этот класс напрямую.
 class InMemoryTokenStorage implements TokenStorage {
   String? _access;
   String? _refresh;

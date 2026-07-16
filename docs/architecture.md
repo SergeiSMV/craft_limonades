@@ -100,6 +100,9 @@ handler  →  service  →  repository  →  PostgreSQL
 - **data** — репозитории (`Either<Failure, T>`), сетевой клиент dio, локальный стор (offline — P2), кэш справочников.
 - **JWT-интерсептор** — клиентская пара к middleware бэкенда: подставляет access-токен, на 401 молча
   обновляет его по refresh и повторяет запрос.
+- **Токены — secure storage** (`flutter_secure_storage`, Android Keystore): пара access/refresh переживает
+  перезапуск. При старте `AuthCubit.restore()` тихо восстанавливает сессию (`/auth/me` + авто-рефреш);
+  refresh протух → хранилище чистится → экран входа. Без сети токены сохраняются («мягкий» офлайн-старт).
 
 ## Обмен и офлайн (кратко)
 
