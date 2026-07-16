@@ -1,9 +1,16 @@
 {
+    "splash_screen": {
+        "title": "Craft WMS"
+    },
     "login_screen": {
         "title": "Вход по бейджу",
-        "badge_label": "Бейдж (16 цифр)",
-        "login_button": "Войти",
-        "error_snackbar": "Ошибка входа: проверьте бейдж"
+        "scan_prompt": "Отсканируйте бейдж",
+        "badge_label": "16 цифр",
+        "logging_in": "Вход…",
+        "error_invalid": "Нужно 16 цифр",
+        "error_auth": "Неверный бейдж",
+        "error_network": "Нет связи с сервером",
+        "error_unknown": "Ошибка входа"
     },
     "home_screen": {
         "title": "Главное меню",

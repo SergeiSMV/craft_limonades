@@ -47,6 +47,11 @@ class AuthRepository {
     }
   }
 
+  /// Есть ли сохранённая сессия (токен в secure storage).
+  /// Нужно для тихого восстановления при старте: без токенов сразу уходим на вход,
+  /// не дёргая сеть.
+  Future<bool> hasSession() async => (await _storage.readAccess()) != null;
+
   /// Выход — просто чистим токены.
   Future<void> logout() => _storage.clear();
 

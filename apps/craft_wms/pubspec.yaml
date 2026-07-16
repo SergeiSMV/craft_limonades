@@ -45,7 +45,8 @@ dependencies:
   talker_bloc_logger: ^5.1.17 # логирование событий и переходов состояний BLoC
   slang: ^4.18.0 # type-safe i18n: строки в Dart, без .arb
   slang_flutter: ^4.18.0 # Flutter-интеграция slang (Locale, context.t)
-  
+  flutter_secure_storage: ^10.3.1 # зашифрованное хранилище токенов (Android Keystore)
+
 
 dev_dependencies:
   flutter_test:

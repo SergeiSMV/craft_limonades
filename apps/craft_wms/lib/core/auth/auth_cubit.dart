@@ -32,6 +32,24 @@ class AuthCubit extends Cubit<AuthState> {
 
   final AuthRepository _repo;
 
+  /// Тихое восстановление сессии при старте приложения (авто-рефреш).
+  /// Что: если в secure storage есть токены — проверяем их через `/auth/me`.
+  /// Зачем: кладовщик не должен пересканировать бейдж после перезапуска ТСД.
+  /// Как: нет токенов → сразу на вход; есть → `me()` (интерсептор сам обновит
+  ///      access по refresh при 401). Успех → authenticated; отказ (refresh протух —
+  ///      интерсептор уже почистил хранилище; или нет сети) → unauthenticated.
+  Future<void> restore() async {
+    if (!await _repo.hasSession()) {
+      emit(const AuthState.unauthenticated());
+      return;
+    }
+    final result = await _repo.me();
+    result.fold(
+      (failure) => emit(AuthState.unauthenticated(failure)),
+      (profile) => emit(AuthState.authenticated(profile)),
+    );
+  }
+
   /// Вход по бейджу: делегируем репозиторию и превращаем Either в состояние.
   Future<void> login(String badge) async {
     emit(const AuthState.authenticating());
