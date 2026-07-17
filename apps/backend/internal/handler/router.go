@@ -43,7 +43,7 @@ func NewRouter(log *slog.Logger, db Pinger, authSvc *service.AuthService, tokens
 		// Ключ — реальный IP клиента (X-Real-IP от nginx), а не RemoteAddr: иначе за прокси
 		// все устройства делили бы один лимит.
 		r.Group(func(r chi.Router) {
-			r.Use(httprate.Limit(10, time.Minute, httprate.WithKeyFuncs(clientIPKey)))
+			r.Use(httprate.LimitBy(10, time.Minute, clientIPKey))
 			r.Post("/auth/login", authH.Login)
 			r.Post("/auth/refresh", authH.Refresh)
 		})
