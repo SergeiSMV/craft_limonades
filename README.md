@@ -52,8 +52,10 @@ flutter run                         # запуск на эмуляторе (бэ
 
 | Файл | Содержание |
 |---|---|
-| [docs/architecture.md](docs/architecture.md) | Архитектура: структура, слои (backend/Flutter), обмен |
-| [docs/p0-01.md](docs/p0-01.md) … [p0-08-1.md](docs/p0-08-1.md) | Задачи фазы P0: инфраструктура, Go-скелет, БД+миграции, auth, Flutter-скелет, вход по скану + secure storage, проверка на ТСД, CI, unit-тесты |
+| [docs/architecture.md](docs/architecture.md) | Архитектура: C4 (контекст/контейнеры/компоненты), структура, слои, обмен |
+| [docs/deploy.md](docs/deploy.md) | Развёртывание: dev-стек, `.env`, миграции/сид, сборка APK, GHCR |
+| [docs/adr/](docs/adr/) | ADR — решения «почему выбрали X» (реестр + записи) |
+| [docs/p0-01.md](docs/p0-01.md) … [p0-09d.md](docs/p0-09d.md) | Задачи фазы P0: инфраструктура, Go-скелет, БД+миграции, auth, Flutter-скелет, вход по скану + secure storage, проверка на ТСД, CI, unit-тесты, документация |
 | [docs/plan_v3.docx](docs/plan_v3.docx) | План разработки v3 |
 
 ## Разработка
