@@ -1,0 +1,23 @@
+{
+    "splash_screen": {
+        "title": "Craft WMS"
+    },
+    "login_screen": {
+        "title": "Вход по бейджу",
+        "scan_prompt": "Отсканируйте бейдж",
+        "badge_label": "16 цифр",
+        "logging_in": "Вход…",
+        "error_invalid": "Нужно 16 цифр",
+        "error_auth": "Неверный бейдж",
+        "error_network": "Нет связи с сервером",
+        "error_unknown": "Ошибка входа"
+    },
+    "home_screen": {
+        "title": "Главное меню",
+        "logs_tooltip": "Логи",
+        "logout_tooltip": "Выход",
+        "logged_in_as": "Вошли: ${name}",
+        "login_role": "логин ${login} · роль ${role}",
+        "operations_placeholder": "Экраны операций появятся в P1–P6"
+    }
+}

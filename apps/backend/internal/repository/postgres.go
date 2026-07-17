@@ -23,7 +23,7 @@ func NewPool(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
 		return nil, fmt.Errorf("разбор DSN: %w", err)
 	}
 
-	cfg.MaxConns = 10             // потолок соединений в пуле
+	cfg.MaxConns = 10               // потолок соединений в пуле
 	cfg.MaxConnLifetime = time.Hour // периодически пересоздаём коннекты
 
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
