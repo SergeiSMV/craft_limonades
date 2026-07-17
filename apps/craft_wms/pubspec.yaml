@@ -53,6 +53,8 @@ dev_dependencies:
     sdk: flutter
 
   flutter_lints: ^6.0.0 # рекомендуемый набор lint-правил для Dart/Flutter
+  mocktail: ^1.0.4 # моки без кодогенерации (для unit-тестов)
+  bloc_test: ^10.0.0 # хелперы для тестирования bloc/cubit (blocTest)
   build_runner: ^2.15.1 # раннер кодогенерации (freezed, json, routes, injectable)
   auto_route_generator: ^10.5.0 # генерация роутов из @RoutePage
   injectable_generator: ^3.0.2 # генерация register/get_it из @injectable
