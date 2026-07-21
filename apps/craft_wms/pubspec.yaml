@@ -62,12 +62,23 @@ dev_dependencies:
   json_serializable: ^6.14.0 # генерация fromJson/toJson
   slang_build_runner: ^4.18.0 # генерация классов переводов из JSON/YAML
   flutter_gen_runner: ^5.10.0 # генерация типобезопасных ссылок на ассеты (Assets.images.*)
+  flutter_native_splash: ^2.4.4 # генерация нативного splash-экрана (до загрузки Flutter)
 
 # FlutterGen: генерирует lib/core/gen/assets.gen.dart (Assets.images.<файл>) —
 # типобезопасный доступ к ассетам вместо строковых путей. Запускается build_runner'ом.
 flutter_gen:
   output: lib/core/gen/   # рядом со slang-геном (strings.g.dart)
   line_length: 100
+
+# FlutterNativeSplash: нативный splash (ОС показывает его, пока грузится движок Flutter).
+# Чёрный фон + логотип по центру. Генерируется командой `dart run flutter_native_splash:create`.
+flutter_native_splash:
+  color: "#000000"
+  image: assets/images/cl_icon.png
+  # Android 12+ — отдельная splash-API ОС (иконка по центру на фоне color).
+  android_12:
+    color: "#000000"
+    image: assets/images/cl_icon.png
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

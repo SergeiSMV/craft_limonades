@@ -50,6 +50,27 @@ void main() {
         AuthState.unauthenticated(Failure.auth('Неверный бейдж')),
       ],
     );
+
+    blocTest<AuthCubit, AuthState>(
+      'повторный login во время входа игнорируется (ровно один запрос)',
+      build: () {
+        when(() => repo.login(any())).thenAnswer((_) async {
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+          return const Right(profile);
+        });
+        return AuthCubit(repo);
+      },
+      act: (cubit) {
+        cubit.login(badge); // первый — эмитит authenticating и ждёт
+        cubit.login(badge); // второй — state уже authenticating → игнор
+      },
+      wait: const Duration(milliseconds: 20),
+      expect: () => const [
+        AuthState.authenticating(),
+        AuthState.authenticated(profile),
+      ],
+      verify: (_) => verify(() => repo.login(any())).called(1),
+    );
   });
 
   blocTest<AuthCubit, AuthState>(

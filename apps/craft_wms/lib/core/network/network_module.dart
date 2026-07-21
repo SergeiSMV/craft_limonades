@@ -15,10 +15,21 @@ abstract class NetworkModule {
   @lazySingleton
   Talker get talker => TalkerFlutter.init();
 
+  /// Таймауты запросов. Явные значения вместо «без таймаута»: на складе сеть
+  /// нестабильна — запрос не должен висеть вечно, но и не рваться мгновенно.
+  static const _connectTimeout = Duration(seconds: 10);
+  static const _receiveTimeout = Duration(seconds: 15);
+
   /// «Голый» Dio для refresh и повтора запроса — без AuthInterceptor, чтобы не зациклиться.
   @Named('tokenDio')
   @lazySingleton
-  Dio tokenDio() => Dio(BaseOptions(baseUrl: AppConfig.baseUrl));
+  Dio tokenDio() => Dio(
+    BaseOptions(
+      baseUrl: AppConfig.baseUrl,
+      connectTimeout: _connectTimeout,
+      receiveTimeout: _receiveTimeout,
+    ),
+  );
 
   /// Основной Dio: базовый URL + JWT-интерсептор + talker-логгер запросов/ответов.
   @lazySingleton
@@ -27,7 +38,13 @@ abstract class NetworkModule {
     Talker talker,
     @Named('tokenDio') Dio tokenDio,
   ) {
-    final dio = Dio(BaseOptions(baseUrl: AppConfig.baseUrl));
+    final dio = Dio(
+      BaseOptions(
+        baseUrl: AppConfig.baseUrl,
+        connectTimeout: _connectTimeout,
+        receiveTimeout: _receiveTimeout,
+      ),
+    );
     dio.interceptors.add(AuthInterceptor(storage, tokenDio));
     dio.interceptors.add(TalkerDioLogger(talker: talker));
     return dio;

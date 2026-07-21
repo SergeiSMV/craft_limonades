@@ -1,11 +1,11 @@
 {
-    "name": "craft_wms",
-    "short_name": "craft_wms",
+    "name": "КЛ: Склад",
+    "short_name": "КЛ: Склад",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Складское приложение ТД «Крафтовые лимонады»",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
