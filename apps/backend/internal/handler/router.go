@@ -44,7 +44,8 @@ func NewRouter(log *slog.Logger, db Pinger, authSvc *service.AuthService, tokens
 		// все устройства делили бы один лимит.
 		r.Group(func(r chi.Router) {
 			r.Use(httprate.LimitBy(10, time.Minute, clientIPKey))
-			r.Post("/auth/login", authH.Login)
+			r.Post("/auth/login", authH.Login)                  // работник — по бейджу
+			r.Post("/auth/login/password", authH.LoginPassword) // admin/менеджер — по логину/паролю
 			r.Post("/auth/refresh", authH.Refresh)
 		})
 

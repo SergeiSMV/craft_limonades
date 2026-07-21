@@ -25,13 +25,23 @@ func NewUserRepository(pool *pgxpool.Pool) *UserRepository {
 }
 
 // колонки в фиксированном порядке; id приводим к тексту (id::text), чтобы скан шёл в string.
-const userColumns = `id::text AS id, login, password_hash, full_name, role, is_active, created_at, updated_at`
+// login и username nullable → COALESCE к ” (пусто = отсутствует), чтобы скан шёл в string.
+const userColumns = `id::text AS id, COALESCE(login,'') AS login, COALESCE(username,'') AS username, password_hash, full_name, role, is_active, created_at, updated_at`
 
 // GetByLogin возвращает пользователя по логину (первые 8 цифр бейджа).
 func (r *UserRepository) GetByLogin(ctx context.Context, login string) (model.User, error) {
 	rows, err := r.pool.Query(ctx, `SELECT `+userColumns+` FROM users WHERE login = $1`, login)
 	if err != nil {
 		return model.User{}, fmt.Errorf("query user by login: %w", err)
+	}
+	return collectUser(rows)
+}
+
+// GetByUsername возвращает пользователя по username (вход по логину/паролю, P1-01-1).
+func (r *UserRepository) GetByUsername(ctx context.Context, username string) (model.User, error) {
+	rows, err := r.pool.Query(ctx, `SELECT `+userColumns+` FROM users WHERE username = $1`, username)
+	if err != nil {
+		return model.User{}, fmt.Errorf("query user by username: %w", err)
 	}
 	return collectUser(rows)
 }
@@ -56,6 +66,23 @@ func (r *UserRepository) CreateAdminIfNotExists(ctx context.Context, login, pass
 		RETURNING id`, login, passwordHash, fullName)
 	if err != nil {
 		return false, fmt.Errorf("insert admin: %w", err)
+	}
+	defer rows.Close()
+	created := rows.Next()
+	return created, rows.Err()
+}
+
+// CreateUsernameAdminIfNotExists создаёт admin с входом по username/паролю (без бейджа).
+// Идемпотентно: при существующем username строку не вставляет. created=true — если вставили.
+func (r *UserRepository) CreateUsernameAdminIfNotExists(ctx context.Context, username, passwordHash, fullName string) (bool, error) {
+	// login=NULL (у admin бейджа нет); XOR-констрейнт схемы это допускает.
+	rows, err := r.pool.Query(ctx, `
+		INSERT INTO users (username, password_hash, full_name, role, is_active)
+		VALUES ($1, $2, $3, 'admin', true)
+		ON CONFLICT (username) DO NOTHING
+		RETURNING id`, username, passwordHash, fullName)
+	if err != nil {
+		return false, fmt.Errorf("insert username admin: %w", err)
 	}
 	defer rows.Close()
 	created := rows.Next()
