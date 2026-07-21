@@ -51,7 +51,10 @@ class AuthCubit extends Cubit<AuthState> {
   }
 
   /// Вход по бейджу: делегируем репозиторию и превращаем Either в состояние.
+  /// Защита от повторного сабмита: экран входа шлёт submit и на автосабмите (16 цифр),
+  /// и на Enter — без гарда это два `/auth/login`. Пока идёт вход — игнорируем повтор.
   Future<void> login(String badge) async {
+    if (state is AuthAuthenticating) return;
     emit(const AuthState.authenticating());
     final result = await _repo.login(badge);
     result.fold(
