@@ -48,6 +48,28 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, tokenPairResponse{Access: pair.Access, Refresh: pair.Refresh})
 }
 
+type loginPasswordRequest struct {
+	Username string `json:"username"` // логин admin/менеджера (не бейдж)
+	Password string `json:"password"`
+}
+
+// LoginPassword: POST /auth/login/password {"username","password"} → пара токенов.
+// Путь для admin/менеджера (смартфон/web); работник входит по бейджу через /auth/login.
+func (h *AuthHandler) LoginPassword(w http.ResponseWriter, r *http.Request) {
+	var req loginPasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid json")
+		return
+	}
+	pair, err := h.svc.LoginWithPassword(r.Context(), req.Username, req.Password)
+	if err != nil {
+		// Общий 401 без деталей — не подсказываем, логин или пароль неверен.
+		writeError(w, http.StatusUnauthorized, "invalid credentials")
+		return
+	}
+	writeJSON(w, http.StatusOK, tokenPairResponse{Access: pair.Access, Refresh: pair.Refresh})
+}
+
 type refreshRequest struct {
 	Refresh string `json:"refresh"`
 }

@@ -93,6 +93,15 @@ jobs:
       - name: Build APK (debug)
         run: flutter build apk --debug
 
+      # Готовый APK — как артефакт прогона (скачать из Actions и поставить на ТСД).
+      # path — от корня репозитория (для uses-шагов working-directory не действует).
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: apps/craft_wms/build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+
   # --- Docker-образ бэкенда → GHCR (только на push в dev/main) ---
   docker:
     name: Docker image (backend → GHCR)
