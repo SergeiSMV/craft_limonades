@@ -1,10 +1,10 @@
 {
     "splash_screen": {
-        "title": "Craft WMS"
+        "title": "загрузка"
     },
     "login_screen": {
         "title": "Вход по бейджу",
-        "scan_prompt": "Отсканируйте бейдж",
+        "scan_prompt": "сканируйте бейдж",
         "badge_label": "16 цифр",
         "logging_in": "Вход…",
         "error_invalid": "Нужно 16 цифр",

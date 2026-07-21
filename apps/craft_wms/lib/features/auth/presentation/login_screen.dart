@@ -56,10 +56,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
   /// Текст ошибки под её тип (что показать кладовщику).
   String _messageFor(Failure failure) => switch (failure) {
-        AuthFailure() => t.loginScreen.errorAuth,
-        NetworkFailure() => t.loginScreen.errorNetwork,
-        _ => t.loginScreen.errorUnknown,
-      };
+    AuthFailure() => t.loginScreen.errorAuth,
+    NetworkFailure() => t.loginScreen.errorNetwork,
+    _ => t.loginScreen.errorUnknown,
+  };
 
   /// Автосабмит при наборе полного бейджа (сканер вводит 16 цифр разом).
   void onBadgeChanged(String value) {
@@ -134,9 +134,16 @@ class _ScanView extends StatelessWidget {
     required this.onSubmitted,
   });
 
+  /// Контроллер поля ввода бейджа.
   final TextEditingController controller;
+
+  /// Фокус поля — держим его на поле, чтобы ловить ввод сканера.
   final FocusNode focusNode;
+
+  /// Обработчик изменения значения поля.
   final ValueChanged<String> onChanged;
+
+  /// Обработчик отправки значения поля.
   final ValueChanged<String> onSubmitted;
 
   @override

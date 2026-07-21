@@ -3,6 +3,8 @@ abstract final class AppSizes {
   //* --- Icon Sizes ------------------------------------------------------- *//
   static const double kIcon2 = 2;
   static const double kIcon24 = 24;
+  static const double kIcon25 = 25;
+  static const double kIcon50 = 50;
   static const double kIcon96 = 96;
 
   //* --- Text Sizes ------------------------------------------------------- *//
