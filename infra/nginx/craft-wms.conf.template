@@ -1,18 +1,16 @@
-# Шаблон vhost для ХОСТОВОГО nginx (не контейнерного!). Кладётся в sites-available/
-# скриптом deploy/10-nginx-vhost.sh: он подставляет ${DEPLOY_DOMAIN} и ${BACKEND_BIND}
-# через `envsubst '${DEPLOY_DOMAIN} ${BACKEND_BIND}'` (только эти две переменные —
-# nginx-переменные вида $host остаются нетронутыми).
+# Шаблон vhost для ХОСТОВОГО nginx (не контейнерного). deploy/install.sh подставляет
+# сюда домен и адрес backend через envsubst (только эти две переменные; nginx-переменные
+# вида $host не трогаются) и кладёт результат в /etc/nginx/sites-available/<домен>.
 #
-# Здесь только HTTP(:80). TLS-блок(:443) и редирект http→https добавит `certbot --nginx`
-# при первом выпуске сертификата для ${DEPLOY_DOMAIN}.
+# Здесь только HTTP(:80). TLS-блок(:443) и редирект http->https добавит `certbot --nginx`
+# при первом выпуске сертификата.
 
 server {
     listen 80;
     listen [::]:80;
     server_name ${DEPLOY_DOMAIN};
 
-    # Единственная точка входа снаружи; проксируем на backend, поднятый docker'ом
-    # на loopback (${BACKEND_BIND}, напр. 127.0.0.1:8080).
+    # Единственная точка входа снаружи; проксируем на backend (docker, loopback).
     location / {
         proxy_pass http://${BACKEND_BIND};
 

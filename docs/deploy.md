@@ -127,81 +127,101 @@ CI (GitHub Actions) на **push в `dev`/`main`** собирает образ `a
 
 ---
 
-## 7. Прод / пилотный деплой (P1-D)
+## 7. Развёртывание на сервере
 
-Ранний пилотный деплой на сервер со статическим доступом. Топология и обоснования —
-[ADR-0011](adr/0011-pilot-deploy-host-nginx-ghcr.md).
+После установки приложение доступно по **HTTPS** и **само обновляется** при выходе новых версий.
+Ставится «в одну команду». Обоснование топологии — [ADR-0011](adr/0011-pilot-deploy-host-nginx-ghcr.md).
 
-### 7.1. Топология
+### Что нужно от сервера (один раз)
 
+- Linux (Debian/Ubuntu) с доступом `sudo`.
+- **Домен**, A-запись которого указывает на внешний IP сервера.
+- На роутере — **проброс портов 80 и 443** на сервер (нужно для HTTPS и выпуска сертификата).
+- Прямой выход сервера в интернет.
+
+Docker / nginx / certbot заранее ставить **не нужно** — `install.sh` сам доустановит, чего не хватает.
+
+### Установка — 3 шага
+
+**1. Создать рабочую папку и файл настроек `.env.prod`:**
+```bash
+sudo mkdir -p /opt/craft-wms && cd /opt/craft-wms
+sudo nano .env.prod        # вставить содержимое infra/.env.prod.example и заполнить (см. ниже)
 ```
-интернет → :443 ХОСТОВЫЙ nginx (TLS через certbot/Let's Encrypt)
-             └── vhost ${DEPLOY_DOMAIN} → proxy_pass http://127.0.0.1:8080
-                                                       │
-             docker-стек (infra/docker-compose.prod.yml):
-               backend  → публикуется на ${BACKEND_BIND} (loopback, не наружу)
-               postgres → только внутренняя сеть compose (порт наружу не публикуется)
+
+**2. Скачать код** (репозиторий приватный — GitHub попросит логин и токен PAT со scope `repo`):
+```bash
+sudo git clone https://github.com/SergeiSMV/craft_limonades.git app
 ```
 
-В проде **нет контейнерного nginx** — reverse-proxy и TLS делает системный nginx сервера
-(переиспользуем уже настроенный certbot). Backend берётся **готовым образом из GHCR**.
+**3. Запустить установку — она делает всё остальное** (ПО → nginx+TLS → запуск → миграции → админ → авто-обновление):
+```bash
+sudo bash app/deploy/install.sh
+```
 
-### 7.2. Всё среда-специфичное — в `infra/.env.prod`
+Готово. Проверка: открыть в браузере **`https://<ваш-домен>/health`** — должно вернуть `200`.
 
-Один и тот же код/скрипты работают на любом сервере (свой сейчас, сервер заказчика позже) —
-меняется только `infra/.env.prod` (в `.gitignore`). Шаблон — `infra/.env.prod.example`.
-Сгенерировать секрет JWT: `openssl rand -base64 48`.
+### Что заполнить в `.env.prod`
 
-### 7.3. Предпосылки на сервере/роутере
+Замените все значения с `CHANGE_ME`. Минимум:
+- `DEPLOY_DOMAIN` — ваш домен;
+- `CERTBOT_EMAIL` — ваш e-mail (для уведомлений Let's Encrypt);
+- `POSTGRES_PASSWORD`, `JWT_SECRET` — секреты;
+- `ADMIN_PASSWORD` — пароль администратора.
 
-- DNS: A-запись `${DEPLOY_DOMAIN}` → внешний IP сервера (`dig +short ${DEPLOY_DOMAIN}`).
-- Роутер: проброс портов **80 и 443** (и 22 для SSH) на LAN-IP сервера.
-- **Прямой выход в интернет** с сервера (GHCR + Let's Encrypt). Если включён shell-прокси
-  (`http_proxy`/`https_proxy`) и он недоступен — сбросьте его (`unset http_proxy https_proxy`)
-  или почините; в скрипты прокси не зашит. Preflight-проверка встроена в `00-bootstrap`/`20-deploy`.
-- Доступ к приватному образу GHCR: разово `docker login ghcr.io -u <github-user>` (пароль = PAT со
-  scope `read:packages`).
+> ⚠️ Комментарии в `.env.prod` — **только на отдельной строке**, не рядом со значением.
 
-### 7.4. Порядок первого деплоя
+Сгенерировать секреты одной строкой:
+```bash
+echo "JWT_SECRET=$(openssl rand -base64 48)"
+echo "POSTGRES_PASSWORD=$(openssl rand -base64 24 | tr -dc A-Za-z0-9 | head -c 32)"
+```
+
+### Доступ к образу: сделать GHCR-пакет публичным (рекомендуется)
+
+Проще всего один раз сделать docker-образ публичным — тогда серверу **не нужен токен**:
+GitHub → аватар → **Packages** → `craft-wms-backend` → **Package settings** → **Change visibility** → **Public**.
+
+Если образ остаётся приватным — заполните `GHCR_USER` и `GHCR_TOKEN` (PAT со scope `read:packages`) в `.env.prod`.
+
+### Обновления — автоматически
+
+При `AUTO_UPDATE=true` сервер сам проверяет новый образ каждые `UPDATE_INTERVAL` (по умолчанию 5 минут)
+и обновляется вместе с миграциями. Путь релиза на прод: смержили **`dev → main`** → CI собрал образ
+`:main` → сервер подтянул. Делать ничего не нужно.
 
 ```bash
-# на сервере, из корня репозитория (git clone приватного репо по SSH)
-bash deploy/make-env.sh                 # создаёт infra/.env.prod: JWT/пароль БД — случайные, остальное — плейсхолдеры
-$EDITOR infra/.env.prod                 # заполнить: DEPLOY_DOMAIN, CERTBOT_EMAIL, ADMIN_PASSWORD, тег BACKEND_IMAGE (:dev)
-
-sudo bash deploy/00-bootstrap.sh        # проверка/установка docker, nginx, certbot, ufw + preflight
-docker login ghcr.io -u <github-user>   # разово (PAT read:packages), для приватного образа
-
-sudo bash deploy/10-nginx-vhost.sh      # vhost ${DEPLOY_DOMAIN} + выпуск TLS (certbot --nginx)
-bash deploy/20-deploy.sh --seed         # pull → up → миграции → завести админа (--seed только 1-й раз)
-
-# файрвол: открыть только нужное
-sudo ufw allow 22/tcp && sudo ufw allow 80/tcp && sudo ufw allow 443/tcp && sudo ufw enable
-
-# проверка
-curl -s https://${DEPLOY_DOMAIN}/health   # 200
-curl -s https://${DEPLOY_DOMAIN}/ready    # 200 при живой БД
+systemctl list-timers craft-wms-update      # когда следующая проверка
+journalctl -u craft-wms-update -n 30        # что делало авто-обновление
+sudo bash /opt/craft-wms/app/deploy/update.sh   # обновить прямо сейчас, вручную
 ```
 
-### 7.5. Обновление (каждый релиз)
+### Бэкапы БД
 
 ```bash
-git pull                       # свежие compose/скрипты (если менялись)
-bash deploy/20-deploy.sh       # pull нового образа → up -d → миграции (без --seed)
+bash /opt/craft-wms/app/deploy/pg-backup.sh     # разовый дамп в /opt/craft-wms/backups (gzip, ротация 14 дней)
+```
+Ежедневно по расписанию — в `crontab` (пользователь с доступом к docker):
+```
+30 3 * * * /bin/bash /opt/craft-wms/app/deploy/pg-backup.sh >> /var/log/craft-wms-backup.log 2>&1
 ```
 
-Данные переживают обновление (том `db_data`). **Не запускать** на проде `migrate down` (откат всех
-миграций) и `compose down -v` (снос тома). Схему двигаем только вперёд аддитивными миграциями.
+### Файрвол (по желанию)
 
-### 7.6. Бэкапы
-
+`install.sh` файрвол **не трогает** (сервер может обслуживать и другие сайты). Если нужен:
 ```bash
-bash deploy/pg-backup.sh       # разовый дамп в ./backups (gzip)
-# по расписанию (ежедневно 03:30) — в crontab пользователя с доступом к docker:
-#   30 3 * * * /bin/bash /path/to/repo/deploy/pg-backup.sh >> /var/log/craft-wms-backup.log 2>&1
+sudo ufw allow 22,80,443/tcp && sudo ufw enable
 ```
 
-### 7.7. Осталось на P7
+### Если что-то не так
 
-Ресурсный мониторинг, ротация логов контейнеров, автоматизированный CD (деплой прошедшего CI образа),
-секрет-менеджер вместо файла `.env.prod`. Финализируется при выходе на полноценный прод.
+- **`/health` не отвечает** — логи backend:
+  `docker compose --env-file /opt/craft-wms/.env.prod -f /opt/craft-wms/app/infra/docker-compose.prod.yml logs backend`
+- **Сертификат не выпустился** — проверьте, что домен резолвится и порт 80 проброшен: `dig +short <домен>`.
+- **Никогда на проде:** `migrate down` и `docker compose down -v` — сотрут данные. Схема двигается только вперёд.
+
+### Разница dev / prod
+
+Локальный dev-стек (разделы 1–5) поднимает и **контейнерный** nginx (`make up`). На проде reverse-proxy
+и TLS делает **хостовый** nginx сервера, а `docker-compose.prod.yml` содержит только `postgres` + `backend`
+(backend слушает loopback). Это осознанная разница — см. [ADR-0011](adr/0011-pilot-deploy-host-nginx-ghcr.md).
