@@ -127,12 +127,81 @@ CI (GitHub Actions) на **push в `dev`/`main`** собирает образ `a
 
 ---
 
-## 7. Прод (P7, кратко — не реализовано)
+## 7. Прод / пилотный деплой (P1-D)
 
-- Отдельный `infra/docker-compose.prod.yml`: образ бэкенда из GHCR (не сборка на месте), TLS на nginx,
-  ограниченная публикация портов, ресурсные лимиты.
-- Бэкапы PostgreSQL (volume + периодический `pg_dump`), ротация логов.
-- Секреты — не в `.env` рядом с кодом, а через секрет-менеджер окружения.
-- CD: деплой образа, прошедшего CI, на пилотный сервер.
+Ранний пилотный деплой на сервер со статическим доступом. Топология и обоснования —
+[ADR-0011](adr/0011-pilot-deploy-host-nginx-ghcr.md).
 
-Детали фиксируются при выходе на пилот (фаза P7).
+### 7.1. Топология
+
+```
+интернет → :443 ХОСТОВЫЙ nginx (TLS через certbot/Let's Encrypt)
+             └── vhost ${DEPLOY_DOMAIN} → proxy_pass http://127.0.0.1:8080
+                                                       │
+             docker-стек (infra/docker-compose.prod.yml):
+               backend  → публикуется на ${BACKEND_BIND} (loopback, не наружу)
+               postgres → только внутренняя сеть compose (порт наружу не публикуется)
+```
+
+В проде **нет контейнерного nginx** — reverse-proxy и TLS делает системный nginx сервера
+(переиспользуем уже настроенный certbot). Backend берётся **готовым образом из GHCR**.
+
+### 7.2. Всё среда-специфичное — в `infra/.env.prod`
+
+Один и тот же код/скрипты работают на любом сервере (свой сейчас, сервер заказчика позже) —
+меняется только `infra/.env.prod` (в `.gitignore`). Шаблон — `infra/.env.prod.example`.
+Сгенерировать секрет JWT: `openssl rand -base64 48`.
+
+### 7.3. Предпосылки на сервере/роутере
+
+- DNS: A-запись `${DEPLOY_DOMAIN}` → внешний IP сервера (`dig +short ${DEPLOY_DOMAIN}`).
+- Роутер: проброс портов **80 и 443** (и 22 для SSH) на LAN-IP сервера.
+- **Прямой выход в интернет** с сервера (GHCR + Let's Encrypt). Если включён shell-прокси
+  (`http_proxy`/`https_proxy`) и он недоступен — сбросьте его (`unset http_proxy https_proxy`)
+  или почините; в скрипты прокси не зашит. Preflight-проверка встроена в `00-bootstrap`/`20-deploy`.
+- Доступ к приватному образу GHCR: разово `docker login ghcr.io -u <github-user>` (пароль = PAT со
+  scope `read:packages`).
+
+### 7.4. Порядок первого деплоя
+
+```bash
+# на сервере, из корня репозитория (git clone приватного репо по SSH)
+bash deploy/make-env.sh                 # создаёт infra/.env.prod: JWT/пароль БД — случайные, остальное — плейсхолдеры
+$EDITOR infra/.env.prod                 # заполнить: DEPLOY_DOMAIN, CERTBOT_EMAIL, ADMIN_PASSWORD, тег BACKEND_IMAGE (:dev)
+
+sudo bash deploy/00-bootstrap.sh        # проверка/установка docker, nginx, certbot, ufw + preflight
+docker login ghcr.io -u <github-user>   # разово (PAT read:packages), для приватного образа
+
+sudo bash deploy/10-nginx-vhost.sh      # vhost ${DEPLOY_DOMAIN} + выпуск TLS (certbot --nginx)
+bash deploy/20-deploy.sh --seed         # pull → up → миграции → завести админа (--seed только 1-й раз)
+
+# файрвол: открыть только нужное
+sudo ufw allow 22/tcp && sudo ufw allow 80/tcp && sudo ufw allow 443/tcp && sudo ufw enable
+
+# проверка
+curl -s https://${DEPLOY_DOMAIN}/health   # 200
+curl -s https://${DEPLOY_DOMAIN}/ready    # 200 при живой БД
+```
+
+### 7.5. Обновление (каждый релиз)
+
+```bash
+git pull                       # свежие compose/скрипты (если менялись)
+bash deploy/20-deploy.sh       # pull нового образа → up -d → миграции (без --seed)
+```
+
+Данные переживают обновление (том `db_data`). **Не запускать** на проде `migrate down` (откат всех
+миграций) и `compose down -v` (снос тома). Схему двигаем только вперёд аддитивными миграциями.
+
+### 7.6. Бэкапы
+
+```bash
+bash deploy/pg-backup.sh       # разовый дамп в ./backups (gzip)
+# по расписанию (ежедневно 03:30) — в crontab пользователя с доступом к docker:
+#   30 3 * * * /bin/bash /path/to/repo/deploy/pg-backup.sh >> /var/log/craft-wms-backup.log 2>&1
+```
+
+### 7.7. Осталось на P7
+
+Ресурсный мониторинг, ротация логов контейнеров, автоматизированный CD (деплой прошедшего CI образа),
+секрет-менеджер вместо файла `.env.prod`. Финализируется при выходе на полноценный прод.

@@ -15,6 +15,11 @@ scripts/roadmap_flatten.lua
 .env
 .env.local
 .env.*.local
+# боевые секреты прод-деплоя (шаблон — infra/.env.prod.example)
+infra/.env.prod
+
+# Бэкапы БД (deploy/pg-backup.sh)
+/backups/
 
 # IDE (корневой уровень; Flutter-подпапка имеет свой .gitignore)
 .idea/
