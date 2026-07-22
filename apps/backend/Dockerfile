@@ -9,10 +9,15 @@ WORKDIR /src
 COPY go.mod go.su[m] ./
 RUN go mod download
 
-# Затем исходники и сборка. CGO выключен → статический бинарь без внешних зависимостей,
-# что позволяет запускать его в минимальном образе.
+# Затем исходники и сборка. CGO выключен → статические бинари без внешних зависимостей,
+# что позволяет запускать их в минимальном образе.
+# Собираем три бинаря: server (сервис), migrate и seed. Последние два нужны в проде,
+# чтобы накатывать миграции и заводить админа БЕЗ Go/исходников на сервере
+# (миграции .sql встроены в бинарь migrate через embed.go).
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -o /out/server ./cmd/server
+RUN CGO_ENABLED=0 GOOS=linux go build -o /out/server  ./cmd/server && \
+    CGO_ENABLED=0 GOOS=linux go build -o /out/migrate ./cmd/migrate && \
+    CGO_ENABLED=0 GOOS=linux go build -o /out/seed    ./cmd/seed
 
 # --- Финальная стадия: минимальный образ только с бинарём ---
 FROM alpine:3.20
@@ -25,7 +30,11 @@ RUN apk add --no-cache ca-certificates
 RUN adduser -D -H app
 USER app
 
-COPY --from=builder /out/server /usr/local/bin/server
+COPY --from=builder /out/server  /usr/local/bin/server
+COPY --from=builder /out/migrate /usr/local/bin/migrate
+COPY --from=builder /out/seed    /usr/local/bin/seed
 
 EXPOSE 8080
+# По умолчанию запускается сервис. migrate/seed выполняются разово через
+# `docker compose run --rm --entrypoint /usr/local/bin/migrate backend up` (см. deploy/20-deploy.sh).
 ENTRYPOINT ["/usr/local/bin/server"]

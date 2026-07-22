@@ -1,0 +1,66 @@
+# Прод/пилотный стек Craft WMS: postgres + backend. БЕЗ nginx-контейнера —
+# reverse-proxy и TLS на проде делает ХОСТОВЫЙ nginx (см. deploy/10-nginx-vhost.sh).
+#
+# Отличия от dev (infra/docker-compose.yml):
+#   - backend берётся ГОТОВЫМ образом из GHCR (не собирается на месте);
+#   - postgres НЕ публикует порт наружу (доступ только внутри сети compose);
+#   - backend публикуется на loopback (${BACKEND_BIND}) — снаружи не виден, только хостовый nginx;
+#   - restart: unless-stopped — переживает перезагрузку сервера.
+#
+# Запуск: docker compose --env-file infra/.env.prod -f infra/docker-compose.prod.yml up -d
+# (обёрнуто в deploy/20-deploy.sh). Все параметры среды — в infra/.env.prod (портируемо).
+
+name: craft-wms
+
+services:
+  # --- PostgreSQL: хранилище данных ---
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - db_data:/var/lib/postgresql/data   # данные переживают пересоздание контейнера
+    # Порт наружу НЕ публикуем: до БД достаёт только backend по внутренней сети compose.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    mem_limit: ${DB_MEM_LIMIT:-512m}
+
+  # --- Backend: Go-сервис (образ из GHCR) ---
+  backend:
+    image: ${BACKEND_IMAGE}
+    restart: unless-stopped
+    environment:
+      APP_PORT: 8080
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable
+      # Auth (P0-04 / P1-01-1):
+      JWT_SECRET: ${JWT_SECRET}
+      ACCESS_TTL: ${ACCESS_TTL:-12h}
+      REFRESH_TTL: ${REFRESH_TTL:-720h}
+      # Ниже — только для разового `seed` (docker compose run ... seed); сервису не мешают.
+      ADMIN_BADGE: ${ADMIN_BADGE:-}
+      ADMIN_FULL_NAME: ${ADMIN_FULL_NAME:-}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+    depends_on:
+      db:
+        condition: service_healthy   # стартуем только после «живой» БД
+    ports:
+      # Публикуем ТОЛЬКО на loopback хоста: снаружи недоступен, ходит лишь хостовый nginx.
+      # BACKEND_BIND, напр. 127.0.0.1:8080 → итог "127.0.0.1:8080:8080".
+      - "${BACKEND_BIND:-127.0.0.1:8080}:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    mem_limit: ${BACKEND_MEM_LIMIT:-256m}
+
+volumes:
+  db_data:
