@@ -1,0 +1,76 @@
+name: CI · Flutter
+
+# Гоняется ТОЛЬКО когда менялось приложение (apps/craft_wms/**) — бэкенд зря не гоняем.
+# - pull_request → dev/main: codegen + analyze + test + сборка APK (гейт перед мержем).
+# - push → dev/main: то же (APK — как артефакт прогона).
+# Фиче-ветки отдельно не гоняем — их вершину покрывает событие pull_request.
+on:
+  pull_request:
+    branches: [dev, main]
+    paths:
+      - 'apps/craft_wms/**'
+      - '.github/workflows/ci-flutter.yml'
+  push:
+    branches: [dev, main]
+    paths:
+      - 'apps/craft_wms/**'
+      - '.github/workflows/ci-flutter.yml'
+
+# Отменяем устаревшие прогоны на том же ref — экономим минуты Actions.
+concurrency:
+  group: ci-flutter-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # --- Flutter (Android/ТСД): codegen, анализ, тесты, сборка APK ---
+  flutter:
+    name: Flutter (Android)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/craft_wms
+    steps:
+      - uses: actions/checkout@v4
+
+      # JDK нужен Gradle при сборке Android-APK.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.2'
+          channel: stable
+          cache: true
+
+      - name: Pub get
+        run: flutter pub get
+
+      # Сгенерированные файлы (*.freezed/*.g/*.gr/*.config.dart) в .gitignore —
+      # без codegen анализ и сборка упадут.
+      - name: Codegen (build_runner)
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Analyze
+        run: flutter analyze
+
+      # Тестов пока нет (test/ появится в P0-08/P2) — не валим пайплайн на пустоте.
+      - name: Test
+        run: |
+          if [ -d test ]; then flutter test; else echo "тестов пока нет — пропуск"; fi
+
+      - name: Build APK (debug)
+        run: flutter build apk --debug
+
+      # Готовый APK — как артефакт прогона (скачать из Actions и поставить на ТСД).
+      # path — от корня репозитория (для uses-шагов working-directory не действует).
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: apps/craft_wms/build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error

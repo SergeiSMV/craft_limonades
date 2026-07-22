@@ -1,18 +1,24 @@
-name: CI
+name: CI · Backend
 
-# Триггеры (P0-08): гейт перед мержем в интеграционные ветки + сборка образов на них.
-# - pull_request → dev/main: lint + test + build (Go + Flutter); красный блокирует мерж.
+# Гоняется ТОЛЬКО когда менялся бэкенд (apps/backend/**) — Flutter зря не пересобираем.
+# - pull_request → dev/main: build/vet/test/lint (гейт перед мержем).
 # - push → dev/main: то же + публикация docker-образа бэкенда в GHCR (только из влитого кода).
 # Фиче-ветки отдельно не гоняем — их вершину покрывает событие pull_request.
 on:
   pull_request:
     branches: [dev, main]
+    paths:
+      - 'apps/backend/**'
+      - '.github/workflows/ci-backend.yml'
   push:
     branches: [dev, main]
+    paths:
+      - 'apps/backend/**'
+      - '.github/workflows/ci-backend.yml'
 
 # Отменяем устаревшие прогоны на том же ref — экономим минуты Actions.
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-backend-${{ github.ref }}
   cancel-in-progress: true
 
 # По умолчанию — только чтение; docker-джоб повышает права точечно.
@@ -52,61 +58,13 @@ jobs:
             | sh -s -- -b "$(go env GOPATH)/bin" v2.12.2
           "$(go env GOPATH)/bin/golangci-lint" run ./...
 
-  # --- Flutter (Android/ТСД): codegen, анализ, тесты, сборка APK ---
-  flutter:
-    name: Flutter (Android)
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/craft_wms
-    steps:
-      - uses: actions/checkout@v4
-
-      # JDK нужен Gradle при сборке Android-APK.
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.41.2'
-          channel: stable
-          cache: true
-
-      - name: Pub get
-        run: flutter pub get
-
-      # Сгенерированные файлы (*.freezed/*.g/*.gr/*.config.dart) в .gitignore —
-      # без codegen анализ и сборка упадут.
-      - name: Codegen (build_runner)
-        run: dart run build_runner build --delete-conflicting-outputs
-
-      - name: Analyze
-        run: flutter analyze
-
-      # Тестов пока нет (test/ появится в P0-08/P2) — не валим пайплайн на пустоте.
-      - name: Test
-        run: |
-          if [ -d test ]; then flutter test; else echo "тестов пока нет — пропуск"; fi
-
-      - name: Build APK (debug)
-        run: flutter build apk --debug
-
-      # Готовый APK — как артефакт прогона (скачать из Actions и поставить на ТСД).
-      # path — от корня репозитория (для uses-шагов working-directory не действует).
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-debug-apk
-          path: apps/craft_wms/build/app/outputs/flutter-apk/app-debug.apk
-          if-no-files-found: error
-
   # --- Docker-образ бэкенда → GHCR (только на push в dev/main) ---
+  # Зависит только от backend: образ бэкенда от Flutter не зависит, блокировать его
+  # поломкой Flutter незачем.
   docker:
     name: Docker image (backend → GHCR)
     runs-on: ubuntu-latest
-    needs: [backend, flutter]
+    needs: [backend]
     if: github.event_name == 'push'
     permissions:
       contents: read
