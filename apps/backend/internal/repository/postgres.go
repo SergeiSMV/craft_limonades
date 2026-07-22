@@ -7,8 +7,37 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+// Querier — общий контракт исполнителя запросов. Его реализуют и *pgxpool.Pool,
+// и pgx.Tx, поэтому репозитории могут работать как напрямую через пул, так и внутри
+// транзакции (для атомарной композиции нескольких операций — см. WithinTx).
+type Querier interface {
+	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}
+
+// WithinTx выполняет fn в транзакции: BEGIN → fn(tx) → COMMIT; при ошибке fn — ROLLBACK.
+// Зачем: несколько движений остатка (например, перенос = расход+приход) должны применяться
+// «всё или ничего», иначе при сбое между ними остаток разъедется.
+func WithinTx(ctx context.Context, pool *pgxpool.Pool, fn func(Querier) error) error {
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	if err := fn(tx); err != nil {
+		_ = tx.Rollback(ctx) // ошибку отката не маскируем исходной; исходная важнее
+		return err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit tx: %w", err)
+	}
+	return nil
+}
 
 // NewPool создаёт пул соединений к Postgres по DSN.
 //
