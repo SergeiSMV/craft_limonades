@@ -127,12 +127,101 @@ CI (GitHub Actions) на **push в `dev`/`main`** собирает образ `a
 
 ---
 
-## 7. Прод (P7, кратко — не реализовано)
+## 7. Развёртывание на сервере
 
-- Отдельный `infra/docker-compose.prod.yml`: образ бэкенда из GHCR (не сборка на месте), TLS на nginx,
-  ограниченная публикация портов, ресурсные лимиты.
-- Бэкапы PostgreSQL (volume + периодический `pg_dump`), ротация логов.
-- Секреты — не в `.env` рядом с кодом, а через секрет-менеджер окружения.
-- CD: деплой образа, прошедшего CI, на пилотный сервер.
+После установки приложение доступно по **HTTPS** и **само обновляется** при выходе новых версий.
+Ставится «в одну команду». Обоснование топологии — [ADR-0011](adr/0011-pilot-deploy-host-nginx-ghcr.md).
 
-Детали фиксируются при выходе на пилот (фаза P7).
+### Что нужно от сервера (один раз)
+
+- Linux (Debian/Ubuntu) с доступом `sudo`.
+- **Домен**, A-запись которого указывает на внешний IP сервера.
+- На роутере — **проброс портов 80 и 443** на сервер (нужно для HTTPS и выпуска сертификата).
+- Прямой выход сервера в интернет.
+
+Docker / nginx / certbot заранее ставить **не нужно** — `install.sh` сам доустановит, чего не хватает.
+
+### Установка — 3 шага
+
+**1. Создать рабочую папку и файл настроек `.env.prod`:**
+```bash
+sudo mkdir -p /opt/craft-wms && cd /opt/craft-wms
+sudo nano .env.prod        # вставить содержимое infra/.env.prod.example и заполнить (см. ниже)
+```
+
+**2. Скачать код** (репозиторий приватный — GitHub попросит логин и токен PAT со scope `repo`):
+```bash
+sudo git clone https://github.com/SergeiSMV/craft_limonades.git app
+```
+
+**3. Запустить установку — она делает всё остальное** (ПО → nginx+TLS → запуск → миграции → админ → авто-обновление):
+```bash
+sudo bash app/deploy/install.sh
+```
+
+Готово. Проверка: открыть в браузере **`https://<ваш-домен>/health`** — должно вернуть `200`.
+
+### Что заполнить в `.env.prod`
+
+Замените все значения с `CHANGE_ME`. Минимум:
+- `DEPLOY_DOMAIN` — ваш домен;
+- `CERTBOT_EMAIL` — ваш e-mail (для уведомлений Let's Encrypt);
+- `POSTGRES_PASSWORD`, `JWT_SECRET` — секреты;
+- `ADMIN_PASSWORD` — пароль администратора.
+
+> ⚠️ Комментарии в `.env.prod` — **только на отдельной строке**, не рядом со значением.
+
+Сгенерировать секреты одной строкой:
+```bash
+echo "JWT_SECRET=$(openssl rand -base64 48)"
+echo "POSTGRES_PASSWORD=$(openssl rand -base64 24 | tr -dc A-Za-z0-9 | head -c 32)"
+```
+
+### Доступ к образу: сделать GHCR-пакет публичным (рекомендуется)
+
+Проще всего один раз сделать docker-образ публичным — тогда серверу **не нужен токен**:
+GitHub → аватар → **Packages** → `craft-wms-backend` → **Package settings** → **Change visibility** → **Public**.
+
+Если образ остаётся приватным — заполните `GHCR_USER` и `GHCR_TOKEN` (PAT со scope `read:packages`) в `.env.prod`.
+
+### Обновления — автоматически
+
+При `AUTO_UPDATE=true` сервер сам проверяет новый образ каждые `UPDATE_INTERVAL` (по умолчанию 5 минут)
+и обновляется вместе с миграциями. Путь релиза на прод: смержили **`dev → main`** → CI собрал образ
+`:main` → сервер подтянул. Делать ничего не нужно.
+
+```bash
+systemctl list-timers craft-wms-update      # когда следующая проверка
+journalctl -u craft-wms-update -n 30        # что делало авто-обновление
+sudo bash /opt/craft-wms/app/deploy/update.sh   # обновить прямо сейчас, вручную
+```
+
+### Бэкапы БД
+
+```bash
+bash /opt/craft-wms/app/deploy/pg-backup.sh     # разовый дамп в /opt/craft-wms/backups (gzip, ротация 14 дней)
+```
+Ежедневно по расписанию — в `crontab` (пользователь с доступом к docker):
+```
+30 3 * * * /bin/bash /opt/craft-wms/app/deploy/pg-backup.sh >> /var/log/craft-wms-backup.log 2>&1
+```
+
+### Файрвол (по желанию)
+
+`install.sh` файрвол **не трогает** (сервер может обслуживать и другие сайты). Если нужен:
+```bash
+sudo ufw allow 22,80,443/tcp && sudo ufw enable
+```
+
+### Если что-то не так
+
+- **`/health` не отвечает** — логи backend:
+  `docker compose --env-file /opt/craft-wms/.env.prod -f /opt/craft-wms/app/infra/docker-compose.prod.yml logs backend`
+- **Сертификат не выпустился** — проверьте, что домен резолвится и порт 80 проброшен: `dig +short <домен>`.
+- **Никогда на проде:** `migrate down` и `docker compose down -v` — сотрут данные. Схема двигается только вперёд.
+
+### Разница dev / prod
+
+Локальный dev-стек (разделы 1–5) поднимает и **контейнерный** nginx (`make up`). На проде reverse-proxy
+и TLS делает **хостовый** nginx сервера, а `docker-compose.prod.yml` содержит только `postgres` + `backend`
+(backend слушает loopback). Это осознанная разница — см. [ADR-0011](adr/0011-pilot-deploy-host-nginx-ghcr.md).

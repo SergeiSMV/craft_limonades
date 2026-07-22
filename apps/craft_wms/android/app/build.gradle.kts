@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.craft_wms"
+    namespace = "com.craftlimonades.sklad"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -20,8 +20,7 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.craft_wms"
+        applicationId = "com.craftlimonades.sklad"
         // ТСД-цель: Android 11+ → minSdk 30 (по плану P0-05).
         minSdk = 30
         targetSdk = flutter.targetSdkVersion

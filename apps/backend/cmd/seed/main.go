@@ -50,16 +50,42 @@ func main() {
 	}
 	defer pool.Close()
 
-	// 4. Идемпотентная вставка: если админ с таким логином уже есть — ничего не делаем.
+	// 4. Идемпотентная вставка бейдж-админа: если логин уже есть — ничего не делаем.
 	//    created сообщает, реально ли создали строку (для внятного лога при повторном запуске).
-	created, err := repository.NewUserRepository(pool).CreateAdminIfNotExists(ctx, login, hash, fullName)
+	userRepo := repository.NewUserRepository(pool)
+	created, err := userRepo.CreateAdminIfNotExists(ctx, login, hash, fullName)
 	if err != nil {
 		log.Fatalf("seed admin: %v", err)
 	}
 	if created {
-		log.Printf("admin seeded: login=%s", login)
+		log.Printf("badge admin seeded: login=%s", login)
 	} else {
-		log.Printf("admin already exists: login=%s (skipped)", login)
+		log.Printf("badge admin already exists: login=%s (skipped)", login)
+	}
+
+	// 5. Опционально — admin с входом по логину/паролю (P1-01-1), если заданы
+	//    ADMIN_USERNAME/ADMIN_PASSWORD. Так admin/менеджер входит со смартфона без бейджа.
+	if username := os.Getenv("ADMIN_USERNAME"); username != "" {
+		password := os.Getenv("ADMIN_PASSWORD")
+		if len(username) < 3 {
+			log.Fatal("ADMIN_USERNAME must be at least 3 chars")
+		}
+		if len(password) < 8 {
+			log.Fatal("ADMIN_PASSWORD must be at least 8 chars")
+		}
+		pwHash, err := auth.HashPassword(password)
+		if err != nil {
+			log.Fatalf("hash password: %v", err)
+		}
+		createdU, err := userRepo.CreateUsernameAdminIfNotExists(ctx, username, pwHash, fullName)
+		if err != nil {
+			log.Fatalf("seed username admin: %v", err)
+		}
+		if createdU {
+			log.Printf("username admin seeded: username=%s", username)
+		} else {
+			log.Printf("username admin already exists: username=%s (skipped)", username)
+		}
 	}
 }
 

@@ -12,21 +12,39 @@ import (
 
 // fakeUserRepo — in-memory реализация userRepo для тестов сервиса (без БД).
 type fakeUserRepo struct {
-	byLogin map[string]model.User
-	byID    map[string]model.User
+	byLogin    map[string]model.User
+	byUsername map[string]model.User
+	byID       map[string]model.User
 }
 
 func newFakeRepo() *fakeUserRepo {
-	return &fakeUserRepo{byLogin: map[string]model.User{}, byID: map[string]model.User{}}
+	return &fakeUserRepo{
+		byLogin:    map[string]model.User{},
+		byUsername: map[string]model.User{},
+		byID:       map[string]model.User{},
+	}
 }
 
 func (f *fakeUserRepo) add(u model.User) {
-	f.byLogin[u.Login] = u
+	if u.Login != "" {
+		f.byLogin[u.Login] = u
+	}
+	if u.Username != "" {
+		f.byUsername[u.Username] = u
+	}
 	f.byID[u.ID] = u
 }
 
 func (f *fakeUserRepo) GetByLogin(_ context.Context, login string) (model.User, error) {
 	u, ok := f.byLogin[login]
+	if !ok {
+		return model.User{}, errors.New("not found")
+	}
+	return u, nil
+}
+
+func (f *fakeUserRepo) GetByUsername(_ context.Context, username string) (model.User, error) {
+	u, ok := f.byUsername[username]
 	if !ok {
 		return model.User{}, errors.New("not found")
 	}
@@ -48,6 +66,30 @@ const (
 	testSecret = "23456781"
 	testUserID = "user-uuid-1"
 )
+
+// Тестовый admin с входом по логину/паролю (P1-01-1).
+const (
+	testUsername = "admin"
+	testPassword = "supersecret123"
+	testAdminID  = "admin-uuid-1"
+)
+
+// addUsernameAdmin добавляет в fake-репозиторий активного admin с username+паролем.
+func addUsernameAdmin(t *testing.T, repo *fakeUserRepo) {
+	t.Helper()
+	hash, err := auth.HashPassword(testPassword)
+	if err != nil {
+		t.Fatalf("HashPassword: %v", err)
+	}
+	repo.add(model.User{
+		ID:           testAdminID,
+		Username:     testUsername,
+		PasswordHash: hash,
+		FullName:     "Админ Паролевич",
+		Role:         model.RoleAdmin,
+		IsActive:     true,
+	})
+}
 
 // newService собирает сервис с fake-репозиторием и реальным менеджером токенов;
 // при needUser добавляет активного admin с корректным argon2-хешем секрета.
@@ -205,6 +247,88 @@ func TestRefreshRejectsAccessToken(t *testing.T) {
 
 	access, _ := tm.IssueAccess(testUserID, model.RoleAdmin)
 	if _, err := svc.Refresh(context.Background(), access); !errors.Is(err, ErrInvalidCredentials) {
+		t.Errorf("err = %v, want ErrInvalidCredentials", err)
+	}
+}
+
+// LoginWithPassword: успех — валидный username+пароль активного admin → пара токенов.
+func TestLoginWithPasswordSuccess(t *testing.T) {
+	svc, tm, repo := newService(t, false)
+	addUsernameAdmin(t, repo)
+
+	pair, err := svc.LoginWithPassword(context.Background(), testUsername, testPassword)
+	if err != nil {
+		t.Fatalf("LoginWithPassword: %v", err)
+	}
+	if pair.Access == "" || pair.Refresh == "" {
+		t.Fatal("ожидались непустые access и refresh")
+	}
+	claims, err := tm.ParseAccess(pair.Access)
+	if err != nil {
+		t.Fatalf("ParseAccess: %v", err)
+	}
+	if claims.Subject != testAdminID {
+		t.Errorf("sub = %q, want %q", claims.Subject, testAdminID)
+	}
+	if claims.Role != model.RoleAdmin {
+		t.Errorf("role = %q, want %q", claims.Role, model.RoleAdmin)
+	}
+}
+
+// Неверный пароль → ErrInvalidCredentials.
+func TestLoginWithPasswordWrongPassword(t *testing.T) {
+	svc, _, repo := newService(t, false)
+	addUsernameAdmin(t, repo)
+
+	if _, err := svc.LoginWithPassword(context.Background(), testUsername, "wrong-password"); !errors.Is(err, ErrInvalidCredentials) {
+		t.Errorf("err = %v, want ErrInvalidCredentials", err)
+	}
+}
+
+// Неизвестный username → ErrInvalidCredentials.
+func TestLoginWithPasswordUnknownUser(t *testing.T) {
+	svc, _, _ := newService(t, false) // без username-админа
+
+	if _, err := svc.LoginWithPassword(context.Background(), "nobody", testPassword); !errors.Is(err, ErrInvalidCredentials) {
+		t.Errorf("err = %v, want ErrInvalidCredentials", err)
+	}
+}
+
+// Заблокированный admin → ErrInvalidCredentials.
+func TestLoginWithPasswordInactive(t *testing.T) {
+	svc, _, repo := newService(t, false)
+	addUsernameAdmin(t, repo)
+	u := repo.byUsername[testUsername]
+	u.IsActive = false
+	repo.add(u)
+
+	if _, err := svc.LoginWithPassword(context.Background(), testUsername, testPassword); !errors.Is(err, ErrInvalidCredentials) {
+		t.Errorf("err = %v, want ErrInvalidCredentials", err)
+	}
+}
+
+// Пустой username/пароль → ErrInvalidCredentials (в БД не ходим).
+func TestLoginWithPasswordEmpty(t *testing.T) {
+	svc, _, repo := newService(t, false)
+	addUsernameAdmin(t, repo)
+
+	cases := []struct{ u, p string }{
+		{"", testPassword},
+		{testUsername, ""},
+		{"", ""},
+	}
+	for _, c := range cases {
+		if _, err := svc.LoginWithPassword(context.Background(), c.u, c.p); !errors.Is(err, ErrInvalidCredentials) {
+			t.Errorf("LoginWithPassword(%q,%q) err = %v, want ErrInvalidCredentials", c.u, c.p, err)
+		}
+	}
+}
+
+// Бейдж-работник не может войти по паролю-пути (у него нет username) → ErrInvalidCredentials.
+func TestLoginWithPasswordRejectsBadgeUser(t *testing.T) {
+	svc, _, _ := newService(t, true) // есть бейдж-работник (login), username нет
+
+	if _, err := svc.LoginWithPassword(context.Background(), testLogin, testSecret); !errors.Is(err, ErrInvalidCredentials) {
 		t.Errorf("err = %v, want ErrInvalidCredentials", err)
 	}
 }

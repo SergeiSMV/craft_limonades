@@ -21,5 +21,6 @@
 | [0008](0008-flutter-clean-arch-stack.md) | Flutter: чистая архитектура и стек | Принято |
 | [0009](0009-ci-github-actions-ghcr.md) | CI на GitHub Actions + образы в GHCR | Принято |
 | [0010](0010-dual-login-by-device.md) | Двойной вход по типу устройства (бейдж vs логин/пароль) | Планируется (P1/P2) |
+| [0011](0011-pilot-deploy-host-nginx-ghcr.md) | Пилотный деплой: хостовый nginx + образ из GHCR | Принято (P1-D) |
 
 Новый ADR — следующий свободный номер, добавить строку в реестр.

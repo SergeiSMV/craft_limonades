@@ -19,6 +19,7 @@ var (
 // userRepo — то, что нужно AuthService от хранилища (зависимость от интерфейса, а не реализации).
 type userRepo interface {
 	GetByLogin(ctx context.Context, login string) (model.User, error)
+	GetByUsername(ctx context.Context, username string) (model.User, error)
 	GetByID(ctx context.Context, id string) (model.User, error)
 }
 
@@ -55,6 +56,26 @@ func (s *AuthService) Login(ctx context.Context, badge string) (TokenPair, error
 		return TokenPair{}, ErrInvalidCredentials // заблокирован
 	}
 	ok, err := auth.VerifyPassword(secret, user.PasswordHash)
+	if err != nil || !ok {
+		return TokenPair{}, ErrInvalidCredentials
+	}
+	return s.issuePair(user)
+}
+
+// LoginWithPassword: вход admin/менеджера по username+паролю (смартфон/web, не бейдж) — P1-01-1.
+// Ищем по username → сверяем argon2 → проверяем активность → та же пара токенов, что и по бейджу.
+func (s *AuthService) LoginWithPassword(ctx context.Context, username, password string) (TokenPair, error) {
+	if username == "" || password == "" {
+		return TokenPair{}, ErrInvalidCredentials
+	}
+	user, err := s.users.GetByUsername(ctx, username)
+	if err != nil {
+		return TokenPair{}, ErrInvalidCredentials // в т.ч. «не найден» — без деталей
+	}
+	if !user.IsActive {
+		return TokenPair{}, ErrInvalidCredentials // заблокирован
+	}
+	ok, err := auth.VerifyPassword(password, user.PasswordHash)
 	if err != nil || !ok {
 		return TokenPair{}, ErrInvalidCredentials
 	}
