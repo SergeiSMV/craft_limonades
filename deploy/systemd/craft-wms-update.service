@@ -1,0 +1,12 @@
+[Unit]
+# Разовое обновление Craft WMS: подтянуть новый образ из GHCR, накатить миграции, перезапустить.
+# Запускается таймером craft-wms-update.timer. Плейсхолдеры __REPO_ROOT__ подставляет deploy/install.sh.
+Description=Craft WMS auto-update (pull image, migrate, restart)
+After=docker.service network-online.target
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=__REPO_ROOT__
+ExecStart=/bin/bash __REPO_ROOT__/deploy/update.sh
