@@ -80,16 +80,22 @@ func main() {
 
 	// Сервис аутентификации доступен только при наличии БД (нужен репозиторий пользователей).
 	var authSvc *service.AuthService
+	var importSvc *service.ImportService
 	if pool != nil {
 		authSvc = service.NewAuthService(repository.NewUserRepository(pool), tokens)
+		// Импорт справочников из файлов 1С (номенклатура): группы + поставщики + товары.
+		importSvc = service.NewImportService(pool,
+			repository.NewNomenclatureGroupRepository(pool),
+			repository.NewSupplierRepository(pool),
+			repository.NewGoodsRepository(pool))
 	} else {
-		log.Warn("no database — auth endpoints disabled")
+		log.Warn("no database — auth and import endpoints disabled")
 	}
 
 	// 5. HTTP-сервер с собранным роутером транспортного слоя.
 	srv := &http.Server{
 		Addr:              ":" + cfg.AppPort,
-		Handler:           handler.NewRouter(log, pinger, authSvc, tokens),
+		Handler:           handler.NewRouter(log, pinger, authSvc, tokens, importSvc),
 		ReadHeaderTimeout: 5 * time.Second, // защита от медленных клиентов (Slowloris)
 	}
 
