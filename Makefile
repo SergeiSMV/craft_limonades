@@ -4,7 +4,7 @@
 
 COMPOSE = docker compose --env-file .env -f infra/docker-compose.yml
 
-.PHONY: up down logs ps build restart migrate-up migrate-down seed
+.PHONY: up down logs ps build restart migrate-up migrate-down seed roadmap
 
 # Раннер миграций с хоста: БД опубликована на localhost:$${POSTGRES_PORT}.
 # POSTGRES_* берём из .env (читаем прямо в команде), собираем из них DATABASE_URL.
@@ -39,3 +39,12 @@ seed: ## Засеять стартового админа из .env (ADMIN_BADGE
 	cd apps/backend && set -a && . ../../.env && set +a && \
 	DATABASE_URL="postgres://$$POSTGRES_USER:$$POSTGRES_PASSWORD@localhost:$$POSTGRES_PORT/$$POSTGRES_DB?sslmode=disable" \
 	go run ./cmd/seed
+
+# docs/roadmap.md — производный файл: целиком генерится из docs/plan_v3.docx.
+# Шапку-пометку и приведение выгрузки Word в порядок берёт на себя Lua-фильтр,
+# поэтому доводок руками после генерации нет. Оба файла — вне git (.gitignore).
+roadmap: ## Перегенерировать docs/roadmap.md из docs/plan_v3.docx
+	@command -v pandoc >/dev/null || { echo "нужен pandoc: brew install pandoc"; exit 1; }
+	pandoc docs/plan_v3.docx --lua-filter=scripts/roadmap_flatten.lua -t gfm --wrap=none -o docs/roadmap.md
+	@echo "docs/roadmap.md: $$(grep -c '^# ' docs/roadmap.md) заголовков, \
+	$$(grep -c '^<table>' docs/roadmap.md) HTML-таблиц (должно быть 0)"
