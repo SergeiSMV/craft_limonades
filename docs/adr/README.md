@@ -25,5 +25,6 @@
 | [0012](0012-web-portal-flutter-web.md)        | Веб-портал оператора на Flutter Web                           | Планируется (P1-09-1 · P8) |
 | [0013](0013-documents-via-portal-not-email.md)| Выдача документов через портал вместо e-mail                  | Принято (заменяет 0004 в части транспорта) |
 | [0014](0014-transport-http-outbox-polling.md) | Транспорт: HTTP + Outbox + polling (без брокера и WebSocket)  | Принято               |
+| [0015](0015-url-scheme-api-v1-portal-root.md) | Схема URL: портал на корне, API под `/api/v1`                | Планируется (P1-09-0)  |
 
 Новый ADR — следующий свободный номер, добавить строку в реестр.

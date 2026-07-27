@@ -60,24 +60,27 @@ flowchart TB
         app --- localdb
     end
 
-    portal["Веб-портал<br/>Flutter Web, статика (P1-09-1 · P8)"]
+    portal["Веб-портал<br/>Flutter Web, статика на корне / (P1-09-1 · P8)"]
     nginx["nginx<br/>reverse proxy, единая точка входа"]
     backend["Go-бэкенд<br/>chi, REST, JWT-middleware"]
     pg["PostgreSQL<br/>pgx v5 / pgxpool"]
 
-    app -->|"HTTPS · REST (/auth/*, справочники, операции,<br/>задания — polling)"| nginx
-    portal -->|"HTTPS · REST (импорт .xls, документы, задания)"| nginx
-    nginx -->|"HTTP :8080"| backend
-    nginx -->|"раздаёт статику портала"| portal
+    app -->|"HTTPS · /api/v1/* (auth, справочники,<br/>операции, задания — polling)"| nginx
+    portal -->|"HTTPS · /api/v1/* (импорт .xls, документы, задания)"| nginx
+    nginx -->|"/api/ → HTTP :8080"| backend
+    nginx -->|"/ → статика портала"| portal
     backend -->|"SQL"| pg
 ```
 
-- **Наружу торчит только nginx**; бэкенд напрямую не публикуется. Портал — статика за тем же
-  nginx и тем же TLS, отдельного рантайма не требует ([ADR-0012](adr/0012-web-portal-flutter-web.md)).
+- **Наружу торчит только nginx**; бэкенд напрямую не публикуется. Схема URL: **портал на корне
+  `craft.skogi.ru/`, API под `/api/v1/`** — один origin, без CORS, один сертификат
+  ([ADR-0015](adr/0015-url-scheme-api-v1-portal-root.md)). Портал — статика за тем же nginx/TLS,
+  отдельного рантайма не требует ([ADR-0012](adr/0012-web-portal-flutter-web.md)).
 - **Постоянного канала (WebSocket) и брокера сообщений нет**: обрывы связи закрывает Outbox
   на устройстве, актуальность — опрос ([ADR-0014](adr/0014-transport-http-outbox-polling.md)).
-- Пробы: `/health` (liveness), `/ready` (доступность БД).
-- `BASE_URL` приложения задаётся при сборке (`--dart-define`), см. [deploy.md](deploy.md).
+- Пробы: `/health` (liveness), `/ready` (доступность БД) — **на корне**, вне `/api/v1` (их дёргает
+  docker-healthcheck напрямую к контейнеру).
+- `BASE_URL` приложения задаётся при сборке (`--dart-define`; прод — `…/api/v1`), см. [deploy.md](deploy.md).
 
 ### Уровень 3 — Компоненты бэкенда (внутри контейнера Go)
 
@@ -229,7 +232,8 @@ handler  →  service  →  repository  →  PostgreSQL
 |-----------------------------------------------------|-------------------------------|
 | `infra/`, `Makefile`, CI, `apps/backend/cmd/server` | P0 — каркас и инфраструктура  |
 | `migrations/`, `repository/`, импорт справочников   | P1 — справочники и остатки    |
-| веб-портал (Flutter Web): вход + загрузка `.xls`    | P1-09-1 — портал MVP          |
+| префикс `/api/v1` + переустановка ТСД               | P1-09-0 — переезд URL          |
+| веб-портал (Flutter Web): вход + загрузка `.xls`    | P1-09-1 — портал MVP           |
 | Flutter offline-стор, Outbox, движок синхронизации  | P2 — офлайн-ядро              |
 | XLSX-генерация + публикация документов в `service/` | P3 — экспорт в Excel и выдача |
 | приёмка, ГЕ, печать, генерация ШК                   | P4                            |
