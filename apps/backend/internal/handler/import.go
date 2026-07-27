@@ -20,7 +20,7 @@ func NewImportHandler(svc *service.ImportService) *ImportHandler {
 	return &ImportHandler{svc: svc}
 }
 
-// ImportGoods: POST /import/goods — multipart-форма с .xls-выгрузкой номенклатуры в поле "file".
+// ImportGoods: POST /api/v1/import/goods — multipart-форма с .xls-выгрузкой номенклатуры в поле "file".
 // Только для admin. Возвращает отчёт (создано/обновлено/пропущено).
 func (h *ImportHandler) ImportGoods(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, maxImportUpload)

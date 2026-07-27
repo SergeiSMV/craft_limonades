@@ -20,7 +20,7 @@ import (
 //
 // Что: единая точка сборки транспортного слоя.
 // Зачем: сюда по мере роста подключаются все будущие ручки (справочники, операции).
-// Как: chi-роутер с цепочкой middleware и регистрацией обработчиков.
+// Как: chi-роутер с цепочкой middleware; прикладные ручки — под /api/v1, пробы — на корне.
 // db (Pinger) может быть nil → /ready ответит 503. authSvc может быть nil (нет БД) →
 // auth-роуты не регистрируются.
 func NewRouter(log *slog.Logger, db Pinger, authSvc *service.AuthService, tokens *auth.TokenManager, importSvc *service.ImportService) http.Handler {
@@ -31,41 +31,48 @@ func NewRouter(log *slog.Logger, db Pinger, authSvc *service.AuthService, tokens
 	r.Use(chimw.Recoverer)          // перехват паник → 500 вместо падения процесса
 	r.Use(appmw.RequestLogger(log)) // структурированное логирование каждого запроса
 
-	// Пробы состояния.
+	// Пробы состояния — на КОРНЕ, вне /api/v1: это инфра-эндпоинты, а не публичный API.
+	// /health дёргает docker-healthcheck напрямую к контейнеру; корень (/) при этом свободен
+	// под статику веб-портала (см. ADR-0015).
 	health := NewHealthHandler(db)
 	r.Get("/health", health.Health) // liveness: процесс жив
 	r.Get("/ready", health.Ready)   // readiness: БД доступна
 
-	// Аутентификация (только если есть БД).
-	if authSvc != nil {
-		authH := NewAuthHandler(authSvc)
+	// Прикладной API — под версионированным префиксом /api/v1 (ADR-0015).
+	// Зачем: портал занимает корень домена, API уезжает в свой неймспейс (один origin, без CORS),
+	// а версия в пути даёт запас на эволюцию без ломки клиентов.
+	r.Route("/api/v1", func(r chi.Router) {
+		// Аутентификация (только если есть БД).
+		if authSvc != nil {
+			authH := NewAuthHandler(authSvc)
 
-		// Публичные auth-роуты с rate limit — защита от перебора секрета бейджа.
-		// Ключ — реальный IP клиента (X-Real-IP от nginx), а не RemoteAddr: иначе за прокси
-		// все устройства делили бы один лимит.
-		r.Group(func(r chi.Router) {
-			r.Use(httprate.LimitBy(10, time.Minute, clientIPKey))
-			r.Post("/auth/login", authH.Login)                  // работник — по бейджу
-			r.Post("/auth/login/password", authH.LoginPassword) // admin/менеджер — по логину/паролю
-			r.Post("/auth/refresh", authH.Refresh)
-		})
+			// Публичные auth-роуты с rate limit — защита от перебора секрета бейджа.
+			// Ключ — реальный IP клиента (X-Real-IP от nginx), а не RemoteAddr: иначе за прокси
+			// все устройства делили бы один лимит.
+			r.Group(func(r chi.Router) {
+				r.Use(httprate.LimitBy(10, time.Minute, clientIPKey))
+				r.Post("/auth/login", authH.Login)                  // работник — по бейджу
+				r.Post("/auth/login/password", authH.LoginPassword) // admin/менеджер — по логину/паролю
+				r.Post("/auth/refresh", authH.Refresh)
+			})
 
-		// Защищённые роуты — требуют валидный access-токен.
-		r.Group(func(r chi.Router) {
-			r.Use(appmw.Authenticator(tokens))
-			r.Get("/auth/me", authH.Me)
-		})
-	}
+			// Защищённые роуты — требуют валидный access-токен.
+			r.Group(func(r chi.Router) {
+				r.Use(appmw.Authenticator(tokens))
+				r.Get("/auth/me", authH.Me)
+			})
+		}
 
-	// Импорт справочников — только admin (загрузка файла с телефона/web).
-	if importSvc != nil {
-		importH := NewImportHandler(importSvc)
-		r.Group(func(r chi.Router) {
-			r.Use(appmw.Authenticator(tokens))
-			r.Use(appmw.RequireRole(model.RoleAdmin))
-			r.Post("/import/goods", importH.ImportGoods) // .xls-выгрузка номенклатуры 1С
-		})
-	}
+		// Импорт справочников — только admin (загрузка файла с телефона/web).
+		if importSvc != nil {
+			importH := NewImportHandler(importSvc)
+			r.Group(func(r chi.Router) {
+				r.Use(appmw.Authenticator(tokens))
+				r.Use(appmw.RequireRole(model.RoleAdmin))
+				r.Post("/import/goods", importH.ImportGoods) // .xls-выгрузка номенклатуры 1С
+			})
+		}
+	})
 
 	return r
 }
