@@ -28,7 +28,7 @@ type tokenPairResponse struct {
 	Refresh string `json:"refresh"`
 }
 
-// Login: POST /auth/login {"badge":"<16 цифр>"} → пара токенов.
+// Login: POST /api/v1/auth/login {"badge":"<16 цифр>"} → пара токенов.
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req loginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -53,8 +53,8 @@ type loginPasswordRequest struct {
 	Password string `json:"password"`
 }
 
-// LoginPassword: POST /auth/login/password {"username","password"} → пара токенов.
-// Путь для admin/менеджера (смартфон/web); работник входит по бейджу через /auth/login.
+// LoginPassword: POST /api/v1/auth/login/password {"username","password"} → пара токенов.
+// Путь для admin/менеджера (смартфон/web); работник входит по бейджу через /api/v1/auth/login.
 func (h *AuthHandler) LoginPassword(w http.ResponseWriter, r *http.Request) {
 	var req loginPasswordRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -78,7 +78,7 @@ type accessResponse struct {
 	Access string `json:"access"`
 }
 
-// Refresh: POST /auth/refresh {"refresh":"<jwt>"} → новый access.
+// Refresh: POST /api/v1/auth/refresh {"refresh":"<jwt>"} → новый access.
 func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	var req refreshRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -100,7 +100,7 @@ type meResponse struct {
 	Role     string `json:"role"`
 }
 
-// Me: GET /auth/me (защищённый) → профиль текущего пользователя.
+// Me: GET /api/v1/auth/me (защищённый) → профиль текущего пользователя.
 // Демонстрирует, что middleware положил user_id в контекст, а роут его знает.
 func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.UserIDFromContext(r.Context())

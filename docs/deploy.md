@@ -96,17 +96,19 @@ colima stop        # остановить docker-демон
 
 ## 5. Приложение на ТСД (Flutter)
 
-Адрес бэкенда передаётся при сборке/запуске через `--dart-define=BASE_URL=...`:
+Адрес бэкенда передаётся при сборке/запуске через `--dart-define=BASE_URL=...`.
+**BASE_URL включает префикс `/api/v1`** — прикладной API живёт под ним ([ADR-0015](adr/0015-url-scheme-api-v1-portal-root.md)):
 
-- **эмулятор Android:** дефолт `http://10.0.2.2:8080` (localhost хоста из эмулятора);
-- **реальный ТСД/смартфон:** LAN-IP хоста, где поднят стек — `http://<IP>:8080`
-  (устройство и хост в одной сети).
+- **эмулятор Android:** дефолт `http://10.0.2.2:8080/api/v1` (localhost хоста из эмулятора);
+- **реальный ТСД/смартфон:** LAN-IP хоста, где поднят стек — `http://<IP>:8080/api/v1`
+  (устройство и хост в одной сети);
+- **прод:** `https://craft.skogi.ru/api/v1`.
 
 ```bash
 cd apps/craft_wms
 flutter pub get
 dart run build_runner build --delete-conflicting-outputs   # генерённые файлы в .gitignore
-flutter build apk --release --dart-define=BASE_URL=http://<IP>:8080
+flutter build apk --release --dart-define=BASE_URL=http://<IP>:8080/api/v1
 # APK: build/app/outputs/flutter-apk/app-release.apk → установить на ТСД (adb install ...)
 ```
 
