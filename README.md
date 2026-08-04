@@ -56,7 +56,7 @@ flutter run                         # запуск на эмуляторе (бэ
 | [docs/deploy.md](docs/deploy.md) | Развёртывание: dev-стек, `.env`, миграции/сид, сборка APK, GHCR |
 | [docs/adr/](docs/adr/) | ADR — решения «почему выбрали X» (реестр + записи) |
 | [docs/p0-01.md](docs/p0-01.md) … [p0-09d.md](docs/p0-09d.md) | Задачи фазы P0: инфраструктура, Go-скелет, БД+миграции, auth, Flutter-скелет, вход по скану + secure storage, проверка на ТСД, CI, unit-тесты, документация |
-| [docs/p1-01-1.md](docs/p1-01-1.md) … [p1-05.md](docs/p1-05.md) | Задачи фазы P1: вход по логину/паролю (admin), схема справочников (warehouses/cells/goods/barcodes), партии + остатки (batches/stock), атомарные движения остатка, импорт номенклатуры из .xls 1С, импорт ячеек из .xlsx |
+| [docs/p1-01-1.md](docs/p1-01-1.md) … [p1-06.md](docs/p1-06.md) | Задачи фазы P1: вход по логину/паролю (admin), схема справочников (warehouses/cells/goods/barcodes), партии + остатки (batches/stock), атомарные движения остатка, импорт номенклатуры из .xls 1С, импорт ячеек из .xlsx, read-API справочников (поиск/фильтры/пагинация) |
 | [docs/plan_v3.docx](docs/plan_v3.docx) | План разработки v3 |
 
 ## Разработка
