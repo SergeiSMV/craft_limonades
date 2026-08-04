@@ -18,7 +18,9 @@ func newImportSvc(pool *pgxpool.Pool) *service.ImportService {
 	return service.NewImportService(pool,
 		repository.NewNomenclatureGroupRepository(pool),
 		repository.NewSupplierRepository(pool),
-		repository.NewGoodsRepository(pool))
+		repository.NewGoodsRepository(pool),
+		repository.NewWarehouseRepository(pool),
+		repository.NewCellRepository(pool))
 }
 
 func countRows(t *testing.T, pool *pgxpool.Pool, table string) int {

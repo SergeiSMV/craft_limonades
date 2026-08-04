@@ -70,6 +70,7 @@ func NewRouter(log *slog.Logger, db Pinger, authSvc *service.AuthService, tokens
 				r.Use(appmw.Authenticator(tokens))
 				r.Use(appmw.RequireRole(model.RoleAdmin))
 				r.Post("/import/goods", importH.ImportGoods) // .xls-выгрузка номенклатуры 1С
+				r.Post("/import/cells", importH.ImportCells) // .xlsx-файл физических ячеек склада
 			})
 		}
 	})
