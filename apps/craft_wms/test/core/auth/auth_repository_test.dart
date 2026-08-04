@@ -1,5 +1,6 @@
 import 'package:craft_wms/core/auth/auth_repository.dart';
 import 'package:craft_wms/core/auth/token_storage.dart';
+import 'package:craft_wms/core/constants/api_constants.dart';
 import 'package:craft_wms/core/error/failure.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -41,9 +42,9 @@ void main() {
             refresh: any(named: 'refresh'),
           )).thenAnswer((_) async {});
       final repo = repoWith({
-        'POST /auth/login': (_) =>
+        'POST ${ApiConst.loginByBadge}': (_) =>
             jsonResponse({'access': 'acc-1', 'refresh': 'ref-1'}, 200),
-        'GET /auth/me': (_) => jsonResponse(meJson, 200),
+        'GET ${ApiConst.me}': (_) => jsonResponse(meJson, 200),
       });
 
       final result = await repo.login(badge);
@@ -56,7 +57,7 @@ void main() {
 
     test('401 → Failure.auth, токены не сохраняются', () async {
       final repo = repoWith({
-        'POST /auth/login': (_) => jsonResponse({}, 401),
+        'POST ${ApiConst.loginByBadge}': (_) => jsonResponse({}, 401),
       });
 
       final result = await repo.login(badge);
@@ -70,7 +71,7 @@ void main() {
 
     test('400 → Failure.auth', () async {
       final repo = repoWith({
-        'POST /auth/login': (_) => jsonResponse({}, 400),
+        'POST ${ApiConst.loginByBadge}': (_) => jsonResponse({}, 400),
       });
 
       expect((await repo.login(badge)).left, isA<AuthFailure>());
@@ -78,7 +79,7 @@ void main() {
 
     test('500 → Failure.server с кодом', () async {
       final repo = repoWith({
-        'POST /auth/login': (_) => jsonResponse({}, 500),
+        'POST ${ApiConst.loginByBadge}': (_) => jsonResponse({}, 500),
       });
 
       final result = await repo.login(badge);
@@ -89,7 +90,7 @@ void main() {
 
     test('нет сети → Failure.network', () async {
       final repo = repoWith({
-        'POST /auth/login': (o) => throw DioException(
+        'POST ${ApiConst.loginByBadge}': (o) => throw DioException(
               requestOptions: o,
               type: DioExceptionType.connectionError,
             ),
@@ -101,7 +102,7 @@ void main() {
 
   group('me', () {
     test('успех → профиль', () async {
-      final repo = repoWith({'GET /auth/me': (_) => jsonResponse(meJson, 200)});
+      final repo = repoWith({'GET ${ApiConst.me}': (_) => jsonResponse(meJson, 200)});
 
       final result = await repo.me();
 
@@ -110,7 +111,7 @@ void main() {
     });
 
     test('401 → Failure.auth', () async {
-      final repo = repoWith({'GET /auth/me': (_) => jsonResponse({}, 401)});
+      final repo = repoWith({'GET ${ApiConst.me}': (_) => jsonResponse({}, 401)});
 
       expect((await repo.me()).left, isA<AuthFailure>());
     });
