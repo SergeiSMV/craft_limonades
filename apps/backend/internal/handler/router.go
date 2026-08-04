@@ -23,7 +23,7 @@ import (
 // Как: chi-роутер с цепочкой middleware; прикладные ручки — под /api/v1, пробы — на корне.
 // db (Pinger) может быть nil → /ready ответит 503. authSvc может быть nil (нет БД) →
 // auth-роуты не регистрируются.
-func NewRouter(log *slog.Logger, db Pinger, authSvc *service.AuthService, tokens *auth.TokenManager, importSvc *service.ImportService) http.Handler {
+func NewRouter(log *slog.Logger, db Pinger, authSvc *service.AuthService, tokens *auth.TokenManager, importSvc *service.ImportService, catalogSvc *service.CatalogService) http.Handler {
 	r := chi.NewRouter()
 
 	// Общие middleware для всех маршрутов:
@@ -70,6 +70,22 @@ func NewRouter(log *slog.Logger, db Pinger, authSvc *service.AuthService, tokens
 				r.Use(appmw.Authenticator(tokens))
 				r.Use(appmw.RequireRole(model.RoleAdmin))
 				r.Post("/import/goods", importH.ImportGoods) // .xls-выгрузка номенклатуры 1С
+				r.Post("/import/cells", importH.ImportCells) // .xlsx-файл физических ячеек склада
+			})
+		}
+
+		// Чтение справочников (товары/группы/поставщики/ячейки/остатки) — любому аутентифицированному
+		// сотруднику (это кормит экраны ТСД, не только админку). Только GET, без изменений данных.
+		if catalogSvc != nil {
+			catalogH := NewCatalogHandler(catalogSvc)
+			r.Group(func(r chi.Router) {
+				r.Use(appmw.Authenticator(tokens))
+				r.Get("/goods", catalogH.ListGoods)
+				r.Get("/goods/{id}", catalogH.GetGood)
+				r.Get("/nomenclature-groups", catalogH.ListGroups)
+				r.Get("/suppliers", catalogH.ListSuppliers)
+				r.Get("/cells", catalogH.ListCells)
+				r.Get("/stock", catalogH.ListStock)
 			})
 		}
 	})
