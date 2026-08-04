@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../auth/token_storage.dart';
+import '../constants/api_constants.dart';
 
 /// JWT-интерсептор — клиентская пара к middleware бэкенда (P0-04).
 ///
@@ -65,7 +66,7 @@ class AuthInterceptor extends Interceptor {
     try {
       // 1. Получаем новый access по refresh-токену.
       final resp = await _tokenDio.post<Map<String, dynamic>>(
-        '/auth/refresh',
+        ApiConst.refreshToken,
         data: {'refresh': refresh},
       );
 
