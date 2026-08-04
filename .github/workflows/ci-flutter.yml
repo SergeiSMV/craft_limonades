@@ -1,9 +1,11 @@
 name: CI · Flutter
 
 # Гоняется ТОЛЬКО когда менялось приложение (apps/craft_wms/**) — бэкенд зря не гоняем.
-# - pull_request → dev/main: codegen + analyze + test + сборка APK (гейт перед мержем).
-# - push → dev/main: то же (APK — как артефакт прогона).
+# - pull_request → dev/main: codegen + analyze + test + сборка APK (ТСД) + сборка web (портал) — гейт перед мержем.
+# - push → dev/main: то же (APK и web-бандл — как артефакты прогона).
 # Фиче-ветки отдельно не гоняем — их вершину покрывает событие pull_request.
+# Android и web собираются в ОДНОМ джобе: переиспользуем checkout/setup/pub get/codegen
+# (экономия минут Actions на free-тарифе) и держим один required-чек (см. заметку про path-фильтры внизу истории).
 on:
   pull_request:
     branches: [dev, main]
@@ -25,9 +27,9 @@ permissions:
   contents: read
 
 jobs:
-  # --- Flutter (Android/ТСД): codegen, анализ, тесты, сборка APK ---
+  # --- Flutter (ТСД APK + веб-портал): codegen, анализ, тесты, сборка APK и web ---
   flutter:
-    name: Flutter (Android)
+    name: Flutter (Android + Web портал)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -73,4 +75,24 @@ jobs:
         with:
           name: app-debug-apk
           path: apps/craft_wms/build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+
+      # --- Веб-портал (Flutter Web), точка входа lib/main_portal.dart ---
+      # Реальный .env — в .gitignore (свой на каждой машине). В CI подставляем заглушку
+      # из шаблона .env.example: так честно проходим путь --dart-define-from-file и ловим
+      # ошибки чтения конфига, не завися от секретов. BASE_URL в App-коде имеет defaultValue,
+      # но сборка портала обязана пройти именно с внешним .env — как в проде.
+      - name: Prepare .env (CI stub for web build)
+        run: cp .env.example .env
+
+      # Гейт компиляции портала: ломающая web-сборку правка красит весь flutter-джоб.
+      - name: Build web (portal)
+        run: flutter build web -t lib/main_portal.dart --dart-define-from-file=.env --release
+
+      # Готовый web-бандл портала — артефакт прогона (задел под воспроизводимый деплой, P1-09-3).
+      - name: Upload portal web bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: portal-web-bundle
+          path: apps/craft_wms/build/web
           if-no-files-found: error
