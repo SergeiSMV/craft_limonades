@@ -63,6 +63,17 @@ class AuthCubit extends Cubit<AuthState> {
     );
   }
 
+  /// Вход по логину/паролю (веб-портал / смартфон-админ). Как [login], но по учётным данным.
+  Future<void> loginWithPassword(String username, String password) async {
+    if (state is AuthAuthenticating) return;
+    emit(const AuthState.authenticating());
+    final result = await _repo.loginWithPassword(username, password);
+    result.fold(
+      (failure) => emit(AuthState.unauthenticated(failure)),
+      (profile) => emit(AuthState.authenticated(profile)),
+    );
+  }
+
   /// Выход.
   Future<void> logout() async {
     await _repo.logout();

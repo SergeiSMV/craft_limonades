@@ -1,4 +1,5 @@
 import 'package:craft_wms/core/auth/token_storage.dart';
+import 'package:craft_wms/core/constants/api_constants.dart';
 import 'package:craft_wms/core/network/auth_interceptor.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -62,7 +63,7 @@ void main() {
     final h = build(
       mainResponses: {'GET /protected': (_) => jsonResponse({}, 401)},
       tokenResponses: {
-        'POST /auth/refresh': (_) => jsonResponse({'access': 'new-access'}, 200),
+        'POST ${ApiConst.refreshToken}': (_) => jsonResponse({'access': 'new-access'}, 200),
         'GET /protected': (_) => jsonResponse({'ok': true}, 200),
       },
     );
@@ -121,7 +122,7 @@ void main() {
 
     final h = build(
       mainResponses: {'GET /protected': (_) => jsonResponse({}, 401)},
-      tokenResponses: {'POST /auth/refresh': (_) => jsonResponse({}, 401)},
+      tokenResponses: {'POST ${ApiConst.refreshToken}': (_) => jsonResponse({}, 401)},
     );
 
     await expectLater(
