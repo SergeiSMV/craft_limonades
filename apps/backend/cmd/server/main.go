@@ -78,26 +78,31 @@ func main() {
 	}
 	tokens := auth.NewTokenManager(secret, cfg.AccessTTL, cfg.RefreshTTL)
 
-	// Сервис аутентификации доступен только при наличии БД (нужен репозиторий пользователей).
+	// Сервисы доступны только при наличии БД (нужны репозитории).
 	var authSvc *service.AuthService
 	var importSvc *service.ImportService
+	var catalogSvc *service.CatalogService
 	if pool != nil {
 		authSvc = service.NewAuthService(repository.NewUserRepository(pool), tokens)
+		// Репозитории справочников: переиспользуются импортом (запись) и каталогом (чтение).
+		groups := repository.NewNomenclatureGroupRepository(pool)
+		suppliers := repository.NewSupplierRepository(pool)
+		goods := repository.NewGoodsRepository(pool)
+		cells := repository.NewCellRepository(pool)
+		stock := repository.NewStockRepository(pool)
 		// Импорт справочников из файлов: номенклатура (группы+поставщики+товары) и ячейки (склад+ячейки).
-		importSvc = service.NewImportService(pool,
-			repository.NewNomenclatureGroupRepository(pool),
-			repository.NewSupplierRepository(pool),
-			repository.NewGoodsRepository(pool),
-			repository.NewWarehouseRepository(pool),
-			repository.NewCellRepository(pool))
+		importSvc = service.NewImportService(pool, groups, suppliers, goods,
+			repository.NewWarehouseRepository(pool), cells)
+		// Чтение справочников (P1-06): товары/группы/поставщики/ячейки/остатки.
+		catalogSvc = service.NewCatalogService(goods, groups, suppliers, cells, stock)
 	} else {
-		log.Warn("no database — auth and import endpoints disabled")
+		log.Warn("no database — auth, import and catalog endpoints disabled")
 	}
 
 	// 5. HTTP-сервер с собранным роутером транспортного слоя.
 	srv := &http.Server{
 		Addr:              ":" + cfg.AppPort,
-		Handler:           handler.NewRouter(log, pinger, authSvc, tokens, importSvc),
+		Handler:           handler.NewRouter(log, pinger, authSvc, tokens, importSvc, catalogSvc),
 		ReadHeaderTimeout: 5 * time.Second, // защита от медленных клиентов (Slowloris)
 	}
 
