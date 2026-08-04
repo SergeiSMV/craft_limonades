@@ -23,19 +23,27 @@ type (
 	goodsUpsertRepo interface {
 		Upsert(ctx context.Context, q repository.Querier, code, name, fullName, uom string, groupID, supplierID *string) (bool, error)
 	}
+	warehouseRepo interface {
+		Upsert(ctx context.Context, q repository.Querier, code, name string) (string, error)
+	}
+	cellRepo interface {
+		Upsert(ctx context.Context, q repository.Querier, warehouseID, address string, isFloor bool) (bool, error)
+	}
 )
 
-// ImportService — загрузка справочников из файлов-выгрузок 1С. Пока — номенклатура.
+// ImportService — загрузка справочников из файлов: номенклатура (1С .xls) и ячейки склада (.xlsx).
 type ImportService struct {
-	pool      *pgxpool.Pool
-	groups    groupRepo
-	suppliers supplierRepo
-	goods     goodsUpsertRepo
+	pool       *pgxpool.Pool
+	groups     groupRepo
+	suppliers  supplierRepo
+	goods      goodsUpsertRepo
+	warehouses warehouseRepo
+	cells      cellRepo
 }
 
 // NewImportService собирает сервис импорта.
-func NewImportService(pool *pgxpool.Pool, groups groupRepo, suppliers supplierRepo, goods goodsUpsertRepo) *ImportService {
-	return &ImportService{pool: pool, groups: groups, suppliers: suppliers, goods: goods}
+func NewImportService(pool *pgxpool.Pool, groups groupRepo, suppliers supplierRepo, goods goodsUpsertRepo, warehouses warehouseRepo, cells cellRepo) *ImportService {
+	return &ImportService{pool: pool, groups: groups, suppliers: suppliers, goods: goods, warehouses: warehouses, cells: cells}
 }
 
 // ImportReport — итог импорта номенклатуры (отдаётся клиенту).
@@ -108,6 +116,51 @@ func (s *ImportService) ImportGoods(ctx context.Context, r io.ReadSeeker) (*Impo
 				report.GoodsCreated++
 			} else {
 				report.GoodsUpdated++
+			}
+		}
+		return nil
+	})
+	if txErr != nil {
+		return nil, txErr
+	}
+	return report, nil
+}
+
+// CellsImportReport — итог импорта ячеек склада (отдаётся клиенту).
+type CellsImportReport struct {
+	Warehouse    string              `json:"warehouse"`     // code физического склада, в который загрузили
+	CellsCreated int                 `json:"cells_created"` // новых ячеек
+	CellsUpdated int                 `json:"cells_updated"` // обновлённых (повторный импорт)
+	Skipped      []importer.RowError `json:"skipped"`       // пропущенные строки с причинами
+}
+
+// ImportCells разбирает .xlsx с физическими ячейками и загружает их в один физический склад
+// (warehouseCode/warehouseName — параметры импорта, т.к. склада в файле нет) в одной транзакции.
+// Внутренний склад (основной/брак) здесь не участвует — это измерение остатка, не ячейки (ADR-0016).
+// Проблемные строки не валят импорт — попадают в отчёт (Skipped).
+func (s *ImportService) ImportCells(ctx context.Context, r io.Reader, warehouseCode, warehouseName string) (*CellsImportReport, error) {
+	parsed, err := importer.ParseCells(r)
+	if err != nil {
+		return nil, err // не смогли прочитать файл/нет обязательной колонки — на уровень выше как 4xx
+	}
+
+	report := &CellsImportReport{Warehouse: warehouseCode, Skipped: parsed.Errors}
+
+	txErr := repository.WithinTx(ctx, s.pool, func(q repository.Querier) error {
+		// Физический склад — один на файл: апсертим по code до ячеек, id используем для всех строк.
+		warehouseID, err := s.warehouses.Upsert(ctx, q, warehouseCode, warehouseName)
+		if err != nil {
+			return err
+		}
+		for _, c := range parsed.Cells {
+			created, err := s.cells.Upsert(ctx, q, warehouseID, c.Address, c.IsFloor)
+			if err != nil {
+				return err
+			}
+			if created {
+				report.CellsCreated++
+			} else {
+				report.CellsUpdated++
 			}
 		}
 		return nil

@@ -83,11 +83,13 @@ func main() {
 	var importSvc *service.ImportService
 	if pool != nil {
 		authSvc = service.NewAuthService(repository.NewUserRepository(pool), tokens)
-		// Импорт справочников из файлов 1С (номенклатура): группы + поставщики + товары.
+		// Импорт справочников из файлов: номенклатура (группы+поставщики+товары) и ячейки (склад+ячейки).
 		importSvc = service.NewImportService(pool,
 			repository.NewNomenclatureGroupRepository(pool),
 			repository.NewSupplierRepository(pool),
-			repository.NewGoodsRepository(pool))
+			repository.NewGoodsRepository(pool),
+			repository.NewWarehouseRepository(pool),
+			repository.NewCellRepository(pool))
 	} else {
 		log.Warn("no database — auth and import endpoints disabled")
 	}
