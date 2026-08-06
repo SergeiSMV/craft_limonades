@@ -5,10 +5,40 @@ package importer
 import (
 	"fmt"
 	"io"
+	"math"
+	"regexp"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/extrame/xls"
 )
+
+// mangledDateCode — «Код», испорченный extrame/xls: числовую ячейку с пользовательским
+// числовым форматом (formatNo >= 164) библиотека принимает за дату и печатает RFC3339
+// (напр. код 12246 → «1933-07-11T00:00:00Z», см. XfRk.String в extrame/xls). Ловим ровно
+// этот вид, чтобы не трогать нормальные коды.
+var mangledDateCode = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$`)
+
+// excelEpoch — база системы дат 1900 (Excel/1С на Windows): serial 1 = 1899-12-31, т.е. день 0 =
+// 1899-12-30. От неё же считает timeFromExcelTime в extrame/xls, поэтому обратное преобразование корректно.
+var excelEpoch = time.Date(1899, 12, 30, 0, 0, 0, 0, time.UTC)
+
+// demangleCode восстанавливает исходный числовой «Код», если extrame/xls отдал его датой
+// (см. mangledDateCode): обратное преобразование даты → Excel-serial (число дней от 1899-12-30).
+// Так ключ апсерта остаётся стабильным и совпадает с реальным кодом 1С. Иначе — строка как есть.
+// ⚠ Хак завязан на поведение extrame/xls; срабатывает только на точный RFC3339-формат.
+func demangleCode(s string) string {
+	if !mangledDateCode.MatchString(s) {
+		return s
+	}
+	t, err := time.Parse(time.RFC3339, s)
+	if err != nil {
+		return s
+	}
+	serial := int64(math.Round(t.Sub(excelEpoch).Hours() / 24))
+	return strconv.FormatInt(serial, 10)
+}
 
 // GroupNode — узел пути групп номенклатуры (из строки-раздела файла).
 type GroupNode struct {
@@ -77,7 +107,8 @@ func ParseGoods(r io.ReadSeeker) (*ParseResult, error) {
 		if row == nil {
 			continue
 		}
-		code := cellAt(row, cols, colCode)
+		// «Код» — восстанавливаем, если extrame/xls испортил его в дату (числовой формат ячейки).
+		code := demangleCode(cellAt(row, cols, colCode))
 		name := cellAt(row, cols, colName)
 		full := cellAt(row, cols, colFullName)
 		uom := cellAt(row, cols, colUOM)
