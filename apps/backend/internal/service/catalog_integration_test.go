@@ -83,21 +83,45 @@ func TestCatalog_goodsCellsSuppliers(t *testing.T) {
 		t.Errorf("поиск по коду 16121: ожидалось 1, получено %d", byCode.Total)
 	}
 
-	// Фильтр по группе 5046 (самая глубокая): все товары ветки в ней.
-	var groupID string
-	if err := pool.QueryRow(ctx, "SELECT id::text FROM nomenclature_groups WHERE code='5046'").Scan(&groupID); err != nil {
+	// Фильтр по группе 5046 (самая глубокая, к ней привязаны товары): все 15.
+	var leafGroupID string
+	if err := pool.QueryRow(ctx, "SELECT id::text FROM nomenclature_groups WHERE code='5046'").Scan(&leafGroupID); err != nil {
 		t.Fatal(err)
 	}
-	byGroup, err := cat.ListGoods(ctx, service.GoodsQuery{GroupID: &groupID})
+	byGroup, err := cat.ListGoods(ctx, service.GoodsQuery{GroupID: &leafGroupID})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if byGroup.Total != 15 {
-		t.Errorf("фильтр по группе 5046: ожидалось 15, получено %d", byGroup.Total)
+		t.Errorf("фильтр по листовой группе 5046: ожидалось 15, получено %d", byGroup.Total)
 	}
 	// Присоединённые имена группы/поставщика проставлены.
 	if byGroup.Items[0].GroupName == nil || byGroup.Items[0].SupplierName == nil {
 		t.Errorf("ожидались присоединённые group_name/supplier_name, получено %+v", byGroup.Items[0])
+	}
+
+	// Фильтр по ПОДДЕРЕВУ: товары висят на листе 5046, но выбор родительской группы 2331
+	// и корня тоже должен вернуть все 15 (иначе фильтр по «Матрице»/«-Товары» давал бы пусто).
+	var parentGroupID, rootGroupID string
+	if err := pool.QueryRow(ctx, "SELECT id::text FROM nomenclature_groups WHERE code='2331'").Scan(&parentGroupID); err != nil {
+		t.Fatal(err)
+	}
+	if err := pool.QueryRow(ctx, "SELECT id::text FROM nomenclature_groups WHERE parent_id IS NULL").Scan(&rootGroupID); err != nil {
+		t.Fatal(err)
+	}
+	byParent, err := cat.ListGoods(ctx, service.GoodsQuery{GroupID: &parentGroupID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if byParent.Total != 15 {
+		t.Errorf("фильтр по родительской группе 2331 (поддерево): ожидалось 15, получено %d", byParent.Total)
+	}
+	byRoot, err := cat.ListGoods(ctx, service.GoodsQuery{GroupID: &rootGroupID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if byRoot.Total != 15 {
+		t.Errorf("фильтр по корневой группе (поддерево): ожидалось 15, получено %d", byRoot.Total)
 	}
 
 	// --- GetGood: существующий id → ок; случайный → ErrNotFound ---

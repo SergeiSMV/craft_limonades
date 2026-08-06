@@ -1,0 +1,156 @@
+import 'package:auto_route/auto_route.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import '../../../core/constants/app_boxes.dart';
+import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_insets.dart';
+import '../../../core/constants/app_sizes.dart';
+import '../../../core/di/injection.dart';
+import '../../../core/gen/strings.g.dart';
+import '../data/catalog_models.dart';
+import 'stock_detail_cubit.dart';
+
+/// Карточка остатков товара (P1-07): шапка товара + строки «ячейка · партия · кол-во» + итог.
+/// Всё показывается «россыпью» — разбивка по грузовым единицам (ГЕ) появится в P4/P5.
+@RoutePage()
+class StockDetailScreen extends StatelessWidget {
+  const StockDetailScreen({super.key, required this.good});
+
+  final Good good;
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (_) => getIt<StockDetailCubit>()..load(good.id),
+      child: Scaffold(
+        appBar: AppBar(title: Text(t.stockDetailScreen.title)),
+        body: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _GoodHeader(good: good),
+            const Divider(height: 1),
+            Expanded(child: _StockRows(goodId: good.id)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Шапка карточки: наименование + артикул/ед./группа/поставщик.
+class _GoodHeader extends StatelessWidget {
+  const _GoodHeader({required this.good});
+
+  final Good good;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: AppInsets.all16,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            good.name,
+            style: const TextStyle(fontSize: AppSizes.kText18, fontWeight: FontWeight.bold),
+          ),
+          AppBoxes.kHeight8,
+          if (good.code != null)
+            Text(t.stockDetailScreen.code(code: good.code!), style: _muted),
+          Text(t.stockDetailScreen.uom(uom: good.uom), style: _muted),
+          if (good.groupName != null)
+            Text(t.stockDetailScreen.group(group: good.groupName!), style: _muted),
+          if (good.supplierName != null)
+            Text(t.stockDetailScreen.supplier(supplier: good.supplierName!), style: _muted),
+        ],
+      ),
+    );
+  }
+
+  static const TextStyle _muted =
+      TextStyle(fontSize: AppSizes.kText13, color: AppColors.kTextMuted);
+}
+
+/// Строки остатка по ячейкам/партиям + итог; индикатор/ошибка/пусто.
+class _StockRows extends StatelessWidget {
+  const _StockRows({required this.goodId});
+
+  final String goodId;
+
+  @override
+  Widget build(BuildContext context) {
+    final state = context.watch<StockDetailCubit>().state;
+
+    switch (state.status) {
+      case StockDetailStatus.loading:
+        return const Center(child: CircularProgressIndicator());
+      case StockDetailStatus.error:
+        return _ErrorRetry(onRetry: () => context.read<StockDetailCubit>().load(goodId));
+      case StockDetailStatus.loaded:
+        if (state.items.isEmpty) {
+          return Center(child: Text(t.stockDetailScreen.empty));
+        }
+        return Column(
+          children: [
+            Expanded(
+              child: ListView.separated(
+                itemCount: state.items.length,
+                separatorBuilder: (_, _) => const Divider(height: 1),
+                itemBuilder: (context, i) {
+                  final it = state.items[i];
+                  return ListTile(
+                    leading: const Icon(Icons.place_outlined),
+                    title: Text(it.cellAddress),
+                    subtitle: Text('${t.stockDetailScreen.colBatch}: ${it.productionDate}'),
+                    trailing: Text(
+                      it.qty,
+                      style: const TextStyle(
+                        fontSize: AppSizes.kText16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const Divider(height: 1),
+            Padding(
+              padding: AppInsets.all16,
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  t.stockDetailScreen.total(qty: state.totalQty),
+                  style: const TextStyle(
+                    fontSize: AppSizes.kText18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+    }
+  }
+}
+
+/// Блок ошибки с кнопкой «Повторить».
+class _ErrorRetry extends StatelessWidget {
+  const _ErrorRetry({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(t.stockDetailScreen.error),
+          AppBoxes.kHeight12,
+          FilledButton(onPressed: onRetry, child: Text(t.stockDetailScreen.retry)),
+        ],
+      ),
+    );
+  }
+}

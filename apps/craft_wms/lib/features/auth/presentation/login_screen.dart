@@ -12,7 +12,10 @@ import '../../../core/constants/app_sizes.dart';
 import '../../../core/error/failure.dart';
 import '../../../core/gen/assets.gen.dart';
 import '../../../core/gen/strings.g.dart';
+import '../../../core/theme/regular_text.dart';
+import '../../../core/theme/semibold_text.dart';
 import '../../../core/widgets/system_ui_wrapper.dart';
+import '../../splash/presentation/splash_screen.dart';
 
 /// Экран входа — ожидание скана бейджа.
 ///
@@ -120,7 +123,7 @@ class _LoginScreenState extends State<LoginScreen> {
             // Пока идёт вход — крупный индикатор без поля (проверку сессии при старте
             // держит splash-экран, сюда состояние unknown уже не приходит).
             if (state is AuthAuthenticating) {
-              return _LoadingView(message: t.loginScreen.loggingIn);
+              return SplashScreen();
             }
             return _ScanView(
               controller: _badgeController,
@@ -130,60 +133,6 @@ class _LoginScreenState extends State<LoginScreen> {
               onTap: showKeyboard,
             );
           },
-        ),
-      ),
-    );
-  }
-}
-
-/// Индикатор загрузки с подписью (проверка сессии / вход).
-class _LoadingView extends StatelessWidget {
-  const _LoadingView({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.black,
-        image: DecorationImage(
-          image: Assets.images.loginBg.provider(),
-          fit: BoxFit.cover,
-          opacity: 0.4,
-        ),
-      ),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: AppSizes.kIcon50,
-              height: AppSizes.kIcon50,
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.5),
-                borderRadius: AppBorders.kCircular10,
-              ),
-              child: Center(
-                child: SizedBox(
-                  width: AppSizes.kIcon25,
-                  height: AppSizes.kIcon25,
-                  child: const CircularProgressIndicator(
-                    color: AppColors.kGreenLime,
-                    strokeWidth: AppSizes.kIcon2,
-                  ),
-                ),
-              ),
-            ),
-            AppBoxes.kHeight24,
-            Text(
-              message,
-              style: const TextStyle(
-                fontSize: AppSizes.kText16,
-                color: Colors.white,
-              ),
-            ),
-          ],
         ),
       ),
     );
@@ -219,11 +168,11 @@ class _ScanView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.black,
+        color: AppColors.kSidebarBg,
         image: DecorationImage(
-          image: Assets.images.loginBg.provider(),
+          image: Assets.images.tsdLoginBg.provider(),
           fit: BoxFit.cover,
-          opacity: 0.4,
+          opacity: 0.3,
         ),
       ),
       child: Padding(
@@ -231,31 +180,35 @@ class _ScanView extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // const Icon(Icons.qr_code_scanner, size: AppSizes.kIcon96),
             SizedBox(
-              width: AppSizes.kIcon180,
-              child: Image(image: Assets.images.scanBadge.provider()),
+              height: AppSizes.kIcon256,
+              child: Image(image: Assets.images.employeeBadge.provider()),
             ),
-            // AppBoxes.kHeight24,
+            AppBoxes.kHeight24,
             Text(
               t.loginScreen.scanPrompt,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: AppSizes.kText16,
-                color: Colors.white,
+              style: RegularTextStyles().regularInter14.copyWith(
+                color: AppColors.kTileText,
               ),
             ),
-            AppBoxes.kHeight24,
+            AppBoxes.kHeight8,
             Container(
+              height: AppSizes.kIcon60,
               decoration: BoxDecoration(
+                borderRadius: AppBorders.kPill,
                 image: DecorationImage(
                   image: Assets.images.fakeBarcode.provider(),
-                  colorFilter: ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                  colorFilter: ColorFilter.mode(
+                    AppColors.kTileText,
+                    BlendMode.srcIn,
+                  ),
                   fit: BoxFit.cover,
-                  opacity: 0.3,
+                  opacity: 0.2,
                 ),
               ),
               child: TextField(
+                cursorHeight: 25,
                 controller: controller,
                 focusNode: focusNode,
                 autofocus: true,
@@ -264,9 +217,8 @@ class _ScanView extends StatelessWidget {
                 keyboardType: TextInputType.number,
                 onTap: onTap,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: AppSizes.kText24,
-                  color: Colors.white,
+                style: SemiboldTextStyles().semiboldInter18.copyWith(
+                  color: AppColors.kTileText,
                 ),
                 // Пускаем только цифры и не больше 16 — сканер/ручной ввод дают чистый бейдж.
                 inputFormatters: [

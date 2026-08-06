@@ -10,6 +10,7 @@ import 'core/theme/app_theme.dart';
 class CraftWmsApp extends StatelessWidget {
   CraftWmsApp({super.key});
 
+  /// Роутер
   final AppRouter _router = getIt<AppRouter>();
 
   @override
@@ -23,8 +24,10 @@ class CraftWmsApp extends StatelessWidget {
           switch (state) {
             case AuthAuthenticated():
               _router.replaceAll([const HomeRoute()]);
+            // _router.replaceAll([const SplashRoute()]);
             case AuthUnauthenticated():
               _router.replaceAll([const LoginRoute()]);
+            // _router.replaceAll([const SplashRoute()]);
             case AuthUnknown():
             case AuthAuthenticating():
               break;
