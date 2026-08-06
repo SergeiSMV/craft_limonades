@@ -4,7 +4,7 @@
     },
     "login_screen": {
         "title": "Вход по бейджу",
-        "scan_prompt": "для входа сканируйте бейдж сотрудника",
+        "scan_prompt": "сканируйте бейдж сотрудника",
         "badge_label": "16 цифр",
         "logging_in": "проверка бейджа",
         "error_invalid": "Нужно 16 цифр",
@@ -13,12 +13,49 @@
         "error_unknown": "Ошибка входа"
     },
     "home_screen": {
-        "title": "Главное меню",
+        "title": "ГЛАВНОЕ МЕНЮ",
         "logs_tooltip": "Логи",
         "logout_tooltip": "Выход",
-        "logged_in_as": "Вошли: ${name}",
-        "login_role": "логин ${login} · роль ${role}",
-        "operations_placeholder": "Экраны операций появятся в P1–P6"
+        "stub_snack": "Раздел в разработке",
+        "tiles": {
+            "receipt_title": "ПРИХОД",
+            "receipt_subtitle": "поступление товаров",
+            "movement_title": "ПЕРЕМЕЩЕНИЕ",
+            "movement_subtitle": "между ячейками",
+            "tasks_title": "ЗАДАНИЯ",
+            "tasks_subtitle": "складские задачи",
+            "find_title": "НАЙТИ",
+            "find_subtitle": "поиск товара по ШК",
+            "history_title": "ИСТОРИЯ",
+            "history_subtitle": "журнал операций",
+            "stock_title": "ОСТАТКИ",
+            "stock_subtitle": "текущие запасы"
+        }
+    },
+    "stock_list_screen": {
+        "title": "Остатки",
+        "search_hint": "Наименование или код",
+        "filter_group": "Группа",
+        "filter_supplier": "Поставщик",
+        "filter_all": "Все",
+        "found": "найдено товаров: ${total}",
+        "empty": "Товары не найдены",
+        "error": "Не удалось загрузить",
+        "retry": "Повторить"
+    },
+    "stock_detail_screen": {
+        "title": "Остаток товара",
+        "code": "Код: ${code}",
+        "uom": "Ед.: ${uom}",
+        "group": "Группа: ${group}",
+        "supplier": "Поставщик: ${supplier}",
+        "total": "Итого: ${qty}",
+        "col_cell": "Ячейка",
+        "col_batch": "Партия",
+        "col_qty": "Кол-во",
+        "empty": "Нет остатков",
+        "error": "Не удалось загрузить",
+        "retry": "Повторить"
     },
     "portal": {
         "app_title": "КЛ: Склад - портал",

@@ -30,8 +30,18 @@ type GoodsFilter struct {
 }
 
 // List возвращает товары с присоединёнными именами группы/поставщика + общее число под фильтр.
+//
+// Фильтр по группе — по ПОДДЕРЕВУ: товар привязан к самой глубокой группе своего пути (листу),
+// поэтому выбор родительской группы («Матрица …», «-Товары/…») должен вернуть товары всех её
+// подгрупп. Рекурсивный CTE собирает выбранную группу + всех потомков; при $2 IS NULL фильтр не применяется.
 func (r *GoodsRepository) List(ctx context.Context, f GoodsFilter) ([]model.Good, int, error) {
 	rows, err := r.pool.Query(ctx, `
+		WITH RECURSIVE group_subtree AS (
+			SELECT id FROM nomenclature_groups WHERE $2::uuid IS NOT NULL AND id = $2::uuid
+			UNION ALL
+			SELECT ng.id FROM nomenclature_groups ng
+			JOIN group_subtree gs ON ng.parent_id = gs.id
+		)
 		SELECT g.id::text, g.code, g.name, g.full_name, g.uom,
 		       g.group_id::text, ng.name, g.supplier_id::text, s.name, g.is_active,
 		       COUNT(*) OVER() AS total
@@ -39,7 +49,7 @@ func (r *GoodsRepository) List(ctx context.Context, f GoodsFilter) ([]model.Good
 		LEFT JOIN nomenclature_groups ng ON ng.id = g.group_id
 		LEFT JOIN suppliers s           ON s.id = g.supplier_id
 		WHERE ($1 = '' OR g.name ILIKE '%' || $1 || '%' OR g.code ILIKE '%' || $1 || '%')
-		  AND ($2::uuid IS NULL OR g.group_id = $2::uuid)
+		  AND ($2::uuid IS NULL OR g.group_id IN (SELECT id FROM group_subtree))
 		  AND ($3::uuid IS NULL OR g.supplier_id = $3::uuid)
 		ORDER BY g.name
 		LIMIT $4 OFFSET $5`,

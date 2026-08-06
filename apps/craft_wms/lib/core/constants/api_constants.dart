@@ -21,4 +21,19 @@ abstract final class ApiConst {
 
   ///**POST** - импорт номенклатуры из `.xls`-выгрузки 1С (multipart, admin-only)
   static const String importGoods = 'import/goods';
+
+  ///**GET** - список/поиск товаров (q, group_id, supplier_id, limit, offset)
+  static const String goods = 'goods';
+
+  ///**GET** - все группы номенклатуры (дерево)
+  static const String nomenclatureGroups = 'nomenclature-groups';
+
+  ///**GET** - поставщики (опциональный q)
+  static const String suppliers = 'suppliers';
+
+  ///**GET** - остатки (good_id — где лежит товар; cell_id — что в ячейке)
+  static const String stock = 'stock';
+
+  /// Путь карточки товара по id: `goods/{id}`.
+  static String goodById(String id) => 'goods/$id';
 }
