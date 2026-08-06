@@ -124,62 +124,60 @@ class _Filters extends StatelessWidget {
     final state = context.watch<GoodsListCubit>().state;
     final cubit = context.read<GoodsListCubit>();
 
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          child: DropdownButtonFormField<String?>(
-            initialValue: state.groupId,
-            isExpanded: true,
-            decoration: InputDecoration(
-              labelText: t.stockListScreen.filterGroup,
-              border: const OutlineInputBorder(),
-              isDense: true,
-            ),
-            items: [
-              DropdownMenuItem<String?>(
-                value: null,
-                child: Text(t.stockListScreen.filterAll),
-              ),
-              for (final g in state.groups)
-                DropdownMenuItem<String?>(
-                  value: g.id,
-                  child: Text(
-                    g.name,
-                    overflow: TextOverflow.ellipsis,
-                    style: RegularTextStyles().regularInter14,
-                  ),
-                ),
-            ],
-            onChanged: cubit.setGroup,
+        DropdownButtonFormField<String?>(
+          borderRadius: BorderRadius.circular(8),
+          initialValue: state.groupId,
+          isExpanded: true,
+          decoration: InputDecoration(
+            labelText: t.stockListScreen.filterGroup,
+            border: const OutlineInputBorder(),
+            isDense: true,
           ),
+          items: [
+            DropdownMenuItem<String?>(
+              value: null,
+              child: Text(t.stockListScreen.filterAll),
+            ),
+            for (final g in state.groups)
+              DropdownMenuItem<String?>(
+                value: g.id,
+                child: Text(
+                  g.name,
+                  overflow: TextOverflow.ellipsis,
+                  style: RegularTextStyles().regularInter14,
+                ),
+              ),
+          ],
+          onChanged: cubit.setGroup,
         ),
-        AppBoxes.kWidth8,
-        Expanded(
-          child: DropdownButtonFormField<String?>(
-            initialValue: state.supplierId,
-            isExpanded: true,
-            decoration: InputDecoration(
-              labelText: t.stockListScreen.filterSupplier,
-              border: const OutlineInputBorder(),
-              isDense: true,
-            ),
-            items: [
-              DropdownMenuItem<String?>(
-                value: null,
-                child: Text(t.stockListScreen.filterAll),
-              ),
-              for (final s in state.suppliers)
-                DropdownMenuItem<String?>(
-                  value: s.id,
-                  child: Text(
-                    s.name,
-                    overflow: TextOverflow.ellipsis,
-                    style: RegularTextStyles().regularInter14,
-                  ),
-                ),
-            ],
-            onChanged: cubit.setSupplier,
+        AppBoxes.kHeight8,
+        DropdownButtonFormField<String?>(
+          borderRadius: BorderRadius.circular(8),
+          initialValue: state.supplierId,
+          isExpanded: true,
+          decoration: InputDecoration(
+            labelText: t.stockListScreen.filterSupplier,
+            border: const OutlineInputBorder(),
+            isDense: true,
           ),
+          items: [
+            DropdownMenuItem<String?>(
+              value: null,
+              child: Text(t.stockListScreen.filterAll),
+            ),
+            for (final s in state.suppliers)
+              DropdownMenuItem<String?>(
+                value: s.id,
+                child: Text(
+                  s.name,
+                  overflow: TextOverflow.ellipsis,
+                  style: RegularTextStyles().regularInter14,
+                ),
+              ),
+          ],
+          onChanged: cubit.setSupplier,
         ),
       ],
     );
@@ -252,8 +250,8 @@ class _GoodsResult extends StatelessWidget {
                         if (good.code != null) good.code!,
                         if (good.groupName != null) good.groupName!,
                       ].join(' · '),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      // maxLines: 1,
+                      // overflow: TextOverflow.ellipsis,
                       style: RegularTextStyles().regularInter10.copyWith(
                         color: AppColors.kTextMuted,
                       ),

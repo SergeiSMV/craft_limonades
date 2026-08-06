@@ -72,3 +72,70 @@ func TestParseGoods_realSample(t *testing.T) {
 		t.Errorf("ожидалось >=2 разных поставщиков, получено %d: %v", len(suppliers), suppliers)
 	}
 }
+
+// TestParseGoods_mangledDateCodes — файл, где extrame/xls портит числовой «Код» в дату
+// (Каскад розлив.xls: у ячеек кода пользовательский числовой формат). Проверяем, что коды
+// восстановлены в числа (demangleCode), а не остались RFC3339-датами.
+func TestParseGoods_mangledDateCodes(t *testing.T) {
+	f, err := os.Open("testdata/nomenclature_dates_sample.xls")
+	if err != nil {
+		t.Fatalf("открыть образец: %v", err)
+	}
+	defer func() { _ = f.Close() }()
+
+	res, err := ParseGoods(f)
+	if err != nil {
+		t.Fatalf("ParseGoods: %v", err)
+	}
+	if len(res.Goods) == 0 {
+		t.Fatal("ожидались товары, получено 0")
+	}
+
+	// Все коды товаров и групп пути — числовые (не даты).
+	numeric := func(s string) bool {
+		for _, r := range s {
+			if r < '0' || r > '9' {
+				return false
+			}
+		}
+		return s != ""
+	}
+	for _, g := range res.Goods {
+		if !numeric(g.Code) {
+			t.Errorf("код товара %q не число (де-манглинг не сработал): %q", g.Name, g.Code)
+		}
+		for _, node := range g.GroupPath {
+			if !numeric(node.Code) {
+				t.Errorf("код группы %q не число: %q", node.Name, node.Code)
+			}
+		}
+	}
+
+	// Точечно: товар «Яблочный сад …» — код-дата 1933-07-11 → Excel-serial 12246.
+	var found bool
+	for _, g := range res.Goods {
+		if g.Code == "12246" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("ожидался товар с восстановленным кодом 12246 (из 1933-07-11)")
+	}
+}
+
+// TestDemangleCode — обратное преобразование испорченной даты в Excel-serial; обычные коды не трогаются.
+func TestDemangleCode(t *testing.T) {
+	cases := map[string]string{
+		"1933-07-11T00:00:00Z": "12246", // дата → serial
+		"1899-12-31T00:00:00Z": "1",     // граница системы 1900
+		"16121":                "16121", // обычный код — как есть
+		"":                     "",
+		"5046":                 "5046",
+	}
+	for in, want := range cases {
+		if got := demangleCode(in); got != want {
+			t.Errorf("demangleCode(%q) = %q, ожидалось %q", in, got, want)
+		}
+	}
+}
