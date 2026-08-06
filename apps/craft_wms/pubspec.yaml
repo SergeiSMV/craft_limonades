@@ -47,6 +47,8 @@ dependencies:
   slang_flutter: ^4.18.0 # Flutter-интеграция slang (Locale, context.t)
   flutter_secure_storage: ^10.3.1 # зашифрованное хранилище токенов (Android Keystore; на вебе — браузер)
   web: ^1.1.0 # доступ к DOM в веб-портале (нативный <input type=file> для выбора .xls)
+  material_design_icons_flutter: ^7.0.7296
+  flutter_svg: ^2.3.0
 
 
 dev_dependencies:
@@ -70,18 +72,20 @@ dev_dependencies:
 flutter_gen:
   output: lib/core/gen/   # рядом со slang-геном (strings.g.dart)
   line_length: 100
+  integrations:
+    flutter_svg: true # SvgGenImage + .svg() для assets/**/*.svg (нужен flutter_svg)
 
 # FlutterNativeSplash: нативный splash (ОС показывает его, пока грузится движок Flutter).
 # Чёрный фон + логотип по центру. Генерируется командой `dart run flutter_native_splash:create`.
 flutter_native_splash:
-  color: "#000000"
+  color: "#1E293B"
   image: assets/images/cl_icon.png
   # Веб-заставку генератором НЕ управляем: у портала своя лёгкая заставка,
   # свёрстанная вручную в web/index.html (slate-фон + янтарный спиннер).
   web: false
   # Android 12+ — отдельная splash-API ОС (иконка по центру на фоне color).
   android_12:
-    color: "#000000"
+    color: "#1E293B"
     image: assets/images/cl_icon.png
 
 # For information on the generic Dart part of this file, see the
@@ -98,6 +102,7 @@ flutter:
   assets:
     - assets/images/
     - assets/icons/
+    - assets/icons/menu_icons/
 
   # Локальный Inter (assets/fonts/Inter) — для портала и приложения без google_fonts.
   # Variable Inter-V.ttf не подключаем: Flutter берёт статичные .otf по weight/style.

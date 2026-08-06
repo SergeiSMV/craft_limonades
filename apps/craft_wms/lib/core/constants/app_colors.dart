@@ -7,19 +7,33 @@ abstract final class AppColors {
 
   //* --- Веб-портал (дизайн-система) -------------------------------------- *//
   // Палитра из макета: янтарь-акцент + лайм + тёмный slate + светлый фон.
-  static const Color kPrimary = Color(0xFFF59E0B); // янтарь — основной акцент, кнопки
+  static const Color kPrimary = Color(
+    0xFFF59E0B,
+  ); // янтарь — основной акцент, кнопки
   static const Color kPrimaryHover = Color(0xFFD97706); // янтарь при наведении
-  static const Color kPrimarySoft = Color(0xFFFFFBEB); // светлая заливка (иконки-плашки, hover-зоны)
+  static const Color kPrimarySoft = Color(
+    0xFFFFFBEB,
+  ); // светлая заливка (иконки-плашки, hover-зоны)
   static const Color kSecondary = Color(0xFF84CC16); // лайм — логотип, аватар
 
-  static const Color kSidebarBg = Color(0xFF1E293B); // тёмный сайдбар / бренд-панель
-  static const Color kSidebarHover = Color(0xFF334155); // пункт меню при наведении/активный
+  static const Color kSidebarBg = Color(
+    0xFF1E293B,
+  ); // тёмный сайдбар / бренд-панель
+  static const Color kSidebarHover = Color(
+    0xFF334155,
+  ); // пункт меню при наведении/активный
   static const Color kSidebarText = Color(0xFFCBD5E1); // текст пунктов меню
-  static const Color kSidebarMuted = Color(0xFF94A3B8); // заголовки секций, подписи на тёмном
+  static const Color kSidebarMuted = Color(
+    0xFF94A3B8,
+  ); // заголовки секций, подписи на тёмном
 
   static const Color kBg = Color(0xFFF1F5F9); // фон рабочей области
-  static const Color kCardBg = Color(0xFFFFFFFF); // карточки, хедер, форма входа
-  static const Color kFieldBg = Color(0xFFF8FAFC); // фон полей ввода / зоны загрузки
+  static const Color kCardBg = Color(
+    0xFFFFFFFF,
+  ); // карточки, хедер, форма входа
+  static const Color kFieldBg = Color(
+    0xFFF8FAFC,
+  ); // фон полей ввода / зоны загрузки
   static const Color kTextMain = Color(0xFF0F172A); // основной текст
   static const Color kTextMuted = Color(0xFF64748B); // вторичный текст
   static const Color kBorder = Color(0xFFE2E8F0); // границы карточек/полей
@@ -33,5 +47,23 @@ abstract final class AppColors {
   static const Color kBadgeInfoBg = Color(0xFFE0F2FE);
   static const Color kBadgeInfoText = Color(0xFF075985);
 
-  static const Color kDanger = Color(0xFFEF4444); // ошибки, деструктивные действия
+  static const Color kDanger = Color(
+    0xFFEF4444,
+  ); // ошибки, деструктивные действия
+
+  //* --- ТСД: плитки главного меню (по макету) ---------------------------- *//
+  // Цветовое кодирование операций на устройстве: крупные плитки, белый текст/иконка.
+  static const Color kTileReceipt = Color(0xFF4CAF50); // ПРИХОД — зелёный
+  static const Color kTileMovement = Color(0xFF2E6DA4); // ПЕРЕМЕЩЕНИЕ — синий
+  static const Color kTileTasks = Color(0xFFE67E22); // ЗАДАНИЯ — оранжевый
+  static const Color kTileFind = Color(0xFF6C757D); // НАЙТИ — серый
+  static const Color kTileHistory = Color(0xFF5A6268); // ИСТОРИЯ — тёмно-серый
+  static const Color kTileStock = Color(0xFF16A085); // ОСТАТКИ — бирюзовый
+  static const Color kTileText = Color(0xFFFFFFFF); // текст/иконка на плитке
+
+  //* --- Остатки ------------------------------------------------------------ *//
+  static const Color kStockItemBg = Color(0xFFFFF3E0); // фон карточки остатка
+  static const Color kStockItemBorder = Color(
+    0xFFFFCC80,
+  ); // граница карточки остатка
 }

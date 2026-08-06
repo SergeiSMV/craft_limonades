@@ -18,4 +18,12 @@ class AppConfig {
     // записан URL в .env (с/без слэша, случайный двойной), без двойного слэша в запросах.
     return '${value.replaceAll(RegExp(r'/+$'), '')}/';
   }
+
+  /// Название склада для шапки ТСД. На пилоте склад один («Шабулина») — берём из dart-define
+  /// (`WAREHOUSE_NAME` в `.env`), с дефолтом. ⚠ Плейсхолдер: при мультискладе/привязке устройства
+  /// склад должен приходить из профиля/конфига устройства, а не из константы клиента.
+  static String get warehouseName => const String.fromEnvironment(
+        'WAREHOUSE_NAME',
+        defaultValue: 'Шабулина',
+      );
 }
