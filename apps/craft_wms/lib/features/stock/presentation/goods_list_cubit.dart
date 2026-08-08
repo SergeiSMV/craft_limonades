@@ -65,6 +65,12 @@ class GoodsListCubit extends Cubit<GoodsListState> {
     await _load();
   }
 
+  /// Сбросить фильтры (группа + поставщик) одним перезапросом. Строку поиска не трогаем.
+  Future<void> resetFilters() async {
+    emit(state.copyWith(groupId: null, supplierId: null));
+    await _load();
+  }
+
   /// Перезагрузка списка под текущие фильтры.
   Future<void> _load() async {
     emit(state.copyWith(status: GoodsListStatus.loading, failure: null));

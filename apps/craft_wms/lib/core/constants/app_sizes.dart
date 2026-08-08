@@ -2,6 +2,7 @@
 abstract final class AppSizes {
   //* --- Icon Sizes ------------------------------------------------------- *//
   static const double kIcon2 = 2;
+  static const double kIcon16 = 16;
   static const double kIcon18 = 18;
   static const double kIcon20 = 20;
   static const double kIcon24 = 24;

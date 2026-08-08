@@ -1,19 +1,20 @@
 name: CI · Flutter
 
 # Гоняется ТОЛЬКО когда менялось приложение (apps/craft_wms/**) — бэкенд зря не гоняем.
-# - pull_request → dev/main: codegen + analyze + test + сборка APK (ТСД) + сборка web (портал) — гейт перед мержем.
-# - push → dev/main: то же (APK и web-бандл — как артефакты прогона).
-# Фиче-ветки отдельно не гоняем — их вершину покрывает событие pull_request.
+# Два прогона на путь фича→dev→main (dev всегда зелёный — гейт стоит на входе в него):
+# - pull_request → dev: codegen + analyze + test + сборка APK (ТСД) + web (портал) — гейт перед входом в dev;
+# - push → main: то же + web-бандл артефактом (задел под P1-09-3).
+# push→dev и PR dev→main не гоняем — избыточно (см. историю решений).
 # Android и web собираются в ОДНОМ джобе: переиспользуем checkout/setup/pub get/codegen
-# (экономия минут Actions на free-тарифе) и держим один required-чек (см. заметку про path-фильтры внизу истории).
+# (экономия минут Actions на free-тарифе) и держим один required-чек.
 on:
   pull_request:
-    branches: [dev, main]
+    branches: [dev]
     paths:
       - 'apps/craft_wms/**'
       - '.github/workflows/ci-flutter.yml'
   push:
-    branches: [dev, main]
+    branches: [main]
     paths:
       - 'apps/craft_wms/**'
       - '.github/workflows/ci-flutter.yml'
@@ -65,17 +66,11 @@ jobs:
         run: |
           if [ -d test ]; then flutter test; else echo "тестов пока нет — пропуск"; fi
 
+      # Гейт компиляции ТСД-APK. Артефакт НЕ заливаем: debug-APK ~200 МБ на каждый прогон
+      # быстро выедал квоту хранилища артефактов (free-tier 500 МБ) → падал upload. APK при
+      # необходимости собирается локально (`flutter build apk --release --dart-define-from-file=.env`).
       - name: Build APK (debug)
         run: flutter build apk --debug
-
-      # Готовый APK — как артефакт прогона (скачать из Actions и поставить на ТСД).
-      # path — от корня репозитория (для uses-шагов working-directory не действует).
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-debug-apk
-          path: apps/craft_wms/build/app/outputs/flutter-apk/app-debug.apk
-          if-no-files-found: error
 
       # --- Веб-портал (Flutter Web), точка входа lib/main_portal.dart ---
       # Реальный .env — в .gitignore (свой на каждой машине). В CI подставляем заглушку
@@ -89,10 +84,13 @@ jobs:
       - name: Build web (portal)
         run: flutter build web -t lib/main_portal.dart --dart-define-from-file=.env --release
 
-      # Готовый web-бандл портала — артефакт прогона (задел под воспроизводимый деплой, P1-09-3).
+      # Готовый web-бандл портала — артефакт (задел под воспроизводимый деплой, P1-09-3).
+      # Только на push (не на каждый PR) + короткий retention — бережём квоту хранилища.
       - name: Upload portal web bundle artifact
+        if: github.event_name == 'push'
         uses: actions/upload-artifact@v4
         with:
           name: portal-web-bundle
           path: apps/craft_wms/build/web
           if-no-files-found: error
+          retention-days: 7
