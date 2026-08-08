@@ -3,7 +3,7 @@ name: CI · Flutter
 # Гоняется ТОЛЬКО когда менялось приложение (apps/craft_wms/**) — бэкенд зря не гоняем.
 # Два прогона на путь фича→dev→main (dev всегда зелёный — гейт стоит на входе в него):
 # - pull_request → dev: codegen + analyze + test + сборка APK (ТСД) + web (портал) — гейт перед входом в dev;
-# - push → main: то же + web-бандл артефактом (задел под P1-09-3).
+# - push → main: то же. Артефакты (APK/web) не выгружаем — CI только гейт, сборку делаем вручную.
 # push→dev и PR dev→main не гоняем — избыточно (см. историю решений).
 # Android и web собираются в ОДНОМ джобе: переиспользуем checkout/setup/pub get/codegen
 # (экономия минут Actions на free-тарифе) и держим один required-чек.
@@ -66,9 +66,7 @@ jobs:
         run: |
           if [ -d test ]; then flutter test; else echo "тестов пока нет — пропуск"; fi
 
-      # Гейт компиляции ТСД-APK. Артефакт НЕ заливаем: debug-APK ~200 МБ на каждый прогон
-      # быстро выедал квоту хранилища артефактов (free-tier 500 МБ) → падал upload. APK при
-      # необходимости собирается локально (`flutter build apk --release --dart-define-from-file=.env`).
+      # Гейт компиляции ТСД-APK (без выгрузки артефакта — см. ниже).
       - name: Build APK (debug)
         run: flutter build apk --debug
 
@@ -84,13 +82,6 @@ jobs:
       - name: Build web (portal)
         run: flutter build web -t lib/main_portal.dart --dart-define-from-file=.env --release
 
-      # Готовый web-бандл портала — артефакт (задел под воспроизводимый деплой, P1-09-3).
-      # Только на push (не на каждый PR) + короткий retention — бережём квоту хранилища.
-      - name: Upload portal web bundle artifact
-        if: github.event_name == 'push'
-        uses: actions/upload-artifact@v4
-        with:
-          name: portal-web-bundle
-          path: apps/craft_wms/build/web
-          if-no-files-found: error
-          retention-days: 7
+      # Артефакты (APK / web-бандл) НЕ выгружаем: на free-тарифе они выедали квоту хранилища
+      # артефактов и роняли upload. CI = только гейт (analyze/test/build). Готовые APK и web-бандл
+      # собираются и размещаются вручную по необходимости (локальная release-сборка).
