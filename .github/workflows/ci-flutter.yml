@@ -1,19 +1,20 @@
 name: CI · Flutter
 
 # Гоняется ТОЛЬКО когда менялось приложение (apps/craft_wms/**) — бэкенд зря не гоняем.
-# - pull_request → dev/main: codegen + analyze + test + сборка APK (ТСД) + сборка web (портал) — гейт перед мержем.
-# - push → dev/main: то же (APK и web-бандл — как артефакты прогона).
-# Фиче-ветки отдельно не гоняем — их вершину покрывает событие pull_request.
+# Два прогона на путь фича→dev→main (dev всегда зелёный — гейт стоит на входе в него):
+# - pull_request → dev: codegen + analyze + test + сборка APK (ТСД) + web (портал) — гейт перед входом в dev;
+# - push → main: то же + web-бандл артефактом (задел под P1-09-3).
+# push→dev и PR dev→main не гоняем — избыточно (см. историю решений).
 # Android и web собираются в ОДНОМ джобе: переиспользуем checkout/setup/pub get/codegen
-# (экономия минут Actions на free-тарифе) и держим один required-чек (см. заметку про path-фильтры внизу истории).
+# (экономия минут Actions на free-тарифе) и держим один required-чек.
 on:
   pull_request:
-    branches: [dev, main]
+    branches: [dev]
     paths:
       - 'apps/craft_wms/**'
       - '.github/workflows/ci-flutter.yml'
   push:
-    branches: [dev, main]
+    branches: [main]
     paths:
       - 'apps/craft_wms/**'
       - '.github/workflows/ci-flutter.yml'

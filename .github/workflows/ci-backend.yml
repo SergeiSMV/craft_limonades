@@ -1,17 +1,18 @@
 name: CI · Backend
 
 # Гоняется ТОЛЬКО когда менялся бэкенд (apps/backend/**) — Flutter зря не пересобираем.
-# - pull_request → dev/main: build/vet/test/lint (гейт перед мержем).
-# - push → dev/main: то же + публикация docker-образа бэкенда в GHCR (только из влитого кода).
-# Фиче-ветки отдельно не гоняем — их вершину покрывает событие pull_request.
+# Два прогона на путь фича→dev→main (dev всегда зелёный — гейт стоит на входе в него):
+# - pull_request → dev: build/vet/test/lint (гейт перед входом кода в dev);
+# - push → main: то же + публикация docker-образа :main в GHCR (релиз на прод).
+# push→dev и PR dev→main не гоняем — избыточно (dev уже проверен, :dev не деплоится).
 on:
   pull_request:
-    branches: [dev, main]
+    branches: [dev]
     paths:
       - 'apps/backend/**'
       - '.github/workflows/ci-backend.yml'
   push:
-    branches: [dev, main]
+    branches: [main]
     paths:
       - 'apps/backend/**'
       - '.github/workflows/ci-backend.yml'
