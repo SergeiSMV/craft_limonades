@@ -27,12 +27,21 @@ abstract final class AppInsets {
 
   //* --- Top -------------------------------------------------------------- *//
   static const EdgeInsets top4 = EdgeInsets.only(top: 4);
+  static const EdgeInsets top8 = EdgeInsets.only(top: 8);
   static const EdgeInsets top16 = EdgeInsets.only(top: 16);
   static const EdgeInsets top32 = EdgeInsets.only(top: 32);
 
+  //* --- Bottom ----------------------------------------------------------- *//
+  static const EdgeInsets bottom4 = EdgeInsets.only(bottom: 4);
+  static const EdgeInsets bottom8 = EdgeInsets.only(bottom: 8);
+
   //* --- Right ------------------------------------------------------------ *//
+  static const EdgeInsets right2 = EdgeInsets.only(right: 2);
   static const EdgeInsets right8 = EdgeInsets.only(right: 8);
   static const EdgeInsets right16 = EdgeInsets.only(right: 16);
+
+  //* --- Left ------------------------------------------------------------- *//
+  static const EdgeInsets left12 = EdgeInsets.only(left: 12);
 
   //* --- Веб-портал (сайдбар) --------------------------------------------- *//
   static const EdgeInsets menuList = EdgeInsets.symmetric(
