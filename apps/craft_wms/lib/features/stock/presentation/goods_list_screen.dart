@@ -20,7 +20,8 @@ import '../data/catalog_models.dart';
 import 'goods_list_cubit.dart';
 
 /// Экран «Остатки»: список товаров с поиском и фильтрами (группа/поставщик).
-/// Тап по товару → карточка его остатков. Номенклатура вложена сюда (отдельного раздела нет).
+/// Фильтры вынесены в нижний лист (кнопка с бейджем), активные — чипами под поиском;
+/// применяются сразу при выборе. Тап по товару → карточка его остатков.
 @RoutePage()
 class GoodsListScreen extends StatelessWidget {
   const GoodsListScreen({super.key});
@@ -93,17 +94,49 @@ class _GoodsListViewState extends State<_GoodsListView> {
                     ),
                   ),
                   AppBoxes.kHeight16,
-                  TextField(
-                    onChanged: onSearchChanged,
-                    decoration: InputDecoration(
-                      prefixIcon: const Icon(Icons.search),
-                      hintText: t.stockListScreen.searchHint,
-                      border: const OutlineInputBorder(),
-                      isDense: true,
-                    ),
+                  // Строка поиска + компактная кнопка фильтров (с бейджем активных).
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          cursorColor: AppColors.kTextMain,
+                          cursorWidth: 1.5,
+                          cursorHeight: 20,
+                          onChanged: onSearchChanged,
+                          decoration: InputDecoration(
+                            focusedBorder: const OutlineInputBorder(
+                              borderRadius: AppBorders.kCircular8,
+                              borderSide: BorderSide(
+                                color: AppColors.kTextMain,
+                              ),
+                            ),
+                            prefixIcon: Padding(
+                              padding: AppInsets.right2 + AppInsets.left12,
+                              child: Icon(
+                                Icons.search,
+                                size: AppSizes.kIcon20,
+                                color: AppColors.kTextMain,
+                              ),
+                            ),
+                            prefixIconConstraints: const BoxConstraints(
+                              minWidth: 0,
+                              minHeight: 0,
+                            ),
+                            hintText: t.stockListScreen.searchHint,
+                            hintStyle: RegularTextStyles().regularInter16
+                                .copyWith(color: AppColors.kBorderDashed),
+                            border: const OutlineInputBorder(
+                              borderRadius: AppBorders.kCircular8,
+                            ),
+                            isDense: true,
+                          ),
+                        ),
+                      ),
+                      AppBoxes.kWidth8,
+                      const _FilterButton(),
+                    ],
                   ),
-                  AppBoxes.kHeight12,
-                  const _Filters(),
+                  const _ActiveChips(),
                 ],
               ),
             ),
@@ -115,71 +148,202 @@ class _GoodsListViewState extends State<_GoodsListView> {
   }
 }
 
-/// Выпадающие фильтры: группа и поставщик (из справочников, загруженных cubit'ом).
-class _Filters extends StatelessWidget {
-  const _Filters();
+/// Кнопка открытия листа фильтров с бейджем числа активных фильтров.
+class _FilterButton extends StatelessWidget {
+  const _FilterButton();
+
+  /// Открыть нижний лист фильтров. Cubit пробрасываем через .value — лист им управляет.
+  void openFilters(BuildContext context) {
+    final cubit = context.read<GoodsListCubit>();
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) =>
+          BlocProvider.value(value: cubit, child: const _FilterSheet()),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = context.watch<GoodsListCubit>().state;
+    // Склад пока не учитываем (ADR-0016) — только группа + поставщик.
+    final count =
+        (state.groupId != null ? 1 : 0) + (state.supplierId != null ? 1 : 0);
+
+    return Badge.count(
+      count: count,
+      isLabelVisible: count > 0,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: AppBorders.kCircular8,
+          border: Border.all(color: AppColors.kBorder),
+        ),
+        child: IconButton(
+          icon: const Icon(Icons.tune),
+          tooltip: t.stockListScreen.filterTooltip,
+          onPressed: () => openFilters(context),
+        ),
+      ),
+    );
+  }
+}
+
+/// Активные фильтры чипами (группа/поставщик). «✕» снимает фильтр сразу.
+class _ActiveChips extends StatelessWidget {
+  const _ActiveChips();
+
+  /// Имя по id из справочника (пусто, если не нашли).
+  String _nameOf(Iterable<String> names) => names.isEmpty ? '' : names.first;
 
   @override
   Widget build(BuildContext context) {
     final state = context.watch<GoodsListCubit>().state;
     final cubit = context.read<GoodsListCubit>();
 
-    return Column(
-      children: [
-        DropdownButtonFormField<String?>(
-          borderRadius: BorderRadius.circular(8),
-          initialValue: state.groupId,
-          isExpanded: true,
-          decoration: InputDecoration(
-            labelText: t.stockListScreen.filterGroup,
-            border: const OutlineInputBorder(),
-            isDense: true,
-          ),
-          items: [
-            DropdownMenuItem<String?>(
-              value: null,
-              child: Text(t.stockListScreen.filterAll),
-            ),
-            for (final g in state.groups)
-              DropdownMenuItem<String?>(
-                value: g.id,
-                child: Text(
-                  g.name,
-                  overflow: TextOverflow.ellipsis,
-                  style: RegularTextStyles().regularInter14,
-                ),
-              ),
-          ],
-          onChanged: cubit.setGroup,
+    final chips = <Widget>[];
+    if (state.groupId != null) {
+      final name = _nameOf(
+        state.groups.where((g) => g.id == state.groupId).map((g) => g.name),
+      );
+      chips.add(_chip(name, () => cubit.setGroup(null)));
+    }
+    if (state.supplierId != null) {
+      final name = _nameOf(
+        state.suppliers
+            .where((s) => s.id == state.supplierId)
+            .map((s) => s.name),
+      );
+      chips.add(_chip(name, () => cubit.setSupplier(null)));
+    }
+    if (chips.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: AppInsets.top8,
+      // child: SingleChildScrollView(
+      //   scrollDirection: Axis.horizontal,
+      //   child: Row(children: chips),
+      // ),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Wrap(spacing: 4, runSpacing: 8, children: chips),
         ),
-        AppBoxes.kHeight8,
-        DropdownButtonFormField<String?>(
-          borderRadius: BorderRadius.circular(8),
-          initialValue: state.supplierId,
-          isExpanded: true,
-          decoration: InputDecoration(
-            labelText: t.stockListScreen.filterSupplier,
-            border: const OutlineInputBorder(),
-            isDense: true,
-          ),
-          items: [
-            DropdownMenuItem<String?>(
-              value: null,
-              child: Text(t.stockListScreen.filterAll),
+      ),
+    );
+  }
+
+  Widget _chip(String label, VoidCallback onDeleted) => Chip(
+    elevation: 2,
+    shadowColor: AppColors.kStockItemBorder,
+    side: BorderSide(color: AppColors.kStockItemBg),
+    shape: RoundedRectangleBorder(borderRadius: AppBorders.kPill),
+    backgroundColor: AppColors.kStockItemBg,
+    label: Text(label, style: RegularTextStyles().regularInter12),
+    onDeleted: onDeleted,
+    deleteIcon: const Icon(Icons.close, size: AppSizes.kIcon16),
+  );
+}
+
+/// Нижний лист фильтров: группа + поставщик (применяются сразу) + «Сбросить».
+class _FilterSheet extends StatelessWidget {
+  const _FilterSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    final state = context.watch<GoodsListCubit>().state;
+    final cubit = context.read<GoodsListCubit>();
+
+    return SafeArea(
+      child: Padding(
+        padding: AppInsets.all16,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              t.stockListScreen.filtersTitle,
+              style: SemiboldTextStyles().semiboldInter18,
             ),
-            for (final s in state.suppliers)
-              DropdownMenuItem<String?>(
-                value: s.id,
-                child: Text(
-                  s.name,
-                  overflow: TextOverflow.ellipsis,
-                  style: RegularTextStyles().regularInter14,
-                ),
+            AppBoxes.kHeight16,
+            // key по значению — чтобы после «Сбросить» дропдаун показал «Все».
+            DropdownButtonFormField<String?>(
+              key: ValueKey('flt-group-${state.groupId}'),
+              initialValue: state.groupId,
+              isExpanded: true,
+              borderRadius: AppBorders.kCircular8,
+              decoration: InputDecoration(
+                labelText: t.stockListScreen.filterGroup,
+                border: const OutlineInputBorder(),
+                isDense: true,
               ),
+              items: [
+                DropdownMenuItem<String?>(
+                  value: null,
+                  child: Text(t.stockListScreen.filterAll),
+                ),
+                for (final g in state.groups)
+                  DropdownMenuItem<String?>(
+                    value: g.id,
+                    child: Text(
+                      g.name,
+                      overflow: TextOverflow.ellipsis,
+                      style: RegularTextStyles().regularInter14,
+                    ),
+                  ),
+              ],
+              onChanged: cubit.setGroup,
+            ),
+            AppBoxes.kHeight12,
+            DropdownButtonFormField<String?>(
+              key: ValueKey('flt-supplier-${state.supplierId}'),
+              initialValue: state.supplierId,
+              isExpanded: true,
+              borderRadius: AppBorders.kCircular8,
+              decoration: InputDecoration(
+                labelText: t.stockListScreen.filterSupplier,
+                border: const OutlineInputBorder(),
+                isDense: true,
+              ),
+              items: [
+                DropdownMenuItem<String?>(
+                  value: null,
+                  child: Text(t.stockListScreen.filterAll),
+                ),
+                for (final s in state.suppliers)
+                  DropdownMenuItem<String?>(
+                    value: s.id,
+                    child: Text(
+                      s.name,
+                      overflow: TextOverflow.ellipsis,
+                      style: RegularTextStyles().regularInter14,
+                    ),
+                  ),
+              ],
+              onChanged: cubit.setSupplier,
+            ),
+            AppBoxes.kHeight16,
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: cubit.resetFilters,
+                    child: Text(t.stockListScreen.reset),
+                  ),
+                ),
+                AppBoxes.kWidth12,
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: Text(t.stockListScreen.done),
+                  ),
+                ),
+              ],
+            ),
           ],
-          onChanged: cubit.setSupplier,
         ),
-      ],
+      ),
     );
   }
 }
@@ -213,7 +377,7 @@ class _GoodsResult extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: AppInsets.h8,
+          padding: AppInsets.h16 + AppInsets.v8,
           child: Text(
             t.stockListScreen.found(total: state.total),
             style: RegularTextStyles().regularInter14.copyWith(
@@ -223,12 +387,13 @@ class _GoodsResult extends StatelessWidget {
         ),
         Expanded(
           child: ListView.builder(
-            physics: BouncingScrollPhysics(),
+            padding: EdgeInsets.zero,
+            physics: const BouncingScrollPhysics(),
             itemCount: state.goods.length,
             itemBuilder: (context, i) {
               final good = state.goods[i];
               return Padding(
-                padding: AppInsets.v2 + AppInsets.h8,
+                padding: AppInsets.bottom4 + AppInsets.h8,
                 child: Container(
                   decoration: BoxDecoration(
                     borderRadius: AppBorders.kCircular8,
@@ -250,8 +415,6 @@ class _GoodsResult extends StatelessWidget {
                         if (good.code != null) good.code!,
                         if (good.groupName != null) good.groupName!,
                       ].join(' · '),
-                      // maxLines: 1,
-                      // overflow: TextOverflow.ellipsis,
                       style: RegularTextStyles().regularInter10.copyWith(
                         color: AppColors.kTextMuted,
                       ),
