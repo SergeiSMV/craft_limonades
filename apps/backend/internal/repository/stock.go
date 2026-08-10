@@ -32,6 +32,14 @@ func (r *StockRepository) Add(ctx context.Context, key model.StockKey, qty decim
 	return addStock(ctx, r.pool, key, qty)
 }
 
+// Set — установить остаток по грани в ТОЧНОЕ значение qty (SET, не приращение). Атомарный upsert:
+// нет строки — создаём, есть — перезаписываем qty одним стейтментом. Нужен вводу остатков
+// (P-FastStart): «в ячейке ровно столько». Отрицательное отсечёт CHECK(qty>=0) в БД (страховка
+// к валидации сервиса); ноль допустим — строка остаётся с qty=0 (нулевые не удаляем).
+func (r *StockRepository) Set(ctx context.Context, key model.StockKey, qty decimal.Decimal) error {
+	return setStock(ctx, r.pool, key, qty)
+}
+
 // Remove — расход: уменьшить остаток по грани на qty. Атомарно и безопасно:
 // UPDATE с условием qty >= $ не тронет строку, если списывать нечем → ErrInsufficientStock.
 // Два параллельных списания не уведут остаток в минус (проверка и вычитание — в одном стейтменте).
@@ -85,6 +93,19 @@ func addStock(ctx context.Context, q Querier, key model.StockKey, qty decimal.De
 		key.CellID, key.GoodID, key.BatchID, qty.String())
 	if err != nil {
 		return fmt.Errorf("add stock: %w", err)
+	}
+	return nil
+}
+
+func setStock(ctx context.Context, q Querier, key model.StockKey, qty decimal.Decimal) error {
+	_, err := q.Exec(ctx, `
+		INSERT INTO stock (cell_id, good_id, batch_id, qty)
+		VALUES ($1, $2, $3, $4::numeric)
+		ON CONFLICT (cell_id, good_id, batch_id)
+		DO UPDATE SET qty = EXCLUDED.qty`,
+		key.CellID, key.GoodID, key.BatchID, qty.String())
+	if err != nil {
+		return fmt.Errorf("set stock: %w", err)
 	}
 	return nil
 }

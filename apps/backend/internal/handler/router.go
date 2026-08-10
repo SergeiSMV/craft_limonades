@@ -23,7 +23,7 @@ import (
 // Как: chi-роутер с цепочкой middleware; прикладные ручки — под /api/v1, пробы — на корне.
 // db (Pinger) может быть nil → /ready ответит 503. authSvc может быть nil (нет БД) →
 // auth-роуты не регистрируются.
-func NewRouter(log *slog.Logger, db Pinger, authSvc *service.AuthService, tokens *auth.TokenManager, importSvc *service.ImportService, catalogSvc *service.CatalogService) http.Handler {
+func NewRouter(log *slog.Logger, db Pinger, authSvc *service.AuthService, tokens *auth.TokenManager, importSvc *service.ImportService, catalogSvc *service.CatalogService, barcodeSvc *service.BarcodeService, stockEntrySvc *service.StockEntryService, labelSvc *service.LabelService) http.Handler {
 	r := chi.NewRouter()
 
 	// Общие middleware для всех маршрутов:
@@ -74,6 +74,16 @@ func NewRouter(log *slog.Logger, db Pinger, authSvc *service.AuthService, tokens
 			})
 		}
 
+		// PDF-этикетки ячеек (P-FastStart) — только admin (печать этикеток из портала).
+		if labelSvc != nil {
+			labelH := NewLabelHandler(labelSvc)
+			r.Group(func(r chi.Router) {
+				r.Use(appmw.Authenticator(tokens))
+				r.Use(appmw.RequireRole(model.RoleAdmin))
+				r.Get("/cells/labels.pdf", labelH.CellLabelsPDF)
+			})
+		}
+
 		// Чтение справочников (товары/группы/поставщики/ячейки/остатки) — любому аутентифицированному
 		// сотруднику (это кормит экраны ТСД, не только админку). Только GET, без изменений данных.
 		if catalogSvc != nil {
@@ -86,6 +96,28 @@ func NewRouter(log *slog.Logger, db Pinger, authSvc *service.AuthService, tokens
 				r.Get("/suppliers", catalogH.ListSuppliers)
 				r.Get("/cells", catalogH.ListCells)
 				r.Get("/stock", catalogH.ListStock)
+			})
+		}
+
+		// Привязка ШК и резолв товара по ШК (ввод остатков P-FastStart) — любому аутентифицированному
+		// сотруднику: кладовщик привязывает ШК прямо на проходе склада (решение P-FS-03).
+		if barcodeSvc != nil {
+			barcodeH := NewBarcodeHandler(barcodeSvc)
+			r.Group(func(r chi.Router) {
+				r.Use(appmw.Authenticator(tokens))
+				r.Get("/barcodes/{code}", barcodeH.GetByCode) // товар по ШК или 404
+				r.Post("/barcodes", barcodeH.Bind)            // привязать ШК к товару
+			})
+		}
+
+		// Сессия ввода остатков (P-FastStart) — тоже сотруднику: кладовщик проходит склад.
+		if stockEntrySvc != nil {
+			seH := NewStockEntryHandler(stockEntrySvc)
+			r.Group(func(r chi.Router) {
+				r.Use(appmw.Authenticator(tokens))
+				r.Post("/stock-entry/sessions", seH.Start)                  // открыть сессию
+				r.Post("/stock-entry/sessions/{id}/cells", seH.Checkpoint)  // checkpoint ячейки
+				r.Post("/stock-entry/sessions/{id}/finalize", seH.Finalize) // финал → запись в stock
 			})
 		}
 	})
