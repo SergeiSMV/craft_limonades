@@ -120,6 +120,22 @@
             "skipped_title": "Пропущено строк: ${count}",
             "skipped_row": "строка ${row}: ${message}",
             "error": "Ошибка: ${message}"
+        },
+        "cells": {
+            "title": "Загрузка ячеек",
+            "description": "Импорт справочника ячеек склада из Excel-файла (колонки «cell» - адрес, «floor» - напольная). Повторная загрузка обновляет ячейки по адресу - дубли не создаются.",
+            "upload_prompt": "Нажмите, чтобы выбрать файл",
+            "upload_hint": "Поддерживаемый формат: XLSX",
+            "upload_badge": "Excel-файл ячеек",
+            "upload": "Загрузить",
+            "uploading": "Загрузка…",
+            "report_title": "Импорт завершён",
+            "warehouse": "Склад",
+            "created": "Создано ячеек",
+            "updated": "Обновлено ячеек",
+            "skipped_title": "Пропущено строк: ${count}",
+            "skipped_row": "строка ${row}: ${message}",
+            "error": "Ошибка: ${message}"
         }
     }
 }

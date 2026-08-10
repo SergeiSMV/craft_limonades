@@ -18,6 +18,20 @@ abstract class ImportReport with _$ImportReport {
   factory ImportReport.fromJson(Map<String, dynamic> json) => _$ImportReportFromJson(json);
 }
 
+/// Итог импорта ячеек — ответ `POST /import/cells` (backend `CellsImportReport`).
+@freezed
+abstract class CellsImportReport with _$CellsImportReport {
+  const factory CellsImportReport({
+    @Default('') String warehouse,
+    @JsonKey(name: 'cells_created') required int cellsCreated,
+    @JsonKey(name: 'cells_updated') required int cellsUpdated,
+    @Default(<SkippedRow>[]) List<SkippedRow> skipped,
+  }) = _CellsImportReport;
+
+  factory CellsImportReport.fromJson(Map<String, dynamic> json) =>
+      _$CellsImportReportFromJson(json);
+}
+
 /// Пропущенная строка файла с причиной (backend `importer.RowError`).
 /// `row` = 0 у строк, отбракованных не по номеру (напр. товар без единицы измерения).
 @freezed
