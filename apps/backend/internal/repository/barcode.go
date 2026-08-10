@@ -57,8 +57,14 @@ func (r *BarcodeRepository) GetGoodByBarcode(ctx context.Context, code string) (
 // повторная привязка того же ШК к тому же товару — ок; занятый ШК другим товаром →
 // ErrBarcodeConflict; несуществующий товар → ErrGoodNotFound; пустая symbology → NULL.
 func (r *BarcodeRepository) Bind(ctx context.Context, goodID, barcode, symbology string) error {
+	return bindBarcode(ctx, r.pool, goodID, barcode, symbology)
+}
+
+// bindBarcode — низкоуровневая привязка на Querier (пул или tx), чтобы checkpoint сессии ввода
+// (P-FS-04) коммитил новые привязки в той же транзакции, что и строки ячейки.
+func bindBarcode(ctx context.Context, q Querier, goodID, barcode, symbology string) error {
 	// Вставляем; конфликт по UNIQUE(barcode) не роняем — разберём ниже (идемпотентность vs конфликт).
-	tag, err := r.pool.Exec(ctx, `
+	tag, err := q.Exec(ctx, `
 		INSERT INTO barcodes (good_id, barcode, symbology)
 		VALUES ($1, $2, NULLIF($3,''))
 		ON CONFLICT (barcode) DO NOTHING`,
@@ -75,7 +81,7 @@ func (r *BarcodeRepository) Bind(ctx context.Context, goodID, barcode, symbology
 	}
 	// Вставки не было → ШК уже существует. Идемпотентно, если он за ЭТИМ же товаром, иначе конфликт.
 	var existingGood string
-	if err := r.pool.QueryRow(ctx,
+	if err := q.QueryRow(ctx,
 		`SELECT good_id::text FROM barcodes WHERE barcode = $1`, barcode).Scan(&existingGood); err != nil {
 		return fmt.Errorf("check existing barcode: %w", err)
 	}

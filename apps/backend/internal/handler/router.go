@@ -23,7 +23,7 @@ import (
 // Как: chi-роутер с цепочкой middleware; прикладные ручки — под /api/v1, пробы — на корне.
 // db (Pinger) может быть nil → /ready ответит 503. authSvc может быть nil (нет БД) →
 // auth-роуты не регистрируются.
-func NewRouter(log *slog.Logger, db Pinger, authSvc *service.AuthService, tokens *auth.TokenManager, importSvc *service.ImportService, catalogSvc *service.CatalogService, barcodeSvc *service.BarcodeService) http.Handler {
+func NewRouter(log *slog.Logger, db Pinger, authSvc *service.AuthService, tokens *auth.TokenManager, importSvc *service.ImportService, catalogSvc *service.CatalogService, barcodeSvc *service.BarcodeService, stockEntrySvc *service.StockEntryService) http.Handler {
 	r := chi.NewRouter()
 
 	// Общие middleware для всех маршрутов:
@@ -97,6 +97,17 @@ func NewRouter(log *slog.Logger, db Pinger, authSvc *service.AuthService, tokens
 				r.Use(appmw.Authenticator(tokens))
 				r.Get("/barcodes/{code}", barcodeH.GetByCode) // товар по ШК или 404
 				r.Post("/barcodes", barcodeH.Bind)            // привязать ШК к товару
+			})
+		}
+
+		// Сессия ввода остатков (P-FastStart) — тоже сотруднику: кладовщик проходит склад.
+		if stockEntrySvc != nil {
+			seH := NewStockEntryHandler(stockEntrySvc)
+			r.Group(func(r chi.Router) {
+				r.Use(appmw.Authenticator(tokens))
+				r.Post("/stock-entry/sessions", seH.Start)                  // открыть сессию
+				r.Post("/stock-entry/sessions/{id}/cells", seH.Checkpoint)  // checkpoint ячейки
+				r.Post("/stock-entry/sessions/{id}/finalize", seH.Finalize) // финал → запись в stock
 			})
 		}
 	})

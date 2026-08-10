@@ -83,6 +83,7 @@ func main() {
 	var importSvc *service.ImportService
 	var catalogSvc *service.CatalogService
 	var barcodeSvc *service.BarcodeService
+	var stockEntrySvc *service.StockEntryService
 	if pool != nil {
 		authSvc = service.NewAuthService(repository.NewUserRepository(pool), tokens)
 		// Репозитории справочников: переиспользуются импортом (запись) и каталогом (чтение).
@@ -98,6 +99,8 @@ func main() {
 		catalogSvc = service.NewCatalogService(goods, groups, suppliers, cells, stock)
 		// Привязка ШК к товару и резолв по ШК (ввод остатков P-FastStart, P-FS-03).
 		barcodeSvc = service.NewBarcodeService(repository.NewBarcodeRepository(pool))
+		// Сессия ввода остатков (P-FastStart, P-FS-04): старт/checkpoint/финал → stock.
+		stockEntrySvc = service.NewStockEntryService(repository.NewStockEntryRepository(pool))
 	} else {
 		log.Warn("no database — auth, import and catalog endpoints disabled")
 	}
@@ -105,7 +108,7 @@ func main() {
 	// 5. HTTP-сервер с собранным роутером транспортного слоя.
 	srv := &http.Server{
 		Addr:              ":" + cfg.AppPort,
-		Handler:           handler.NewRouter(log, pinger, authSvc, tokens, importSvc, catalogSvc, barcodeSvc),
+		Handler:           handler.NewRouter(log, pinger, authSvc, tokens, importSvc, catalogSvc, barcodeSvc, stockEntrySvc),
 		ReadHeaderTimeout: 5 * time.Second, // защита от медленных клиентов (Slowloris)
 	}
 
