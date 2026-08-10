@@ -22,6 +22,7 @@ var (
 // stockRepo — то, что StockService нужно от хранилища (зависимость от интерфейса).
 type stockRepo interface {
 	Add(ctx context.Context, key model.StockKey, qty decimal.Decimal) error
+	Set(ctx context.Context, key model.StockKey, qty decimal.Decimal) error
 	Remove(ctx context.Context, key model.StockKey, qty decimal.Decimal) error
 	Transfer(ctx context.Context, from, to model.StockKey, qty decimal.Decimal) error
 	GetQty(ctx context.Context, key model.StockKey) (decimal.Decimal, error)
@@ -45,6 +46,16 @@ func (s *StockService) Receive(ctx context.Context, key model.StockKey, qty deci
 		return ErrInvalidQuantity
 	}
 	return s.stock.Add(ctx, key, qty)
+}
+
+// SetLine — установить остаток грани (ячейка×товар×партия) в ТОЧНОЕ значение qty (SET, ввод
+// остатков P-FastStart): «в ячейке ровно столько». В отличие от Receive/Issue направление не
+// задаётся — это перезапись. Отрицательное отклоняем; ноль допустим (напр. после Undo строки).
+func (s *StockService) SetLine(ctx context.Context, key model.StockKey, qty decimal.Decimal) error {
+	if qty.IsNegative() {
+		return ErrInvalidQuantity
+	}
+	return s.stock.Set(ctx, key, qty)
 }
 
 // Issue — расход: снять qty товара (партии) из ячейки. Не хватило → ErrInsufficientStock.
