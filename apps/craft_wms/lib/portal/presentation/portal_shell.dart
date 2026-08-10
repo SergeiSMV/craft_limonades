@@ -8,6 +8,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_insets.dart';
 import '../../core/constants/app_sizes.dart';
 import '../../core/gen/strings.g.dart';
+import 'tabs/cells_tab.dart';
 import 'tabs/nomenclature_tab.dart';
 import 'tabs/stub_tab.dart';
 
@@ -77,7 +78,7 @@ class _PortalShellState extends State<PortalShell> {
         _NavItem(
           icon: Icons.grid_view_outlined,
           label: t.portal.tabs.cells,
-          body: const StubTab(phase: 'P1-05', icon: Icons.grid_view_outlined),
+          body: const CellsTab(),
         ),
         _NavItem(
           icon: Icons.swap_horiz,
@@ -200,12 +201,14 @@ class _Sidebar extends StatelessWidget {
               children: [
                 const Icon(Icons.eco, color: AppColors.kSecondary, size: AppSizes.kIcon28),
                 AppBoxes.kWidth12,
-                Text(
-                  t.portal.brand,
-                  style: const TextStyle(
-                    color: AppColors.kPrimary,
-                    fontSize: AppSizes.kText22,
-                    fontWeight: FontWeight.w700,
+                Expanded(
+                  child: Text(
+                    t.portal.brand,
+                    style: const TextStyle(
+                      color: AppColors.kPrimary,
+                      fontSize: AppSizes.kText22,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ],
@@ -346,8 +349,8 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       height: AppSizes.kHeaderHeight,
-      color: AppColors.kCardBg,
       padding: AppInsets.h32,
+      // Цвет — внутри decoration (нельзя одновременно color и decoration у Container).
       decoration: const BoxDecoration(
         color: AppColors.kCardBg,
         border: Border(bottom: BorderSide(color: AppColors.kBorder)),

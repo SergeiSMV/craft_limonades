@@ -22,6 +22,9 @@ abstract final class ApiConst {
   ///**POST** - импорт номенклатуры из `.xls`-выгрузки 1С (multipart, admin-only)
   static const String importGoods = 'import/goods';
 
+  ///**POST** - импорт ячеек склада из `.xlsx` (multipart, admin-only)
+  static const String importCells = 'import/cells';
+
   ///**GET** - список/поиск товаров (q, group_id, supplier_id, limit, offset)
   static const String goods = 'goods';
 
