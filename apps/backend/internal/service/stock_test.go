@@ -18,6 +18,7 @@ type fakeStockRepo struct {
 	qty          map[model.StockKey]decimal.Decimal
 	insufficient bool // при true Remove/Transfer возвращают repository.ErrInsufficientStock
 	addCalls     int
+	setCalls     int
 	removeCalls  int
 	transferred  bool
 }
@@ -29,6 +30,12 @@ func newFakeStockRepo() *fakeStockRepo {
 func (f *fakeStockRepo) Add(_ context.Context, key model.StockKey, qty decimal.Decimal) error {
 	f.addCalls++
 	f.qty[key] = f.qty[key].Add(qty)
+	return nil
+}
+
+func (f *fakeStockRepo) Set(_ context.Context, key model.StockKey, qty decimal.Decimal) error {
+	f.setCalls++
+	f.qty[key] = qty // SET: перезапись, не приращение
 	return nil
 }
 
@@ -81,6 +88,52 @@ func TestReceive_nonPositive_rejected(t *testing.T) {
 		if repo.addCalls != 0 {
 			t.Fatalf("qty=%s: Add не должен вызываться при невалидном количестве", qty)
 		}
+	}
+}
+
+func TestSetLine_setsExact_overwrites(t *testing.T) {
+	repo := newFakeStockRepo()
+	svc := NewStockService(repo)
+	ctx := context.Background()
+
+	if err := svc.SetLine(ctx, testKey, decimal.NewFromInt(10)); err != nil {
+		t.Fatalf("SetLine(10): неожиданная ошибка: %v", err)
+	}
+	if got := repo.qty[testKey]; !got.Equal(decimal.NewFromInt(10)) {
+		t.Fatalf("после SetLine(10): ожидалось 10, получено %s", got)
+	}
+	// SET перезаписывает, а не прибавляет: 3, а не 13.
+	if err := svc.SetLine(ctx, testKey, decimal.NewFromInt(3)); err != nil {
+		t.Fatalf("SetLine(3): неожиданная ошибка: %v", err)
+	}
+	if got := repo.qty[testKey]; !got.Equal(decimal.NewFromInt(3)) {
+		t.Fatalf("после SetLine(3): ожидалось 3 (перезапись), получено %s", got)
+	}
+	if repo.setCalls != 2 {
+		t.Fatalf("ожидалось 2 вызова Set, получено %d", repo.setCalls)
+	}
+}
+
+func TestSetLine_zeroAllowed(t *testing.T) {
+	repo := newFakeStockRepo()
+	svc := NewStockService(repo)
+	if err := svc.SetLine(context.Background(), testKey, decimal.Zero); err != nil {
+		t.Fatalf("SetLine(0) должен быть допустим (напр. после Undo), получено %v", err)
+	}
+	if repo.setCalls != 1 {
+		t.Fatalf("ожидался 1 вызов Set при qty=0, получено %d", repo.setCalls)
+	}
+}
+
+func TestSetLine_negativeRejected(t *testing.T) {
+	repo := newFakeStockRepo()
+	svc := NewStockService(repo)
+	err := svc.SetLine(context.Background(), testKey, decimal.NewFromInt(-1))
+	if !errors.Is(err, ErrInvalidQuantity) {
+		t.Fatalf("ожидалась ErrInvalidQuantity, получено %v", err)
+	}
+	if repo.setCalls != 0 {
+		t.Fatalf("Set не должен вызываться при отрицательном qty")
 	}
 }
 
