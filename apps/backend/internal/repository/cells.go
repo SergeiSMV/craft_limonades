@@ -5,6 +5,8 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"craftwms/internal/model"
 )
 
 // CellRepository — доступ к таблице cells (физические ячейки хранения). Пока — апсерт под импорт;
@@ -16,6 +18,29 @@ type CellRepository struct {
 // NewCellRepository создаёт репозиторий ячеек.
 func NewCellRepository(pool *pgxpool.Pool) *CellRepository {
 	return &CellRepository{pool: pool}
+}
+
+// LabelsByWarehouse возвращает все активные ячейки склада (адрес + признак напольной) для печати
+// этикеток (P-FS-05). Без пагинации — этикетки печатаются на весь склад; порядок (натуральная
+// сортировка по адресу) делается на уровне сервиса.
+func (r *CellRepository) LabelsByWarehouse(ctx context.Context, warehouseID string) ([]model.CellLabel, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT address, is_floor FROM cells
+		WHERE warehouse_id = $1::uuid AND is_active = true`, warehouseID)
+	if err != nil {
+		return nil, fmt.Errorf("cells for labels: %w", err)
+	}
+	defer rows.Close()
+
+	out := make([]model.CellLabel, 0)
+	for rows.Next() {
+		var c model.CellLabel
+		if err := rows.Scan(&c.Address, &c.IsFloor); err != nil {
+			return nil, fmt.Errorf("scan cell label: %w", err)
+		}
+		out = append(out, c)
+	}
+	return out, rows.Err()
 }
 
 // Upsert заводит/обновляет ячейку по (warehouse_id, address) — ключ уникальности из P1-01.
