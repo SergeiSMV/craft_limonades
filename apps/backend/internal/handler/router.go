@@ -23,7 +23,7 @@ import (
 // Как: chi-роутер с цепочкой middleware; прикладные ручки — под /api/v1, пробы — на корне.
 // db (Pinger) может быть nil → /ready ответит 503. authSvc может быть nil (нет БД) →
 // auth-роуты не регистрируются.
-func NewRouter(log *slog.Logger, db Pinger, authSvc *service.AuthService, tokens *auth.TokenManager, importSvc *service.ImportService, catalogSvc *service.CatalogService, barcodeSvc *service.BarcodeService, stockEntrySvc *service.StockEntryService) http.Handler {
+func NewRouter(log *slog.Logger, db Pinger, authSvc *service.AuthService, tokens *auth.TokenManager, importSvc *service.ImportService, catalogSvc *service.CatalogService, barcodeSvc *service.BarcodeService, stockEntrySvc *service.StockEntryService, labelSvc *service.LabelService) http.Handler {
 	r := chi.NewRouter()
 
 	// Общие middleware для всех маршрутов:
@@ -71,6 +71,16 @@ func NewRouter(log *slog.Logger, db Pinger, authSvc *service.AuthService, tokens
 				r.Use(appmw.RequireRole(model.RoleAdmin))
 				r.Post("/import/goods", importH.ImportGoods) // .xls-выгрузка номенклатуры 1С
 				r.Post("/import/cells", importH.ImportCells) // .xlsx-файл физических ячеек склада
+			})
+		}
+
+		// PDF-этикетки ячеек (P-FastStart) — только admin (печать этикеток из портала).
+		if labelSvc != nil {
+			labelH := NewLabelHandler(labelSvc)
+			r.Group(func(r chi.Router) {
+				r.Use(appmw.Authenticator(tokens))
+				r.Use(appmw.RequireRole(model.RoleAdmin))
+				r.Get("/cells/labels.pdf", labelH.CellLabelsPDF)
 			})
 		}
 

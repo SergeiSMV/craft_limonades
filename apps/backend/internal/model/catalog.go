@@ -20,6 +20,13 @@ type Good struct {
 	IsActive     bool    `json:"is_active"`
 }
 
+// CellLabel — минимум для печати этикетки ячейки: адрес (в штрихкод + текст) и признак напольной
+// (стрелка вниз). Отдельна от Cell — этикетке не нужны id/тип/склад.
+type CellLabel struct {
+	Address string
+	IsFloor bool
+}
+
 // NomenclatureGroup — узел дерева групп номенклатуры.
 type NomenclatureGroup struct {
 	ID       string  `json:"id"`
