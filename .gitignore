@@ -26,6 +26,9 @@ infra/.env.prod
 .vscode/
 *.iml
 
+# CommandKit related
+**/*.cmdk
+
 # Go — бинари, случайно собранные `go build ./cmd/X` в корне модуля
 /apps/backend/bin/
 /apps/backend/server

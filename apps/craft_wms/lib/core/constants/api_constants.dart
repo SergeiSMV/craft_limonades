@@ -25,6 +25,9 @@ abstract final class ApiConst {
   ///**POST** - импорт ячеек склада из `.xlsx` (multipart, admin-only)
   static const String importCells = 'import/cells';
 
+  ///**GET** - PDF-этикетки ячеек склада (query `warehouse`, admin-only, ответ — bytes)
+  static const String cellLabelsPdf = 'cells/labels.pdf';
+
   ///**GET** - список/поиск товаров (q, group_id, supplier_id, limit, offset)
   static const String goods = 'goods';
 

@@ -9,6 +9,7 @@ import '../../../core/error/failure.dart';
 import '../../../core/gen/strings.g.dart';
 import '../../data/cells_repository.dart';
 import '../../data/import_report.dart';
+import '../../data/web_download.dart';
 import '../../data/web_file_picker.dart';
 import 'widgets/upload_widgets.dart';
 
@@ -32,6 +33,33 @@ class _CellsTabState extends State<CellsTab> {
   bool _uploading = false;
   CellsImportReport? _report;
   Failure? _error;
+
+  /// Состояние скачивания PDF-этикеток (независимо от импорта).
+  bool _downloadingLabels = false;
+  Failure? _labelsError;
+
+  /// Скачивание PDF-этикеток ячеек и запуск сохранения файла в браузере.
+  Future<void> downloadLabels() async {
+    if (_downloadingLabels) return;
+    setState(() {
+      _downloadingLabels = true;
+      _labelsError = null;
+    });
+
+    final result = await _repo.downloadCellLabels();
+    if (!mounted) return;
+    setState(() {
+      _downloadingLabels = false;
+      result.fold(
+        (f) => _labelsError = f,
+        (bytes) => downloadBytes(
+          bytes: bytes,
+          filename: 'cell-labels-SHB.pdf',
+          mime: 'application/pdf',
+        ),
+      );
+    });
+  }
 
   /// Выбор `.xlsx`-файла через системный диалог браузера (имя + байты).
   Future<void> pickFile() async {
@@ -85,6 +113,52 @@ class _CellsTabState extends State<CellsTab> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              Card(
+                child: Padding(
+                  padding: AppInsets.all32,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        t.portal.cells.labelsTitle,
+                        style: const TextStyle(fontSize: AppSizes.kText24, fontWeight: FontWeight.w600),
+                      ),
+                      AppBoxes.kHeight8,
+                      Text(
+                        t.portal.cells.labelsDescription,
+                        style: const TextStyle(fontSize: AppSizes.kText14, color: AppColors.kTextMuted),
+                      ),
+                      AppBoxes.kHeight24,
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: FilledButton.icon(
+                          onPressed: _downloadingLabels ? null : downloadLabels,
+                          icon: _downloadingLabels
+                              ? const SizedBox(
+                                  width: AppSizes.kIcon18,
+                                  height: AppSizes.kIcon18,
+                                  child: CircularProgressIndicator(strokeWidth: AppSizes.kIcon2),
+                                )
+                              : const Icon(Icons.download, size: AppSizes.kIcon18),
+                          label: Text(
+                            _downloadingLabels
+                                ? t.portal.cells.labelsDownloading
+                                : t.portal.cells.labelsDownload,
+                          ),
+                        ),
+                      ),
+                      if (_labelsError != null) ...[
+                        AppBoxes.kHeight16,
+                        Text(
+                          _errorText(_labelsError!),
+                          style: const TextStyle(color: AppColors.kDanger, fontSize: AppSizes.kText15),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              AppBoxes.kHeight24,
               Card(
                 child: Padding(
                   padding: AppInsets.all32,

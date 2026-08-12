@@ -1,141 +1,145 @@
 {
-    "splash_screen": {
-        "title": "загрузка"
-    },
-    "login_screen": {
-        "title": "Вход по бейджу",
-        "scan_prompt": "сканируйте бейдж сотрудника",
-        "badge_label": "16 цифр",
-        "logging_in": "проверка бейджа",
-        "error_invalid": "Нужно 16 цифр",
-        "error_auth": "Неверный бейдж",
-        "error_network": "Нет связи с сервером",
-        "error_unknown": "Ошибка входа"
-    },
-    "home_screen": {
-        "title": "ГЛАВНОЕ МЕНЮ",
-        "logs_tooltip": "Логи",
-        "logout_tooltip": "Выход",
-        "stub_snack": "Раздел в разработке",
-        "tiles": {
-            "receipt_title": "ПРИХОД",
-            "receipt_subtitle": "поступление товаров",
-            "movement_title": "ПЕРЕМЕЩЕНИЕ",
-            "movement_subtitle": "между ячейками",
-            "tasks_title": "ЗАДАНИЯ",
-            "tasks_subtitle": "складские задачи",
-            "find_title": "НАЙТИ",
-            "find_subtitle": "поиск товара по ШК",
-            "history_title": "ИСТОРИЯ",
-            "history_subtitle": "журнал операций",
-            "stock_title": "ОСТАТКИ",
-            "stock_subtitle": "текущие запасы"
-        }
-    },
-    "stock_list_screen": {
-        "title": "Остатки",
-        "search_hint": "Наименование или код",
-        "filter_group": "Группа товаров",
-        "filter_supplier": "Поставщик",
-        "filter_all": "Все",
-        "filters_title": "Фильтры",
-        "filter_tooltip": "Фильтры",
-        "reset": "Сбросить",
-        "done": "Готово",
-        "found": "найдено товаров: ${total}",
-        "empty": "Товары не найдены",
-        "error": "Не удалось загрузить",
-        "retry": "Повторить"
-    },
-    "stock_detail_screen": {
-        "title": "Остаток товара",
-        "code": "Код: ${code}",
-        "uom": "Ед.: ${uom}",
-        "group": "Группа: ${group}",
-        "supplier": "Поставщик: ${supplier}",
-        "total": "Итого: ${qty}",
-        "col_cell": "Ячейка",
-        "col_batch": "Партия",
-        "col_qty": "Кол-во",
-        "empty": "Нет остатков",
-        "error": "Не удалось загрузить",
-        "retry": "Повторить"
-    },
-    "portal": {
-        "app_title": "КЛ: Склад - портал",
-        "brand": "Крафтовые лимонады",
-        "login": {
-            "brand_title": "Умная логистика\nкаждой ячейки.",
-            "brand_subtitle": "Система управления складом (WMS). Автоматизация поступлений, отгрузок и инвентаризации с помощью ТСД и веб-портала.",
-            "title": "вход в систему",
-            "subtitle": "введите учётные данные оператора или администратора",
-            "username_label": "логин",
-            "password_label": "пароль",
-            "submit": "войти в портал",
-            "logging_in": "вход…",
-            "error_auth": "неверный логин или пароль",
-            "error_network": "нет связи с сервером",
-            "error_unknown": "ошибка входа"
-        },
-        "shell": {
-            "logout": "выход"
-        },
-        "menu": {
-            "operations": "Операции",
-            "warehouse": "Склад",
-            "system": "Система"
-        },
-        "tabs": {
-            "nomenclature": "Номенклатура",
-            "receipt": "Приход",
-            "picking": "Сборка",
-            "stocktake": "Инвентаризация",
-            "cells": "Ячейки",
-            "movement": "Перемещение",
-            "settings": "Настройки"
-        },
-        "stub": {
-            "title": "Раздел в разработке",
-            "phase": "Будет доступен в фазе ${phase}"
-        },
-        "admin_only": {
-            "title": "Доступ только для администратора",
-            "subtitle": "Портал доступен пользователям с ролью admin.",
-            "logout": "Выйти"
-        },
-        "nomenclature": {
-            "title": "Загрузка номенклатуры",
-            "description": "Импорт справочника товаров из Excel-выгрузки 1С. Повторная загрузка обновляет позиции по «Коду» — дубли не создаются.",
-            "upload_prompt": "Нажмите, чтобы выбрать файл",
-            "upload_hint": "Поддерживаемый формат: XLS",
-            "upload_badge": "Excel-выгрузка 1С",
-            "selected_file": "${name}",
-            "upload": "Загрузить",
-            "uploading": "Загрузка…",
-            "report_title": "Импорт завершён",
-            "created": "Создано товаров",
-            "updated": "Обновлено товаров",
-            "groups": "Групп затронуто",
-            "suppliers": "Поставщиков затронуто",
-            "skipped_title": "Пропущено строк: ${count}",
-            "skipped_row": "строка ${row}: ${message}",
-            "error": "Ошибка: ${message}"
-        },
-        "cells": {
-            "title": "Загрузка ячеек",
-            "description": "Импорт справочника ячеек склада из Excel-файла (колонки «cell» - адрес, «floor» - напольная). Повторная загрузка обновляет ячейки по адресу - дубли не создаются.",
-            "upload_prompt": "Нажмите, чтобы выбрать файл",
-            "upload_hint": "Поддерживаемый формат: XLSX",
-            "upload_badge": "Excel-файл ячеек",
-            "upload": "Загрузить",
-            "uploading": "Загрузка…",
-            "report_title": "Импорт завершён",
-            "warehouse": "Склад",
-            "created": "Создано ячеек",
-            "updated": "Обновлено ячеек",
-            "skipped_title": "Пропущено строк: ${count}",
-            "skipped_row": "строка ${row}: ${message}",
-            "error": "Ошибка: ${message}"
-        }
+  "splash_screen": {
+    "title": "загрузка"
+  },
+  "login_screen": {
+    "title": "Вход по бейджу",
+    "scan_prompt": "сканируйте бейдж сотрудника",
+    "badge_label": "16 цифр",
+    "logging_in": "проверка бейджа",
+    "error_invalid": "Нужно 16 цифр",
+    "error_auth": "Неверный бейдж",
+    "error_network": "Нет связи с сервером",
+    "error_unknown": "Ошибка входа"
+  },
+  "home_screen": {
+    "title": "ГЛАВНОЕ МЕНЮ",
+    "logs_tooltip": "Логи",
+    "logout_tooltip": "Выход",
+    "stub_snack": "Раздел в разработке",
+    "tiles": {
+      "receipt_title": "ПРИХОД",
+      "receipt_subtitle": "поступление товаров",
+      "movement_title": "ПЕРЕМЕЩЕНИЕ",
+      "movement_subtitle": "между ячейками",
+      "tasks_title": "ЗАДАНИЯ",
+      "tasks_subtitle": "складские задачи",
+      "find_title": "НАЙТИ",
+      "find_subtitle": "поиск товара по ШК",
+      "history_title": "ИСТОРИЯ",
+      "history_subtitle": "журнал операций",
+      "stock_title": "ОСТАТКИ",
+      "stock_subtitle": "текущие запасы"
     }
+  },
+  "stock_list_screen": {
+    "title": "Остатки",
+    "search_hint": "Наименование или код",
+    "filter_group": "Группа товаров",
+    "filter_supplier": "Поставщик",
+    "filter_all": "Все",
+    "filters_title": "Фильтры",
+    "filter_tooltip": "Фильтры",
+    "reset": "Сбросить",
+    "done": "Готово",
+    "found": "найдено товаров: ${total}",
+    "empty": "Товары не найдены",
+    "error": "Не удалось загрузить",
+    "retry": "Повторить"
+  },
+  "stock_detail_screen": {
+    "title": "Остаток товара",
+    "code": "Код: ${code}",
+    "uom": "Ед.: ${uom}",
+    "group": "Группа: ${group}",
+    "supplier": "Поставщик: ${supplier}",
+    "total": "Итого: ${qty}",
+    "col_cell": "Ячейка",
+    "col_batch": "Партия",
+    "col_qty": "Кол-во",
+    "empty": "Нет остатков",
+    "error": "Не удалось загрузить",
+    "retry": "Повторить"
+  },
+  "portal": {
+    "app_title": "КЛ: Склад - портал",
+    "brand": "Крафтовые лимонады",
+    "login": {
+      "brand_title": "Умная логистика\nкаждой ячейки.",
+      "brand_subtitle": "Система управления складом (WMS). Автоматизация поступлений, отгрузок и инвентаризации с помощью ТСД и веб-портала.",
+      "title": "вход в систему",
+      "subtitle": "введите учётные данные оператора или администратора",
+      "username_label": "логин",
+      "password_label": "пароль",
+      "submit": "войти в портал",
+      "logging_in": "вход…",
+      "error_auth": "неверный логин или пароль",
+      "error_network": "нет связи с сервером",
+      "error_unknown": "ошибка входа"
+    },
+    "shell": {
+      "logout": "выход"
+    },
+    "menu": {
+      "operations": "Операции",
+      "warehouse": "Склад",
+      "system": "Система"
+    },
+    "tabs": {
+      "nomenclature": "Номенклатура",
+      "receipt": "Приход",
+      "picking": "Сборка",
+      "stocktake": "Инвентаризация",
+      "cells": "Ячейки",
+      "movement": "Перемещение",
+      "settings": "Настройки"
+    },
+    "stub": {
+      "title": "Раздел в разработке",
+      "phase": "Будет доступен в фазе ${phase}"
+    },
+    "admin_only": {
+      "title": "Доступ только для администратора",
+      "subtitle": "Портал доступен пользователям с ролью admin.",
+      "logout": "Выйти"
+    },
+    "nomenclature": {
+      "title": "Загрузка номенклатуры",
+      "description": "Импорт справочника товаров из Excel-выгрузки 1С. Повторная загрузка обновляет позиции по «Коду» — дубли не создаются.",
+      "upload_prompt": "Нажмите, чтобы выбрать файл",
+      "upload_hint": "Поддерживаемый формат: XLS",
+      "upload_badge": "Excel-выгрузка 1С",
+      "selected_file": "${name}",
+      "upload": "Загрузить",
+      "uploading": "Загрузка…",
+      "report_title": "Импорт завершён",
+      "created": "Создано товаров",
+      "updated": "Обновлено товаров",
+      "groups": "Групп затронуто",
+      "suppliers": "Поставщиков затронуто",
+      "skipped_title": "Пропущено строк: ${count}",
+      "skipped_row": "строка ${row}: ${message}",
+      "error": "Ошибка: ${message}"
+    },
+    "cells": {
+      "title": "Загрузка ячеек",
+      "description": "Импорт справочника ячеек склада из Excel-файла (колонки «cell» - адрес, «floor» - напольная). Повторная загрузка обновляет ячейки по адресу - дубли не создаются.",
+      "upload_prompt": "Нажмите, чтобы выбрать файл",
+      "upload_hint": "Поддерживаемый формат: XLSX",
+      "upload_badge": "Excel-файл ячеек",
+      "upload": "Загрузить",
+      "uploading": "Загрузка…",
+      "report_title": "Импорт завершён",
+      "warehouse": "Склад",
+      "created": "Создано ячеек",
+      "updated": "Обновлено ячеек",
+      "skipped_title": "Пропущено строк: ${count}",
+      "skipped_row": "строка ${row}: ${message}",
+      "error": "Ошибка: ${message}",
+      "labels_title": "Этикетки ячеек",
+      "labels_description": "Скачайте PDF со штрихкодами и адресами всех ячеек склада (по 8 этикеток на лист A4). Распечатайте, разрежьте по пунктиру и наклейте на ячейки.",
+      "labels_download": "Скачать этикетки (PDF)",
+      "labels_downloading": "Формирование PDF…"
+    }
+  }
 }
