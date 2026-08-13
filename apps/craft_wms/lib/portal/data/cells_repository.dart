@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import 'package:either_dart/either.dart';
 import 'package:injectable/injectable.dart';
@@ -13,6 +15,29 @@ class CellsRepository {
   CellsRepository(this._dio);
 
   final Dio _dio;
+
+  /// Код склада для этикеток. На пилоте склад один — «Шабулина»/SHB (совпадает с дефолтом бэкенда).
+  static const String _warehouse = 'SHB';
+
+  /// Скачивание PDF-этикеток ячеек: `GET /cells/labels.pdf?warehouse=SHB` (ответ — bytes).
+  /// Что: получаем готовый PDF (штрихкоды + адреса ячеек) байтами.
+  /// Зачем: оператор печатает этикетки и клеит на ячейки (идентификация ячейки сканом).
+  /// Как: `responseType: bytes` (тело не JSON); admin-only — токен подставит AuthInterceptor,
+  ///      403/404 приедут как ServerFailure. Скачивание файла в браузере — на стороне UI.
+  Future<Either<Failure, Uint8List>> downloadCellLabels() async {
+    try {
+      final resp = await _dio.get<List<int>>(
+        ApiConst.cellLabelsPdf,
+        queryParameters: {'warehouse': _warehouse},
+        options: Options(responseType: ResponseType.bytes),
+      );
+      return Right(Uint8List.fromList(resp.data!));
+    } on DioException catch (e) {
+      return Left(_mapError(e));
+    } catch (_) {
+      return const Left(Failure.unknown());
+    }
+  }
 
   /// Загрузка `.xlsx`-файла ячеек: `POST /import/cells` (multipart, поле `file`).
   /// Что: шлём байты выбранного файла, получаем отчёт created/updated/skipped.
