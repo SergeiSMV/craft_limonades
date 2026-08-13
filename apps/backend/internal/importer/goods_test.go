@@ -139,3 +139,21 @@ func TestDemangleCode(t *testing.T) {
 		}
 	}
 }
+
+// stripControl должен убирать управляющие байты, включая NUL (0x00), который валил импорт
+// (Postgres не принимает 0x00 в text). Обычный текст — без изменений.
+func TestStripControl(t *testing.T) {
+	cases := map[string]string{
+		"Мясные\x00 снеки": "Мясные снеки",   // NUL внутри — вырезан
+		"код14900\x00":     "код14900",       // хвостовой NUL
+		"a\x01b\x1fc\x7fd": "abcd",           // прочие C0 + DEL
+		"Кальмар кольца":   "Кальмар кольца", // чистый текст не трогаем
+		"с\tтаб\nперенос":  "стабперенос",    // табы/переводы строк тоже убираем
+		"":                 "",
+	}
+	for in, want := range cases {
+		if got := stripControl(in); got != want {
+			t.Errorf("stripControl(%q) = %q, ожидалось %q", in, got, want)
+		}
+	}
+}

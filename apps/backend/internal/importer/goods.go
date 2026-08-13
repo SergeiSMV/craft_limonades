@@ -164,16 +164,34 @@ func headerIndex(row *xls.Row) (map[string]int, error) {
 	return cols, nil
 }
 
-// cellAt возвращает обрезанное значение ячейки по имени колонки (пусто, если колонки нет).
+// cellAt возвращает очищенное и обрезанное значение ячейки по имени колонки (пусто, если колонки нет).
 func cellAt(row *xls.Row, cols map[string]int, colName string) string {
 	idx, ok := cols[colName]
 	if !ok {
 		return ""
 	}
-	return strings.TrimSpace(row.Col(idx))
+	return strings.TrimSpace(stripControl(row.Col(idx)))
 }
 
-func norm(s string) string { return strings.ToLower(strings.TrimSpace(s)) }
+func norm(s string) string { return strings.ToLower(strings.TrimSpace(stripControl(s))) }
+
+// stripControl удаляет управляющие байты (C0 и DEL), включая NUL (0x00). Зачем: extrame/xls иногда
+// оставляет в строке 0x00 — остаток UTF-16-паддинга исходного .xls; Postgres не принимает 0x00 в
+// колонке text (SQLSTATE 22021), из-за чего падал импорт. В значениях номенклатуры управляющих
+// символов быть не должно, поэтому выкидываем их все (табы/переводы строк тоже).
+func stripControl(s string) string {
+	if !strings.ContainsFunc(s, isControl) {
+		return s // быстрый путь: чистить нечего
+	}
+	return strings.Map(func(r rune) rune {
+		if isControl(r) {
+			return -1 // выбросить руну
+		}
+		return r
+	}, s)
+}
+
+func isControl(r rune) bool { return r < 0x20 || r == 0x7f }
 
 func keys(m map[string]int) []string {
 	out := make([]string, 0, len(m))
