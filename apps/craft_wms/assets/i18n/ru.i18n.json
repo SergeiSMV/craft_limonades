@@ -29,7 +29,9 @@
       "history_title": "ИСТОРИЯ",
       "history_subtitle": "журнал операций",
       "stock_title": "ОСТАТКИ",
-      "stock_subtitle": "текущие запасы"
+      "stock_subtitle": "текущие запасы",
+      "stock_entry_title": "ВВОД ОСТАТКОВ",
+      "stock_entry_subtitle": "проход склада"
     }
   },
   "stock_list_screen": {
@@ -141,5 +143,43 @@
       "labels_download": "Скачать этикетки (PDF)",
       "labels_downloading": "Формирование PDF…"
     }
+  },
+  "stock_entry": {
+    "title": "Ввод остатков",
+    "finish_session": "Завершить ввод",
+    "cell_prompt": "cканируйте или введите ячейку",
+    "cell_hint": "Адрес ячейки",
+    "pick_cell": "Выбрать из списка",
+    "cell_not_found": "Ячейка не найдена",
+    "current_cell": "Ячейка ${address}",
+    "scan_good": "сканируйте товар",
+    "add_manual": "Добавить вручную",
+    "good_not_bound": "Штрихкод не найден — выберите товар",
+    "empty_buffer": "Пока пусто - отсканируйте товар",
+    "finish_cell": "Завершить ячейку",
+    "undo": "Отменить",
+    "line_subtitle": "Партия: ${date}",
+    "qty_with_uom": "${qty} ${uom}",
+    "finished_title": "Ввод завершён",
+    "finished_text": "Записано строк: ${written}. Остатки появились в разделе «Остатки».",
+    "to_home": "На главную",
+    "pick_good": "Выберите товар",
+    "search_good": "Поиск по названию или коду",
+    "nothing_found": "Ничего не найдено",
+    "date_label": "Дата выпуска (дд.мм.гггг)",
+    "date_invalid": "Дата в формате дд.мм.гггг",
+    "qty_label": "Количество (${uom})",
+    "qty_invalid": "Количество больше 0",
+    "add": "Добавить",
+    "cancel": "Отмена",
+    "error": "Ошибка: ${message}",
+    "error_network": "нет сети",
+    "error_auth": "сессия истекла",
+    "error_unknown": "неизвестная ошибка",
+    "edit": "Редактировать",
+    "delete": "Удалить",
+    "committed_title": "Пройденные ячейки: ${count}",
+    "cell_positions": "позиций: ${count}",
+    "delete_cell": "Удалить ячейку"
   }
 }

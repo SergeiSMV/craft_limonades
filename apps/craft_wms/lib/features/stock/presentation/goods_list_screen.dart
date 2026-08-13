@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
 import '../../../core/constants/app_borders.dart';
 import '../../../core/constants/app_boxes.dart';
@@ -56,6 +57,10 @@ class _GoodsListViewState extends State<_GoodsListView> {
   /// Назад на предыдущий экран (главное меню).
   void goBack() => context.router.maybePop();
 
+  /// Открыть раздел «Ввод остатков» (проход склада, P-FastStart).
+  void openStockEntry(BuildContext context) =>
+      context.router.push(const StockEntryRoute());
+
   @override
   void dispose() {
     _debounce?.cancel();
@@ -79,16 +84,29 @@ class _GoodsListViewState extends State<_GoodsListView> {
                       children: [
                         InkWell(
                           onTap: goBack,
-                          child: Padding(
-                            padding: AppInsets.right16,
-                            child: Assets.icons.arrowLeft.svg(
-                              height: AppSizes.kIcon20,
-                            ),
+                          child: Row(
+                            children: [
+                              Padding(
+                                padding: AppInsets.right16,
+                                child: Assets.icons.arrowLeft.svg(
+                                  height: AppSizes.kIcon20,
+                                ),
+                              ),
+                              Text(
+                                t.stockListScreen.title,
+                                style: SemiboldTextStyles().semiboldInter24,
+                              ),
+                            ],
                           ),
                         ),
-                        Text(
-                          t.stockListScreen.title,
-                          style: SemiboldTextStyles().semiboldInter24,
+                        const Spacer(),
+                        InkWell(
+                          onTap: () => openStockEntry(context),
+                          child: Icon(
+                            MdiIcons.playlistPlus,
+                            size: AppSizes.kIcon30,
+                            color: AppColors.kSidebarHover,
+                          ),
                         ),
                       ],
                     ),
