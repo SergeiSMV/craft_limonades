@@ -90,7 +90,8 @@ func NewRouter(log *slog.Logger, db Pinger, authSvc *service.AuthService, tokens
 			r.Group(func(r chi.Router) {
 				r.Use(appmw.Authenticator(tokens))
 				r.Use(appmw.RequireRole(model.RoleAdmin))
-				r.Get("/stock-entry/sessions/{id}/report.xlsx", reportH.Report)
+				r.Get("/stock-entry/sessions", reportH.List)                    // список документов (закрытые сессии)
+				r.Get("/stock-entry/sessions/{id}/report.xlsx", reportH.Report) // скачать .xlsx документа
 			})
 		}
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -47,4 +48,34 @@ func (h *StockEntryReportHandler) Report(w http.ResponseWriter, r *http.Request)
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(data)
+}
+
+// documentResponse — элемент списка документов «ввод остатков» для портала.
+type documentResponse struct {
+	ID            string `json:"id"`
+	WarehouseCode string `json:"warehouse_code"`
+	WarehouseName string `json:"warehouse_name"`
+	ClosedAt      string `json:"closed_at"` // RFC3339
+	LinesCount    int    `json:"lines_count"`
+}
+
+// List: GET /api/v1/stock-entry/sessions — список документов «ввод остатков» (закрытые сессии).
+func (h *StockEntryReportHandler) List(w http.ResponseWriter, r *http.Request) {
+	docs, err := h.svc.ListDocuments(r.Context())
+	if err != nil {
+		slog.Error("stock entry documents list failed", "error", err)
+		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
+		return
+	}
+	out := make([]documentResponse, 0, len(docs))
+	for _, d := range docs {
+		out = append(out, documentResponse{
+			ID:            d.ID,
+			WarehouseCode: d.WarehouseCode,
+			WarehouseName: d.WarehouseName,
+			ClosedAt:      d.ClosedAt.Format(time.RFC3339),
+			LinesCount:    d.LinesCount,
+		})
+	}
+	writeJSON(w, http.StatusOK, out)
 }

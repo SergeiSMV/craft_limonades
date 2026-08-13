@@ -87,4 +87,16 @@ func TestStockEntryReport(t *testing.T) {
 	if _, _, err := svc.Report(ctx, "00000000-0000-0000-0000-0000000000ff"); !errors.Is(err, repository.ErrSessionNotFound) {
 		t.Fatalf("несуществующая сессия: ожидалась ErrSessionNotFound, получено %v", err)
 	}
+
+	// Список документов: только закрытая сессия (draft не попадает).
+	docs, err := svc.ListDocuments(ctx)
+	if err != nil {
+		t.Fatalf("ListDocuments: %v", err)
+	}
+	if len(docs) != 1 {
+		t.Fatalf("ожидался 1 закрытый документ (draft не в списке), получено %d", len(docs))
+	}
+	if docs[0].ID != sid || docs[0].WarehouseCode != "SHB" || docs[0].LinesCount != 1 {
+		t.Fatalf("документ: id=%s склад=%s строк=%d", docs[0].ID, docs[0].WarehouseCode, docs[0].LinesCount)
+	}
 }
