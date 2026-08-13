@@ -102,7 +102,7 @@ class _StockRows extends StatelessWidget {
                   return ListTile(
                     leading: const Icon(Icons.place_outlined),
                     title: Text(it.cellAddress),
-                    subtitle: Text('${t.stockDetailScreen.colBatch}: ${it.productionDate}'),
+                    subtitle: Text('${t.stockDetailScreen.colBatch}: ${_batchDate(it.productionDate)}'),
                     trailing: Text(
                       it.qty,
                       style: const TextStyle(
@@ -153,4 +153,12 @@ class _ErrorRetry extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Дата партии с бэкенда приходит в ISO (YYYY-MM-DD); показываем в дд.мм.гггг.
+String _batchDate(String s) {
+  final iso = s.length >= 10 ? s.substring(0, 10) : s;
+  final p = iso.split('-');
+  if (p.length == 3 && p[0].length == 4) return '${p[2]}.${p[1]}.${p[0]}';
+  return s; // неожиданный формат — как есть
 }

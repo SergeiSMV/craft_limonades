@@ -15,6 +15,7 @@ abstract final class AppInsets {
   static const EdgeInsets v8 = EdgeInsets.symmetric(vertical: 8);
   static const EdgeInsets v16 = EdgeInsets.symmetric(vertical: 16);
   static const EdgeInsets h8 = EdgeInsets.symmetric(horizontal: 8);
+  static const EdgeInsets h14 = EdgeInsets.symmetric(horizontal: 14);
   static const EdgeInsets h16 = EdgeInsets.symmetric(horizontal: 16);
   static const EdgeInsets h24 = EdgeInsets.symmetric(horizontal: 24);
   static const EdgeInsets h32 = EdgeInsets.symmetric(
