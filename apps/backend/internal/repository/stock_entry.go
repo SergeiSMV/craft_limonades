@@ -18,6 +18,8 @@ var (
 	ErrSessionNotFound = errors.New("stock entry session not found")
 	// ErrSessionClosed — сессия уже финализирована (checkpoint/finalize по ней запрещены).
 	ErrSessionClosed = errors.New("stock entry session already closed")
+	// ErrSessionNotClosed — отчёт запрошен по ещё не завершённой сессии.
+	ErrSessionNotClosed = errors.New("stock entry session not closed")
 )
 
 // StockEntryLineInput — строка ячейки в checkpoint'е. ProductionDate — ISO 'YYYY-MM-DD'
@@ -116,6 +118,48 @@ func (r *StockEntryRepository) Finalize(ctx context.Context, sessionID string) (
 		return 0, err
 	}
 	return written, nil
+}
+
+// Report собирает данные отчёта «ввод остатков» по ЗАКРЫТОЙ сессии: шапка (склад, время) + строки
+// (ячейка · товар · партия · кол-во). Нет сессии → ErrSessionNotFound; не закрыта → ErrSessionNotClosed.
+func (r *StockEntryRepository) Report(ctx context.Context, sessionID string) (model.StockEntryReport, error) {
+	var rep model.StockEntryReport
+	var status string
+	err := r.pool.QueryRow(ctx, `
+		SELECT s.status, w.code, w.name, s.created_at
+		FROM stock_entry_sessions s
+		JOIN warehouses w ON w.id = s.warehouse_id
+		WHERE s.id = $1::uuid`, sessionID).
+		Scan(&status, &rep.WarehouseCode, &rep.WarehouseName, &rep.CreatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return model.StockEntryReport{}, ErrSessionNotFound
+	}
+	if err != nil {
+		return model.StockEntryReport{}, fmt.Errorf("stock entry report meta: %w", err)
+	}
+	if status != "closed" {
+		return model.StockEntryReport{}, ErrSessionNotClosed
+	}
+
+	rows, err := r.pool.Query(ctx, `
+		SELECT c.address, g.code, g.name, l.production_date::text, l.qty::text
+		FROM stock_entry_lines l
+		JOIN cells c ON c.id = l.cell_id
+		JOIN goods g ON g.id = l.good_id
+		WHERE l.session_id = $1::uuid
+		ORDER BY c.address, g.name`, sessionID)
+	if err != nil {
+		return model.StockEntryReport{}, fmt.Errorf("stock entry report rows: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var row model.StockEntryReportRow
+		if err := rows.Scan(&row.CellAddress, &row.GoodCode, &row.GoodName, &row.ProductionDate, &row.Qty); err != nil {
+			return model.StockEntryReport{}, fmt.Errorf("scan report row: %w", err)
+		}
+		rep.Rows = append(rep.Rows, row)
+	}
+	return rep, rows.Err()
 }
 
 // guardSessionDraft проверяет, что сессия существует и ещё в работе (draft).
