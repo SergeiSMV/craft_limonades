@@ -49,6 +49,21 @@ abstract class Supplier with _$Supplier {
   factory Supplier.fromJson(Map<String, dynamic> json) => _$SupplierFromJson(json);
 }
 
+/// Физическая ячейка склада (ответ `GET /cells`). Нужна вводу остатков: резолв по адресу + склад.
+@freezed
+abstract class Cell with _$Cell {
+  const factory Cell({
+    required String id,
+    @JsonKey(name: 'warehouse_id') required String warehouseId,
+    required String address,
+    @Default('storage') String type,
+    @JsonKey(name: 'is_floor') @Default(false) bool isFloor,
+    @JsonKey(name: 'is_active') @Default(true) bool isActive,
+  }) = _Cell;
+
+  factory Cell.fromJson(Map<String, dynamic> json) => _$CellFromJson(json);
+}
+
 /// Строка остатка в товарном разрезе (ответ `GET /stock`). qty — строка (decimal с бэкенда,
 /// точное дробное; храним как есть, не теряя знаков).
 @freezed

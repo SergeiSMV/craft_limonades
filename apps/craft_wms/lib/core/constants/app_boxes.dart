@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 /// Константы для отступов.
 abstract final class AppBoxes {
   //* --- Height Boxes ----------------------------------------------------- *//
+  static const SizedBox kHeight4 = SizedBox(height: 4);
   static const SizedBox kHeight8 = SizedBox(height: 8);
   static const SizedBox kHeight12 = SizedBox(height: 12);
   static const SizedBox kHeight16 = SizedBox(height: 16);

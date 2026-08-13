@@ -33,6 +33,10 @@ class HomeScreen extends StatelessWidget {
   void openStock(BuildContext context) =>
       context.router.push(const GoodsListRoute());
 
+  /// Открыть раздел «Ввод остатков» (проход склада, P-FastStart).
+  void openStockEntry(BuildContext context) =>
+      context.router.push(const StockEntryRoute());
+
   /// Заглушка: раздел ещё не реализован — показываем уведомление.
   void showStub(BuildContext context) {
     ScaffoldMessenger.of(context)
@@ -171,6 +175,16 @@ class HomeScreen extends StatelessWidget {
                         color: AppColors.kTileStock,
                         onTap: () => openStock(context),
                       ),
+
+                      // TODO: Заглушка: раздел «Ввод остатков» (проход склада, P-FastStart) пока не реализован.
+                      // TODO: После реализации удалить
+                      // MenuTile(
+                      //   title: t.homeScreen.tiles.stockEntryTitle,
+                      //   subtitle: t.homeScreen.tiles.stockEntrySubtitle,
+                      //   imageIcon: Assets.icons.menuIcons.colorInboxIcon,
+                      //   color: AppColors.kTileReceipt,
+                      //   onTap: () => openStockEntry(context),
+                      // ),
                     ],
                   ),
                 ),

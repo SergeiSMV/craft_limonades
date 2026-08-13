@@ -75,6 +75,31 @@ class CatalogRepository {
     }
   }
 
+  /// Список/поиск ячеек (по адресу). Нужен вводу остатков: резолв ячейки по скану/выбору.
+  Future<Either<Failure, Paged<Cell>>> listCells({
+    String? query,
+    String? warehouseId,
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    try {
+      final resp = await _dio.get<Map<String, dynamic>>(
+        ApiConst.cells,
+        queryParameters: _compact({
+          'q': query,
+          'warehouse_id': warehouseId,
+          'limit': limit,
+          'offset': offset,
+        }),
+      );
+      return Right(Paged.fromJson(resp.data!, Cell.fromJson));
+    } on DioException catch (e) {
+      return Left(_mapError(e));
+    } catch (_) {
+      return const Left(Failure.unknown());
+    }
+  }
+
   /// Остатки товара в разрезе ячеек/партий (карточка «где лежит товар X»).
   Future<Either<Failure, Paged<StockItem>>> listStock({
     String? goodId,

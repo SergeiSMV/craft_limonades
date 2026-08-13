@@ -40,6 +40,21 @@ abstract final class ApiConst {
   ///**GET** - остатки (good_id — где лежит товар; cell_id — что в ячейке)
   static const String stock = 'stock';
 
+  ///**GET** - список/поиск ячеек (q по адресу, warehouse_id, is_floor)
+  static const String cells = 'cells';
+
+  ///**POST** - открыть сессию ввода остатков (P-FastStart)
+  static const String stockEntrySessions = 'stock-entry/sessions';
+
   /// Путь карточки товара по id: `goods/{id}`.
   static String goodById(String id) => 'goods/$id';
+
+  ///**GET** - товар по штрихкоду (404, если ШК не привязан): `barcodes/{code}`.
+  static String barcodeByCode(String code) => 'barcodes/$code';
+
+  ///**POST** - checkpoint ячейки в сессии ввода: `stock-entry/sessions/{id}/cells`.
+  static String stockEntryCells(String id) => 'stock-entry/sessions/$id/cells';
+
+  ///**POST** - финал сессии ввода → запись в stock: `stock-entry/sessions/{id}/finalize`.
+  static String stockEntryFinalize(String id) => 'stock-entry/sessions/$id/finalize';
 }
