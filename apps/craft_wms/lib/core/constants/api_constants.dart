@@ -57,4 +57,7 @@ abstract final class ApiConst {
 
   ///**POST** - финал сессии ввода → запись в stock: `stock-entry/sessions/{id}/finalize`.
   static String stockEntryFinalize(String id) => 'stock-entry/sessions/$id/finalize';
+
+  ///**GET** - .xlsx-отчёт «ввод остатков» по закрытой сессии: `stock-entry/sessions/{id}/report.xlsx`.
+  static String stockEntryReport(String id) => 'stock-entry/sessions/$id/report.xlsx';
 }

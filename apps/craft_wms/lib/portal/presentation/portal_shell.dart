@@ -9,6 +9,7 @@ import '../../core/constants/app_insets.dart';
 import '../../core/constants/app_sizes.dart';
 import '../../core/gen/strings.g.dart';
 import 'tabs/cells_tab.dart';
+import 'tabs/inventory_tab.dart';
 import 'tabs/nomenclature_tab.dart';
 import 'tabs/stub_tab.dart';
 
@@ -68,7 +69,7 @@ class _PortalShellState extends State<PortalShell> {
         _NavItem(
           icon: Icons.fact_check_outlined,
           label: t.portal.tabs.stocktake,
-          body: const StubTab(phase: 'P10', icon: Icons.fact_check_outlined),
+          body: const InventoryTab(),
         ),
       ],
     ),
