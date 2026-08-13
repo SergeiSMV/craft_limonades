@@ -11,6 +11,7 @@ import (
 // stockEntryReportRepo — зависимость сервиса отчёта от хранилища.
 type stockEntryReportRepo interface {
 	Report(ctx context.Context, sessionID string) (model.StockEntryReport, error)
+	ListClosedDocuments(ctx context.Context) ([]model.StockEntryDocument, error)
 }
 
 // StockEntryReportService — генерация Excel-отчёта «ввод остатков» по закрытой сессии (P-FS-08).
@@ -36,4 +37,9 @@ func (s *StockEntryReportService) Report(ctx context.Context, sessionID string) 
 	}
 	filename := fmt.Sprintf("vvod-ostatkov-%s-%s.xlsx", rep.WarehouseCode, rep.CreatedAt.Format("20060102"))
 	return data, filename, nil
+}
+
+// ListDocuments — закрытые сессии как документы «ввод остатков» для портала «Инвентаризация».
+func (s *StockEntryReportService) ListDocuments(ctx context.Context) ([]model.StockEntryDocument, error) {
+	return s.repo.ListClosedDocuments(ctx)
 }

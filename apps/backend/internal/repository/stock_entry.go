@@ -120,6 +120,33 @@ func (r *StockEntryRepository) Finalize(ctx context.Context, sessionID string) (
 	return written, nil
 }
 
+// ListClosedDocuments возвращает закрытые сессии как документы для портала «Инвентаризация»
+// (свежие сверху): id, склад, время закрытия, число строк.
+func (r *StockEntryRepository) ListClosedDocuments(ctx context.Context) ([]model.StockEntryDocument, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT s.id::text, w.code, w.name, s.closed_at, count(l.id)
+		FROM stock_entry_sessions s
+		JOIN warehouses w ON w.id = s.warehouse_id
+		LEFT JOIN stock_entry_lines l ON l.session_id = s.id
+		WHERE s.status = 'closed'
+		GROUP BY s.id, w.code, w.name, s.closed_at
+		ORDER BY s.closed_at DESC`)
+	if err != nil {
+		return nil, fmt.Errorf("list closed sessions: %w", err)
+	}
+	defer rows.Close()
+
+	out := make([]model.StockEntryDocument, 0)
+	for rows.Next() {
+		var d model.StockEntryDocument
+		if err := rows.Scan(&d.ID, &d.WarehouseCode, &d.WarehouseName, &d.ClosedAt, &d.LinesCount); err != nil {
+			return nil, fmt.Errorf("scan closed session: %w", err)
+		}
+		out = append(out, d)
+	}
+	return out, rows.Err()
+}
+
 // Report собирает данные отчёта «ввод остатков» по ЗАКРЫТОЙ сессии: шапка (склад, время) + строки
 // (ячейка · товар · партия · кол-во). Нет сессии → ErrSessionNotFound; не закрыта → ErrSessionNotClosed.
 func (r *StockEntryRepository) Report(ctx context.Context, sessionID string) (model.StockEntryReport, error) {
