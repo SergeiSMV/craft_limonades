@@ -404,44 +404,60 @@ class _GoodsResult extends StatelessWidget {
           ),
         ),
         Expanded(
-          child: ListView.builder(
-            padding: EdgeInsets.zero,
-            physics: const BouncingScrollPhysics(),
-            itemCount: state.goods.length,
-            itemBuilder: (context, i) {
-              final good = state.goods[i];
-              return Padding(
-                padding: AppInsets.bottom4 + AppInsets.h8,
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: AppBorders.kCircular8,
-                    color: AppColors.kStockItemBg,
-                    border: Border(
-                      bottom: BorderSide(color: AppColors.kStockItemBorder),
-                    ),
-                  ),
-                  child: ListTile(
-                    title: Text(
-                      good.name,
-                      style: RegularTextStyles().regularInter14.copyWith(
-                        height: 1.2,
-                        color: AppColors.kTextMain,
-                      ),
-                    ),
-                    subtitle: Text(
-                      [
-                        if (good.code != null) good.code!,
-                        if (good.groupName != null) good.groupName!,
-                      ].join(' · '),
-                      style: RegularTextStyles().regularInter10.copyWith(
-                        color: AppColors.kTextMuted,
-                      ),
-                    ),
-                    onTap: () => openDetail(context, good),
-                  ),
-                ),
-              );
+          child: NotificationListener<ScrollNotification>(
+            // Ближе 400px к концу — тянем следующую страницу (loadMore защищён от повторов).
+            onNotification: (n) {
+              if (n.metrics.pixels >= n.metrics.maxScrollExtent - 400) {
+                context.read<GoodsListCubit>().loadMore();
+              }
+              return false;
             },
+            child: ListView.builder(
+              padding: EdgeInsets.zero,
+              physics: const BouncingScrollPhysics(),
+              // +1 на футер-индикатор, пока есть непогруженные товары.
+              itemCount: state.goods.length + (state.hasMore ? 1 : 0),
+              itemBuilder: (context, i) {
+                if (i >= state.goods.length) {
+                  return const Padding(
+                    padding: AppInsets.v16,
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
+                final good = state.goods[i];
+                return Padding(
+                  padding: AppInsets.bottom4 + AppInsets.h8,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: AppBorders.kCircular8,
+                      color: AppColors.kStockItemBg,
+                      border: Border(
+                        bottom: BorderSide(color: AppColors.kStockItemBorder),
+                      ),
+                    ),
+                    child: ListTile(
+                      title: Text(
+                        good.name,
+                        style: RegularTextStyles().regularInter14.copyWith(
+                          height: 1.2,
+                          color: AppColors.kTextMain,
+                        ),
+                      ),
+                      subtitle: Text(
+                        [
+                          if (good.code != null) good.code!,
+                          if (good.groupName != null) good.groupName!,
+                        ].join(' · '),
+                        style: RegularTextStyles().regularInter10.copyWith(
+                          color: AppColors.kTextMuted,
+                        ),
+                      ),
+                      onTap: () => openDetail(context, good),
+                    ),
+                  ),
+                );
+              },
+            ),
           ),
         ),
       ],
