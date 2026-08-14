@@ -347,26 +347,26 @@ class _CellEntryViewState extends State<_CellEntryView> {
     if (mounted) _scanFocus.requestFocus();
   }
 
-  /// Скан ШК товара. Порядок резолва: локальная отложенная привязка буфера → сервер → привязка
-  /// вручную. Локальный шаг нужен, чтобы повторный скан только что привязанного ШК (тот же товар
-  /// другой партией) узнавался сразу, а не бил в 404. По завершении — возврат фокуса полю.
+  /// Скан ШК товара. Порядок резолва: копилка привязок прохода → сервер → ручная привязка. Локальный
+  /// шаг нужен, чтобы повторный скан любого уже привязанного за проход ШК узнавался сразу, а не бил в
+  /// 404 (данные ещё не на сервере) — сколько бы ШК ни было на товар. По завершении — возврат фокуса.
   Future<void> _onScan(String value) async {
     final code = value.trim();
     _scanController.clear();
     if (code.isNotEmpty) {
       final local = _cubit.localGoodForBarcode(code);
       if (local != null) {
-        await _collectAndAdd(local, bindBarcode: code);
+        await _collectAndAdd(local); // уже привязан за проход — просто строка, без повторной привязки
       } else {
         final good = await _cubit.resolveBarcode(code);
         if (!mounted) return;
         if (good != null) {
-          await _collectAndAdd(good);
+          await _collectAndAdd(good); // есть в БД
         } else {
           _snack(t.stockEntry.goodNotBound);
           final picked = await _pickGood();
           if (picked != null && mounted) {
-            await _collectAndAdd(picked, bindBarcode: code);
+            await _collectAndAdd(picked, newBarcode: code); // новый ШК → в копилку прохода
           }
         }
       }
@@ -381,16 +381,17 @@ class _CellEntryViewState extends State<_CellEntryView> {
     _refocusScan();
   }
 
-  /// Спросить дату + количество и добавить строку в буфер.
-  Future<void> _collectAndAdd(Good good, {String? bindBarcode}) async {
+  /// Спросить дату + количество и добавить строку в буфер. [newBarcode] — новый ШК для привязки
+  /// к товару (кладётся в копилку прохода вместе с добавлением строки).
+  Future<void> _collectAndAdd(Good good, {String? newBarcode}) async {
     final res = await _showDateQty(good);
     if (res == null || !mounted) return;
     _cubit.addLine(
       good: good,
       date: res.date,
       qty: res.qty,
-      bindBarcode: bindBarcode,
-      bindSymbology: bindBarcode != null ? '' : null,
+      newBarcode: newBarcode,
+      symbology: newBarcode != null ? '' : null,
     );
   }
 
@@ -588,7 +589,8 @@ class _CellEntryViewState extends State<_CellEntryView> {
   }
 }
 
-/// Строка буфера: товар · партия · количество (с единицей). Привязка ШК помечается иконкой.
+/// Строка буфера: товар · партия · количество (с единицей). ШК на строке не хранится — привязки
+/// живут отдельно (уровень товара), поэтому и метки ШК на строке нет.
 class _LineTile extends StatelessWidget {
   const _LineTile({required this.line, this.onLongPress});
 
@@ -613,26 +615,12 @@ class _LineTile extends StatelessWidget {
             color: AppColors.kTextMuted,
           ),
         ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (line.bindBarcode != null)
-              const Padding(
-                padding: EdgeInsets.only(right: 6),
-                child: Icon(
-                  Icons.qr_code_2,
-                  size: AppSizes.kIcon18,
-                  color: AppColors.kTextMuted,
-                ),
-              ),
-            Text(
-              t.stockEntry.qtyWithUom(
-                qty: _fmtQty(line.qty),
-                uom: line.good.uom,
-              ),
-              style: SemiboldTextStyles().semiboldInter16,
-            ),
-          ],
+        trailing: Text(
+          t.stockEntry.qtyWithUom(
+            qty: _fmtQty(line.qty),
+            uom: line.good.uom,
+          ),
+          style: SemiboldTextStyles().semiboldInter16,
         ),
       ),
     );
@@ -715,7 +703,10 @@ class _DateQtyDialogState extends State<_DateQtyDialog> {
     final qty = double.parse(_qty.text.trim().replaceAll(',', '.'));
     FocusManager.instance.primaryFocus
         ?.unfocus(); // свернуть клавиатуру при подтверждении
-    Navigator.of(context).pop(_DateQty(date: _date.text.trim(), qty: qty));
+    // Год мог быть введён двумя знаками (14.08.26) — приводим к дд.мм.гггг на выходе.
+    Navigator.of(context).pop(
+      _DateQty(date: normalizeEntryDate(_date.text.trim()), qty: qty),
+    );
   }
 
   @override
@@ -739,7 +730,7 @@ class _DateQtyDialogState extends State<_DateQtyDialog> {
               inputFormatters: [DateTextInputFormatter()],
               decoration: InputDecoration(
                 labelText: t.stockEntry.dateLabel,
-                hintText: 'дд.мм.гггг',
+                hintText: 'дд.мм.гг(гг)',
               ),
               validator: (v) => isValidEntryDate((v ?? '').trim())
                   ? null
