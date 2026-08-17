@@ -42,6 +42,33 @@ class CatalogRepository {
     }
   }
 
+  /// Штрихкоды товара (секция «Штрихкоды» в карточке, P-FS-12). Пустой список — норма.
+  Future<Either<Failure, List<Barcode>>> listGoodBarcodes(String goodId) async {
+    try {
+      final resp = await _dio.get<List<dynamic>>(ApiConst.goodBarcodes(goodId));
+      final items = (resp.data ?? const [])
+          .map((e) => Barcode.fromJson(e as Map<String, dynamic>))
+          .toList();
+      return Right(items);
+    } on DioException catch (e) {
+      return Left(_mapError(e));
+    } catch (_) {
+      return const Left(Failure.unknown());
+    }
+  }
+
+  /// Отвязать ШК от товара (коррекция ошибочной привязки, P-FS-12). DELETE идемпотентен (204).
+  Future<Either<Failure, void>> unbindBarcode(String code) async {
+    try {
+      await _dio.delete<void>(ApiConst.barcodeByCode(code));
+      return const Right(null);
+    } on DioException catch (e) {
+      return Left(_mapError(e));
+    } catch (_) {
+      return const Left(Failure.unknown());
+    }
+  }
+
   /// Все группы номенклатуры (клиент строит дерево / список фильтра).
   Future<Either<Failure, List<NomenclatureGroup>>> listGroups() async {
     try {

@@ -191,6 +191,16 @@ class StockEntryCubit extends Cubit<StockEntryState> {
     emit(state.copyWith(lines: newLines, barcodes: newBarcodes, undoStack: capped, failure: null));
   }
 
+  /// Убрать ошибочную привязку ШК из копилки прохода (P-FS-12). Применимо только к привязке,
+  /// сделанной в ЭТОЙ сессии (на сервере её ещё нет) — серверную снимает экран через DELETE.
+  /// Кладёт снимок в Undo (откат вернёт привязку). Нет такого ШК в копилке — ничего не делаем.
+  void removeLocalBarcode(String code) {
+    if (!state.barcodes.containsKey(code)) return;
+    final snapBarcodes = Map<String, BarcodeBinding>.from(state.barcodes);
+    final barcodes = Map<String, BarcodeBinding>.from(state.barcodes)..remove(code);
+    _commit(List<EntryLineDraft>.from(state.lines), snapBarcodes, state.lines, barcodes);
+  }
+
   /// Отменить последнюю операцию буфера (восстановить строки И копилку ШК из предыдущего снимка).
   void undo() {
     if (state.undoStack.isEmpty) return;

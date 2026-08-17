@@ -74,6 +74,23 @@ void main() {
       expect(cubit.state.lines.single.qty, 10);
     });
 
+    test('removeLocalBarcode убирает привязку из копилки; undo возвращает', () {
+      cubit.addLine(good: goodA, date: '15.01.2026', qty: 10, newBarcode: 'ITEM', symbology: '');
+      expect(cubit.localGoodForBarcode('ITEM')?.id, 'gA');
+      cubit.removeLocalBarcode('ITEM');
+      expect(cubit.localGoodForBarcode('ITEM'), isNull); // отвязано локально
+      expect(cubit.state.lines.single.qty, 10); // строка не тронута
+      cubit.undo();
+      expect(cubit.localGoodForBarcode('ITEM')?.id, 'gA'); // вернулось
+    });
+
+    test('removeLocalBarcode для отсутствующего ШК — no-op (не плодит undo)', () {
+      cubit.addLine(good: goodA, date: '15.01.2026', qty: 10);
+      final undoBefore = cubit.state.undoStack.length;
+      cubit.removeLocalBarcode('НЕТ_ТАКОГО');
+      expect(cubit.state.undoStack.length, undoBefore);
+    });
+
     test('removeLine удаляет строку (по грани) и кладёт снимок в undo', () {
       cubit.addLine(good: goodA, date: '15.01.2026', qty: 10);
       cubit.addLine(good: goodB, date: '15.01.2026', qty: 2);

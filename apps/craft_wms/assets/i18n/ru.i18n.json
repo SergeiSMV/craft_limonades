@@ -61,7 +61,13 @@
     "col_qty": "Кол-во",
     "empty": "Нет остатков",
     "error": "Не удалось загрузить",
-    "retry": "Повторить"
+    "retry": "Повторить",
+    "barcodes_title": "Штрихкоды",
+    "barcodes_empty": "Нет привязанных ШК",
+    "barcode_delete_title": "Отвязать штрихкод?",
+    "barcode_delete_body": "ШК ${barcode} будет отвязан от товара.",
+    "unbind": "Отвязать",
+    "cancel": "Отмена"
   },
   "portal": {
     "app_title": "КЛ: Склад - портал",
@@ -190,6 +196,8 @@
     "delete": "Удалить",
     "committed_title": "Пройденные ячейки: ${count}",
     "cell_positions": "позиций: ${count}",
-    "delete_cell": "Удалить ячейку"
+    "delete_cell": "Удалить ячейку",
+    "wrong_good": "Неверный товар",
+    "barcode_unbound": "Штрихкод отвязан — выберите правильный товар"
   }
 }
