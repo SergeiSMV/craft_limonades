@@ -37,17 +37,16 @@ class StockEntryScreen extends StatelessWidget {
   }
 }
 
+/// Текст ошибки для снекбара (общий для экрана — используется и в BlocListener, и в инлайн-отвязке ШК).
+String _failureText(Failure f) => switch (f) {
+  ServerFailure(:final message, :final statusCode) => message ?? 'HTTP $statusCode',
+  NetworkFailure() => t.stockEntry.errorNetwork,
+  AuthFailure() => t.stockEntry.errorAuth,
+  _ => t.stockEntry.errorUnknown,
+};
+
 class _StockEntryView extends StatelessWidget {
   const _StockEntryView();
-
-  /// Текст ошибки для снекбара.
-  String _failureText(Failure f) => switch (f) {
-    ServerFailure(:final message, :final statusCode) =>
-      message ?? 'HTTP $statusCode',
-    NetworkFailure() => t.stockEntry.errorNetwork,
-    AuthFailure() => t.stockEntry.errorAuth,
-    _ => t.stockEntry.errorUnknown,
-  };
 
   @override
   Widget build(BuildContext context) {
@@ -347,26 +346,27 @@ class _CellEntryViewState extends State<_CellEntryView> {
     if (mounted) _scanFocus.requestFocus();
   }
 
-  /// Скан ШК товара. Порядок резолва: локальная отложенная привязка буфера → сервер → привязка
-  /// вручную. Локальный шаг нужен, чтобы повторный скан только что привязанного ШК (тот же товар
-  /// другой партией) узнавался сразу, а не бил в 404. По завершении — возврат фокуса полю.
+  /// Скан ШК товара. Порядок резолва: копилка привязок прохода → сервер → ручная привязка. Локальный
+  /// шаг нужен, чтобы повторный скан любого уже привязанного за проход ШК узнавался сразу, а не бил в
+  /// 404 (данные ещё не на сервере) — сколько бы ШК ни было на товар. По завершении — возврат фокуса.
   Future<void> _onScan(String value) async {
     final code = value.trim();
     _scanController.clear();
     if (code.isNotEmpty) {
       final local = _cubit.localGoodForBarcode(code);
       if (local != null) {
-        await _collectAndAdd(local, bindBarcode: code);
+        await _collectAndAdd(local, scannedCode: code); // привязан за проход — просто строка
       } else {
         final good = await _cubit.resolveBarcode(code);
         if (!mounted) return;
         if (good != null) {
-          await _collectAndAdd(good);
+          await _collectAndAdd(good, scannedCode: code); // есть в БД
         } else {
           _snack(t.stockEntry.goodNotBound);
           final picked = await _pickGood();
           if (picked != null && mounted) {
-            await _collectAndAdd(picked, bindBarcode: code);
+            // новый ШК → в копилку прохода; scannedCode тот же для кнопки «неверный товар»
+            await _collectAndAdd(picked, scannedCode: code, newBarcode: code);
           }
         }
       }
@@ -374,24 +374,58 @@ class _CellEntryViewState extends State<_CellEntryView> {
     _refocusScan();
   }
 
-  /// Ручное добавление товара (без ШК).
+  /// Ручное добавление товара (без ШК) — кнопки «неверный товар» тут нет (нет ШК).
   Future<void> _addManual() async {
     final picked = await _pickGood();
     if (picked != null && mounted) await _collectAndAdd(picked);
     _refocusScan();
   }
 
-  /// Спросить дату + количество и добавить строку в буфер.
-  Future<void> _collectAndAdd(Good good, {String? bindBarcode}) async {
-    final res = await _showDateQty(good);
+  /// Спросить дату + количество и добавить строку в буфер. [scannedCode] — ШК, которым опознан товар
+  /// (включает кнопку «неверный товар»); [newBarcode] — если этот ШК ещё не привязан (уйдёт в копилку).
+  Future<void> _collectAndAdd(Good good, {String? scannedCode, String? newBarcode}) async {
+    final res = await showDialog<_DateQtyResult>(
+      context: context,
+      builder: (_) => _DateQtyDialog(good: good, allowWrongGood: scannedCode != null),
+    );
     if (res == null || !mounted) return;
+    if (res.wrongGood) {
+      await _handleWrongGood(scannedCode!); // allowWrongGood истинен только при непустом scannedCode
+      return;
+    }
     _cubit.addLine(
       good: good,
       date: res.date,
       qty: res.qty,
-      bindBarcode: bindBarcode,
-      bindSymbology: bindBarcode != null ? '' : null,
+      newBarcode: newBarcode,
+      symbology: newBarcode != null ? '' : null,
     );
+  }
+
+  /// «Неверный товар»: снять ошибочную привязку ШК и предложить правильный товар (перепривязка).
+  /// Привязка этой сессии — убираем из копилки локально; уже в БД — немедленный DELETE (коррекция
+  /// не должна зависеть от финала: бросят проход — исправление всё равно сохранено).
+  Future<void> _handleWrongGood(String code) async {
+    if (_cubit.localGoodForBarcode(code) != null) {
+      _cubit.removeLocalBarcode(code);
+    } else {
+      final res = await _repo.unbindBarcode(code);
+      if (!mounted) return;
+      final failed = res.fold((f) {
+        _snack(_failureText(f));
+        return true;
+      }, (_) => false);
+      if (failed) {
+        _refocusScan();
+        return;
+      }
+    }
+    _snack(t.stockEntry.barcodeUnbound);
+    final picked = await _pickGood();
+    if (picked != null && mounted) {
+      await _collectAndAdd(picked, scannedCode: code, newBarcode: code); // перепривязка на верный товар
+    }
+    _refocusScan();
   }
 
   /// Меню по долгому нажатию на строку: редактировать / удалить.
@@ -430,9 +464,10 @@ class _CellEntryViewState extends State<_CellEntryView> {
     }
   }
 
-  /// Редактирование строки: диалог с текущими датой и количеством.
+  /// Редактирование строки: диалог с текущими датой и количеством (без кнопки «неверный товар» —
+  /// правка уже добавленной строки не про привязку ШК).
   Future<void> _editLine(EntryLineDraft line) async {
-    final res = await showDialog<_DateQty>(
+    final res = await showDialog<_DateQtyResult>(
       context: context,
       builder: (_) => _DateQtyDialog(
         good: line.good,
@@ -440,7 +475,7 @@ class _CellEntryViewState extends State<_CellEntryView> {
         initialQty: line.qty,
       ),
     );
-    if (res == null || !mounted) return;
+    if (res == null || res.wrongGood || !mounted) return;
     _cubit.editLine(line, date: res.date, qty: res.qty);
   }
 
@@ -449,11 +484,6 @@ class _CellEntryViewState extends State<_CellEntryView> {
     isScrollControlled: true,
     showDragHandle: true,
     builder: (_) => _GoodPickerSheet(repo: _repo),
-  );
-
-  Future<_DateQty?> _showDateQty(Good good) => showDialog<_DateQty>(
-    context: context,
-    builder: (_) => _DateQtyDialog(good: good),
   );
 
   void _snack(String text) {
@@ -588,7 +618,8 @@ class _CellEntryViewState extends State<_CellEntryView> {
   }
 }
 
-/// Строка буфера: товар · партия · количество (с единицей). Привязка ШК помечается иконкой.
+/// Строка буфера: товар · партия · количество (с единицей). ШК на строке не хранится — привязки
+/// живут отдельно (уровень товара), поэтому и метки ШК на строке нет.
 class _LineTile extends StatelessWidget {
   const _LineTile({required this.line, this.onLongPress});
 
@@ -613,26 +644,12 @@ class _LineTile extends StatelessWidget {
             color: AppColors.kTextMuted,
           ),
         ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (line.bindBarcode != null)
-              const Padding(
-                padding: EdgeInsets.only(right: 6),
-                child: Icon(
-                  Icons.qr_code_2,
-                  size: AppSizes.kIcon18,
-                  color: AppColors.kTextMuted,
-                ),
-              ),
-            Text(
-              t.stockEntry.qtyWithUom(
-                qty: _fmtQty(line.qty),
-                uom: line.good.uom,
-              ),
-              style: SemiboldTextStyles().semiboldInter16,
-            ),
-          ],
+        trailing: Text(
+          t.stockEntry.qtyWithUom(
+            qty: _fmtQty(line.qty),
+            uom: line.good.uom,
+          ),
+          style: SemiboldTextStyles().semiboldInter16,
         ),
       ),
     );
@@ -683,14 +700,22 @@ class _FinishedView extends StatelessWidget {
   }
 }
 
-/// Диалог ввода даты выпуска (ДД-ММ-ГГГГ) и количества для строки товара.
+/// Диалог ввода даты выпуска (ДД-ММ-ГГГГ) и количества для строки товара. [allowWrongGood] добавляет
+/// кнопку «неверный товар» (только в скан-потоке, когда товар опознан по ШК) — она возвращает сигнал
+/// на отвязку ошибочного ШК вместо добавления строки.
 class _DateQtyDialog extends StatefulWidget {
-  const _DateQtyDialog({required this.good, this.initialDate, this.initialQty});
+  const _DateQtyDialog({
+    required this.good,
+    this.initialDate,
+    this.initialQty,
+    this.allowWrongGood = false,
+  });
 
   final Good good;
   final String?
   initialDate; // префилл при редактировании (для нового товара — null)
   final double? initialQty;
+  final bool allowWrongGood;
 
   @override
   State<_DateQtyDialog> createState() => _DateQtyDialogState();
@@ -715,8 +740,14 @@ class _DateQtyDialogState extends State<_DateQtyDialog> {
     final qty = double.parse(_qty.text.trim().replaceAll(',', '.'));
     FocusManager.instance.primaryFocus
         ?.unfocus(); // свернуть клавиатуру при подтверждении
-    Navigator.of(context).pop(_DateQty(date: _date.text.trim(), qty: qty));
+    // Год мог быть введён двумя знаками (14.08.26) — приводим к дд.мм.гггг на выходе.
+    Navigator.of(context).pop(
+      _DateQtyResult.add(normalizeEntryDate(_date.text.trim()), qty),
+    );
   }
+
+  /// «Неверный товар»: закрыть диалог с сигналом отвязать ошибочный ШК (обрабатывает экран).
+  void _wrongGood() => Navigator.of(context).pop(const _DateQtyResult.wrong());
 
   @override
   Widget build(BuildContext context) {
@@ -739,7 +770,7 @@ class _DateQtyDialogState extends State<_DateQtyDialog> {
               inputFormatters: [DateTextInputFormatter()],
               decoration: InputDecoration(
                 labelText: t.stockEntry.dateLabel,
-                hintText: 'дд.мм.гггг',
+                hintText: 'дд.мм.гг(гг)',
               ),
               validator: (v) => isValidEntryDate((v ?? '').trim())
                   ? null
@@ -766,6 +797,12 @@ class _DateQtyDialogState extends State<_DateQtyDialog> {
         ),
       ),
       actions: [
+        if (widget.allowWrongGood)
+          TextButton(
+            onPressed: _wrongGood,
+            style: TextButton.styleFrom(foregroundColor: AppColors.kDanger),
+            child: Text(t.stockEntry.wrongGood),
+          ),
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
           child: Text(t.stockEntry.cancel),
@@ -776,12 +813,18 @@ class _DateQtyDialogState extends State<_DateQtyDialog> {
   }
 }
 
-/// Результат диалога даты/количества.
-class _DateQty {
-  const _DateQty({required this.date, required this.qty});
+/// Результат диалога даты/количества: либо добавление (date+qty), либо сигнал «неверный товар»
+/// (отвязать ошибочный ШК). [wrongGood] различает эти два исхода.
+class _DateQtyResult {
+  const _DateQtyResult.add(this.date, this.qty) : wrongGood = false;
+  const _DateQtyResult.wrong()
+      : date = '',
+        qty = 0,
+        wrongGood = true;
 
   final String date;
   final double qty;
+  final bool wrongGood;
 }
 
 /// Нижний лист выбора товара из номенклатуры (поиск с дебаунсом).

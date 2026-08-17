@@ -46,11 +46,49 @@ void main() {
       expect(cubit.state.lines.first.qty, 10);
     });
 
-    test('localGoodForBarcode находит товар среди отложенных привязок буфера', () {
-      cubit.addLine(good: goodA, date: '15.01.2026', qty: 10, bindBarcode: '460', bindSymbology: '');
+    test('localGoodForBarcode находит товар среди привязок прохода', () {
+      cubit.addLine(good: goodA, date: '15.01.2026', qty: 10, newBarcode: '460', symbology: '');
       // Повторный скан того же ШК (для другой партии) должен резолвиться локально, без сервера.
       expect(cubit.localGoodForBarcode('460')?.id, 'gA');
       expect(cubit.localGoodForBarcode('999'), isNull);
+    });
+
+    test('несколько разных ШК на один товар — все узнаются (штука + короб)', () {
+      // Штучный ШК и ШК короба ведут на один товar, одна партия — обе привязки должны жить.
+      cubit.addLine(good: goodA, date: '15.01.2026', qty: 10, newBarcode: 'ITEM', symbology: '');
+      cubit.addLine(good: goodA, date: '15.01.2026', qty: 120, newBarcode: 'BOX', symbology: '');
+      expect(cubit.state.lines.length, 1); // грань (товар,дата) одна → строки слились: 10+120
+      expect(cubit.state.lines.single.qty, 130);
+      // Но обе привязки уцелели — старая модель второй ШК теряла.
+      expect(cubit.localGoodForBarcode('ITEM')?.id, 'gA');
+      expect(cubit.localGoodForBarcode('BOX')?.id, 'gA');
+      expect(cubit.state.barcodes.length, 2);
+    });
+
+    test('undo откатывает и привязку ШК, не только количество', () {
+      cubit.addLine(good: goodA, date: '15.01.2026', qty: 10, newBarcode: 'ITEM', symbology: '');
+      cubit.addLine(good: goodA, date: '15.01.2026', qty: 120, newBarcode: 'BOX', symbology: '');
+      cubit.undo(); // отменить привязку BOX
+      expect(cubit.localGoodForBarcode('BOX'), isNull);
+      expect(cubit.localGoodForBarcode('ITEM')?.id, 'gA'); // первая осталась
+      expect(cubit.state.lines.single.qty, 10);
+    });
+
+    test('removeLocalBarcode убирает привязку из копилки; undo возвращает', () {
+      cubit.addLine(good: goodA, date: '15.01.2026', qty: 10, newBarcode: 'ITEM', symbology: '');
+      expect(cubit.localGoodForBarcode('ITEM')?.id, 'gA');
+      cubit.removeLocalBarcode('ITEM');
+      expect(cubit.localGoodForBarcode('ITEM'), isNull); // отвязано локально
+      expect(cubit.state.lines.single.qty, 10); // строка не тронута
+      cubit.undo();
+      expect(cubit.localGoodForBarcode('ITEM')?.id, 'gA'); // вернулось
+    });
+
+    test('removeLocalBarcode для отсутствующего ШК — no-op (не плодит undo)', () {
+      cubit.addLine(good: goodA, date: '15.01.2026', qty: 10);
+      final undoBefore = cubit.state.undoStack.length;
+      cubit.removeLocalBarcode('НЕТ_ТАКОГО');
+      expect(cubit.state.undoStack.length, undoBefore);
     });
 
     test('removeLine удаляет строку (по грани) и кладёт снимок в undo', () {
@@ -148,13 +186,13 @@ void main() {
           )).thenAnswer((_) async => const Right(null));
       when(() => repo.finalize('sess-1')).thenAnswer((_) async => const Right(3));
 
-      // Ячейка 1: два товара, один с привязкой ШК (дублирующийся ШК не двоится).
+      // Ячейка 1: два товара; goodA с двумя разными ШК (штука + короб), goodB с ещё одним ШК.
       cubit.selectCell(cell);
-      cubit.addLine(good: goodA, date: '15.01.2026', qty: 10, bindBarcode: '460', bindSymbology: '');
-      cubit.addLine(good: goodA, date: '15.01.2026', qty: 1, bindBarcode: '460');
-      cubit.addLine(good: goodB, date: '20.02.2026', qty: 2);
+      cubit.addLine(good: goodA, date: '15.01.2026', qty: 10, newBarcode: '460', symbology: '');
+      cubit.addLine(good: goodA, date: '15.01.2026', qty: 1, newBarcode: 'BOX460');
+      cubit.addLine(good: goodB, date: '20.02.2026', qty: 2, newBarcode: '777');
       cubit.finishCell();
-      // Ячейка 2.
+      // Ячейка 2 — товар без нового ШК.
       cubit.selectCell(cell2);
       cubit.addLine(good: goodA, date: '15.01.2026', qty: 5);
       cubit.finishCell();
@@ -176,9 +214,13 @@ void main() {
       expect(captured[1], 'c1');
       final lines1 = captured[2] as List;
       expect(lines1.length, 2); // (gA,15.01) + (gB,20.02)
-      expect((captured[3] as List).length, 1); // один уникальный ШК
+      // Вся копилка ШК (три разных: 460, BOX460, 777) уходит с ПЕРВЫМ checkpoint.
+      final barcodes1 = captured[3] as List;
+      expect(barcodes1.length, 3);
+      expect(barcodes1.map((b) => (b as Map)['barcode']).toSet(), {'460', 'BOX460', '777'});
       expect((lines1.first as Map)['production_date'], '15-01-2026');
       expect(captured[5], 'c2'); // ячейка 2
+      expect((captured[7] as List), isEmpty); // ШК уже отправлены с первой ячейкой
 
       verify(() => repo.finalize('sess-1')).called(1);
       expect(cubit.state.finished, isTrue);

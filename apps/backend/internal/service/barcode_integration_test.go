@@ -73,6 +73,109 @@ func TestBarcode_bindResolve(t *testing.T) {
 	}
 }
 
+// TestBarcode_listByGood — секция «Штрихкоды» карточки: все ШК товара, сортировка, пустой список.
+func TestBarcode_listByGood(t *testing.T) {
+	pool := testutil.StartPostgres(t)
+	svc := newBarcodeSvc(pool)
+	ctx := context.Background()
+
+	goodA := seedGood(t, pool, "Товар A")
+	goodB := seedGood(t, pool, "Товар B")
+
+	// Товар без ШК → пустой список (не nil → JSON `[]`).
+	empty, err := svc.ListByGood(ctx, goodA)
+	if err != nil {
+		t.Fatalf("ListByGood (пусто): %v", err)
+	}
+	if empty == nil || len(empty) != 0 {
+		t.Fatalf("ожидался пустой не-nil список, получено %#v", empty)
+	}
+
+	// Два ШК товару A + один товару B (не должен попасть в выборку A).
+	if err := svc.Bind(ctx, goodA, "4600000000024", "ean13"); err != nil {
+		t.Fatalf("Bind A#2: %v", err)
+	}
+	if err := svc.Bind(ctx, goodA, "4600000000017", ""); err != nil {
+		t.Fatalf("Bind A#1: %v", err)
+	}
+	if err := svc.Bind(ctx, goodB, "4600000000031", ""); err != nil {
+		t.Fatalf("Bind B: %v", err)
+	}
+
+	list, err := svc.ListByGood(ctx, goodA)
+	if err != nil {
+		t.Fatalf("ListByGood: %v", err)
+	}
+	if len(list) != 2 {
+		t.Fatalf("ожидалось 2 ШК у товара A, получено %d", len(list))
+	}
+	// Сортировка по строке ШК: ...017 раньше ...024.
+	if list[0].Barcode != "4600000000017" || list[1].Barcode != "4600000000024" {
+		t.Fatalf("ожидалась сортировка по ШК, получено %s,%s", list[0].Barcode, list[1].Barcode)
+	}
+	// symbology: у первого пусто (NULL), у второго 'ean13'.
+	if list[0].Symbology != nil {
+		t.Fatalf("ожидался NULL symbology у ...017, получено %v", *list[0].Symbology)
+	}
+	if list[1].Symbology == nil || *list[1].Symbology != "ean13" {
+		t.Fatalf("ожидался ean13 у ...024, получено %v", list[1].Symbology)
+	}
+}
+
+// TestBarcode_unbind — отвязка: резолв после отвязки 404; идемпотентность; перепривязка на другой
+// товар после отвязки; отвязка одного ШК не трогает остальные.
+func TestBarcode_unbind(t *testing.T) {
+	pool := testutil.StartPostgres(t)
+	svc := newBarcodeSvc(pool)
+	ctx := context.Background()
+
+	goodA := seedGood(t, pool, "Товар A")
+	goodB := seedGood(t, pool, "Товар B")
+
+	// Привязали два ШК товару A.
+	if err := svc.Bind(ctx, goodA, "4600000000017", ""); err != nil {
+		t.Fatalf("Bind A#1: %v", err)
+	}
+	if err := svc.Bind(ctx, goodA, "4600000000024", ""); err != nil {
+		t.Fatalf("Bind A#2: %v", err)
+	}
+
+	// Отвязали первый → резолвится 404, второй жив.
+	if err := svc.Unbind(ctx, "4600000000017"); err != nil {
+		t.Fatalf("Unbind: %v", err)
+	}
+	if _, err := svc.ResolveGood(ctx, "4600000000017"); !errors.Is(err, repository.ErrNotFound) {
+		t.Fatalf("после отвязки ожидался ErrNotFound, получено %v", err)
+	}
+	if got, err := svc.ResolveGood(ctx, "4600000000024"); err != nil || got.ID != goodA {
+		t.Fatalf("второй ШК должен остаться за A: id=%s err=%v", got.ID, err)
+	}
+
+	// Идемпотентность: повторная отвязка того же (уже отсутствующего) ШК — не ошибка.
+	if err := svc.Unbind(ctx, "4600000000017"); err != nil {
+		t.Fatalf("повторная отвязка должна быть идемпотентной, получено %v", err)
+	}
+
+	// Перепривязка = отвязка + привязка на другой товар: раньше был бы конфликт, теперь ок.
+	if err := svc.Bind(ctx, goodB, "4600000000017", ""); err != nil {
+		t.Fatalf("перепривязка на B после отвязки: %v", err)
+	}
+	if got, err := svc.ResolveGood(ctx, "4600000000017"); err != nil || got.ID != goodB {
+		t.Fatalf("после перепривязки ШК должен вести на B: id=%s err=%v", got.ID, err)
+	}
+}
+
+// TestBarcode_unbind_validation — пустой ШК отклоняется (→400), репозиторий не трогается.
+func TestBarcode_unbind_validation(t *testing.T) {
+	svc := service.NewBarcodeService(nil) // валидация до репозитория, БД не нужна
+	if err := svc.Unbind(context.Background(), "   "); !errors.Is(err, service.ErrEmptyBarcode) {
+		t.Fatalf("пустой ШК: ожидалась ErrEmptyBarcode, получено %v", err)
+	}
+	if _, err := svc.ListByGood(context.Background(), "  "); !errors.Is(err, service.ErrEmptyGoodID) {
+		t.Fatalf("пустой good_id: ожидалась ErrEmptyGoodID, получено %v", err)
+	}
+}
+
 // TestBarcode_resolveUnknown_notFound — 404-путь: ШК не привязан.
 func TestBarcode_resolveUnknown_notFound(t *testing.T) {
 	pool := testutil.StartPostgres(t)

@@ -19,6 +19,7 @@ abstract class GoodsListState with _$GoodsListState {
     @Default(GoodsListStatus.initial) GoodsListStatus status,
     @Default(<Good>[]) List<Good> goods,
     @Default(0) int total,
+    @Default(false) bool loadingMore, // идёт подгрузка следующей страницы
     @Default(<NomenclatureGroup>[]) List<NomenclatureGroup> groups,
     @Default(<Supplier>[]) List<Supplier> suppliers,
     String? query,
@@ -26,6 +27,11 @@ abstract class GoodsListState with _$GoodsListState {
     String? supplierId,
     Failure? failure,
   }) = _GoodsListState;
+
+  const GoodsListState._();
+
+  /// Есть ли ещё непогруженные товары под текущие фильтры.
+  bool get hasMore => goods.length < total;
 }
 
 /// Cubit экрана «Остатки»: держит справочники для фильтров (группы/поставщики) и
@@ -71,9 +77,9 @@ class GoodsListCubit extends Cubit<GoodsListState> {
     await _load();
   }
 
-  /// Перезагрузка списка под текущие фильтры.
+  /// Перезагрузка списка под текущие фильтры (с первой страницы — сбрасывает подгруженное).
   Future<void> _load() async {
-    emit(state.copyWith(status: GoodsListStatus.loading, failure: null));
+    emit(state.copyWith(status: GoodsListStatus.loading, loadingMore: false, failure: null));
     final result = await _repo.listGoods(
       query: state.query,
       groupId: state.groupId,
@@ -84,6 +90,28 @@ class GoodsListCubit extends Cubit<GoodsListState> {
       (page) => emit(state.copyWith(
         status: GoodsListStatus.loaded,
         goods: page.items,
+        total: page.total,
+      )),
+    );
+  }
+
+  /// Подгрузить следующую страницу (бесконечный скролл): дозапрашивает от `offset = goods.length`
+  /// и дописывает в конец. Защита от повторного входа и от запроса за границей total. Ошибку
+  /// подгрузки не роняем в error-экран (список уже показан) — просто снимаем флаг, скролл повторит.
+  Future<void> loadMore() async {
+    if (state.loadingMore || state.status != GoodsListStatus.loaded || !state.hasMore) return;
+    emit(state.copyWith(loadingMore: true));
+    final result = await _repo.listGoods(
+      query: state.query,
+      groupId: state.groupId,
+      supplierId: state.supplierId,
+      offset: state.goods.length,
+    );
+    result.fold(
+      (_) => emit(state.copyWith(loadingMore: false)),
+      (page) => emit(state.copyWith(
+        loadingMore: false,
+        goods: [...state.goods, ...page.items],
         total: page.total,
       )),
     );

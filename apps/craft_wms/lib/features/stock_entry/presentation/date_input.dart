@@ -1,7 +1,8 @@
 import 'package:flutter/services.dart';
 
-/// Маска ввода даты `дд.мм.гггг`: пользователь набирает только цифры, точки-разделители
-/// ставятся автоматически (после дня и месяца). Максимум 8 цифр. Курсор — в конец.
+/// Маска ввода даты `дд.мм.гг(гг)`: пользователь набирает только цифры, точки-разделители
+/// ставятся автоматически (после дня и месяца). До 8 цифр — год можно ввести 2 или 4 знаками
+/// (`140826` → `14.08.26`, `14082026` → `14.08.2026`). Курсор — в конец.
 class DateTextInputFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
@@ -22,15 +23,27 @@ class DateTextInputFormatter extends TextInputFormatter {
   }
 }
 
-/// Проверка даты в формате `дд.мм.гггг`: и по форме, и по существованию (31.02 → невалидна).
+/// Двузначный год → 20YY; четырёхзначный — как есть.
+int _fullYear(String raw) => raw.length == 2 ? 2000 + int.parse(raw) : int.parse(raw);
+
+/// Проверка даты `дд.мм.гг` или `дд.мм.гггг`: и по форме, и по существованию (31.02 → невалидна).
+/// Двузначный год трактуется как 20YY.
 bool isValidEntryDate(String s) {
-  if (!RegExp(r'^\d{2}\.\d{2}\.\d{4}$').hasMatch(s)) return false;
-  final p = s.split('.');
-  final d = int.parse(p[0]);
-  final m = int.parse(p[1]);
-  final y = int.parse(p[2]);
-  if (m < 1 || m > 12 || d < 1) return false;
-  final dt = DateTime(y, m, d);
+  final m = RegExp(r'^(\d{2})\.(\d{2})\.(\d{2}|\d{4})$').firstMatch(s);
+  if (m == null) return false;
+  final d = int.parse(m.group(1)!);
+  final mo = int.parse(m.group(2)!);
+  final y = _fullYear(m.group(3)!);
+  if (mo < 1 || mo > 12 || d < 1) return false;
+  final dt = DateTime(y, mo, d);
   // Если день «перекрутился» (напр. 31.02 → 03.03), компоненты не совпадут — дата невалидна.
-  return dt.year == y && dt.month == m && dt.day == d;
+  return dt.year == y && dt.month == mo && dt.day == d;
+}
+
+/// Нормализация даты к `дд.мм.гггг` (двузначный год → 20YY). Вход должен пройти [isValidEntryDate];
+/// иначе возвращается без изменений.
+String normalizeEntryDate(String s) {
+  final m = RegExp(r'^(\d{2})\.(\d{2})\.(\d{2}|\d{4})$').firstMatch(s);
+  if (m == null) return s;
+  return '${m.group(1)}.${m.group(2)}.${_fullYear(m.group(3)!)}';
 }

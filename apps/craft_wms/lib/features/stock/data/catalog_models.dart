@@ -64,6 +64,17 @@ abstract class Cell with _$Cell {
   factory Cell.fromJson(Map<String, dynamic> json) => _$CellFromJson(json);
 }
 
+/// Штрихкод товара (ответ `GET /goods/{id}/barcodes`, P-FS-12). symbology может быть null.
+@freezed
+abstract class Barcode with _$Barcode {
+  const factory Barcode({
+    required String barcode,
+    String? symbology,
+  }) = _Barcode;
+
+  factory Barcode.fromJson(Map<String, dynamic> json) => _$BarcodeFromJson(json);
+}
+
 /// Строка остатка в товарном разрезе (ответ `GET /stock`). qty — строка (decimal с бэкенда,
 /// точное дробное; храним как есть, не теряя знаков).
 @freezed
