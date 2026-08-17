@@ -53,6 +53,40 @@ func (r *BarcodeRepository) GetGoodByBarcode(ctx context.Context, code string) (
 	return g, nil
 }
 
+// ListByGood возвращает все ШК товара (для секции «Штрихкоды» в карточке, P-FS-12).
+// Пустой список — норма (у товара нет ШК). Порядок — по строке ШК, стабилен для UI.
+func (r *BarcodeRepository) ListByGood(ctx context.Context, goodID string) ([]model.Barcode, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT barcode, symbology FROM barcodes WHERE good_id = $1::uuid ORDER BY barcode`, goodID)
+	if err != nil {
+		return nil, fmt.Errorf("list barcodes by good %q: %w", goodID, err)
+	}
+	defer rows.Close()
+
+	out := []model.Barcode{} // всегда не nil → JSON `[]`, а не `null`
+	for rows.Next() {
+		var b model.Barcode
+		if err := rows.Scan(&b.Barcode, &b.Symbology); err != nil {
+			return nil, fmt.Errorf("scan barcode: %w", err)
+		}
+		out = append(out, b)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate barcodes: %w", err)
+	}
+	return out, nil
+}
+
+// Unbind удаляет привязку ШК (отвязка ошибочного ШК, P-FS-12). ШК глобально уникален, поэтому
+// удаляем по коду. Идемпотентно: нет такой привязки → не ошибка (коррекция не должна падать,
+// если ШК уже отвязали).
+func (r *BarcodeRepository) Unbind(ctx context.Context, barcode string) error {
+	if _, err := r.pool.Exec(ctx, `DELETE FROM barcodes WHERE barcode = $1`, barcode); err != nil {
+		return fmt.Errorf("unbind barcode %q: %w", barcode, err)
+	}
+	return nil
+}
+
 // Bind привязывает ШК к товару. Аддитивно — у товара может быть много ШК. Идемпотентно:
 // повторная привязка того же ШК к тому же товару — ок; занятый ШК другим товаром →
 // ErrBarcodeConflict; несуществующий товар → ErrGoodNotFound; пустая symbology → NULL.

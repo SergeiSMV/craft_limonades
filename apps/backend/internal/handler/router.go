@@ -116,8 +116,10 @@ func NewRouter(log *slog.Logger, db Pinger, authSvc *service.AuthService, tokens
 			barcodeH := NewBarcodeHandler(barcodeSvc)
 			r.Group(func(r chi.Router) {
 				r.Use(appmw.Authenticator(tokens))
-				r.Get("/barcodes/{code}", barcodeH.GetByCode) // товар по ШК или 404
-				r.Post("/barcodes", barcodeH.Bind)            // привязать ШК к товару
+				r.Get("/barcodes/{code}", barcodeH.GetByCode)      // товар по ШК или 404
+				r.Post("/barcodes", barcodeH.Bind)                 // привязать ШК к товару
+				r.Delete("/barcodes/{code}", barcodeH.Unbind)      // отвязать ошибочный ШК (P-FS-12)
+				r.Get("/goods/{id}/barcodes", barcodeH.ListByGood) // все ШК товара (P-FS-12)
 			})
 		}
 

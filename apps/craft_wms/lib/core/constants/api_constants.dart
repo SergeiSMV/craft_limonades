@@ -49,8 +49,11 @@ abstract final class ApiConst {
   /// Путь карточки товара по id: `goods/{id}`.
   static String goodById(String id) => 'goods/$id';
 
-  ///**GET** - товар по штрихкоду (404, если ШК не привязан): `barcodes/{code}`.
+  ///**GET** - товар по штрихкоду (404, если ШК не привязан) · **DELETE** - отвязать ШК (204, P-FS-12): `barcodes/{code}`.
   static String barcodeByCode(String code) => 'barcodes/$code';
+
+  ///**GET** - все ШК товара (секция «Штрихкоды» карточки, P-FS-12): `goods/{id}/barcodes`.
+  static String goodBarcodes(String id) => 'goods/$id/barcodes';
 
   ///**POST** - checkpoint ячейки в сессии ввода: `stock-entry/sessions/{id}/cells`.
   static String stockEntryCells(String id) => 'stock-entry/sessions/$id/cells';

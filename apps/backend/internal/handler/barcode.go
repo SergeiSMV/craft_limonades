@@ -43,6 +43,40 @@ func (h *BarcodeHandler) GetByCode(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, good)
 }
 
+// ListByGood: GET /api/v1/goods/{id}/barcodes — все ШК товара (секция «Штрихкоды» в карточке).
+// 200 со списком (пустой — норма); 400 — пустой id.
+func (h *BarcodeHandler) ListByGood(w http.ResponseWriter, r *http.Request) {
+	goodID := strings.TrimSpace(chi.URLParam(r, "id"))
+	list, err := h.svc.ListByGood(r.Context(), goodID)
+	switch {
+	case errors.Is(err, service.ErrEmptyGoodID):
+		writeError(w, http.StatusBadRequest, "пустой идентификатор товара")
+		return
+	case err != nil:
+		slog.Error("list barcodes by good failed", "error", err)
+		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
+		return
+	}
+	writeJSON(w, http.StatusOK, list)
+}
+
+// Unbind: DELETE /api/v1/barcodes/{code} — отвязать ошибочный ШК (P-FS-12).
+// 204 — отвязано (идемпотентно: и если ШК уже не было); 400 — пустой код.
+func (h *BarcodeHandler) Unbind(w http.ResponseWriter, r *http.Request) {
+	code := strings.TrimSpace(chi.URLParam(r, "code"))
+	err := h.svc.Unbind(r.Context(), code)
+	switch {
+	case errors.Is(err, service.ErrEmptyBarcode):
+		writeError(w, http.StatusBadRequest, "пустой штрихкод")
+		return
+	case err != nil:
+		slog.Error("unbind barcode failed", "error", err)
+		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // bindRequest — тело POST /api/v1/barcodes.
 type bindRequest struct {
 	GoodID    string `json:"good_id"`

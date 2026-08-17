@@ -20,6 +20,12 @@ type Good struct {
 	IsActive     bool    `json:"is_active"`
 }
 
+// Barcode — привязка ШК к товару для выдачи клиенту (секция «Штрихкоды» в карточке товара, P-FS-12).
+type Barcode struct {
+	Barcode   string  `json:"barcode"`
+	Symbology *string `json:"symbology"` // 'ean13'/'code128'/… или null
+}
+
 // CellLabel — минимум для печати этикетки ячейки: адрес (в штрихкод + текст) и признак напольной
 // (стрелка вниз). Отдельна от Cell — этикетке не нужны id/тип/склад.
 type CellLabel struct {

@@ -29,6 +29,7 @@ class StockDetailScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _GoodHeader(good: good),
+            const _BarcodesSection(),
             const Divider(height: 1),
             Expanded(child: _StockRows(goodId: good.id)),
           ],
@@ -68,6 +69,75 @@ class _GoodHeader extends StatelessWidget {
     );
   }
 
+  static const TextStyle _muted =
+      TextStyle(fontSize: AppSizes.kText13, color: AppColors.kTextMuted);
+}
+
+/// Секция «Штрихкоды» товара (P-FS-12): чипы ШК с удалением (отвязка ошибочного ШК). Показывается
+/// после загрузки карточки; пустой список — подпись «нет привязанных ШК». Отвязка — с подтверждением.
+class _BarcodesSection extends StatelessWidget {
+  const _BarcodesSection();
+
+  /// Подтвердить и отвязать ШК от товара.
+  Future<void> _confirmUnbind(BuildContext context, String code) async {
+    final cubit = context.read<StockDetailCubit>();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        title: Text(t.stockDetailScreen.barcodeDeleteTitle),
+        content: Text(t.stockDetailScreen.barcodeDeleteBody(barcode: code)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dctx).pop(false),
+            child: Text(t.stockDetailScreen.cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dctx).pop(true),
+            child: Text(t.stockDetailScreen.unbind),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) cubit.unbindBarcode(code);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = context.watch<StockDetailCubit>().state;
+    if (state.status != StockDetailStatus.loaded) return const SizedBox.shrink();
+
+    return Padding(
+      padding: AppInsets.h16 + AppInsets.bottom8,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(t.stockDetailScreen.barcodesTitle, style: _sectionLabel),
+          AppBoxes.kHeight4,
+          if (state.barcodes.isEmpty)
+            Text(t.stockDetailScreen.barcodesEmpty, style: _muted)
+          else
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final b in state.barcodes)
+                  Chip(
+                    label: Text(b.barcode),
+                    onDeleted: () => _confirmUnbind(context, b.barcode),
+                    deleteIcon: const Icon(Icons.close, size: AppSizes.kIcon16),
+                  ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  static const TextStyle _sectionLabel = TextStyle(
+    fontSize: AppSizes.kText13,
+    fontWeight: FontWeight.w600,
+    color: AppColors.kTextMuted,
+  );
   static const TextStyle _muted =
       TextStyle(fontSize: AppSizes.kText13, color: AppColors.kTextMuted);
 }

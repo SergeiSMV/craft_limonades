@@ -124,6 +124,68 @@ void main() {
     });
   });
 
+  group('listGoodBarcodes / unbindBarcode (P-FS-12)', () {
+    test('listGoodBarcodes: массив ШК парсится (symbology может быть null)', () async {
+      final repo = repoWith({
+        'GET ${ApiConst.goodBarcodes("g1")}': (_) => ResponseBody.fromString(
+              '[{"barcode":"460","symbology":"ean13"},{"barcode":"BOX","symbology":null}]',
+              200,
+              headers: {
+                Headers.contentTypeHeader: [Headers.jsonContentType],
+              },
+            ),
+      });
+
+      final result = await repo.listGoodBarcodes('g1');
+
+      expect(result.isRight, isTrue);
+      expect(result.right, hasLength(2));
+      expect(result.right.first.barcode, '460');
+      expect(result.right.first.symbology, 'ean13');
+      expect(result.right.last.symbology, isNull);
+    });
+
+    test('listGoodBarcodes: пустой список → []', () async {
+      final repo = repoWith({
+        'GET ${ApiConst.goodBarcodes("g1")}': (_) => ResponseBody.fromString(
+              '[]',
+              200,
+              headers: {
+                Headers.contentTypeHeader: [Headers.jsonContentType],
+              },
+            ),
+      });
+
+      final result = await repo.listGoodBarcodes('g1');
+      expect(result.isRight, isTrue);
+      expect(result.right, isEmpty);
+    });
+
+    test('unbindBarcode: DELETE 204 → Right', () async {
+      final adapter = RecordingAdapter({
+        'DELETE ${ApiConst.barcodeByCode("460")}': (_) => ResponseBody.fromString('', 204),
+      });
+      dio.httpClientAdapter = adapter;
+      final repo = CatalogRepository(dio);
+
+      final result = await repo.unbindBarcode('460');
+
+      expect(result.isRight, isTrue);
+      expect(adapter.requests.single.method, 'DELETE');
+      expect(adapter.requests.single.path, ApiConst.barcodeByCode('460'));
+    });
+
+    test('unbindBarcode: 401 → Failure.auth', () async {
+      final repo = repoWith({
+        'DELETE ${ApiConst.barcodeByCode("460")}': (_) => jsonResponse({}, 401),
+      });
+
+      final result = await repo.unbindBarcode('460');
+      expect(result.isLeft, isTrue);
+      expect(result.left, isA<AuthFailure>());
+    });
+  });
+
   group('listGroups / listSuppliers', () {
     test('группы парсятся из массива', () async {
       final repo = repoWith({
