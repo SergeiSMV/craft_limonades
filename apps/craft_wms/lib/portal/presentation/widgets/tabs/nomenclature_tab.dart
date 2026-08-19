@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/constants/app_boxes.dart';
-import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_insets.dart';
-import '../../../core/constants/app_sizes.dart';
-import '../../../core/di/injection.dart';
-import '../../../core/error/failure.dart';
-import '../../../core/gen/strings.g.dart';
-import '../../data/import_report.dart';
-import '../../data/nomenclature_repository.dart';
-import '../../data/web_file_picker.dart';
-import 'widgets/upload_widgets.dart';
+import '../../../../core/constants/app_boxes.dart';
+import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_insets.dart';
+import '../../../../core/constants/app_sizes.dart';
+import '../../../../core/di/injection.dart';
+import '../../../../core/error/failure.dart';
+import '../../../../core/gen/strings.g.dart';
+import '../../../data/import_report.dart';
+import '../../../data/nomenclature_repository.dart';
+import '../../../data/web_file_picker.dart';
+import '../common/upload_widgets.dart';
 
 /// Вкладка «Номенклатура» — единственная рабочая в MVP портала (P1-04 готов на бэке).
 /// По макету: карточка с зоной загрузки (клик = выбор `.xls`), ниже — отчёт импорта.

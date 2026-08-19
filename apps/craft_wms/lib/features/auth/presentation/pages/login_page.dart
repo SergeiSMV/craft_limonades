@@ -3,19 +3,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../core/auth/auth_cubit.dart';
-import '../../../core/constants/app_borders.dart';
-import '../../../core/constants/app_boxes.dart';
-import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_insets.dart';
-import '../../../core/constants/app_sizes.dart';
-import '../../../core/error/failure.dart';
-import '../../../core/gen/assets.gen.dart';
-import '../../../core/gen/strings.g.dart';
-import '../../../core/theme/regular_text.dart';
-import '../../../core/theme/semibold_text.dart';
-import '../../../core/widgets/system_ui_wrapper.dart';
-import '../../splash/presentation/splash_screen.dart';
+import '../../../../core/auth/auth_cubit.dart';
+import '../../../../core/constants/app_borders.dart';
+import '../../../../core/constants/app_boxes.dart';
+import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_insets.dart';
+import '../../../../core/constants/app_sizes.dart';
+import '../../../../core/error/failure.dart';
+import '../../../../core/gen/assets.gen.dart';
+import '../../../../core/gen/strings.g.dart';
+import '../../../../core/theme/regular_text.dart';
+import '../../../../core/theme/semibold_text.dart';
+import '../../../../core/widgets/system_ui_wrapper.dart';
+import '../../../splash/presentation/pages/splash_page.dart';
 
 /// Экран входа — ожидание скана бейджа.
 ///
@@ -25,14 +25,14 @@ import '../../splash/presentation/splash_screen.dart';
 /// Как: при наборе 16 цифр или по Enter отправляем бейдж на вход; ошибки — крупно.
 /// Полноценная интеграция сканера — P2-01 (сейчас заглушка, см. P0-07).
 @RoutePage()
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class LoginPage extends StatefulWidget {
+  const LoginPage({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginPageState extends State<LoginPage> {
   /// Длина бейджа (сервер режет на login 8 + secret 8).
   static const _badgeLength = 16;
 
@@ -123,7 +123,7 @@ class _LoginScreenState extends State<LoginScreen> {
             // Пока идёт вход — крупный индикатор без поля (проверку сессии при старте
             // держит splash-экран, сюда состояние unknown уже не приходит).
             if (state is AuthAuthenticating) {
-              return SplashScreen();
+              return const SplashPage();
             }
             return _ScanView(
               controller: _badgeController,
@@ -224,7 +224,7 @@ class _ScanView extends StatelessWidget {
                 inputFormatters: [
                   FilteringTextInputFormatter.digitsOnly,
                   LengthLimitingTextInputFormatter(
-                    _LoginScreenState._badgeLength,
+                    _LoginPageState._badgeLength,
                   ),
                 ],
                 decoration: InputDecoration(

@@ -2,20 +2,20 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../core/constants/app_boxes.dart';
-import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_insets.dart';
-import '../../../core/constants/app_sizes.dart';
-import '../../../core/di/injection.dart';
-import '../../../core/gen/strings.g.dart';
-import '../data/catalog_models.dart';
-import 'stock_detail_cubit.dart';
+import '../../../../core/constants/app_boxes.dart';
+import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_insets.dart';
+import '../../../../core/constants/app_sizes.dart';
+import '../../../../core/di/injection.dart';
+import '../../../../core/gen/strings.g.dart';
+import '../../data/catalog_models.dart';
+import '../bloc/stock_detail_cubit.dart';
 
 /// Карточка остатков товара (P1-07): шапка товара + строки «ячейка · партия · кол-во» + итог.
 /// Всё показывается «россыпью» — разбивка по грузовым единицам (ГЕ) появится в P4/P5.
 @RoutePage()
-class StockDetailScreen extends StatelessWidget {
-  const StockDetailScreen({super.key, required this.good});
+class StockDetailPage extends StatelessWidget {
+  const StockDetailPage({super.key, required this.good});
 
   final Good good;
 
@@ -54,23 +54,34 @@ class _GoodHeader extends StatelessWidget {
         children: [
           Text(
             good.name,
-            style: const TextStyle(fontSize: AppSizes.kText18, fontWeight: FontWeight.bold),
+            style: const TextStyle(
+              fontSize: AppSizes.kText18,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           AppBoxes.kHeight8,
           if (good.code != null)
             Text(t.stockDetailScreen.code(code: good.code!), style: _muted),
           Text(t.stockDetailScreen.uom(uom: good.uom), style: _muted),
           if (good.groupName != null)
-            Text(t.stockDetailScreen.group(group: good.groupName!), style: _muted),
+            Text(
+              t.stockDetailScreen.group(group: good.groupName!),
+              style: _muted,
+            ),
           if (good.supplierName != null)
-            Text(t.stockDetailScreen.supplier(supplier: good.supplierName!), style: _muted),
+            Text(
+              t.stockDetailScreen.supplier(supplier: good.supplierName!),
+              style: _muted,
+            ),
         ],
       ),
     );
   }
 
-  static const TextStyle _muted =
-      TextStyle(fontSize: AppSizes.kText13, color: AppColors.kTextMuted);
+  static const TextStyle _muted = TextStyle(
+    fontSize: AppSizes.kText13,
+    color: AppColors.kTextMuted,
+  );
 }
 
 /// Секция «Штрихкоды» товара (P-FS-12): чипы ШК с удалением (отвязка ошибочного ШК). Показывается
@@ -104,7 +115,9 @@ class _BarcodesSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<StockDetailCubit>().state;
-    if (state.status != StockDetailStatus.loaded) return const SizedBox.shrink();
+    if (state.status != StockDetailStatus.loaded) {
+      return const SizedBox.shrink();
+    }
 
     return Padding(
       padding: AppInsets.h16 + AppInsets.bottom8,
@@ -138,8 +151,10 @@ class _BarcodesSection extends StatelessWidget {
     fontWeight: FontWeight.w600,
     color: AppColors.kTextMuted,
   );
-  static const TextStyle _muted =
-      TextStyle(fontSize: AppSizes.kText13, color: AppColors.kTextMuted);
+  static const TextStyle _muted = TextStyle(
+    fontSize: AppSizes.kText13,
+    color: AppColors.kTextMuted,
+  );
 }
 
 /// Строки остатка по ячейкам/партиям + итог; индикатор/ошибка/пусто.
@@ -156,7 +171,9 @@ class _StockRows extends StatelessWidget {
       case StockDetailStatus.loading:
         return const Center(child: CircularProgressIndicator());
       case StockDetailStatus.error:
-        return _ErrorRetry(onRetry: () => context.read<StockDetailCubit>().load(goodId));
+        return _ErrorRetry(
+          onRetry: () => context.read<StockDetailCubit>().load(goodId),
+        );
       case StockDetailStatus.loaded:
         if (state.items.isEmpty) {
           return Center(child: Text(t.stockDetailScreen.empty));
@@ -172,7 +189,9 @@ class _StockRows extends StatelessWidget {
                   return ListTile(
                     leading: const Icon(Icons.place_outlined),
                     title: Text(it.cellAddress),
-                    subtitle: Text('${t.stockDetailScreen.colBatch}: ${_batchDate(it.productionDate)}'),
+                    subtitle: Text(
+                      '${t.stockDetailScreen.colBatch}: ${_batchDate(it.productionDate)}',
+                    ),
                     trailing: Text(
                       it.qty,
                       style: const TextStyle(
@@ -218,7 +237,10 @@ class _ErrorRetry extends StatelessWidget {
         children: [
           Text(t.stockDetailScreen.error),
           AppBoxes.kHeight12,
-          FilledButton(onPressed: onRetry, child: Text(t.stockDetailScreen.retry)),
+          FilledButton(
+            onPressed: onRetry,
+            child: Text(t.stockDetailScreen.retry),
+          ),
         ],
       ),
     );

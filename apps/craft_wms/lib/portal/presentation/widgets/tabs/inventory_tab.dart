@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/constants/app_boxes.dart';
-import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_insets.dart';
-import '../../../core/constants/app_sizes.dart';
-import '../../../core/di/injection.dart';
-import '../../../core/error/failure.dart';
-import '../../../core/gen/strings.g.dart';
-import '../../data/inventory_repository.dart';
-import '../../data/web_download.dart';
+import '../../../../core/constants/app_boxes.dart';
+import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_insets.dart';
+import '../../../../core/constants/app_sizes.dart';
+import '../../../../core/di/injection.dart';
+import '../../../../core/error/failure.dart';
+import '../../../../core/gen/strings.g.dart';
+import '../../../data/inventory_repository.dart';
+import '../../../data/web_download.dart';
 
 /// Вкладка «Инвентаризация» (P-FS-09): список документов «ввод остатков» (закрытые сессии) +
 /// скачивание .xlsx для сверки с 1С. Данные тянутся при открытии; всё admin-only на бэке.
@@ -64,12 +64,14 @@ class _InventoryTabState extends State<InventoryTab> {
     );
   }
 
+  /// Текст ошибки для снекбара по типу Failure.
   String _errorText(Failure f) => switch (f) {
         ServerFailure(:final message, :final statusCode) => message ?? 'HTTP $statusCode',
         NetworkFailure() => t.portal.login.errorNetwork,
         _ => t.portal.login.errorUnknown,
       };
 
+  /// Показать снекбар с текстом (ошибки скачивания отчёта).
   void _snack(String text) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -109,6 +111,7 @@ class _InventoryTabState extends State<InventoryTab> {
     );
   }
 
+  /// Тело вкладки по состоянию: индикатор загрузки / пусто / список документов инвентаризации.
   Widget _body() {
     if (_loading) {
       return const Padding(padding: AppInsets.all32, child: Center(child: CircularProgressIndicator()));
@@ -150,6 +153,7 @@ class _DocRow extends StatelessWidget {
   final bool downloading;
   final VoidCallback onDownload;
 
+  /// Формат даты документа: `дд.мм.гггг чч:мм` в локальной зоне.
   String _date(DateTime dt) {
     final l = dt.toLocal();
     String two(int v) => v.toString().padLeft(2, '0');

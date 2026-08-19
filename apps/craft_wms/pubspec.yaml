@@ -49,6 +49,7 @@ dependencies:
   web: ^1.1.0 # доступ к DOM в веб-портале (нативный <input type=file> для выбора .xls)
   material_design_icons_flutter: ^7.0.7296
   flutter_svg: ^2.3.0
+  flutter_neumorphic_plus: ^3.5.0
 
 
 dev_dependencies:

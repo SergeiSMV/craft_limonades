@@ -104,6 +104,7 @@ class _DashedBorderPainter extends CustomPainter {
 
   final Color color;
 
+  /// Рисует пунктирную скруглённую рамку: контур разбивается на штрихи 6px через 4px.
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
@@ -129,6 +130,7 @@ class _DashedBorderPainter extends CustomPainter {
     }
   }
 
+  /// Перерисовываем только при смене цвета рамки.
   @override
   bool shouldRepaint(_DashedBorderPainter old) => old.color != color;
 }

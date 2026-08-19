@@ -37,6 +37,9 @@ abstract final class AppSizes {
   static const double kText32 = 32;
   static const double kText48 = 48;
 
+  //* --- Image Sizes ------------------------------------------------------ *//
+  static const double kImagePlaceholder = 240; // иллюстрация-заглушка (ошибка/пусто)
+
   //* --- Button Sizes ----------------------------------------------------- *//
   static const double kButtonHeight64 = 64;
 

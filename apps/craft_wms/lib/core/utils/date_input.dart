@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 /// ставятся автоматически (после дня и месяца). До 8 цифр — год можно ввести 2 или 4 знаками
 /// (`140826` → `14.08.26`, `14082026` → `14.08.2026`). Курсор — в конец.
 class DateTextInputFormatter extends TextInputFormatter {
+  /// Переформатирует ввод на каждый keystroke: оставляет цифры (до 8) и авто-проставляет точки
+  /// после дня и месяца; курсор — в конец.
   @override
   TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
     // Оставляем только цифры и режем до 8 (ддммгггг).

@@ -1,4 +1,4 @@
-import 'package:craft_wms/features/stock_entry/presentation/date_input.dart';
+import 'package:craft_wms/core/utils/date_input.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 

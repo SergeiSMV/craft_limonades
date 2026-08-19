@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../core/auth/auth_cubit.dart';
-import '../../core/auth/profile.dart';
-import '../../core/constants/app_boxes.dart';
-import '../../core/constants/app_colors.dart';
-import '../../core/constants/app_insets.dart';
-import '../../core/constants/app_sizes.dart';
-import '../../core/gen/strings.g.dart';
-import 'tabs/cells_tab.dart';
-import 'tabs/inventory_tab.dart';
-import 'tabs/nomenclature_tab.dart';
-import 'tabs/stub_tab.dart';
+import '../../../core/auth/auth_cubit.dart';
+import '../../../core/auth/profile.dart';
+import '../../../core/constants/app_boxes.dart';
+import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_insets.dart';
+import '../../../core/constants/app_sizes.dart';
+import '../../../core/gen/strings.g.dart';
+import '../widgets/tabs/cells_tab.dart';
+import '../widgets/tabs/inventory_tab.dart';
+import '../widgets/tabs/nomenclature_tab.dart';
+import '../widgets/tabs/stub_tab.dart';
 
 /// Один пункт меню портала: иконка + подпись + тело вкладки.
 class _NavItem {

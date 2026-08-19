@@ -1,9 +1,9 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
-import '../../../core/constants/app_sizes.dart';
-import '../../../core/gen/assets.gen.dart';
-import '../../../core/widgets/system_ui_wrapper.dart';
+import '../../../../core/constants/app_sizes.dart';
+import '../../../../core/gen/assets.gen.dart';
+import '../../../../core/widgets/system_ui_wrapper.dart';
 
 /// Стартовая заставка — показывается, пока `AuthCubit.restore()` проверяет сессию.
 ///
@@ -13,14 +13,14 @@ import '../../../core/widgets/system_ui_wrapper.dart';
 /// Как: навигацию дальше делает BlocListener в app.dart по состоянию AuthCubit
 ///      (authenticated → меню, unauthenticated → вход).
 @RoutePage()
-class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
+class SplashPage extends StatefulWidget {
+  const SplashPage({super.key});
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  State<SplashPage> createState() => _SplashPageState();
 }
 
-class _SplashScreenState extends State<SplashScreen>
+class _SplashPageState extends State<SplashPage>
     with SingleTickerProviderStateMixin {
   /// Два оборот за секунду — достаточно заметно, без «дёрганья».
   static const _spinDuration = Duration(seconds: 2);

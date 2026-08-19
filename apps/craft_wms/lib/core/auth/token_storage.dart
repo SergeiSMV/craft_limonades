@@ -7,10 +7,19 @@ import 'package:injectable/injectable.dart';
 /// (Android Keystore). [InMemoryTokenStorage] оставлена для unit-тестов (P0-08),
 /// где платформенное хранилище недоступно.
 abstract class TokenStorage {
+  /// Прочитать сохранённый access-токен (null — если не сохранён).
   Future<String?> readAccess();
+
+  /// Прочитать сохранённый refresh-токен (null — если не сохранён).
   Future<String?> readRefresh();
+
+  /// Сохранить пару токенов (перезаписывает предыдущие).
   Future<void> save({required String access, required String refresh});
+
+  /// Обновить только access-токен (после refresh) — refresh не трогаем.
   Future<void> saveAccess(String access);
+
+  /// Удалить оба токена (выход из аккаунта).
   Future<void> clear();
 }
 

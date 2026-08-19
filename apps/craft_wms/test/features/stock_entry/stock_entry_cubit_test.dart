@@ -1,6 +1,6 @@
 import 'package:craft_wms/features/stock/data/catalog_models.dart';
 import 'package:craft_wms/features/stock_entry/data/stock_entry_repository.dart';
-import 'package:craft_wms/features/stock_entry/presentation/stock_entry_cubit.dart';
+import 'package:craft_wms/features/stock_entry/presentation/bloc/stock_entry_cubit.dart';
 import 'package:either_dart/either.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';

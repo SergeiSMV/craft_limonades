@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 /// Константы для отступов.
 abstract final class AppInsets {
   //* --- All ------------------------------------------------------------- *//
+  static const EdgeInsets all2 = EdgeInsets.all(2);
+  static const EdgeInsets all8 = EdgeInsets.all(8);
+  static const EdgeInsets all12 = EdgeInsets.all(12);
   static const EdgeInsets all16 = EdgeInsets.all(16);
   static const EdgeInsets all24 = EdgeInsets.all(24);
   static const EdgeInsets all32 = EdgeInsets.all(32);
@@ -33,8 +36,11 @@ abstract final class AppInsets {
   static const EdgeInsets top32 = EdgeInsets.only(top: 32);
 
   //* --- Bottom ----------------------------------------------------------- *//
+  static const EdgeInsets bottom2 = EdgeInsets.only(bottom: 2);
   static const EdgeInsets bottom4 = EdgeInsets.only(bottom: 4);
   static const EdgeInsets bottom8 = EdgeInsets.only(bottom: 8);
+  static const EdgeInsets bottom10 = EdgeInsets.only(bottom: 10);
+  static const EdgeInsets bottom16 = EdgeInsets.only(bottom: 16);
 
   //* --- Right ------------------------------------------------------------ *//
   static const EdgeInsets right2 = EdgeInsets.only(right: 2);
