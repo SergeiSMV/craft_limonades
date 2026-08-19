@@ -2,9 +2,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:injectable/injectable.dart';
 
-import '../../../core/error/failure.dart';
-import '../data/catalog_models.dart';
-import '../data/catalog_repository.dart';
+import '../../../../core/error/failure.dart';
+import '../../data/catalog_models.dart';
+import '../../data/catalog_repository.dart';
 
 part 'stock_detail_cubit.freezed.dart';
 
@@ -18,7 +18,8 @@ abstract class StockDetailState with _$StockDetailState {
     @Default(StockDetailStatus.loading) StockDetailStatus status,
     @Default(<StockItem>[]) List<StockItem> items,
     @Default('0') String totalQty,
-    @Default(<Barcode>[]) List<Barcode> barcodes, // ШК товара (секция «Штрихкоды», P-FS-12)
+    @Default(<Barcode>[])
+    List<Barcode> barcodes, // ШК товара (секция «Штрихкоды», P-FS-12)
     Failure? failure,
   }) = _StockDetailState;
 }
@@ -39,13 +40,17 @@ class StockDetailCubit extends Cubit<StockDetailState> {
     final result = await _repo.listStock(goodId: goodId);
     final barcodes = await _repo.listGoodBarcodes(goodId);
     result.fold(
-      (failure) => emit(state.copyWith(status: StockDetailStatus.error, failure: failure)),
-      (page) => emit(state.copyWith(
-        status: StockDetailStatus.loaded,
-        items: page.items,
-        totalQty: _sum(page.items),
-        barcodes: barcodes.fold((_) => const [], (b) => b),
-      )),
+      (failure) => emit(
+        state.copyWith(status: StockDetailStatus.error, failure: failure),
+      ),
+      (page) => emit(
+        state.copyWith(
+          status: StockDetailStatus.loaded,
+          items: page.items,
+          totalQty: _sum(page.items),
+          barcodes: barcodes.fold((_) => const [], (b) => b),
+        ),
+      ),
     );
   }
 
@@ -68,8 +73,6 @@ class StockDetailCubit extends Cubit<StockDetailState> {
       total += double.tryParse(it.qty) ?? 0;
     }
     // Убираем хвостовые нули: 10.500 → «10.5», 3.000 → «3».
-    return total
-        .toStringAsFixed(3)
-        .replaceFirst(RegExp(r'\.?0+$'), '');
+    return total.toStringAsFixed(3).replaceFirst(RegExp(r'\.?0+$'), '');
   }
 }

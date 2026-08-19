@@ -2,9 +2,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:injectable/injectable.dart';
 
-import '../../../core/error/failure.dart';
-import '../data/catalog_models.dart';
-import '../data/catalog_repository.dart';
+import '../../../../core/error/failure.dart';
+import '../../data/catalog_models.dart';
+import '../../data/catalog_repository.dart';
 
 part 'goods_list_cubit.freezed.dart';
 
@@ -46,10 +46,12 @@ class GoodsListCubit extends Cubit<GoodsListState> {
   Future<void> init() async {
     final groups = await _repo.listGroups();
     final suppliers = await _repo.listSuppliers();
-    emit(state.copyWith(
-      groups: groups.fold((_) => const [], (g) => g),
-      suppliers: suppliers.fold((_) => const [], (s) => s),
-    ));
+    emit(
+      state.copyWith(
+        groups: groups.fold((_) => const [], (g) => g),
+        suppliers: suppliers.fold((_) => const [], (s) => s),
+      ),
+    );
     await _load();
   }
 
@@ -79,19 +81,28 @@ class GoodsListCubit extends Cubit<GoodsListState> {
 
   /// Перезагрузка списка под текущие фильтры (с первой страницы — сбрасывает подгруженное).
   Future<void> _load() async {
-    emit(state.copyWith(status: GoodsListStatus.loading, loadingMore: false, failure: null));
+    emit(
+      state.copyWith(
+        status: GoodsListStatus.loading,
+        loadingMore: false,
+        failure: null,
+      ),
+    );
     final result = await _repo.listGoods(
       query: state.query,
       groupId: state.groupId,
       supplierId: state.supplierId,
     );
     result.fold(
-      (failure) => emit(state.copyWith(status: GoodsListStatus.error, failure: failure)),
-      (page) => emit(state.copyWith(
-        status: GoodsListStatus.loaded,
-        goods: page.items,
-        total: page.total,
-      )),
+      (failure) =>
+          emit(state.copyWith(status: GoodsListStatus.error, failure: failure)),
+      (page) => emit(
+        state.copyWith(
+          status: GoodsListStatus.loaded,
+          goods: page.items,
+          total: page.total,
+        ),
+      ),
     );
   }
 
@@ -99,7 +110,11 @@ class GoodsListCubit extends Cubit<GoodsListState> {
   /// и дописывает в конец. Защита от повторного входа и от запроса за границей total. Ошибку
   /// подгрузки не роняем в error-экран (список уже показан) — просто снимаем флаг, скролл повторит.
   Future<void> loadMore() async {
-    if (state.loadingMore || state.status != GoodsListStatus.loaded || !state.hasMore) return;
+    if (state.loadingMore ||
+        state.status != GoodsListStatus.loaded ||
+        !state.hasMore) {
+      return;
+    }
     emit(state.copyWith(loadingMore: true));
     final result = await _repo.listGoods(
       query: state.query,
@@ -109,11 +124,13 @@ class GoodsListCubit extends Cubit<GoodsListState> {
     );
     result.fold(
       (_) => emit(state.copyWith(loadingMore: false)),
-      (page) => emit(state.copyWith(
-        loadingMore: false,
-        goods: [...state.goods, ...page.items],
-        total: page.total,
-      )),
+      (page) => emit(
+        state.copyWith(
+          loadingMore: false,
+          goods: [...state.goods, ...page.items],
+          total: page.total,
+        ),
+      ),
     );
   }
 }

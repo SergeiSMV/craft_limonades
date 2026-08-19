@@ -1,29 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../core/auth/auth_cubit.dart';
-import '../../core/constants/app_borders.dart';
-import '../../core/constants/app_boxes.dart';
-import '../../core/constants/app_colors.dart';
-import '../../core/constants/app_insets.dart';
-import '../../core/constants/app_sizes.dart';
-import '../../core/error/failure.dart';
-import '../../core/gen/assets.gen.dart';
-import '../../core/gen/strings.g.dart';
-import '../../core/theme/bold_text.dart';
-import '../../core/theme/regular_text.dart';
-import '../../core/theme/semibold_text.dart';
+import '../../../core/auth/auth_cubit.dart';
+import '../../../core/constants/app_borders.dart';
+import '../../../core/constants/app_boxes.dart';
+import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_insets.dart';
+import '../../../core/constants/app_sizes.dart';
+import '../../../core/error/failure.dart';
+import '../../../core/gen/assets.gen.dart';
+import '../../../core/gen/strings.g.dart';
+import '../../../core/theme/bold_text.dart';
+import '../../../core/theme/regular_text.dart';
+import '../../../core/theme/semibold_text.dart';
 
 /// Экран входа в веб-портал по дизайн-макету: сплит-экран (тёмная бренд-панель слева,
 /// белая форма справа). Узкий экран → только форма. Вход по логину/паролю (admin/оператор).
-class PortalLoginScreen extends StatefulWidget {
-  const PortalLoginScreen({super.key});
+class PortalLoginPage extends StatefulWidget {
+  const PortalLoginPage({super.key});
 
   @override
-  State<PortalLoginScreen> createState() => _PortalLoginScreenState();
+  State<PortalLoginPage> createState() => _PortalLoginPageState();
 }
 
-class _PortalLoginScreenState extends State<PortalLoginScreen> {
+class _PortalLoginPageState extends State<PortalLoginPage> {
   /// контроллер логина
   final _usernameController = TextEditingController();
 

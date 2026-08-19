@@ -9,8 +9,8 @@ import '../core/di/injection.dart';
 import '../core/gen/assets.gen.dart';
 import '../core/gen/strings.g.dart';
 import '../core/theme/app_theme.dart';
-import 'presentation/portal_login_screen.dart';
-import 'presentation/portal_shell.dart';
+import 'presentation/pages/portal_login_page.dart';
+import 'presentation/pages/portal_shell.dart';
 
 /// Корневой виджет веб-портала. Экран выбирается по состоянию входа (единое место правды):
 /// unknown (идёт восстановление сессии) → загрузка; вошли admin → оболочка портала;
@@ -37,7 +37,7 @@ class PortalApp extends StatelessWidget {
             // unknown — тихое восстановление сессии при старте (не мигаем формой входа).
             AuthUnknown() => const _LoadingView(),
             // unauthenticated / authenticating — форма входа сама показывает спиннер на кнопке.
-            _ => const PortalLoginScreen(),
+            _ => const PortalLoginPage(),
           },
         ),
       ),

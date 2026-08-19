@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/constants/app_boxes.dart';
-import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_insets.dart';
-import '../../../core/constants/app_sizes.dart';
-import '../../../core/di/injection.dart';
-import '../../../core/error/failure.dart';
-import '../../../core/gen/strings.g.dart';
-import '../../data/cells_repository.dart';
-import '../../data/import_report.dart';
-import '../../data/web_download.dart';
-import '../../data/web_file_picker.dart';
-import 'widgets/upload_widgets.dart';
+import '../../../../core/constants/app_boxes.dart';
+import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_insets.dart';
+import '../../../../core/constants/app_sizes.dart';
+import '../../../../core/di/injection.dart';
+import '../../../../core/error/failure.dart';
+import '../../../../core/gen/strings.g.dart';
+import '../../../data/cells_repository.dart';
+import '../../../data/import_report.dart';
+import '../../../data/web_download.dart';
+import '../../../data/web_file_picker.dart';
+import '../common/upload_widgets.dart';
 
 /// Вкладка «Ячейки» (P1-08): загрузка файла ячеек `.xlsx` → `POST /import/cells` (P1-05).
 /// По макету зеркалит вкладку «Номенклатура»: карточка с зоной загрузки, ниже — отчёт импорта.

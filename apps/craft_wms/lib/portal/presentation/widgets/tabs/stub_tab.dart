@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/constants/app_borders.dart';
-import '../../../core/constants/app_boxes.dart';
-import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_insets.dart';
-import '../../../core/constants/app_sizes.dart';
-import '../../../core/gen/strings.g.dart';
+import '../../../../core/constants/app_borders.dart';
+import '../../../../core/constants/app_boxes.dart';
+import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_insets.dart';
+import '../../../../core/constants/app_sizes.dart';
+import '../../../../core/gen/strings.g.dart';
 
 /// Заглушка вкладки портала: «раздел в разработке» + фаза, в которой он появится.
 /// Зачем: каркас MVP показывает все 7 вкладок, но реально работает только Номенклатура —

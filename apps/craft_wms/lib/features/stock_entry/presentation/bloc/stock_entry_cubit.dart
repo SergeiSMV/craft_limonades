@@ -2,9 +2,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:injectable/injectable.dart';
 
-import '../../../core/error/failure.dart';
-import '../../stock/data/catalog_models.dart';
-import '../data/stock_entry_repository.dart';
+import '../../../../core/error/failure.dart';
+import '../../../stock/data/catalog_models.dart';
+import '../../data/stock_entry_repository.dart';
 
 part 'stock_entry_cubit.freezed.dart';
 

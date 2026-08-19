@@ -5,6 +5,17 @@ abstract final class AppColors {
   /// Фирменный лаймово-зелёный акцент (бренд «Крафтовые лимонады»).
   static const Color kGreenLime = Color(0xFF8BC34A);
 
+  /// Фоновый цвет для неоморфного эффекта (светлый, синий-серый).
+  static const Color kNeumorphicBg = Color(0xFFE9EEF5);
+
+  //* --- Элементы неоморфизма --------------------------------------------- *//
+
+  /// Цвет тени для неоморфного эффекта (светлый).
+  static const Color kNeumorphicLight = Color(0xFFFFFFFF);
+
+  /// Цвет тени для неоморфного эффекта (тёмный).
+  static const Color kNeumorphicDark = Color(0xFFC3CEDC);
+
   //* --- Веб-портал (дизайн-система) -------------------------------------- *//
   // Палитра из макета: янтарь-акцент + лайм + тёмный slate + светлый фон.
   static const Color kPrimary = Color(

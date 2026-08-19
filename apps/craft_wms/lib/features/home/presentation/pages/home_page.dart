@@ -2,25 +2,25 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../core/auth/auth_cubit.dart';
-import '../../../core/config/app_config.dart';
-import '../../../core/constants/app_boxes.dart';
-import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_insets.dart';
-import '../../../core/constants/app_sizes.dart';
-import '../../../core/gen/assets.gen.dart';
-import '../../../core/gen/strings.g.dart';
-import '../../../core/router/app_router.dart';
-import '../../../core/theme/bold_text.dart';
-import '../../../core/theme/regular_text.dart';
-import '../../../core/widgets/system_ui_wrapper.dart';
-import 'widgets/menu_tile.dart';
+import '../../../../core/auth/auth_cubit.dart';
+import '../../../../core/config/app_config.dart';
+import '../../../../core/constants/app_boxes.dart';
+import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_insets.dart';
+import '../../../../core/constants/app_sizes.dart';
+import '../../../../core/gen/assets.gen.dart';
+import '../../../../core/gen/strings.g.dart';
+import '../../../../core/router/app_router.dart';
+import '../../../../core/theme/bold_text.dart';
+import '../../../../core/theme/regular_text.dart';
+import '../../../../core/widgets/system_ui_wrapper.dart';
+import '../widgets/menu_tile.dart';
 
 /// Главное меню ТСД (P1-07): шапка (сотрудник · склад) + сетка плиток операций.
 /// Рабочая плитка — «Остатки»; остальные — заглушки (тап показывает уведомление).
 @RoutePage()
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
+class HomePage extends StatelessWidget {
+  const HomePage({super.key});
 
   /// Переход к экрану логирования.
   void goToLogs(BuildContext context) =>
