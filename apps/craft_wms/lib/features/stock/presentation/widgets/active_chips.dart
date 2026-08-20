@@ -38,7 +38,7 @@ class ActiveChips extends StatelessWidget {
     if (chips.isEmpty) return const SizedBox.shrink();
 
     return Padding(
-      padding: AppInsets.top8,
+      padding: AppInsets.top16,
       child: Align(
         alignment: Alignment.centerLeft,
         child: SingleChildScrollView(

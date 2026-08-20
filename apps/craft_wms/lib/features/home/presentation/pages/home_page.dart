@@ -131,7 +131,7 @@ class HomePage extends StatelessWidget {
                       MenuTile(
                         title: t.homeScreen.tiles.receiptTitle,
                         subtitle: t.homeScreen.tiles.receiptSubtitle,
-                        imageIcon: Assets.icons.menuIcons.colorInboxIcon,
+                        imageIcon: Assets.icons.menuIcons.arrival,
                         color: AppColors.kTileReceipt,
                         enabled: false,
                         onTap: () => showStub(context),
@@ -139,7 +139,7 @@ class HomePage extends StatelessWidget {
                       MenuTile(
                         title: t.homeScreen.tiles.movementTitle,
                         subtitle: t.homeScreen.tiles.movementSubtitle,
-                        imageIcon: Assets.icons.menuIcons.colorSwapboxIcon,
+                        imageIcon: Assets.icons.menuIcons.swapbox,
                         color: AppColors.kTileMovement,
                         enabled: false,
                         onTap: () => showStub(context),
@@ -147,44 +147,26 @@ class HomePage extends StatelessWidget {
                       MenuTile(
                         title: t.homeScreen.tiles.tasksTitle,
                         subtitle: t.homeScreen.tiles.tasksSubtitle,
-                        imageIcon: Assets.icons.menuIcons.colorTasksIcon,
+                        imageIcon: Assets.icons.menuIcons.tasks,
                         color: AppColors.kTileTasks,
-                        enabled: false,
-                        onTap: () => showStub(context),
-                      ),
-                      MenuTile(
-                        title: t.homeScreen.tiles.findTitle,
-                        subtitle: t.homeScreen.tiles.findSubtitle,
-                        imageIcon: Assets.icons.menuIcons.colorSearchIcon,
-                        color: AppColors.kTileFind,
-                        enabled: false,
-                        onTap: () => showStub(context),
-                      ),
-                      MenuTile(
-                        title: t.homeScreen.tiles.historyTitle,
-                        subtitle: t.homeScreen.tiles.historySubtitle,
-                        imageIcon: Assets.icons.menuIcons.colorHistoryIcon,
-                        color: AppColors.kTileHistory,
                         enabled: false,
                         onTap: () => showStub(context),
                       ),
                       MenuTile(
                         title: t.homeScreen.tiles.stockTitle,
                         subtitle: t.homeScreen.tiles.stockSubtitle,
-                        imageIcon: Assets.icons.menuIcons.colorStockIcon,
+                        imageIcon: Assets.icons.menuIcons.inbox,
                         color: AppColors.kTileStock,
                         onTap: () => openStock(context),
                       ),
-
-                      // TODO: Заглушка: раздел «Ввод остатков» (проход склада, P-FastStart) пока не реализован.
-                      // TODO: После реализации удалить
-                      // MenuTile(
-                      //   title: t.homeScreen.tiles.stockEntryTitle,
-                      //   subtitle: t.homeScreen.tiles.stockEntrySubtitle,
-                      //   imageIcon: Assets.icons.menuIcons.colorInboxIcon,
-                      //   color: AppColors.kTileReceipt,
-                      //   onTap: () => openStockEntry(context),
-                      // ),
+                      MenuTile(
+                        title: t.homeScreen.tiles.historyTitle,
+                        subtitle: t.homeScreen.tiles.historySubtitle,
+                        imageIcon: Assets.icons.menuIcons.history,
+                        color: AppColors.kTileHistory,
+                        enabled: false,
+                        onTap: () => showStub(context),
+                      ),
                     ],
                   ),
                 ),

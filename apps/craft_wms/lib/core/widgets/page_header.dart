@@ -22,11 +22,12 @@ class PageHeader extends StatelessWidget {
       child: Row(
         children: [
           Padding(
-            padding: AppInsets.right16,
+            padding: AppInsets.right8,
             child: Icon(
               Icons.arrow_back_ios_new_rounded,
               size: AppSizes.kIcon20,
-              color: AppColors.kSidebarHover,
+              // color: AppColors.kSidebarHover,
+              color: AppColors.kNeumorphicBg,
             ),
           ),
           Padding(
@@ -34,7 +35,7 @@ class PageHeader extends StatelessWidget {
             child: Text(
               title,
               style: SemiboldTextStyles().semiboldInter20.copyWith(
-                color: AppColors.kSidebarHover,
+                color: AppColors.kNeumorphicBg,
               ),
             ),
           ),
