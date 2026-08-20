@@ -64,7 +64,7 @@ abstract final class AppColors {
 
   //* --- ТСД: плитки главного меню (по макету) ---------------------------- *//
   // Цветовое кодирование операций на устройстве: крупные плитки, белый текст/иконка.
-  static const Color kTileReceipt = Color(0xFF4CAF50); // ПРИХОД — зелёный
+  static const Color kTileReceipt = Color(0xFF7964A2); // ПРИХОД — сиреневый
   static const Color kTileMovement = Color(0xFF2E6DA4); // ПЕРЕМЕЩЕНИЕ — синий
   static const Color kTileTasks = Color(0xFFE67E22); // ЗАДАНИЯ — оранжевый
   static const Color kTileFind = Color(0xFF6C757D); // НАЙТИ — серый

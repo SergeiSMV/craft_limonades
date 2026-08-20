@@ -19,6 +19,7 @@ abstract final class AppSizes {
   static const double kIcon85 = 85;
   static const double kIcon90 = 90;
   static const double kIcon96 = 96;
+  static const double kIcon140 = 140;
   static const double kIcon180 = 180;
   static const double kIcon200 = 200;
   static const double kIcon256 = 256;

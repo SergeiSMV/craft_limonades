@@ -11,9 +11,11 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_insets.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/di/injection.dart';
+import '../../../../core/gen/assets.gen.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/regular_text.dart';
+import '../../../../core/widgets/appbar_image.dart';
 import '../../../../core/widgets/page_header.dart';
 import '../../../../core/widgets/system_ui_wrapper.dart';
 import '../bloc/goods_list_cubit.dart';
@@ -73,47 +75,52 @@ class _GoodsListViewState extends State<_GoodsListView> {
   @override
   Widget build(BuildContext context) {
     return SystemUiWrapper(
-      style: StatusBarStyle.dark,
+      style: StatusBarStyle.light,
       child: Scaffold(
         backgroundColor: AppColors.kNeumorphicBg,
         body: Column(
           children: [
-            Padding(
-              padding: AppInsets.h8 + AppInsets.top32,
-              child: Column(
-                children: [
-                  Padding(
-                    padding: AppInsets.right8,
-                    child: Row(
-                      children: [
-                        PageHeader(
-                          title: t.stockListScreen.title,
-                          goBack: goBack,
-                        ),
-                        const Spacer(),
-                        InkWell(
-                          onTap: () => openStockEntry(context),
-                          child: Icon(
-                            MdiIcons.playlistPlus,
-                            size: AppSizes.kIcon30,
-                            color: AppColors.kSidebarHover,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  AppBoxes.kHeight16,
-                  // Строка поиска + компактная кнопка фильтров (с бейджем активных).
-                  Row(
+            Stack(
+              children: [
+                AppbarImage(image: Assets.images.featuredSnacks),
+                Padding(
+                  padding: AppInsets.h8 + AppInsets.top32,
+                  child: Column(
                     children: [
-                      Expanded(child: searchField()),
-                      AppBoxes.kWidth8,
-                      const FilterButton(),
+                      Padding(
+                        padding: AppInsets.right8,
+                        child: Row(
+                          children: [
+                            PageHeader(
+                              title: t.stockListScreen.title,
+                              goBack: goBack,
+                            ),
+                            const Spacer(),
+                            InkWell(
+                              onTap: () => openStockEntry(context),
+                              child: Icon(
+                                MdiIcons.playlistPlus,
+                                size: AppSizes.kIcon30,
+                                color: AppColors.kNeumorphicBg,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      AppBoxes.kHeight16,
+                      // Строка поиска + компактная кнопка фильтров (с бейджем активных).
+                      Row(
+                        children: [
+                          Expanded(child: searchField()),
+                          AppBoxes.kWidth8,
+                          const FilterButton(),
+                        ],
+                      ),
+                      const ActiveChips(),
                     ],
                   ),
-                  const ActiveChips(),
-                ],
-              ),
+                ),
+              ],
             ),
             const Expanded(child: GoodsResult()),
           ],
