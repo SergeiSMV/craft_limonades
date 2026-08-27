@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_neumorphic_plus/flutter_neumorphic.dart';
 
 import '../../../../core/constants/app_boxes.dart';
 import '../../../../core/constants/app_colors.dart';
@@ -86,28 +86,53 @@ class _CellSelectViewState extends State<CellSelectView> {
   /// Меню по долгому нажатию на пройденную ячейку: редактировать / удалить.
   Future<void> _showCellMenu(CommittedCell entry) async {
     final action = await showModalBottomSheet<String>(
+      backgroundColor: AppColors.kNeumorphicBg,
       context: context,
       builder: (_) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.edit_outlined),
-              title: Text(t.stockEntry.edit),
-              onTap: () => Navigator.of(context).pop('edit'),
-            ),
-            ListTile(
-              leading: const Icon(
-                Icons.delete_outline,
-                color: AppColors.kDanger,
+        child: Padding(
+          padding: AppInsets.all16,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              NeumorphicButton(
+                onPressed: () => Navigator.of(context).pop('edit'),
+                style: NeumorphicStyle(
+                  shadowLightColor: AppColors.kNeumorphicLight,
+                  shadowDarkColor: AppColors.kNeumorphicDark,
+                  intensity: 1,
+                  color: AppColors.kNeumorphicBg,
+                  depth: 3,
+                  shape: NeumorphicShape.flat,
+                ),
+                child: ListTile(
+                  leading: const Icon(Icons.edit_outlined),
+                  title: Text(t.stockEntry.edit),
+                ),
               ),
-              title: Text(
-                t.stockEntry.deleteCell,
-                style: const TextStyle(color: AppColors.kDanger),
+              AppBoxes.kHeight8,
+              NeumorphicButton(
+                onPressed: () => Navigator.of(context).pop('delete'),
+                style: NeumorphicStyle(
+                  shadowLightColor: AppColors.kNeumorphicLight,
+                  shadowDarkColor: AppColors.kNeumorphicDark,
+                  intensity: 1,
+                  color: AppColors.kNeumorphicBg,
+                  depth: 3,
+                  shape: NeumorphicShape.flat,
+                ),
+                child: ListTile(
+                  leading: const Icon(
+                    Icons.delete_outline,
+                    color: AppColors.kDanger,
+                  ),
+                  title: Text(
+                    t.stockEntry.delete,
+                    style: const TextStyle(color: AppColors.kDanger),
+                  ),
+                ),
               ),
-              onTap: () => Navigator.of(context).pop('delete'),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -135,10 +160,13 @@ class _CellSelectViewState extends State<CellSelectView> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           AppBoxes.kHeight16,
-          Text(
-            t.stockEntry.cellPrompt,
-            style: RegularTextStyles().regularInter14.copyWith(
-              color: AppColors.kTextMuted,
+          Padding(
+            padding: AppInsets.left12,
+            child: Text(
+              t.stockEntry.cellPrompt,
+              style: RegularTextStyles().regularInter14.copyWith(
+                color: AppColors.kTextMuted,
+              ),
             ),
           ),
           AppBoxes.kHeight8,
@@ -151,6 +179,8 @@ class _CellSelectViewState extends State<CellSelectView> {
             onPicked: _cubit.selectCell,
             onSubmit: _submitAddress,
           ),
+
+          /// Заголовок секции пройденных ячеек — только если хоть одна уже закрыта.
           if (committed.isNotEmpty) ...[
             AppBoxes.kHeight16,
             Text(
@@ -161,6 +191,8 @@ class _CellSelectViewState extends State<CellSelectView> {
             ),
             AppBoxes.kHeight8,
           ],
+
+          /// Список пройденных ячеек: занимает всё оставшееся место под полем/заголовком.
           Expanded(
             child: ListView.builder(
               padding: EdgeInsets.zero,

@@ -25,91 +25,118 @@ void main() {
     when(() => repo.listSuppliers()).thenAnswer((_) async => const Right([]));
   });
 
-  test('init грузит первую страницу; hasMore=true при total > загруженного', () async {
-    when(() => repo.listGoods(
+  test(
+    'init грузит первую страницу; hasMore=true при total > загруженного',
+    () async {
+      when(
+        () => repo.listGoods(
           query: any(named: 'query'),
           groupId: any(named: 'groupId'),
           supplierId: any(named: 'supplierId'),
           offset: any(named: 'offset'),
-        )).thenAnswer((_) async => Right(page(['a', 'b'], total: 5)));
+        ),
+      ).thenAnswer((_) async => Right(page(['a', 'b'], total: 5)));
 
-    await cubit.init();
+      await cubit.init();
 
-    expect(cubit.state.status, GoodsListStatus.loaded);
-    expect(cubit.state.goods.length, 2);
-    expect(cubit.state.total, 5);
-    expect(cubit.state.hasMore, isTrue);
-  });
+      expect(cubit.state.status, GoodsListStatus.loaded);
+      expect(cubit.state.goods.length, 2);
+      expect(cubit.state.total, 5);
+      expect(cubit.state.hasMore, isTrue);
+    },
+  );
 
-  test('loadMore дозапрашивает от offset=goods.length и дописывает в конец', () async {
-    // Первая страница.
-    when(() => repo.listGoods(
+  test(
+    'loadMore дозапрашивает от offset=goods.length и дописывает в конец',
+    () async {
+      // Первая страница.
+      when(
+        () => repo.listGoods(
           query: any(named: 'query'),
           groupId: any(named: 'groupId'),
           supplierId: any(named: 'supplierId'),
           offset: 0,
-        )).thenAnswer((_) async => Right(page(['a', 'b'], total: 4)));
-    // Вторая страница (offset=2).
-    when(() => repo.listGoods(
+        ),
+      ).thenAnswer((_) async => Right(page(['a', 'b'], total: 4)));
+      // Вторая страница (offset=2).
+      when(
+        () => repo.listGoods(
           query: any(named: 'query'),
           groupId: any(named: 'groupId'),
           supplierId: any(named: 'supplierId'),
           offset: 2,
-        )).thenAnswer((_) async => Right(page(['c', 'd'], total: 4)));
+        ),
+      ).thenAnswer((_) async => Right(page(['c', 'd'], total: 4)));
 
-    await cubit.init();
-    await cubit.loadMore();
+      await cubit.init();
+      await cubit.loadMore();
 
-    expect(cubit.state.goods.map((g) => g.id).toList(), ['a', 'b', 'c', 'd']);
-    expect(cubit.state.hasMore, isFalse); // 4 из 4 — больше не тянем
-    verify(() => repo.listGoods(
+      expect(cubit.state.goods.map((g) => g.id).toList(), ['a', 'b', 'c', 'd']);
+      expect(cubit.state.hasMore, isFalse); // 4 из 4 — больше не тянем
+      verify(
+        () => repo.listGoods(
           query: any(named: 'query'),
           groupId: any(named: 'groupId'),
           supplierId: any(named: 'supplierId'),
           offset: 2,
-        )).called(1);
-  });
+        ),
+      ).called(1);
+    },
+  );
 
-  test('loadMore ничего не делает, когда всё загружено (hasMore=false)', () async {
-    when(() => repo.listGoods(
+  test(
+    'loadMore ничего не делает, когда всё загружено (hasMore=false)',
+    () async {
+      when(
+        () => repo.listGoods(
           query: any(named: 'query'),
           groupId: any(named: 'groupId'),
           supplierId: any(named: 'supplierId'),
           offset: any(named: 'offset'),
-        )).thenAnswer((_) async => Right(page(['a', 'b'], total: 2)));
+        ),
+      ).thenAnswer((_) async => Right(page(['a', 'b'], total: 2)));
 
-    await cubit.init();
-    expect(cubit.state.hasMore, isFalse);
-    await cubit.loadMore();
+      await cubit.init();
+      expect(cubit.state.hasMore, isFalse);
+      await cubit.loadMore();
 
-    // Только первичный запрос (offset=0) из init — второго не было.
-    verify(() => repo.listGoods(
+      // Только первичный запрос (offset=0) из init — второго не было.
+      verify(
+        () => repo.listGoods(
           query: any(named: 'query'),
           groupId: any(named: 'groupId'),
           supplierId: any(named: 'supplierId'),
           offset: 0,
-        )).called(1);
-    verifyNever(() => repo.listGoods(
+        ),
+      ).called(1);
+      verifyNever(
+        () => repo.listGoods(
           query: any(named: 'query'),
           groupId: any(named: 'groupId'),
           supplierId: any(named: 'supplierId'),
           offset: 2,
-        ));
-  });
+        ),
+      );
+    },
+  );
 
   test('ошибка loadMore не роняет список в error, снимает флаг', () async {
-    when(() => repo.listGoods(
-          query: any(named: 'query'),
-          groupId: any(named: 'groupId'),
-          supplierId: any(named: 'supplierId'),
-          offset: 0,
-        )).thenAnswer((_) async => Right(page(['a', 'b'], total: 4)));
-    when(() => repo.listGoods(
-          query: any(named: 'query'),
-          groupId: any(named: 'groupId'),
-          supplierId: any(named: 'supplierId'),
-          offset: 2,
-        )).thenAnswer((_) async => const Left(Failure.network()));
+    when(
+      () => repo.listGoods(
+        query: any(named: 'query'),
+        groupId: any(named: 'groupId'),
+        supplierId: any(named: 'supplierId'),
+        offset: 0,
+      ),
+    ).thenAnswer((_) async => Right(page(['a', 'b'], total: 4)));
+    when(
+      () => repo.listGoods(
+        query: any(named: 'query'),
+        groupId: any(named: 'groupId'),
+        supplierId: any(named: 'supplierId'),
+        offset: 2,
+      ),
+    ).thenAnswer((_) async => const Left(Failure.network()));
 
     await cubit.init();
     await cubit.loadMore();
@@ -117,5 +144,36 @@ void main() {
     expect(cubit.state.status, GoodsListStatus.loaded); // список остался
     expect(cubit.state.goods.length, 2);
     expect(cubit.state.loadingMore, isFalse);
+  });
+
+  group('resolveBarcode (P-FS-16)', () {
+    test('привязанный ШК → товар, состояние списка не трогаем', () async {
+      when(
+        () => repo.resolveGoodByBarcode('4607044662964'),
+      ).thenAnswer((_) async => Right(good('g1')));
+
+      final found = await cubit.resolveBarcode('4607044662964');
+
+      expect(found?.id, 'g1');
+      expect(cubit.state.status, isNot(GoodsListStatus.error));
+    });
+
+    test('непривязанный ШК → null без ошибки', () async {
+      when(
+        () => repo.resolveGoodByBarcode(any()),
+      ).thenAnswer((_) async => const Right(null));
+
+      expect(await cubit.resolveBarcode('0000000000000'), isNull);
+      expect(cubit.state.status, isNot(GoodsListStatus.error));
+    });
+
+    test('сетевая ошибка → null и статус error (покажет общий блок)', () async {
+      when(
+        () => repo.resolveGoodByBarcode(any()),
+      ).thenAnswer((_) async => const Left(Failure.network()));
+
+      expect(await cubit.resolveBarcode('4607044662964'), isNull);
+      expect(cubit.state.status, GoodsListStatus.error);
+    });
   });
 }

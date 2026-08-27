@@ -170,7 +170,6 @@ class _CellEntryViewState extends State<CellEntryView> {
                 child: ListTile(
                   leading: const Icon(Icons.edit_outlined),
                   title: Text(t.stockEntry.edit),
-                  // onTap: () => Navigator.of(context).pop('edit'),
                 ),
               ),
               AppBoxes.kHeight8,
@@ -193,7 +192,6 @@ class _CellEntryViewState extends State<CellEntryView> {
                     t.stockEntry.delete,
                     style: const TextStyle(color: AppColors.kDanger),
                   ),
-                  // onTap: () => Navigator.of(context).pop('delete'),
                 ),
               ),
             ],

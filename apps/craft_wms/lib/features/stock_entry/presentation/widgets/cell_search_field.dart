@@ -60,8 +60,10 @@ class _CellSearchFieldState extends State<CellSearchField> {
         _controller.clear();
         widget.onPicked(cell);
       },
+      // Само поле ввода — неоморф-стиль вместо стандартного RawAutocomplete-филда.
       fieldViewBuilder: (context, controller, focusNode, _) =>
           _field(controller, focusNode),
+      // Выпадашка вариантов под полем — неоморф-плитки вместо стандартного списка.
       optionsViewBuilder: (context, onSelected, options) =>
           _options(context, onSelected, options),
     );
@@ -69,59 +71,62 @@ class _CellSearchFieldState extends State<CellSearchField> {
 
   /// Неоморф-поле (вдавленное); ввод сканером/руками, submit → [CellSearchField.onSubmit].
   Widget _field(TextEditingController controller, FocusNode focusNode) {
-    return Neumorphic(
-      style: NeumorphicStyle(
-        shadowLightColor: AppColors.kNeumorphicLight,
-        shadowDarkColor: AppColors.kNeumorphicDark,
-        intensity: 1,
-        color: AppColors.kNeumorphicBg,
-        depth: -2,
-        shape: NeumorphicShape.flat,
-      ),
-      child: TextField(
-        cursorColor: AppColors.kTextMuted,
-        cursorWidth: 1.5,
-        cursorHeight: 20,
-        controller: controller,
-        focusNode: focusNode,
-        autofocus: widget.autofocus,
-        textInputAction: TextInputAction.done,
-        // Если клавиатуру свернули, поле сохраняет фокус — Flutter не переоткрывает её по тапу
-        // (фокус не менялся). Принудительно показываем клавиатуру снова.
-        onTap: () {
-          if (focusNode.hasFocus) {
-            SystemChannels.textInput.invokeMethod<void>('TextInput.show');
-          }
-        },
-        onSubmitted: widget.onSubmit,
-        decoration: InputDecoration(
-          prefixIcon: Icon(
-            MdiIcons.barcode,
-            size: AppSizes.kIcon25,
-            color: AppColors.kTextMuted,
+    return Padding(
+      padding: AppInsets.h8,
+      child: Neumorphic(
+        style: NeumorphicStyle(
+          shadowLightColor: AppColors.kNeumorphicLight,
+          shadowDarkColor: AppColors.kNeumorphicDark,
+          intensity: 1,
+          color: AppColors.kNeumorphicBg,
+          depth: -2,
+          shape: NeumorphicShape.flat,
+        ),
+        child: TextField(
+          cursorColor: AppColors.kTextMuted,
+          cursorWidth: 1.5,
+          cursorHeight: 20,
+          controller: controller,
+          focusNode: focusNode,
+          autofocus: widget.autofocus,
+          textInputAction: TextInputAction.done,
+          // Если клавиатуру свернули, поле сохраняет фокус — Flutter не переоткрывает её по тапу
+          // (фокус не менялся). Принудительно показываем клавиатуру снова.
+          onTap: () {
+            if (focusNode.hasFocus) {
+              SystemChannels.textInput.invokeMethod<void>('TextInput.show');
+            }
+          },
+          onSubmitted: widget.onSubmit,
+          decoration: InputDecoration(
+            prefixIcon: Icon(
+              MdiIcons.barcode,
+              size: AppSizes.kIcon25,
+              color: AppColors.kTextMuted,
+            ),
+            suffixIconConstraints: const BoxConstraints(
+              maxWidth: AppSizes.kIcon36,
+              maxHeight: AppSizes.kIcon16,
+            ),
+            suffixIcon: widget.loading
+                ? Padding(
+                    padding: AppInsets.right20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.kTextMuted,
+                    ),
+                  )
+                : null,
+            hintText: t.stockEntry.cellHint,
+            hintStyle: RegularTextStyles().regularInter16.copyWith(
+              color: AppColors.kBorderDashed,
+            ),
+            border: const OutlineInputBorder(
+              borderRadius: AppBorders.kCircular8,
+              borderSide: BorderSide.none,
+            ),
+            isDense: true,
           ),
-          suffixIconConstraints: const BoxConstraints(
-            maxWidth: AppSizes.kIcon36,
-            maxHeight: AppSizes.kIcon16,
-          ),
-          suffixIcon: widget.loading
-              ? Padding(
-                  padding: AppInsets.right20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: AppColors.kTextMuted,
-                  ),
-                )
-              : null,
-          hintText: t.stockEntry.cellHint,
-          hintStyle: RegularTextStyles().regularInter16.copyWith(
-            color: AppColors.kBorderDashed,
-          ),
-          border: const OutlineInputBorder(
-            borderRadius: AppBorders.kCircular8,
-            borderSide: BorderSide.none,
-          ),
-          isDense: true,
         ),
       ),
     );

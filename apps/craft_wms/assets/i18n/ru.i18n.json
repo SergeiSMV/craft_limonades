@@ -47,7 +47,8 @@
     "found": "найдено товаров: ${total}",
     "empty": "товары не найдены",
     "error": "не удалось загрузить",
-    "retry": "повторить"
+    "retry": "повторить",
+    "barcode_not_found": "ШК ${barcode} не привязан ни к одному товару"
   },
   "stock_detail_screen": {
     "title": "Остаток товара",
@@ -192,7 +193,6 @@
     "delete": "Удалить",
     "committed_title": "пройдено ячеек: ${count}",
     "cell_positions": "позиций: ${count}",
-    "delete_cell": "Удалить ячейку",
     "wrong_good": "Неверный товар",
     "barcode_unbound": "Штрихкод отвязан — выберите правильный товар",
     "cells_load_failed": "Не удалось загрузить справочник ячеек",
