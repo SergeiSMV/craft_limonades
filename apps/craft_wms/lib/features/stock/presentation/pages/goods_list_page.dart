@@ -15,10 +15,12 @@ import '../../../../core/gen/assets.gen.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/regular_text.dart';
+import '../../../../core/utils/barcode.dart';
 import '../../../../core/utils/keyboard.dart';
 import '../../../../core/widgets/appbar_image.dart';
 import '../../../../core/widgets/page_header.dart';
 import '../../../../core/widgets/system_ui_wrapper.dart';
+import '../../data/catalog_models.dart';
 import '../bloc/goods_list_cubit.dart';
 import '../widgets/goods_list/active_chips.dart';
 import '../widgets/goods_list/goods_result.dart';
@@ -62,6 +64,44 @@ class _GoodsListViewState extends State<_GoodsListView> {
     _debounce = Timer(const Duration(milliseconds: 350), () {
       context.read<GoodsListCubit>().setQuery(value);
     });
+  }
+
+  /// Ввод завершён: сканер шлёт строку целиком и Enter, на софт-клавиатуре это «Поиск».
+  /// Скан ШК резолвим и сразу открываем карточку товара, обычный текст — ищем подстрокой.
+  Future<void> onSearchSubmitted(String value) async {
+    final input = value.trim();
+    if (input.isEmpty) return;
+    _debounce?.cancel(); // ввод завершён — отложенный поиск уже не нужен
+
+    final cubit = context.read<GoodsListCubit>();
+    if (!looksLikeBarcode(input)) {
+      await cubit.setQuery(input);
+      return;
+    }
+
+    final good = await cubit.resolveBarcode(input);
+    if (!mounted) return;
+    if (good != null) {
+      openGoodDetail(good);
+      return;
+    }
+    // Сетевую ошибку уже показывает общий блок списка — второй раз не сообщаем.
+    if (cubit.state.status == GoodsListStatus.error) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(t.stockListScreen.barcodeNotFound(barcode: input)),
+        ),
+      );
+  }
+
+  /// Открыть карточку товара, найденного по скану. Строку поиска чистим: иначе следующий
+  /// скан допишется к предыдущему коду, а список остался бы несогласован с полем.
+  void openGoodDetail(Good good) {
+    clearSearch();
+    dismissKeyboard();
+    context.router.push(StockDetailRoute(good: good));
   }
 
   /// Очистить строку поиска и сразу сбросить запрос. Отложенный дебаунс гасим: иначе
@@ -163,6 +203,8 @@ class _GoodsListViewState extends State<_GoodsListView> {
         cursorWidth: 1.5,
         cursorHeight: 20,
         onChanged: onSearchChanged,
+        onSubmitted: onSearchSubmitted,
+        textInputAction: TextInputAction.search,
         decoration: InputDecoration(
           prefixIcon: Padding(
             padding: AppInsets.right2 + AppInsets.left12,

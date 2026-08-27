@@ -51,6 +51,9 @@ void main() {
         ),
       );
     });
+    when(
+      () => repo.resolveGoodByBarcode(any()),
+    ).thenAnswer((_) async => const Right(null));
     if (getIt.isRegistered<GoodsListCubit>()) {
       getIt.unregister<GoodsListCubit>();
     }
@@ -58,6 +61,9 @@ void main() {
   });
 
   tearDown(() {
+    when(
+      () => repo.resolveGoodByBarcode(any()),
+    ).thenAnswer((_) async => const Right(null));
     if (getIt.isRegistered<GoodsListCubit>()) {
       getIt.unregister<GoodsListCubit>();
     }
@@ -103,5 +109,49 @@ void main() {
       isNull,
       reason: 'запрос сброшен сразу, без ожидания дебаунса',
     );
+  });
+
+  testWidgets('скан непривязанного ШК: сообщение, поиск по имени не уходит', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(theme: buildAppTheme(), home: const GoodsListPage()),
+    );
+    await tester.pumpAndSettle();
+    queries.clear();
+
+    // Сканер вводит строку целиком и жмёт Enter.
+    await tester.enterText(find.byType(TextField), '4607044662964');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+
+    verify(() => repo.resolveGoodByBarcode('4607044662964')).called(1);
+    expect(
+      find.textContaining('не привязан'),
+      findsOneWidget,
+      reason: 'кладовщику сказали, что ШК неизвестен',
+    );
+    expect(
+      queries,
+      isEmpty,
+      reason: 'скан не уходит в поиск по наименованию — дебаунс отменён',
+    );
+  });
+
+  testWidgets('Enter по тексту ищет подстрокой, ШК не резолвим', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(theme: buildAppTheme(), home: const GoodsListPage()),
+    );
+    await tester.pumpAndSettle();
+    queries.clear();
+
+    await tester.enterText(find.byType(TextField), 'арахис');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+
+    expect(queries.last, 'арахис', reason: 'запрос ушёл сразу, без дебаунса');
+    verifyNever(() => repo.resolveGoodByBarcode(any()));
   });
 }

@@ -42,6 +42,23 @@ class CatalogRepository {
     }
   }
 
+  /// Товар по штрихкоду (P-FS-16): скан в строке поиска «Остатков» открывает карточку товара.
+  /// ШК уникален (`barcodes.barcode UNIQUE`), поэтому ответ — ровно один товар.
+  /// ШК не привязан (404) → `Right(null)`: это не ошибка, а сигнал «показать обычный поиск».
+  Future<Either<Failure, Good?>> resolveGoodByBarcode(String code) async {
+    try {
+      final resp = await _dio.get<Map<String, dynamic>>(
+        ApiConst.barcodeByCode(code),
+      );
+      return Right(Good.fromJson(resp.data!));
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) return const Right(null);
+      return Left(_mapError(e));
+    } catch (_) {
+      return const Left(Failure.unknown());
+    }
+  }
+
   /// Штрихкоды товара (секция «Штрихкоды» в карточке, P-FS-12). Пустой список — норма.
   Future<Either<Failure, List<Barcode>>> listGoodBarcodes(String goodId) async {
     try {

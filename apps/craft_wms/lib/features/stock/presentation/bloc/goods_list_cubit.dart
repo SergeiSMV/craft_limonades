@@ -61,6 +61,17 @@ class GoodsListCubit extends Cubit<GoodsListState> {
     await _load();
   }
 
+  /// Резолв товара по отсканированному ШК (P-FS-16). Возвращает товар либо `null`,
+  /// если ШК не привязан. Сетевую ошибку кладём в state — экран покажет общий блок ошибки,
+  /// а не молчаливое «не найдено».
+  Future<Good?> resolveBarcode(String code) async {
+    final result = await _repo.resolveGoodByBarcode(code);
+    return result.fold((failure) {
+      emit(state.copyWith(status: GoodsListStatus.error, failure: failure));
+      return null;
+    }, (good) => good);
+  }
+
   /// Фильтр по группе (null — снять).
   Future<void> setGroup(String? groupId) async {
     emit(state.copyWith(groupId: groupId));
