@@ -127,6 +127,25 @@ class CatalogRepository {
     }
   }
 
+  /// Все ячейки склада разом (справочник мал — ~700; грузим целиком под локальный автокомплит ввода
+  /// остатков). Пагинирует внутри по `maxLimit` бэкенда (200): читает страницы, пока не наберёт `total`.
+  /// В P2 (offline-first) станет чтением из локального стора — сигнатура вызова не изменится.
+  Future<Either<Failure, List<Cell>>> listAllCells({String? warehouseId}) async {
+    const pageSize = 200; // = maxLimit read-API (catalog.go)
+    final all = <Cell>[];
+    var offset = 0;
+    while (true) {
+      final res = await listCells(warehouseId: warehouseId, limit: pageSize, offset: offset);
+      if (res.isLeft) return Left(res.left);
+      final page = res.right;
+      all.addAll(page.items);
+      offset += page.items.length;
+      // Дошли до конца: набрали total или сервер вернул пустую страницу (страховка от зацикливания).
+      if (all.length >= page.total || page.items.isEmpty) break;
+    }
+    return Right(all);
+  }
+
   /// Остатки товара в разрезе ячеек/партий (карточка «где лежит товар X»).
   Future<Either<Failure, Paged<StockItem>>> listStock({
     String? goodId,

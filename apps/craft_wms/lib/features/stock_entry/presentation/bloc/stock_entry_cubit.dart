@@ -106,6 +106,45 @@ class StockEntryCubit extends Cubit<StockEntryState> {
     }
   }
 
+  /// Сменить целевую ячейку текущего буфера, СОХРАНИВ набранные строки (ошиблись ячейкой, товары
+  /// верны — перецеливаем, не пересканируя). Если новая ячейка уже пройдена — сливаем её строки в
+  /// буфер по грани (товар, дата) и убираем из пройденных: иначе на финале два чекпоинта на одну
+  /// ячейку затрут друг друга по SET-грани `UNIQUE(session,cell,good,date)`. Undo сбрасываем — это
+  /// структурная смена, а не правка буфера.
+  void changeCell(Cell newCell) {
+    final current = state.cell;
+    if (current == null || current.id == newCell.id) return;
+    var lines = state.lines;
+    var committed = state.committedCells;
+    final idx = committed.indexWhere((c) => c.cell.id == newCell.id);
+    if (idx >= 0) {
+      lines = _mergeLines(state.lines, committed[idx].lines);
+      committed = List<CommittedCell>.from(committed)..removeAt(idx);
+    }
+    emit(state.copyWith(
+      cell: newCell,
+      lines: lines,
+      committedCells: committed,
+      undoStack: const [],
+      failure: null,
+    ));
+  }
+
+  /// Слить строки `add` в `base` по грани (товар, дата): совпало → сумма qty; иначе — новая строка.
+  List<EntryLineDraft> _mergeLines(List<EntryLineDraft> base, List<EntryLineDraft> add) {
+    final out = List<EntryLineDraft>.from(base);
+    for (final l in add) {
+      final i = out.indexWhere(
+          (x) => x.good.id == l.good.id && x.productionDate == l.productionDate);
+      if (i >= 0) {
+        out[i] = out[i].copyWith(qty: out[i].qty + l.qty);
+      } else {
+        out.add(l);
+      }
+    }
+    return out;
+  }
+
   /// Товар по ШК среди привязок, собранных за проход (копилка [StockEntryState.barcodes]). Чтобы
   /// повторный скан любого уже привязанного ШK узнавался локально, а не бил в 404 (данные ещё не на
   /// сервере) — независимо от того, сколько ШК на товар и в какой ячейке его привязали.

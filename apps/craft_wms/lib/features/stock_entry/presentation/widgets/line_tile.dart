@@ -28,7 +28,12 @@ class LineTile extends StatelessWidget {
       ),
       child: ListTile(
         onLongPress: onLongPress,
-        title: Text(line.good.name, style: RegularTextStyles().regularInter14),
+        title: Text(
+          line.good.name,
+          style: RegularTextStyles().regularInter12.copyWith(
+            color: AppColors.kSidebarHover,
+          ),
+        ),
         subtitle: Text(
           t.stockEntry.lineSubtitle(date: line.productionDate),
           style: RegularTextStyles().regularInter10.copyWith(
@@ -36,11 +41,8 @@ class LineTile extends StatelessWidget {
           ),
         ),
         trailing: Text(
-          t.stockEntry.qtyWithUom(
-            qty: fmtQty(line.qty),
-            uom: line.good.uom,
-          ),
-          style: SemiboldTextStyles().semiboldInter16,
+          t.stockEntry.qtyWithUom(qty: fmtQty(line.qty), uom: line.good.uom),
+          style: SemiboldTextStyles().semiboldInter14,
         ),
       ),
     );

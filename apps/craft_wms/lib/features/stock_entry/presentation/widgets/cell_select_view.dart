@@ -1,23 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
-import '../../../../core/constants/app_borders.dart';
 import '../../../../core/constants/app_boxes.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_insets.dart';
-import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../stock/data/catalog_models.dart';
 import '../../../stock/data/catalog_repository.dart';
 import '../bloc/stock_entry_cubit.dart';
-import 'cell_picker_sheet.dart';
+import 'cell_search_field.dart';
 import 'committed_cell_tile.dart';
 
-/// Выбор ячейки: поле скана/ввода адреса + список пройденных ячеек (тап — редактировать) + кнопка
-/// «Завершить ввод». Все данные локальны до финала (вариант A).
+/// Выбор ячейки: поле скана/ввода адреса с инлайн-автокомплитом (локальная фильтрация по загруженному
+/// справочнику ячеек) + список пройденных ячеек (тап — редактировать) + кнопка «Завершить ввод».
+/// Все данные локальны до финала (вариант A).
 class CellSelectView extends StatefulWidget {
   const CellSelectView({super.key, required this.committed});
 
@@ -28,46 +26,61 @@ class CellSelectView extends StatefulWidget {
 }
 
 class _CellSelectViewState extends State<CellSelectView> {
-  final _controller = TextEditingController();
   final _repo = getIt<CatalogRepository>();
 
+  /// Справочник ячеек склада, загруженный целиком (для мгновенного локального автокомплита).
+  List<Cell> _allCells = const [];
+  bool _loadingCells = true;
+
   @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    _loadCells();
   }
 
   StockEntryCubit get _cubit => context.read<StockEntryCubit>();
 
-  /// Резолв ячейки по введённому/сканированному адресу (точное совпадение).
+  /// Загрузить все ячейки склада разом (пилот — один склад). При ошибке справочник останется пустым,
+  /// а резолв адреса упадёт на серверный фоллбэк в [_submitAddress].
+  Future<void> _loadCells() async {
+    final res = await _repo.listAllCells();
+    if (!mounted) return;
+    setState(() {
+      _loadingCells = false;
+      _allCells = res.fold((_) => const [], (cells) => cells);
+    });
+    if (res.isLeft) _snack(t.stockEntry.cellsLoadFailed);
+  }
+
+  /// Точное совпадение адреса (регистронезависимо) среди списка; null — не нашли.
+  Cell? _matchExact(Iterable<Cell> cells, String address) {
+    final a = address.toLowerCase();
+    for (final c in cells) {
+      if (c.address.toLowerCase() == a) return c;
+    }
+    return null;
+  }
+
+  /// Резолв ячейки по введённому/сканированному адресу (точное совпадение). Основной путь — локально
+  /// по загруженному справочнику; если он пуст (загрузка не удалась/не завершилась) — серверный фоллбэк,
+  /// чтобы скан работал даже без справочника.
   Future<void> _submitAddress(String value) async {
     final address = value.trim();
     if (address.isEmpty) return;
-    final res = await _repo.listCells(query: address);
-    if (!mounted) return;
-    final cell = res.fold<Cell?>((_) => null, (page) {
-      for (final c in page.items) {
-        if (c.address.toLowerCase() == address.toLowerCase()) return c;
-      }
-      return null;
-    });
+    Cell? cell = _matchExact(_allCells, address);
+    if (cell == null && _allCells.isEmpty) {
+      final res = await _repo.listCells(query: address);
+      if (!mounted) return;
+      cell = res.fold<Cell?>(
+        (_) => null,
+        (page) => _matchExact(page.items, address),
+      );
+    }
     if (cell == null) {
       _snack(t.stockEntry.cellNotFound);
       return;
     }
-    _controller.clear();
     _cubit.selectCell(cell);
-  }
-
-  /// Выбор ячейки из списка (поиск по адресу).
-  Future<void> _pickFromList() async {
-    final cell = await showModalBottomSheet<Cell>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (_) => CellPickerSheet(repo: _repo),
-    );
-    if (cell != null && mounted) _cubit.selectCell(cell);
   }
 
   /// Меню по долгому нажатию на пройденную ячейку: редактировать / удалить.
@@ -84,8 +97,14 @@ class _CellSelectViewState extends State<CellSelectView> {
               onTap: () => Navigator.of(context).pop('edit'),
             ),
             ListTile(
-              leading: const Icon(Icons.delete_outline, color: AppColors.kDanger),
-              title: Text(t.stockEntry.deleteCell, style: const TextStyle(color: AppColors.kDanger)),
+              leading: const Icon(
+                Icons.delete_outline,
+                color: AppColors.kDanger,
+              ),
+              title: Text(
+                t.stockEntry.deleteCell,
+                style: const TextStyle(color: AppColors.kDanger),
+              ),
               onTap: () => Navigator.of(context).pop('delete'),
             ),
           ],
@@ -115,32 +134,30 @@ class _CellSelectViewState extends State<CellSelectView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          AppBoxes.kHeight16,
           Text(
             t.stockEntry.cellPrompt,
-            style: RegularTextStyles().regularInter14.copyWith(color: AppColors.kTextMuted),
-          ),
-          AppBoxes.kHeight4,
-          TextField(
-            controller: _controller,
-            autofocus: true,
-            textInputAction: TextInputAction.done,
-            onSubmitted: _submitAddress,
-            decoration: InputDecoration(
-              prefixIcon: Icon(MdiIcons.qrcode, size: AppSizes.kIcon25, color: AppColors.kSidebarHover),
-              suffixIcon: InkWell(
-                onTap: _pickFromList,
-                child: Icon(MdiIcons.formatListBulleted, size: AppSizes.kIcon25, color: AppColors.kSidebarHover),
-              ),
-              hintText: t.stockEntry.cellHint,
-              border: const OutlineInputBorder(borderRadius: AppBorders.kCircular8),
-              isDense: true,
+            style: RegularTextStyles().regularInter14.copyWith(
+              color: AppColors.kTextMuted,
             ),
+          ),
+          AppBoxes.kHeight8,
+
+          /// Поле ввода/скана адреса с автокомплитом по локальному справочнику ячеек.
+          /// При точном совпадении
+          CellSearchField(
+            cells: _allCells,
+            loading: _loadingCells,
+            onPicked: _cubit.selectCell,
+            onSubmit: _submitAddress,
           ),
           if (committed.isNotEmpty) ...[
             AppBoxes.kHeight16,
             Text(
               t.stockEntry.committedTitle(count: committed.length),
-              style: RegularTextStyles().regularInter14.copyWith(color: AppColors.kTextMuted),
+              style: RegularTextStyles().regularInter14.copyWith(
+                color: AppColors.kTextMuted,
+              ),
             ),
             AppBoxes.kHeight8,
           ],
