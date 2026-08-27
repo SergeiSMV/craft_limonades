@@ -1,11 +1,13 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:flutter_neumorphic_plus/flutter_neumorphic.dart';
 
 import '../../../../core/constants/app_borders.dart';
 import '../../../../core/constants/app_boxes.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_insets.dart';
+import '../../../../core/constants/app_sizes.dart';
+import '../../../../core/gen/assets.gen.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/theme/semibold_text.dart';
@@ -25,7 +27,10 @@ class GoodPickerSheet extends StatefulWidget {
 class _GoodPickerSheetState extends State<GoodPickerSheet> {
   Timer? _debounce;
   List<Good> _goods = const [];
+  int _total = 0;
+  String? _query;
   bool _loading = true;
+  bool _loadingMore = false;
 
   @override
   void initState() {
@@ -39,14 +44,44 @@ class _GoodPickerSheetState extends State<GoodPickerSheet> {
     super.dispose();
   }
 
-  /// Загрузка товаров с сервера (с фильтром по названию/коду, если есть).
+  /// Есть ли ещё непогруженные товары под текущий фильтр.
+  bool get _hasMore => _goods.length < _total;
+
+  /// Загрузка первой страницы товаров (с фильтром по названию/коду, если есть). Сбрасывает пагинацию.
   Future<void> _load(String? query) async {
+    _query = query;
     setState(() => _loading = true);
     final res = await widget.repo.listGoods(query: query, limit: 50);
     if (!mounted) return;
     setState(() {
       _loading = false;
-      _goods = res.fold((_) => const [], (p) => p.items);
+      if (res.isRight) {
+        _goods = res.right.items;
+        _total = res.right.total;
+      } else {
+        _goods = const [];
+        _total = 0;
+      }
+    });
+  }
+
+  /// Подгрузить следующую страницу (бесконечный скролл): дозапрос от offset=_goods.length, дописываем
+  /// в конец. Защита от повторного входа и от запроса за границей total.
+  Future<void> _loadMore() async {
+    if (_loading || _loadingMore || !_hasMore) return;
+    setState(() => _loadingMore = true);
+    final res = await widget.repo.listGoods(
+      query: _query,
+      limit: 50,
+      offset: _goods.length,
+    );
+    if (!mounted) return;
+    setState(() {
+      _loadingMore = false;
+      if (res.isRight) {
+        _goods = [..._goods, ...res.right.items];
+        _total = res.right.total;
+      }
     });
   }
 
@@ -61,48 +96,142 @@ class _GoodPickerSheetState extends State<GoodPickerSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding:
-            AppInsets.all16 +
-            EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              t.stockEntry.pickGood,
-              style: SemiboldTextStyles().semiboldInter18,
-            ),
-            AppBoxes.kHeight12,
-            TextField(
-              autofocus: true,
-              onChanged: _onSearch,
-              decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.search),
-                hintText: t.stockEntry.searchGood,
-                border: const OutlineInputBorder(
-                  borderRadius: AppBorders.kCircular8,
+    return Padding(
+      padding:
+          AppInsets.h8 +
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            t.stockEntry.pickGood,
+            style: SemiboldTextStyles().semiboldInter18,
+          ),
+          AppBoxes.kHeight12,
+          Padding(
+            padding: AppInsets.h8,
+            child: Neumorphic(
+              style: NeumorphicStyle(
+                shadowLightColor: AppColors.kNeumorphicLight,
+                shadowDarkColor: AppColors.kNeumorphicDark,
+                intensity: 1,
+                color: AppColors.kNeumorphicBg,
+                depth: -2,
+                shape: NeumorphicShape.flat,
+              ),
+              child: TextField(
+                cursorColor: AppColors.kTextMuted,
+                cursorWidth: 1.5,
+                cursorHeight: 20,
+                autofocus: true,
+                onChanged: _onSearch,
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(
+                    Icons.search,
+                    size: AppSizes.kIcon25,
+                    color: AppColors.kTextMuted,
+                  ),
+                  hintText: t.stockEntry.searchGood,
+                  hintStyle: RegularTextStyles().regularInter16.copyWith(
+                    color: AppColors.kBorderDashed,
+                  ),
+                  border: const OutlineInputBorder(
+                    borderRadius: AppBorders.kCircular8,
+                    borderSide: BorderSide.none,
+                  ),
+                  isDense: true,
                 ),
-                isDense: true,
               ),
             ),
-            AppBoxes.kHeight12,
-            Flexible(
-              child: _loading
-                  ? const Center(
-                      child: Padding(
-                        padding: AppInsets.all16,
-                        child: CircularProgressIndicator(),
+          ),
+          AppBoxes.kHeight12,
+          Flexible(
+            child: _loading
+                ? const Center(
+                    child: Padding(
+                      padding: AppInsets.all16,
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
                       ),
-                    )
-                  : _goods.isEmpty
-                  ? Center(child: Text(t.stockEntry.nothingFound))
-                  : ListView.builder(
-                      shrinkWrap: true,
-                      itemCount: _goods.length,
-                      itemBuilder: (context, i) {
-                        final g = _goods[i];
-                        return ListTile(
+                    ),
+                  )
+                : _goods.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Assets.icons.goodsNotFound.image(width: 90),
+                        AppBoxes.kHeight8,
+                        Text(t.stockEntry.nothingFound),
+                      ],
+                    ),
+                  )
+                : NotificationListener<ScrollNotification>(
+                    // Ближе 400px к концу — тянем следующую страницу (loadMore защищён от повторов).
+                    onNotification: (n) {
+                      if (n.metrics.pixels >= n.metrics.maxScrollExtent - 400) {
+                        _loadMore();
+                      }
+                      return false;
+                    },
+                    child: Padding(
+                      padding: AppInsets.bottom8,
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        // +1 на футер-индикатор, пока есть непогруженные товары.
+                        itemCount: _goods.length + (_hasMore ? 1 : 0),
+                        itemBuilder: (context, i) {
+                          if (i >= _goods.length) {
+                            return const Padding(
+                              padding: AppInsets.v16,
+                              child: Center(
+                                child: SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                              ),
+                            );
+                          }
+                          final g = _goods[i];
+                          return Padding(
+                            padding: AppInsets.top8 + AppInsets.h8,
+                            child: NeumorphicButton(
+                              onPressed: () => Navigator.of(context).pop(g),
+                              style: NeumorphicStyle(
+                                shadowLightColor: AppColors.kNeumorphicLight,
+                                shadowDarkColor: AppColors.kNeumorphicDark,
+                                intensity: 1,
+                                color: AppColors.kNeumorphicBg,
+                                depth: 3,
+                                shape: NeumorphicShape.flat,
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    g.name,
+                                    style: RegularTextStyles().regularInter12,
+                                  ),
+                                  Text(
+                                    [
+                                      if (g.code != null) g.code!,
+                                      g.uom,
+                                    ].join(' · '),
+                                    style: RegularTextStyles().regularInter10
+                                        .copyWith(color: AppColors.kTextMuted),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+
+                          /*
+                        ListTile(
                           title: Text(
                             g.name,
                             style: RegularTextStyles().regularInter14,
@@ -115,11 +244,13 @@ class _GoodPickerSheetState extends State<GoodPickerSheet> {
                           ),
                           onTap: () => Navigator.of(context).pop(g),
                         );
-                      },
+                        */
+                        },
+                      ),
                     ),
-            ),
-          ],
-        ),
+                  ),
+          ),
+        ],
       ),
     );
   }

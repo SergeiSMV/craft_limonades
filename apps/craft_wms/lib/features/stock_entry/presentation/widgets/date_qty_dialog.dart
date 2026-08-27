@@ -1,8 +1,13 @@
-import 'package:flutter/material.dart';
+import 'package:craft_wms/core/constants/app_insets.dart';
+import 'package:craft_wms/core/constants/app_sizes.dart';
+import 'package:flutter_neumorphic_plus/flutter_neumorphic.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
+import '../../../../core/constants/app_borders.dart';
 import '../../../../core/constants/app_boxes.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/gen/strings.g.dart';
+import '../../../../core/theme/regular_text.dart';
 import '../../../../core/theme/semibold_text.dart';
 import '../../../../core/utils/date_input.dart';
 import '../../../../core/utils/qty_format.dart';
@@ -12,10 +17,7 @@ import '../../../stock/data/catalog_models.dart';
 /// (отвязать ошибочный ШК). [wrongGood] различает эти два исхода.
 class DateQtyResult {
   const DateQtyResult.add(this.date, this.qty) : wrongGood = false;
-  const DateQtyResult.wrong()
-      : date = '',
-        qty = 0,
-        wrongGood = true;
+  const DateQtyResult.wrong() : date = '', qty = 0, wrongGood = true;
 
   final String date;
   final double qty;
@@ -65,9 +67,9 @@ class _DateQtyDialogState extends State<DateQtyDialog> {
     FocusManager.instance.primaryFocus
         ?.unfocus(); // свернуть клавиатуру при подтверждении
     // Год мог быть введён двумя знаками (14.08.26) — приводим к дд.мм.гггг на выходе.
-    Navigator.of(context).pop(
-      DateQtyResult.add(normalizeEntryDate(_date.text.trim()), qty),
-    );
+    Navigator.of(
+      context,
+    ).pop(DateQtyResult.add(normalizeEntryDate(_date.text.trim()), qty));
   }
 
   /// «Неверный товар»: закрыть диалог с сигналом отвязать ошибочный ШК (обрабатывает экран).
@@ -78,61 +80,171 @@ class _DateQtyDialogState extends State<DateQtyDialog> {
     return AlertDialog(
       // scrollable — чтобы текст ошибки валидации (доп. высота под полем) не переполнял диалог,
       // а прокручивался; особенно при поднятой клавиатуре и малой доступной высоте.
+      backgroundColor: Colors.white, // AppColors.kNeumorphicBg,
       scrollable: true,
+      insetPadding: AppInsets.h8,
+      /*
       title: Text(
         widget.good.name,
-        style: SemiboldTextStyles().semiboldInter16,
-      ),
-      content: Form(
-        key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextFormField(
-              controller: _date,
-              keyboardType: TextInputType.number,
-              inputFormatters: [DateTextInputFormatter()],
-              decoration: InputDecoration(
-                labelText: t.stockEntry.dateLabel,
-                hintText: 'дд.мм.гг(гг)',
-              ),
-              validator: (v) => isValidEntryDate((v ?? '').trim())
-                  ? null
-                  : t.stockEntry.dateInvalid,
-            ),
-            AppBoxes.kHeight12,
-            TextFormField(
-              controller: _qty,
-              autofocus: true,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              decoration: InputDecoration(
-                labelText: t.stockEntry.qtyLabel(uom: widget.good.uom),
-              ),
-              validator: (v) {
-                final d = double.tryParse(
-                  (v ?? '').trim().replaceAll(',', '.'),
-                );
-                return (d != null && d > 0) ? null : t.stockEntry.qtyInvalid;
-              },
-            ),
-          ],
+        style: SemiboldTextStyles().semiboldInter14.copyWith(
+          color: AppColors.kSidebarHover,
         ),
       ),
-      actions: [
-        if (widget.allowWrongGood)
-          TextButton(
-            onPressed: _wrongGood,
-            style: TextButton.styleFrom(foregroundColor: AppColors.kDanger),
-            child: Text(t.stockEntry.wrongGood),
+      */
+      content: SizedBox(
+        width: double.maxFinite,
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: AppInsets.left6,
+                child: Text(
+                  widget.good.name,
+                  style: SemiboldTextStyles().semiboldInter14.copyWith(
+                    color: AppColors.kSidebarHover,
+                  ),
+                ),
+              ),
+              AppBoxes.kHeight8,
+              Padding(
+                padding: AppInsets.left6,
+                child: Text(
+                  t.stockEntry.dateLabel,
+                  style: RegularTextStyles().regularInter12.copyWith(
+                    color: AppColors.kTextMuted,
+                  ),
+                ),
+              ),
+              Neumorphic(
+                style: NeumorphicStyle(
+                  shadowLightColor: AppColors.kNeumorphicLight,
+                  shadowDarkColor: AppColors.kNeumorphicDark,
+                  intensity: 1,
+                  color: AppColors.kNeumorphicBg,
+                  depth: -2,
+                  shape: NeumorphicShape.flat,
+                ),
+                child: TextFormField(
+                  cursorColor: AppColors.kTextMuted,
+                  cursorWidth: 1.5,
+                  cursorHeight: 20,
+                  controller: _date,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [DateTextInputFormatter()],
+                  decoration: InputDecoration(
+                    // labelText: t.stockEntry.dateLabel,
+                    hintText: 'дд.мм.гг(гг)',
+                    hintStyle: RegularTextStyles().regularInter14.copyWith(
+                      color: AppColors.kBorderDashed,
+                    ),
+                    border: const OutlineInputBorder(
+                      borderRadius: AppBorders.kCircular8,
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                  validator: (v) => isValidEntryDate((v ?? '').trim())
+                      ? null
+                      : t.stockEntry.dateInvalid,
+                ),
+              ),
+              AppBoxes.kHeight12,
+              Padding(
+                padding: AppInsets.left6,
+                child: Text(
+                  t.stockEntry.qtyLabel(uom: widget.good.uom),
+                  style: RegularTextStyles().regularInter12.copyWith(
+                    color: AppColors.kTextMuted,
+                  ),
+                ),
+              ),
+              Neumorphic(
+                style: NeumorphicStyle(
+                  shadowLightColor: AppColors.kNeumorphicLight,
+                  shadowDarkColor: AppColors.kNeumorphicDark,
+                  intensity: 1,
+                  color: AppColors.kNeumorphicBg,
+                  depth: -2,
+                  shape: NeumorphicShape.flat,
+                ),
+                child: TextFormField(
+                  cursorColor: AppColors.kTextMuted,
+                  cursorWidth: 1.5,
+                  cursorHeight: 20,
+                  controller: _qty,
+                  autofocus: true,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: InputDecoration(
+                    // labelText: t.stockEntry.qtyLabel(uom: widget.good.uom),
+                    hintText: 'количество',
+                    hintStyle: RegularTextStyles().regularInter14.copyWith(
+                      color: AppColors.kBorderDashed,
+                    ),
+                    border: const OutlineInputBorder(
+                      borderRadius: AppBorders.kCircular8,
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                  validator: (v) {
+                    final d = double.tryParse(
+                      (v ?? '').trim().replaceAll(',', '.'),
+                    );
+                    return (d != null && d > 0)
+                        ? null
+                        : t.stockEntry.qtyInvalid;
+                  },
+                ),
+              ),
+              AppBoxes.kHeight12,
+              Row(
+                children: [
+                  if (widget.allowWrongGood)
+                    IconButton(
+                      onPressed: _wrongGood,
+                      icon: Icon(
+                        MdiIcons.barcodeOff,
+                        color: AppColors.kDanger,
+                        size: AppSizes.kIcon30,
+                      ),
+                    ),
+                  Spacer(),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: Text(t.stockEntry.cancel),
+                  ),
+                  FilledButton(
+                    onPressed: _submit,
+                    child: Text(t.stockEntry.add),
+                  ),
+                ],
+              ),
+            ],
           ),
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(t.stockEntry.cancel),
         ),
-        FilledButton(onPressed: _submit, child: Text(t.stockEntry.add)),
-      ],
+      ),
+      // actions: [
+      //   // if (widget.allowWrongGood)
+      //   //   TextButton(
+      //   //     onPressed: _wrongGood,
+      //   //     style: TextButton.styleFrom(foregroundColor: AppColors.kDanger),
+      //   //     child: Text(t.stockEntry.wrongGood),
+      //   //   ),
+      //   //   if (widget.allowWrongGood)
+      //   //     IconButton(
+      //   //       onPressed: _wrongGood,
+      //   //       icon: Icon(MdiIcons.barcodeOff, color: AppColors.kDanger),
+      //   //     ),
+      //   //   Spacer(),
+      //   //   TextButton(
+      //   //     onPressed: () => Navigator.of(context).pop(),
+      //   //     child: Text(t.stockEntry.cancel),
+      //   //   ),
+      //   //   FilledButton(onPressed: _submit, child: Text(t.stockEntry.add)),
+      // ],
     );
   }
 }

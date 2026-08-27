@@ -186,6 +186,57 @@ void main() {
     });
   });
 
+  group('listAllCells (пагинация до конца, P-FS-13)', () {
+    List<Map<String, dynamic>> cellsRange(int from, int to) => [
+          for (var i = from; i < to; i++)
+            {'id': 'c$i', 'warehouse_id': 'w', 'address': 'A-$i'},
+        ];
+
+    test('склеивает все страницы по 200 до total', () async {
+      final adapter = RecordingAdapter({
+        'GET ${ApiConst.cells}': (o) {
+          final offset = int.parse('${o.queryParameters['offset']}');
+          final items = offset == 0 ? cellsRange(0, 200) : cellsRange(200, 250);
+          return jsonResponse(
+              {'items': items, 'total': 250, 'limit': 200, 'offset': offset}, 200);
+        },
+      });
+      dio.httpClientAdapter = adapter;
+      final repo = CatalogRepository(dio);
+
+      final res = await repo.listAllCells();
+
+      expect(res.isRight, isTrue);
+      expect(res.right.length, 250);
+      expect(res.right.first.address, 'A-0');
+      expect(res.right.last.address, 'A-249');
+      // Ровно два запроса: offset 0 и 200.
+      expect(adapter.requests.length, 2);
+      expect(adapter.requests[0].queryParameters['offset'], 0);
+      expect(adapter.requests[1].queryParameters['offset'], 200);
+    });
+
+    test('ошибка страницы → Left, дальнейшие страницы не тянем', () async {
+      final adapter = RecordingAdapter({
+        'GET ${ApiConst.cells}': (o) {
+          final offset = int.parse('${o.queryParameters['offset']}');
+          if (offset == 0) {
+            return jsonResponse(
+                {'items': cellsRange(0, 200), 'total': 250, 'limit': 200, 'offset': 0}, 200);
+          }
+          return jsonResponse({'error': 'boom'}, 500);
+        },
+      });
+      dio.httpClientAdapter = adapter;
+      final repo = CatalogRepository(dio);
+
+      final res = await repo.listAllCells();
+
+      expect(res.isLeft, isTrue);
+      expect(adapter.requests.length, 2); // первая ок, вторая упала — стоп
+    });
+  });
+
   group('listGroups / listSuppliers', () {
     test('группы парсятся из массива', () async {
       final repo = repoWith({
