@@ -7,10 +7,17 @@ import '../theme/semibold_text.dart';
 
 /// Виджет заголовка страницы с возможностью возврата на предыдущую страницу.
 class PageHeader extends StatelessWidget {
-  const PageHeader({super.key, required this.title, this.goBack});
+  const PageHeader({
+    super.key,
+    required this.title,
+    this.goBack,
+    this.textColor,
+  });
 
   /// Заголовок страницы.
   final String title;
+
+  final Color? textColor;
 
   /// Функция обратного вызова при нажатии на заголовок для возврата на предыдущую страницу.
   final VoidCallback? goBack;
@@ -27,7 +34,7 @@ class PageHeader extends StatelessWidget {
               Icons.arrow_back_ios_new_rounded,
               size: AppSizes.kIcon20,
               // color: AppColors.kSidebarHover,
-              color: AppColors.kNeumorphicBg,
+              color: textColor ?? AppColors.kNeumorphicBg,
             ),
           ),
           Padding(
@@ -35,7 +42,7 @@ class PageHeader extends StatelessWidget {
             child: Text(
               title,
               style: SemiboldTextStyles().semiboldInter20.copyWith(
-                color: AppColors.kNeumorphicBg,
+                color: textColor ?? AppColors.kNeumorphicBg,
               ),
             ),
           ),

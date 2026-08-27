@@ -73,6 +73,12 @@ abstract final class AppColors {
   static const Color kTileText = Color(0xFFFFFFFF); // текст/иконка на плитке
 
   //* --- Остатки ------------------------------------------------------------ *//
+  /// Акцент количества в карточке остатка (зелёный «есть на складе»).
+  static const Color kQtyValue = Color(0xFF16A34A);
+
+  /// Иконка места хранения (синяя булавка) в строке остатка.
+  static const Color kPlacePin = Color(0xFF2563EB);
+
   static const Color kStockItemBg = Color(0xFFFFF3E0); // фон карточки остатка
   static const Color kStockItemBorder = Color(
     0xFFFFCC80,

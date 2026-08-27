@@ -2,14 +2,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_neumorphic_plus/flutter_neumorphic.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
-import '../../../../core/constants/app_borders.dart';
-import '../../../../core/constants/app_boxes.dart';
-import '../../../../core/constants/app_colors.dart';
-import '../../../../core/constants/app_insets.dart';
-import '../../../../core/gen/strings.g.dart';
-import '../../../../core/theme/regular_text.dart';
-import '../../../../core/theme/semibold_text.dart';
-import '../bloc/goods_list_cubit.dart';
+import '../../../../../core/constants/app_borders.dart';
+import '../../../../../core/constants/app_boxes.dart';
+import '../../../../../core/constants/app_colors.dart';
+import '../../../../../core/constants/app_insets.dart';
+import '../../../../../core/gen/strings.g.dart';
+import '../../../../../core/theme/regular_text.dart';
+import '../../../../../core/theme/semibold_text.dart';
+import '../../bloc/goods_list_cubit.dart';
 
 /// Виджет кнопка открытия листа фильтров с бейджем числа активных фильтров.
 class FilterButton extends StatelessWidget {
