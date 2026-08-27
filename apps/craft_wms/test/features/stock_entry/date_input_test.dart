@@ -64,4 +64,16 @@ void main() {
       expect(normalizeEntryDate('14.08.2026'), '14.08.2026');
     });
   });
+
+  group('isoToDisplayDate — ISO из API → дд.мм.гггг', () {
+    test('дата и дата со временем', () {
+      expect(isoToDisplayDate('2026-08-03'), '03.08.2026');
+      expect(isoToDisplayDate('2026-08-10T00:00:00Z'), '10.08.2026');
+    });
+
+    test('неожиданный формат возвращается как есть', () {
+      expect(isoToDisplayDate('03.08.2026'), '03.08.2026');
+      expect(isoToDisplayDate(''), '');
+    });
+  });
 }

@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../core/constants/app_borders.dart';
-import '../../../../core/constants/app_colors.dart';
-import '../../../../core/constants/app_insets.dart';
-import '../../../../core/constants/app_sizes.dart';
-import '../../../../core/theme/regular_text.dart';
-import '../bloc/goods_list_cubit.dart';
+import '../../../../../core/constants/app_borders.dart';
+import '../../../../../core/constants/app_colors.dart';
+import '../../../../../core/constants/app_insets.dart';
+import '../../../../../core/constants/app_sizes.dart';
+import '../../../../../core/theme/regular_text.dart';
+import '../../bloc/goods_list_cubit.dart';
 
 /// Активные фильтры чипами (группа/поставщик). «✕» снимает фильтр сразу.
 class ActiveChips extends StatelessWidget {

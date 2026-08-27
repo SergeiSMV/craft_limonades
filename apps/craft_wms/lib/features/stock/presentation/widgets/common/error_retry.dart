@@ -1,11 +1,11 @@
 import 'package:flutter_neumorphic_plus/flutter_neumorphic.dart';
 
-import '../../../../core/constants/app_borders.dart';
-import '../../../../core/constants/app_boxes.dart';
-import '../../../../core/constants/app_colors.dart';
-import '../../../../core/constants/app_sizes.dart';
-import '../../../../core/gen/assets.gen.dart';
-import '../../../../core/gen/strings.g.dart';
+import '../../../../../core/constants/app_borders.dart';
+import '../../../../../core/constants/app_boxes.dart';
+import '../../../../../core/constants/app_colors.dart';
+import '../../../../../core/constants/app_sizes.dart';
+import '../../../../../core/gen/assets.gen.dart';
+import '../../../../../core/gen/strings.g.dart';
 
 /// Блок ошибки с кнопкой «Повторить».
 class ErrorRetry extends StatelessWidget {

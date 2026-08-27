@@ -2,21 +2,24 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_neumorphic_plus/flutter_neumorphic.dart';
 
-import '../../../../core/constants/app_colors.dart';
-import '../../../../core/constants/app_insets.dart';
-import '../../../../core/gen/strings.g.dart';
-import '../../../../core/router/app_router.dart';
-import '../../../../core/theme/regular_text.dart';
-import '../../data/catalog_models.dart';
-import '../bloc/goods_list_cubit.dart';
-import 'error_retry.dart';
+import '../../../../../core/constants/app_colors.dart';
+import '../../../../../core/constants/app_insets.dart';
+import '../../../../../core/gen/strings.g.dart';
+import '../../../../../core/router/app_router.dart';
+import '../../../../../core/theme/regular_text.dart';
+import '../../../../../core/utils/keyboard.dart';
+import '../../../data/catalog_models.dart';
+import '../../bloc/goods_list_cubit.dart';
+import '../common/error_retry.dart';
 
 /// Виджет результат: список товаров / индикатор / ошибка / пусто.
 class GoodsResult extends StatelessWidget {
   const GoodsResult({super.key});
 
-  /// Открыть карточку остатков выбранного товара.
+  /// Открыть карточку остатков выбранного товара. Перед уходом гасим клавиатуру, иначе
+  /// на возврате Flutter восстановит фокус поиска и она всплывёт сама.
   void openDetail(BuildContext context, Good good) {
+    dismissKeyboard();
     context.router.push(StockDetailRoute(good: good));
   }
 

@@ -49,3 +49,12 @@ String normalizeEntryDate(String s) {
   if (m == null) return s;
   return '${m.group(1)}.${m.group(2)}.${_fullYear(m.group(3)!)}';
 }
+
+/// Дата из API (ISO `ГГГГ-ММ-ДД`, возможно с временем) → отображаемая `дд.мм.гггг`.
+/// Неожиданный формат возвращается как есть — на экране лучше «сырая» дата, чем пусто.
+String isoToDisplayDate(String iso) {
+  final date = iso.length >= 10 ? iso.substring(0, 10) : iso;
+  final p = date.split('-');
+  if (p.length == 3 && p[0].length == 4) return '${p[2]}.${p[1]}.${p[0]}';
+  return iso;
+}

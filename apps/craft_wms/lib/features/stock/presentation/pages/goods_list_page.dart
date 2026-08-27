@@ -15,13 +15,14 @@ import '../../../../core/gen/assets.gen.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/regular_text.dart';
+import '../../../../core/utils/keyboard.dart';
 import '../../../../core/widgets/appbar_image.dart';
 import '../../../../core/widgets/page_header.dart';
 import '../../../../core/widgets/system_ui_wrapper.dart';
 import '../bloc/goods_list_cubit.dart';
-import '../widgets/active_chips.dart';
-import '../widgets/goods_result.dart';
-import '../widgets/stock_filter_button.dart';
+import '../widgets/goods_list/active_chips.dart';
+import '../widgets/goods_list/goods_result.dart';
+import '../widgets/goods_list/stock_filter_button.dart';
 
 /// Экран «Остатки»: список товаров с поиском и фильтрами (группа/поставщик).
 /// Фильтры вынесены в нижний лист (кнопка с бейджем), активные — чипами под поиском;
@@ -51,6 +52,10 @@ class _GoodsListViewState extends State<_GoodsListView> {
   /// Дебаунс поиска: не дёргаем API на каждый символ, а ждём 350 мс после последнего ввода.
   Timer? _debounce;
 
+  /// Контроллер строки поиска: по нему показываем крестик очистки (только при непустом
+  /// вводе) и чистим поле по тапу.
+  final _searchController = TextEditingController();
+
   /// Поиск с дебаунсом: не дёргаем API на каждый символ.
   void onSearchChanged(String value) {
     _debounce?.cancel();
@@ -59,16 +64,28 @@ class _GoodsListViewState extends State<_GoodsListView> {
     });
   }
 
+  /// Очистить строку поиска и сразу сбросить запрос. Отложенный дебаунс гасим: иначе
+  /// «висящий» таймер применил бы старый текст уже после очистки.
+  void clearSearch() {
+    _debounce?.cancel();
+    _searchController.clear();
+    context.read<GoodsListCubit>().setQuery('');
+  }
+
   /// Назад на предыдущий экран (главное меню).
   void goBack() => context.router.maybePop();
 
-  /// Открыть раздел «Ввод остатков» (проход склада, P-FastStart).
-  void openStockEntry(BuildContext context) =>
-      context.router.push(const StockEntryRoute());
+  /// Открыть раздел «Ввод остатков» (проход склада, P-FastStart). Клавиатуру гасим по той же
+  /// причине, что и при переходе в карточку товара, — чтобы не всплывала на возврате.
+  void openStockEntry(BuildContext context) {
+    dismissKeyboard();
+    context.router.push(const StockEntryRoute());
+  }
 
   @override
   void dispose() {
     _debounce?.cancel();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -141,6 +158,7 @@ class _GoodsListViewState extends State<_GoodsListView> {
         shape: NeumorphicShape.flat,
       ),
       child: TextField(
+        controller: _searchController,
         cursorColor: AppColors.kTextMain,
         cursorWidth: 1.5,
         cursorHeight: 20,
@@ -155,6 +173,29 @@ class _GoodsListViewState extends State<_GoodsListView> {
             ),
           ),
           prefixIconConstraints: const BoxConstraints(
+            minWidth: 0,
+            minHeight: 0,
+          ),
+          // Крестик очистки — только когда в поле что-то есть. Слушаем контроллер, чтобы
+          // перерисовывался один суффикс, а не весь экран на каждый символ.
+          suffixIcon: ValueListenableBuilder<TextEditingValue>(
+            valueListenable: _searchController,
+            builder: (context, value, _) => value.text.isEmpty
+                ? const SizedBox.shrink()
+                : GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: clearSearch,
+                    child: Padding(
+                      padding: AppInsets.h14,
+                      child: Icon(
+                        Icons.close,
+                        size: AppSizes.kIcon20,
+                        color: AppColors.kTextMuted,
+                      ),
+                    ),
+                  ),
+          ),
+          suffixIconConstraints: const BoxConstraints(
             minWidth: 0,
             minHeight: 0,
           ),
