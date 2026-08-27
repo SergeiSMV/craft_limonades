@@ -192,7 +192,6 @@ class _CellEntryViewState extends State<CellEntryView> {
                     t.stockEntry.delete,
                     style: const TextStyle(color: AppColors.kDanger),
                   ),
-                  // onTap: () => Navigator.of(context).pop('delete'),
                 ),
               ),
             ],

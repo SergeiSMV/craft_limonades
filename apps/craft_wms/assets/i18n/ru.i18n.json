@@ -193,7 +193,6 @@
     "delete": "Удалить",
     "committed_title": "пройдено ячеек: ${count}",
     "cell_positions": "позиций: ${count}",
-    "delete_cell": "Удалить ячейку",
     "wrong_good": "Неверный товар",
     "barcode_unbound": "Штрихкод отвязан — выберите правильный товар",
     "cells_load_failed": "Не удалось загрузить справочник ячеек",
