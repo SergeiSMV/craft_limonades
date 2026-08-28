@@ -2,14 +2,14 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart'; // Key — для аргументов маршрутов в app_router.gr.dart
 import 'package:injectable/injectable.dart';
 
-import '../../features/auth/presentation/login_screen.dart';
-import '../../features/debug/presentation/debug_log_screen.dart';
-import '../../features/home/presentation/home_screen.dart';
-import '../../features/splash/presentation/splash_screen.dart';
+import '../../features/auth/presentation/pages/login_page.dart';
+import '../../features/debug/presentation/pages/debug_log_page.dart';
+import '../../features/home/presentation/pages/home_page.dart';
+import '../../features/splash/presentation/pages/splash_page.dart';
 import '../../features/stock/data/catalog_models.dart'; // Good — аргумент StockDetailRoute
-import '../../features/stock/presentation/goods_list_screen.dart';
-import '../../features/stock/presentation/stock_detail_screen.dart';
-import '../../features/stock_entry/presentation/stock_entry_screen.dart';
+import '../../features/stock/presentation/pages/goods_list_page.dart';
+import '../../features/stock/presentation/pages/stock_detail_page.dart';
+import '../../features/stock_entry/presentation/pages/stock_entry_page.dart';
 import 'guards.dart';
 
 part 'app_router.gr.dart';

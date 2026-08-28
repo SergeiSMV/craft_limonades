@@ -1,6 +1,6 @@
 import 'package:craft_wms/features/stock/data/catalog_models.dart';
 import 'package:craft_wms/features/stock_entry/data/stock_entry_repository.dart';
-import 'package:craft_wms/features/stock_entry/presentation/stock_entry_cubit.dart';
+import 'package:craft_wms/features/stock_entry/presentation/bloc/stock_entry_cubit.dart';
 import 'package:either_dart/either.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -174,6 +174,45 @@ void main() {
       cubit.finishCell();
       cubit.removeCommittedCell('c1');
       expect(cubit.state.committedCells, isEmpty);
+    });
+
+    test('changeCell перецеливает буфер на новую ячейку, строки сохраняются', () {
+      cubit.selectCell(cell); // c1
+      cubit.addLine(good: goodA, date: '15.01.2026', qty: 10);
+      cubit.addLine(good: goodB, date: '15.01.2026', qty: 2);
+
+      cubit.changeCell(cell2); // не та ячейка → c2, товары те же
+      expect(cubit.state.cell?.id, 'c2');
+      expect(cubit.state.lines.length, 2); // строки не тронуты
+      expect(cubit.state.committedCells, isEmpty);
+    });
+
+    test('changeCell на уже пройденную ячейку сливает количества по грани', () {
+      // Ячейка c2 уже пройдена: goodA 15.01 = 5.
+      cubit.selectCell(cell2);
+      cubit.addLine(good: goodA, date: '15.01.2026', qty: 5);
+      cubit.finishCell();
+      // Работаем в c1: goodA 15.01 = 10 (та же грань) + goodB.
+      cubit.selectCell(cell);
+      cubit.addLine(good: goodA, date: '15.01.2026', qty: 10);
+      cubit.addLine(good: goodB, date: '15.01.2026', qty: 2);
+
+      cubit.changeCell(cell2); // сливаем с пройденной c2
+      expect(cubit.state.cell?.id, 'c2');
+      expect(cubit.state.committedCells, isEmpty); // c2 вынута из пройденных
+      // goodA 15.01: 10 + 5 = 15 (слито по грани); goodB — отдельно.
+      final ga = cubit.state.lines
+          .firstWhere((l) => l.good.id == 'gA' && l.productionDate == '15.01.2026');
+      expect(ga.qty, 15);
+      expect(cubit.state.lines.length, 2);
+    });
+
+    test('changeCell на ту же ячейку — no-op', () {
+      cubit.selectCell(cell);
+      cubit.addLine(good: goodA, date: '15.01.2026', qty: 10);
+      cubit.changeCell(cell); // та же
+      expect(cubit.state.cell?.id, 'c1');
+      expect(cubit.state.lines.length, 1);
     });
 
     test('finishSession: старт → checkpoint каждой ячейки → финал; даты в DD-MM-YYYY', () async {

@@ -5,6 +5,17 @@ abstract final class AppColors {
   /// Фирменный лаймово-зелёный акцент (бренд «Крафтовые лимонады»).
   static const Color kGreenLime = Color(0xFF8BC34A);
 
+  /// Фоновый цвет для неоморфного эффекта (светлый, синий-серый).
+  static const Color kNeumorphicBg = Color(0xFFE9EEF5);
+
+  //* --- Элементы неоморфизма --------------------------------------------- *//
+
+  /// Цвет тени для неоморфного эффекта (светлый).
+  static const Color kNeumorphicLight = Color(0xFFFFFFFF);
+
+  /// Цвет тени для неоморфного эффекта (тёмный).
+  static const Color kNeumorphicDark = Color(0xFFC3CEDC);
+
   //* --- Веб-портал (дизайн-система) -------------------------------------- *//
   // Палитра из макета: янтарь-акцент + лайм + тёмный slate + светлый фон.
   static const Color kPrimary = Color(
@@ -53,7 +64,7 @@ abstract final class AppColors {
 
   //* --- ТСД: плитки главного меню (по макету) ---------------------------- *//
   // Цветовое кодирование операций на устройстве: крупные плитки, белый текст/иконка.
-  static const Color kTileReceipt = Color(0xFF4CAF50); // ПРИХОД — зелёный
+  static const Color kTileReceipt = Color(0xFF7964A2); // ПРИХОД — сиреневый
   static const Color kTileMovement = Color(0xFF2E6DA4); // ПЕРЕМЕЩЕНИЕ — синий
   static const Color kTileTasks = Color(0xFFE67E22); // ЗАДАНИЯ — оранжевый
   static const Color kTileFind = Color(0xFF6C757D); // НАЙТИ — серый
@@ -62,6 +73,12 @@ abstract final class AppColors {
   static const Color kTileText = Color(0xFFFFFFFF); // текст/иконка на плитке
 
   //* --- Остатки ------------------------------------------------------------ *//
+  /// Акцент количества в карточке остатка (зелёный «есть на складе»).
+  static const Color kQtyValue = Color(0xFF16A34A);
+
+  /// Иконка места хранения (синяя булавка) в строке остатка.
+  static const Color kPlacePin = Color(0xFF2563EB);
+
   static const Color kStockItemBg = Color(0xFFFFF3E0); // фон карточки остатка
   static const Color kStockItemBorder = Color(
     0xFFFFCC80,

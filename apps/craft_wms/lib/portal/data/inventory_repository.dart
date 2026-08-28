@@ -70,6 +70,7 @@ class InventoryRepository {
     }
   }
 
+  /// Маппинг ошибки dio в доменную Failure: есть код ответа → серверная, иначе → сетевая.
   Failure _mapError(DioException e) {
     final code = e.response?.statusCode;
     if (code != null) return Failure.server(code);

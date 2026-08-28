@@ -42,6 +42,23 @@ class CatalogRepository {
     }
   }
 
+  /// Товар по штрихкоду (P-FS-16): скан в строке поиска «Остатков» открывает карточку товара.
+  /// ШК уникален (`barcodes.barcode UNIQUE`), поэтому ответ — ровно один товар.
+  /// ШК не привязан (404) → `Right(null)`: это не ошибка, а сигнал «показать обычный поиск».
+  Future<Either<Failure, Good?>> resolveGoodByBarcode(String code) async {
+    try {
+      final resp = await _dio.get<Map<String, dynamic>>(
+        ApiConst.barcodeByCode(code),
+      );
+      return Right(Good.fromJson(resp.data!));
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) return const Right(null);
+      return Left(_mapError(e));
+    } catch (_) {
+      return const Left(Failure.unknown());
+    }
+  }
+
   /// Штрихкоды товара (секция «Штрихкоды» в карточке, P-FS-12). Пустой список — норма.
   Future<Either<Failure, List<Barcode>>> listGoodBarcodes(String goodId) async {
     try {
@@ -125,6 +142,25 @@ class CatalogRepository {
     } catch (_) {
       return const Left(Failure.unknown());
     }
+  }
+
+  /// Все ячейки склада разом (справочник мал — ~700; грузим целиком под локальный автокомплит ввода
+  /// остатков). Пагинирует внутри по `maxLimit` бэкенда (200): читает страницы, пока не наберёт `total`.
+  /// В P2 (offline-first) станет чтением из локального стора — сигнатура вызова не изменится.
+  Future<Either<Failure, List<Cell>>> listAllCells({String? warehouseId}) async {
+    const pageSize = 200; // = maxLimit read-API (catalog.go)
+    final all = <Cell>[];
+    var offset = 0;
+    while (true) {
+      final res = await listCells(warehouseId: warehouseId, limit: pageSize, offset: offset);
+      if (res.isLeft) return Left(res.left);
+      final page = res.right;
+      all.addAll(page.items);
+      offset += page.items.length;
+      // Дошли до конца: набрали total или сервер вернул пустую страницу (страховка от зацикливания).
+      if (all.length >= page.total || page.items.isEmpty) break;
+    }
+    return Right(all);
   }
 
   /// Остатки товара в разрезе ячеек/партий (карточка «где лежит товар X»).

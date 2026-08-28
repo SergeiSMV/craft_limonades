@@ -2,6 +2,7 @@
 abstract final class AppSizes {
   //* --- Icon Sizes ------------------------------------------------------- *//
   static const double kIcon2 = 2;
+  static const double kIcon10 = 10;
   static const double kIcon16 = 16;
   static const double kIcon18 = 18;
   static const double kIcon20 = 20;
@@ -9,6 +10,7 @@ abstract final class AppSizes {
   static const double kIcon25 = 25;
   static const double kIcon28 = 28;
   static const double kIcon30 = 30;
+  static const double kIcon36 = 36;
   static const double kIcon40 = 40;
   static const double kIcon48 = 48;
   static const double kIcon50 = 50;
@@ -19,6 +21,7 @@ abstract final class AppSizes {
   static const double kIcon85 = 85;
   static const double kIcon90 = 90;
   static const double kIcon96 = 96;
+  static const double kIcon140 = 140;
   static const double kIcon180 = 180;
   static const double kIcon200 = 200;
   static const double kIcon256 = 256;
@@ -36,6 +39,9 @@ abstract final class AppSizes {
   static const double kText28 = 28;
   static const double kText32 = 32;
   static const double kText48 = 48;
+
+  //* --- Image Sizes ------------------------------------------------------ *//
+  static const double kImagePlaceholder = 240; // иллюстрация-заглушка (ошибка/пусто)
 
   //* --- Button Sizes ----------------------------------------------------- *//
   static const double kButtonHeight64 = 64;
