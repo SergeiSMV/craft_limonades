@@ -1,0 +1,102 @@
+name: CI · Deploy
+
+# Гейт на скрипты деплоя. Появился, когда в deploy/ завёлся pg-restore.sh с DROP DATABASE:
+# ошибка в bash обнаружилась бы не здесь, а ночью на боевом сервере — или, что хуже,
+# в момент, когда восстановление реально понадобилось.
+#
+# ci-backend/ci-flutter сюда не годятся: они ограничены apps/**, и правка deploy/ не гоняла
+# ничего вообще. Добавлять deploy/** в их фильтры — значит гонять Go-тесты и сборку APK
+# из-за правки bash; поэтому отдельный лёгкий воркфлоу (~секунды, один джоб).
+#
+# Триггеры — как у остальных: гейт при входе кода в dev + проверка на пуше в main.
+on:
+  pull_request:
+    branches: [dev]
+    paths:
+      - 'deploy/**'
+      - '.github/workflows/ci-deploy.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'deploy/**'
+      - '.github/workflows/ci-deploy.yml'
+
+concurrency:
+  group: ci-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  shell:
+    name: Скрипты и systemd-юниты
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Синтаксис. Ловит опечатку, из-за которой скрипт упал бы на первой же строке.
+      - name: bash -n
+        run: |
+          for f in deploy/*.sh; do
+            echo "· $f"
+            bash -n "$f"
+          done
+
+      # shellcheck предустановлен на ubuntu-latest. -S warning: стилевые info-замечания
+      # сборку не валят, а реальные ошибки (незакавыченные переменные, битые ветвления) — да.
+      - name: shellcheck
+        run: shellcheck -S warning -x deploy/*.sh
+
+      # Юниты ставятся подстановкой плейсхолдеров в install.sh. Если добавить в юнит новый
+      # плейсхолдер и забыть sed — на сервере встанет юнит с «__FOO__» вместо значения,
+      # и systemd молча откажется его запускать. Проверяем, что для каждого есть подстановка.
+      - name: Плейсхолдеры юнитов подставляются в install.sh
+        run: |
+          status=0
+          for unit in deploy/systemd/*; do
+            # || true: у юнита может не быть плейсхолдеров, пустой grep не должен ронять шаг
+            # (шаги GitHub выполняются с bash -e).
+            for ph in $(grep -oE '__[A-Z_]+__' "$unit" | sort -u || true); do
+              if grep -q "s|$ph|" deploy/install.sh; then
+                echo "· $(basename "$unit"): $ph — подставляется"
+              else
+                echo "✗ $(basename "$unit"): $ph НЕ подставляется в install.sh"
+                status=1
+              fi
+            done
+          done
+          exit $status
+
+      # ExecStart ссылается на скрипт по пути __REPO_ROOT__/deploy/... — проверяем, что файл
+      # существует в репозитории. Ловит переименование скрипта без правки юнита.
+      - name: ExecStart указывает на существующие скрипты
+        run: |
+          status=0
+          # awk '{print $2}': ExecStart=/bin/bash __REPO_ROOT__/deploy/x.sh --check —
+          # второй токен это путь, аргументы после него отбрасываем.
+          while read -r script; do
+            path="${script#__REPO_ROOT__/}"
+            if [ -f "$path" ]; then
+              echo "· $path — есть"
+            else
+              echo "✗ ExecStart ссылается на несуществующий $path"
+              status=1
+            fi
+          done < <(grep -h '^ExecStart=' deploy/systemd/*.service | awk '{print $2}')
+          exit $status
+
+      # Юниты должны быть разбираемыми systemd: обязательные секции и ключи на месте.
+      - name: Структура systemd-юнитов
+        run: |
+          status=0
+          for f in deploy/systemd/*.service; do
+            grep -q '^\[Unit\]' "$f" && grep -q '^\[Service\]' "$f" && grep -q '^ExecStart=' "$f" \
+              || { echo "✗ $f: нет [Unit]/[Service]/ExecStart"; status=1; }
+          done
+          for f in deploy/systemd/*.timer; do
+            grep -q '^\[Timer\]' "$f" && grep -q '^\[Install\]' "$f" \
+              || { echo "✗ $f: нет [Timer]/[Install] (без [Install] таймер не включится)"; status=1; }
+          done
+          [ $status -eq 0 ] && echo "· все юниты структурно целы"
+          exit $status
