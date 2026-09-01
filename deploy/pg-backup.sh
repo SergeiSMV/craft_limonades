@@ -9,6 +9,10 @@
 # Переменные: BACKUP_DIR (по умолчанию рядом с .env.prod → ../backups), KEEP_DAYS (14).
 set -euo pipefail
 SCRIPT_NAME=backup
+# Путь к _lib.sh вычисляется в рантайме — статический анализатор его не проходит,
+# и без подсказки ниже SCRIPT_NAME считается неиспользуемым (SC2034).
+# Строка с директивой должна содержать только её: текст после пути ломает разбор.
+# shellcheck source=deploy/_lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/_lib.sh"
 
 require_env_file
