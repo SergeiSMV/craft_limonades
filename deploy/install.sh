@@ -3,8 +3,8 @@
 #   1) проверяет/ставит ПО (docker, nginx, certbot, ufw, gettext);
 #   2) настраивает хостовый nginx под ваш домен + выпускает TLS (Let's Encrypt);
 #   3) поднимает стек из GHCR, накатывает миграции, заводит админа;
-#   4) включает авто-обновление (systemd-таймер), если AUTO_UPDATE=true;
-#   5) включает бэкап БД и проверку восстановимости (systemd-таймеры), если AUTO_BACKUP≠false.
+#   4) ставит systemd-таймеры: авто-обновление (AUTO_UPDATE=true), бэкап БД и проверку
+#      восстановимости (AUTO_BACKUP≠false).
 # Идемпотентно: повторный запуск не ломает — доводит до нужного состояния.
 #
 # Запуск (на сервере):  sudo bash app/deploy/install.sh
@@ -87,41 +87,22 @@ done
 log "Миграции…"; compose run --rm --entrypoint /usr/local/bin/migrate backend up
 log "Стартовый админ…"; compose run --rm --entrypoint /usr/local/bin/seed backend
 
-# --- 5. Авто-обновление (systemd-таймер) ---
+# --- 5. systemd-таймеры: авто-обновление, бэкап, проверка восстановимости ---
+# Установка вынесена в install_systemd_units() (deploy/_lib.sh): её же вызывает update.sh,
+# поэтому правки юнитов доезжают на сервер сами, без повторного install.sh.
+log "Ставлю systemd-таймеры по .env.prod…"
+install_systemd_units
 if [[ "$(get_env AUTO_UPDATE)" == "true" ]]; then
-  INTERVAL="$(get_env UPDATE_INTERVAL)"; INTERVAL="${INTERVAL:-5min}"
-  log "Включаю авто-обновление (каждые $INTERVAL)…"
-  sed "s|__REPO_ROOT__|$REPO_ROOT|g" "$DEPLOY_DIR/systemd/craft-wms-update.service" \
-    > /etc/systemd/system/craft-wms-update.service
-  sed "s|__INTERVAL__|$INTERVAL|g"  "$DEPLOY_DIR/systemd/craft-wms-update.timer" \
-    > /etc/systemd/system/craft-wms-update.timer
-  systemctl daemon-reload
-  systemctl enable --now craft-wms-update.timer
-  log "Таймер craft-wms-update включён (проверка: systemctl list-timers craft-wms-update)."
+  log "Авто-обновление включено (каждые $(get_env UPDATE_INTERVAL || echo 5min))."
 else
-  log "AUTO_UPDATE=false — авто-обновление не включаю (обновлять вручную: deploy/update.sh)."
+  log "AUTO_UPDATE=false — авто-обновление не включено (обновлять вручную: deploy/update.sh)."
 fi
-
-# --- 6. Бэкап БД и проверка восстановимости (systemd-таймеры) ---
-# Отдельный флаг от AUTO_UPDATE: обновление можно не хотеть, а бэкап нужен всегда.
 if [[ "$(get_env AUTO_BACKUP)" != "false" ]]; then
-  BACKUP_SCHEDULE="$(get_env BACKUP_SCHEDULE)"; BACKUP_SCHEDULE="${BACKUP_SCHEDULE:-*-*-* 03:30:00}"
-  CHECK_SCHEDULE="$(get_env RESTORE_CHECK_SCHEDULE)"; CHECK_SCHEDULE="${CHECK_SCHEDULE:-Sun *-*-* 04:30:00}"
-  log "Включаю бэкап БД ($BACKUP_SCHEDULE) и проверку восстановимости ($CHECK_SCHEDULE)…"
-  for unit in craft-wms-backup craft-wms-restore-check; do
-    sed "s|__REPO_ROOT__|$REPO_ROOT|g" "$DEPLOY_DIR/systemd/$unit.service" \
-      > "/etc/systemd/system/$unit.service"
-  done
-  sed "s|__SCHEDULE__|$BACKUP_SCHEDULE|g" "$DEPLOY_DIR/systemd/craft-wms-backup.timer" \
-    > /etc/systemd/system/craft-wms-backup.timer
-  sed "s|__SCHEDULE__|$CHECK_SCHEDULE|g" "$DEPLOY_DIR/systemd/craft-wms-restore-check.timer" \
-    > /etc/systemd/system/craft-wms-restore-check.timer
-  systemctl daemon-reload
-  systemctl enable --now craft-wms-backup.timer craft-wms-restore-check.timer
-  log "Таймеры включены (проверка: systemctl list-timers 'craft-wms-*')."
+  log "Бэкап БД и проверка восстановимости включены."
 else
   warn "AUTO_BACKUP=false — бэкап по расписанию НЕ включён. Единственная копия данных — сама БД."
 fi
+log "Проверка таймеров: systemctl list-timers 'craft-wms-*'"
 
 echo
 log "ГОТОВО. Проверьте: https://$DOMAIN/health (200) и https://$DOMAIN/ready (200)."
