@@ -1,0 +1,12 @@
+[Unit]
+# Расписание бэкапа (__SCHEDULE__) — из BACKUP_SCHEDULE в .env.prod.
+Description=Craft WMS database backup timer
+
+[Timer]
+OnCalendar=__SCHEDULE__
+# Persistent — если сервер был выключен в час бэкапа, запустить сразу после включения:
+# ноутбук-сервер выключают, и без этого пропущенный день остался бы без дампа.
+Persistent=true
+
+[Install]
+WantedBy=timers.target

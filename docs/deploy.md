@@ -266,15 +266,52 @@ journalctl -u craft-wms-update -n 30        # что делало авто-об�
 sudo bash /opt/craft-wms/app/deploy/update.sh   # обновить прямо сейчас, вручную
 ```
 
-### Бэкапы БД
+### Бэкапы БД и восстановление
+
+**По расписанию — ничего делать не нужно.** `install.sh` ставит два systemd-таймера (при
+`AUTO_BACKUP≠false` в `.env.prod`):
+
+| Таймер | Что делает | По умолчанию |
+|---|---|---|
+| `craft-wms-backup` | `pg_dump` → gzip в `/opt/craft-wms/backups`, ротация `KEEP_DAYS` (14) | ежедневно 03:30 |
+| `craft-wms-restore-check` | разворачивает **последний** дамп во временную базу, сверяет состав, удаляет её | по воскресеньям 04:30 |
+
+Расписание — `BACKUP_SCHEDULE` / `RESTORE_CHECK_SCHEDULE` в `.env.prod`, формат
+[systemd OnCalendar](https://www.freedesktop.org/software/systemd/man/systemd.time.html).
+У обоих `Persistent=true`: если сервер был выключен в назначенный час, задание отработает
+сразу после включения — сервер тут ноутбук, его выключают.
+
+Проверка восстановимости не трогает ни прод-базу, ни backend: дамп разворачивается в отдельную
+базу `craft_wms_restore_check`, которая удаляется в конце (в том числе при ошибке). Смысл — ловить
+битые дампы заранее: бэкап, который ни разу не разворачивали, это файл неизвестного качества.
 
 ```bash
-bash /opt/craft-wms/app/deploy/pg-backup.sh     # разовый дамп в /opt/craft-wms/backups (gzip, ротация 14 дней)
+systemctl list-timers 'craft-wms-*'              # когда следующий запуск
+journalctl -u craft-wms-backup -n 30             # что делал бэкап
+journalctl -u craft-wms-restore-check -n 30      # результат последней проверки
+
+bash /opt/craft-wms/app/deploy/pg-backup.sh              # разовый дамп прямо сейчас
+bash /opt/craft-wms/app/deploy/pg-restore.sh --check     # проверить последний дамп вручную
 ```
-Ежедневно по расписанию — в `crontab` (пользователь с доступом к docker):
+
+#### Восстановление после потери данных
+
+⚠ **Разрушающая операция:** содержимое базы замещается дампом.
+
+```bash
+bash /opt/craft-wms/app/deploy/pg-restore.sh                    # из самого свежего дампа
+bash /opt/craft-wms/app/deploy/pg-restore.sh /path/to/dump.gz   # из конкретного
 ```
-30 3 * * * /bin/bash /opt/craft-wms/app/deploy/pg-backup.sh >> /var/log/craft-wms-backup.log 2>&1
-```
+
+Что делает скрипт, по шагам: проверяет целостность архива → **снимает страховочный дамп текущего
+состояния** (`pre-restore-*.sql.gz`, остаётся в `backups/`) → останавливает backend и рвёт
+оставшиеся соединения → пересоздаёт базу → разворачивает дамп → сверяет состав → поднимает backend.
+
+Подтверждение — ввод имени базы (`craft_wms`); любой другой ответ прерывает без изменений.
+Ключ `--yes` пропускает вопрос (для скриптов). Ошибка на любом шаге прекращает работу: битый архив
+отсекается **до** остановки backend, пустой страховочный дамп — **до** удаления базы.
+
+После восстановления проверьте `https://<домен>/ready` (200).
 
 ### Файрвол (по желанию)
 

@@ -1,0 +1,12 @@
+[Unit]
+# Проверка восстановимости последнего дампа: разворачивает его во ВРЕМЕННУЮ базу, сверяет
+# состав и удаляет её. Прод-база и backend не затрагиваются.
+# Смысл: бэкап, который ни разу не разворачивали, — это не бэкап, а файл неизвестного качества.
+Description=Craft WMS backup restore check (temporary database)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=__REPO_ROOT__
+ExecStart=/bin/bash __REPO_ROOT__/deploy/pg-restore.sh --check
