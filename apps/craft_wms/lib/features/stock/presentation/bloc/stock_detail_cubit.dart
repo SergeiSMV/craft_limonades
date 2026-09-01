@@ -54,6 +54,18 @@ class StockDetailCubit extends Cubit<StockDetailState> {
     );
   }
 
+  /// Привязать ШК к товару (P-FS-17): POST → перезагрузка карточки, чтобы список ШК пришёл
+  /// с сервера, а не собирался локально. Возвращает `null` при успехе либо [Failure] — диалог
+  /// показывает её у себя (в частности 409 «ШК уже за другим товаром») и остаётся открытым,
+  /// поэтому в state ошибку не кладём: карточка позади не должна уходить в экран ошибки.
+  Future<Failure?> bindBarcode(String code) async {
+    final res = await _repo.bindBarcode(goodId: _goodId, barcode: code);
+    final failure = res.fold((f) => f, (_) => null);
+    if (failure != null) return failure;
+    await load(_goodId);
+    return null;
+  }
+
   /// Отвязать ошибочный ШК товара (P-FS-12): DELETE → перезагрузка карточки. Ошибку — в state.
   Future<void> unbindBarcode(String code) async {
     final res = await _repo.unbindBarcode(code);

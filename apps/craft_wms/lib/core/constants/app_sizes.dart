@@ -26,6 +26,9 @@ abstract final class AppSizes {
   static const double kIcon200 = 200;
   static const double kIcon256 = 256;
 
+  //* --- Маркеры ---------------------------------------------------------- *//
+  static const double kDotMark = 8; // точка-отметка выбранного варианта
+
   //* --- Text Sizes ------------------------------------------------------- *//
   static const double kText12 = 12;
   static const double kText13 = 13;

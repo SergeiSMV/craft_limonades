@@ -55,6 +55,14 @@ abstract final class AppInsets {
   static const EdgeInsets left10 = EdgeInsets.only(left: 10);
   static const EdgeInsets left12 = EdgeInsets.only(left: 12);
 
+  //* --- Диалоги ---------------------------------------------------------- *//
+  /// Поля вокруг диалога. Дефолтные 40 по бокам на экране ТСД (360dp) съедают ширину —
+  /// подписи кнопок переносятся на вторую строку.
+  static const EdgeInsets dialogInset = EdgeInsets.symmetric(
+    horizontal: 16,
+    vertical: 24,
+  );
+
   //* --- Веб-портал (сайдбар) --------------------------------------------- *//
   static const EdgeInsets menuList = EdgeInsets.symmetric(
     vertical: 20,

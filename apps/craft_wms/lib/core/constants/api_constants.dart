@@ -49,6 +49,9 @@ abstract final class ApiConst {
   /// Путь карточки товара по id: `goods/{id}`.
   static String goodById(String id) => 'goods/$id';
 
+  ///**POST** - привязать ШК к товару (201; 409 — ШК уже за другим товаром): `barcodes`.
+  static const String barcodes = 'barcodes';
+
   ///**GET** - товар по штрихкоду (404, если ШК не привязан) · **DELETE** - отвязать ШК (204, P-FS-12): `barcodes/{code}`.
   static String barcodeByCode(String code) => 'barcodes/$code';
 
