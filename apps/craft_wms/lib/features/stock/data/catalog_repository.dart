@@ -74,6 +74,27 @@ class CatalogRepository {
     }
   }
 
+  /// Привязать ШК к товару (P-FS-17). Бэкенд идемпотентен: повторная привязка того же кода к тому
+  /// же товару — не ошибка. `symbology` не знаем (код мог прийти сканом или руками) — шлём пустой,
+  /// как и поток ввода остатков. Конфликт «ШК уже за другим товаром» приходит как 409
+  /// (`Failure.server(409)`) — вызывающий отличает его от прочих ошибок по коду.
+  Future<Either<Failure, void>> bindBarcode({
+    required String goodId,
+    required String barcode,
+  }) async {
+    try {
+      await _dio.post<Map<String, dynamic>>(
+        ApiConst.barcodes,
+        data: {'good_id': goodId, 'barcode': barcode, 'symbology': ''},
+      );
+      return const Right(null);
+    } on DioException catch (e) {
+      return Left(_mapError(e));
+    } catch (_) {
+      return const Left(Failure.unknown());
+    }
+  }
+
   /// Отвязать ШК от товара (коррекция ошибочной привязки, P-FS-12). DELETE идемпотентен (204).
   Future<Either<Failure, void>> unbindBarcode(String code) async {
     try {

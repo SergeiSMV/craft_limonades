@@ -9,13 +9,16 @@ import '../../../../../core/constants/app_sizes.dart';
 import '../../../../../core/gen/strings.g.dart';
 import '../../../../../core/theme/semibold_text.dart';
 import '../../bloc/stock_detail_cubit.dart';
+import 'bind_barcode_button.dart';
+import 'bind_barcode_dialog.dart';
 import 'expandable_card.dart';
 
 /// Секция «Штрихкоды (N)» карточки товара (P-FS-12): раскрывающийся список привязанных ШК
 /// с отвязкой ошибочного (крестик справа, с подтверждением).
 ///
-/// Не показывается совсем, если ШК не привязаны или карточка ещё грузится: пустой блок
-/// на экране ТСД только занимает место, а число в заголовке до загрузки врало бы.
+/// Пока карточка грузится, секции нет совсем: число в заголовке до загрузки врало бы.
+/// Если ШК не привязано ни одного, вместо сворачиваемого блока — одна кнопка «Привязать
+/// штрихкод +»: заголовок «Штрихкоды (0)» и пустой раскрывающийся список только занимали бы место.
 class BarcodesSection extends StatelessWidget {
   const BarcodesSection({super.key});
 
@@ -42,11 +45,28 @@ class BarcodesSection extends StatelessWidget {
     if (ok == true) cubit.unbindBarcode(code);
   }
 
+  /// Открыть диалог привязки ШК. Cubit сам перезагружает карточку после успеха, поэтому
+  /// здесь ничего доделывать не нужно.
+  Future<void> openBindDialog(BuildContext context) async {
+    final cubit = context.read<StockDetailCubit>();
+    await showDialog<bool>(
+      context: context,
+      builder: (_) => BindBarcodeDialog(onBind: cubit.bindBarcode),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = context.watch<StockDetailCubit>().state;
-    if (state.status != StockDetailStatus.loaded || state.barcodes.isEmpty) {
+    if (state.status != StockDetailStatus.loaded) {
       return const SizedBox.shrink();
+    }
+
+    if (state.barcodes.isEmpty) {
+      return Padding(
+        padding: AppInsets.bottom16,
+        child: BindBarcodeButton(onPressed: () => openBindDialog(context)),
+      );
     }
 
     // Отступ до следующей секции держим внутри блока: когда ШК нет и блок скрыт,
@@ -78,6 +98,12 @@ class BarcodesSection extends StatelessWidget {
               ),
             ],
             AppBoxes.kHeight8,
+            Padding(
+              padding: AppInsets.h8 + AppInsets.bottom8,
+              child: BindBarcodeButton(
+                onPressed: () => openBindDialog(context),
+              ),
+            ),
           ],
         ),
       ),
