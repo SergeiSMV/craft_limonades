@@ -22,14 +22,20 @@ var ErrNotFound = errors.New("not found")
 
 // GoodsFilter — параметры выборки товаров. Пустые поля = без фильтра.
 type GoodsFilter struct {
-	Query      string  // подстрока по name/code (ILIKE)
-	GroupID    *string // фильтр по группе
-	SupplierID *string // фильтр по поставщику
+	Words      []string // слова поиска: каждое должно встретиться в name/code/full_name
+	GroupID    *string  // фильтр по группе
+	SupplierID *string  // фильтр по поставщику
 	Limit      int
 	Offset     int
 }
 
 // List возвращает товары с присоединёнными именами группы/поставщика + общее число под фильтр.
+//
+// Поиск — «все слова присутствуют, порядок не важен»: NOT EXISTS отсекает товар, у которого
+// хоть одно слово не встретилось. Ищем по склейке name+code+full_name, обе стороны сравнения
+// нормализованы (нижний регистр, «ё»→«е»); слова приходят уже нормализованными из сервиса.
+// LIKE по подстроке индекс не использует — на текущем каталоге (сотни позиций) это неважно;
+// при росте до десятков тысяч лечится расширением pg_trgm и GIN-индексом.
 //
 // Фильтр по группе — по ПОДДЕРЕВУ: товар привязан к самой глубокой группе своего пути (листу),
 // поэтому выбор родительской группы («Матрица …», «-Товары/…») должен вернуть товары всех её
@@ -48,12 +54,16 @@ func (r *GoodsRepository) List(ctx context.Context, f GoodsFilter) ([]model.Good
 		FROM goods g
 		LEFT JOIN nomenclature_groups ng ON ng.id = g.group_id
 		LEFT JOIN suppliers s           ON s.id = g.supplier_id
-		WHERE ($1 = '' OR g.name ILIKE '%' || $1 || '%' OR g.code ILIKE '%' || $1 || '%')
+		WHERE (cardinality($1::text[]) = 0 OR NOT EXISTS (
+		        SELECT 1 FROM unnest($1::text[]) AS w
+		        WHERE replace(lower(g.name || ' ' || coalesce(g.code, '') || ' ' || coalesce(g.full_name, '')), 'ё', 'е')
+		              NOT LIKE '%' || w || '%'
+		      ))
 		  AND ($2::uuid IS NULL OR g.group_id IN (SELECT id FROM group_subtree))
 		  AND ($3::uuid IS NULL OR g.supplier_id = $3::uuid)
 		ORDER BY g.name
 		LIMIT $4 OFFSET $5`,
-		f.Query, f.GroupID, f.SupplierID, f.Limit, f.Offset)
+		f.Words, f.GroupID, f.SupplierID, f.Limit, f.Offset)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list goods: %w", err)
 	}

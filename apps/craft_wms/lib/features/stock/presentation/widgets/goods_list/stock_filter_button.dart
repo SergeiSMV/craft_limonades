@@ -6,6 +6,7 @@ import '../../../../../core/constants/app_borders.dart';
 import '../../../../../core/constants/app_boxes.dart';
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/constants/app_insets.dart';
+import '../../../../../core/constants/app_sizes.dart';
 import '../../../../../core/gen/strings.g.dart';
 import '../../../../../core/theme/regular_text.dart';
 import '../../../../../core/theme/semibold_text.dart';
@@ -19,6 +20,7 @@ class FilterButton extends StatelessWidget {
   void openFilters(BuildContext context) {
     final cubit = context.read<GoodsListCubit>();
     showModalBottomSheet<void>(
+      backgroundColor: AppColors.kNeumorphicBg,
       context: context,
       isScrollControlled: true,
       showDragHandle: false,
@@ -49,7 +51,7 @@ class FilterButton extends StatelessWidget {
           boxShape: NeumorphicBoxShape.roundRect(AppBorders.kCircular8),
         ),
         padding: AppInsets.all12,
-        child: Icon(MdiIcons.tune, color: AppColors.kTextMain),
+        child: Icon(MdiIcons.filterVariant, color: AppColors.kSidebarHover),
       ),
     );
   }
@@ -76,67 +78,29 @@ class _FilterSheet extends StatelessWidget {
               style: SemiboldTextStyles().semiboldInter18,
             ),
             AppBoxes.kHeight16,
-            // key по значению — чтобы после «Сбросить» дропдаун показал «Все».
-            DropdownButtonFormField<String?>(
-              key: ValueKey('flt-group-${state.groupId}'),
-              initialValue: state.groupId,
-              isExpanded: true,
-              borderRadius: AppBorders.kCircular8,
-              decoration: InputDecoration(
-                labelText: t.stockListScreen.filterGroup,
-                border: const OutlineInputBorder(),
-                isDense: true,
-              ),
-              items: [
-                DropdownMenuItem<String?>(
-                  value: null,
-                  child: Text(t.stockListScreen.filterAll),
-                ),
-                for (final g in state.groups)
-                  DropdownMenuItem<String?>(
-                    value: g.id,
-                    child: Text(
-                      g.name,
-                      overflow: TextOverflow.ellipsis,
-                      style: RegularTextStyles().regularInter14,
-                    ),
-                  ),
-              ],
-              onChanged: cubit.setGroup,
+            _FilterDropdown(
+              label: t.stockListScreen.filterGroup,
+              // key по значению — чтобы после «Сбросить» дропдаун показал «Все».
+              fieldKey: ValueKey('flt-group-${state.groupId}'),
+              selectedId: state.groupId,
+              options: [for (final g in state.groups) (id: g.id, name: g.name)],
+              onSelected: cubit.setGroup,
             ),
             AppBoxes.kHeight12,
-            DropdownButtonFormField<String?>(
-              key: ValueKey('flt-supplier-${state.supplierId}'),
-              initialValue: state.supplierId,
-              isExpanded: true,
-              borderRadius: AppBorders.kCircular8,
-              decoration: InputDecoration(
-                labelText: t.stockListScreen.filterSupplier,
-                border: const OutlineInputBorder(),
-                isDense: true,
-              ),
-              items: [
-                DropdownMenuItem<String?>(
-                  value: null,
-                  child: Text(t.stockListScreen.filterAll),
-                ),
-                for (final s in state.suppliers)
-                  DropdownMenuItem<String?>(
-                    value: s.id,
-                    child: Text(
-                      s.name,
-                      overflow: TextOverflow.ellipsis,
-                      style: RegularTextStyles().regularInter14,
-                    ),
-                  ),
+            _FilterDropdown(
+              label: t.stockListScreen.filterSupplier,
+              fieldKey: ValueKey('flt-supplier-${state.supplierId}'),
+              selectedId: state.supplierId,
+              options: [
+                for (final s in state.suppliers) (id: s.id, name: s.name),
               ],
-              onChanged: cubit.setSupplier,
+              onSelected: cubit.setSupplier,
             ),
             AppBoxes.kHeight16,
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton(
+                  child: TextButton(
                     onPressed: cubit.resetFilters,
                     child: Text(t.stockListScreen.reset),
                   ),
@@ -152,6 +116,177 @@ class _FilterSheet extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Выпадающий фильтр листа: подпись, вдавленное неоморфное поле и меню, где каждый
+/// вариант — выпуклая неоморфная кнопка. Длинные названия групп/поставщиков переносятся
+/// на следующую строку, а не обрезаются многоточием: варианты меню тянутся по высоте
+/// (`itemHeight: null`), а в свёрнутом поле высота фиксированная — там строка одна.
+class _FilterDropdown extends StatelessWidget {
+  const _FilterDropdown({
+    required this.label,
+    required this.fieldKey,
+    required this.selectedId,
+    required this.options,
+    required this.onSelected,
+  });
+
+  /// Подпись над полем.
+  final String label;
+
+  /// Ключ поля: меняется вместе с выбранным значением, чтобы «Сбросить» вернул «Все».
+  final Key fieldKey;
+
+  /// Выбранный вариант; `null` — «Все».
+  final String? selectedId;
+
+  /// Варианты фильтра.
+  final List<({String id, String name})> options;
+
+  /// Применить выбранный фильтр.
+  final ValueChanged<String?> onSelected;
+
+  /// Выбрать вариант: закрыть меню дропдауна и применить фильтр.
+  ///
+  /// Контекст берём у самого пункта меню: он живёт в маршруте выпадающего списка, тогда как
+  /// контекст листа закрыл бы весь нижний лист вместо меню.
+  void select(BuildContext itemContext, String? id) {
+    Navigator.of(itemContext).pop();
+    onSelected(id);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: AppInsets.left6,
+          child: Text(
+            label,
+            style: RegularTextStyles().regularInter12.copyWith(
+              color: AppColors.kTextMuted,
+            ),
+          ),
+        ),
+        Neumorphic(
+          style: NeumorphicStyle(
+            shadowLightColor: AppColors.kNeumorphicLight,
+            shadowDarkColor: AppColors.kNeumorphicDark,
+            intensity: 1,
+            color: AppColors.kNeumorphicBg,
+            depth: -2,
+            shape: NeumorphicShape.flat,
+          ),
+          // Прозрачный focusColor гасит штатную тёмную подложку выбранного пункта:
+          // Flutter подсвечивает его через `Ink(color: Theme.of(context).focusColor)`.
+          // Тема захватывается вместе с меню (InheritedTheme.capture), поэтому доходит
+          // до пунктов в маршруте выпадающего списка. Отметка выбора — красная точка.
+          child: Theme(
+            data: Theme.of(context).copyWith(focusColor: Colors.transparent),
+            child: DropdownButtonFormField<String?>(
+              key: fieldKey,
+              initialValue: selectedId,
+              isExpanded: true,
+              // null — разрешает пункту быть выше одной строки (иначе жёсткие 48 px и обрезка).
+              itemHeight: null,
+              borderRadius: AppBorders.kCircular8,
+              dropdownColor: AppColors.kNeumorphicBg,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(
+                  borderRadius: AppBorders.kCircular8,
+                  borderSide: BorderSide.none,
+                ),
+                isDense: true,
+              ),
+              // В свёрнутом поле — обычный текст, а не кнопка: иначе внутри поля рисовалась бы
+              // вторая неоморфная плашка.
+              selectedItemBuilder: (_) => [
+                _fieldLabel(t.stockListScreen.filterAll),
+                for (final o in options) _fieldLabel(o.name),
+              ],
+              items: [
+                _item(null, t.stockListScreen.filterAll),
+                for (final o in options) _item(o.id, o.name),
+              ],
+              onChanged: onSelected,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Название выбранного варианта в свёрнутом поле — одной строкой.
+  Widget _fieldLabel(String name) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Text(
+        name,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: RegularTextStyles().regularInter14,
+      ),
+    );
+  }
+
+  /// Вариант меню — неоморфная кнопка. Тап обрабатывает она сама: её `GestureDetector`
+  /// перехватывает жест раньше `DropdownMenuItem`, поэтому штатный `onChanged` не сработал бы.
+  DropdownMenuItem<String?> _item(String? id, String name) {
+    return DropdownMenuItem<String?>(
+      value: id,
+      child: Builder(
+        builder: (itemContext) => Padding(
+          padding: AppInsets.v4,
+          child: NeumorphicButton(
+            onPressed: () => select(itemContext, id),
+            style: NeumorphicStyle(
+              shadowLightColor: AppColors.kNeumorphicLight,
+              shadowDarkColor: AppColors.kNeumorphicDark,
+              intensity: 1,
+              color: AppColors.kNeumorphicBg,
+              depth: 2,
+              shape: NeumorphicShape.flat,
+              boxShape: NeumorphicBoxShape.roundRect(AppBorders.kCircular8),
+            ),
+            padding: AppInsets.all8,
+            child: Row(
+              children: [
+                Expanded(
+                  // Без overflow-обрезки: длинное название переносится на следующую строку.
+                  child: Text(name, style: RegularTextStyles().regularInter14),
+                ),
+                if (id == selectedId) ...[
+                  AppBoxes.kWidth8,
+                  const _SelectedDot(),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Отметка выбранного варианта в меню фильтра — красная точка справа.
+class _SelectedDot extends StatelessWidget {
+  const _SelectedDot() : super(key: selectedDotKey);
+
+  /// Ключ отметки — по нему её находит тест (класс приватный).
+  static const Key selectedDotKey = Key('filter-selected-dot');
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: AppSizes.kDotMark,
+      height: AppSizes.kDotMark,
+      decoration: const BoxDecoration(
+        color: AppColors.kDanger,
+        shape: BoxShape.circle,
       ),
     );
   }

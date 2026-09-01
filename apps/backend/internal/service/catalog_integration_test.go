@@ -227,3 +227,96 @@ func TestCatalog_stock(t *testing.T) {
 }
 
 func strptr(s string) *string { return &s }
+
+// Поиск товаров по словам: «все слова присутствуют, порядок не важен» + нормализация «ё»/«е».
+// Регрессия P-FS-17: раньше вся строка искалась одной подстрокой и «фома бекон» не находило
+// «Арахис в хрустящей корочке Бекон (ТМ Фома Лукич)».
+func TestCatalog_goodsSearchByWords(t *testing.T) {
+	pool := testutil.StartPostgres(t)
+	ctx := context.Background()
+	svc := newCatalogSvc(pool)
+	goods := repository.NewGoodsRepository(pool)
+
+	// Товары кладём напрямую: нужны точные наименования под случаи поиска.
+	seed := []struct{ code, name, fullName string }{
+		{"90001", "Арахис в хрустящей корочке Бекон (ТМ Фома Лукич)", ""},
+		{"90002", "Семечки Берёзовые жареные", "Семечки подсолнечника Берёзовые"},
+		{"90003", "Сухарики ржаные", "Сухарики ржаные с чесноком ТМ Фома Лукич"},
+	}
+	for _, g := range seed {
+		if _, err := goods.Upsert(ctx, pool, g.code, g.name, g.fullName, "шт", nil, nil); err != nil {
+			t.Fatalf("посев товара %q: %v", g.code, err)
+		}
+	}
+
+	// names возвращает наименования найденных товаров по поисковой строке.
+	names := func(query string) []string {
+		page, err := svc.ListGoods(ctx, service.GoodsQuery{Query: query})
+		if err != nil {
+			t.Fatalf("ListGoods(%q): %v", query, err)
+		}
+		out := make([]string, 0, len(page.Items))
+		for _, g := range page.Items {
+			out = append(out, g.Name)
+		}
+		return out
+	}
+
+	// contains — есть ли товар с таким наименованием среди найденных.
+	contains := func(got []string, want string) bool {
+		for _, n := range got {
+			if n == want {
+				return true
+			}
+		}
+		return false
+	}
+
+	t.Run("слова в любом порядке и не подряд", func(t *testing.T) {
+		for _, q := range []string{"фома бекон", "бекон фома", "ФОМА БЕКОН", "фома бек"} {
+			got := names(q)
+			if !contains(got, seed[0].name) {
+				t.Fatalf("запрос %q не нашёл товар: %v", q, got)
+			}
+		}
+	})
+
+	t.Run("слово из другого товара отсекает выдачу", func(t *testing.T) {
+		if got := names("фома сухарики"); contains(got, seed[0].name) {
+			t.Fatalf("«фома сухарики» не должно находить арахис: %v", got)
+		}
+		// А вот сухарики — должно: «Фома Лукич» есть в их полном наименовании.
+		if got := names("фома сухарики"); !contains(got, seed[2].name) {
+			t.Fatalf("«фома сухарики» должно находить сухарики по full_name: %v", got)
+		}
+	})
+
+	t.Run("ё и е взаимозаменяемы", func(t *testing.T) {
+		for _, q := range []string{"берёзовые", "березовые", "БЕРЕЗОВЫЕ"} {
+			if got := names(q); !contains(got, seed[1].name) {
+				t.Fatalf("запрос %q не нашёл товар с «ё»: %v", q, got)
+			}
+		}
+	})
+
+	t.Run("поиск по коду и по полному наименованию", func(t *testing.T) {
+		if got := names("90003"); !contains(got, seed[2].name) {
+			t.Fatalf("поиск по коду сломан: %v", got)
+		}
+		if got := names("чесноком"); !contains(got, seed[2].name) {
+			t.Fatalf("поиск по full_name сломан: %v", got)
+		}
+	})
+
+	t.Run("метасимволы LIKE ищутся буквально", func(t *testing.T) {
+		if got := names("%"); len(got) != 0 {
+			t.Fatalf("«%%» не должен работать как шаблон, нашлось: %v", got)
+		}
+	})
+
+	t.Run("пустой запрос отдаёт всё", func(t *testing.T) {
+		if got := names("   "); len(got) < len(seed) {
+			t.Fatalf("пустой запрос должен вернуть весь каталог, нашлось %d", len(got))
+		}
+	})
+}

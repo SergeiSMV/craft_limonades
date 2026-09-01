@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"strings"
 
 	"craftwms/internal/model"
 	"craftwms/internal/repository"
@@ -12,6 +13,36 @@ const (
 	defaultLimit = 50
 	maxLimit     = 200
 )
+
+// Максимум слов в поисковом запросе: каждое слово — отдельный LIKE по каждой строке,
+// защищаемся от запроса-простыни.
+const maxSearchWords = 10
+
+// likeEscaper экранирует метасимволы LIKE: без этого ввод «50%» искал бы «50» и любой хвост.
+var likeEscaper = strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`)
+
+// normalizeSearch приводит текст к виду, в котором сравниваются обе стороны поиска:
+// нижний регистр и «ё»→«е» (кладовщик набирает «береза», в 1С — «Берёза»).
+func normalizeSearch(s string) string {
+	return strings.ReplaceAll(strings.ToLower(s), "ё", "е")
+}
+
+// searchWords разбивает поисковую строку на слова для поиска «все слова присутствуют,
+// порядок не важен»: «фома бекон» найдёт «Арахис в хрустящей корочке Бекон (ТМ Фома Лукич)».
+// Пустая строка даёт пустой слайс — фильтр не применяется.
+func searchWords(query string) []string {
+	fields := strings.Fields(query)
+	if len(fields) > maxSearchWords {
+		fields = fields[:maxSearchWords]
+	}
+	words := make([]string, 0, len(fields))
+	for _, f := range fields {
+		if w := likeEscaper.Replace(normalizeSearch(f)); w != "" {
+			words = append(words, w)
+		}
+	}
+	return words
+}
 
 // Page — страница списка для выдачи клиенту. Items всегда непустой слайс (в JSON — [], не null).
 type Page[T any] struct {
@@ -83,7 +114,7 @@ type GoodsQuery struct {
 func (s *CatalogService) ListGoods(ctx context.Context, q GoodsQuery) (Page[model.Good], error) {
 	limit, offset := clampPaging(q.Limit, q.Offset)
 	items, total, err := s.goods.List(ctx, repository.GoodsFilter{
-		Query: q.Query, GroupID: q.GroupID, SupplierID: q.SupplierID, Limit: limit, Offset: offset,
+		Words: searchWords(q.Query), GroupID: q.GroupID, SupplierID: q.SupplierID, Limit: limit, Offset: offset,
 	})
 	if err != nil {
 		return Page[model.Good]{}, err
