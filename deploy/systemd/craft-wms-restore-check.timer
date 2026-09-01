@@ -1,0 +1,10 @@
+[Unit]
+# Расписание проверки (__SCHEDULE__) — из RESTORE_CHECK_SCHEDULE в .env.prod.
+Description=Craft WMS backup restore check timer
+
+[Timer]
+OnCalendar=__SCHEDULE__
+Persistent=true
+
+[Install]
+WantedBy=timers.target
