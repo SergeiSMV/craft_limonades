@@ -219,12 +219,40 @@ sudo mkdir -p /opt/craft-wms && cd /opt/craft-wms
 sudo nano .env.prod        # вставить содержимое infra/.env.prod.example и заполнить (см. ниже)
 ```
 
-**2. Скачать код** (репозиторий приватный — GitHub попросит логин и токен PAT со scope `repo`):
+**2. Дать серверу доступ к приватному репозиторию — deploy key (read-only).**
+
+По HTTPS не подойдёт: авто-обновление (`update.sh`) делает `git pull` из systemd-таймера, где нет
+терминала, и запрос логина/токена там просто некому ввести. Нужен ключ, лежащий у root.
+
+Сначала проверьте, нет ли ключа у root уже — генерация с тем же именем затрёт существующий,
+и то, что им пользовалось, отвалится:
 ```bash
-sudo git clone https://github.com/SergeiSMV/craft_limonades.git app
+sudo ls -la /root/.ssh/
+sudo ssh -o BatchMode=yes -o ConnectTimeout=5 -T git@github.com   # вдруг доступ уже есть
+```
+Если `Hi <репозиторий>! You've successfully authenticated` — ключ уже настроен, шаг можно пропустить.
+Если приватного ключа (`id_ed25519`/`id_rsa`) нет — создать:
+```bash
+sudo ssh-keygen -t ed25519 -C "craft-wms deploy $(hostname)" -f /root/.ssh/id_ed25519 -N ""
+sudo cat /root/.ssh/id_ed25519.pub          # ← скопировать
+```
+Если ключ есть, но занят под другое — завести отдельный (`-f /root/.ssh/id_craft_wms`) и указать
+его для github.com в `/root/.ssh/config`.
+
+Публичный ключ добавить в GitHub: репозиторий → **Settings → Deploy keys → Add deploy key**,
+галку «Allow write access» **не ставить** — серверу нужно только читать.
+
+Заранее доверить хост, иначе таймер упрётся в вопрос про fingerprint, на который никто не ответит:
+```bash
+sudo mkdir -p /root/.ssh && sudo ssh-keyscan github.com | sudo tee -a /root/.ssh/known_hosts >/dev/null
 ```
 
-**3. Запустить установку — она делает всё остальное** (ПО → nginx+TLS → запуск → миграции → админ → авто-обновление):
+**3. Скачать код** (по SSH, не по HTTPS):
+```bash
+sudo git clone git@github.com:SergeiSMV/craft_limonades.git app
+```
+
+**4. Запустить установку — она делает всё остальное** (ПО → nginx+TLS → запуск → миграции → админ → авто-обновление):
 ```bash
 sudo bash app/deploy/install.sh
 ```
