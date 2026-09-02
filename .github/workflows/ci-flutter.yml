@@ -17,6 +17,7 @@ on:
     branches: [main]
     paths:
       - 'apps/craft_wms/**'
+      - 'infra/portal/**'
       - '.github/workflows/ci-flutter.yml'
 
 # Отменяем устаревшие прогоны на том же ref — экономим минуты Actions.
@@ -26,6 +27,8 @@ concurrency:
 
 permissions:
   contents: read
+  # Публикация образа портала в GHCR и удаление устаревших версий пакета.
+  packages: write
 
 jobs:
   # --- Flutter (ТСД APK + веб-портал): codegen, анализ, тесты, сборка APK и web ---
@@ -66,22 +69,63 @@ jobs:
         run: |
           if [ -d test ]; then flutter test; else echo "тестов пока нет — пропуск"; fi
 
-      # Гейт компиляции ТСД-APK (без выгрузки артефакта — см. ниже).
-      - name: Build APK (debug)
-        run: flutter build apk --debug
-
-      # --- Веб-портал (Flutter Web), точка входа lib/main_portal.dart ---
       # Реальный .env — в .gitignore (свой на каждой машине). В CI подставляем заглушку
-      # из шаблона .env.example: так честно проходим путь --dart-define-from-file и ловим
-      # ошибки чтения конфига, не завися от секретов. BASE_URL в App-коде имеет defaultValue,
-      # но сборка портала обязана пройти именно с внешним .env — как в проде.
-      - name: Prepare .env (CI stub for web build)
+      # из шаблона: так проверяется, что .env.example остаётся разбираемым, и честно
+      # проходится путь --dart-define-from-file, которым APK собирается на самом деле.
+      - name: Prepare .env (CI stub)
         run: cp .env.example .env
 
-      # Гейт компиляции портала: ломающая web-сборку правка красит весь flutter-джоб.
-      - name: Build web (portal)
-        run: flutter build web -t lib/main_portal.dart --dart-define-from-file=.env --release
+      # Гейт компиляции ТСД-APK. Именно из .env: у ТСД нативная сборка, адрес сервера
+      # зашивается в приложение и относительным быть не может — на устройстве нет origin,
+      # относительно которого его разрешать.
+      - name: Build APK (debug)
+        run: flutter build apk --debug --dart-define-from-file=.env
 
-      # Артефакты (APK / web-бандл) НЕ выгружаем: на free-тарифе они выедали квоту хранилища
-      # артефактов и роняли upload. CI = только гейт (analyze/test/build). Готовые APK и web-бандл
-      # собираются и размещаются вручную по необходимости (локальная release-сборка).
+      # --- Веб-портал (Flutter Web), точка входа lib/main_portal.dart ---
+      # Портал собирается с ОТНОСИТЕЛЬНЫМ BASE_URL и .env не использует: он живёт на одном
+      # origin с API (ADR-0015), а dio поддерживает относительный baseUrl на Web. Благодаря
+      # этому бандл не привязан к домену — собирается один раз и годится где угодно, поэтому
+      # его и можно публиковать образом. Ничего другого из окружения сборки порталу не нужно:
+      # WAREHOUSE_NAME читает только главный экран ТСД.
+      - name: Build web (portal)
+        run: flutter build web -t lib/main_portal.dart --dart-define=BASE_URL=/api/v1/ --release
+
+      # APK артефактом не выгружаем: на free-тарифе артефакты выедали квоту хранилища
+      # и роняли upload. Для APK CI остаётся гейтом, готовый файл собирается вручную.
+
+      # --- Публикация портала (только релиз в main) ---
+      # Бандл уезжает ОБРАЗОМ в GHCR, а не артефактом: артефакты упираются в квоту, а GHCR
+      # с прод-сервера доступен и уже используется (Docker Hub из России отваливается по TLS).
+      # Сервер забирает образ в обычном обновлении и раскладывает бандл — publish портала
+      # перестаёт быть ручной операцией.
+      - name: Log in to GHCR
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push portal image
+        if: github.event_name == 'push'
+        uses: docker/build-push-action@v6
+        with:
+          # Контекст — каталог build: Dockerfile копирует из него подкаталог web.
+          context: apps/craft_wms/build
+          file: infra/portal/Dockerfile
+          push: true
+          # Только :main, без тега по sha: иначе каждая сборка оставляет версию навсегда,
+          # а бандл весит полсотни мегабайт.
+          tags: ghcr.io/${{ github.repository_owner }}/craft-wms-portal:main
+
+      # Прошлые версии остаются в реестре без тега и копятся. Держим одну на всякий случай
+      # (откат), остальные удаляем.
+      - name: Prune old portal images
+        if: github.event_name == 'push'
+        continue-on-error: true
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: craft-wms-portal
+          package-type: container
+          min-versions-to-keep: 2
+          delete-only-untagged-versions: true

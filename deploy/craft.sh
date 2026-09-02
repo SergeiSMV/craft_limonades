@@ -356,6 +356,29 @@ act_install() {
   need_root "$DEPLOY_DIR/install.sh"
 }
 
+# act_portal — обновить веб-портал из образа, не трогая backend.
+# Отдельным пунктом, потому что портал и API обновляются независимо: правка вёрстки
+# не должна требовать полного цикла обновления сервера.
+act_portal() {
+  if [[ -z "$(portal_image)" ]]; then
+    printf '  PORTAL_IMAGE не задан — портал обновляется вручную.\n'
+    printf '  Задать: пункт «Редактировать настройки».\n'; return
+  fi
+  need_root_fn portal_deploy
+}
+
+# need_root_fn ФУНКЦИЯ — выполнить функцию библиотеки с правами root.
+# Раскладка бандла пишет в каталог портала, который принадлежит root.
+need_root_fn() {
+  if [[ $EUID -eq 0 ]]; then "$@"
+  elif command -v sudo >/dev/null 2>&1; then
+    printf '%sТребуются права root — запускаю через sudo.%s\n' "$C_DIM" "$C_OFF"
+    sudo CRAFT_ENV_FILE="$ENV_FILE" bash -c "cd '$REPO_ROOT' && source deploy/_lib.sh && $1"
+  else
+    printf '%sНужен root. Перезапустите: sudo bash deploy/craft.sh%s\n' "$C_BAD" "$C_OFF"; return 1
+  fi
+}
+
 # act_check — «что уже готово, а что ещё нужно сделать».
 # Проверяет всю цепочку от настроек до внешней копии и по каждому пункту говорит,
 # каким действием он закрывается. Это ответ на вопрос «я всё настроил или нет?».
@@ -572,24 +595,25 @@ show_menu() {
   section "Установка и обновление"
   item 1 "Установить / переустановить" "install.sh, нужен root"
   item 2 "Обновить сейчас"             "update.sh"
-  item 3 "История обновлений"          "journal + коммиты"
+  item 3 "Обновить веб-портал"        "бандл из образа"
+  item 4 "История обновлений"          "journal + коммиты"
 
   section "Состояние"
-  item 4 "Что готово, а что ещё нужно" "чек-лист по всему серверу"
-  item 5 "Статус: контейнеры и таймеры"
-  item 6 "Логи backend"
-  item 7 "Проверить /health и /ready"
+  item 5 "Что готово, а что ещё нужно" "чек-лист по всему серверу"
+  item 6 "Статус: контейнеры и таймеры"
+  item 7 "Логи backend"
+  item 8 "Проверить /health и /ready"
 
   section "Бэкапы"
-  item 8  "Настроить бэкапы" "шифрование и где хранить, пошагово"
-  item 9  "Список бэкапов и внешней копии"
-  item 10 "Сделать бэкап сейчас"
-  item 11 "Проверить восстановимость дампа" "во временной базе, прод не трогает"
-  item 12 "Восстановить из дампа" "⚠ замещает базу"
+  item 9  "Настроить бэкапы" "шифрование и где хранить, пошагово"
+  item 10 "Список бэкапов и внешней копии"
+  item 11 "Сделать бэкап сейчас"
+  item 12 "Проверить восстановимость дампа" "во временной базе, прод не трогает"
+  item 13 "Восстановить из дампа" "⚠ замещает базу"
 
   section "Конфигурация"
-  item 13 "Показать настройки" "секреты скрыты"
-  item 14 "Редактировать настройки"
+  item 14 "Показать настройки" "секреты скрыты"
+  item 15 "Редактировать настройки"
 
   printf '\n'
   item 0 "Выйти"
@@ -606,21 +630,22 @@ main() {
     case "$choice" in
       1)  act_install;        pause ;;
       2)  need_root "$DEPLOY_DIR/update.sh";  pause ;;
-      3)  act_update_history; pause ;;
-      4)  act_check;          pause ;;
-      5)  act_status;         pause ;;
-      6)  act_logs;           pause ;;
-      7)  bind="$(have_env && get_env BACKEND_BIND)"; bind="${bind:-127.0.0.1:8080}"
+      3)  act_portal;         pause ;;
+      4)  act_update_history; pause ;;
+      5)  act_check;          pause ;;
+      6)  act_status;         pause ;;
+      7)  act_logs;           pause ;;
+      8)  bind="$(have_env && get_env BACKEND_BIND)"; bind="${bind:-127.0.0.1:8080}"
           printf '  /health → %s\n' "$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "http://$bind/health" 2>/dev/null || echo "нет ответа")"
           printf '  /ready  → %s\n' "$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "http://$bind/ready"  2>/dev/null || echo "нет ответа")"
           pause ;;
-      8)  act_setup_backup;   pause ;;
-      9)  act_backup_list;    pause ;;
-      10) run "$DEPLOY_DIR/pg-backup.sh"; pause ;;
-      11) run "$DEPLOY_DIR/pg-restore.sh" --check; pause ;;
-      12) act_restore;        pause ;;
-      13) act_show_config;    pause ;;
-      14) act_edit_config ;;
+      9)  act_setup_backup;   pause ;;
+      10) act_backup_list;    pause ;;
+      11) run "$DEPLOY_DIR/pg-backup.sh"; pause ;;
+      12) run "$DEPLOY_DIR/pg-restore.sh" --check; pause ;;
+      13) act_restore;        pause ;;
+      14) act_show_config;    pause ;;
+      15) act_edit_config ;;
       0|q|Q) printf 'Пока.\n'; exit 0 ;;
       "") ;;
       *)  printf '  %sНет такого пункта: %s%s\n' "$C_BAD" "$choice" "$C_OFF"; pause ;;
