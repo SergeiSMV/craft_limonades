@@ -130,6 +130,17 @@ state_line() {
   kv "стек:"   "$stack"
   kv "/ready:" "$ready"
 
+  # Куда уезжает копия и шифруется ли она. Раньше это было видно только внутри пункта 7,
+  # то есть проблему «дампы лежат на одном диске с базой» надо было пойти и поискать.
+  local enc off
+  [[ -n "$(get_env BACKUP_PASSPHRASE)" ]] && enc="${C_OK}шифр.${C_OFF}" || enc="${C_BAD}БЕЗ шифрования${C_OFF}"
+  off="$(get_env OFFSITE_DEST)"; [[ -z "$off" ]] && off="$(get_env OFFSITE_RCLONE_REMOTE)"
+  if [[ -n "$off" ]]; then
+    kv "копия:" "$off  ($enc)"
+  else
+    kv "копия:" "${C_BAD}не настроена${C_OFF} — дампы только на диске сервера, см. пункт 8"
+  fi
+
   # Последний дамп — самый частый вопрос «а бэкап-то есть?».
   local last
   last="$(ls -1t "$BACKUP_DIR"/craft_wms-*.sql.gz* 2>/dev/null | head -1)"
@@ -214,6 +225,97 @@ act_backup_list() {
   fi
 }
 
+# act_setup_backup — пошаговая настройка шифрования и внешней копии.
+# Без неё меню только констатировало «внешняя копия не настроена», а дальше администратор
+# оставался наедине с nano: сгенерировать фразу, не забыть унести её с сервера, выбрать
+# транспорт, проверить, что копия реально доехала. Это и есть шаги, которые чаще всего
+# откладывают, — поэтому они собраны здесь и заканчиваются проверкой.
+act_setup_backup() {
+  if ! have_env; then
+    printf '  %s нет — сначала установка (пункт 1).\n' "$ENV_FILE"; return
+  fi
+  if [[ ! -w "$ENV_FILE" ]]; then
+    printf '  %sНет прав на запись в %s. Перезапустите: sudo bash deploy/craft.sh%s\n' \
+      "$C_BAD" "$ENV_FILE" "$C_OFF"; return
+  fi
+
+  printf '%s— Шаг 1 из 3: шифрование дампов —%s\n' "$C_HEAD" "$C_OFF"
+  local pass; pass="$(get_env BACKUP_PASSPHRASE)"
+  if [[ -n "$pass" ]]; then
+    printf '  Парольная фраза уже задана. Менять её нельзя без последствий:\n'
+    printf '  %sуже снятые дампы зашифрованы старой фразой и станут нечитаемыми.%s\n' "$C_WARN" "$C_OFF"
+    if ask_yes "Всё равно сгенерировать новую?"; then
+      pass=""
+    else
+      printf '  оставляю прежнюю\n'
+    fi
+  fi
+  if [[ -z "$pass" ]]; then
+    pass="$(openssl rand -base64 32)"
+    set_env BACKUP_PASSPHRASE "$pass" || { printf '  %sне удалось записать в %s%s\n' "$C_BAD" "$ENV_FILE" "$C_OFF"; return; }
+    printf '\n  %sФраза записана в .env.prod. ВОТ ОНА — другого раза не будет:%s\n\n' "$C_WARN" "$C_OFF"
+    printf '      %s%s%s\n\n' "$C_OK" "$pass" "$C_OFF"
+    printf '  %sСохраните её ВНЕ сервера — в менеджер паролей.%s\n' "$C_WARN" "$C_OFF"
+    printf '  .env.prod живёт только здесь: погибнет диск — внешняя копия останется\n'
+    printf '  нечитаемой, то есть внешней копии фактически нет.\n\n'
+    local ack
+    read -rp "$(printf 'Наберите СОХРАНИЛ, чтобы продолжить: ')" ack
+    if [[ "$ack" != "СОХРАНИЛ" ]]; then
+      printf '  %sНе подтверждено. Фраза в .env.prod уже записана — сохраните её сейчас же.%s\n' "$C_BAD" "$C_OFF"
+      return
+    fi
+  fi
+
+  printf '\n%s— Шаг 2 из 3: куда уезжает копия —%s\n' "$C_HEAD" "$C_OFF"
+  printf '  %sВ дампе персональные данные сотрудников — вынос за пределы склада%s\n' "$C_DIM" "$C_OFF"
+  printf '  %sсогласуйте с заказчиком.%s\n\n' "$C_DIM" "$C_OFF"
+  printf '   1) внешний диск или каталог на этом сервере\n'
+  printf '   2) второй хост в локальной сети (rsync по SSH)\n'
+  printf '   3) облако, в том числе Яндекс.Диск (rclone)\n'
+  printf '   0) пропустить\n\n'
+  local k dest
+  read -rp "$(printf 'Вариант: ')" k
+  case "$k" in
+    1) read -rp "Путь (например /mnt/craft-backup): " dest
+       [[ -z "$dest" ]] && { printf '  пусто — пропускаю\n'; return; }
+       if [[ ! -d "$dest" ]]; then
+         ask_yes "Каталога нет. Создать $dest?" && mkdir -p "$dest" || { printf '  пропускаю\n'; return; }
+       fi
+       mountpoint -q "$dest" 2>/dev/null || printf '  %sЭто не точка монтирования. Каталог на системном диске от отказа диска не спасает.%s\n' "$C_WARN" "$C_OFF"
+       set_env OFFSITE_DEST "$dest" ;;
+    2) read -rp "Назначение (user@host:/path): " dest
+       [[ -z "$dest" ]] && { printf '  пусто — пропускаю\n'; return; }
+       local key; read -rp "Путь к SSH-ключу (Enter — ключ по умолчанию): " key
+       local -a ssh_id=(); [[ -n "$key" ]] && ssh_id=(-i "$key")
+       printf '  Проверяю доступ…\n'
+       if ssh -o BatchMode=yes -o ConnectTimeout=5 ${ssh_id[@]+"${ssh_id[@]}"} "${dest%%:*}" true 2>/dev/null; then
+         printf '  %sSSH отвечает.%s\n' "$C_OK" "$C_OFF"
+       else
+         printf '  %sSSH не отвечает без пароля — заведите ключ, иначе ночной таймер не пройдёт.%s\n' "$C_WARN" "$C_OFF"
+       fi
+       set_env OFFSITE_DEST "$dest"; [[ -n "$key" ]] && set_env OFFSITE_SSH_KEY "$key" ;;
+    3) if ! command -v rclone >/dev/null 2>&1; then
+         printf '  %srclone не установлен.%s Поставьте и заведите remote:\n' "$C_BAD" "$C_OFF"
+         printf '    curl https://rclone.org/install.sh | sudo bash\n    rclone config\n'
+         return
+       fi
+       printf '  Доступные remote: %s\n' "$(rclone listremotes 2>/dev/null | tr '\n' ' ')"
+       read -rp "Назначение (например yandex:craft-wms-backups): " dest
+       [[ -z "$dest" ]] && { printf '  пусто — пропускаю\n'; return; }
+       rclone lsd "${dest%%:*}:" >/dev/null 2>&1 \
+         && printf '  %sremote отвечает.%s\n' "$C_OK" "$C_OFF" \
+         || printf '  %sremote не отвечает — проверьте rclone config.%s\n' "$C_WARN" "$C_OFF"
+       set_env OFFSITE_RCLONE_REMOTE "$dest" ;;
+    *) printf '  пропускаю\n'; return ;;
+  esac
+
+  printf '\n%s— Шаг 3 из 3: контрольный прогон —%s\n' "$C_HEAD" "$C_OFF"
+  ask_yes "Снять бэкап сейчас и проверить, что копия доехала?" || return
+  run "$DEPLOY_DIR/pg-backup.sh" || { printf '  %sбэкап не прошёл — разберитесь по выводу выше%s\n' "$C_BAD" "$C_OFF"; return; }
+  printf '\n'
+  act_backup_list
+}
+
 act_show_config() {
   if ! have_env; then printf '  %s нет\n' "$ENV_FILE"; return; fi
   printf '%s— %s (значения секретов скрыты) —%s\n' "$C_HEAD" "$ENV_FILE" "$C_OFF"
@@ -264,13 +366,14 @@ show_menu() {
 
   section "Бэкапы"
   item 7  "Список бэкапов и внешней копии"
-  item 8  "Сделать бэкап сейчас"
-  item 9  "Проверить восстановимость дампа" "во временной базе, прод не трогает"
-  item 10 "Восстановить из дампа" "⚠ замещает базу"
+  item 8  "Настроить шифрование и внешнюю копию" "пошагово"
+  item 9  "Сделать бэкап сейчас"
+  item 10 "Проверить восстановимость дампа" "во временной базе, прод не трогает"
+  item 11 "Восстановить из дампа" "⚠ замещает базу"
 
   section "Конфигурация"
-  item 11 "Показать .env.prod" "секреты скрыты"
-  item 12 "Редактировать .env.prod"
+  item 12 "Показать .env.prod" "секреты скрыты"
+  item 13 "Редактировать .env.prod"
 
   printf '\n'
   item 0 "Выйти"
@@ -295,11 +398,12 @@ main() {
           printf '  /ready  → %s\n' "$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "http://$bind/ready"  2>/dev/null || echo "нет ответа")"
           pause ;;
       7)  act_backup_list;    pause ;;
-      8)  run "$DEPLOY_DIR/pg-backup.sh"; pause ;;
-      9)  run "$DEPLOY_DIR/pg-restore.sh" --check; pause ;;
-      10) act_restore;        pause ;;
-      11) act_show_config;    pause ;;
-      12) act_edit_config ;;
+      8)  act_setup_backup;   pause ;;
+      9)  run "$DEPLOY_DIR/pg-backup.sh"; pause ;;
+      10) run "$DEPLOY_DIR/pg-restore.sh" --check; pause ;;
+      11) act_restore;        pause ;;
+      12) act_show_config;    pause ;;
+      13) act_edit_config ;;
       0|q|Q) printf 'Пока.\n'; exit 0 ;;
       "") ;;
       *)  printf '  %sНет такого пункта: %s%s\n' "$C_BAD" "$choice" "$C_OFF"; pause ;;

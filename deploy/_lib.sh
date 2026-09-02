@@ -33,6 +33,26 @@ get_env() {
   printf '%s' "$v"
 }
 
+# set_env КЛЮЧ ЗНАЧЕНИЕ — идемпотентная запись переменной в .env.prod.
+# Значение подставляется как есть, без sed: парольные фразы из `openssl rand -base64`
+# содержат `/` и `+`, и в sed-выражении они ломали бы разделитель.
+# Содержимое перезаписывается через `cat >`, а не подменой файла, — так сохраняются
+# права и владелец: в .env.prod лежат секреты, и файл обычно 600 у root.
+set_env() {
+  local key="$1" val="$2" tmp line found=0
+  tmp="$(mktemp)" || return 1
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    if [[ "$line" == "$key="* ]]; then
+      printf '%s=%s\n' "$key" "$val" >> "$tmp"; found=1
+    else
+      printf '%s\n' "$line" >> "$tmp"
+    fi
+  done < "$ENV_FILE"
+  [[ $found -eq 0 ]] && printf '%s=%s\n' "$key" "$val" >> "$tmp"
+  cat "$tmp" > "$ENV_FILE"
+  rm -f "$tmp"
+}
+
 # compose ... — docker compose с нашим env-файлом и prod-compose.
 compose() { docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"; }
 
