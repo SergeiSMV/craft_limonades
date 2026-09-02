@@ -213,8 +213,30 @@ ya_rclone() {
       rclone "$@"
 }
 
-# yandex_check — проверка, что логин и пароль реально пускают на Диск.
+# yandex_check — быстрая проверка, что логин и пароль пускают на Диск.
+# Дёшево и без побочных эффектов, поэтому годится для чек-листа.
 yandex_check() { ya_rclone about ya: >/dev/null 2>&1; }
+
+# yandex_roundtrip — настоящая проверка: залить файл, увидеть его в списке, удалить.
+# `about` отвечает лишь «пускают ли», а сломаться может именно заливка: квота, ограничения
+# WebDAV, права на папку. Раз бэкап нужен для восстановления, проверять надо то, от чего
+# оно зависит, — что файл реально доезжает и читается обратно.
+yandex_roundtrip() {
+  local folder tmp name rc=0
+  folder="$(yandex_folder)"
+  tmp="$(mktemp -d)" || return 1
+  name="craft-wms-selftest-$(date +%Y%m%d-%H%M%S).txt"
+  printf 'craft-wms self test\n' > "$tmp/$name"
+
+  ya_rclone copy "$tmp/$name" "ya:$folder" >/dev/null 2>&1 || rc=1
+  if [[ $rc -eq 0 ]]; then
+    ya_rclone lsf "ya:$folder" 2>/dev/null | grep -qx "$name" || rc=2
+  fi
+  # Убираем за собой в любом случае: тестовый файл в папке бэкапов только мешает.
+  ya_rclone delete "ya:$folder/$name" >/dev/null 2>&1
+  rm -rf "$tmp"
+  return $rc
+}
 
 # offsite_push КАТАЛОГ — отправляет зашифрованные дампы во внешнюю копию.
 # Настраивается двумя независимыми переменными, можно задать обе (копия в двух местах):
