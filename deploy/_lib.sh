@@ -178,6 +178,44 @@ decrypt_dump() {
   [[ -s "$dst" ]] || die "расшифровка дала пустой файл: $dst"
 }
 
+# ── Яндекс.Диск через WebDAV ────────────────────────────────────────────────
+# Доступ выдаётся паролем приложения, а не OAuth-токеном. Причина практическая: OAuth
+# требует браузера, которого на сервере нет, — пришлось бы получать токен на другой машине
+# и переносить строкой. Пароль приложения заводится в веб-интерфейсе Яндекса с любого
+# устройства и вводится здесь как обычный пароль.
+#
+# Подключение задаётся ПЕРЕМЕННЫМИ ОКРУЖЕНИЯ, а не файлом rclone.conf. Так единственным
+# местом для секретов остаётся .env.prod (рядом с паролем БД и фразой шифрования), и не
+# возникает вопроса, в чьём домашнем каталоге лежит конфиг: бэкап по расписанию запускает
+# systemd от root, а меню человек может открыть и от себя.
+YA_WEBDAV_URL="https://webdav.yandex.ru"
+
+# yandex_configured — заданы ли логин и пароль приложения.
+yandex_configured() {
+  [[ -n "$(get_env YANDEX_LOGIN)" && -n "$(get_env YANDEX_WEBDAV_PASSWORD)" ]]
+}
+
+# yandex_folder — папка на Диске, куда складываются дампы.
+yandex_folder() { local f; f="$(get_env YANDEX_FOLDER)"; printf '%s' "${f:-craft-wms-backups}"; }
+
+# ya_rclone АРГ… — rclone с подключением «ya:» к Яндекс.Диску.
+# Пароль передаётся через окружение в obscure-виде (этого требует rclone). Окружение
+# процесса читается только root'ом, тогда как аргументы командной строки видны всем
+# в `ps` — поэтому именно окружение, а не флаг.
+ya_rclone() {
+  local pass
+  pass="$(rclone obscure "$(get_env YANDEX_WEBDAV_PASSWORD)" 2>/dev/null)"
+  env RCLONE_CONFIG_YA_TYPE=webdav \
+      RCLONE_CONFIG_YA_URL="$YA_WEBDAV_URL" \
+      RCLONE_CONFIG_YA_VENDOR=other \
+      RCLONE_CONFIG_YA_USER="$(get_env YANDEX_LOGIN)" \
+      RCLONE_CONFIG_YA_PASS="$pass" \
+      rclone "$@"
+}
+
+# yandex_check — проверка, что логин и пароль реально пускают на Диск.
+yandex_check() { ya_rclone about ya: >/dev/null 2>&1; }
+
 # offsite_push КАТАЛОГ — отправляет зашифрованные дампы во внешнюю копию.
 # Настраивается двумя независимыми переменными, можно задать обе (копия в двух местах):
 #   OFFSITE_DEST          — назначение rsync: локальный путь (внешний диск /mnt/…) ИЛИ
@@ -191,8 +229,22 @@ offsite_push() {
   dest="$(get_env OFFSITE_DEST)"
   remote="$(get_env OFFSITE_RCLONE_REMOTE)"
 
-  if [[ -z "$dest" && -z "$remote" ]]; then
-    journal_err "внешняя копия не настроена (OFFSITE_DEST / OFFSITE_RCLONE_REMOTE пусты) — дампы лежат только на диске сервера."
+  # Яндекс.Диск — отдельной веткой: подключение собирается из логина и пароля приложения,
+  # файла конфигурации rclone для него не нужно.
+  if yandex_configured; then
+    command -v rclone >/dev/null 2>&1 || die "нет rclone, а Яндекс.Диск настроен (см. docs/deploy/prod-deploy.md)."
+    local folder; folder="$(yandex_folder)"
+    log "Внешняя копия (Яндекс.Диск) → $folder"
+    ya_rclone copy --include "$pattern" "$dir" "ya:$folder" \
+      || die "загрузка на Яндекс.Диск не прошла (проверьте YANDEX_LOGIN и пароль приложения)."
+    local keep; keep="$(get_env KEEP_DAYS)"; keep="${keep:-14}"
+    ya_rclone delete --min-age "${keep}d" --include "$pattern" "ya:$folder" \
+      || warn "ротация на Яндекс.Диске не прошла — старые дампы могли остаться."
+    pushed=1
+  fi
+
+  if [[ -z "$dest" && -z "$remote" ]] && ! yandex_configured; then
+    journal_err "внешняя копия не настроена (Яндекс.Диск / OFFSITE_DEST / OFFSITE_RCLONE_REMOTE пусты) — дампы лежат только на диске сервера."
     warn "Внешняя копия не настроена — пропускаю."
     return 0
   fi

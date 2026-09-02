@@ -134,7 +134,8 @@ state_line() {
   # то есть проблему «дампы лежат на одном диске с базой» надо было пойти и поискать.
   local enc off
   [[ -n "$(get_env BACKUP_PASSPHRASE)" ]] && enc="${C_OK}шифр.${C_OFF}" || enc="${C_BAD}БЕЗ шифрования${C_OFF}"
-  off="$(get_env OFFSITE_DEST)"; [[ -z "$off" ]] && off="$(get_env OFFSITE_RCLONE_REMOTE)"
+  if yandex_configured; then off="Яндекс.Диск ($(get_env YANDEX_LOGIN))"
+  else off="$(get_env OFFSITE_DEST)"; [[ -z "$off" ]] && off="$(get_env OFFSITE_RCLONE_REMOTE)"; fi
   if [[ -n "$off" ]]; then
     kv "копия:" "$off  ($enc)"
   else
@@ -197,6 +198,16 @@ act_backup_list() {
     printf '  каталога нет — бэкап ещё не делался\n'
   fi
 
+  if have_env && yandex_configured; then
+    printf '\n%s— Внешняя копия: Яндекс.Диск / %s —%s\n' "$C_HEAD" "$(yandex_folder)" "$C_OFF"
+    if ya_rclone lsl "ya:$(yandex_folder)" 2>/dev/null | tail -8 | sed 's/^/  /' | grep -q .; then
+      ya_rclone lsl "ya:$(yandex_folder)" 2>/dev/null | tail -8 | sed 's/^/  /'
+    else
+      printf '  %sпусто или Диск не отвечает%s\n' "$C_WARN" "$C_OFF"
+    fi
+    return
+  fi
+
   local dest remote
   dest="$(have_env && get_env OFFSITE_DEST)"
   remote="$(have_env && get_env OFFSITE_RCLONE_REMOTE)"
@@ -225,107 +236,81 @@ act_backup_list() {
   fi
 }
 
-# yandex_remote_name — имя rclone-remote, которое заводит мастер. Фиксированное:
-# пользователю не нужно его выдумывать, а скриптам — угадывать.
-YA_REMOTE=craft-yandex
-YA_FOLDER=craft-wms-backups
-
-# setup_yandex — проводка по настройке Яндекс.Диска целиком, от установки rclone
-# до проверки, что папка создалась. Рассчитано на человека, который про rclone не слышал.
-#
-# Почему именно так. У Яндекс.Диска нет ни SSH, ни rsync — только API, и работать с ним
-# умеет rclone. Доступ выдаётся по OAuth, а OAuth требует браузера, которого на сервере нет.
-# Поэтому единственный рабочий путь: получить токен на своей машине, где браузер есть,
-# и перенести его сюда строкой. `rclone config` в интерактивном режиме здесь же спросил бы
-# два десятка вопросов — вместо этого создаём remote одной командой из готового токена.
+# setup_yandex — проводка по подключению Яндекс.Диска целиком.
+# Рассчитано на человека, который про rclone и WebDAV не слышал: он вводит логин
+# и пароль приложения, всё остальное скрипт делает и проверяет сам.
 setup_yandex() {
-  # 1. rclone
   if ! command -v rclone >/dev/null 2>&1; then
-    printf '  rclone не установлен — он нужен для работы с Яндекс.Диском.\n'
-    ask_yes "Установить rclone сейчас?" || { printf '  без rclone Яндекс.Диск не настроить\n'; return 1; }
-    printf '  Ставлю (скрипт с rclone.org)…\n'
+    printf '  Для работы с Яндекс.Диском нужен rclone — сейчас его нет.\n'
+    ask_yes "Установить rclone?" || { printf '  без rclone Яндекс.Диск не подключить\n'; return 1; }
+    printf '  Ставлю (официальный скрипт rclone.org)…\n'
     if [[ $EUID -eq 0 ]]; then curl -fsSL https://rclone.org/install.sh | bash
     else curl -fsSL https://rclone.org/install.sh | sudo bash; fi
     command -v rclone >/dev/null 2>&1 || { printf '  %sустановить не удалось%s\n' "$C_BAD" "$C_OFF"; return 1; }
   fi
-  printf '  %srclone: %s%s\n' "$C_OK" "$(rclone version 2>/dev/null | head -1)" "$C_OFF"
+  printf '  %s%s%s\n' "$C_OK" "$(rclone version 2>/dev/null | head -1)" "$C_OFF"
 
-  # 2. Чей это конфиг. Ночной бэкап запускает systemd от root, поэтому remote обязан быть
-  # в конфиге root. Настроенный из-под обычного пользователя remote таймер не увидит.
-  if [[ $EUID -ne 0 ]]; then
-    printf '\n  %sВы не root.%s Бэкап по расписанию запускается от root, и remote нужен\n' "$C_WARN" "$C_OFF"
-    printf '  именно в его конфиге. Перезапустите: sudo bash deploy/craft.sh\n'
-    ask_yes "Всё равно продолжить (настройка будет только для текущего пользователя)?" || return 1
-  fi
-
-  # 3. Готовый remote уже может быть.
-  if rclone listremotes 2>/dev/null | grep -qx "$YA_REMOTE:"; then
-    printf '\n  Remote «%s» уже настроен. Проверяю доступ…\n' "$YA_REMOTE"
-    if rclone lsd "$YA_REMOTE:" >/dev/null 2>&1; then
-      printf '  %sЯндекс.Диск отвечает — заново настраивать не нужно.%s\n' "$C_OK" "$C_OFF"
-      ask_yes "Всё-таки перенастроить (нужен новый токен)?" || { ya_finish; return $?; }
+  # Уже настроено и работает — второй раз спрашивать пароль незачем.
+  if yandex_configured; then
+    printf '\n  Яндекс.Диск уже подключён (%s). Проверяю доступ…\n' "$(get_env YANDEX_LOGIN)"
+    if yandex_check; then
+      printf '  %sДиск отвечает — перенастраивать не нужно.%s\n' "$C_OK" "$C_OFF"
+      ask_yes "Всё-таки ввести другой логин или пароль?" || { ya_finish; return $?; }
     else
-      printf '  %sНе отвечает — токен просрочен или отозван, нужен новый.%s\n' "$C_WARN" "$C_OFF"
+      printf '  %sДиск не отвечает — пароль приложения отозван или изменён.%s\n' "$C_WARN" "$C_OFF"
     fi
   fi
 
-  # 4. Токен. Единственный шаг, который нельзя сделать на сервере.
-  printf '\n%s  ── Токен доступа к Яндекс.Диску ──%s\n' "$C_HEAD" "$C_OFF"
-  printf '  На сервере нет браузера, а Яндекс выдаёт доступ только через него.\n'
-  printf '  Поэтому токен получаем на ВАШЕМ компьютере и переносим сюда.\n\n'
-  printf '  %s1.%s На своём компьютере установите rclone: %shttps://rclone.org/downloads/%s\n' "$C_NUM" "$C_OFF" "$C_DIM" "$C_OFF"
-  printf '       macOS:  brew install rclone\n'
-  printf '       Windows: скачайте архив по ссылке выше и распакуйте\n\n'
-  printf '  %s2.%s Там же в терминале выполните:\n\n' "$C_NUM" "$C_OFF"
-  printf '         %srclone authorize "yandex"%s\n\n' "$C_OK" "$C_OFF"
-  printf '  %s3.%s Откроется браузер — войдите в Яндекс и нажмите «Разрешить».\n\n' "$C_NUM" "$C_OFF"
-  printf '  %s4.%s В терминале появится строка вида\n' "$C_NUM" "$C_OFF"
-  printf '         %s{"access_token":"y0_AgAA…","token_type":"bearer","refresh_token":"…"}%s\n' "$C_DIM" "$C_OFF"
-  printf '       Скопируйте её %sцеликом, вместе с фигурными скобками%s.\n\n' "$C_WARN" "$C_OFF"
+  printf '\n%s  ── Пароль приложения для Яндекс.Диска ──%s\n' "$C_HEAD" "$C_OFF"
+  printf '  Обычный пароль от аккаунта не подойдёт: для доступа по протоколу WebDAV\n'
+  printf '  Яндекс выдаёт отдельный «пароль приложения». Создаётся он в браузере\n'
+  printf '  на любом устройстве — телефон подойдёт, на сервере браузер не нужен.\n\n'
+  printf '  %s1.%s Откройте:  %shttps://id.yandex.ru/security/app-passwords%s\n' "$C_NUM" "$C_OFF" "$C_OK" "$C_OFF"
+  printf '  %s2.%s Выберите тип доступа «Файлы» (WebDAV).\n' "$C_NUM" "$C_OFF"
+  printf '  %s3.%s Назовите пароль, например «craft-wms сервер», и создайте его.\n' "$C_NUM" "$C_OFF"
+  printf '  %s4.%s Яндекс покажет пароль %sодин раз%s — скопируйте его.\n\n' "$C_NUM" "$C_OFF" "$C_WARN" "$C_OFF"
+  printf '  %sЭтот пароль даёт доступ только к файлам Диска и отзывается там же,%s\n' "$C_DIM" "$C_OFF"
+  printf '  %sне затрагивая основной пароль аккаунта.%s\n\n' "$C_DIM" "$C_OFF"
 
-  local token
-  read -rp "$(printf 'Вставьте токен сюда (Enter без текста — отмена): ')" token
-  [[ -z "$token" ]] && { printf '  отменено\n'; return 1; }
-  if [[ "$token" != *access_token* ]]; then
-    printf '  %sЭто не похоже на токен — в нём должно быть "access_token".%s\n' "$C_BAD" "$C_OFF"
-    printf '  Скопируйте строку целиком, начиная с «{».\n'
-    return 1
-  fi
+  local login pass
+  read -rp "$(printf 'Логин на Яндексе (без @yandex.ru): ')" login
+  [[ -z "$login" ]] && { printf '  отменено\n'; return 1; }
+  login="${login%%@*}"
+  read -rp "$(printf 'Пароль приложения: ')" pass
+  [[ -z "$pass" ]] && { printf '  отменено\n'; return 1; }
 
-  # 5. Создаём remote одной командой — интерактивный `rclone config` тут не нужен.
-  printf '\n  Создаю подключение «%s»…\n' "$YA_REMOTE"
-  rclone config delete "$YA_REMOTE" >/dev/null 2>&1
-  # --non-interactive обязателен: без него rclone, даже получив готовый токен, пытается
-  # поднять локальный веб-сервер под OAuth-редирект и ждать браузера. На сервере браузера
-  # нет, и команда просто повисла бы. Код возврата тут неинформативен (rclone печатает
-  # JSON-состояние диалога), поэтому успех проверяем следующим шагом — реальным обращением.
-  rclone config create "$YA_REMOTE" yandex token "$token" --non-interactive >/dev/null 2>&1
-  printf '  Конфигурация rclone: %s\n' "$(rclone config file 2>/dev/null | tail -1)"
+  # Пишем в настройки до проверки: проверка читает значения именно оттуда.
+  # При неудаче ниже они очищаются, чтобы не осталось записи о нерабочем доступе.
+  set_env YANDEX_LOGIN "$login"
+  set_env YANDEX_WEBDAV_PASSWORD "$pass"
 
-  # 6. Проверяем, что доступ реальный, а не только записан в конфиг.
-  printf '  Проверяю доступ к диску…\n'
-  if ! rclone lsd "$YA_REMOTE:" >/dev/null 2>&1; then
-    printf '  %sЯндекс.Диск не отвечает.%s Токен просрочен или скопирован не полностью.\n' "$C_BAD" "$C_OFF"
-    printf '  Повторите шаг с `rclone authorize "yandex"` и вставьте строку целиком.\n'
-    # Нерабочее подключение убираем: иначе оно осталось бы в конфиге и при следующем заходе
-    # мастер счёл бы Яндекс.Диск уже настроенным.
-    rclone config delete "$YA_REMOTE" >/dev/null 2>&1
+  printf '\n  Проверяю доступ к Диску…\n'
+  if ! yandex_check; then
+    printf '  %sЯндекс.Диск не пускает.%s Обычно это одно из двух:\n' "$C_BAD" "$C_OFF"
+    printf '    · введён обычный пароль аккаунта вместо пароля приложения;\n'
+    printf '    · пароль скопирован не полностью.\n'
+    set_env YANDEX_LOGIN ""
+    set_env YANDEX_WEBDAV_PASSWORD ""
     return 1
   fi
   printf '  %sДоступ есть.%s\n' "$C_OK" "$C_OFF"
   ya_finish
 }
 
-# ya_finish — папка на диске и запись назначения в .env.prod.
+# ya_finish — папка для дампов на Диске и отчёт о свободном месте.
 ya_finish() {
-  rclone mkdir "$YA_REMOTE:$YA_FOLDER" >/dev/null 2>&1
-  if rclone lsd "$YA_REMOTE:" 2>/dev/null | grep -q "$YA_FOLDER"; then
-    printf '  %sПапка «%s» на диске готова.%s\n' "$C_OK" "$YA_FOLDER" "$C_OFF"
+  local folder; folder="$(yandex_folder)"
+  set_env YANDEX_FOLDER "$folder"
+  ya_rclone mkdir "ya:$folder" >/dev/null 2>&1
+  if ya_rclone lsd "ya:" 2>/dev/null | grep -q "$folder"; then
+    printf '  %sПапка «%s» на Диске готова.%s\n' "$C_OK" "$folder" "$C_OFF"
   else
-    printf '  %sПапку создать не удалось — проверьте место на диске.%s\n' "$C_WARN" "$C_OFF"
+    printf '  %sПапку создать не удалось — проверьте место на Диске.%s\n' "$C_WARN" "$C_OFF"
   fi
-  set_env OFFSITE_RCLONE_REMOTE "$YA_REMOTE:$YA_FOLDER"
-  printf '  Назначение записано: %s:%s\n' "$YA_REMOTE" "$YA_FOLDER"
+  local free
+  free="$(ya_rclone about ya: 2>/dev/null | awk '/^Free:/{print $2, $3}')"
+  [[ -n "$free" ]] && printf '  Свободно на Диске: %s\n' "$free"
+  return 0
 }
 
 # ok / no / warn ТЕКСТ [ЧТО ДЕЛАТЬ] — строка чек-листа.
@@ -410,11 +395,19 @@ act_check() {
   [[ -n "$(get_env BACKUP_PASSPHRASE)" ]] \
     && ck_ok "шифрование дампов настроено" \
     || ck_bad "дампы не шифруются" "пункт «Настроить бэкапы»"
-  local off; off="$(get_env OFFSITE_RCLONE_REMOTE)"; [[ -z "$off" ]] && off="$(get_env OFFSITE_DEST)"
-  if [[ -n "$off" ]]; then
-    ck_ok "внешняя копия настроена: $off"
+  if yandex_configured; then
+    if yandex_check; then
+      ck_ok "внешняя копия: Яндекс.Диск ($(get_env YANDEX_LOGIN)), доступ есть"
+    else
+      ck_bad "Яндекс.Диск настроен, но не пускает" "пункт «Настроить бэкапы»"
+    fi
   else
-    ck_bad "внешней копии нет — дампы на одном диске с базой" "пункт «Настроить бэкапы»"
+    local off; off="$(get_env OFFSITE_RCLONE_REMOTE)"; [[ -z "$off" ]] && off="$(get_env OFFSITE_DEST)"
+    if [[ -n "$off" ]]; then
+      ck_ok "внешняя копия настроена: $off"
+    else
+      ck_bad "внешней копии нет — дампы на одном диске с базой" "пункт «Настроить бэкапы»"
+    fi
   fi
 
   local last; last="$(ls -1t "$BACKUP_DIR"/craft_wms-*.sql.gz* 2>/dev/null | head -1)"
@@ -487,7 +480,8 @@ act_setup_backup() {
     setup_yandex || { printf '\n  %sЯндекс.Диск не настроен — копия останется только на сервере.%s\n' "$C_WARN" "$C_OFF"; }
   fi
   if [[ "$pick" != *2* && "$pick" == *1* ]]; then
-    set_env OFFSITE_RCLONE_REMOTE ""
+    set_env YANDEX_LOGIN ""
+    set_env YANDEX_WEBDAV_PASSWORD ""
     printf '\n  %s⚠ Копии только на сервере.%s Дампы лежат на том же диске, что и база:\n' "$C_BAD" "$C_OFF"
     printf '  отказ диска, кража или шифровальщик уносят и базу, и все копии разом.\n'
     printf '  Вернуться к этому можно в любой момент — этот же пункт меню.\n'
