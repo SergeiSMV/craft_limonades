@@ -56,7 +56,7 @@ if [[ "$(get_env SELF_UPDATE)" != "false" ]]; then
       log "Код деплоя актуален ($after_rev)."
     fi
   else
-    journal_err "git pull не прошёл — продолжаю со старым кодом деплоя. Частые причины: remote по HTTPS (в таймере нет терминала, чтобы ввести токен — нужен deploy key по SSH, см. docs/deploy.md) или локальные правки в $REPO_ROOT."
+    journal_err "git pull не прошёл — продолжаю со старым кодом деплоя. Частые причины: remote по HTTPS (в таймере нет терминала, чтобы ввести токен — нужен deploy key по SSH, см. docs/deploy/prod-deploy.md) или локальные правки в $REPO_ROOT."
   fi
 
   # --- 2. systemd-юниты ---

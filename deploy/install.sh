@@ -53,10 +53,10 @@ if [[ -n "$(get_env OFFSITE_DEST)" ]]; then
   ensure_pkg rsync rsync
 fi
 # rclone намеренно НЕ ставим из apt: в репозиториях Debian/Ubuntu он застревает на старых
-# версиях, а бэкенд yandex у них ломался. Ставится вручную по docs/deploy.md (rclone.org),
+# версиях, а бэкенд yandex у них ломался. Ставится вручную по docs/deploy/prod-deploy.md (rclone.org),
 # там же заводится remote — шаг всё равно интерактивный (OAuth).
 if [[ -n "$(get_env OFFSITE_RCLONE_REMOTE)" ]] && ! command -v rclone >/dev/null 2>&1; then
-  warn "OFFSITE_RCLONE_REMOTE задан, но rclone не установлен — внешняя копия в облако не поедет. См. docs/deploy.md."
+  warn "OFFSITE_RCLONE_REMOTE задан, но rclone не установлен — внешняя копия в облако не поедет. См. docs/deploy/prod-deploy.md."
 fi
 
 # --- 2. Доступ к приватному образу (если задан GHCR_TOKEN) ---

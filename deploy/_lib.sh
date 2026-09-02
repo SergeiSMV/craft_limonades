@@ -21,7 +21,7 @@ COMPOSE_FILE="$REPO_ROOT/infra/docker-compose.prod.yml"
 ENV_FILE="${CRAFT_ENV_FILE:-$(cd "$REPO_ROOT/.." && pwd)/.env.prod}"
 
 require_env_file() {
-  [[ -f "$ENV_FILE" ]] || die "нет файла $ENV_FILE — создайте его (шаблон: infra/.env.prod.example). См. docs/deploy.md."
+  [[ -f "$ENV_FILE" ]] || die "нет файла $ENV_FILE — создайте его (шаблон: infra/.env.prod.example). См. docs/deploy/prod-deploy.md."
 }
 
 # get_env KEY — значение переменной из .env.prod.
@@ -298,7 +298,7 @@ offsite_push() {
   fi
 
   if [[ -n "$remote" ]]; then
-    command -v rclone >/dev/null 2>&1 || die "нет rclone (см. docs/deploy.md), а OFFSITE_RCLONE_REMOTE задан."
+    command -v rclone >/dev/null 2>&1 || die "нет rclone (см. docs/deploy/prod-deploy.md), а OFFSITE_RCLONE_REMOTE задан."
     log "Внешняя копия (rclone) → $remote"
     rclone copy --include "$pattern" "$dir" "$remote" || die "rclone во внешнюю копию не прошёл ($remote)."
     # Ротация на стороне remote: rclone copy сам ничего не удаляет, иначе старые дампы
