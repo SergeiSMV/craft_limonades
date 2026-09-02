@@ -44,10 +44,21 @@ class AuthCubit extends Cubit<AuthState> {
       return;
     }
     final result = await _repo.me();
-    result.fold(
-      (failure) => emit(AuthState.unauthenticated(failure)),
-      (profile) => emit(AuthState.authenticated(profile)),
-    );
+    if (result.isRight) {
+      emit(AuthState.authenticated(result.right));
+      return;
+    }
+    // Сети нет — пробуем локальную сессию: без этого терминал, перезагруженный вне зоны
+    // Wi-Fi, упирается в экран входа, и офлайн-кэш становится недостижим (P2-02).
+    // Отказ сервера (протухший refresh) сюда не попадает: там ошибка не сетевая.
+    if (result.left is NetworkFailure) {
+      final offline = await _repo.offlineSession();
+      if (offline != null) {
+        emit(AuthState.authenticated(offline));
+        return;
+      }
+    }
+    emit(AuthState.unauthenticated(result.left));
   }
 
   /// Вход по бейджу: делегируем репозиторию и превращаем Either в состояние.
