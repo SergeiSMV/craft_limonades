@@ -1,4 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Доступ в сеть. Шаблон Flutter объявляет INTERNET только в debug- и profile-манифестах
+         (там он нужен инструментам hot reload), в релиз он не попадает. Без него резолвер
+         отказывает мгновенно: любой запрос падает с `Failed host lookup`, а приложение
+         показывает «нет связи с сервером» при полностью исправной сети. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+
     <application
         android:label="КЛ: Склад"
         android:name="${applicationName}"
