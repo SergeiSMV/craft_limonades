@@ -6,6 +6,9 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_insets.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/gen/strings.g.dart';
+import '../../../../core/scanner/hardware_scan_listener.dart';
+import '../../../../core/scanner/scan_code.dart';
+import '../../../../core/scanner/scan_deduper.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../stock/data/catalog_models.dart';
 import '../../../stock/data/catalog_repository.dart';
@@ -25,8 +28,12 @@ class CellSelectView extends StatefulWidget {
   State<CellSelectView> createState() => _CellSelectViewState();
 }
 
-class _CellSelectViewState extends State<CellSelectView> {
+class _CellSelectViewState extends State<CellSelectView>
+    with HardwareScanListener {
   final _repo = getIt<CatalogRepository>();
+
+  /// Отсекает дубль, если устройство отдаёт код и в поле, и интентом.
+  final _deduper = ScanDeduper();
 
   /// Справочник ячеек склада, загруженный целиком (для мгновенного локального автокомплита).
   List<Cell> _allCells = const [];
@@ -61,12 +68,24 @@ class _CellSelectViewState extends State<CellSelectView> {
     return null;
   }
 
+  /// Код с аппаратного сканера (intent-режим) — тот же путь, что у ввода в поле.
+  @override
+  void onHardwareScan(ScanCode code) =>
+      _submitAddress(code.raw, symbology: code.symbology);
+
   /// Резолв ячейки по введённому/сканированному адресу (точное совпадение). Основной путь — локально
   /// по загруженному справочнику; если он пуст (загрузка не удалась/не завершилась) — серверный фоллбэк,
   /// чтобы скан работал даже без справочника.
-  Future<void> _submitAddress(String value) async {
+  ///
+  /// Классификация подключается только после неудачного резолва: справочник — источник истины, и
+  /// реальный адрес ячейки должен сработать, даже если его форма ни на что не похожа. Зато когда
+  /// ячейка не нашлась, а код опознан как штрихкод товара, сообщение говорит суть, а не «не найдена».
+  ///
+  /// Единая точка для обоих источников кода, поэтому отсечение дубля стоит здесь: если бы оно
+  /// сидело только на ветке потока, пара «поле + интент» прошла бы мимо него.
+  Future<void> _submitAddress(String value, {String? symbology}) async {
     final address = value.trim();
-    if (address.isEmpty) return;
+    if (address.isEmpty || !_deduper.allow(address)) return;
     Cell? cell = _matchExact(_allCells, address);
     if (cell == null && _allCells.isEmpty) {
       final res = await _repo.listCells(query: address);
@@ -77,7 +96,12 @@ class _CellSelectViewState extends State<CellSelectView> {
       );
     }
     if (cell == null) {
-      _snack(t.stockEntry.cellNotFound);
+      final kind = classifyScan(address, symbology: symbology);
+      _snack(
+        kind == ScanKind.good
+            ? t.stockEntry.scannedGoodInCell
+            : t.stockEntry.cellNotFound,
+      );
       return;
     }
     _cubit.selectCell(cell);

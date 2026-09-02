@@ -10,6 +10,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
+import '../../support/fake_scanner_service.dart';
+
 class _MockRepo extends Mock implements CatalogRepository {}
 
 /// Строка поиска на экране «Остатки»: крестик очистки виден только при непустом вводе
@@ -22,6 +24,7 @@ void main() {
 
   setUp(() {
     LocaleSettings.useDeviceLocale();
+    registerFakeScanner(); // экран подписывается на сканер через DI
     queries.clear();
     repo = _MockRepo();
     when(
