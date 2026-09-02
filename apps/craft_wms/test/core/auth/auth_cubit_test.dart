@@ -20,7 +20,12 @@ void main() {
   );
   const badge = '1000000023456781';
 
-  setUp(() => repo = _MockAuthRepository());
+  setUp(() {
+    repo = _MockAuthRepository();
+    // По умолчанию локальной сессии нет: эти тесты про поведение при живой сети.
+    // Ветки офлайн-входа проверяются отдельно в offline_session_test.dart.
+    when(() => repo.offlineSession()).thenAnswer((_) async => null);
+  });
 
   group('login', () {
     blocTest<AuthCubit, AuthState>(

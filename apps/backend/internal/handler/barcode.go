@@ -60,6 +60,18 @@ func (h *BarcodeHandler) ListByGood(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, list)
 }
 
+// List отдаёт страницу всех привязок ШК — справочник для офлайн-кэша устройства (P2-02).
+// Доступ employee, как у остальных справочников: без него не работает скан без сети.
+func (h *BarcodeHandler) List(w http.ResponseWriter, r *http.Request) {
+	limit, offset := paging(r)
+	page, err := h.svc.List(r.Context(), limit, offset)
+	if err != nil {
+		catalogError(w, "list barcodes", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, page)
+}
+
 // Unbind: DELETE /api/v1/barcodes/{code} — отвязать ошибочный ШК (P-FS-12).
 // 204 — отвязано (идемпотентно: и если ШК уже не было); 400 — пустой код.
 func (h *BarcodeHandler) Unbind(w http.ResponseWriter, r *http.Request) {

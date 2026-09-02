@@ -26,6 +26,15 @@ type Barcode struct {
 	Symbology *string `json:"symbology"` // 'ean13'/'code128'/… или null
 }
 
+// BarcodeLink — привязка ШК к товару для выгрузки справочника целиком (кэш устройства, P2-02).
+// Отличается от Barcode наличием GoodID: там ШК перечисляются внутри известного товара,
+// здесь товар и есть то, что нужно узнать по коду.
+type BarcodeLink struct {
+	Barcode   string  `json:"barcode"`
+	GoodID    string  `json:"good_id"`
+	Symbology *string `json:"symbology"`
+}
+
 // CellLabel — минимум для печати этикетки ячейки: адрес (в штрихкод + текст) и признак напольной
 // (стрелка вниз). Отдельна от Cell — этикетке не нужны id/тип/склад.
 type CellLabel struct {

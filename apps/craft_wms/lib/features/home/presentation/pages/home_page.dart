@@ -10,7 +10,9 @@ import '../../../../core/constants/app_insets.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/gen/assets.gen.dart';
 import '../../../../core/gen/strings.g.dart';
+import '../../../../core/di/injection.dart';
 import '../../../../core/router/app_router.dart';
+import '../../../../core/sync/catalog_sync_service.dart';
 import '../../../../core/theme/bold_text.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/widgets/system_ui_wrapper.dart';
@@ -29,6 +31,27 @@ class HomePage extends StatelessWidget {
   /// Переход к диагностике сканера (служебный экран наладки).
   void goToScannerProbe(BuildContext context) =>
       context.router.push(const ScannerProbeRoute());
+
+  /// Обновить справочники вручную: перечитать их с сервера в локальный кэш.
+  ///
+  /// Нужно, когда на портале только что загрузили номенклатуру или напечатали новые ячейки, —
+  /// ждать следующего входа в приложение ради этого незачем.
+  Future<void> refreshCatalogs(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(t.homeScreen.syncStarted)));
+    final res = await getIt<CatalogSyncService>().refresh();
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            res.isRight ? t.homeScreen.syncDone : t.homeScreen.syncFailed,
+          ),
+        ),
+      );
+  }
 
   /// Выход из приложения.
   void logout(BuildContext context) => context.read<AuthCubit>().logout();
@@ -98,6 +121,15 @@ class HomePage extends StatelessWidget {
                           onTap: () => goToLogs(context),
                           child: Text(
                             t.homeScreen.logsTooltip,
+                            style: RegularTextStyles().regularInter14.copyWith(
+                              color: AppColors.kTileText,
+                            ),
+                          ),
+                        ),
+                        PopupMenuItem<void>(
+                          onTap: () => refreshCatalogs(context),
+                          child: Text(
+                            t.homeScreen.syncTooltip,
                             style: RegularTextStyles().regularInter14.copyWith(
                               color: AppColors.kTileText,
                             ),

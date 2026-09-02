@@ -50,6 +50,8 @@ dependencies:
   material_design_icons_flutter: ^7.0.7296
   flutter_svg: ^2.3.0
   flutter_neumorphic_plus: ^3.5.0
+  drift: ^2.34.4 # локальная БД устройства (sqlite) — офлайн-стор и кэш справочников (P2-02)
+  drift_flutter: ^0.3.1 # подключение drift к файлу БД на устройстве (нативные библиотеки sqlite3)
 
 
 dev_dependencies:
@@ -67,6 +69,7 @@ dev_dependencies:
   slang_build_runner: ^4.18.0 # генерация классов переводов из JSON/YAML
   flutter_gen_runner: ^5.10.0 # генерация типобезопасных ссылок на ассеты (Assets.images.*)
   flutter_native_splash: ^2.4.4 # генерация нативного splash-экрана (до загрузки Flutter)
+  drift_dev: ^2.34.0 # генерация кода таблиц и запросов drift
 
 # FlutterGen: генерирует lib/core/gen/assets.gen.dart (Assets.images.<файл>) —
 # типобезопасный доступ к ассетам вместо строковых путей. Запускается build_runner'ом.
