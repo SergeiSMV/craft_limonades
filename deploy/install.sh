@@ -75,9 +75,19 @@ TEMPLATE="$REPO_ROOT/infra/nginx/craft-wms.conf.template"
 if command -v getent >/dev/null 2>&1 && ! getent hosts "$DOMAIN" >/dev/null; then
   warn "$DOMAIN пока не резолвится в IP — certbot не выпустит серт. Проверьте DNS/проброс порта 80."
 fi
+# Каталог с бандлом веб-портала. Отдаётся nginx'ом с диска на корне домена (ADR-0015).
+PORTAL="$(get_env PORTAL_ROOT)"; PORTAL="${PORTAL:-$(cd "$REPO_ROOT/.." && pwd)/portal}"
+[[ -d "$PORTAL" ]] || warn "каталога портала $PORTAL нет — API будет работать, портал отдаст 404 (залейте бандл)."
+
 log "Генерирую vhost /etc/nginx/sites-available/$DOMAIN"
-export DEPLOY_DOMAIN="$DOMAIN" BACKEND_BIND="$BIND"
-envsubst '${DEPLOY_DOMAIN} ${BACKEND_BIND}' < "$TEMPLATE" > "/etc/nginx/sites-available/$DOMAIN"
+# ⚠ Перезапись существующего vhost затрёт ручные правки. Сохраняем копию: на проде vhost
+# однажды правился руками, и переустановка молча снесла портал.
+if [[ -f "/etc/nginx/sites-available/$DOMAIN" ]]; then
+  cp -a "/etc/nginx/sites-available/$DOMAIN" "/etc/nginx/sites-available/$DOMAIN.bak-$(date +%Y%m%d-%H%M%S)"
+  log "Прежний vhost сохранён рядом с суффиксом .bak-<дата>."
+fi
+export DEPLOY_DOMAIN="$DOMAIN" BACKEND_BIND="$BIND" PORTAL_ROOT="$PORTAL"
+envsubst '${DEPLOY_DOMAIN} ${BACKEND_BIND} ${PORTAL_ROOT}' < "$TEMPLATE" > "/etc/nginx/sites-available/$DOMAIN"
 ln -sfn "/etc/nginx/sites-available/$DOMAIN" "/etc/nginx/sites-enabled/$DOMAIN"
 log "nginx -t…"; nginx -t
 systemctl reload nginx
@@ -86,7 +96,10 @@ certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos -m "$EMAIL" --redirec
 
 # --- 4. Стек: pull → up → миграции → админ ---
 log "Тяну образ и поднимаю стек…"
-compose pull --quiet
+# Только backend: postgres прибит по версии в compose и после первой установки уже лежит
+# локально. Docker Hub при этом бывает недоступен (TLS handshake timeout), и `compose pull`
+# без имени сервиса ронял под set -e всю установку из-за образа, который и не менялся.
+compose pull --quiet backend || warn "не удалось обновить образ backend — продолжаю с тем, что есть локально." 
 compose up -d
 cid="$(compose ps -q backend)"; [[ -n "$cid" ]] || die "контейнер backend не создан."
 log "Жду healthcheck backend…"

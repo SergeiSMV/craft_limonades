@@ -334,6 +334,28 @@ ck_ok()   { printf '  %s✅%s %s\n' "$C_OK" "$C_OFF" "$1"; }
 ck_warn() { printf '  %s⚠%s  %s%s\n' "$C_WARN" "$C_OFF" "$1" "${2:+  → $2}"; }
 ck_bad()  { printf '  %s❌%s %s%s\n' "$C_BAD" "$C_OFF" "$1" "${2:+  → $2}"; }
 
+# act_install — установка с защитой от переустановки вслепую.
+# На чистом сервере пункт запускается сразу. На уже работающем — сначала предупреждение:
+# install.sh перегенерирует vhost из шаблона и заново дёргает certbot. Это не теория —
+# на проде vhost правился руками под веб-портал, и переустановка молча его затёрла,
+# после чего портал отдавал 404 от бэкенда, хотя API и пробы отвечали нормально.
+act_install() {
+  local installed=0
+  have_env && docker_ok && [[ -n "$(compose ps -q backend 2>/dev/null)" ]] && installed=1
+
+  if [[ $installed -eq 1 ]]; then
+    printf '%s⚠ Сервер уже развёрнут.%s Переустановка:\n\n' "$C_WARN" "$C_OFF"
+    printf '  · перезапишет nginx-vhost из шаблона (прежний сохранится рядом\n'
+    printf '    с суффиксом .bak-<дата>, но перестанет действовать);\n'
+    printf '  · заново вызовет certbot;\n'
+    printf '  · пересоздаст контейнеры.\n\n'
+    printf '  %sДанные БД при этом не трогаются.%s Если нужно просто обновиться —\n' "$C_DIM" "$C_OFF"
+    printf '  %sвыберите «Обновить сейчас»: он не трогает nginx и сертификаты.%s\n\n' "$C_DIM" "$C_OFF"
+    ask_yes "Всё равно переустановить?" || { printf '  отменено\n'; return; }
+  fi
+  need_root "$DEPLOY_DIR/install.sh"
+}
+
 # act_check — «что уже готово, а что ещё нужно сделать».
 # Проверяет всю цепочку от настроек до внешней копии и по каждому пункту говорит,
 # каким действием он закрывается. Это ответ на вопрос «я всё настроил или нет?».
@@ -582,7 +604,7 @@ main() {
     read -r choice || exit 0
     printf '\n'
     case "$choice" in
-      1)  need_root "$DEPLOY_DIR/install.sh"; pause ;;
+      1)  act_install;        pause ;;
       2)  need_root "$DEPLOY_DIR/update.sh";  pause ;;
       3)  act_update_history; pause ;;
       4)  act_check;          pause ;;
