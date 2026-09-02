@@ -47,6 +47,18 @@ ensure_pkg certbot certbot
 certbot plugins 2>/dev/null | grep -q nginx || ensure_pkg __certbot_nginx__ python3-certbot-nginx || true
 command -v envsubst >/dev/null 2>&1 || ensure_pkg envsubst gettext-base
 
+# ПО для внешней копии дампов — ставим только под то, что реально настроено.
+# Для шифрования ничего ставить не нужно: openssl есть в любой базовой системе.
+if [[ -n "$(get_env OFFSITE_DEST)" ]]; then
+  ensure_pkg rsync rsync
+fi
+# rclone намеренно НЕ ставим из apt: в репозиториях Debian/Ubuntu он застревает на старых
+# версиях, а бэкенд yandex у них ломался. Ставится вручную по docs/deploy/prod-deploy.md (rclone.org),
+# там же заводится remote — шаг всё равно интерактивный (OAuth).
+if [[ -n "$(get_env OFFSITE_RCLONE_REMOTE)" ]] && ! command -v rclone >/dev/null 2>&1; then
+  warn "OFFSITE_RCLONE_REMOTE задан, но rclone не установлен — внешняя копия в облако не поедет. См. docs/deploy/prod-deploy.md."
+fi
+
 # --- 2. Доступ к приватному образу (если задан GHCR_TOKEN) ---
 GHCR_USER="$(get_env GHCR_USER)"; GHCR_TOKEN="$(get_env GHCR_TOKEN)"
 if [[ -n "$GHCR_USER" && -n "$GHCR_TOKEN" ]]; then

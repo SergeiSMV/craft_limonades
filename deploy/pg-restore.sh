@@ -42,24 +42,51 @@ PG_USER="$(get_env POSTGRES_USER)"; PG_DB="$(get_env POSTGRES_DB)"
 cid="$(compose ps -q db)"
 [[ -n "$cid" ]] || die "контейнер БД не запущен (сначала deploy/install.sh)."
 
-# --- Выбор дампа ---
-if [[ -z "$DUMP" ]]; then
-  DUMP="$(ls -1t "$BACKUP_DIR"/craft_wms-*.sql.gz 2>/dev/null | head -1 || true)"
-  [[ -n "$DUMP" ]] || die "в $BACKUP_DIR нет дампов craft_wms-*.sql.gz — сначала deploy/pg-backup.sh."
-  log "Дамп не указан — беру самый свежий: $(basename "$DUMP")"
-fi
-[[ -f "$DUMP" ]] || die "файл не найден: $DUMP"
-
-# Целостность архива проверяем ДО того, как что-то ронять: битый gzip лучше поймать сейчас.
-log "Проверяю целостность архива…"
-gzip -t "$DUMP" || die "архив повреждён: $DUMP"
-log "Архив цел: $(du -h "$DUMP" | cut -f1), $(date -r "$DUMP" '+%Y-%m-%d %H:%M')"
-
 # psql_admin ... — psql в контейнере БД от служебной базы postgres (не от восстанавливаемой:
 # её нельзя дропнуть, будучи к ней подключённым).
 psql_admin() { docker exec -i "$cid" psql -U "$PG_USER" -d postgres -v ON_ERROR_STOP=1 "$@"; }
 # psql_db DB ... — psql внутри конкретной базы.
 psql_db() { local db="$1"; shift; docker exec -i "$cid" psql -U "$PG_USER" -d "$db" -v ON_ERROR_STOP=1 "$@"; }
+
+# --- Уборка за собой ---
+# Один обработчик на оба хвоста (расшифрованный временный файл и временная база проверки):
+# trap на EXIT ставится один раз, второй `trap … EXIT` молча заменил бы первый.
+TMP_PLAIN=""
+CHECK_DB=""
+cleanup() {
+  # Расшифрованный дамп — это открытые ФИО и хеши паролей: убираем при любом исходе.
+  [[ -n "$TMP_PLAIN" && -f "$TMP_PLAIN" ]] && rm -f "$TMP_PLAIN"
+  [[ -n "$CHECK_DB" ]] && psql_admin -c "DROP DATABASE IF EXISTS \"$CHECK_DB\"" >/dev/null 2>&1
+  return 0
+}
+trap cleanup EXIT
+
+# --- Выбор дампа ---
+# Приоритет у зашифрованных: при настроенном шифровании .enc — основной формат, а .sql.gz
+# живёт на сервере лишь до ближайшей ротации, ради проверки восстановимости.
+if [[ -z "$DUMP" ]]; then
+  DUMP="$(ls -1t "$BACKUP_DIR"/craft_wms-*.sql.gz.enc "$BACKUP_DIR"/craft_wms-*.sql.gz 2>/dev/null | head -1 || true)"
+  [[ -n "$DUMP" ]] || die "в $BACKUP_DIR нет дампов craft_wms-*.sql.gz[.enc] — сначала deploy/pg-backup.sh."
+  log "Дамп не указан — беру самый свежий: $(basename "$DUMP")"
+fi
+[[ -f "$DUMP" ]] || die "файл не найден: $DUMP"
+
+# --- Расшифровка ---
+# Временный файл — с правами 600 в приватном каталоге: в дампе персональные данные, а
+# BACKUP_DIR может быть доступен на чтение другим.
+if [[ "$DUMP" == *.enc ]]; then
+  log "Файл зашифрован — расшифровываю во временный…"
+  TMP_PLAIN="$(mktemp -t craft-wms-restore.XXXXXX)"
+  chmod 600 "$TMP_PLAIN"
+  decrypt_dump "$DUMP" "$TMP_PLAIN"
+  log "Расшифровано: $(du -h "$TMP_PLAIN" | cut -f1)"
+  DUMP="$TMP_PLAIN"
+fi
+
+# Целостность архива проверяем ДО того, как что-то ронять: битый gzip лучше поймать сейчас.
+log "Проверяю целостность архива…"
+gzip -t "$DUMP" || die "архив повреждён: $DUMP"
+log "Архив цел: $(du -h "$DUMP" | cut -f1), $(date -r "$DUMP" '+%Y-%m-%d %H:%M')"
 
 # restore_into DB — развернуть дамп в существующую пустую базу.
 restore_into() {
@@ -106,13 +133,13 @@ verify() {
 
 # --- Режим проверки: временная база, прод не трогаем ---
 if [[ "$MODE" == check ]]; then
+  # Присваивание CHECK_DB включает уборку временной базы в общем cleanup (trap выше):
+  # иначе она осталась бы занимать место после падения.
   CHECK_DB="${PG_DB}_restore_check"
   log "Проверка дампа во временной базе $CHECK_DB (прод-база не затрагивается)."
   # На случай, если прошлый прогон упал и не убрал за собой.
   psql_admin -c "DROP DATABASE IF EXISTS \"$CHECK_DB\"" >/dev/null
   psql_admin -c "CREATE DATABASE \"$CHECK_DB\"" >/dev/null
-  # Временную базу убираем при любом исходе, иначе она останется занимать место.
-  trap 'psql_admin -c "DROP DATABASE IF EXISTS \"'"$CHECK_DB"'\"" >/dev/null 2>&1 || true' EXIT
 
   log "Разворачиваю дамп…"
   restore_into "$CHECK_DB"
