@@ -12,6 +12,9 @@ import '../../../../core/di/injection.dart';
 import '../../../../core/gen/assets.gen.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/router/app_router.dart';
+import '../../../../core/scanner/hardware_scan_listener.dart';
+import '../../../../core/scanner/scan_code.dart';
+import '../../../../core/scanner/scan_deduper.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/utils/barcode.dart';
 import '../../../../core/utils/keyboard.dart';
@@ -48,7 +51,8 @@ class _GoodsListView extends StatefulWidget {
   State<_GoodsListView> createState() => _GoodsListViewState();
 }
 
-class _GoodsListViewState extends State<_GoodsListView> {
+class _GoodsListViewState extends State<_GoodsListView>
+    with HardwareScanListener {
   /// Дебаунс поиска живёт в `GoodsListCubit`, а не здесь: гасить его должны и обработчики
   /// из соседних виджетов (уход в карточку товара — в `GoodsResult`), а до поля стейта
   /// они не дотягиваются.
@@ -57,17 +61,24 @@ class _GoodsListViewState extends State<_GoodsListView> {
   /// вводе) и чистим поле по тапу.
   final _searchController = TextEditingController();
 
+  /// Отсекает дубль, если устройство отдаёт код и в поле, и интентом.
+  final _deduper = ScanDeduper();
+
   /// Поиск с дебаунсом: не дёргаем API на каждый символ.
   void onSearchChanged(String value) =>
       context.read<GoodsListCubit>().setQueryDebounced(value);
 
   /// Ввод завершён: сканер шлёт строку целиком и Enter, на софт-клавиатуре это «Поиск».
   /// Скан ШК резолвим и сразу открываем карточку товара, обычный текст — ищем подстрокой.
+  ///
+  /// Единая точка для обоих источников кода, поэтому отсечение дубля стоит здесь: если бы оно
+  /// сидело только на ветке потока, пара «поле + интент» прошла бы мимо него.
   Future<void> onSearchSubmitted(String value) async {
     final input = value.trim();
-    if (input.isEmpty) return;
+    if (input.isEmpty || !_deduper.allow(input)) return;
     final cubit = context.read<GoodsListCubit>();
-    cubit.cancelPendingSearch(); // ввод завершён — отложенный поиск уже не нужен
+    cubit
+        .cancelPendingSearch(); // ввод завершён — отложенный поиск уже не нужен
     if (!looksLikeBarcode(input)) {
       await cubit.setQuery(input);
       return;
@@ -90,6 +101,11 @@ class _GoodsListViewState extends State<_GoodsListView> {
       );
   }
 
+  /// Код с аппаратного сканера (intent-режим): ведём тем же путём, что и завершённый ввод
+  /// в строке поиска — ШК открывает карточку, прочее ищется подстрокой.
+  @override
+  void onHardwareScan(ScanCode code) => onSearchSubmitted(code.raw);
+
   /// Открыть карточку товара, найденного по скану. Строку поиска чистим: иначе следующий
   /// скан допишется к предыдущему коду, а список остался бы несогласован с полем.
   void openGoodDetail(Good good) {
@@ -102,7 +118,9 @@ class _GoodsListViewState extends State<_GoodsListView> {
   /// «висящий» таймер применил бы старый текст уже после очистки.
   void clearSearch() {
     _searchController.clear();
-    context.read<GoodsListCubit>().setQuery(''); // setQuery сам гасит отложенный поиск
+    context.read<GoodsListCubit>().setQuery(
+      '',
+    ); // setQuery сам гасит отложенный поиск
   }
 
   /// Назад на предыдущий экран (главное меню). Отложенный поиск гасим: экран уходит,

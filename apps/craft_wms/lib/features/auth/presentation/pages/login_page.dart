@@ -1,29 +1,32 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/auth/auth_cubit.dart';
-import '../../../../core/constants/app_borders.dart';
-import '../../../../core/constants/app_boxes.dart';
-import '../../../../core/constants/app_colors.dart';
-import '../../../../core/constants/app_insets.dart';
-import '../../../../core/constants/app_sizes.dart';
+import '../../../../core/di/injection.dart';
 import '../../../../core/error/failure.dart';
-import '../../../../core/gen/assets.gen.dart';
 import '../../../../core/gen/strings.g.dart';
-import '../../../../core/theme/regular_text.dart';
-import '../../../../core/theme/semibold_text.dart';
+import '../../../../core/scanner/hardware_scan_listener.dart';
+import '../../../../core/scanner/scan_code.dart';
+import '../../../../core/scanner/scan_deduper.dart';
+import '../../../../core/scanner/scanner_service.dart';
 import '../../../../core/widgets/system_ui_wrapper.dart';
 import '../../../splash/presentation/pages/splash_page.dart';
+import '../widgets/badge_scan_view.dart';
+import '../widgets/password_login_view.dart';
 
-/// Экран входа — ожидание скана бейджа.
+/// Экран входа в двух режимах (P2-01).
 ///
-/// Что: автофокусное поле ловит ввод сканера ТСД (16 цифр + Enter как HID-клавиатура)
-///      и одновременно годится для ручного ввода на эмуляторе.
-/// Зачем: вход — это один скан бейджа, без формы и лишних нажатий.
-/// Как: при наборе 16 цифр или по Enter отправляем бейдж на вход; ошибки — крупно.
-/// Полноценная интеграция сканера — P2-01 (сейчас заглушка, см. P0-07).
+/// Что: вход по скану бейджа (ТСД) либо по логину и паролю (устройство без сканера).
+/// Зачем: бейдж физически сканируют — на смартфоне без сканера это ввод 16 цифр руками, поэтому
+///        админу/оператору нужен обычный вход по учётным данным.
+/// Как: режим выбирается по результату опроса устройства ([ScannerService.probe], сделан при
+///      старте в `main`), а не по списку моделей — список ломается на каждой новой партии железа.
+///      Выбор перекрывается вручную: на ТСД админ может войти паролем.
+///
+/// Бейдж принимается из двух источников сразу: поле ввода (клавиатурный режим сканера и ручной
+/// набор) и поток аппаратного сканера (intent-режим). Приложение не переключает режим устройства
+/// само — работает с тем, который выставлен в настройках сканера.
 @RoutePage()
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -32,84 +35,135 @@ class LoginPage extends StatefulWidget {
   State<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
-  /// Длина бейджа (сервер режет на login 8 + secret 8).
-  static const _badgeLength = 16;
-
+class _LoginPageState extends State<LoginPage> with HardwareScanListener {
   /// Контроллер поля ввода бейджа.
   final _badgeController = TextEditingController();
 
-  /// Фокус поля — держим его на поле, чтобы ловить ввод сканера.
+  /// Фокус поля — держим его на поле, чтобы ловить клавиатурный ввод сканера.
   final _focusNode = FocusNode();
+
+  final _usernameController = TextEditingController();
+  final _passwordController = TextEditingController();
+
+  /// Отсекает дубль, если устройство настроено отдавать код и в поле, и интентом.
+  final _deduper = ScanDeduper();
+
+  /// Есть ли на устройстве аппаратный сканер (решает форму по умолчанию).
+  late final bool _hasScanner;
+
+  /// Показана форма логина/пароля.
+  late bool _passwordMode;
+
+  /// Нужна ли экранная клавиатура на поле бейджа. По умолчанию нет: ждём скан.
+  bool _softKeyboard = false;
 
   @override
   void initState() {
     super.initState();
-    _focusNode.addListener(_hideKeyboardOnFocus);
+    _hasScanner = getIt<ScannerService>().lastProbe?.available ?? false;
+    _passwordMode = !_hasScanner;
   }
 
   @override
   void dispose() {
-    _focusNode.removeListener(_hideKeyboardOnFocus);
     _badgeController.dispose();
+    _usernameController.dispose();
+    _passwordController.dispose();
     _focusNode.dispose();
     super.dispose();
   }
 
-  /// Поле получило фокус (автофокус / рефокус после ошибки) → прячем экранную
-  /// клавиатуру, но фокус и курсор оставляем: HID-сканер шлёт ввод в это поле,
-  /// а софт-клавиатура не нужна и лишь занимает место.
-  void _hideKeyboardOnFocus() {
-    if (!_focusNode.hasFocus) return;
-    // Прячем ПОСЛЕ того, как фреймворк сам показал клавиатуру на получении фокуса.
+  /// Тап по полю — бейдж набирают руками: включаем обычную клавиатуру.
+  ///
+  /// Прежний приём «дать фреймворку показать клавиатуру и спрятать её следующим кадром» убран:
+  /// на DT50 он давал видимое мелькание снизу и череду изменений высоты окна — тот самый эффект
+  /// «экран дёргается» при скане. `TextInputType.none` не даёт IME открыться вовсе.
+  ///
+  /// Одной смены `keyboardType` мало: соединение с IME создаётся в момент получения фокуса и
+  /// живёт с той конфигурацией, с которой создано. Поэтому снимаем фокус и возвращаем его
+  /// следующим кадром — связь пересоздаётся уже как обычное поле, и клавиатура открывается сама.
+  void enableSoftKeyboard() {
+    if (_softKeyboard) return;
+    setState(() => _softKeyboard = true);
+    _focusNode.unfocus();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_focusNode.hasFocus) {
-        SystemChannels.textInput.invokeMethod<void>('TextInput.hide');
-      }
+      if (mounted) _focusNode.requestFocus();
     });
   }
 
-  /// Показ экранной клавиатуры по тапу по полю — для ручного ввода бейджа.
-  void showKeyboard() {
-    SystemChannels.textInput.invokeMethod<void>('TextInput.show');
+  /// Смена формы входа вручную (бейдж ↔ логин/пароль).
+  /// Возврат к бейджу — снова режим ожидания скана, без клавиатуры.
+  void switchMode() {
+    setState(() {
+      _passwordMode = !_passwordMode;
+      _softKeyboard = false;
+    });
   }
 
-  /// Реакция на смену состояния входа: при неудаче — крупная понятная ошибка,
-  /// поле очищаем и возвращаем фокус для следующего скана.
+  /// Реакция на смену состояния входа: при неудаче — понятная ошибка, поле бейджа
+  /// очищаем и возвращаем фокус для следующего скана.
   void onAuthState(BuildContext context, AuthState state) {
     if (state is AuthUnauthenticated && state.failure != null) {
-      _badgeController.clear();
-      _focusNode.requestFocus();
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(_messageFor(state.failure!))));
+      if (!_passwordMode) {
+        _badgeController.clear();
+        _focusNode.requestFocus();
+      }
+      _snack(context, _messageFor(state.failure!));
     }
   }
 
-  /// Текст ошибки под её тип (что показать кладовщику).
+  /// Текст ошибки под её тип и режим входа (что показать пользователю).
   String _messageFor(Failure failure) => switch (failure) {
-    AuthFailure() => t.loginScreen.errorAuth,
+    AuthFailure() =>
+      _passwordMode ? t.loginScreen.errorCredentials : t.loginScreen.errorAuth,
     NetworkFailure() => t.loginScreen.errorNetwork,
     _ => t.loginScreen.errorUnknown,
   };
 
-  /// Автосабмит при наборе полного бейджа (сканер вводит 16 цифр разом).
+  /// Автосабмит при наборе полного бейджа (клавиатурный режим вводит 16 цифр разом).
   void onBadgeChanged(String value) {
-    if (value.length == _badgeLength) {
-      submit(context);
-    }
+    if (value.length == badgeLength) submit(context);
+  }
+
+  /// Бейдж из потока аппаратного сканера (intent-режим): код приходит мимо поля ввода.
+  /// Кладём его в то же поле и идём общим путём — чтобы вход не зависел от источника кода.
+  @override
+  void onHardwareScan(ScanCode code) {
+    if (_passwordMode) return;
+    _badgeController.text = code.raw.trim();
+    submit(context);
   }
 
   /// Отправка бейджа на вход, если введено ровно 16 цифр; иначе — подсказка.
+  ///
+  /// Единая точка для обоих источников бейджа, поэтому отсечение дубля стоит здесь: если бы оно
+  /// сидело только на ветке потока, пара «поле + интент» прошла бы мимо него.
   void submit(BuildContext context) {
     final badge = _badgeController.text.trim();
-    if (badge.length != _badgeLength) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(t.loginScreen.errorInvalid)));
+    if (badge.length != badgeLength) {
+      _snack(context, t.loginScreen.errorInvalid);
       return;
     }
+    if (!_deduper.allow(badge)) return;
     context.read<AuthCubit>().login(badge);
+  }
+
+  /// Отправка учётных данных; пустые поля до сети не доводим.
+  void submitCredentials() {
+    final username = _usernameController.text.trim();
+    final password = _passwordController.text;
+    if (username.isEmpty || password.isEmpty) {
+      _snack(context, t.loginScreen.errorEmptyCredentials);
+      return;
+    }
+    context.read<AuthCubit>().loginWithPassword(username, password);
+  }
+
+  /// Показать сообщение об ошибке входа.
+  void _snack(BuildContext context, String text) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(text)));
   }
 
   @override
@@ -120,126 +174,28 @@ class _LoginPageState extends State<LoginPage> {
         body: BlocConsumer<AuthCubit, AuthState>(
           listener: onAuthState,
           builder: (context, state) {
-            // Пока идёт вход — крупный индикатор без поля (проверку сессии при старте
+            // Пока идёт вход — крупный индикатор без формы (проверку сессии при старте
             // держит splash-экран, сюда состояние unknown уже не приходит).
-            if (state is AuthAuthenticating) {
-              return const SplashPage();
+            if (state is AuthAuthenticating) return const SplashPage();
+            if (_passwordMode) {
+              return PasswordLoginView(
+                usernameController: _usernameController,
+                passwordController: _passwordController,
+                onSubmit: submitCredentials,
+                onSwitchMode: switchMode,
+                showBadgeSwitch: _hasScanner,
+              );
             }
-            return _ScanView(
+            return BadgeScanView(
               controller: _badgeController,
               focusNode: _focusNode,
               onChanged: onBadgeChanged,
               onSubmitted: (_) => submit(context),
-              onTap: showKeyboard,
+              onTap: enableSoftKeyboard,
+              softKeyboard: _softKeyboard,
+              onSwitchMode: switchMode,
             );
           },
-        ),
-      ),
-    );
-  }
-}
-
-/// Экран ожидания скана: крупная подсказка + автофокусное поле бейджа.
-class _ScanView extends StatelessWidget {
-  const _ScanView({
-    required this.controller,
-    required this.focusNode,
-    required this.onChanged,
-    required this.onSubmitted,
-    required this.onTap,
-  });
-
-  /// Контроллер поля ввода бейджа.
-  final TextEditingController controller;
-
-  /// Фокус поля — держим его на поле, чтобы ловить ввод сканера.
-  final FocusNode focusNode;
-
-  /// Обработчик изменения значения поля.
-  final ValueChanged<String> onChanged;
-
-  /// Обработчик отправки значения поля.
-  final ValueChanged<String> onSubmitted;
-
-  /// Тап по полю — показать экранную клавиатуру для ручного ввода.
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.kSidebarBg,
-        image: DecorationImage(
-          image: Assets.images.tsdLoginBg.provider(),
-          fit: BoxFit.cover,
-          opacity: 0.3,
-        ),
-      ),
-      child: Padding(
-        padding: AppInsets.all24,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            SizedBox(
-              height: AppSizes.kIcon256,
-              child: Image(image: Assets.images.employeeBadge.provider()),
-            ),
-            AppBoxes.kHeight24,
-            Text(
-              t.loginScreen.scanPrompt,
-              textAlign: TextAlign.center,
-              style: RegularTextStyles().regularInter14.copyWith(
-                color: AppColors.kTileText,
-              ),
-            ),
-            AppBoxes.kHeight8,
-            Container(
-              height: AppSizes.kIcon60,
-              decoration: BoxDecoration(
-                borderRadius: AppBorders.kPill,
-                image: DecorationImage(
-                  image: Assets.images.fakeBarcode.provider(),
-                  colorFilter: ColorFilter.mode(
-                    AppColors.kTileText,
-                    BlendMode.srcIn,
-                  ),
-                  fit: BoxFit.cover,
-                  opacity: 0.2,
-                ),
-              ),
-              child: TextField(
-                cursorHeight: 25,
-                controller: controller,
-                focusNode: focusNode,
-                autofocus: true,
-                showCursor: true,
-                cursorColor: Colors.white,
-                keyboardType: TextInputType.number,
-                onTap: onTap,
-                textAlign: TextAlign.center,
-                style: SemiboldTextStyles().semiboldInter18.copyWith(
-                  color: AppColors.kTileText,
-                ),
-                // Пускаем только цифры и не больше 16 — сканер/ручной ввод дают чистый бейдж.
-                inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                  LengthLimitingTextInputFormatter(
-                    _LoginPageState._badgeLength,
-                  ),
-                ],
-                decoration: InputDecoration(
-                  // labelText: t.loginScreen.badgeLabel,
-                  // labelStyle: const TextStyle(color: Colors.white),
-                  focusColor: Colors.white,
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.transparent),
-                  ),
-                ),
-                onChanged: onChanged,
-                onSubmitted: onSubmitted,
-              ),
-            ),
-          ],
         ),
       ),
     );

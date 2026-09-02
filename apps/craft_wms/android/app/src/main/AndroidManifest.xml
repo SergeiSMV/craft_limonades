@@ -47,5 +47,11 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+        <!-- Определение аппаратного сканера (P2-01): на Android 11+ чужие пакеты не видны без
+             явного объявления, и PackageManager.getPackageInfo вернул бы «не установлено» даже
+             на ТСД. com.ubx.uscanner - служба декодера Urovo, com.ubx.barcodescanner.tool - её
+             настройки; наличие любого из них означает, что сканер на устройстве есть. -->
+        <package android:name="com.ubx.uscanner"/>
+        <package android:name="com.ubx.barcodescanner.tool"/>
     </queries>
 </manifest>
