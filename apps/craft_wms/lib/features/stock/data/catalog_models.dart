@@ -41,12 +41,11 @@ abstract class NomenclatureGroup with _$NomenclatureGroup {
 /// Поставщик (ответ `GET /suppliers`).
 @freezed
 abstract class Supplier with _$Supplier {
-  const factory Supplier({
-    required String id,
-    required String name,
-  }) = _Supplier;
+  const factory Supplier({required String id, required String name}) =
+      _Supplier;
 
-  factory Supplier.fromJson(Map<String, dynamic> json) => _$SupplierFromJson(json);
+  factory Supplier.fromJson(Map<String, dynamic> json) =>
+      _$SupplierFromJson(json);
 }
 
 /// Физическая ячейка склада (ответ `GET /cells`). Нужна вводу остатков: резолв по адресу + склад.
@@ -67,12 +66,26 @@ abstract class Cell with _$Cell {
 /// Штрихкод товара (ответ `GET /goods/{id}/barcodes`, P-FS-12). symbology может быть null.
 @freezed
 abstract class Barcode with _$Barcode {
-  const factory Barcode({
-    required String barcode,
-    String? symbology,
-  }) = _Barcode;
+  const factory Barcode({required String barcode, String? symbology}) =
+      _Barcode;
 
-  factory Barcode.fromJson(Map<String, dynamic> json) => _$BarcodeFromJson(json);
+  factory Barcode.fromJson(Map<String, dynamic> json) =>
+      _$BarcodeFromJson(json);
+}
+
+/// Привязка «штрихкод → товар» из выгрузки всего справочника (`GET /barcodes`, P2-02).
+/// Отличается от [Barcode] наличием `goodId`: там ШК перечисляются внутри известного товара,
+/// здесь товар и есть то, что нужно узнать по коду.
+@freezed
+abstract class BarcodeLink with _$BarcodeLink {
+  const factory BarcodeLink({
+    required String barcode,
+    @JsonKey(name: 'good_id') required String goodId,
+    String? symbology,
+  }) = _BarcodeLink;
+
+  factory BarcodeLink.fromJson(Map<String, dynamic> json) =>
+      _$BarcodeLinkFromJson(json);
 }
 
 /// Строка остатка в товарном разрезе (ответ `GET /stock`). qty — строка (decimal с бэкенда,
@@ -88,7 +101,8 @@ abstract class StockItem with _$StockItem {
     required String qty,
   }) = _StockItem;
 
-  factory StockItem.fromJson(Map<String, dynamic> json) => _$StockItemFromJson(json);
+  factory StockItem.fromJson(Map<String, dynamic> json) =>
+      _$StockItemFromJson(json);
 }
 
 /// Страница списка (ответ-обёртка `{items, total, limit, offset}` API P1-06).

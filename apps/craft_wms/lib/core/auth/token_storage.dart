@@ -19,7 +19,13 @@ abstract class TokenStorage {
   /// Обновить только access-токен (после refresh) — refresh не трогаем.
   Future<void> saveAccess(String access);
 
-  /// Удалить оба токена (выход из аккаунта).
+  /// Прочитать сохранённый профиль (null — не сохранён).
+  Future<String?> readProfile();
+
+  /// Сохранить профиль (JSON) — нужен для офлайн-входа.
+  Future<void> saveProfile(String json);
+
+  /// Удалить токены и профиль (выход из аккаунта).
   Future<void> clear();
 }
 
@@ -40,6 +46,10 @@ class SecureTokenStorage implements TokenStorage {
   static const _kAccess = 'access_token';
   static const _kRefresh = 'refresh_token';
 
+  /// Профиль вошедшего пользователя. Лежит здесь, а не в локальной базе: это данные
+  /// сотрудника (ФИО, логин, роль), а база — открытый кэш справочников.
+  static const _kProfile = 'profile';
+
   @override
   Future<String?> readAccess() => _storage.read(key: _kAccess);
 
@@ -58,9 +68,17 @@ class SecureTokenStorage implements TokenStorage {
       _storage.write(key: _kAccess, value: access);
 
   @override
+  Future<String?> readProfile() => _storage.read(key: _kProfile);
+
+  @override
+  Future<void> saveProfile(String json) =>
+      _storage.write(key: _kProfile, value: json);
+
+  @override
   Future<void> clear() async {
     await _storage.delete(key: _kAccess);
     await _storage.delete(key: _kRefresh);
+    await _storage.delete(key: _kProfile);
   }
 }
 
@@ -70,6 +88,7 @@ class SecureTokenStorage implements TokenStorage {
 class InMemoryTokenStorage implements TokenStorage {
   String? _access;
   String? _refresh;
+  String? _profile;
 
   @override
   Future<String?> readAccess() async => _access;
@@ -87,8 +106,15 @@ class InMemoryTokenStorage implements TokenStorage {
   Future<void> saveAccess(String access) async => _access = access;
 
   @override
+  Future<String?> readProfile() async => _profile;
+
+  @override
+  Future<void> saveProfile(String json) async => _profile = json;
+
+  @override
   Future<void> clear() async {
     _access = null;
     _refresh = null;
+    _profile = null;
   }
 }

@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'core/auth/auth_cubit.dart';
 import 'core/di/injection.dart';
 import 'core/router/app_router.dart';
+import 'core/sync/catalog_sync_service.dart';
 import 'core/theme/app_theme.dart';
 
 /// Корневой виджет. Держит роутер и слушает состояние входа, чтобы гейтить навигацию.
@@ -24,6 +25,11 @@ class CraftWmsApp extends StatelessWidget {
           switch (state) {
             case AuthAuthenticated():
               _router.replaceAll([const HomeRoute()]);
+              // Обновляем кэш справочников — без await: экран не должен ждать загрузку, а до
+              // её конца репозиторий отдаёт прежнее содержимое кэша (P2-02). Неудача не
+              // показывается: если сеть недоступна, кладовщик и так работает офлайн, а
+              // причина уходит в лог.
+              getIt<CatalogSyncService>().refresh();
             // _router.replaceAll([const SplashRoute()]);
             case AuthUnauthenticated():
               _router.replaceAll([const LoginRoute()]);

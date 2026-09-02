@@ -77,6 +77,39 @@ func (r *BarcodeRepository) ListByGood(ctx context.Context, goodID string) ([]mo
 	return out, nil
 }
 
+// List возвращает страницу всех привязок ШК — справочник целиком для кэша устройства (P2-02).
+//
+// Зачем отдельный метод, а не обход товаров: привязок на порядок меньше, чем товаров, и тянуть
+// их по одному запросу на товар (780 поездок) для офлайн-кэша неприемлемо.
+//
+// Total считаем окном COUNT(*) OVER() в том же запросе — одна поездка в БД вместо двух.
+// Порядок по ШК стабилен, поэтому страницы не перемешиваются между запросами.
+func (r *BarcodeRepository) List(ctx context.Context, limit, offset int) ([]model.BarcodeLink, int, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT barcode, good_id::text, symbology, COUNT(*) OVER() AS total
+		   FROM barcodes
+		  ORDER BY barcode
+		  LIMIT $1 OFFSET $2`, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list barcodes: %w", err)
+	}
+	defer rows.Close()
+
+	out := []model.BarcodeLink{} // всегда не nil → JSON `[]`, а не `null`
+	total := 0
+	for rows.Next() {
+		var b model.BarcodeLink
+		if err := rows.Scan(&b.Barcode, &b.GoodID, &b.Symbology, &total); err != nil {
+			return nil, 0, fmt.Errorf("scan barcode link: %w", err)
+		}
+		out = append(out, b)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterate barcode links: %w", err)
+	}
+	return out, total, nil
+}
+
 // Unbind удаляет привязку ШК (отвязка ошибочного ШК, P-FS-12). ШК глобально уникален, поэтому
 // удаляем по коду. Идемпотентно: нет такой привязки → не ошибка (коррекция не должна падать,
 // если ШК уже отвязали).

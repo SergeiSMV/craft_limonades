@@ -20,6 +20,7 @@ var (
 type barcodeRepo interface {
 	GetGoodByBarcode(ctx context.Context, code string) (model.Good, error)
 	ListByGood(ctx context.Context, goodID string) ([]model.Barcode, error)
+	List(ctx context.Context, limit, offset int) ([]model.BarcodeLink, int, error)
 	Bind(ctx context.Context, goodID, barcode, symbology string) error
 	Unbind(ctx context.Context, barcode string) error
 }
@@ -52,6 +53,18 @@ func (s *BarcodeService) ListByGood(ctx context.Context, goodID string) ([]model
 		return nil, ErrEmptyGoodID
 	}
 	return s.repo.ListByGood(ctx, goodID)
+}
+
+// List — страница всех привязок ШК: справочник целиком для кэша устройства (P2-02).
+// Границы limit/offset те же, что у остальных справочников (clampPaging), чтобы клиент
+// листал одинаково везде.
+func (s *BarcodeService) List(ctx context.Context, limit, offset int) (Page[model.BarcodeLink], error) {
+	limit, offset = clampPaging(limit, offset)
+	items, total, err := s.repo.List(ctx, limit, offset)
+	if err != nil {
+		return Page[model.BarcodeLink]{}, err
+	}
+	return Page[model.BarcodeLink]{Items: items, Total: total, Limit: limit, Offset: offset}, nil
 }
 
 // Bind — привязать ШК к товару (аддитивно, идемпотентно). Пустые good_id/barcode отклоняются.

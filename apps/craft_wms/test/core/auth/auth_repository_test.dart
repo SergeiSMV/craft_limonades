@@ -25,6 +25,8 @@ void main() {
   setUp(() {
     dio = Dio(BaseOptions(baseUrl: 'https://api.test'));
     storage = _MockTokenStorage();
+    // Профиль сохраняется при каждом успешном /auth/me — он нужен для входа без сети (P2-02).
+    when(() => storage.saveProfile(any())).thenAnswer((_) async {});
   });
 
   /// Настраивает адаптер dio на заданные ответы и собирает репозиторий.
