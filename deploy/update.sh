@@ -80,7 +80,10 @@ fi
 before="$(compose images -q backend 2>/dev/null || true)"
 
 log "Проверяю обновления образа…"
-compose pull --quiet
+# Только backend: postgres прибит по версии и уже лежит локально. Раньше `compose pull`
+# без имени сервиса тянул и его из Docker Hub, а тот из России отваливается по TLS —
+# под set -e это роняло всё авто-обновление из-за образа, который не менялся.
+compose pull --quiet backend || warn "не удалось обновить образ backend — продолжаю с локальным." 
 
 log "Применяю (up -d — пересоздаст контейнер только при новом образе)…"
 compose up -d
