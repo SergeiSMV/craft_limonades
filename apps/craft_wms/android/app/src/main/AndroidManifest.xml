@@ -1,4 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Доступ в сеть. Шаблон Flutter объявляет INTERNET только в debug- и profile-манифестах
+         (там он нужен инструментам hot reload), в релиз он не попадает. Без него резолвер
+         отказывает мгновенно: любой запрос падает с `Failed host lookup`, а приложение
+         показывает «нет связи с сервером» при полностью исправной сети. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+
     <application
         android:label="КЛ: Склад"
         android:name="${applicationName}"
@@ -41,5 +47,11 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+        <!-- Определение аппаратного сканера (P2-01): на Android 11+ чужие пакеты не видны без
+             явного объявления, и PackageManager.getPackageInfo вернул бы «не установлено» даже
+             на ТСД. com.ubx.uscanner - служба декодера Urovo, com.ubx.barcodescanner.tool - её
+             настройки; наличие любого из них означает, что сканер на устройстве есть. -->
+        <package android:name="com.ubx.uscanner"/>
+        <package android:name="com.ubx.barcodescanner.tool"/>
     </queries>
 </manifest>

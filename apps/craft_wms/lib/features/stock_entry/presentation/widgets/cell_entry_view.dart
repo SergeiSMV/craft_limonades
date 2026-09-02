@@ -10,6 +10,9 @@ import '../../../../core/constants/app_insets.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/gen/strings.g.dart';
+import '../../../../core/scanner/hardware_scan_listener.dart';
+import '../../../../core/scanner/scan_code.dart';
+import '../../../../core/scanner/scan_deduper.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/theme/semibold_text.dart';
 import '../../../stock/data/catalog_models.dart';
@@ -31,10 +34,14 @@ class CellEntryView extends StatefulWidget {
   State<CellEntryView> createState() => _CellEntryViewState();
 }
 
-class _CellEntryViewState extends State<CellEntryView> {
+class _CellEntryViewState extends State<CellEntryView>
+    with HardwareScanListener {
   final _scanController = TextEditingController();
   final _scanFocus = FocusNode();
   final _repo = getIt<CatalogRepository>();
+
+  /// Отсекает дубль, если устройство отдаёт код и в поле, и интентом.
+  final _deduper = ScanDeduper();
 
   @override
   void dispose() {
@@ -50,13 +57,25 @@ class _CellEntryViewState extends State<CellEntryView> {
     if (mounted) _scanFocus.requestFocus();
   }
 
+  /// Код с аппаратного сканера (intent-режим) — тот же путь, что у ввода в поле.
+  @override
+  void onHardwareScan(ScanCode code) =>
+      _onScan(code.raw, symbology: code.symbology);
+
   /// Скан ШК товара. Порядок резолва: копилка привязок прохода → сервер → ручная привязка. Локальный
   /// шаг нужен, чтобы повторный скан любого уже привязанного за проход ШК узнавался сразу, а не бил в
   /// 404 (данные ещё не на сервере) — сколько бы ШК ни было на товар. По завершении — возврат фокуса.
-  Future<void> _onScan(String value) async {
+  ///
+  /// Если товар не нашёлся, а код опознан как адрес ячейки, ручной выбор товара НЕ открываем:
+  /// иначе адрес ячейки привязался бы к выбранному товару как штрихкод — испорченный справочник
+  /// вместо опечатки.
+  ///
+  /// Единая точка для обоих источников кода, поэтому отсечение дубля стоит здесь: если бы оно
+  /// сидело только на ветке потока, пара «поле + интент» дала бы две строки остатка.
+  Future<void> _onScan(String value, {String? symbology}) async {
     final code = value.trim();
     _scanController.clear();
-    if (code.isNotEmpty) {
+    if (code.isNotEmpty && _deduper.allow(code)) {
       final local = _cubit.localGoodForBarcode(code);
       if (local != null) {
         await _collectAndAdd(
@@ -68,6 +87,8 @@ class _CellEntryViewState extends State<CellEntryView> {
         if (!mounted) return;
         if (good != null) {
           await _collectAndAdd(good, scannedCode: code); // есть в БД
+        } else if (classifyScan(code, symbology: symbology) == ScanKind.cell) {
+          _snack(t.stockEntry.scannedCellInGood);
         } else {
           _snack(t.stockEntry.goodNotBound);
           final picked = await _pickGood();

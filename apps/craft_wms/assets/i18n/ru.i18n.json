@@ -10,11 +10,20 @@
     "error_invalid": "Нужно 16 цифр",
     "error_auth": "Неверный бейдж",
     "error_network": "Нет связи с сервером",
-    "error_unknown": "Ошибка входа"
+    "error_unknown": "Ошибка входа",
+    "password_prompt": "вход по логину и паролю",
+    "username_label": "логин",
+    "password_label": "пароль",
+    "sign_in": "Войти",
+    "use_password": "Войти по логину и паролю",
+    "use_badge": "Войти по бейджу",
+    "error_credentials": "Неверный логин или пароль",
+    "error_empty_credentials": "Заполните логин и пароль"
   },
   "home_screen": {
     "title": "ГЛАВНОЕ МЕНЮ",
     "logs_tooltip": "Логи",
+    "scanner_tooltip": "Сканер",
     "logout_tooltip": "Выход",
     "stub_snack": "Раздел в разработке",
     "tiles": {
@@ -32,6 +41,32 @@
       "stock_subtitle": "текущие запасы",
       "stock_entry_title": "ВВОД ОСТАТКОВ",
       "stock_entry_subtitle": "проход склада"
+    }
+  },
+  "scanner_probe": {
+    "title": "Сканер",
+    "device": "Устройство",
+    "hardware_scanner": "Аппаратный сканер",
+    "packages": "ПО сканера",
+    "actions": "Действия интентов",
+    "yes": "есть",
+    "no": "нет",
+    "none": "—",
+    "hint": "Поток событий работает только в intent-режиме сканера. Режим вывода и имя действия задаются в настройках сканера устройства (ScannerTool).",
+    "waiting": "Событий нет — нажмите кнопку сканирования",
+    "events_title": "События: ${count}",
+    "code": "код",
+    "symbology": "символика",
+    "aim": "AIM",
+    "kind": "тип",
+    "action": "действие",
+    "extras": "extras",
+    "clear": "Очистить",
+    "kinds": {
+      "good": "товар",
+      "cell": "ячейка",
+      "cargo_unit": "грузовая единица",
+      "unknown": "не распознан"
     }
   },
   "stock_list_screen": {
@@ -174,6 +209,8 @@
     "scan_good": "сканируйте или выберите товар",
     "add_manual": "Добавить вручную",
     "good_not_bound": "Штрихкод не найден — выберите товар",
+    "scanned_cell_in_good": "Это код ячейки, а не товара",
+    "scanned_good_in_cell": "Это штрихкод товара, а не ячейки",
     "empty_buffer": "Пока пусто - отсканируйте товар",
     "finish_cell": "Завершить ячейку",
     "undo": "Отменить",

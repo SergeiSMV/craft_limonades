@@ -26,6 +26,10 @@ class HomePage extends StatelessWidget {
   void goToLogs(BuildContext context) =>
       context.router.push(const DebugLogRoute());
 
+  /// Переход к диагностике сканера (служебный экран наладки).
+  void goToScannerProbe(BuildContext context) =>
+      context.router.push(const ScannerProbeRoute());
+
   /// Выход из приложения.
   void logout(BuildContext context) => context.read<AuthCubit>().logout();
 
@@ -94,6 +98,15 @@ class HomePage extends StatelessWidget {
                           onTap: () => goToLogs(context),
                           child: Text(
                             t.homeScreen.logsTooltip,
+                            style: RegularTextStyles().regularInter14.copyWith(
+                              color: AppColors.kTileText,
+                            ),
+                          ),
+                        ),
+                        PopupMenuItem<void>(
+                          onTap: () => goToScannerProbe(context),
+                          child: Text(
+                            t.homeScreen.scannerTooltip,
                             style: RegularTextStyles().regularInter14.copyWith(
                               color: AppColors.kTileText,
                             ),

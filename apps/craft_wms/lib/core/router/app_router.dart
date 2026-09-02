@@ -4,6 +4,7 @@ import 'package:injectable/injectable.dart';
 
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/debug/presentation/pages/debug_log_page.dart';
+import '../../features/debug/presentation/pages/scanner_probe_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/splash/presentation/pages/splash_page.dart';
 import '../../features/stock/data/catalog_models.dart'; // Good — аргумент StockDetailRoute
@@ -35,5 +36,7 @@ class AppRouter extends RootStackRouter {
         // Ввод стартовых остатков (P-FastStart) — под авторизацией (кладовщик).
         AutoRoute(page: StockEntryRoute.page, guards: [_authGuard]),
         AutoRoute(page: DebugLogRoute.page),
+        // Диагностика сканера — служебный экран наладки (P2-01).
+        AutoRoute(page: ScannerProbeRoute.page),
       ];
 }
