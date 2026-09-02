@@ -108,3 +108,113 @@ health_check() {
   journal_err "backend не отвечает 200 на $url после обновления — стек может быть нерабочим."
   return 1
 }
+
+# =====================================================================
+#  Шифрование дампов и внешняя копия (ADHOC-01)
+# =====================================================================
+
+# Шифрование — парольной фразой из .env.prod (BACKUP_PASSPHRASE), инструмент openssl.
+#
+# Почему не age и не gpg. Оба тянут за собой файл-ключ, который надо где-то хранить и не
+# потерять; в проекте, который ведёт один человек, потерянный ключ убивает бэкапы так же
+# надёжно, как их отсутствие. Пароль — одна строка: её кладут в менеджер паролей рядом с
+# остальными секретами проекта. Плюс `age -p` вообще неприменим: он читает фразу только с
+# терминала и в systemd-таймере падает с «standard input is not a terminal».
+#
+# ⚠ Пароль обязан существовать ВНЕ сервера. .env.prod живёт только на сервере, и если он
+# погибнет вместе с диском, внешняя копия останется нечитаемой — то есть внешней копии нет.
+#
+# openssl предустановлен, ключ выводится PBKDF2 (600000 итераций), пароль передаётся через
+# окружение (-pass env:), а не аргументом: в -pass pass:… он был бы виден в списке процессов.
+BACKUP_CIPHER_ARGS=(-aes-256-cbc -pbkdf2 -iter 600000)
+
+# backup_passphrase — пароль из .env.prod или пусто, если шифрование не настроено.
+backup_passphrase() { get_env BACKUP_PASSPHRASE; }
+
+# encrypt_dump ИСХОДНИК ЦЕЛЬ — шифрует файл паролем из .env.prod.
+# Шифруем именно ФАЙЛ, а не звено конвейера pg_dump|gzip|openssl: в конвейере отказ середины
+# маскируется, а нам нужен ещё и незашифрованный дамп — на нём работает еженедельная
+# проверка восстановимости.
+encrypt_dump() {
+  local src="$1" dst="$2"
+  CRAFT_BACKUP_PASS="$(backup_passphrase)"; export CRAFT_BACKUP_PASS
+  [[ -n "$CRAFT_BACKUP_PASS" ]] || die "encrypt_dump вызвана без BACKUP_PASSPHRASE."
+  openssl enc "${BACKUP_CIPHER_ARGS[@]}" -salt -pass env:CRAFT_BACKUP_PASS \
+    -in "$src" -out "$dst" || die "шифрование не прошло: $src"
+  unset CRAFT_BACKUP_PASS
+  [[ -s "$dst" ]] || die "шифрование дало пустой файл: $dst"
+}
+
+# decrypt_dump ИСХОДНИК ЦЕЛЬ — расшифровывает .enc обратно в .sql.gz.
+# Неверный пароль openssl отдаёт кодом 1 (не сходится PKCS-паддинг); вторым рубежом идёт
+# gzip -t в вызывающем коде — на случай, когда паддинг случайно сошёлся, а данные мусор.
+decrypt_dump() {
+  local src="$1" dst="$2"
+  CRAFT_BACKUP_PASS="$(backup_passphrase)"; export CRAFT_BACKUP_PASS
+  [[ -n "$CRAFT_BACKUP_PASS" ]] || die "файл $src зашифрован, а BACKUP_PASSPHRASE в $ENV_FILE не задан."
+  openssl enc -d "${BACKUP_CIPHER_ARGS[@]}" -pass env:CRAFT_BACKUP_PASS \
+    -in "$src" -out "$dst" 2>/dev/null || die "не удалось расшифровать $src — не тот BACKUP_PASSPHRASE?"
+  unset CRAFT_BACKUP_PASS
+  [[ -s "$dst" ]] || die "расшифровка дала пустой файл: $dst"
+}
+
+# offsite_push КАТАЛОГ — отправляет зашифрованные дампы во внешнюю копию.
+# Настраивается двумя независимыми переменными, можно задать обе (копия в двух местах):
+#   OFFSITE_DEST          — назначение rsync: локальный путь (внешний диск /mnt/…) ИЛИ
+#                           user@host:/path. rsync эти формы не различает — код один.
+#   OFFSITE_RCLONE_REMOTE — remote:path для rclone (yandex:, S3, WebDAV). Яндекс.Диск
+#                           доступен только так: протокола Яндекс.Диска rsync не знает.
+# Обе пустые — шаг пропускается с предупреждением в journal: молчаливое «внешней копии нет»
+# ровно то состояние, ради ухода от которого задача и делалась.
+offsite_push() {
+  local dir="$1" dest remote pattern='craft_wms-*.sql.gz.enc' pushed=0
+  dest="$(get_env OFFSITE_DEST)"
+  remote="$(get_env OFFSITE_RCLONE_REMOTE)"
+
+  if [[ -z "$dest" && -z "$remote" ]]; then
+    journal_err "внешняя копия не настроена (OFFSITE_DEST / OFFSITE_RCLONE_REMOTE пусты) — дампы лежат только на диске сервера."
+    warn "Внешняя копия не настроена — пропускаю."
+    return 0
+  fi
+
+  if [[ -n "$dest" ]]; then
+    command -v rsync >/dev/null 2>&1 || die "нет rsync (apt-get install -y rsync), а OFFSITE_DEST задан."
+    # Локальное назначение должно быть смонтировано: если внешний диск отвалился, каталог
+    # точки монтирования существует и пуст — rsync отработает «успешно» в никуда.
+    if [[ "$dest" != *:* ]]; then
+      [[ -d "$dest" ]] || die "OFFSITE_DEST=$dest — каталога нет (внешний диск не смонтирован?)."
+      mountpoint -q "$dest" 2>/dev/null || warn "$dest не является точкой монтирования — убедитесь, что это действительно внешний носитель, а не каталог на системном диске."
+    fi
+    local -a ssh_opt=()
+    local key; key="$(get_env OFFSITE_SSH_KEY)"
+    [[ -n "$key" ]] && ssh_opt=(-e "ssh -i $key -o BatchMode=yes -o StrictHostKeyChecking=accept-new")
+
+    log "Внешняя копия (rsync) → $dest"
+    # --include/--exclude + --delete: на приёмнике удаляются только НАШИ файлы, которых уже
+    # нет локально (локальная ротация KEEP_DAYS зеркалится наружу). Чужое в каталоге
+    # назначения под --exclude и от удаления защищено — --delete-excluded мы не передаём.
+    #
+    # ${ssh_opt[@]+"${ssh_opt[@]}"} вместо "${ssh_opt[@]}": в bash 3.2 (macOS, где гоняются
+    # локальные проверки) раскрытие ПУСТОГО массива под `set -u` падает с «unbound variable».
+    # На сервере bash 5.x это работает и так, но скрипт должен проверяться и локально.
+    rsync -a --delete ${ssh_opt[@]+"${ssh_opt[@]}"} \
+      --include="$pattern" --exclude='*' \
+      "$dir"/ "$dest"/ || die "rsync во внешнюю копию не прошёл ($dest)."
+    pushed=1
+  fi
+
+  if [[ -n "$remote" ]]; then
+    command -v rclone >/dev/null 2>&1 || die "нет rclone (см. docs/deploy.md), а OFFSITE_RCLONE_REMOTE задан."
+    log "Внешняя копия (rclone) → $remote"
+    rclone copy --include "$pattern" "$dir" "$remote" || die "rclone во внешнюю копию не прошёл ($remote)."
+    # Ротация на стороне remote: rclone copy сам ничего не удаляет, иначе старые дампы
+    # копились бы в облаке вечно.
+    local keep; keep="$(get_env KEEP_DAYS)"; keep="${keep:-14}"
+    rclone delete --min-age "${keep}d" --include "$pattern" "$remote" || \
+      warn "ротация в $remote не прошла — старые дампы могли остаться."
+    pushed=1
+  fi
+
+  [[ $pushed -eq 1 ]] && log "Внешняя копия обновлена."
+  return 0
+}
