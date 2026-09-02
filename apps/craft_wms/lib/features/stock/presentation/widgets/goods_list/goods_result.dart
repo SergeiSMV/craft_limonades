@@ -18,7 +18,13 @@ class GoodsResult extends StatelessWidget {
 
   /// Открыть карточку остатков выбранного товара. Перед уходом гасим клавиатуру, иначе
   /// на возврате Flutter восстановит фокус поиска и она всплывёт сама.
+  ///
+  /// И гасим отложенный поиск: экран списка при `push` не уничтожается, поэтому таймер,
+  /// заведённый последней набранной буквой, доработал бы уже из-под карточки. При просадке
+  /// связи его ошибка подменила бы список, и кладовщик вернулся бы на экран ошибки,
+  /// хотя поиск не трогал.
   void openDetail(BuildContext context, Good good) {
+    context.read<GoodsListCubit>().cancelPendingSearch();
     dismissKeyboard();
     context.router.push(StockDetailRoute(good: good));
   }

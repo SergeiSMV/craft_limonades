@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:injectable/injectable.dart';
@@ -42,6 +44,38 @@ class GoodsListCubit extends Cubit<GoodsListState> {
 
   final CatalogRepository _repo;
 
+  /// Отложенный поиск: не дёргаем API на каждый символ, а ждём паузы в наборе.
+  ///
+  /// Таймер живёт в cubit'е, а не в стейте экрана, намеренно. Раньше он был в
+  /// `_GoodsListViewState`, и загасить его могли только те обработчики, что лежали рядом.
+  /// Уход в карточку товара живёт в другом виджете (`GoodsResult`) и до таймера не дотягивался:
+  /// экран списка при `push` не уничтожается, поэтому запрос уходил уже из-под карточки.
+  /// При просадке связи ответ приходил ошибкой, `_load` ставил `status: error`, и кладовщик
+  /// возвращался из карточки на экран ошибки, хотя поиск не трогал. Теперь загасить таймер
+  /// может любой, у кого есть cubit.
+  Timer? _searchDebounce;
+
+  static const _debounceDelay = Duration(milliseconds: 350);
+
+  /// Поиск по мере ввода: применяет запрос после паузы в наборе.
+  void setQueryDebounced(String value) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(_debounceDelay, () => setQuery(value));
+  }
+
+  /// Отменить отложенный поиск. Вызывается при любом уходе с экрана: без этого
+  /// запрос уходит уже из-под открытого поверх экрана, а его ошибка подменяет список.
+  void cancelPendingSearch() {
+    _searchDebounce?.cancel();
+    _searchDebounce = null;
+  }
+
+  @override
+  Future<void> close() {
+    _searchDebounce?.cancel();
+    return super.close();
+  }
+
   /// Первичная загрузка: справочники фильтров (группы/поставщики) + первая страница товаров.
   Future<void> init() async {
     final groups = await _repo.listGroups();
@@ -55,8 +89,11 @@ class GoodsListCubit extends Cubit<GoodsListState> {
     await _load();
   }
 
-  /// Поиск по имени/коду (вызывается с дебаунсом из экрана).
+  /// Поиск по имени/коду. Применяется сразу; отложенный вариант — `setQueryDebounced`.
+  /// Гасим отложенный поиск: иначе «висящий» таймер применил бы более старый текст
+  /// уже после этого вызова.
   Future<void> setQuery(String? query) async {
+    cancelPendingSearch();
     emit(state.copyWith(query: (query ?? '').isEmpty ? null : query));
     await _load();
   }

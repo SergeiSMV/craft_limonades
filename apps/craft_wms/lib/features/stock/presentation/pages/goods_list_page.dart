@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_neumorphic_plus/flutter_neumorphic.dart';
@@ -51,29 +49,25 @@ class _GoodsListView extends StatefulWidget {
 }
 
 class _GoodsListViewState extends State<_GoodsListView> {
-  /// Дебаунс поиска: не дёргаем API на каждый символ, а ждём 350 мс после последнего ввода.
-  Timer? _debounce;
+  /// Дебаунс поиска живёт в `GoodsListCubit`, а не здесь: гасить его должны и обработчики
+  /// из соседних виджетов (уход в карточку товара — в `GoodsResult`), а до поля стейта
+  /// они не дотягиваются.
 
   /// Контроллер строки поиска: по нему показываем крестик очистки (только при непустом
   /// вводе) и чистим поле по тапу.
   final _searchController = TextEditingController();
 
   /// Поиск с дебаунсом: не дёргаем API на каждый символ.
-  void onSearchChanged(String value) {
-    _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 350), () {
-      context.read<GoodsListCubit>().setQuery(value);
-    });
-  }
+  void onSearchChanged(String value) =>
+      context.read<GoodsListCubit>().setQueryDebounced(value);
 
   /// Ввод завершён: сканер шлёт строку целиком и Enter, на софт-клавиатуре это «Поиск».
   /// Скан ШК резолвим и сразу открываем карточку товара, обычный текст — ищем подстрокой.
   Future<void> onSearchSubmitted(String value) async {
     final input = value.trim();
     if (input.isEmpty) return;
-    _debounce?.cancel(); // ввод завершён — отложенный поиск уже не нужен
-
     final cubit = context.read<GoodsListCubit>();
+    cubit.cancelPendingSearch(); // ввод завершён — отложенный поиск уже не нужен
     if (!looksLikeBarcode(input)) {
       await cubit.setQuery(input);
       return;
@@ -107,24 +101,27 @@ class _GoodsListViewState extends State<_GoodsListView> {
   /// Очистить строку поиска и сразу сбросить запрос. Отложенный дебаунс гасим: иначе
   /// «висящий» таймер применил бы старый текст уже после очистки.
   void clearSearch() {
-    _debounce?.cancel();
     _searchController.clear();
-    context.read<GoodsListCubit>().setQuery('');
+    context.read<GoodsListCubit>().setQuery(''); // setQuery сам гасит отложенный поиск
   }
 
-  /// Назад на предыдущий экран (главное меню).
-  void goBack() => context.router.maybePop();
+  /// Назад на предыдущий экран (главное меню). Отложенный поиск гасим: экран уходит,
+  /// а его запрос иначе улетел бы вдогонку.
+  void goBack() {
+    context.read<GoodsListCubit>().cancelPendingSearch();
+    context.router.maybePop();
+  }
 
   /// Открыть раздел «Ввод остатков» (проход склада, P-FastStart). Клавиатуру гасим по той же
   /// причине, что и при переходе в карточку товара, — чтобы не всплывала на возврате.
   void openStockEntry(BuildContext context) {
+    context.read<GoodsListCubit>().cancelPendingSearch();
     dismissKeyboard();
     context.router.push(const StockEntryRoute());
   }
 
   @override
   void dispose() {
-    _debounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
