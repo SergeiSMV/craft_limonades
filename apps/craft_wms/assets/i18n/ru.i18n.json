@@ -24,6 +24,10 @@
     "title": "ГЛАВНОЕ МЕНЮ",
     "logs_tooltip": "Логи",
     "scanner_tooltip": "Сканер",
+    "sync_tooltip": "Обновить справочники",
+    "sync_started": "Обновляю справочники…",
+    "sync_done": "Справочники обновлены",
+    "sync_failed": "Не удалось обновить справочники",
     "logout_tooltip": "Выход",
     "stub_snack": "Раздел в разработке",
     "tiles": {

@@ -1,6 +1,6 @@
 import 'package:craft_wms/core/constants/api_constants.dart';
 import 'package:craft_wms/core/error/failure.dart';
-import 'package:craft_wms/features/stock/data/catalog_repository.dart';
+import 'package:craft_wms/features/stock/data/catalog_api.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -14,11 +14,11 @@ void main() {
   });
 
   /// Настраивает адаптер dio на заданные ответы и собирает репозиторий.
-  CatalogRepository repoWith(
+  CatalogApi repoWith(
     Map<String, ResponseBody Function(RequestOptions)> responses,
   ) {
     dio.httpClientAdapter = RecordingAdapter(responses);
-    return CatalogRepository(dio);
+    return CatalogApi(dio);
   }
 
   group('listGoods', () {
@@ -91,7 +91,7 @@ void main() {
           type: DioExceptionType.connectionError,
         ),
       });
-      final repo = CatalogRepository(dio);
+      final repo = CatalogApi(dio);
 
       final result = await repo.listGoods();
 
@@ -179,7 +179,7 @@ void main() {
             ResponseBody.fromString('', 204),
       });
       dio.httpClientAdapter = adapter;
-      final repo = CatalogRepository(dio);
+      final repo = CatalogApi(dio);
 
       final result = await repo.unbindBarcode('460');
 
@@ -219,7 +219,7 @@ void main() {
         },
       });
       dio.httpClientAdapter = adapter;
-      final repo = CatalogRepository(dio);
+      final repo = CatalogApi(dio);
 
       final res = await repo.listAllCells();
 
@@ -249,7 +249,7 @@ void main() {
         },
       });
       dio.httpClientAdapter = adapter;
-      final repo = CatalogRepository(dio);
+      final repo = CatalogApi(dio);
 
       final res = await repo.listAllCells();
 

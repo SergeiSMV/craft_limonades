@@ -236,3 +236,69 @@ func TestBarcode_validation(t *testing.T) {
 		t.Fatalf("пустой код резолва: ожидалась ErrEmptyBarcode, получено %v", err)
 	}
 }
+
+// TestBarcode_listAll — выгрузка всех привязок ШК для офлайн-кэша устройства (P2-02).
+//
+// Проверяет то, ради чего эндпоинт и появился: справочник забирается страницами, а не обходом
+// товаров по одному запросу; в каждой записи есть товар, иначе по коду нечего резолвить.
+func TestBarcode_listAll(t *testing.T) {
+	pool := testutil.StartPostgres(t)
+	svc := newBarcodeSvc(pool)
+	ctx := context.Background()
+
+	goodA := seedGood(t, pool, "Товар A")
+	goodB := seedGood(t, pool, "Товар B")
+
+	// Два ШК на один товар (штука и короб, P-FS-11) и один на другой.
+	for _, b := range []struct{ good, code, sym string }{
+		{goodA, "4600000000011", "ean13"},
+		{goodA, "BOX-A-0001", "code128"},
+		{goodB, "4600000000028", "ean13"},
+	} {
+		if err := svc.Bind(ctx, b.good, b.code, b.sym); err != nil {
+			t.Fatalf("Bind %q: %v", b.code, err)
+		}
+	}
+
+	page, err := svc.List(ctx, 0, 0)
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	if page.Total != 3 || len(page.Items) != 3 {
+		t.Fatalf("ожидалось 3 привязки, получено total=%d items=%d", page.Total, len(page.Items))
+	}
+
+	// У каждой записи должен быть товар: без good_id кэш не сможет резолвить скан.
+	byCode := map[string]string{}
+	for _, it := range page.Items {
+		if it.GoodID == "" {
+			t.Fatalf("привязка %q без good_id", it.Barcode)
+		}
+		byCode[it.Barcode] = it.GoodID
+	}
+	if byCode["4600000000011"] != goodA || byCode["BOX-A-0001"] != goodA {
+		t.Fatalf("оба ШК товара A должны указывать на него: %v", byCode)
+	}
+	if byCode["4600000000028"] != goodB {
+		t.Fatalf("ШК товара B указывает не туда: %v", byCode)
+	}
+
+	// Страницы не перемешиваются: порядок по ШК стабилен, total считается по всей выборке.
+	first, err := svc.List(ctx, 2, 0)
+	if err != nil {
+		t.Fatalf("List(2,0): %v", err)
+	}
+	second, err := svc.List(ctx, 2, 2)
+	if err != nil {
+		t.Fatalf("List(2,2): %v", err)
+	}
+	if len(first.Items) != 2 || len(second.Items) != 1 {
+		t.Fatalf("страницы: ожидалось 2+1, получено %d+%d", len(first.Items), len(second.Items))
+	}
+	if first.Total != 3 || second.Total != 3 {
+		t.Fatalf("total должен считаться по всей выборке, получено %d и %d", first.Total, second.Total)
+	}
+	if first.Items[0].Barcode > first.Items[1].Barcode {
+		t.Fatalf("порядок по ШК нарушен: %v", first.Items)
+	}
+}
