@@ -250,7 +250,13 @@ yandex_folder() { local f; f="$(get_env YANDEX_FOLDER)"; printf '%s' "${f:-craft
 ya_rclone() {
   local pass
   pass="$(rclone obscure "$(get_env YANDEX_WEBDAV_PASSWORD)" 2>/dev/null)"
-  env RCLONE_CONFIG_YA_TYPE=webdav \
+  # RCLONE_CONFIG=/dev/null — файла конфигурации у нас нет намеренно, подключение целиком
+  # задаётся переменными. Без этого rclone на каждый вызов печатает
+  # «Config file … not found - using defaults», и ночной таймер капал бы этим в journal,
+  # маскируя настоящие ошибки. Уровень логирования при этом не понижаем: ERROR и код
+  # возврата остаются на месте — проверено на неверном пароле.
+  env RCLONE_CONFIG=/dev/null \
+      RCLONE_CONFIG_YA_TYPE=webdav \
       RCLONE_CONFIG_YA_URL="$YA_WEBDAV_URL" \
       RCLONE_CONFIG_YA_VENDOR=other \
       RCLONE_CONFIG_YA_USER="$(get_env YANDEX_LOGIN)" \
