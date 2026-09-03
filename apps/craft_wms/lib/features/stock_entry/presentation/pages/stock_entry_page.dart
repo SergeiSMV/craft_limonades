@@ -25,7 +25,8 @@ class StockEntryPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => getIt<StockEntryCubit>(),
+      // restore() поднимает незавершённый проход, если приложение умерло до финала (P2-03).
+      create: (_) => getIt<StockEntryCubit>()..restore(),
       child: const _StockEntryView(),
     );
   }
@@ -57,7 +58,11 @@ class _StockEntryView extends StatelessWidget {
       return;
     }
     final leave = await _confirmDiscard(context);
-    if (leave && context.mounted) Navigator.of(context).pop();
+    if (!leave) return;
+    // Кладовщик подтвердил потерю просчёта — забываем и сохранённый слепок, иначе
+    // следующее открытие экрана подняло бы брошенный проход (P2-03).
+    await cubit.discardDraft();
+    if (context.mounted) Navigator.of(context).pop();
   }
 
   /// Диалог подтверждения выхода с несохранённым просчётом.

@@ -4,9 +4,11 @@ import 'package:injectable/injectable.dart';
 
 import '../../../../core/error/failure.dart';
 import '../../../stock/data/catalog_models.dart';
+import '../../data/entry_draft_store.dart';
 import '../../data/stock_entry_repository.dart';
 
 part 'stock_entry_cubit.freezed.dart';
+part 'stock_entry_cubit.g.dart';
 
 /// Максимум операций отмены (буфер текущей ячейки).
 const int kUndoDepth = 10;
@@ -21,6 +23,10 @@ abstract class EntryLineDraft with _$EntryLineDraft {
     required String productionDate, // дд.мм.гггг (в UI); в API конвертируется в DD-MM-YYYY
     required double qty,
   }) = _EntryLineDraft;
+
+  /// Разбор из слепка незавершённого прохода (P2-03).
+  factory EntryLineDraft.fromJson(Map<String, dynamic> json) =>
+      _$EntryLineDraftFromJson(json);
 }
 
 /// Привязка `ШК → товар`, собранная за проход. Символика — как отдал сканер (сейчас пусто).
@@ -32,6 +38,10 @@ abstract class BarcodeBinding with _$BarcodeBinding {
     required Good good,
     @Default('') String symbology,
   }) = _BarcodeBinding;
+
+  /// Разбор из слепка незавершённого прохода (P2-03).
+  factory BarcodeBinding.fromJson(Map<String, dynamic> json) =>
+      _$BarcodeBindingFromJson(json);
 }
 
 /// Снимок буфера ячейки для Undo: строки + копилка ШК на момент до операции. ШК включён в снимок,
@@ -51,6 +61,10 @@ abstract class CommittedCell with _$CommittedCell {
     required Cell cell,
     required List<EntryLineDraft> lines,
   }) = _CommittedCell;
+
+  /// Разбор из слепка незавершённого прохода (P2-03).
+  factory CommittedCell.fromJson(Map<String, dynamic> json) =>
+      _$CommittedCellFromJson(json);
 }
 
 /// Состояние экрана-потока ввода остатков. Вариант A: всё копится в памяти ТСД; на сервер уходит
@@ -83,7 +97,89 @@ abstract class StockEntryState with _$StockEntryState {
 /// финал одним пакетом. Фабрика (свой на экран).
 @injectable
 class StockEntryCubit extends Cubit<StockEntryState> {
-  StockEntryCubit(this._repo) : super(const StockEntryState());
+  StockEntryCubit(this._repo, this._drafts) : super(const StockEntryState());
+
+  final EntryDraftStore _drafts;
+
+  /// Очередь записей слепка. Слепок снимается синхронно в момент [emit], а пишется по цепочке:
+  /// два быстрых изменения подряд иначе ушли бы в базу параллельно, и последней могла бы лечь
+  /// более ранняя версия прохода.
+  Future<void> _writes = Future<void>.value();
+
+  /// Восстановить незавершённый проход. Зовётся один раз при открытии экрана.
+  ///
+  /// Слепок пишется на каждое изменение буфера, поэтому «восстановить» означает вернуть
+  /// состояние на момент последнего действия кладовщика, а не на момент открытия экрана.
+  Future<void> restore() async {
+    final draft = await _drafts.load();
+    if (draft == null) return;
+    emit(_stateFromDraft(draft));
+  }
+
+  /// Слепок durable-части состояния.
+  ///
+  /// Что НЕ входит: [StockEntryState.undoStack] — Undo служит текущему действию, переживать
+  /// перезапуск ему незачем; [StockEntryState.busy] и [StockEntryState.failure] — они описывают
+  /// сетевой вызов, которого после перезапуска уже нет.
+  ///
+  /// [StockEntryState.sessionId] входит: если процесс умер посреди финала, сессия на сервере
+  /// уже создана, и повторный финал без её идентификатора завёл бы вторую.
+  Map<String, dynamic> _draftJson(StockEntryState s) => {
+    'cell': s.cell?.toJson(),
+    'lines': s.lines.map((l) => l.toJson()).toList(),
+    'committed_cells': s.committedCells.map((c) => c.toJson()).toList(),
+    'barcodes': s.barcodes.map((code, b) => MapEntry(code, b.toJson())),
+    'session_id': s.sessionId,
+  };
+
+  /// Состояние из слепка.
+  StockEntryState _stateFromDraft(Map<String, dynamic> draft) {
+    final cell = draft['cell'] as Map<String, dynamic>?;
+    final barcodes = (draft['barcodes'] as Map<String, dynamic>? ?? const {});
+    return StockEntryState(
+      cell: cell == null ? null : Cell.fromJson(cell),
+      lines: (draft['lines'] as List<dynamic>? ?? const [])
+          .map((e) => EntryLineDraft.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      committedCells: (draft['committed_cells'] as List<dynamic>? ?? const [])
+          .map((e) => CommittedCell.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      barcodes: barcodes.map(
+        (code, b) =>
+            MapEntry(code, BarcodeBinding.fromJson(b as Map<String, dynamic>)),
+      ),
+      sessionId: draft['session_id'] as String?,
+    );
+  }
+
+  /// Есть ли что сохранять: пустой проход слепка не заслуживает.
+  bool _hasDraft(StockEntryState s) =>
+      s.cell != null || s.lines.isNotEmpty || s.committedCells.isNotEmpty;
+
+  /// Сохранение слепка повешено на [emit], а не расставлено по методам-мутациям намеренно:
+  /// изменяющих буфер методов семь (выбор и смена ячейки, три правки строк, отмена,
+  /// завершение ячейки, удаление пройденной), и восьмой, добавленный позже, про сохранение
+  /// забыл бы. Один перехват на все изменения забыть невозможно.
+  @override
+  void emit(StockEntryState state) {
+    super.emit(state);
+    // Финал прошёл — проход больше не нужен; пустой проход тоже не храним.
+    final done = state.finished || !_hasDraft(state);
+    final snapshot = done ? null : _draftJson(state);
+    _writes = _writes
+        .then((_) => snapshot == null ? _drafts.clear() : _drafts.save(snapshot))
+        // Сбой записи слепка не должен ронять ввод остатков: кладовщик продолжит проход,
+        // просто без страховки. Молча — сообщать здесь нечего и некому.
+        .catchError((_) {});
+  }
+
+  /// Забыть незавершённый проход — кладовщик вышел, подтвердив потерю просчёта.
+  Future<void> discardDraft() => _drafts.clear();
+
+  /// Дождаться записи слепка. Нужно только тестам: запись идёт вне вызова [emit], и без
+  /// этого проверка «состояние сохранилось» гонялась бы с самой записью.
+  @visibleForTesting
+  Future<void> get draftWrites => _writes;
 
   final StockEntryRepository _repo;
 

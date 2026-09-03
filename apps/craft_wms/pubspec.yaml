@@ -52,6 +52,7 @@ dependencies:
   flutter_neumorphic_plus: ^3.5.0
   drift: ^2.34.4 # локальная БД устройства (sqlite) — офлайн-стор и кэш справочников (P2-02)
   drift_flutter: ^0.3.1 # подключение drift к файлу БД на устройстве (нативные библиотеки sqlite3)
+  uuid: ^4.5.1 # operation_id для очереди операций — ключ идемпотентности (P2-03)
 
 
 dev_dependencies:
