@@ -123,13 +123,27 @@ class _BindBarcodeDialogState extends State<BindBarcodeDialog>
     }
     setState(() {
       _busy = false;
-      // 409 — единственная ошибка, о причине которой можно сказать точно.
-      _error = failure is ServerFailure && failure.statusCode == 409
-          ? t.stockDetailScreen.bindConflict
-          : t.stockDetailScreen.bindFailed;
+      _error = _errorText(failure);
     });
     _focusNode.requestFocus();
   }
+
+  /// Текст под полем по существу отказа (ADHOC-09).
+  ///
+  /// Раньше всё, кроме 409, показывалось одной фразой «не удалось привязать». С появлением
+  /// очереди операций (P2-03) она стала неверной для самого частого случая: связи нет,
+  /// но операция принята и ждёт. Кладовщик читал «не удалось» и жал кнопку снова — каждое
+  /// нажатие добавляло в очередь копию привязки.
+  ///
+  /// «Отложена» — намеренно без обещания успеха: офлайн неизвестно, свободен ли этот ШК на
+  /// сервере. Если он уже за другим товаром, придёт 409, и показывать отклонённые операции
+  /// будет P2-06.
+  String _errorText(Failure failure) => switch (failure) {
+    NetworkFailure() => t.stockDetailScreen.bindOffline,
+    // 409 — единственный отказ, о причине которого можно сказать точно.
+    ServerFailure(statusCode: 409) => t.stockDetailScreen.bindConflict,
+    _ => t.stockDetailScreen.bindFailed,
+  };
 
   @override
   Widget build(BuildContext context) {

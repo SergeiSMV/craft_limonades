@@ -70,6 +70,79 @@ void main() {
     });
   });
 
+  group('дедуп постановки (ADHOC-09)', () {
+    // ADHOC-09, находка с устройства: экран сообщал «не удалось привязать», хотя операция
+    // была принята и ждала связи. Кладовщик жал кнопку снова, и в очереди нашлись ЧЕТЫРЕ
+    // одинаковых привязки одного ШК: первая ушла бы при появлении связи, остальные упёрлись
+    // бы в уникальность штрихкода на сервере и осели отклонёнными.
+    test('такая же ожидающая операция не дублируется', () async {
+      final first = await outbox.enqueue(
+        kind: OutboxKind.bindBarcode,
+        payload: {'good_id': 'g1', 'barcode': '48513883'},
+      );
+      final second = await outbox.enqueue(
+        kind: OutboxKind.bindBarcode,
+        payload: {'good_id': 'g1', 'barcode': '48513883'},
+      );
+
+      expect(second, first, reason: 'вернулась уже стоящая операция');
+      expect(await outbox.pendingCount(), 1);
+    });
+
+    test('дубль считается по типу и телу, а не по одному коду', () async {
+      await outbox.enqueue(
+        kind: OutboxKind.bindBarcode,
+        payload: {'good_id': 'g1', 'barcode': '48513883'},
+      );
+      // Тот же ШК, но другой товар — это другое дело, и оно должно встать в очередь.
+      await outbox.enqueue(
+        kind: OutboxKind.bindBarcode,
+        payload: {'good_id': 'g2', 'barcode': '48513883'},
+      );
+      // Тот же ШК, но отвязка — тоже другое дело.
+      await outbox.enqueue(
+        kind: OutboxKind.unbindBarcode,
+        payload: {'barcode': '48513883'},
+      );
+
+      expect(await outbox.pendingCount(), 3);
+    });
+
+    // Отслужившая операция не мешает поставить такую же снова: кладовщик мог отвязать ШК
+    // и привязать его заново.
+    test('после отправки такую же операцию можно поставить снова', () async {
+      final first = await outbox.enqueue(
+        kind: OutboxKind.bindBarcode,
+        payload: const {'barcode': '48513883'},
+      );
+      await outbox.markSent(first);
+
+      final second = await outbox.enqueue(
+        kind: OutboxKind.bindBarcode,
+        payload: const {'barcode': '48513883'},
+      );
+
+      expect(second, isNot(first));
+      expect(await outbox.pendingCount(), 1);
+    });
+
+    test('операция, застрявшая в отправке, тоже считается ожидающей', () async {
+      final first = await outbox.enqueue(
+        kind: OutboxKind.bindBarcode,
+        payload: const {'barcode': '48513883'},
+      );
+      await outbox.markSending(first);
+
+      final second = await outbox.enqueue(
+        kind: OutboxKind.bindBarcode,
+        payload: const {'barcode': '48513883'},
+      );
+
+      expect(second, first);
+      expect(await outbox.pendingCount(), 1);
+    });
+  });
+
   group('статусы', () {
     test('markSent убирает операцию из ожидающих', () async {
       final id = await outbox.enqueue(

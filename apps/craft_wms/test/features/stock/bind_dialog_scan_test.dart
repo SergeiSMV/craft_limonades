@@ -70,8 +70,51 @@ void main() {
     scanner.emit('4607044662964');
     await tester.pumpAndSettle();
 
-    // Привязка не удалась — диалог остаётся, и в поле виден отсканированный код.
+    // Привязка не ушла — диалог остаётся, и в поле виден отсканированный код.
     expect(find.text('4607044662964'), findsOneWidget);
+    await scanner.dispose();
+  });
+
+  // ADHOC-09: раньше всё, кроме 409, показывалось одной фразой «не удалось привязать».
+  // С появлением очереди она стала неверной для самого частого случая — связи нет, но
+  // операция принята и ждёт. Кладовщик читал «не удалось» и жал кнопку снова, а каждое
+  // нажатие добавляло в очередь копию привязки.
+  testWidgets('отсутствие связи и отказ сервера сообщаются по-разному', (
+    tester,
+  ) async {
+    final scanner = registerFakeScanner();
+    await pump(tester, failure: const Failure.network());
+
+    scanner.emit('4607044662964');
+    await tester.pumpAndSettle();
+
+    expect(find.text(t.stockDetailScreen.bindOffline), findsOneWidget);
+    expect(
+      find.text(t.stockDetailScreen.bindFailed),
+      findsNothing,
+      reason: 'общая фраза про неудачу для отсутствия связи неверна',
+    );
+    await scanner.dispose();
+  });
+
+  testWidgets('занятый ШК по-прежнему объясняется отдельно', (tester) async {
+    final scanner = registerFakeScanner();
+    await pump(tester, failure: const Failure.server(409));
+
+    scanner.emit('4607044662964');
+    await tester.pumpAndSettle();
+
+    expect(find.text(t.stockDetailScreen.bindConflict), findsOneWidget);
+    await scanner.dispose();
+  });
+
+  testWidgets('отказ сервера 5xx — общая фраза про неудачу', (tester) async {
+    final scanner = registerFakeScanner();
+    await pump(tester, failure: const Failure.server(500));
+
+    scanner.emit('4607044662964');
+    await tester.pumpAndSettle();
+
     expect(find.text(t.stockDetailScreen.bindFailed), findsOneWidget);
     await scanner.dispose();
   });
