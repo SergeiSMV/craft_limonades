@@ -154,26 +154,81 @@ void main() {
 
       final found = await cubit.resolveBarcode('4607044662964');
 
-      expect(found?.id, 'g1');
+      expect(found.right?.id, 'g1');
       expect(cubit.state.status, isNot(GoodsListStatus.error));
     });
 
-    test('непривязанный ШК → null без ошибки', () async {
+    test('непривязанный ШК → Right(null): исход штатный, не ошибка', () async {
       when(
         () => repo.resolveGoodByBarcode(any()),
       ).thenAnswer((_) async => const Right(null));
 
-      expect(await cubit.resolveBarcode('0000000000000'), isNull);
+      final res = await cubit.resolveBarcode('0000000000000');
+
+      expect(res.isRight, isTrue);
+      expect(res.right, isNull);
       expect(cubit.state.status, isNot(GoodsListStatus.error));
     });
 
-    test('сетевая ошибка → null и статус error (покажет общий блок)', () async {
+    // ADHOC-06: раньше неудача резолва ставила status: error, и один скан подменял загруженный
+    // список экраном «не удалось загрузить». Сам список кладовщик при этом не трогал.
+    test('отказ доходит до вызывающего и НЕ роняет список в error', () async {
       when(
         () => repo.resolveGoodByBarcode(any()),
       ).thenAnswer((_) async => const Left(Failure.network()));
+      when(
+        () => repo.listGoods(
+          query: any(named: 'query'),
+          groupId: any(named: 'groupId'),
+          supplierId: any(named: 'supplierId'),
+          limit: any(named: 'limit'),
+          offset: any(named: 'offset'),
+        ),
+      ).thenAnswer((_) async => Right(page(['a'], total: 1)));
+      await cubit.init();
 
-      expect(await cubit.resolveBarcode('4607044662964'), isNull);
-      expect(cubit.state.status, GoodsListStatus.error);
+      final res = await cubit.resolveBarcode('4607044662964');
+
+      expect(res.isLeft, isTrue);
+      expect(res.left, isA<NetworkFailure>());
+      expect(cubit.state.status, GoodsListStatus.loaded);
+      expect(cubit.state.goods, isNotEmpty);
+    });
+  });
+
+  group('bindBarcode (ADHOC-06)', () {
+    test('успех → null, состояние списка не трогаем', () async {
+      when(
+        () => repo.bindBarcode(
+          goodId: any(named: 'goodId'),
+          barcode: any(named: 'barcode'),
+        ),
+      ).thenAnswer((_) async => const Right(null));
+
+      final failure = await cubit.bindBarcode(
+        goodId: 'g1',
+        barcode: '4607044662964',
+      );
+
+      expect(failure, isNull);
+      expect(cubit.state.status, isNot(GoodsListStatus.error));
+    });
+
+    test('ошибка возвращается вызывающему, а не в state', () async {
+      when(
+        () => repo.bindBarcode(
+          goodId: any(named: 'goodId'),
+          barcode: any(named: 'barcode'),
+        ),
+      ).thenAnswer((_) async => const Left(Failure.server(409)));
+
+      final failure = await cubit.bindBarcode(
+        goodId: 'g1',
+        barcode: '4607044662964',
+      );
+
+      expect(failure, isA<ServerFailure>());
+      expect(cubit.state.status, isNot(GoodsListStatus.error));
     });
   });
 }

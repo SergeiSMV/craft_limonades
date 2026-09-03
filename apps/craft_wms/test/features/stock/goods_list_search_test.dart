@@ -114,7 +114,7 @@ void main() {
     );
   });
 
-  testWidgets('скан непривязанного ШК: сообщение, поиск по имени не уходит', (
+  testWidgets('скан непривязанного ШК: предложение привязки, поиск не уходит', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -130,10 +130,11 @@ void main() {
 
     verify(() => repo.resolveGoodByBarcode('4607044662964')).called(1);
     expect(
-      find.textContaining('не привязан'),
+      find.text(t.stockListScreen.bindPromptBody(barcode: '4607044662964')),
       findsOneWidget,
-      reason: 'кладовщику сказали, что ШК неизвестен',
+      reason: 'кладовщику сказали, что ШК неизвестен, и предложили привязать',
     );
+    expect(find.text(t.stockListScreen.bindConfirm), findsOneWidget);
     expect(
       queries,
       isEmpty,

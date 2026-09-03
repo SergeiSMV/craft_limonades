@@ -8,7 +8,7 @@ import 'package:craft_wms/features/stock_entry/data/stock_entry_repository.dart'
 import 'package:craft_wms/features/stock_entry/presentation/bloc/stock_entry_cubit.dart';
 import 'package:craft_wms/features/stock_entry/presentation/widgets/cell_entry_view.dart';
 import 'package:craft_wms/features/stock_entry/presentation/widgets/cell_select_view.dart';
-import 'package:craft_wms/features/stock_entry/presentation/widgets/good_picker_sheet.dart';
+import 'package:craft_wms/core/widgets/good_picker_sheet.dart';
 import 'package:either_dart/either.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:either_dart/either.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:injectable/injectable.dart';
@@ -98,15 +99,25 @@ class GoodsListCubit extends Cubit<GoodsListState> {
     await _load();
   }
 
-  /// Резолв товара по отсканированному ШК (P-FS-16). Возвращает товар либо `null`,
-  /// если ШК не привязан. Сетевую ошибку кладём в state — экран покажет общий блок ошибки,
-  /// а не молчаливое «не найдено».
-  Future<Good?> resolveBarcode(String code) async {
-    final result = await _repo.resolveGoodByBarcode(code);
-    return result.fold((failure) {
-      emit(state.copyWith(status: GoodsListStatus.error, failure: failure));
-      return null;
-    }, (good) => good);
+  /// Резолв товара по отсканированному ШК (P-FS-16). `Right(null)` — ШК не привязан ни к одному
+  /// товару, `Left` — спросить не удалось (нет связи или отказ сервера); экран показывает эти
+  /// исходы по-разному, поэтому различает их он, а не cubit.
+  ///
+  /// Ошибку намеренно НЕ кладём в state (ADHOC-06). Раньше клали, и один скан подменял весь
+  /// список экраном «не удалось загрузить» — при том что список загрузился нормально, а
+  /// кладовщик его не трогал. Это тот же дефект, что закрывали в отложенном поиске (ADHOC-03):
+  /// неудача точечного запроса рушит экран, к которому она отношения не имеет.
+  Future<Either<Failure, Good?>> resolveBarcode(String code) =>
+      _repo.resolveGoodByBarcode(code);
+
+  /// Привязать отсканированный ШК к выбранному товару (ADHOC-06). Возвращает ошибку вызывающему
+  /// и, как и [resolveBarcode], не кладёт её в state: список остался валидным.
+  Future<Failure?> bindBarcode({
+    required String goodId,
+    required String barcode,
+  }) async {
+    final res = await _repo.bindBarcode(goodId: goodId, barcode: barcode);
+    return res.fold((failure) => failure, (_) => null);
   }
 
   /// Фильтр по группе (null — снять).
