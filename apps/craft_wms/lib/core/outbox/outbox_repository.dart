@@ -34,10 +34,24 @@ class OutboxRepository {
   /// Идентификатор генерируется **здесь, а не на сервере**: смысл очереди в том, чтобы
   /// операция существовала до и независимо от сетевого вызова, а серверный идентификатор
   /// без сети получить неоткуда.
+  ///
+  /// **Точно такая же ожидающая операция не дублируется** (ADHOC-09): очередь — список дел,
+  /// а одно и то же дело в нём дважды не нужно. Возвращается идентификатор уже стоящей
+  /// операции, и вызывающий об этом даже не узнаёт.
+  ///
+  /// Дефект, из-за которого правило появилось: экран сообщал «не удалось привязать», хотя
+  /// операция была принята и ждала связи. Кладовщик жал кнопку снова, каждое нажатие
+  /// добавляло в очередь новую копию, и на устройстве нашлись четыре одинаковых привязки
+  /// одного ШК. При появлении связи первая уходила, а остальные упирались в уникальность
+  /// штрихкода на сервере и оседали отклонёнными.
   Future<String> enqueue({
     required OutboxKind kind,
     required Map<String, dynamic> payload,
   }) async {
+    final body = jsonEncode(payload);
+    final duplicate = await _pendingSameAs(kind: kind, payload: body);
+    if (duplicate != null) return duplicate;
+
     final operationId = _uuid.v4();
     final now = DateTime.now();
     await _db
@@ -46,13 +60,39 @@ class OutboxRepository {
           OutboxOperationsCompanion.insert(
             operationId: operationId,
             kind: kind.wire,
-            payload: jsonEncode(payload),
+            payload: body,
             status: OutboxStatus.pending.wire,
             createdAt: now,
             updatedAt: now,
           ),
         );
     return operationId;
+  }
+
+  /// Идентификатор ожидающей операции с тем же типом и телом, если такая уже есть.
+  ///
+  /// Сравнивается закодированное тело, а не разобранная карта: строка в базе лежит именно
+  /// в этом виде, и `jsonEncode` от одного и того же источника даёт одинаковый результат.
+  /// `sent` и `rejected` в сравнение не входят — своё дело они уже отслужили, и повторная
+  /// постановка после них законна (например, кладовщик отвязал ШК и привязывает снова).
+  Future<String?> _pendingSameAs({
+    required OutboxKind kind,
+    required String payload,
+  }) async {
+    final query = _db.select(_db.outboxOperations)
+      ..where(
+        (t) =>
+            t.kind.equals(kind.wire) &
+            t.payload.equals(payload) &
+            t.status.isIn([
+              OutboxStatus.pending.wire,
+              OutboxStatus.sending.wire,
+            ]),
+      )
+      ..orderBy([(t) => OrderingTerm.asc(t.seq)])
+      ..limit(1);
+    final row = await query.getSingleOrNull();
+    return row?.operationId;
   }
 
   /// Операции, ожидающие отправки, в порядке постановки.

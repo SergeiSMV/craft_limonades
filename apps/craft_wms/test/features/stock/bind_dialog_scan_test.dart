@@ -14,9 +14,14 @@ import '../../support/fake_scanner_service.dart';
 void main() {
   setUp(LocaleSettings.useDeviceLocale);
 
-  /// Открыть диалог привязки; [onBind] отдаёт исход привязки.
-  Future<List<String>> pump(WidgetTester tester, {Failure? failure}) async {
-    final bound = <String>[];
+  /// Коды, переданные на привязку, и исход, с которым закрылся диалог.
+  late List<String> bound;
+  late List<BindOutcome?> outcomes;
+
+  /// Открыть диалог привязки; [failure] — что отвечает привязка.
+  Future<void> pump(WidgetTester tester, {Failure? failure}) async {
+    bound = <String>[];
+    outcomes = <BindOutcome?>[];
     await tester.pumpWidget(
       MaterialApp(
         theme: buildAppTheme(),
@@ -24,15 +29,18 @@ void main() {
           builder: (context) => Scaffold(
             body: Center(
               child: ElevatedButton(
-                onPressed: () => showDialog<bool>(
-                  context: context,
-                  builder: (_) => BindBarcodeDialog(
-                    onBind: (code) async {
-                      bound.add(code);
-                      return failure;
-                    },
-                  ),
-                ),
+                onPressed: () async {
+                  final res = await showDialog<BindOutcome>(
+                    context: context,
+                    builder: (_) => BindBarcodeDialog(
+                      onBind: (code) async {
+                        bound.add(code);
+                        return failure;
+                      },
+                    ),
+                  );
+                  outcomes.add(res);
+                },
                 child: const Text('открыть'),
               ),
             ),
@@ -42,14 +50,13 @@ void main() {
     );
     await tester.tap(find.text('открыть'));
     await tester.pumpAndSettle();
-    return bound;
   }
 
   testWidgets('скан из потока привязывает код (регресс ADHOC-07)', (
     tester,
   ) async {
     final scanner = registerFakeScanner();
-    final bound = await pump(tester);
+    await pump(tester);
 
     scanner.emit('4607044662964');
     await tester.pumpAndSettle();
@@ -60,18 +67,70 @@ void main() {
       findsNothing,
       reason: 'успешная привязка закрывает диалог',
     );
+    expect(outcomes, [BindOutcome.bound]);
     await scanner.dispose();
   });
 
-  testWidgets('код виден в поле до отправки', (tester) async {
+  testWidgets('код виден в поле, когда диалог остаётся открытым', (
+    tester,
+  ) async {
+    final scanner = registerFakeScanner();
+    await pump(tester, failure: const Failure.server(409));
+
+    scanner.emit('4607044662964');
+    await tester.pumpAndSettle();
+
+    // ШК занят — от кладовщика ждут другой код, и отсканированный виден в поле.
+    expect(find.text('4607044662964'), findsOneWidget);
+    await scanner.dispose();
+  });
+
+  // ADHOC-11, находка с устройства: операция уже принята в очередь, а диалог оставался
+  // открытым с заполненным полем и активной кнопкой — то есть изображал незаконченное
+  // действие. Кладовщик нажал «Привязать» четыре раза без единого видимого изменения.
+  testWidgets('без связи привязка принимается и диалог закрывается', (
+    tester,
+  ) async {
     final scanner = registerFakeScanner();
     await pump(tester, failure: const Failure.network());
 
     scanner.emit('4607044662964');
     await tester.pumpAndSettle();
 
-    // Привязка не удалась — диалог остаётся, и в поле виден отсканированный код.
-    expect(find.text('4607044662964'), findsOneWidget);
+    expect(bound, ['4607044662964'], reason: 'операция ушла в очередь');
+    expect(outcomes, [BindOutcome.deferred]);
+    expect(
+      find.byType(BindBarcodeDialog),
+      findsNothing,
+      reason: 'от кладовщика больше ничего не нужно',
+    );
+    expect(
+      find.text(t.stockDetailScreen.bindFailed),
+      findsNothing,
+      reason: 'общая фраза про неудачу для отсутствия связи неверна',
+    );
+    await scanner.dispose();
+  });
+
+  testWidgets('занятый ШК по-прежнему объясняется отдельно', (tester) async {
+    final scanner = registerFakeScanner();
+    await pump(tester, failure: const Failure.server(409));
+
+    scanner.emit('4607044662964');
+    await tester.pumpAndSettle();
+
+    expect(find.text(t.stockDetailScreen.bindConflict), findsOneWidget);
+    expect(find.byType(BindBarcodeDialog), findsOneWidget);
+    await scanner.dispose();
+  });
+
+  testWidgets('отказ сервера 5xx — общая фраза про неудачу', (tester) async {
+    final scanner = registerFakeScanner();
+    await pump(tester, failure: const Failure.server(500));
+
+    scanner.emit('4607044662964');
+    await tester.pumpAndSettle();
+
     expect(find.text(t.stockDetailScreen.bindFailed), findsOneWidget);
     await scanner.dispose();
   });
@@ -80,7 +139,7 @@ void main() {
   // конфигурация «и то, и другое» дала бы две попытки привязки одного кода.
   testWidgets('дубль из двух источников привязывает один раз', (tester) async {
     final scanner = registerFakeScanner();
-    final bound = await pump(tester, failure: const Failure.network());
+    await pump(tester, failure: const Failure.server(409));
 
     scanner.emit('4607044662964');
     await tester.pumpAndSettle();
@@ -95,7 +154,7 @@ void main() {
   // штрихкодом товара. Тот же случай ловится во «Вводе остатков» (P2-01).
   testWidgets('адрес ячейки не привязывается, а объясняется', (tester) async {
     final scanner = registerFakeScanner();
-    final bound = await pump(tester);
+    await pump(tester);
 
     scanner.emit('M1-1-10-1');
     await tester.pumpAndSettle();
@@ -108,7 +167,7 @@ void main() {
 
   testWidgets('ручной ввод с Enter по-прежнему привязывает', (tester) async {
     final scanner = registerFakeScanner();
-    final bound = await pump(tester);
+    await pump(tester);
 
     await tester.enterText(find.byType(TextField), '4607044662964');
     await tester.testTextInput.receiveAction(TextInputAction.done);

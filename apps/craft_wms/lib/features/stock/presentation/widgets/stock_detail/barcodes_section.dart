@@ -45,14 +45,22 @@ class BarcodesSection extends StatelessWidget {
     if (ok == true) cubit.unbindBarcode(code);
   }
 
-  /// Открыть диалог привязки ШК. Cubit сам перезагружает карточку после успеха, поэтому
-  /// здесь ничего доделывать не нужно.
+  /// Открыть диалог привязки ШК.
+  ///
+  /// После успеха карточку перезагружает сам cubit, доделывать нечего. А вот отложенную
+  /// привязку сообщить надо: диалог закрылся, на карточке ничего не изменилось, и без
+  /// сообщения кладовщик не поймёт, принята его работа или потеряна (ADHOC-11).
   Future<void> openBindDialog(BuildContext context) async {
     final cubit = context.read<StockDetailCubit>();
-    await showDialog<bool>(
+    final messenger = ScaffoldMessenger.of(context);
+    final outcome = await showDialog<BindOutcome>(
       context: context,
       builder: (_) => BindBarcodeDialog(onBind: cubit.bindBarcode),
     );
+    if (outcome != BindOutcome.deferred) return;
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(t.stockDetailScreen.bindOffline)));
   }
 
   @override

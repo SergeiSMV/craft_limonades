@@ -14,6 +14,19 @@ import '../../../../../core/scanner/scan_deduper.dart';
 import '../../../../../core/theme/regular_text.dart';
 import '../../../../../core/theme/semibold_text.dart';
 
+/// Чем закончилась привязка ШК (ADHOC-11).
+///
+/// Отдельный тип, потому что «сервер принял» и «связи нет, операция в очереди» — разные исходы,
+/// и вызывающему нужно сообщить о них по-разному. До него диалог возвращал `bool`, а отложенная
+/// привязка выглядела как неудача.
+enum BindOutcome {
+  /// Сервер принял привязку.
+  bound,
+
+  /// Связи нет: операция принята в очередь и уйдёт, когда связь появится.
+  deferred,
+}
+
 /// Диалог привязки штрихкода к товару (P-FS-17): одно поле под скан, «Отмена» и «Привязать».
 ///
 /// Поле в фокусе, но экранная клавиатура не открывается: HID-сканер шлёт ввод в сфокусированное
@@ -118,18 +131,35 @@ class _BindBarcodeDialogState extends State<BindBarcodeDialog>
     if (!mounted) return;
 
     if (failure == null) {
-      Navigator.of(context).pop(true);
+      Navigator.of(context).pop(BindOutcome.bound);
+      return;
+    }
+    // Связи нет — операция уже в очереди, и от кладовщика больше ничего не нужно (ADHOC-11).
+    // Держать диалог открытым значило бы изображать незаконченное действие: работа принята,
+    // а человек видит заполненное поле и активную кнопку и жмёт её снова. На устройстве так
+    // и вышло — четыре нажатия подряд без единого видимого изменения.
+    if (failure is NetworkFailure) {
+      Navigator.of(context).pop(BindOutcome.deferred);
       return;
     }
     setState(() {
       _busy = false;
-      // 409 — единственная ошибка, о причине которой можно сказать точно.
-      _error = failure is ServerFailure && failure.statusCode == 409
-          ? t.stockDetailScreen.bindConflict
-          : t.stockDetailScreen.bindFailed;
+      _error = _errorText(failure);
     });
     _focusNode.requestFocus();
   }
+
+  /// Текст под полем по существу отказа (ADHOC-09).
+  ///
+  /// Раньше всё, кроме 409, показывалось одной фразой «не удалось привязать». Отсутствие связи
+  /// сюда больше не попадает: такая привязка принимается в очередь, диалог закрывается, и
+  /// сообщение показывает карточка (ADHOC-11). Здесь остались отказы, после которых от
+  /// кладовщика действительно чего-то ждут: пересканировать другой код или позвать админа.
+  String _errorText(Failure failure) => switch (failure) {
+    // 409 — единственный отказ, о причине которого можно сказать точно.
+    ServerFailure(statusCode: 409) => t.stockDetailScreen.bindConflict,
+    _ => t.stockDetailScreen.bindFailed,
+  };
 
   @override
   Widget build(BuildContext context) {

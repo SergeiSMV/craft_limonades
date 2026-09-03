@@ -1,10 +1,24 @@
 import 'package:either_dart/either.dart';
+import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 import 'package:talker_flutter/talker_flutter.dart';
 
 import '../../features/stock/data/catalog_api.dart';
 import '../../features/stock/data/catalog_cache.dart';
 import '../error/failure.dart';
+
+/// Чем закончилась попытка обновить справочники (ADHOC-10).
+///
+/// Отдельный тип, а не «успех либо ошибка»: отказ «уже идёт» — это не успех и не сбой, и
+/// сваливать его в `Right` значило врать вызывающему. Экран показывал «Справочники обновлены»
+/// на нажатие, которое ничего не сделало.
+enum SyncOutcome {
+  /// Справочники перечитаны с сервера.
+  refreshed,
+
+  /// Обновление уже шло — второй запуск не начат.
+  alreadyRunning,
+}
 
 /// Наполнение локального кэша справочников (P2-02).
 ///
@@ -24,16 +38,30 @@ class CatalogSyncService {
 
   /// Идёт синхронизация. Защищает от параллельных запусков: вход и ручное обновление могут
   /// совпасть, а второй проход только удвоил бы трафик.
-  bool _running = false;
-  bool get isRunning => _running;
+  ///
+  /// Наблюдаемое значение, а не просто флаг (ADHOC-10): по нему экран рисует индикатор
+  /// обновления. `ValueListenable` несёт текущее состояние, поэтому экран, собранный посреди
+  /// обновления, покажет индикатор сразу, а не дождётся следующего события. Это не теория:
+  /// синхронизация запускается сразу после входа, то есть ровно тогда, когда главное меню
+  /// только появляется.
+  final ValueNotifier<bool> _running = ValueNotifier(false);
+
+  /// Идёт ли синхронизация — для индикатора на экране.
+  ValueListenable<bool> get running => _running;
+
+  /// Идёт ли синхронизация прямо сейчас.
+  bool get isRunning => _running.value;
 
   /// Загрузить все справочники в кэш.
   ///
   /// Возвращает первую же неудачу: если сеть отвалилась, продолжать смысла нет, а то, что
   /// успело загрузиться, уже лежит в кэше и будет использовано.
-  Future<Either<Failure, void>> refresh() async {
-    if (_running) return const Right(null);
-    _running = true;
+  Future<Either<Failure, SyncOutcome>> refresh() async {
+    // Отказ «уже идёт» отличается от успеха (ADHOC-10). Раньше он возвращался как `Right`,
+    // и экран рапортовал «справочники обновлены», хотя не сделал ничего: `refresh` для
+    // вызывающего был неотличим от настоящего обновления.
+    if (_running.value) return const Right(SyncOutcome.alreadyRunning);
+    _running.value = true;
     final started = DateTime.now();
     try {
       final goods = await _api.listAllGoods();
@@ -72,9 +100,9 @@ class CatalogSyncService {
         'поставщиков ${suppliers.right.length}, ячеек ${cells.right.length}, '
         'привязок ШК ${barcodes.right.length}',
       );
-      return const Right(null);
+      return const Right(SyncOutcome.refreshed);
     } finally {
-      _running = false;
+      _running.value = false;
     }
   }
 }
