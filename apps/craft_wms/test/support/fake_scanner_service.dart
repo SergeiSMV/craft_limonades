@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:craft_wms/core/di/injection.dart';
 import 'package:craft_wms/core/scanner/scan_code.dart';
 import 'package:craft_wms/core/scanner/scan_event.dart';
+import 'package:craft_wms/core/scanner/scan_router.dart';
 import 'package:craft_wms/core/scanner/scanner_service.dart';
+import 'package:talker_flutter/talker_flutter.dart';
 
 /// Управляемый источник сканов для тестов: код подаётся вызовом [emit], без платформенного канала.
 class FakeScannerService implements ScannerService {
@@ -41,7 +43,11 @@ class FakeScannerService implements ScannerService {
   Future<void> dispose() => _controller.close();
 }
 
-/// Зарегистрировать источник сканов в DI: экраны берут [ScannerService] оттуда.
+/// Зарегистрировать источник сканов в DI вместе с раздающим их роутером.
+///
+/// Роутер поднимается здесь же, а не в каждом тесте: подписчики берут его из DI
+/// (`HardwareScanListener`), и без него не собирается ни один экран со сканом. Регистрация
+/// в одном месте держит существующие тесты в неведении о том, как устроена раздача.
 FakeScannerService registerFakeScanner({
   ScannerProbe probe = ScannerProbe.none,
 }) {
@@ -50,5 +56,9 @@ FakeScannerService registerFakeScanner({
   }
   final fake = FakeScannerService(probeResult: probe);
   getIt.registerSingleton<ScannerService>(fake);
+  if (getIt.isRegistered<ScanRouter>()) {
+    getIt.unregister<ScanRouter>();
+  }
+  getIt.registerSingleton<ScanRouter>(ScanRouter(fake, Talker()));
   return fake;
 }
