@@ -5,6 +5,7 @@ import 'core/auth/auth_cubit.dart';
 import 'core/di/injection.dart';
 import 'core/router/app_router.dart';
 import 'core/sync/catalog_sync_service.dart';
+import 'core/sync/sync_engine.dart';
 import 'core/theme/app_theme.dart';
 
 /// Корневой виджет. Держит роутер и слушает состояние входа, чтобы гейтить навигацию.
@@ -30,8 +31,13 @@ class CraftWmsApp extends StatelessWidget {
               // показывается: если сеть недоступна, кладовщик и так работает офлайн, а
               // причина уходит в лог.
               getIt<CatalogSyncService>().refresh();
+              // Движок очереди: разгребает всё, что не ушло раньше (P2-04). Тоже без await —
+              // отправка идёт фоном и экрана не касается.
+              getIt<SyncEngine>().start();
             // _router.replaceAll([const SplashRoute()]);
             case AuthUnauthenticated():
+              // Очередь остаётся на диске и уйдёт под следующим входом — гасим только движок.
+              getIt<SyncEngine>().stop();
               _router.replaceAll([const LoginRoute()]);
             // _router.replaceAll([const SplashRoute()]);
             case AuthUnknown():

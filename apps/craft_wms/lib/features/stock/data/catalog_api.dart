@@ -3,6 +3,7 @@ import 'package:either_dart/either.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../../core/constants/api_constants.dart';
+import '../../../core/error/dio_failure.dart';
 import '../../../core/error/failure.dart';
 import 'catalog_models.dart';
 
@@ -265,15 +266,7 @@ class CatalogApi {
     return params;
   }
 
-  /// Маппинг ошибок dio в доменные Failure (что показать — решает cubit).
-  Failure _mapError(DioException e) {
-    final code = e.response?.statusCode;
-    if (code == 401) {
-      return const Failure.auth();
-    }
-    if (code != null) {
-      return Failure.server(code);
-    }
-    return const Failure.network();
-  }
+  /// Перевод ошибки dio в доменную Failure — общее правило для всех репозиториев
+  /// (`core/error/dio_failure.dart`): своё в каждом репозитории уже разошлось однажды.
+  Failure _mapError(DioException e) => mapDioError(e);
 }

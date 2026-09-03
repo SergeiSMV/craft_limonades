@@ -1,48 +1,57 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
 import '../di/injection.dart';
 import 'scan_code.dart';
-import 'scanner_service.dart';
+import 'scan_router.dart';
 
-/// Подписка экрана на аппаратный сканер: подмешивается в `State` и зовёт [onHardwareScan]
-/// на каждый код, пока экран в дереве.
+/// Подписка экрана или диалога на аппаратный сканер: подмешивается в `State` и зовёт
+/// [onHardwareScan] на каждый код, пока подписчик верхний в стопке.
 ///
 /// Зачем миксин, а не виджет-обёртка: в клавиатурном режиме код прилетает в сфокусированное поле,
 /// а в intent-режиме — в приложение целиком, мимо дерева виджетов. Подписка ничего не рисует,
-/// поэтому и место ей в состоянии экрана, а не в разметке — обёртка добавляла бы уровень вложенности
+/// поэтому и место ей в состоянии, а не в разметке — обёртка добавляла бы уровень вложенности
 /// вокруг всего `build` ради поведения, которое к вёрстке отношения не имеет.
 ///
-/// Код доставляется только когда экран верхний в стопке (`ModalRoute.isCurrent`): иначе стопка
-/// экранов (список товаров → карточка) обработала бы один скан несколько раз. По той же причине
-/// сканы не доходят до экрана, пока над ним открыт диалог или нижний лист.
-mixin HardwareScanListener<T extends StatefulWidget> on State<T> {
-  StreamSubscription<ScanCode>? _scanSubscription;
-
-  /// Обработчик кода — реализует экран.
+/// Раздачей занимается [ScanRouter] (ADHOC-08): раньше каждый подписчик слушал поток сам и сам
+/// решал, его ли это код. Правило «мой ли скан» жило в каждом подписчике, а случая «код не взял
+/// никто» не существовало — скан исчезал бесследно.
+///
+/// **Подмешивать нужно и в диалоги с нижние листы, а не только в экраны.** Модальный слой
+/// становится верхним в стопке, и без подписки код не получит ни он, ни экран под ним:
+/// экран перестаёт быть текущим. Ровно так терялись сканы в диалоге привязки ШК (ADHOC-07).
+mixin HardwareScanListener<T extends StatefulWidget> on State<T>
+    implements ScanConsumer {
+  /// Обработчик кода — реализует экран или диалог.
   void onHardwareScan(ScanCode code);
 
-  /// Приём кодов включён. Экран может выключить его на время своего особого режима.
+  /// Приём кодов включён. Подписчик может выключить его на время своего особого режима.
   bool get hardwareScanEnabled => true;
+
+  /// Готов ли взять код: виджет в дереве, приём включён и подписчик верхний в стопке
+  /// маршрутов. Без проверки маршрута стопка «список товаров → карточка» обработала бы
+  /// один скан дважды.
+  @override
+  bool get canAcceptScan {
+    if (!mounted || !hardwareScanEnabled) return false;
+    final route = ModalRoute.of(context);
+    return route == null || route.isCurrent;
+  }
+
+  @override
+  bool acceptScan(ScanCode code) {
+    onHardwareScan(code);
+    return true;
+  }
 
   @override
   void initState() {
     super.initState();
-    _scanSubscription = getIt<ScannerService>().scans.listen(_deliver);
+    getIt<ScanRouter>().register(this);
   }
 
   @override
   void dispose() {
-    _scanSubscription?.cancel();
+    getIt<ScanRouter>().unregister(this);
     super.dispose();
-  }
-
-  /// Доставка кода экрану, если приём включён и экран сейчас верхний в стопке.
-  void _deliver(ScanCode code) {
-    if (!mounted || !hardwareScanEnabled) return;
-    final route = ModalRoute.of(context);
-    if (route != null && !route.isCurrent) return;
-    onHardwareScan(code);
   }
 }

@@ -3,12 +3,15 @@ import 'package:craft_wms/core/gen/strings.g.dart';
 import 'package:craft_wms/features/stock/data/catalog_models.dart';
 import 'package:craft_wms/features/stock/data/catalog_repository.dart';
 import 'package:craft_wms/features/stock/presentation/bloc/stock_detail_cubit.dart';
+import 'package:craft_wms/features/stock/presentation/widgets/stock_detail/bind_barcode_dialog.dart';
 import 'package:craft_wms/features/stock/presentation/widgets/stock_detail/stock_detail_body.dart';
 import 'package:either_dart/either.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+
+import '../../support/fake_scanner_service.dart';
 
 class _MockRepo extends Mock implements CatalogRepository {}
 
@@ -17,8 +20,17 @@ class _MockRepo extends Mock implements CatalogRepository {}
 void main() {
   const good = Good(id: 'g1', code: '15567', name: 'Арахис жареный', uom: 'шт');
 
+  // Диалог привязки подписан на поток сканера (ADHOC-07), поэтому без зарегистрированного
+  // ScannerService он не собирается вовсе.
+  late FakeScannerService scanner;
+  setUp(() => scanner = registerFakeScanner());
+  tearDown(() => scanner.dispose());
+
   /// ШК, который «занят» другим товаром — на него мок отдаёт 409.
   const conflictCode = '4607044663442';
+
+  /// ШК, на который мок отдаёт «нет связи» — как офлайн на устройстве.
+  const offlineCode = '4607044660205';
 
   /// Поднять карточку товара с заданным набором привязанных ШК.
   Future<_MockRepo> pumpCard(
@@ -59,6 +71,7 @@ void main() {
     ).thenAnswer((inv) async {
       final code = inv.namedArguments[#barcode] as String;
       if (code == conflictCode) return const Left(Failure.server(409));
+      if (code == offlineCode) return const Left(Failure.network());
       current = [...current, Barcode(barcode: code)];
       return const Right(null);
     });
@@ -127,6 +140,44 @@ void main() {
       findsOneWidget,
       reason: 'карточка перечитана с сервера',
     );
+  });
+
+  // ADHOC-11, находка с устройства: операция уже принята в очередь (P2-03), а диалог
+  // оставался открытым с заполненным полем и активной кнопкой — изображал незаконченное
+  // действие. Кладовщик нажал «Привязать» четыре раза без единого видимого изменения.
+  testWidgets('без связи диалог закрывается, а карточка сообщает об отсрочке', (
+    tester,
+  ) async {
+    await pumpCard(tester, const []);
+
+    await scan(tester, offlineCode);
+
+    expect(
+      find.byType(BindBarcodeDialog),
+      findsNothing,
+      reason: 'работа принята, от кладовщика больше ничего не нужно',
+    );
+    expect(find.text(t.stockDetailScreen.bindOffline), findsOneWidget);
+  });
+
+  // P2-06: решение ADHOC-11 пересмотрено. Отложенная привязка теперь видна сразу — кладовщик
+  // привязал ШК без связи и должен увидеть результат, иначе решит, что работа пропала. Но
+  // с пометкой: операция ещё в очереди и может быть отклонена, тогда строка исчезнет сама.
+  testWidgets('отложенный ШК виден в списке, но помечен как неподтверждённый', (
+    tester,
+  ) async {
+    await pumpCard(tester, const [
+      Barcode(barcode: offlineCode, pending: true),
+    ]);
+
+    expect(find.text(offlineCode), findsOneWidget);
+    expect(find.text(t.stockDetailScreen.barcodePending), findsOneWidget);
+  });
+
+  testWidgets('подтверждённый ШК пометки не носит', (tester) async {
+    await pumpCard(tester, const [Barcode(barcode: '4607044662964')]);
+
+    expect(find.text(t.stockDetailScreen.barcodePending), findsNothing);
   });
 
   testWidgets('409 — ошибка в диалоге, диалог остаётся открытым', (

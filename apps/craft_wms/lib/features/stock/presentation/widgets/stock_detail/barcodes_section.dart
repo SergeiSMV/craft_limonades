@@ -7,6 +7,7 @@ import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/constants/app_insets.dart';
 import '../../../../../core/constants/app_sizes.dart';
 import '../../../../../core/gen/strings.g.dart';
+import '../../../../../core/theme/regular_text.dart';
 import '../../../../../core/theme/semibold_text.dart';
 import '../../bloc/stock_detail_cubit.dart';
 import 'bind_barcode_button.dart';
@@ -45,14 +46,22 @@ class BarcodesSection extends StatelessWidget {
     if (ok == true) cubit.unbindBarcode(code);
   }
 
-  /// Открыть диалог привязки ШК. Cubit сам перезагружает карточку после успеха, поэтому
-  /// здесь ничего доделывать не нужно.
+  /// Открыть диалог привязки ШК.
+  ///
+  /// После успеха карточку перезагружает сам cubit, доделывать нечего. А вот отложенную
+  /// привязку сообщить надо: диалог закрылся, на карточке ничего не изменилось, и без
+  /// сообщения кладовщик не поймёт, принята его работа или потеряна (ADHOC-11).
   Future<void> openBindDialog(BuildContext context) async {
     final cubit = context.read<StockDetailCubit>();
-    await showDialog<bool>(
+    final messenger = ScaffoldMessenger.of(context);
+    final outcome = await showDialog<BindOutcome>(
       context: context,
       builder: (_) => BindBarcodeDialog(onBind: cubit.bindBarcode),
     );
+    if (outcome != BindOutcome.deferred) return;
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(t.stockDetailScreen.bindOffline)));
   }
 
   @override
@@ -93,6 +102,7 @@ class BarcodesSection extends StatelessWidget {
                 ),
               _BarcodeRow(
                 barcode: state.barcodes[i].barcode,
+                pending: state.barcodes[i].pending,
                 onUnbind: () =>
                     confirmUnbind(context, state.barcodes[i].barcode),
               ),
@@ -113,13 +123,23 @@ class BarcodesSection extends StatelessWidget {
 
 /// Строка штрихкода: иконка-плашка ШК, сам код и крестик отвязки.
 class _BarcodeRow extends StatelessWidget {
-  const _BarcodeRow({required this.barcode, required this.onUnbind});
+  const _BarcodeRow({
+    required this.barcode,
+    required this.onUnbind,
+    this.pending = false,
+  });
 
   /// Значение штрихкода.
   final String barcode;
 
   /// Отвязать этот ШК от товара (с подтверждением).
   final VoidCallback onUnbind;
+
+  /// Привязка сделана на устройстве и сервером ещё не подтверждена (P2-06).
+  ///
+  /// Показывать её наравне с подтверждёнными нельзя: кладовщик счёл бы дело сделанным, хотя
+  /// операция ещё в очереди и может быть отклонена — тогда строка исчезнет сама.
+  final bool pending;
 
   @override
   Widget build(BuildContext context) {
@@ -137,11 +157,24 @@ class _BarcodeRow extends StatelessWidget {
           ),
           AppBoxes.kWidth8,
           Expanded(
-            child: Text(
-              barcode,
-              style: SemiboldTextStyles().semiboldInter14.copyWith(
-                color: AppColors.kTextMain,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  barcode,
+                  style: SemiboldTextStyles().semiboldInter14.copyWith(
+                    // Неподтверждённая привязка приглушена: она есть, но ещё не факт.
+                    color: pending ? AppColors.kTextMuted : AppColors.kTextMain,
+                  ),
+                ),
+                if (pending)
+                  Text(
+                    t.stockDetailScreen.barcodePending,
+                    style: RegularTextStyles().regularInter12.copyWith(
+                      color: AppColors.kTextMuted,
+                    ),
+                  ),
+              ],
             ),
           ),
           IconButton(

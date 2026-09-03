@@ -1,5 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/auth/auth_cubit.dart';
@@ -13,10 +15,12 @@ import '../../../../core/gen/strings.g.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/sync/catalog_sync_service.dart';
+import '../../../../core/sync/sync_engine.dart';
 import '../../../../core/theme/bold_text.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/widgets/system_ui_wrapper.dart';
 import '../widgets/menu_tile.dart';
+import '../widgets/sync_indicator.dart';
 
 /// Главное меню ТСД (P1-07): шапка (сотрудник · склад) + сетка плиток операций.
 /// Рабочая плитка — «Остатки»; остальные — заглушки (тап показывает уведомление).
@@ -28,6 +32,10 @@ class HomePage extends StatelessWidget {
   void goToLogs(BuildContext context) =>
       context.router.push(const DebugLogRoute());
 
+  /// Переход к списку несинхронизированных операций (P2-06): что не уехало и что отклонено.
+  void goToSyncQueue(BuildContext context) =>
+      context.router.push(const SyncQueueRoute());
+
   /// Переход к диагностике сканера (служебный экран наладки).
   void goToScannerProbe(BuildContext context) =>
       context.router.push(const ScannerProbeRoute());
@@ -38,20 +46,34 @@ class HomePage extends StatelessWidget {
   /// ждать следующего входа в приложение ради этого незачем.
   Future<void> refreshCatalogs(BuildContext context) async {
     final messenger = ScaffoldMessenger.of(context);
-    messenger
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(t.homeScreen.syncStarted)));
-    final res = await getIt<CatalogSyncService>().refresh();
-    messenger
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            res.isRight ? t.homeScreen.syncDone : t.homeScreen.syncFailed,
-          ),
-        ),
-      );
+    final sync = getIt<CatalogSyncService>();
+
+    // Нажатие во время обновления (ADHOC-10). Раньше служба отвечала на него «успехом», и
+    // экран рапортовал «Справочники обновлены», хотя не сделал ничего. Проверка стоит до
+    // сообщения «Обновляю…», иначе кладовщик увидел бы два противоречащих друг другу текста.
+    if (sync.isRunning) {
+      _snack(messenger, t.homeScreen.syncAlreadyRunning);
+      return;
+    }
+
+    _snack(messenger, t.homeScreen.syncStarted);
+    // Заодно разгребаем очередь операций (P2-04): кладовщик, нажавший «Обновить», ждёт,
+    // что всё несинхронизированное уйдёт, а не только справочники приедут.
+    unawaited(getIt<SyncEngine>().drain());
+    final res = await sync.refresh();
+    _snack(messenger, switch (res.fold((f) => null, (outcome) => outcome)) {
+      SyncOutcome.refreshed => t.homeScreen.syncDone,
+      // Успели нажать дважды: первый вызов уже начал обновление, второй попал в отказ.
+      SyncOutcome.alreadyRunning => t.homeScreen.syncAlreadyRunning,
+      null => t.homeScreen.syncFailed,
+    });
   }
+
+  /// Показать короткое сообщение, погасив предыдущее: сообщения об обновлении идут подряд,
+  /// и очередь снэкбаров показывала бы ответы на давно нажатые кнопки.
+  void _snack(ScaffoldMessengerState messenger, String text) => messenger
+    ..hideCurrentSnackBar()
+    ..showSnackBar(SnackBar(content: Text(text)));
 
   /// Выход из приложения.
   void logout(BuildContext context) => context.read<AuthCubit>().logout();
@@ -110,6 +132,8 @@ class HomePage extends StatelessWidget {
                       ),
                     ),
 
+                    SyncIndicator(running: getIt<CatalogSyncService>().running),
+
                     PopupMenuButton<void>(
                       color: AppColors.kSidebarBg,
                       icon: const Icon(
@@ -130,6 +154,15 @@ class HomePage extends StatelessWidget {
                           onTap: () => refreshCatalogs(context),
                           child: Text(
                             t.homeScreen.syncTooltip,
+                            style: RegularTextStyles().regularInter14.copyWith(
+                              color: AppColors.kTileText,
+                            ),
+                          ),
+                        ),
+                        PopupMenuItem<void>(
+                          onTap: () => goToSyncQueue(context),
+                          child: Text(
+                            t.syncQueue.menuTooltip,
                             style: RegularTextStyles().regularInter14.copyWith(
                               color: AppColors.kTileText,
                             ),

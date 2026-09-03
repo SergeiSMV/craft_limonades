@@ -11,6 +11,7 @@ import '../../features/stock/data/catalog_models.dart'; // Good — аргуме
 import '../../features/stock/presentation/pages/goods_list_page.dart';
 import '../../features/stock/presentation/pages/stock_detail_page.dart';
 import '../../features/stock_entry/presentation/pages/stock_entry_page.dart';
+import '../../features/sync/presentation/pages/sync_queue_page.dart';
 import 'guards.dart';
 
 part 'app_router.gr.dart';
@@ -38,5 +39,7 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: DebugLogRoute.page),
         // Диагностика сканера — служебный экран наладки (P2-01).
         AutoRoute(page: ScannerProbeRoute.page),
+        // Несинхронизированные операции: разбор отклонённых сервером (P2-06).
+        AutoRoute(page: SyncQueueRoute.page, guards: [_authGuard]),
       ];
 }

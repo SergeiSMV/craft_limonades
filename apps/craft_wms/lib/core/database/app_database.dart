@@ -85,6 +85,12 @@ class CachedBarcodes extends Table {
   TextColumn get goodId => text()();
   TextColumn get symbology => text().nullable()();
 
+  /// Привязка сделана на устройстве и сервером ещё не подтверждена (P2-06).
+  ///
+  /// Без этой пометки оптимистичная запись неотличима от факта справочника: кладовщик видел бы
+  /// ШК в карточке и считал дело сделанным, хотя операция ещё в очереди и может быть отклонена.
+  BoolColumn get pending => boolean().withDefault(const Constant(false))();
+
   @override
   Set<Column<Object>> get primaryKey => {barcode};
 }
@@ -201,7 +207,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   /// Миграции схемы.
   ///
@@ -211,6 +217,8 @@ class AppDatabase extends _$AppDatabase {
   ///
   /// 1 → 2: добавлены [outboxOperations] и [entryDrafts]. Существующие таблицы не трогаем —
   /// пересоздание кэша стоило бы повторной синхронизации, а его данные и так на месте.
+  ///
+  /// 2 → 3: у привязок ШК появилась пометка «ещё не подтверждена сервером» (P2-06).
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) => m.createAll(),
@@ -218,6 +226,11 @@ class AppDatabase extends _$AppDatabase {
       if (from < 2) {
         await m.createTable(outboxOperations);
         await m.createTable(entryDrafts);
+      }
+      if (from < 3) {
+        // Колонка добавляется со значением по умолчанию, поэтому уже лежащие привязки
+        // становятся подтверждёнными — они и есть подтверждённые, их принёс сервер.
+        await m.addColumn(cachedBarcodes, cachedBarcodes.pending);
       }
     },
   );

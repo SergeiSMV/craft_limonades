@@ -143,13 +143,15 @@ class CatalogCache {
         .toList(),
   );
 
-  /// Точечно добавить привязку — после успешной привязки ШК на сервере, чтобы кэш не отстал
-  /// до следующей синхронизации. Полной заменой тут пользоваться нельзя: остальные привязки
-  /// никуда не делись.
+  /// Точечно добавить привязку, чтобы кэш не отстал до следующей синхронизации. Полной
+  /// заменой тут пользоваться нельзя: остальные привязки никуда не делись.
+  ///
+  /// [pending] — привязка сделана на устройстве и сервером ещё не подтверждена (P2-06).
   Future<void> addBarcode({
     required String barcode,
     required String goodId,
     String? symbology,
+    bool pending = false,
   }) => _db
       .into(_db.cachedBarcodes)
       .insertOnConflictUpdate(
@@ -157,8 +159,15 @@ class CatalogCache {
           barcode: barcode,
           goodId: goodId,
           symbology: Value(symbology),
+          pending: Value(pending),
         ),
       );
+
+  /// Снять пометку «ожидает» — сервер подтвердил привязку (P2-06).
+  Future<void> confirmBarcode(String barcode) =>
+      (_db.update(_db.cachedBarcodes)
+            ..where((t) => t.barcode.equals(barcode)))
+          .write(const CachedBarcodesCompanion(pending: Value(false)));
 
   /// Точечно снять привязку — после успешной отвязки на сервере.
   Future<void> removeBarcode(String barcode) => (_db.delete(
@@ -256,7 +265,13 @@ class CatalogCache {
       _db.cachedBarcodes,
     )..where((t) => t.goodId.equals(goodId))).get();
     return rows
-        .map((r) => Barcode(barcode: r.barcode, symbology: r.symbology))
+        .map(
+          (r) => Barcode(
+            barcode: r.barcode,
+            symbology: r.symbology,
+            pending: r.pending,
+          ),
+        )
         .toList();
   }
 

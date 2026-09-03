@@ -123,9 +123,8 @@ class _CellEntryViewState extends State<CellEntryView>
     );
     if (res == null || !mounted) return;
     if (res.wrongGood) {
-      await _handleWrongGood(
-        scannedCode!,
-      ); // allowWrongGood истинен только при непустом scannedCode
+      // allowWrongGood истинен только при непустом scannedCode
+      await _handleWrongGood(scannedCode!, goodId: good.id);
       return;
     }
     _cubit.addLine(
@@ -140,11 +139,12 @@ class _CellEntryViewState extends State<CellEntryView>
   /// «Неверный товар»: снять ошибочную привязку ШК и предложить правильный товар (перепривязка).
   /// Привязка этой сессии — убираем из копилки локально; уже в БД — немедленный DELETE (коррекция
   /// не должна зависеть от финала: бросят проход — исправление всё равно сохранено).
-  Future<void> _handleWrongGood(String code) async {
+  Future<void> _handleWrongGood(String code, {required String goodId}) async {
     if (_cubit.localGoodForBarcode(code) != null) {
       _cubit.removeLocalBarcode(code);
     } else {
-      final res = await _repo.unbindBarcode(code);
+      // Товар передаётся не серверу, а на случай отказа: им привязка вернётся в кэш (P2-06).
+      final res = await _repo.unbindBarcode(goodId: goodId, barcode: code);
       if (!mounted) return;
       final failed = res.fold((f) {
         _snack(stockEntryFailureText(f));

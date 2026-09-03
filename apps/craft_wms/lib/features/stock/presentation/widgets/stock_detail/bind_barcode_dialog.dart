@@ -8,8 +8,24 @@ import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/constants/app_insets.dart';
 import '../../../../../core/error/failure.dart';
 import '../../../../../core/gen/strings.g.dart';
+import '../../../../../core/scanner/hardware_scan_listener.dart';
+import '../../../../../core/scanner/scan_code.dart';
+import '../../../../../core/scanner/scan_deduper.dart';
 import '../../../../../core/theme/regular_text.dart';
 import '../../../../../core/theme/semibold_text.dart';
+
+/// Чем закончилась привязка ШК (ADHOC-11).
+///
+/// Отдельный тип, потому что «сервер принял» и «связи нет, операция в очереди» — разные исходы,
+/// и вызывающему нужно сообщить о них по-разному. До него диалог возвращал `bool`, а отложенная
+/// привязка выглядела как неудача.
+enum BindOutcome {
+  /// Сервер принял привязку.
+  bound,
+
+  /// Связи нет: операция принята в очередь и уйдёт, когда связь появится.
+  deferred,
+}
 
 /// Диалог привязки штрихкода к товару (P-FS-17): одно поле под скан, «Отмена» и «Привязать».
 ///
@@ -32,9 +48,13 @@ class BindBarcodeDialog extends StatefulWidget {
   State<BindBarcodeDialog> createState() => _BindBarcodeDialogState();
 }
 
-class _BindBarcodeDialogState extends State<BindBarcodeDialog> {
+class _BindBarcodeDialogState extends State<BindBarcodeDialog>
+    with HardwareScanListener {
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
+
+  /// Отсекает дубль, если устройство отдаёт код и в поле, и интентом.
+  final _deduper = ScanDeduper();
 
   /// Текст ошибки под полем (конфликт ШК или сбой запроса); null — ошибки нет.
   String? _error;
@@ -68,6 +88,35 @@ class _BindBarcodeDialogState extends State<BindBarcodeDialog> {
     });
   }
 
+  /// Код от сканера — из потока интентов (ADHOC-07) или из поля по Enter.
+  ///
+  /// До этой правки диалог не был подписан на поток вовсе и рассчитывал только на то, что код
+  /// прилетит в сфокусированное поле, то есть на клавиатурный режим сканера. В intent-режиме
+  /// код уходит в поток, а поток доставляется лишь верхнему экрану стопки — диалог экраном
+  /// не является, и скан пропадал молча.
+  ///
+  /// Обе ветки сведены сюда, поэтому отсечение дубля стоит в одном месте: настройки режимов
+  /// на устройстве взаимоисключающие, но правит их человек, и конфигурация «и то, и другое»
+  /// дала бы две попытки привязки одного кода.
+  void onScanned(String raw, {ScanCode? scan}) {
+    final code = raw.trim();
+    if (code.isEmpty || _busy || !_deduper.allow(code)) return;
+    // Символику знает только поток интентов; для ввода в поле тип определяется по форме кода.
+    final kind = scan?.kind ?? classifyScan(code);
+    // Адрес ячейки в поле привязки — это порча справочника: код места хранения навсегда стал бы
+    // штрихкодом товара. Тот же случай ловится во «Вводе остатков» (P2-01), здесь он появился
+    // вместе с приёмом сканов.
+    if (kind == ScanKind.cell) {
+      setState(() => _error = t.stockDetailScreen.bindScannedCell);
+      return;
+    }
+    _controller.text = code;
+    submit();
+  }
+
+  @override
+  void onHardwareScan(ScanCode code) => onScanned(code.raw, scan: code);
+
   /// Привязать введённый код: успех — закрываем диалог, ошибка — показываем под полем
   /// и возвращаем фокус для следующего скана.
   Future<void> submit() async {
@@ -82,18 +131,35 @@ class _BindBarcodeDialogState extends State<BindBarcodeDialog> {
     if (!mounted) return;
 
     if (failure == null) {
-      Navigator.of(context).pop(true);
+      Navigator.of(context).pop(BindOutcome.bound);
+      return;
+    }
+    // Связи нет — операция уже в очереди, и от кладовщика больше ничего не нужно (ADHOC-11).
+    // Держать диалог открытым значило бы изображать незаконченное действие: работа принята,
+    // а человек видит заполненное поле и активную кнопку и жмёт её снова. На устройстве так
+    // и вышло — четыре нажатия подряд без единого видимого изменения.
+    if (failure is NetworkFailure) {
+      Navigator.of(context).pop(BindOutcome.deferred);
       return;
     }
     setState(() {
       _busy = false;
-      // 409 — единственная ошибка, о причине которой можно сказать точно.
-      _error = failure is ServerFailure && failure.statusCode == 409
-          ? t.stockDetailScreen.bindConflict
-          : t.stockDetailScreen.bindFailed;
+      _error = _errorText(failure);
     });
     _focusNode.requestFocus();
   }
+
+  /// Текст под полем по существу отказа (ADHOC-09).
+  ///
+  /// Раньше всё, кроме 409, показывалось одной фразой «не удалось привязать». Отсутствие связи
+  /// сюда больше не попадает: такая привязка принимается в очередь, диалог закрывается, и
+  /// сообщение показывает карточка (ADHOC-11). Здесь остались отказы, после которых от
+  /// кладовщика действительно чего-то ждут: пересканировать другой код или позвать админа.
+  String _errorText(Failure failure) => switch (failure) {
+    // 409 — единственный отказ, о причине которого можно сказать точно.
+    ServerFailure(statusCode: 409) => t.stockDetailScreen.bindConflict,
+    _ => t.stockDetailScreen.bindFailed,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -131,7 +197,7 @@ class _BindBarcodeDialogState extends State<BindBarcodeDialog> {
                 keyboardType: _softKeyboard
                     ? TextInputType.text
                     : TextInputType.none,
-                onSubmitted: (_) => submit(),
+                onSubmitted: onScanned,
                 // Кнопка «Привязать» активна только при непустом поле — перерисовываем на ввод.
                 onChanged: (_) => setState(() {}),
                 cursorColor: AppColors.kTextMuted,
