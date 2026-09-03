@@ -4,6 +4,7 @@ import 'package:injectable/injectable.dart';
 import '../../../core/error/failure.dart';
 import '../../../core/outbox/outbox_operation.dart';
 import '../../../core/outbox/outbox_repository.dart';
+import '../../../core/outbox/outbox_retry.dart';
 import 'catalog_api.dart';
 import 'catalog_cache.dart';
 import 'catalog_models.dart';
@@ -150,25 +151,13 @@ class CatalogRepository {
     await _outbox.markSending(operationId);
     final res = await call();
     await res.fold(
-      (failure) => _retryable(failure)
+      (failure) => isRetryable(failure)
           ? _outbox.markFailed(operationId, failure.toString())
           : _outbox.markRejected(operationId, failure.toString()),
       (_) => _outbox.markSent(operationId),
     );
     return res;
   }
-
-  /// Имеет ли смысл повторять операцию.
-  ///
-  /// Повторяем то, что не зависит от содержания запроса: обрыв связи, 5xx, истёкшую сессию.
-  /// Отказ по существу (4xx — например, 409 «ШК уже за другим товаром») повтором не лечится:
-  /// сервер ответит тем же, а очередь встанет намертво на неисполнимой операции.
-  bool _retryable(Failure failure) => switch (failure) {
-    NetworkFailure() => true,
-    AuthFailure() => true,
-    ServerFailure(:final statusCode) => statusCode >= 500,
-    UnknownFailure() => true,
-  };
 
   /// Все группы номенклатуры (дерево фильтра).
   Future<Either<Failure, List<NomenclatureGroup>>> listGroups() async {
