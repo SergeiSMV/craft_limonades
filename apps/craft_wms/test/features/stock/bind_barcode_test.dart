@@ -10,12 +10,20 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
+import '../../support/fake_scanner_service.dart';
+
 class _MockRepo extends Mock implements CatalogRepository {}
 
 /// Привязка ШК из карточки товара (P-FS-17): кнопка вместо пустой секции, диалог со сканом,
 /// обновление карточки после привязки и конфликт 409.
 void main() {
   const good = Good(id: 'g1', code: '15567', name: 'Арахис жареный', uom: 'шт');
+
+  // Диалог привязки подписан на поток сканера (ADHOC-07), поэтому без зарегистрированного
+  // ScannerService он не собирается вовсе.
+  late FakeScannerService scanner;
+  setUp(() => scanner = registerFakeScanner());
+  tearDown(() => scanner.dispose());
 
   /// ШК, который «занят» другим товаром — на него мок отдаёт 409.
   const conflictCode = '4607044663442';
