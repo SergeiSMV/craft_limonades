@@ -1,10 +1,12 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:craft_wms/core/database/app_database.dart';
 import 'package:craft_wms/core/error/failure.dart';
+import 'package:craft_wms/core/outbox/outbox_effects.dart';
 import 'package:craft_wms/core/outbox/outbox_operation.dart';
 import 'package:craft_wms/core/outbox/outbox_repository.dart';
 import 'package:craft_wms/core/outbox/outbox_retry.dart';
 import 'package:craft_wms/core/outbox/outbox_sender.dart';
+import 'package:craft_wms/features/stock/data/catalog_cache.dart';
 import 'package:craft_wms/core/sync/sync_engine.dart';
 import 'package:drift/native.dart';
 import 'package:either_dart/either.dart';
@@ -33,7 +35,13 @@ void main() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     outbox = OutboxRepository(db, const Uuid());
     sender = _MockSender();
-    engine = SyncEngine(outbox, sender, Talker(), _MockConnectivity());
+    engine = SyncEngine(
+      outbox,
+      sender,
+      OutboxEffects(CatalogCache(db)),
+      Talker(),
+      _MockConnectivity(),
+    );
   });
 
   tearDown(() => db.close());

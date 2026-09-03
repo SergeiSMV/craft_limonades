@@ -67,8 +67,11 @@ class StockDetailCubit extends Cubit<StockDetailState> {
   }
 
   /// Отвязать ошибочный ШК товара (P-FS-12): DELETE → перезагрузка карточки. Ошибку — в state.
+  ///
+  /// Товар передаётся вместе с кодом: серверу он для отвязки не нужен, но им восстанавливается
+  /// привязка в локальном кэше, если сервер операцию отклонит (P2-06).
   Future<void> unbindBarcode(String code) async {
-    final res = await _repo.unbindBarcode(code);
+    final res = await _repo.unbindBarcode(goodId: _goodId, barcode: code);
     final failed = res.fold((f) {
       emit(state.copyWith(failure: f));
       return true;

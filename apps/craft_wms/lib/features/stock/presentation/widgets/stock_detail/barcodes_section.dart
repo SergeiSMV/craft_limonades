@@ -7,6 +7,7 @@ import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/constants/app_insets.dart';
 import '../../../../../core/constants/app_sizes.dart';
 import '../../../../../core/gen/strings.g.dart';
+import '../../../../../core/theme/regular_text.dart';
 import '../../../../../core/theme/semibold_text.dart';
 import '../../bloc/stock_detail_cubit.dart';
 import 'bind_barcode_button.dart';
@@ -101,6 +102,7 @@ class BarcodesSection extends StatelessWidget {
                 ),
               _BarcodeRow(
                 barcode: state.barcodes[i].barcode,
+                pending: state.barcodes[i].pending,
                 onUnbind: () =>
                     confirmUnbind(context, state.barcodes[i].barcode),
               ),
@@ -121,13 +123,23 @@ class BarcodesSection extends StatelessWidget {
 
 /// Строка штрихкода: иконка-плашка ШК, сам код и крестик отвязки.
 class _BarcodeRow extends StatelessWidget {
-  const _BarcodeRow({required this.barcode, required this.onUnbind});
+  const _BarcodeRow({
+    required this.barcode,
+    required this.onUnbind,
+    this.pending = false,
+  });
 
   /// Значение штрихкода.
   final String barcode;
 
   /// Отвязать этот ШК от товара (с подтверждением).
   final VoidCallback onUnbind;
+
+  /// Привязка сделана на устройстве и сервером ещё не подтверждена (P2-06).
+  ///
+  /// Показывать её наравне с подтверждёнными нельзя: кладовщик счёл бы дело сделанным, хотя
+  /// операция ещё в очереди и может быть отклонена — тогда строка исчезнет сама.
+  final bool pending;
 
   @override
   Widget build(BuildContext context) {
@@ -145,11 +157,24 @@ class _BarcodeRow extends StatelessWidget {
           ),
           AppBoxes.kWidth8,
           Expanded(
-            child: Text(
-              barcode,
-              style: SemiboldTextStyles().semiboldInter14.copyWith(
-                color: AppColors.kTextMain,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  barcode,
+                  style: SemiboldTextStyles().semiboldInter14.copyWith(
+                    // Неподтверждённая привязка приглушена: она есть, но ещё не факт.
+                    color: pending ? AppColors.kTextMuted : AppColors.kTextMain,
+                  ),
+                ),
+                if (pending)
+                  Text(
+                    t.stockDetailScreen.barcodePending,
+                    style: RegularTextStyles().regularInter12.copyWith(
+                      color: AppColors.kTextMuted,
+                    ),
+                  ),
+              ],
             ),
           ),
           IconButton(

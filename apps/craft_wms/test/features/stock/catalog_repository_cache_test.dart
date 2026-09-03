@@ -1,7 +1,11 @@
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:craft_wms/core/database/app_database.dart';
 import 'package:craft_wms/core/error/failure.dart';
 import 'package:craft_wms/core/outbox/outbox_operation.dart';
+import 'package:craft_wms/core/outbox/outbox_effects.dart';
 import 'package:craft_wms/core/outbox/outbox_repository.dart';
+import 'package:craft_wms/core/outbox/outbox_sender.dart';
+import 'package:craft_wms/core/sync/sync_engine.dart';
 import 'package:craft_wms/features/stock/data/catalog_api.dart';
 import 'package:craft_wms/features/stock/data/catalog_cache.dart';
 import 'package:craft_wms/features/stock/data/catalog_models.dart';
@@ -10,9 +14,12 @@ import 'package:drift/native.dart';
 import 'package:either_dart/either.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:talker_flutter/talker_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 class _MockApi extends Mock implements CatalogApi {}
+
+class _MockConnectivity extends Mock implements Connectivity {}
 
 /// Фасад справочников: что берётся из кэша, что из сети и что происходит без сети (P2-02).
 void main() {
@@ -30,7 +37,17 @@ void main() {
     cache = CatalogCache(db);
     api = _MockApi();
     outbox = OutboxRepository(db, const Uuid());
-    repo = CatalogRepository(api, cache, outbox);
+    final effects = OutboxEffects(cache);
+    // Движок в тесте настоящий: отправка идёт через него, и проверять надо именно тот путь,
+    // которым операция уходит на самом деле.
+    final engine = SyncEngine(
+      outbox,
+      OutboxSender(api),
+      effects,
+      Talker(),
+      _MockConnectivity(),
+    );
+    repo = CatalogRepository(api, cache, outbox, effects, engine);
   });
 
   tearDown(() => db.close());
@@ -270,7 +287,7 @@ void main() {
         () => api.unbindBarcode(any()),
       ).thenAnswer((_) async => const Left(Failure.network()));
 
-      await repo.unbindBarcode('ITEM');
+      await repo.unbindBarcode(goodId: 'g1', barcode: 'ITEM');
 
       final pending = await outbox.pending();
       expect(pending.single.kind, OutboxKind.unbindBarcode);
@@ -317,7 +334,7 @@ void main() {
         () => api.unbindBarcode(any()),
       ).thenAnswer((_) async => const Right(null));
 
-      await repo.unbindBarcode('ITEM');
+      await repo.unbindBarcode(goodId: 'g1', barcode: 'ITEM');
       expect(await cache.goodByBarcode('ITEM'), isNull);
     });
   });

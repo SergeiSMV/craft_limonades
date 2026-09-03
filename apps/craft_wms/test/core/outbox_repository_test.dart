@@ -219,6 +219,92 @@ void main() {
     });
   });
 
+  // P2-06: отклонённая операция без человека не сдвинется — повтором она не лечится сама,
+  // и до этой задачи оседала в очереди молча.
+  group('разбор отклонённых (P2-06)', () {
+    test('отклонённые видны отдельным списком, свежие сверху', () async {
+      final first = await outbox.enqueue(
+        kind: OutboxKind.bindBarcode,
+        payload: const {'barcode': 'a'},
+      );
+      final second = await outbox.enqueue(
+        kind: OutboxKind.bindBarcode,
+        payload: const {'barcode': 'b'},
+      );
+      await outbox.markRejected(first, 'ШК уже за другим товаром');
+      await outbox.markRejected(second, 'ШК уже за другим товаром');
+
+      final rejected = await outbox.watchRejected().first;
+
+      expect(rejected.map((o) => o.payload['barcode']).toList(), ['b', 'a']);
+    });
+
+    test('ожидающие видны в порядке отправки', () async {
+      for (final code in ['a', 'b']) {
+        await outbox.enqueue(
+          kind: OutboxKind.bindBarcode,
+          payload: {'barcode': code},
+        );
+      }
+
+      final pending = await outbox.watchPending().first;
+
+      expect(pending.map((o) => o.payload['barcode']).toList(), ['a', 'b']);
+    });
+
+    // Счётчик попыток задаёт паузу перед следующей отправкой. После ручного решения ждать
+    // пять минут незачем: человек только что явно попросил отправить.
+    test('повтор возвращает операцию в очередь и сбрасывает выдержку', () async {
+      final id = await outbox.enqueue(
+        kind: OutboxKind.bindBarcode,
+        payload: const {'barcode': 'a'},
+      );
+      await outbox.markSending(id);
+      await outbox.markFailed(id, 'нет связи');
+      await outbox.markRejected(id, 'сервер отказал (409)');
+
+      await outbox.retry(id);
+
+      final op = await outbox.byOperationId(id);
+      expect(op!.status, OutboxStatus.pending);
+      expect(op.attempts, 0);
+      expect(op.lastError, isNull);
+      expect(await outbox.watchRejected().first, isEmpty);
+    });
+
+    // Единственный способ избавиться от неисполнимой операции: 409 «ШК уже за другим товаром»
+    // повтором не лечится, и без этого она осталась бы в списке навсегда.
+    test('отброшенная операция исчезает совсем', () async {
+      final id = await outbox.enqueue(
+        kind: OutboxKind.bindBarcode,
+        payload: const {'barcode': 'a'},
+      );
+      await outbox.markRejected(id, 'сервер отказал (409)');
+
+      await outbox.discard(id);
+
+      expect(await outbox.byOperationId(id), isNull);
+      expect(await outbox.watchRejected().first, isEmpty);
+    });
+
+    test('отброшенная не мешает поставить такую же заново', () async {
+      final id = await outbox.enqueue(
+        kind: OutboxKind.bindBarcode,
+        payload: const {'barcode': 'a'},
+      );
+      await outbox.markRejected(id, 'сервер отказал (409)');
+      await outbox.discard(id);
+
+      final again = await outbox.enqueue(
+        kind: OutboxKind.bindBarcode,
+        payload: const {'barcode': 'a'},
+      );
+
+      expect(again, isNot(id));
+      expect(await outbox.pendingCount(), 1);
+    });
+  });
+
   // Строку мог записать более новый билд приложения, а пользователь откатился на старый.
   // Отправлять операцию, тип которой не разбирается, вслепую нельзя.
   test('операция незнакомого типа пропускается, но остаётся в базе', () async {
@@ -270,18 +356,19 @@ void main() {
     expect(pending.single.payload['barcode'], '4607044662964');
   });
 
-  // Схема жила в версии 1 и стратегии миграции не имела вовсе, а на терминалах эта база
-  // уже лежит с наполненными справочниками. Проверяем именно путь обновления: новых таблиц
-  // нет, кэш есть — после миграции таблицы появились, кэш цел.
-  test('миграция 1 → 2 добавляет таблицы и не трогает кэш', () async {
+  // Схема жила в версии 1 и стратегии миграции не имела вовсе, а на терминалах эта база уже
+  // лежит с наполненными справочниками. Проверяем путь обновления целиком, 1 → 3: терминал,
+  // пропустивший выпуск, проходит его одним махом, и промежуточной остановки у него нет.
+  test('миграция 1 → 3 доводит схему и не трогает кэш', () async {
     await db
         .into(db.cachedSuppliers)
         .insert(CachedSuppliersCompanion.insert(id: 's1', name: 'Поставщик'));
     // Возвращаем базу к состоянию схемы 1.
     await db.customStatement('DROP TABLE outbox_operations');
     await db.customStatement('DROP TABLE entry_drafts');
+    await db.customStatement('ALTER TABLE cached_barcodes DROP COLUMN pending');
 
-    await db.migration.onUpgrade(Migrator(db), 1, 2);
+    await db.migration.onUpgrade(Migrator(db), 1, 3);
 
     await outbox.enqueue(
       kind: OutboxKind.bindBarcode,

@@ -1,10 +1,15 @@
 import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:either_dart/either.dart';
 import 'package:flutter/widgets.dart';
 import 'package:injectable/injectable.dart';
 import 'package:talker_flutter/talker_flutter.dart';
 
+import '../error/failure.dart';
+import '../error/failure_reason.dart';
+import '../outbox/outbox_effects.dart';
+import '../outbox/outbox_operation.dart';
 import '../outbox/outbox_repository.dart';
 import '../outbox/outbox_retry.dart';
 import '../outbox/outbox_sender.dart';
@@ -50,10 +55,17 @@ class SyncResult {
 /// таймер это гарантирует, а событие лишь позволяет не ждать паузу целиком.
 @lazySingleton
 class SyncEngine with WidgetsBindingObserver {
-  SyncEngine(this._outbox, this._sender, this._talker, this._connectivity);
+  SyncEngine(
+    this._outbox,
+    this._sender,
+    this._effects,
+    this._talker,
+    this._connectivity,
+  );
 
   final OutboxRepository _outbox;
   final OutboxSender _sender;
+  final OutboxEffects _effects;
   final Talker _talker;
   final Connectivity _connectivity;
 
@@ -124,29 +136,15 @@ class SyncEngine with WidgetsBindingObserver {
     try {
       final queue = await _outbox.pending();
       for (final operation in queue) {
-        await _outbox.markSending(operation.operationId);
-        final res = await _sender.send(operation);
-        final stop = await res.fold(
-          (failure) async {
-            if (isRetryable(failure)) {
-              await _outbox.markFailed(operation.operationId, '$failure');
-              _scheduleRetry(operation.attempts + 1);
-              return true; // дальше не идём — порядок важнее скорости
-            }
-            await _outbox.markRejected(operation.operationId, '$failure');
-            _talker.warning(
-              'Операция отклонена сервером: $operation — $failure',
-            );
-            rejected++;
-            return false;
-          },
-          (_) async {
-            await _outbox.markSent(operation.operationId);
-            sent++;
-            return false;
-          },
-        );
-        if (stop) break;
+        final res = await sendOne(operation);
+        if (res.isRight) {
+          sent++;
+          continue;
+        }
+        // Временная неудача останавливает проход: дальше по очереди идти нельзя, порядок
+        // важнее скорости. Отказ по существу порядку не мешает — операция выбыла совсем.
+        if (isRetryable(res.left)) break;
+        rejected++;
       }
     } finally {
       _draining = false;
@@ -166,6 +164,41 @@ class SyncEngine with WidgetsBindingObserver {
       );
     }
     return SyncResult(sent: sent, rejected: rejected, remaining: remaining);
+  }
+
+  /// Отправить одну операцию и довести её статус и локальные следствия до конца.
+  ///
+  /// Единственная реализация отправки на всё приложение: ею пользуется и проход по очереди,
+  /// и репозиторий, ставящий операцию прямо сейчас. Пока путей было два, отложенная отправка
+  /// не применяла локальное следствие — привязка уходила на сервер, а в карточке товара
+  /// штрихкод не появлялся (найдено на устройстве, P2-06).
+  Future<Either<Failure, void>> sendOne(OutboxOperation operation) async {
+    await _outbox.markSending(operation.operationId);
+    final res = await _sender.send(operation);
+    await res.fold(
+      (failure) async {
+        if (isRetryable(failure)) {
+          await _outbox.markFailed(
+            operation.operationId,
+            failureReason(failure),
+          );
+          _scheduleRetry(operation.attempts + 1);
+          return;
+        }
+        await _outbox.markRejected(
+          operation.operationId,
+          failureReason(failure),
+        );
+        // Сервер отказал по существу — возвращаем локальное состояние к тому, что было.
+        await _effects.rollback(operation);
+        _talker.warning('Операция отклонена сервером: $operation — $failure');
+      },
+      (_) async {
+        await _outbox.markSent(operation.operationId);
+        await _effects.confirm(operation);
+      },
+    );
+    return res;
   }
 
   /// Завести повтор через паузу, растущую с числом попыток.

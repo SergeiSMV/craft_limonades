@@ -160,17 +160,24 @@ void main() {
     expect(find.text(t.stockDetailScreen.bindOffline), findsOneWidget);
   });
 
-  // Секция «Штрихкоды» отложенную привязку не показывает: на сервере её ещё нет, и написать
-  // её в список значило бы выдать очередь за факт справочника.
-  testWidgets('отложенный ШК не появляется в списке привязанных', (
+  // P2-06: решение ADHOC-11 пересмотрено. Отложенная привязка теперь видна сразу — кладовщик
+  // привязал ШК без связи и должен увидеть результат, иначе решит, что работа пропала. Но
+  // с пометкой: операция ещё в очереди и может быть отклонена, тогда строка исчезнет сама.
+  testWidgets('отложенный ШК виден в списке, но помечен как неподтверждённый', (
     tester,
   ) async {
-    await pumpCard(tester, const []);
+    await pumpCard(tester, const [
+      Barcode(barcode: offlineCode, pending: true),
+    ]);
 
-    await scan(tester, offlineCode);
+    expect(find.text(offlineCode), findsOneWidget);
+    expect(find.text(t.stockDetailScreen.barcodePending), findsOneWidget);
+  });
 
-    expect(find.textContaining('Штрихкоды'), findsNothing);
-    expect(find.text(offlineCode), findsNothing);
+  testWidgets('подтверждённый ШК пометки не носит', (tester) async {
+    await pumpCard(tester, const [Barcode(barcode: '4607044662964')]);
+
+    expect(find.text(t.stockDetailScreen.barcodePending), findsNothing);
   });
 
   testWidgets('409 — ошибка в диалоге, диалог остаётся открытым', (
