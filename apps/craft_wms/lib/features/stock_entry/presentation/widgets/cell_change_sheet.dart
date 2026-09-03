@@ -9,6 +9,9 @@ import '../../../../core/constants/app_insets.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/gen/strings.g.dart';
+import '../../../../core/scanner/hardware_scan_listener.dart';
+import '../../../../core/scanner/scan_code.dart';
+import '../../../../core/scanner/scan_deduper.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/theme/semibold_text.dart';
 import '../../../stock/data/catalog_models.dart';
@@ -25,12 +28,16 @@ class CellChangeSheet extends StatefulWidget {
   State<CellChangeSheet> createState() => _CellChangeSheetState();
 }
 
-class _CellChangeSheetState extends State<CellChangeSheet> {
+class _CellChangeSheetState extends State<CellChangeSheet>
+    with HardwareScanListener {
   /// Репозиторий каталога — источник списка ячеек.
   final _repo = getIt<CatalogRepository>();
 
   /// Контроллер поля поиска/скана; слушатель на нём триггерит фильтрацию.
   final _controller = TextEditingController();
+
+  /// Отсекает дубль, если устройство отдаёт код и в поле, и интентом.
+  final _deduper = ScanDeduper();
 
   /// Фокус поля — используется для автофокуса и возврата фокуса после действий.
   final _focusNode = FocusNode();
@@ -79,6 +86,17 @@ class _CellChangeSheetState extends State<CellChangeSheet> {
   }
 
   /// Резолв адреса (скан/Enter) по справочнику; найдено точное совпадение → вернуть ячейку.
+  /// Код с аппаратного сканера (intent-режим). До ADHOC-07 лист не был подписан на поток:
+  /// сканы доставляются верхнему экрану стопки, а нижний лист экраном не является, и в
+  /// intent-режиме смена ячейки сканом молча не работала — только ручным вводом.
+  @override
+  void onHardwareScan(ScanCode code) {
+    final raw = code.raw.trim();
+    if (raw.isEmpty || !_deduper.allow(raw)) return;
+    _controller.text = raw;
+    _onSubmit(raw);
+  }
+
   void _onSubmit(String value) {
     final a = value.trim().toLowerCase();
     if (a.isEmpty) return;

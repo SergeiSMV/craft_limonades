@@ -8,6 +8,9 @@ import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/constants/app_insets.dart';
 import '../../../../../core/error/failure.dart';
 import '../../../../../core/gen/strings.g.dart';
+import '../../../../../core/scanner/hardware_scan_listener.dart';
+import '../../../../../core/scanner/scan_code.dart';
+import '../../../../../core/scanner/scan_deduper.dart';
 import '../../../../../core/theme/regular_text.dart';
 import '../../../../../core/theme/semibold_text.dart';
 
@@ -32,9 +35,13 @@ class BindBarcodeDialog extends StatefulWidget {
   State<BindBarcodeDialog> createState() => _BindBarcodeDialogState();
 }
 
-class _BindBarcodeDialogState extends State<BindBarcodeDialog> {
+class _BindBarcodeDialogState extends State<BindBarcodeDialog>
+    with HardwareScanListener {
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
+
+  /// Отсекает дубль, если устройство отдаёт код и в поле, и интентом.
+  final _deduper = ScanDeduper();
 
   /// Текст ошибки под полем (конфликт ШК или сбой запроса); null — ошибки нет.
   String? _error;
@@ -67,6 +74,35 @@ class _BindBarcodeDialogState extends State<BindBarcodeDialog> {
       if (mounted) _focusNode.requestFocus();
     });
   }
+
+  /// Код от сканера — из потока интентов (ADHOC-07) или из поля по Enter.
+  ///
+  /// До этой правки диалог не был подписан на поток вовсе и рассчитывал только на то, что код
+  /// прилетит в сфокусированное поле, то есть на клавиатурный режим сканера. В intent-режиме
+  /// код уходит в поток, а поток доставляется лишь верхнему экрану стопки — диалог экраном
+  /// не является, и скан пропадал молча.
+  ///
+  /// Обе ветки сведены сюда, поэтому отсечение дубля стоит в одном месте: настройки режимов
+  /// на устройстве взаимоисключающие, но правит их человек, и конфигурация «и то, и другое»
+  /// дала бы две попытки привязки одного кода.
+  void onScanned(String raw, {ScanCode? scan}) {
+    final code = raw.trim();
+    if (code.isEmpty || _busy || !_deduper.allow(code)) return;
+    // Символику знает только поток интентов; для ввода в поле тип определяется по форме кода.
+    final kind = scan?.kind ?? classifyScan(code);
+    // Адрес ячейки в поле привязки — это порча справочника: код места хранения навсегда стал бы
+    // штрихкодом товара. Тот же случай ловится во «Вводе остатков» (P2-01), здесь он появился
+    // вместе с приёмом сканов.
+    if (kind == ScanKind.cell) {
+      setState(() => _error = t.stockDetailScreen.bindScannedCell);
+      return;
+    }
+    _controller.text = code;
+    submit();
+  }
+
+  @override
+  void onHardwareScan(ScanCode code) => onScanned(code.raw, scan: code);
 
   /// Привязать введённый код: успех — закрываем диалог, ошибка — показываем под полем
   /// и возвращаем фокус для следующего скана.
@@ -131,7 +167,7 @@ class _BindBarcodeDialogState extends State<BindBarcodeDialog> {
                 keyboardType: _softKeyboard
                     ? TextInputType.text
                     : TextInputType.none,
-                onSubmitted: (_) => submit(),
+                onSubmitted: onScanned,
                 // Кнопка «Привязать» активна только при непустом поле — перерисовываем на ввод.
                 onChanged: (_) => setState(() {}),
                 cursorColor: AppColors.kTextMuted,

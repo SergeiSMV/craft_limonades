@@ -1,5 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/auth/auth_cubit.dart';
@@ -13,6 +15,7 @@ import '../../../../core/gen/strings.g.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/sync/catalog_sync_service.dart';
+import '../../../../core/sync/sync_engine.dart';
 import '../../../../core/theme/bold_text.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/widgets/system_ui_wrapper.dart';
@@ -41,6 +44,9 @@ class HomePage extends StatelessWidget {
     messenger
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(t.homeScreen.syncStarted)));
+    // Заодно разгребаем очередь операций (P2-04): кладовщик, нажавший «Обновить», ждёт,
+    // что всё несинхронизированное уйдёт, а не только справочники приедут.
+    unawaited(getIt<SyncEngine>().drain());
     final res = await getIt<CatalogSyncService>().refresh();
     messenger
       ..hideCurrentSnackBar()
