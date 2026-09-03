@@ -72,14 +72,14 @@ void main() {
           ? const [Barcode(barcode: '460'), Barcode(barcode: 'BOX')]
           : const [Barcode(barcode: 'BOX')]);
     });
-    when(() => repo.unbindBarcode('460')).thenAnswer((_) async => const Right(null));
+    when(() => repo.unbindBarcode(goodId: any(named: 'goodId'), barcode: '460')).thenAnswer((_) async => const Right(null));
 
     await cubit.load('g1');
     expect(cubit.state.barcodes.length, 2);
 
     await cubit.unbindBarcode('460');
 
-    verify(() => repo.unbindBarcode('460')).called(1);
+    verify(() => repo.unbindBarcode(goodId: any(named: 'goodId'), barcode: '460')).called(1);
     expect(cubit.state.barcodes.map((b) => b.barcode), ['BOX']); // перезагрузилось без 460
   });
 
@@ -88,7 +88,7 @@ void main() {
         .thenAnswer((_) async => Right(stockPage(['5'])));
     when(() => repo.listGoodBarcodes('g1'))
         .thenAnswer((_) async => const Right([Barcode(barcode: '460')]));
-    when(() => repo.unbindBarcode('460'))
+    when(() => repo.unbindBarcode(goodId: any(named: 'goodId'), barcode: '460'))
         .thenAnswer((_) async => const Left(Failure.network()));
 
     await cubit.load('g1');

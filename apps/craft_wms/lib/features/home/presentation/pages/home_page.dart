@@ -32,6 +32,10 @@ class HomePage extends StatelessWidget {
   void goToLogs(BuildContext context) =>
       context.router.push(const DebugLogRoute());
 
+  /// Переход к списку несинхронизированных операций (P2-06): что не уехало и что отклонено.
+  void goToSyncQueue(BuildContext context) =>
+      context.router.push(const SyncQueueRoute());
+
   /// Переход к диагностике сканера (служебный экран наладки).
   void goToScannerProbe(BuildContext context) =>
       context.router.push(const ScannerProbeRoute());
@@ -150,6 +154,15 @@ class HomePage extends StatelessWidget {
                           onTap: () => refreshCatalogs(context),
                           child: Text(
                             t.homeScreen.syncTooltip,
+                            style: RegularTextStyles().regularInter14.copyWith(
+                              color: AppColors.kTileText,
+                            ),
+                          ),
+                        ),
+                        PopupMenuItem<void>(
+                          onTap: () => goToSyncQueue(context),
+                          child: Text(
+                            t.syncQueue.menuTooltip,
                             style: RegularTextStyles().regularInter14.copyWith(
                               color: AppColors.kTileText,
                             ),

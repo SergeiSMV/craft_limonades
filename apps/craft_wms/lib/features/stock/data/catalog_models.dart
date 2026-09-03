@@ -66,8 +66,16 @@ abstract class Cell with _$Cell {
 /// Штрихкод товара (ответ `GET /goods/{id}/barcodes`, P-FS-12). symbology может быть null.
 @freezed
 abstract class Barcode with _$Barcode {
-  const factory Barcode({required String barcode, String? symbology}) =
-      _Barcode;
+  const factory Barcode({
+    required String barcode,
+    String? symbology,
+
+    /// Привязка сделана на устройстве и сервером ещё не подтверждена (P2-06).
+    /// В ответах сервера этого поля нет и быть не может — оно живёт только в локальном кэше.
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    @Default(false)
+    bool pending,
+  }) = _Barcode;
 
   factory Barcode.fromJson(Map<String, dynamic> json) =>
       _$BarcodeFromJson(json);

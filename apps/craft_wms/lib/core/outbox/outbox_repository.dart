@@ -162,6 +162,59 @@ class OutboxRepository {
   Future<void> markRejected(String operationId, String error) =>
       _update(operationId, status: OutboxStatus.rejected, error: error);
 
+  /// Операции, отклонённые сервером по существу, — то, что требует разбора человеком (P2-06).
+  /// Свежие сверху: разбирают обычно последнее.
+  Stream<List<OutboxOperation>> watchRejected() {
+    final query = _db.select(_db.outboxOperations)
+      ..where((t) => t.status.equals(OutboxStatus.rejected.wire))
+      ..orderBy([(t) => OrderingTerm.desc(t.seq)]);
+    return query.watch().map(
+      (rows) => rows.map(OutboxOperation.fromRow).nonNulls.toList(),
+    );
+  }
+
+  /// Операции, ожидающие отправки, — «что ещё не уехало» (P2-06). В порядке постановки:
+  /// именно в нём они уйдут.
+  Stream<List<OutboxOperation>> watchPending() {
+    final query = _db.select(_db.outboxOperations)
+      ..where(
+        (t) => t.status.isIn([
+          OutboxStatus.pending.wire,
+          OutboxStatus.sending.wire,
+        ]),
+      )
+      ..orderBy([(t) => OrderingTerm.asc(t.seq)]);
+    return query.watch().map(
+      (rows) => rows.map(OutboxOperation.fromRow).nonNulls.toList(),
+    );
+  }
+
+  /// Вернуть отклонённую операцию в очередь — кладовщик считает, что причина устранена
+  /// (сессия обновилась, товар завели, ШК освободили).
+  ///
+  /// Счётчик попыток сбрасывается: он задаёт паузу перед следующей попыткой, и после ручного
+  /// решения ждать пять минут незачем — человек только что явно попросил отправить.
+  Future<void> retry(String operationId) async {
+    final statement = _db.update(_db.outboxOperations)
+      ..where((t) => t.operationId.equals(operationId));
+    await statement.write(
+      OutboxOperationsCompanion(
+        status: Value(OutboxStatus.pending.wire),
+        attempts: const Value(0),
+        lastError: const Value(null),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
+  /// Убрать операцию из очереди совсем — кладовщик решил, что делать её не нужно.
+  ///
+  /// Единственный способ избавиться от неисполнимой операции: 409 «ШК уже за другим товаром»
+  /// повтором не лечится, и без этого она осталась бы в списке навсегда.
+  Future<void> discard(String operationId) => (_db.delete(
+    _db.outboxOperations,
+  )..where((t) => t.operationId.equals(operationId))).go();
+
   /// Убрать успешно отправленные операции: очередь — это список дел, а не журнал.
   /// Историей занимается серверный журнал документов (P3-07).
   Future<int> purgeSent() => (_db.delete(
