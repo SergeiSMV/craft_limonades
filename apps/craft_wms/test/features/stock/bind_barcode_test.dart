@@ -3,6 +3,7 @@ import 'package:craft_wms/core/gen/strings.g.dart';
 import 'package:craft_wms/features/stock/data/catalog_models.dart';
 import 'package:craft_wms/features/stock/data/catalog_repository.dart';
 import 'package:craft_wms/features/stock/presentation/bloc/stock_detail_cubit.dart';
+import 'package:craft_wms/features/stock/presentation/widgets/stock_detail/bind_barcode_dialog.dart';
 import 'package:craft_wms/features/stock/presentation/widgets/stock_detail/stock_detail_body.dart';
 import 'package:either_dart/either.dart';
 import 'package:flutter/material.dart';
@@ -27,6 +28,9 @@ void main() {
 
   /// ШК, который «занят» другим товаром — на него мок отдаёт 409.
   const conflictCode = '4607044663442';
+
+  /// ШК, на который мок отдаёт «нет связи» — как офлайн на устройстве.
+  const offlineCode = '4607044660205';
 
   /// Поднять карточку товара с заданным набором привязанных ШК.
   Future<_MockRepo> pumpCard(
@@ -67,6 +71,7 @@ void main() {
     ).thenAnswer((inv) async {
       final code = inv.namedArguments[#barcode] as String;
       if (code == conflictCode) return const Left(Failure.server(409));
+      if (code == offlineCode) return const Left(Failure.network());
       current = [...current, Barcode(barcode: code)];
       return const Right(null);
     });
@@ -135,6 +140,37 @@ void main() {
       findsOneWidget,
       reason: 'карточка перечитана с сервера',
     );
+  });
+
+  // ADHOC-11, находка с устройства: операция уже принята в очередь (P2-03), а диалог
+  // оставался открытым с заполненным полем и активной кнопкой — изображал незаконченное
+  // действие. Кладовщик нажал «Привязать» четыре раза без единого видимого изменения.
+  testWidgets('без связи диалог закрывается, а карточка сообщает об отсрочке', (
+    tester,
+  ) async {
+    await pumpCard(tester, const []);
+
+    await scan(tester, offlineCode);
+
+    expect(
+      find.byType(BindBarcodeDialog),
+      findsNothing,
+      reason: 'работа принята, от кладовщика больше ничего не нужно',
+    );
+    expect(find.text(t.stockDetailScreen.bindOffline), findsOneWidget);
+  });
+
+  // Секция «Штрихкоды» отложенную привязку не показывает: на сервере её ещё нет, и написать
+  // её в список значило бы выдать очередь за факт справочника.
+  testWidgets('отложенный ШК не появляется в списке привязанных', (
+    tester,
+  ) async {
+    await pumpCard(tester, const []);
+
+    await scan(tester, offlineCode);
+
+    expect(find.textContaining('Штрихкоды'), findsNothing);
+    expect(find.text(offlineCode), findsNothing);
   });
 
   testWidgets('409 — ошибка в диалоге, диалог остаётся открытым', (
