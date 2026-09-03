@@ -1,5 +1,7 @@
 import 'package:craft_wms/core/database/app_database.dart';
 import 'package:craft_wms/core/error/failure.dart';
+import 'package:craft_wms/core/outbox/outbox_operation.dart';
+import 'package:craft_wms/core/outbox/outbox_repository.dart';
 import 'package:craft_wms/features/stock/data/catalog_api.dart';
 import 'package:craft_wms/features/stock/data/catalog_cache.dart';
 import 'package:craft_wms/features/stock/data/catalog_models.dart';
@@ -8,6 +10,7 @@ import 'package:drift/native.dart';
 import 'package:either_dart/either.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:uuid/uuid.dart';
 
 class _MockApi extends Mock implements CatalogApi {}
 
@@ -16,6 +19,7 @@ void main() {
   late AppDatabase db;
   late CatalogCache cache;
   late _MockApi api;
+  late OutboxRepository outbox;
   late CatalogRepository repo;
 
   const good = Good(id: 'g1', code: '15567', name: 'Арахис Бекон', uom: 'шт');
@@ -25,7 +29,8 @@ void main() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     cache = CatalogCache(db);
     api = _MockApi();
-    repo = CatalogRepository(api, cache);
+    outbox = OutboxRepository(db, const Uuid());
+    repo = CatalogRepository(api, cache, outbox);
   });
 
   tearDown(() => db.close());
@@ -184,6 +189,92 @@ void main() {
       ).thenAnswer((_) async => const Left(Failure.server(500)));
       final res = await repo.resolveGoodByBarcode('NEW');
       expect(res.isLeft, isTrue);
+    });
+  });
+
+  // P2-03: запись сперва ложится в очередь, и только потом уходит в сеть. Экран при этом
+  // ведёт себя как раньше — исход возвращается вызывающему без изменений.
+  group('очередь операций', () {
+    setUp(() async {
+      await cache.putGoods(const [good]);
+      await cache.putBarcodes([]);
+    });
+
+    test('успешная привязка помечается отправленной', () async {
+      when(
+        () => api.bindBarcode(
+          goodId: any(named: 'goodId'),
+          barcode: any(named: 'barcode'),
+        ),
+      ).thenAnswer((_) async => const Right(null));
+
+      final res = await repo.bindBarcode(goodId: 'g1', barcode: 'NEW');
+
+      expect(res.isRight, isTrue);
+      expect(await outbox.pending(), isEmpty);
+      expect(await outbox.pendingCount(), 0);
+    });
+
+    // Главное свойство очереди: операция, не ушедшая с первой попытки, остаётся делом,
+    // а не исчезает вместе с неудачным вызовом.
+    test('операция без связи остаётся в очереди, ошибка доходит до экрана', () async {
+      when(
+        () => api.bindBarcode(
+          goodId: any(named: 'goodId'),
+          barcode: any(named: 'barcode'),
+        ),
+      ).thenAnswer((_) async => const Left(Failure.network()));
+
+      final res = await repo.bindBarcode(goodId: 'g1', barcode: 'NEW');
+
+      expect(res.isLeft, isTrue, reason: 'UX прежний: экран узнаёт о неудаче');
+      final pending = await outbox.pending();
+      expect(pending, hasLength(1));
+      expect(pending.single.kind, OutboxKind.bindBarcode);
+      expect(pending.single.status, OutboxStatus.pending);
+      expect(pending.single.attempts, 1);
+      expect(pending.single.payload['barcode'], 'NEW');
+    });
+
+    // 409 «ШК уже за другим товаром» повтором не лечится — сервер ответит тем же, а очередь
+    // встанет намертво на неисполнимой операции.
+    test('отказ по существу выводит операцию из очереди', () async {
+      when(
+        () => api.bindBarcode(
+          goodId: any(named: 'goodId'),
+          barcode: any(named: 'barcode'),
+        ),
+      ).thenAnswer((_) async => const Left(Failure.server(409)));
+
+      final res = await repo.bindBarcode(goodId: 'g1', barcode: 'NEW');
+
+      expect(res.isLeft, isTrue);
+      expect(await outbox.pending(), isEmpty);
+    });
+
+    test('5xx считается временным и остаётся в очереди', () async {
+      when(
+        () => api.bindBarcode(
+          goodId: any(named: 'goodId'),
+          barcode: any(named: 'barcode'),
+        ),
+      ).thenAnswer((_) async => const Left(Failure.server(503)));
+
+      await repo.bindBarcode(goodId: 'g1', barcode: 'NEW');
+
+      expect(await outbox.pending(), hasLength(1));
+    });
+
+    test('отвязка тоже проходит через очередь', () async {
+      when(
+        () => api.unbindBarcode(any()),
+      ).thenAnswer((_) async => const Left(Failure.network()));
+
+      await repo.unbindBarcode('ITEM');
+
+      final pending = await outbox.pending();
+      expect(pending.single.kind, OutboxKind.unbindBarcode);
+      expect(pending.single.payload['barcode'], 'ITEM');
     });
   });
 

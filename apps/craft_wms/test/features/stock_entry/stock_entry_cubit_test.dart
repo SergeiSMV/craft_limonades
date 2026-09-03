@@ -1,6 +1,9 @@
+import 'package:craft_wms/core/database/app_database.dart';
 import 'package:craft_wms/features/stock/data/catalog_models.dart';
+import 'package:craft_wms/features/stock_entry/data/entry_draft_store.dart';
 import 'package:craft_wms/features/stock_entry/data/stock_entry_repository.dart';
 import 'package:craft_wms/features/stock_entry/presentation/bloc/stock_entry_cubit.dart';
+import 'package:drift/native.dart';
 import 'package:either_dart/either.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -13,12 +16,18 @@ void main() {
   const cell = Cell(id: 'c1', warehouseId: 'w1', address: 'M1-1-1-1');
 
   late _MockRepo repo;
+  late AppDatabase db;
+  late EntryDraftStore drafts;
   late StockEntryCubit cubit;
 
   setUp(() {
     repo = _MockRepo();
-    cubit = StockEntryCubit(repo);
+    db = AppDatabase.forTesting(NativeDatabase.memory());
+    drafts = EntryDraftStore(db);
+    cubit = StockEntryCubit(repo, drafts);
   });
+
+  tearDown(() => db.close());
 
   group('буфер: грань (товар, дата) + undo', () {
     test('та же дата → накопление; другая дата → новая строка', () {

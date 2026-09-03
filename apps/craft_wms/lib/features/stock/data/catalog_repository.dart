@@ -2,6 +2,8 @@ import 'package:either_dart/either.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../../core/error/failure.dart';
+import '../../../core/outbox/outbox_operation.dart';
+import '../../../core/outbox/outbox_repository.dart';
 import 'catalog_api.dart';
 import 'catalog_cache.dart';
 import 'catalog_models.dart';
@@ -18,10 +20,11 @@ import 'catalog_models.dart';
 /// потребовал правок ни в одном cubit и ни в одном виджете.
 @lazySingleton
 class CatalogRepository {
-  CatalogRepository(this._api, this._cache);
+  CatalogRepository(this._api, this._cache, this._outbox);
 
   final CatalogApi _api;
   final CatalogCache _cache;
+  final OutboxRepository _outbox;
 
   /// Запомненные справочники, уже лежащие в кэше. Проверять базу на каждый вызов незачем:
   /// обратно в «пусто» справочник не возвращается, а пополняется синхронизацией.
@@ -106,23 +109,66 @@ class CatalogRepository {
     return Right(await _cache.barcodesOfGood(goodId));
   }
 
-  /// Привязать ШК к товару. Пишется на сервер; кэш обновляется точечно, чтобы повторный скан
-  /// узнавался сразу, не дожидаясь следующей синхронизации.
+  /// Привязать ШК к товару. Сначала строка в очереди, затем сетевой вызов (P2-03); кэш
+  /// обновляется точечно, чтобы повторный скан узнавался сразу, не дожидаясь синхронизации.
   Future<Either<Failure, void>> bindBarcode({
     required String goodId,
     required String barcode,
   }) async {
-    final res = await _api.bindBarcode(goodId: goodId, barcode: barcode);
+    final operationId = await _outbox.enqueue(
+      kind: OutboxKind.bindBarcode,
+      payload: {'good_id': goodId, 'barcode': barcode},
+    );
+    final res = await _send(
+      operationId,
+      () => _api.bindBarcode(goodId: goodId, barcode: barcode),
+    );
     if (res.isRight) await _cache.addBarcode(barcode: barcode, goodId: goodId);
     return res;
   }
 
-  /// Отвязать ШК. Как и привязка — сначала сервер, затем точечная правка кэша.
+  /// Отвязать ШК. Как и привязка — сначала очередь, потом сервер, потом точечная правка кэша.
   Future<Either<Failure, void>> unbindBarcode(String code) async {
-    final res = await _api.unbindBarcode(code);
+    final operationId = await _outbox.enqueue(
+      kind: OutboxKind.unbindBarcode,
+      payload: {'barcode': code},
+    );
+    final res = await _send(operationId, () => _api.unbindBarcode(code));
     if (res.isRight) await _cache.removeBarcode(code);
     return res;
   }
+
+  /// Отправить операцию, уже стоящую в очереди, и отразить исход в её статусе.
+  ///
+  /// Результат отдаётся вызывающему **как есть** — экран ведёт себя ровно так же, как до
+  /// появления очереди (решение по объёму P2-03: UX меняет P2-04, когда появится отправщик
+  /// и станет о чём сообщать). Разница только в том, что после неудачи операция не исчезает.
+  Future<Either<Failure, void>> _send(
+    String operationId,
+    Future<Either<Failure, void>> Function() call,
+  ) async {
+    await _outbox.markSending(operationId);
+    final res = await call();
+    await res.fold(
+      (failure) => _retryable(failure)
+          ? _outbox.markFailed(operationId, failure.toString())
+          : _outbox.markRejected(operationId, failure.toString()),
+      (_) => _outbox.markSent(operationId),
+    );
+    return res;
+  }
+
+  /// Имеет ли смысл повторять операцию.
+  ///
+  /// Повторяем то, что не зависит от содержания запроса: обрыв связи, 5xx, истёкшую сессию.
+  /// Отказ по существу (4xx — например, 409 «ШК уже за другим товаром») повтором не лечится:
+  /// сервер ответит тем же, а очередь встанет намертво на неисполнимой операции.
+  bool _retryable(Failure failure) => switch (failure) {
+    NetworkFailure() => true,
+    AuthFailure() => true,
+    ServerFailure(:final statusCode) => statusCode >= 500,
+    UnknownFailure() => true,
+  };
 
   /// Все группы номенклатуры (дерево фильтра).
   Future<Either<Failure, List<NomenclatureGroup>>> listGroups() async {

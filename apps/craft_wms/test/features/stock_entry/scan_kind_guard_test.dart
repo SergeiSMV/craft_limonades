@@ -2,13 +2,16 @@ import 'package:craft_wms/core/di/injection.dart';
 import 'package:craft_wms/core/error/failure.dart';
 import 'package:craft_wms/core/gen/strings.g.dart';
 import 'package:craft_wms/core/theme/app_theme.dart';
+import 'package:craft_wms/core/database/app_database.dart';
 import 'package:craft_wms/features/stock/data/catalog_models.dart';
+import 'package:craft_wms/features/stock_entry/data/entry_draft_store.dart';
 import 'package:craft_wms/features/stock/data/catalog_repository.dart';
 import 'package:craft_wms/features/stock_entry/data/stock_entry_repository.dart';
 import 'package:craft_wms/features/stock_entry/presentation/bloc/stock_entry_cubit.dart';
 import 'package:craft_wms/features/stock_entry/presentation/widgets/cell_entry_view.dart';
 import 'package:craft_wms/features/stock_entry/presentation/widgets/cell_select_view.dart';
 import 'package:craft_wms/core/widgets/good_picker_sheet.dart';
+import 'package:drift/native.dart';
 import 'package:either_dart/either.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -31,13 +34,17 @@ void main() {
 
   late _MockEntryRepo entryRepo;
   late _MockCatalogRepo catalogRepo;
+  late AppDatabase db;
+  late EntryDraftStore drafts;
   late StockEntryCubit cubit;
 
   setUp(() {
     LocaleSettings.useDeviceLocale();
     entryRepo = _MockEntryRepo();
     catalogRepo = _MockCatalogRepo();
-    cubit = StockEntryCubit(entryRepo);
+    db = AppDatabase.forTesting(NativeDatabase.memory());
+    drafts = EntryDraftStore(db);
+    cubit = StockEntryCubit(entryRepo, drafts);
 
     // Ни один сканированный код не привязан к товару — интересует именно ветка «не нашли».
     when(
