@@ -28,6 +28,8 @@
     "sync_started": "Обновляю справочники…",
     "sync_done": "Справочники обновлены",
     "sync_failed": "Не удалось обновить справочники",
+    "sync_already_running": "Обновление уже идёт",
+    "sync_in_progress_hint": "обновляю справочники",
     "logout_tooltip": "Выход",
     "stub_snack": "Раздел в разработке",
     "tiles": {
