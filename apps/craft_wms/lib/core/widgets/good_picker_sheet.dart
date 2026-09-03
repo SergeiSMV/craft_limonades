@@ -2,19 +2,24 @@ import 'dart:async';
 
 import 'package:flutter_neumorphic_plus/flutter_neumorphic.dart';
 
-import '../../../../core/constants/app_borders.dart';
-import '../../../../core/constants/app_boxes.dart';
-import '../../../../core/constants/app_colors.dart';
-import '../../../../core/constants/app_insets.dart';
-import '../../../../core/constants/app_sizes.dart';
-import '../../../../core/gen/assets.gen.dart';
-import '../../../../core/gen/strings.g.dart';
-import '../../../../core/theme/regular_text.dart';
-import '../../../../core/theme/semibold_text.dart';
-import '../../../stock/data/catalog_models.dart';
-import '../../../stock/data/catalog_repository.dart';
+import '../../features/stock/data/catalog_models.dart';
+import '../../features/stock/data/catalog_repository.dart';
+import '../constants/app_borders.dart';
+import '../constants/app_boxes.dart';
+import '../constants/app_colors.dart';
+import '../constants/app_insets.dart';
+import '../constants/app_sizes.dart';
+import '../gen/assets.gen.dart';
+import '../gen/strings.g.dart';
+import '../theme/regular_text.dart';
+import '../theme/semibold_text.dart';
 
 /// Нижний лист выбора товара из номенклатуры (поиск с дебаунсом).
+///
+/// Живёт в `core/widgets`, потому что нужен двум фичам: «Ввод остатков» открывает его, когда
+/// отсканированный ШК не привязан, а «Остатки» — когда кладовщик согласился привязать такой ШК
+/// (ADHOC-06). Держать его в `stock_entry` значило бы тянуть импорт из одной фичи в другую;
+/// от самого `stock_entry` лист не зависит — ему нужен только справочник товаров.
 class GoodPickerSheet extends StatefulWidget {
   const GoodPickerSheet({super.key, required this.repo});
 
@@ -103,10 +108,7 @@ class _GoodPickerSheetState extends State<GoodPickerSheet> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            t.stockEntry.pickGood,
-            style: SemiboldTextStyles().semiboldInter18,
-          ),
+          Text(t.goodPicker.title, style: SemiboldTextStyles().semiboldInter18),
           AppBoxes.kHeight12,
           Padding(
             padding: AppInsets.h8,
@@ -131,7 +133,7 @@ class _GoodPickerSheetState extends State<GoodPickerSheet> {
                     size: AppSizes.kIcon25,
                     color: AppColors.kTextMuted,
                   ),
-                  hintText: t.stockEntry.searchGood,
+                  hintText: t.goodPicker.searchHint,
                   hintStyle: RegularTextStyles().regularInter16.copyWith(
                     color: AppColors.kBorderDashed,
                   ),
@@ -164,7 +166,7 @@ class _GoodPickerSheetState extends State<GoodPickerSheet> {
                       children: [
                         Assets.icons.goodsNotFound.image(width: 90),
                         AppBoxes.kHeight8,
-                        Text(t.stockEntry.nothingFound),
+                        Text(t.goodPicker.nothingFound),
                       ],
                     ),
                   )

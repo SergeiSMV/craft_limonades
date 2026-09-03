@@ -3,28 +3,31 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_neumorphic_plus/flutter_neumorphic.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
-import '../../../../core/constants/app_borders.dart';
 import '../../../../core/constants/app_boxes.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_insets.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/di/injection.dart';
+import '../../../../core/error/failure.dart';
 import '../../../../core/gen/assets.gen.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/scanner/hardware_scan_listener.dart';
 import '../../../../core/scanner/scan_code.dart';
 import '../../../../core/scanner/scan_deduper.dart';
-import '../../../../core/theme/regular_text.dart';
 import '../../../../core/utils/barcode.dart';
 import '../../../../core/utils/keyboard.dart';
 import '../../../../core/widgets/appbar_image.dart';
+import '../../../../core/widgets/good_picker_sheet.dart';
 import '../../../../core/widgets/page_header.dart';
 import '../../../../core/widgets/system_ui_wrapper.dart';
 import '../../data/catalog_models.dart';
+import '../../data/catalog_repository.dart';
 import '../bloc/goods_list_cubit.dart';
 import '../widgets/goods_list/active_chips.dart';
+import '../widgets/goods_list/bind_prompt_dialog.dart';
 import '../widgets/goods_list/goods_result.dart';
+import '../widgets/goods_list/search_field.dart';
 import '../widgets/goods_list/stock_filter_button.dart';
 
 /// Экран «Остатки»: список товаров с поиском и фильтрами (группа/поставщик).
@@ -80,25 +83,86 @@ class _GoodsListViewState extends State<_GoodsListView>
     cubit
         .cancelPendingSearch(); // ввод завершён — отложенный поиск уже не нужен
     if (!looksLikeBarcode(input)) {
+      showInSearchField(input);
       await cubit.setQuery(input);
       return;
     }
 
-    final good = await cubit.resolveBarcode(input);
+    final resolved = await cubit.resolveBarcode(input);
     if (!mounted) return;
+    if (resolved.isLeft) {
+      // Офлайн и отказ сервера — разные вещи, и путать их нельзя: «не найден по локальной базе»
+      // кладовщик может доверить своей памяти, «не удалось проверить» — повод позвать админа.
+      final failure = resolved.left;
+      snack(
+        failure is NetworkFailure
+            ? t.stockListScreen.barcodeOffline(barcode: input)
+            : t.stockListScreen.barcodeLookupFailed(barcode: input),
+      );
+      return;
+    }
+    final good = resolved.right;
     if (good != null) {
       openGoodDetail(good);
       return;
     }
-    // Сетевую ошибку уже показывает общий блок списка — второй раз не сообщаем.
-    if (cubit.state.status == GoodsListStatus.error) return;
+    await offerBinding(input);
+  }
+
+  /// Показать в строке поиска текст, который применён к списку.
+  ///
+  /// В intent-режиме код приходит мимо поля — [onHardwareScan] зовёт обработчик напрямую, минуя
+  /// контроллер. Без этого экран отвечал «товары не найдены» при пустой строке поиска: причину
+  /// не видно, крестика очистки нет (он показывается по непустому полю), и поле со списком
+  /// говорят разное (ADHOC-06).
+  void showInSearchField(String text) {
+    if (_searchController.text == text) return;
+    _searchController.value = TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
+  }
+
+  /// ШК не привязан ни к одному товару: спрашиваем → выбор товара → привязка → его карточка.
+  ///
+  /// Сюда попадаем только когда связь есть: привязка пишется на сервер (очереди операций ещё
+  /// нет, это P2-03), а офлайн-резолв заканчивается сообщением «нет связи» и до этого шага
+  /// не доходит.
+  Future<void> offerBinding(String barcode) async {
+    final confirmed = await showBindPromptDialog(context, barcode: barcode);
+    if (!confirmed || !mounted) return;
+    final good = await pickGood();
+    if (good == null || !mounted) return;
+    final failure = await context.read<GoodsListCubit>().bindBarcode(
+      goodId: good.id,
+      barcode: barcode,
+    );
+    if (!mounted) return;
+    if (failure != null) {
+      snack(t.stockListScreen.bindFailed);
+      return;
+    }
+    openGoodDetail(good);
+  }
+
+  /// Нижний лист выбора товара из номенклатуры; null — лист закрыли, ничего не выбрав.
+  Future<Good?> pickGood() => showModalBottomSheet<Good>(
+    backgroundColor: AppColors.kNeumorphicBg,
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    constraints: BoxConstraints(
+      maxHeight: MediaQuery.of(context).size.height * 0.95,
+    ),
+    builder: (_) => GoodPickerSheet(repo: getIt<CatalogRepository>()),
+  );
+
+  /// Короткое сообщение поверх списка. Предыдущее гасим: сканы идут подряд, иначе очередь
+  /// SnackBar'ов показывала бы ответы на давно отсканированные коды.
+  void snack(String text) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(t.stockListScreen.barcodeNotFound(barcode: input)),
-        ),
-      );
+      ..showSnackBar(SnackBar(content: Text(text)));
   }
 
   /// Код с аппаратного сканера (intent-режим): ведём тем же путём, что и завершённый ввод
@@ -183,7 +247,14 @@ class _GoodsListViewState extends State<_GoodsListView>
                       // Строка поиска + компактная кнопка фильтров (с бейджем активных).
                       Row(
                         children: [
-                          Expanded(child: searchField()),
+                          Expanded(
+                            child: GoodsSearchField(
+                              controller: _searchController,
+                              onChanged: onSearchChanged,
+                              onSubmitted: onSearchSubmitted,
+                              onClear: clearSearch,
+                            ),
+                          ),
                           AppBoxes.kWidth8,
                           const FilterButton(),
                         ],
@@ -196,75 +267,6 @@ class _GoodsListViewState extends State<_GoodsListView>
             ),
             const Expanded(child: GoodsResult()),
           ],
-        ),
-      ),
-    );
-  }
-
-  /// Поиск с неоморфным стилем: светлая плашка с тенью, иконка поиска слева.
-  Neumorphic searchField() {
-    return Neumorphic(
-      style: NeumorphicStyle(
-        shadowLightColor: AppColors.kNeumorphicLight,
-        shadowDarkColor: AppColors.kNeumorphicDark,
-        intensity: 1,
-        color: AppColors.kNeumorphicBg,
-        depth: -2,
-        shape: NeumorphicShape.flat,
-      ),
-      child: TextField(
-        controller: _searchController,
-        cursorColor: AppColors.kTextMain,
-        cursorWidth: 1.5,
-        cursorHeight: 20,
-        onChanged: onSearchChanged,
-        onSubmitted: onSearchSubmitted,
-        textInputAction: TextInputAction.search,
-        decoration: InputDecoration(
-          prefixIcon: Padding(
-            padding: AppInsets.right2 + AppInsets.left12,
-            child: Icon(
-              Icons.search,
-              size: AppSizes.kIcon25,
-              color: AppColors.kTextMuted,
-            ),
-          ),
-          prefixIconConstraints: const BoxConstraints(
-            minWidth: 0,
-            minHeight: 0,
-          ),
-          // Крестик очистки — только когда в поле что-то есть. Слушаем контроллер, чтобы
-          // перерисовывался один суффикс, а не весь экран на каждый символ.
-          suffixIcon: ValueListenableBuilder<TextEditingValue>(
-            valueListenable: _searchController,
-            builder: (context, value, _) => value.text.isEmpty
-                ? const SizedBox.shrink()
-                : GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: clearSearch,
-                    child: Padding(
-                      padding: AppInsets.h14,
-                      child: Icon(
-                        Icons.close,
-                        size: AppSizes.kIcon20,
-                        color: AppColors.kTextMuted,
-                      ),
-                    ),
-                  ),
-          ),
-          suffixIconConstraints: const BoxConstraints(
-            minWidth: 0,
-            minHeight: 0,
-          ),
-          hintText: t.stockListScreen.searchHint,
-          hintStyle: RegularTextStyles().regularInter16.copyWith(
-            color: AppColors.kBorderDashed,
-          ),
-          border: const OutlineInputBorder(
-            borderRadius: AppBorders.kCircular8,
-            borderSide: BorderSide.none,
-          ),
-          isDense: true,
         ),
       ),
     );

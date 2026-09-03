@@ -164,15 +164,16 @@ void main() {
       },
     );
 
-    test('без сети отвечаем «не привязан», а не ошибкой', () async {
-      // С полным справочником в кэше это лучший доступный ответ: экран предложит выбрать
-      // товар вручную, и проход склада не встанет.
+    test('без сети отвечаем ошибкой, а не «не привязан» (ADHOC-06)', () async {
+      // Промах кэша офлайн неотличим от привязки, сделанной на другом терминале после нашей
+      // синхронизации. Прежний ответ `Right(null)` выдавал догадку за факт, а по нему экран
+      // предлагает привязать ШК — и привязка легла бы поверх уже существующей на сервере.
       when(
         () => api.resolveGoodByBarcode('NEW'),
       ).thenAnswer((_) async => const Left(Failure.network()));
       final res = await repo.resolveGoodByBarcode('NEW');
-      expect(res.isRight, isTrue);
-      expect(res.right, isNull);
+      expect(res.isLeft, isTrue);
+      expect(res.left, isA<NetworkFailure>());
     });
 
     test('ошибка сервера остаётся ошибкой', () async {
