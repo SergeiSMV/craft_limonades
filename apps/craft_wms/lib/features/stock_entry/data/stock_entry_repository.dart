@@ -5,7 +5,6 @@ import 'package:injectable/injectable.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/error/dio_failure.dart';
 import '../../../core/error/failure.dart';
-import '../../stock/data/catalog_models.dart';
 
 /// Репозиторий сессии ввода остатков (P-FastStart): резолв товара по ШК, старт сессии,
 /// checkpoint ячейки, финал. Слой data — изолирует HTTP; access-токен подставит AuthInterceptor.
@@ -14,20 +13,6 @@ class StockEntryRepository {
   StockEntryRepository(this._dio);
 
   final Dio _dio;
-
-  /// Товар по штрихкоду. Нет привязки (404) → `Right(null)` — это штатный сигнал «нужна привязка»,
-  /// а не ошибка. Прочие ошибки → `Left(Failure)`.
-  Future<Either<Failure, Good?>> resolveGoodByBarcode(String code) async {
-    try {
-      final resp = await _dio.get<Map<String, dynamic>>(ApiConst.barcodeByCode(code));
-      return Right(Good.fromJson(resp.data!));
-    } on DioException catch (e) {
-      if (e.response?.statusCode == 404) return const Right(null);
-      return Left(_mapError(e));
-    } catch (_) {
-      return const Left(Failure.unknown());
-    }
-  }
 
   /// Открыть сессию ввода для склада; возвращает её id.
   Future<Either<Failure, String>> startSession(String warehouseId) async {
@@ -68,7 +53,9 @@ class StockEntryRepository {
   /// Финал сессии: перенос всех строк в stock + закрытие. Возвращает число записанных строк.
   Future<Either<Failure, int>> finalize(String sessionId) async {
     try {
-      final resp = await _dio.post<Map<String, dynamic>>(ApiConst.stockEntryFinalize(sessionId));
+      final resp = await _dio.post<Map<String, dynamic>>(
+        ApiConst.stockEntryFinalize(sessionId),
+      );
       return Right((resp.data?['written'] as num?)?.toInt() ?? 0);
     } on DioException catch (e) {
       return Left(_mapError(e));

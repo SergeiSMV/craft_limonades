@@ -12,42 +12,17 @@ void main() {
     dio = Dio(BaseOptions(baseUrl: 'https://api.test'));
   });
 
-  StockEntryRepository repoWith(Map<String, ResponseBody Function(RequestOptions)> responses) {
+  StockEntryRepository repoWith(
+    Map<String, ResponseBody Function(RequestOptions)> responses,
+  ) {
     dio.httpClientAdapter = RecordingAdapter(responses);
     return StockEntryRepository(dio);
   }
 
-  group('resolveGoodByBarcode', () {
-    test('200 → товар', () async {
-      final repo = repoWith({
-        'GET ${ApiConst.barcodeByCode("460")}': (_) => jsonResponse({
-              'id': 'g1',
-              'name': 'Чипсы',
-              'uom': 'шт',
-              'is_active': true,
-            }, 200),
-      });
-      final res = await repo.resolveGoodByBarcode('460');
-      expect(res.isRight, isTrue);
-      expect(res.right!.id, 'g1');
-    });
-
-    test('404 → Right(null) (ШК не привязан, не ошибка)', () async {
-      final repo = repoWith({
-        'GET ${ApiConst.barcodeByCode("460")}': (_) =>
-            ResponseBody.fromString('{"error":"нет"}', 404, headers: {
-          Headers.contentTypeHeader: [Headers.jsonContentType],
-        }),
-      });
-      final res = await repo.resolveGoodByBarcode('460');
-      expect(res.isRight, isTrue);
-      expect(res.right, isNull);
-    });
-  });
-
   test('startSession → session_id', () async {
     final repo = repoWith({
-      'POST ${ApiConst.stockEntrySessions}': (_) => jsonResponse({'session_id': 'sess-1'}, 201),
+      'POST ${ApiConst.stockEntrySessions}': (_) =>
+          jsonResponse({'session_id': 'sess-1'}, 201),
     });
     final res = await repo.startSession('w1');
     expect(res.isRight, isTrue);
@@ -56,7 +31,8 @@ void main() {
 
   test('checkpoint → 200, тело содержит cell_id/lines/new_barcodes', () async {
     final adapter = RecordingAdapter({
-      'POST ${ApiConst.stockEntryCells("sess-1")}': (_) => jsonResponse({'accepted': 1}, 200),
+      'POST ${ApiConst.stockEntryCells("sess-1")}': (_) =>
+          jsonResponse({'accepted': 1}, 200),
     });
     dio.httpClientAdapter = adapter;
     final repo = StockEntryRepository(dio);

@@ -19,6 +19,7 @@ import '../../../../core/sync/catalog_sync_service.dart';
 import '../../../../core/sync/sync_engine.dart';
 import '../../../../core/theme/bold_text.dart';
 import '../../../../core/theme/regular_text.dart';
+import '../../../../core/widgets/pending_pass_badge.dart';
 import '../../../../core/widgets/system_ui_wrapper.dart';
 import '../widgets/menu_tile.dart';
 import '../../../sync/presentation/bloc/sync_status_cubit.dart';
@@ -245,12 +246,19 @@ class HomePage extends StatelessWidget {
                         enabled: false,
                         onTap: () => showStub(context),
                       ),
-                      MenuTile(
-                        title: t.homeScreen.tiles.stockTitle,
-                        subtitle: t.homeScreen.tiles.stockSubtitle,
-                        imageIcon: Assets.icons.menuIcons.inbox,
-                        color: AppColors.kTileStock,
-                        onTap: () => openStock(context),
+                      // Пометка незавершённого прохода: вход в «Ввод остатков» лежит внутри
+                      // «Остатков», и кладовщик должен увидеть незакрытый проход уже отсюда.
+                      // Плитка рисует пометку сама — обёртка снаружи уводила кружок в зазор
+                      // между плитками.
+                      PendingPassBuilder(
+                        builder: (context, hasPass) => MenuTile(
+                          title: t.homeScreen.tiles.stockTitle,
+                          subtitle: t.homeScreen.tiles.stockSubtitle,
+                          imageIcon: Assets.icons.menuIcons.inbox,
+                          color: AppColors.kTileStock,
+                          showBadge: hasPass,
+                          onTap: () => openStock(context),
+                        ),
                       ),
                       MenuTile(
                         title: t.homeScreen.tiles.historyTitle,

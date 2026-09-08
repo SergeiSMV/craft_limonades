@@ -25,7 +25,8 @@ import '../../data/catalog_models.dart';
 import '../../data/catalog_repository.dart';
 import '../bloc/goods_list_cubit.dart';
 import '../widgets/goods_list/active_chips.dart';
-import '../widgets/goods_list/bind_prompt_dialog.dart';
+import '../../../../core/widgets/bind_prompt_dialog.dart';
+import '../../../../core/widgets/pending_pass_badge.dart';
 import '../widgets/goods_list/goods_result.dart';
 import '../widgets/goods_list/search_field.dart';
 import '../widgets/goods_list/stock_filter_button.dart';
@@ -129,7 +130,13 @@ class _GoodsListViewState extends State<_GoodsListView>
   /// нет, это P2-03), а офлайн-резолв заканчивается сообщением «нет связи» и до этого шага
   /// не доходит.
   Future<void> offerBinding(String barcode) async {
-    final confirmed = await showBindPromptDialog(context, barcode: barcode);
+    final confirmed = await showBindPromptDialog(
+      context,
+      title: t.stockListScreen.bindPromptTitle,
+      body: t.stockListScreen.bindPromptBody(barcode: barcode),
+      confirmLabel: t.stockListScreen.bindConfirm,
+      cancelLabel: t.stockListScreen.bindCancel,
+    );
     if (!confirmed || !mounted) return;
     final good = await pickGood();
     if (good == null || !mounted) return;
@@ -232,12 +239,14 @@ class _GoodsListViewState extends State<_GoodsListView>
                               goBack: goBack,
                             ),
                             const Spacer(),
-                            InkWell(
-                              onTap: () => openStockEntry(context),
-                              child: Icon(
-                                MdiIcons.playlistPlus,
-                                size: AppSizes.kIcon30,
-                                color: AppColors.kNeumorphicBg,
+                            PendingPassBadge(
+                              child: InkWell(
+                                onTap: () => openStockEntry(context),
+                                child: Icon(
+                                  MdiIcons.playlistPlus,
+                                  size: AppSizes.kIcon30,
+                                  color: AppColors.kNeumorphicBg,
+                                ),
                               ),
                             ),
                           ],

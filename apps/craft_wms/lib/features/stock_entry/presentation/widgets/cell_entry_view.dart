@@ -9,6 +9,8 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_insets.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/di/injection.dart';
+import '../../../../core/error/failure.dart';
+import '../../../../core/widgets/bind_prompt_dialog.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/scanner/hardware_scan_listener.dart';
 import '../../../../core/scanner/scan_code.dart';
@@ -83,10 +85,21 @@ class _CellEntryViewState extends State<CellEntryView>
           scannedCode: code,
         ); // привязан за проход — просто строка
       } else {
-        final good = await _cubit.resolveBarcode(code);
+        final resolved = await _cubit.resolveBarcode(code);
         if (!mounted) return;
+        // Проверить не удалось. Прежде это давало тот же null, что «ШК не привязан», и экран
+        // молча открывал выбор товара — то есть предлагал привязку, опираясь на факт, которого
+        // у него не было. Теперь причина названа вслух, а решение остаётся за кладовщиком:
+        // он стоит у стеллажа с упаковкой в руках, и его наблюдение не хуже нашего кэша.
+        // Офлайн и отказ сервера разведены: «не найден по локальной базе» кладовщик может
+        // доверить своей памяти, «не удалось проверить» — повод позвать админа.
+        if (resolved.isLeft) {
+          await _bindUnverified(code, resolved.left);
+          return;
+        }
+        final good = resolved.right;
         if (good != null) {
-          await _collectAndAdd(good, scannedCode: code); // есть в БД
+          await _collectAndAdd(good, scannedCode: code); // есть в БД или в кэше
         } else if (classifyScan(code, symbology: symbology) == ScanKind.cell) {
           _snack(t.stockEntry.scannedCellInGood);
         } else {
@@ -100,6 +113,30 @@ class _CellEntryViewState extends State<CellEntryView>
       }
     }
     _refocusScan();
+  }
+
+  /// Привязать ШК, который не удалось проверить на сервере.
+  ///
+  /// Отказ не делает работу невозможной: кладовщик может опознать товар сам. Но и выдавать
+  /// непроверенный код за «свободный» нельзя — поэтому спрашиваем, назвав причину. Привязка
+  /// ложится в копилку прохода и уедет с первым checkpoint на финале, где `bind` идемпотентен;
+  /// если код окажется занят другим товаром, сервер ответит конфликтом и он попадёт на экран
+  /// разбора. Строка остатка от этого не страдает: товар выбран руками, по упаковке.
+  Future<void> _bindUnverified(String code, Failure failure) async {
+    final reason = failure is NetworkFailure
+        ? t.stockEntry.barcodeOffline(barcode: code)
+        : t.stockEntry.barcodeLookupFailed(barcode: code);
+    final confirmed = await showBindPromptDialog(
+      context,
+      title: t.stockEntry.bindOfflineTitle,
+      body: reason,
+      confirmLabel: t.stockEntry.bindOfflineConfirm,
+      cancelLabel: t.stockEntry.bindOfflineCancel,
+    );
+    if (!confirmed || !mounted) return;
+    final picked = await _pickGood();
+    if (picked == null || !mounted) return;
+    await _collectAndAdd(picked, scannedCode: code, newBarcode: code);
   }
 
   /// Ручное добавление товара (без ШК) — кнопки «неверный товар» тут нет (нет ШК).

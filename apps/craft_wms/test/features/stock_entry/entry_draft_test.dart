@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:craft_wms/core/database/app_database.dart';
 import 'package:craft_wms/features/stock/data/catalog_models.dart';
 import 'package:craft_wms/features/stock_entry/data/entry_draft_store.dart';
+import 'package:craft_wms/features/stock/data/catalog_repository.dart';
 import 'package:craft_wms/features/stock_entry/data/stock_entry_repository.dart';
 import 'package:craft_wms/features/stock_entry/presentation/bloc/stock_entry_cubit.dart';
 import 'package:drift/native.dart';
@@ -11,6 +12,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
 class _MockRepo extends Mock implements StockEntryRepository {}
+
+class _MockCatalog extends Mock implements CatalogRepository {}
 
 /// Durability прохода «Ввода остатков» (P2-03).
 ///
@@ -31,7 +34,7 @@ void main() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     drafts = EntryDraftStore(db);
     repo = _MockRepo();
-    cubit = StockEntryCubit(repo, drafts);
+    cubit = StockEntryCubit(repo, _MockCatalog(), drafts);
   });
 
   tearDown(() => db.close());
@@ -66,7 +69,7 @@ void main() {
     await cubit.draftWrites;
 
     // Новый cubit поверх того же хранилища — как после перезапуска экрана.
-    final restored = StockEntryCubit(repo, drafts);
+    final restored = StockEntryCubit(repo, _MockCatalog(), drafts);
     await restored.restore();
 
     expect(restored.state.cell?.id, cellA.id);
@@ -106,16 +109,41 @@ void main() {
     expect(await drafts.load(), isNull);
   });
 
-  test('осознанный выход стирает слепок', () async {
+  // Выход с экрана проход НЕ трогает (ADHOC-13). Прежде «назад» на непустом проходе показывал
+  // диалог «просчитанные ячейки не сохранены и будут потеряны» и стирал слепок — текст был
+  // неправдой с момента P2-03, а действие уничтожало единственную копию работы кладовщика
+  // за обычное нажатие навигации.
+  test('проход переживает уход с экрана и поднимается заново', () async {
+    cubit.selectCell(cellA);
+    cubit.addLine(good: goodA, date: '15.01.2026', qty: 10);
+    cubit.finishCell();
+    await cubit.draftWrites;
+    await cubit.close(); // кладовщик ушёл с экрана
+
+    final reopened = StockEntryCubit(repo, _MockCatalog(), drafts);
+    await reopened.restore();
+
+    expect(
+      reopened.state.committedCells,
+      hasLength(1),
+      reason: 'уход с экрана — не повод терять проход',
+    );
+    await reopened.close();
+  });
+
+  // Единственный способ потерять проход намеренно (ADHOC-13). Выход с экрана его не трогает.
+  test('отбрасывание прохода стирает слепок и обнуляет состояние', () async {
     cubit.selectCell(cellA);
     cubit.addLine(good: goodA, date: '15.01.2026', qty: 10);
     cubit.finishCell();
     await cubit.draftWrites;
     expect(await drafts.load(), isNotNull);
 
-    await cubit.discardDraft();
+    await cubit.discardPass();
 
     expect(await drafts.load(), isNull);
+    expect(cubit.state.committedCells, isEmpty);
+    expect(cubit.state.lines, isEmpty);
   });
 
   test(
@@ -128,7 +156,7 @@ void main() {
         "UPDATE entry_drafts SET payload = 'не json' WHERE id = 'current'",
       );
 
-      final restored = StockEntryCubit(repo, drafts);
+      final restored = StockEntryCubit(repo, _MockCatalog(), drafts);
       await restored.restore();
 
       expect(restored.state.cell, isNull);
@@ -145,7 +173,11 @@ void main() {
     addTearDown(() => dir.delete(recursive: true));
 
     final first = AppDatabase.forTesting(NativeDatabase(file));
-    final firstCubit = StockEntryCubit(repo, EntryDraftStore(first));
+    final firstCubit = StockEntryCubit(
+      repo,
+      _MockCatalog(),
+      EntryDraftStore(first),
+    );
     firstCubit.selectCell(cellA);
     firstCubit.addLine(good: goodA, date: '15.01.2026', qty: 10);
     firstCubit.finishCell();
@@ -157,7 +189,11 @@ void main() {
 
     final second = AppDatabase.forTesting(NativeDatabase(file));
     addTearDown(() => second.close());
-    final secondCubit = StockEntryCubit(repo, EntryDraftStore(second));
+    final secondCubit = StockEntryCubit(
+      repo,
+      _MockCatalog(),
+      EntryDraftStore(second),
+    );
     await secondCubit.restore();
 
     expect(secondCubit.state.committedCells, hasLength(1));

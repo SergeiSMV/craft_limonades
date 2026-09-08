@@ -14,6 +14,8 @@ import 'package:mocktail/mocktail.dart';
 
 import '../../support/fake_scanner_service.dart';
 
+import '../../support/entry_draft_stub.dart';
+
 class _MockRepo extends Mock implements CatalogRepository {}
 
 /// «Остатки»: код с аппаратного сканера идёт тем же путём, что и завершённый ввод в строке поиска.
@@ -22,6 +24,7 @@ void main() {
   late _MockRepo repo;
 
   setUp(() {
+    registerEmptyDraftStore();
     LocaleSettings.useDeviceLocale();
     repo = _MockRepo();
     when(

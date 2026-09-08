@@ -1,3 +1,4 @@
+import 'package:either_dart/either.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:injectable/injectable.dart';
@@ -5,6 +6,7 @@ import 'package:injectable/injectable.dart';
 import '../../../../core/error/failure.dart';
 import '../../../stock/data/catalog_models.dart';
 import '../../data/entry_draft_store.dart';
+import '../../../stock/data/catalog_repository.dart';
 import '../../data/stock_entry_repository.dart';
 
 part 'stock_entry_cubit.freezed.dart';
@@ -20,7 +22,8 @@ const int kUndoDepth = 10;
 abstract class EntryLineDraft with _$EntryLineDraft {
   const factory EntryLineDraft({
     required Good good,
-    required String productionDate, // дд.мм.гггг (в UI); в API конвертируется в DD-MM-YYYY
+    required String
+    productionDate, // дд.мм.гггг (в UI); в API конвертируется в DD-MM-YYYY
     required double qty,
   }) = _EntryLineDraft;
 
@@ -74,9 +77,11 @@ abstract class CommittedCell with _$CommittedCell {
 abstract class StockEntryState with _$StockEntryState {
   const factory StockEntryState({
     Cell? cell, // текущая редактируемая ячейка (null — экран выбора ячейки)
-    @Default(<EntryLineDraft>[]) List<EntryLineDraft> lines, // буфер текущей ячейки
+    @Default(<EntryLineDraft>[])
+    List<EntryLineDraft> lines, // буфер текущей ячейки
     @Default(<BufferSnapshot>[]) List<BufferSnapshot> undoStack,
-    @Default(<CommittedCell>[]) List<CommittedCell> committedCells, // пройденные ячейки (локально)
+    @Default(<CommittedCell>[])
+    List<CommittedCell> committedCells, // пройденные ячейки (локально)
     // Копилка привязок ШК → товар за весь проход (ключ — строка ШК). Собирается ручными привязками,
     // не зависит от строк остатка; на финале целиком уходит в БД (new_barcodes, аддитивно).
     @Default(<String, BarcodeBinding>{}) Map<String, BarcodeBinding> barcodes,
@@ -90,15 +95,18 @@ abstract class StockEntryState with _$StockEntryState {
   const StockEntryState._();
 
   /// Можно завершить ввод: есть пройденные ячейки, текущая не в работе, не идёт сетевой финал.
-  bool get canFinishSession => committedCells.isNotEmpty && cell == null && !busy;
+  bool get canFinishSession =>
+      committedCells.isNotEmpty && cell == null && !busy;
 }
 
 /// Cubit ввода остатков (вариант A): буфер ячейки, Undo, список пройденных ячеек (локально),
 /// финал одним пакетом. Фабрика (свой на экран).
 @injectable
 class StockEntryCubit extends Cubit<StockEntryState> {
-  StockEntryCubit(this._repo, this._drafts) : super(const StockEntryState());
+  StockEntryCubit(this._repo, this._catalog, this._drafts)
+    : super(const StockEntryState());
 
+  final CatalogRepository _catalog;
   final EntryDraftStore _drafts;
 
   /// Очередь записей слепка. Слепок снимается синхронно в момент [emit], а пишется по цепочке:
@@ -167,14 +175,25 @@ class StockEntryCubit extends Cubit<StockEntryState> {
     final done = state.finished || !_hasDraft(state);
     final snapshot = done ? null : _draftJson(state);
     _writes = _writes
-        .then((_) => snapshot == null ? _drafts.clear() : _drafts.save(snapshot))
+        .then(
+          (_) => snapshot == null ? _drafts.clear() : _drafts.save(snapshot),
+        )
         // Сбой записи слепка не должен ронять ввод остатков: кладовщик продолжит проход,
         // просто без страховки. Молча — сообщать здесь нечего и некому.
         .catchError((_) {});
   }
 
-  /// Забыть незавершённый проход — кладовщик вышел, подтвердив потерю просчёта.
-  Future<void> discardDraft() => _drafts.clear();
+  /// Отбросить проход целиком — по явному требованию кладовщика.
+  ///
+  /// Слепок стирать отдельно не нужно: перехват [emit] сам чистит хранилище, когда проход стал
+  /// пустым. Ждём запись, чтобы вызывающий мог уйти с экрана, зная, что на диске уже пусто.
+  ///
+  /// ⚠ Это единственный способ потерять проход намеренно. Выход с экрана его НЕ трогает:
+  /// проход durable с P2-03 и восстановится при следующем открытии.
+  Future<void> discardPass() async {
+    emit(const StockEntryState());
+    await _writes;
+  }
 
   /// Дождаться записи слепка. Нужно только тестам: запись идёт вне вызова [emit], и без
   /// этого проверка «состояние сохранилось» гонялась бы с самой записью.
@@ -189,16 +208,26 @@ class StockEntryCubit extends Cubit<StockEntryState> {
     final idx = state.committedCells.indexWhere((c) => c.cell.id == cell.id);
     if (idx >= 0) {
       final existing = state.committedCells[idx];
-      final committed = List<CommittedCell>.from(state.committedCells)..removeAt(idx);
-      emit(state.copyWith(
-        cell: cell,
-        lines: existing.lines,
-        undoStack: const [],
-        committedCells: committed,
-        failure: null,
-      ));
+      final committed = List<CommittedCell>.from(state.committedCells)
+        ..removeAt(idx);
+      emit(
+        state.copyWith(
+          cell: cell,
+          lines: existing.lines,
+          undoStack: const [],
+          committedCells: committed,
+          failure: null,
+        ),
+      );
     } else {
-      emit(state.copyWith(cell: cell, lines: const [], undoStack: const [], failure: null));
+      emit(
+        state.copyWith(
+          cell: cell,
+          lines: const [],
+          undoStack: const [],
+          failure: null,
+        ),
+      );
     }
   }
 
@@ -217,21 +246,27 @@ class StockEntryCubit extends Cubit<StockEntryState> {
       lines = _mergeLines(state.lines, committed[idx].lines);
       committed = List<CommittedCell>.from(committed)..removeAt(idx);
     }
-    emit(state.copyWith(
-      cell: newCell,
-      lines: lines,
-      committedCells: committed,
-      undoStack: const [],
-      failure: null,
-    ));
+    emit(
+      state.copyWith(
+        cell: newCell,
+        lines: lines,
+        committedCells: committed,
+        undoStack: const [],
+        failure: null,
+      ),
+    );
   }
 
   /// Слить строки `add` в `base` по грани (товар, дата): совпало → сумма qty; иначе — новая строка.
-  List<EntryLineDraft> _mergeLines(List<EntryLineDraft> base, List<EntryLineDraft> add) {
+  List<EntryLineDraft> _mergeLines(
+    List<EntryLineDraft> base,
+    List<EntryLineDraft> add,
+  ) {
     final out = List<EntryLineDraft>.from(base);
     for (final l in add) {
       final i = out.indexWhere(
-          (x) => x.good.id == l.good.id && x.productionDate == l.productionDate);
+        (x) => x.good.id == l.good.id && x.productionDate == l.productionDate,
+      );
       if (i >= 0) {
         out[i] = out[i].copyWith(qty: out[i].qty + l.qty);
       } else {
@@ -246,14 +281,21 @@ class StockEntryCubit extends Cubit<StockEntryState> {
   /// сервере) — независимо от того, сколько ШК на товар и в какой ячейке его привязали.
   Good? localGoodForBarcode(String code) => state.barcodes[code]?.good;
 
-  /// Резолв товара по ШК на сервере. null = ШК не привязан (UI откроет привязку). Ошибку кладём в state.
-  Future<Good?> resolveBarcode(String code) async {
-    final res = await _repo.resolveGoodByBarcode(code);
-    return res.fold((f) {
-      emit(state.copyWith(failure: f));
-      return null;
-    }, (good) => good);
-  }
+  /// Резолв товара по ШК — через общий кэш-first репозиторий справочников.
+  ///
+  /// **Почему не своим запросом.** Поток ввода держал собственную реализацию поверх `Dio`, мимо
+  /// кэша устройства (P2-02): без связи скан не опознавал даже товар, привязка которого лежит
+  /// в локальной базе. Две реализации одного действия расходятся — это уже разбиралось в P2-06.
+  ///
+  /// **Исход возвращается целиком, а не сводится к `Good?`.** Прежде и «ШК не привязан», и
+  /// «проверить не удалось» давали `null`, и вызывающий открывал привязку в обоих случаях —
+  /// то есть офлайн кладовщик привязывал код, про который приложение просто не смогло узнать.
+  /// Это ровно дефект ADHOC-06, в «Остатках» закрытый, а здесь оставшийся. Цена его тут выше:
+  /// от привязки зависит, на какой товар ляжет остаток.
+  ///
+  /// Ошибку в state не кладём: проход остался валидным, и решает вызывающий.
+  Future<Either<Failure, Good?>> resolveBarcode(String code) =>
+      _catalog.resolveGoodByBarcode(code);
 
   /// Добавить/накопить строку. Грань (good, date): та же дата → +qty; другая дата → новая строка.
   /// [newBarcode] — если товар был опознан ранее НЕизвестным ШК (ручная привязка): кладём привязку
@@ -270,11 +312,16 @@ class StockEntryCubit extends Cubit<StockEntryState> {
 
     final barcodes = Map<String, BarcodeBinding>.from(state.barcodes);
     if (newBarcode != null && !barcodes.containsKey(newBarcode)) {
-      barcodes[newBarcode] = BarcodeBinding(good: good, symbology: symbology ?? '');
+      barcodes[newBarcode] = BarcodeBinding(
+        good: good,
+        symbology: symbology ?? '',
+      );
     }
 
     final lines = List<EntryLineDraft>.from(state.lines);
-    final idx = lines.indexWhere((l) => l.good.id == good.id && l.productionDate == date);
+    final idx = lines.indexWhere(
+      (l) => l.good.id == good.id && l.productionDate == date,
+    );
     if (idx >= 0) {
       lines[idx] = lines[idx].copyWith(qty: lines[idx].qty + qty);
     } else {
@@ -287,22 +334,43 @@ class StockEntryCubit extends Cubit<StockEntryState> {
   /// идентификация товара остаётся валидной, даже если строку количества убрали.
   void removeLine(EntryLineDraft line) {
     final lines = state.lines
-        .where((l) => !(l.good.id == line.good.id && l.productionDate == line.productionDate))
+        .where(
+          (l) =>
+              !(l.good.id == line.good.id &&
+                  l.productionDate == line.productionDate),
+        )
         .toList();
-    if (lines.length == state.lines.length) return; // не нашли — ничего не делаем
-    _commit(List<EntryLineDraft>.from(state.lines), state.barcodes, lines, state.barcodes);
+    // не нашли — ничего не делаем
+    if (lines.length == state.lines.length) {
+      return;
+    }
+    _commit(
+      List<EntryLineDraft>.from(state.lines),
+      state.barcodes,
+      lines,
+      state.barcodes,
+    );
   }
 
   /// Отредактировать строку: новые дата и количество (замена, не приращение). Если новая грань
   /// (тот же товар, новая дата) совпала с другой строкой — сливаем количества в неё. Кладёт снимок в Undo.
-  void editLine(EntryLineDraft target, {required String date, required double qty}) {
+  void editLine(
+    EntryLineDraft target, {
+    required String date,
+    required double qty,
+  }) {
     final lines = List<EntryLineDraft>.from(state.lines);
     final idx = lines.indexWhere(
-        (l) => l.good.id == target.good.id && l.productionDate == target.productionDate);
+      (l) =>
+          l.good.id == target.good.id &&
+          l.productionDate == target.productionDate,
+    );
     if (idx < 0) return;
 
     final edited = lines[idx];
-    final dupIdx = lines.indexWhere((l) => l.good.id == edited.good.id && l.productionDate == date);
+    final dupIdx = lines.indexWhere(
+      (l) => l.good.id == edited.good.id && l.productionDate == date,
+    );
     if (dupIdx >= 0 && dupIdx != idx) {
       // Новая дата совпала с уже существующей партией того же товара → слить количества.
       lines[dupIdx] = lines[dupIdx].copyWith(qty: lines[dupIdx].qty + qty);
@@ -310,7 +378,12 @@ class StockEntryCubit extends Cubit<StockEntryState> {
     } else {
       lines[idx] = edited.copyWith(productionDate: date, qty: qty);
     }
-    _commit(List<EntryLineDraft>.from(state.lines), state.barcodes, lines, state.barcodes);
+    _commit(
+      List<EntryLineDraft>.from(state.lines),
+      state.barcodes,
+      lines,
+      state.barcodes,
+    );
   }
 
   /// Применить новый буфер, положив предыдущий снимок (строки + копилка ШК) в стек Undo (глубина
@@ -321,9 +394,21 @@ class StockEntryCubit extends Cubit<StockEntryState> {
     List<EntryLineDraft> newLines,
     Map<String, BarcodeBinding> newBarcodes,
   ) {
-    final undo = [...state.undoStack, BufferSnapshot(lines: snapLines, barcodes: snapBarcodes)];
-    final capped = undo.length > kUndoDepth ? undo.sublist(undo.length - kUndoDepth) : undo;
-    emit(state.copyWith(lines: newLines, barcodes: newBarcodes, undoStack: capped, failure: null));
+    final undo = [
+      ...state.undoStack,
+      BufferSnapshot(lines: snapLines, barcodes: snapBarcodes),
+    ];
+    final capped = undo.length > kUndoDepth
+        ? undo.sublist(undo.length - kUndoDepth)
+        : undo;
+    emit(
+      state.copyWith(
+        lines: newLines,
+        barcodes: newBarcodes,
+        undoStack: capped,
+        failure: null,
+      ),
+    );
   }
 
   /// Убрать ошибочную привязку ШК из копилки прохода (P-FS-12). Применимо только к привязке,
@@ -332,19 +417,27 @@ class StockEntryCubit extends Cubit<StockEntryState> {
   void removeLocalBarcode(String code) {
     if (!state.barcodes.containsKey(code)) return;
     final snapBarcodes = Map<String, BarcodeBinding>.from(state.barcodes);
-    final barcodes = Map<String, BarcodeBinding>.from(state.barcodes)..remove(code);
-    _commit(List<EntryLineDraft>.from(state.lines), snapBarcodes, state.lines, barcodes);
+    final barcodes = Map<String, BarcodeBinding>.from(state.barcodes)
+      ..remove(code);
+    _commit(
+      List<EntryLineDraft>.from(state.lines),
+      snapBarcodes,
+      state.lines,
+      barcodes,
+    );
   }
 
   /// Отменить последнюю операцию буфера (восстановить строки И копилку ШК из предыдущего снимка).
   void undo() {
     if (state.undoStack.isEmpty) return;
     final prev = state.undoStack.last;
-    emit(state.copyWith(
-      lines: prev.lines,
-      barcodes: prev.barcodes,
-      undoStack: state.undoStack.sublist(0, state.undoStack.length - 1),
-    ));
+    emit(
+      state.copyWith(
+        lines: prev.lines,
+        barcodes: prev.barcodes,
+        undoStack: state.undoStack.sublist(0, state.undoStack.length - 1),
+      ),
+    );
   }
 
   /// Завершить ячейку: положить её в список пройденных (локально, без сети). Пустую (без строк)
@@ -356,18 +449,22 @@ class StockEntryCubit extends Cubit<StockEntryState> {
     if (state.lines.isNotEmpty) {
       committed.add(CommittedCell(cell: cell, lines: state.lines));
     }
-    emit(state.copyWith(
-      cell: null,
-      lines: const [],
-      undoStack: const [],
-      committedCells: committed,
-      failure: null,
-    ));
+    emit(
+      state.copyWith(
+        cell: null,
+        lines: const [],
+        undoStack: const [],
+        committedCells: committed,
+        failure: null,
+      ),
+    );
   }
 
   /// Удалить пройденную ячейку из списка (ошибочный просчёт).
   void removeCommittedCell(String cellId) {
-    final committed = state.committedCells.where((c) => c.cell.id != cellId).toList();
+    final committed = state.committedCells
+        .where((c) => c.cell.id != cellId)
+        .toList();
     if (committed.length == state.committedCells.length) return;
     emit(state.copyWith(committedCells: committed));
   }
@@ -376,21 +473,30 @@ class StockEntryCubit extends Cubit<StockEntryState> {
   /// отправляется на сервер здесь. При ошибке — прерываемся; sessionId сохраняем, чтобы ретрай
   /// переиспользовал ту же сессию (checkpoint идемпотентен по грани, лишних сессий не плодим).
   Future<void> finishSession() async {
-    if (state.cell != null || state.committedCells.isEmpty || state.busy) return;
+    if (state.cell != null || state.committedCells.isEmpty || state.busy) {
+      return;
+    }
     emit(state.copyWith(busy: true, failure: null));
 
     var sid = state.sessionId;
     if (sid == null) {
-      final startRes = await _repo.startSession(state.committedCells.first.cell.warehouseId);
-      final ok = startRes.fold((f) {
-        emit(state.copyWith(busy: false, failure: f));
-        return false;
-      }, (id) {
-        sid = id;
-        return true;
-      });
+      final startRes = await _repo.startSession(
+        state.committedCells.first.cell.warehouseId,
+      );
+      final ok = startRes.fold(
+        (f) {
+          emit(state.copyWith(busy: false, failure: f));
+          return false;
+        },
+        (id) {
+          sid = id;
+          return true;
+        },
+      );
       if (!ok) return;
-      emit(state.copyWith(sessionId: sid)); // сохранить, чтобы ретрай не плодил сессии
+      emit(
+        state.copyWith(sessionId: sid),
+      ); // сохранить, чтобы ретрай не плодил сессии
     }
 
     // Привязки ШК — общие на весь проход, не на ячейку. Отправляем всю копилку с ПЕРВЫМ checkpoint
@@ -414,27 +520,38 @@ class StockEntryCubit extends Cubit<StockEntryState> {
     final finRes = await _repo.finalize(sid!);
     finRes.fold(
       (f) => emit(state.copyWith(busy: false, failure: f)),
-      (written) => emit(state.copyWith(busy: false, finished: true, written: written, failure: null)),
+      (written) => emit(
+        state.copyWith(
+          busy: false,
+          finished: true,
+          written: written,
+          failure: null,
+        ),
+      ),
     );
   }
 
   /// Строки ячейки → payload API. Дата в UI хранится с точками (дд.мм.гггг); API ждёт DD-MM-YYYY.
   List<Map<String, dynamic>> _linesPayload(List<EntryLineDraft> lines) => lines
-      .map((l) => <String, dynamic>{
-            'good_id': l.good.id,
-            'production_date': l.productionDate.replaceAll('.', '-'),
-            'qty': l.qty,
-          })
+      .map(
+        (l) => <String, dynamic>{
+          'good_id': l.good.id,
+          'production_date': l.productionDate.replaceAll('.', '-'),
+          'qty': l.qty,
+        },
+      )
       .toList();
 
   /// Вся копилка привязок ШК за проход → payload API (`[{good_id, barcode, symbology}]`). Ключ карты
   /// — сам ШК, так что дубли исключены по построению.
   List<Map<String, dynamic>> _barcodesPayload() => state.barcodes.entries
-      .map((e) => <String, dynamic>{
-            'good_id': e.value.good.id,
-            'barcode': e.key,
-            'symbology': e.value.symbology,
-          })
+      .map(
+        (e) => <String, dynamic>{
+          'good_id': e.value.good.id,
+          'barcode': e.key,
+          'symbology': e.value.symbology,
+        },
+      )
       .toList();
 
   /// Сбросить ошибку (после показа пользователю).
