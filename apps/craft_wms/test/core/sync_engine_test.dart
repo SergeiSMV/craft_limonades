@@ -6,6 +6,7 @@ import 'package:craft_wms/core/outbox/outbox_operation.dart';
 import 'package:craft_wms/core/outbox/outbox_repository.dart';
 import 'package:craft_wms/core/outbox/outbox_retry.dart';
 import 'package:craft_wms/core/outbox/outbox_sender.dart';
+import 'package:craft_wms/core/sync/link_state.dart';
 import 'package:craft_wms/features/stock/data/catalog_cache.dart';
 import 'package:craft_wms/core/sync/sync_engine.dart';
 import 'package:drift/native.dart';
@@ -209,6 +210,102 @@ void main() {
 
     expect(res.sent, 1);
     verify(() => sender.sendBatch(any())).called(1);
+  });
+
+  // Статус связи (P2-07). Главное требование — он не должен врать: «Wi-Fi подключён» и
+  // «сервер отвечает» на складе расходятся регулярно, и индикатор по одной связности
+  // показывал бы «онлайн» ровно там, где отправить ничего нельзя.
+  group('статус связи', () {
+    test('до первого обмена — «неизвестно», а не «офлайн»', () {
+      expect(
+        engine.link.value,
+        LinkState.unknown,
+        reason:
+            'сказать «нет связи» там, где мы не пробовали, — соврать в другую сторону',
+      );
+    });
+
+    test('удавшийся обмен — онлайн', () async {
+      await enqueue('a');
+      stubBatch((_) => const Right(null));
+
+      await engine.drain();
+
+      expect(engine.link.value, LinkState.online);
+    });
+
+    test('пачка не доехала — офлайн', () async {
+      await enqueue('a');
+      stubBatchDown(const Failure.network());
+
+      await engine.drain();
+
+      expect(engine.link.value, LinkState.offline);
+    });
+
+    // Сервер, отказавший по существу, — это работающий сервер. Считать такой ответ потерей
+    // связи значит показать «нет связи» человеку, которому сервер только что ответил.
+    test('отказ по существу — онлайн, а не потеря связи', () async {
+      await enqueue('a');
+      stubBatch((_) => const Left(Failure.server(409)));
+
+      await engine.drain();
+
+      expect(engine.link.value, LinkState.online);
+    });
+
+    // Немедленная отправка из репозитория идёт мимо разбора пачки, своим путём (sendOne),
+    // и учёт связи там отдельный. Без этого теста ветка «сервер ответил отказом по существу»
+    // не проверялась вовсе: проход по очереди до неё не доходит.
+    test('немедленная отправка: отказ по существу — онлайн', () async {
+      await enqueue('a');
+      final operation = (await outbox.pending()).single;
+      when(
+        () => sender.send(any()),
+      ).thenAnswer((_) async => const Left(Failure.server(409)));
+
+      await engine.sendOne(operation);
+
+      expect(
+        engine.link.value,
+        LinkState.online,
+        reason: 'сервер ответил — считать это потерей связи значит соврать',
+      );
+    });
+
+    test('немедленная отправка: обрыв — офлайн', () async {
+      await enqueue('a');
+      final operation = (await outbox.pending()).single;
+      when(
+        () => sender.send(any()),
+      ).thenAnswer((_) async => const Left(Failure.network()));
+
+      await engine.sendOne(operation);
+
+      expect(engine.link.value, LinkState.offline);
+    });
+
+    test(
+      'признак отправки поднимается на время прохода и гаснет после',
+      () async {
+        await enqueue('a');
+        final seen = <bool>[];
+        when(() => sender.sendBatch(any())).thenAnswer((invocation) async {
+          seen.add(engine.syncing.value);
+          final ops =
+              invocation.positionalArguments.first as List<OutboxOperation>;
+          return Right({
+            for (final op in ops)
+              op.operationId: const Right<Failure, void>(null),
+          });
+        });
+
+        await engine.drain();
+
+        expect(seen, [true], reason: 'во время обмена экран обязан это видеть');
+        expect(engine.syncing.value, isFalse);
+      },
+    );
   });
 
   group('пауза перед повтором', () {

@@ -5,6 +5,7 @@ import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/auth/auth_cubit.dart';
+import '../../../../core/auth/profile.dart';
 import '../../../../core/config/app_config.dart';
 import '../../../../core/constants/app_boxes.dart';
 import '../../../../core/constants/app_colors.dart';
@@ -20,6 +21,8 @@ import '../../../../core/theme/bold_text.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/widgets/system_ui_wrapper.dart';
 import '../widgets/menu_tile.dart';
+import '../../../sync/presentation/bloc/sync_status_cubit.dart';
+import '../../../sync/presentation/widgets/sync_status_chip.dart';
 import '../widgets/sync_indicator.dart';
 
 /// Главное меню ТСД (P1-07): шапка (сотрудник · склад) + сетка плиток операций.
@@ -98,6 +101,15 @@ class HomePage extends StatelessWidget {
     final state = context.watch<AuthCubit>().state;
     final profile = state is AuthAuthenticated ? state.profile : null;
 
+    return BlocProvider(
+      create: (_) => getIt<SyncStatusCubit>(),
+      child: _buildScaffold(context, profile),
+    );
+  }
+
+  /// Разметка меню. Вынесена из [build], чтобы провайдер состояния синхронизации стоял выше
+  /// дерева, которое его читает.
+  Widget _buildScaffold(BuildContext context, Profile? profile) {
     return SystemUiWrapper(
       style: StatusBarStyle.light,
       child: Scaffold(
@@ -133,6 +145,9 @@ class HomePage extends StatelessWidget {
                     ),
 
                     SyncIndicator(running: getIt<CatalogSyncService>().running),
+
+                    // Очередь и связь — на виду, а не только в служебном меню (P2-07).
+                    SyncStatusChip(onTap: () => goToSyncQueue(context)),
 
                     PopupMenuButton<void>(
                       color: AppColors.kSidebarBg,

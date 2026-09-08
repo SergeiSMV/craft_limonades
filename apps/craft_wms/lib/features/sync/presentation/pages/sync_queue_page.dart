@@ -1,5 +1,6 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/constants/app_boxes.dart';
 import '../../../../core/constants/app_insets.dart';
@@ -7,7 +8,9 @@ import '../../../../core/di/injection.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/outbox/outbox_operation.dart';
 import '../../../../core/outbox/outbox_repository.dart';
+import '../bloc/sync_status_cubit.dart';
 import '../widgets/operation_tile.dart';
+import '../widgets/sync_now_button.dart';
 
 /// Экран несинхронизированных операций (P2-06).
 ///
@@ -43,8 +46,21 @@ class _SyncQueuePageState extends State<SyncQueuePage> {
 
   @override
   Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (_) => getIt<SyncStatusCubit>(),
+      child: Builder(builder: _buildScaffold),
+    );
+  }
+
+  /// Разметка экрана. Отдельным методом, чтобы кнопка отправки читала состояние из провайдера,
+  /// стоящего выше неё.
+  Widget _buildScaffold(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(t.syncQueue.title)),
+      // Кнопка ручной отправки (P2-07). Стоит здесь, а не в шапке главного меню: сюда
+      // кладовщик и приходит, когда видит, что работа не уехала, — и здесь же видит, сколько
+      // именно ждёт. Кнопка в шапке заставляла бы жать вслепую.
+      floatingActionButton: const SyncNowButton(),
       body: StreamBuilder<List<OutboxOperation>>(
         stream: _rejected,
         builder: (context, rejectedSnapshot) {
