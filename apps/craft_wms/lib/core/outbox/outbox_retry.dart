@@ -1,5 +1,10 @@
 import '../error/failure.dart';
 
+/// Потолок операций в одном запросе — совпадает с серверным (P2-05).
+///
+/// Больше сервер не примет: он отвечает 400 на переполненный батч, и пачка встала бы намертво.
+const int maxBatchOperations = 100;
+
 /// Имеет ли смысл повторять операцию очереди (P2-03/P2-04).
 ///
 /// Повторяем то, что не зависит от содержания запроса: обрыв связи, 5xx, истёкшую сессию.
@@ -13,6 +18,8 @@ bool isRetryable(Failure failure) => switch (failure) {
   NetworkFailure() => true,
   AuthFailure() => true,
   ServerFailure(:final statusCode) => statusCode >= 500,
+  // Отказ по существу из батча (P2-05) — то же, что 4xx: сервер ответит тем же.
+  RejectedFailure() => false,
   UnknownFailure() => true,
 };
 

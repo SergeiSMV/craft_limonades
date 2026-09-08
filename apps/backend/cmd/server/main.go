@@ -86,6 +86,7 @@ func main() {
 	var stockEntrySvc *service.StockEntryService
 	var labelSvc *service.LabelService
 	var stockEntryReportSvc *service.StockEntryReportService
+	var operationsSvc *service.OperationsService
 	if pool != nil {
 		authSvc = service.NewAuthService(repository.NewUserRepository(pool), tokens)
 		// Репозитории справочников: переиспользуются импортом (запись) и каталогом (чтение).
@@ -107,6 +108,8 @@ func main() {
 		labelSvc = service.NewLabelService(repository.NewWarehouseRepository(pool), cells)
 		// Excel-отчёт «ввод остатков» по закрытой сессии (P-FastStart, P-FS-08).
 		stockEntryReportSvc = service.NewStockEntryReportService(repository.NewStockEntryRepository(pool))
+		// Батч операций офлайн-очереди устройства (P2-05): дедуп по operation_id.
+		operationsSvc = service.NewOperationsService(repository.NewOperationsRepository(pool))
 	} else {
 		log.Warn("no database — auth, import and catalog endpoints disabled")
 	}
@@ -114,7 +117,7 @@ func main() {
 	// 5. HTTP-сервер с собранным роутером транспортного слоя.
 	srv := &http.Server{
 		Addr:              ":" + cfg.AppPort,
-		Handler:           handler.NewRouter(log, pinger, authSvc, tokens, importSvc, catalogSvc, barcodeSvc, stockEntrySvc, labelSvc, stockEntryReportSvc),
+		Handler:           handler.NewRouter(log, pinger, authSvc, tokens, importSvc, catalogSvc, barcodeSvc, stockEntrySvc, labelSvc, stockEntryReportSvc, operationsSvc),
 		ReadHeaderTimeout: 5 * time.Second, // защита от медленных клиентов (Slowloris)
 	}
 

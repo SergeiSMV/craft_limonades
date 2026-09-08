@@ -43,6 +43,9 @@ abstract final class ApiConst {
   ///**GET** - список/поиск ячеек (q по адресу, warehouse_id, is_floor)
   static const String cells = 'cells';
 
+  ///**POST** - батч операций офлайн-очереди с дедупом по `operation_id` (P2-05)
+  static const String operations = 'operations';
+
   ///**POST** - открыть сессию ввода остатков (P-FastStart)
   static const String stockEntrySessions = 'stock-entry/sessions';
 
@@ -62,8 +65,10 @@ abstract final class ApiConst {
   static String stockEntryCells(String id) => 'stock-entry/sessions/$id/cells';
 
   ///**POST** - финал сессии ввода → запись в stock: `stock-entry/sessions/{id}/finalize`.
-  static String stockEntryFinalize(String id) => 'stock-entry/sessions/$id/finalize';
+  static String stockEntryFinalize(String id) =>
+      'stock-entry/sessions/$id/finalize';
 
   ///**GET** - .xlsx-отчёт «ввод остатков» по закрытой сессии: `stock-entry/sessions/{id}/report.xlsx`.
-  static String stockEntryReport(String id) => 'stock-entry/sessions/$id/report.xlsx';
+  static String stockEntryReport(String id) =>
+      'stock-entry/sessions/$id/report.xlsx';
 }
