@@ -133,6 +133,25 @@ class OutboxRepository {
     return row.read(count) ?? 0;
   }
 
+  /// Живой счётчик ожидающих отправки — для индикатора в шапке (P2-07).
+  ///
+  /// Считается запросом COUNT, а не длиной списка из [watchPending]: индикатору нужно одно
+  /// число, и вычитывать ради него все строки с телами операций незачем.
+  Stream<int> watchPendingCount() =>
+      _watchCount([OutboxStatus.pending.wire, OutboxStatus.sending.wire]);
+
+  /// Живой счётчик отклонённых — их видно отдельно: они не уйдут сами.
+  Stream<int> watchRejectedCount() => _watchCount([OutboxStatus.rejected.wire]);
+
+  /// Общий живой счётчик строк очереди в заданных статусах.
+  Stream<int> _watchCount(List<String> statuses) {
+    final count = _db.outboxOperations.seq.count();
+    final query = _db.selectOnly(_db.outboxOperations)
+      ..addColumns([count])
+      ..where(_db.outboxOperations.status.isIn(statuses));
+    return query.watchSingle().map((row) => row.read(count) ?? 0);
+  }
+
   /// Операция по её `operation_id` — `null`, если такой нет.
   Future<OutboxOperation?> byOperationId(String operationId) async {
     final query = _db.select(_db.outboxOperations)
