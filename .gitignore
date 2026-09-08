@@ -7,6 +7,7 @@
 # Локальные dev-документы (не для репозитория)
 dev.md
 dev-context.md
+dev-context-archive.md
 docs/roadmap.md
 docs/progress.md
 scripts/roadmap_flatten.lua

@@ -61,9 +61,30 @@ class StockDetailCubit extends Cubit<StockDetailState> {
   Future<Failure?> bindBarcode(String code) async {
     final res = await _repo.bindBarcode(goodId: _goodId, barcode: code);
     final failure = res.fold((f) => f, (_) => null);
-    if (failure != null) return failure;
-    await load(_goodId);
-    return null;
+    if (failure == null) {
+      await load(_goodId);
+      return null;
+    }
+    // Сервер не ответил, но привязка уже легла в кэш при постановке в очередь (P2-06), и
+    // карточка обязана её показать — с пометкой «ожидает отправки». Иначе кладовщик видит
+    // прежний список и считает, что работа пропала.
+    await _reloadBarcodes();
+    return failure;
+  }
+
+  /// Перечитать только список ШК, не трогая остатки.
+  ///
+  /// Полная перезагрузка тут не годится: остатки читаются всегда из сети (P2-02), и без связи
+  /// она увела бы карточку в экран ошибки — при том что привязка на самом деле принята.
+  /// Неудачу чтения тоже не показываем: список ШК берётся из локального кэша, а если и он не
+  /// дался, прежний список вернее пустого.
+  Future<void> _reloadBarcodes() async {
+    final barcodes = await _repo.listGoodBarcodes(_goodId);
+    emit(
+      state.copyWith(
+        barcodes: barcodes.fold((_) => state.barcodes, (list) => list),
+      ),
+    );
   }
 
   /// Отвязать ошибочный ШК товара (P-FS-12): DELETE → перезагрузка карточки. Ошибку — в state.
@@ -76,7 +97,12 @@ class StockDetailCubit extends Cubit<StockDetailState> {
       emit(state.copyWith(failure: f));
       return true;
     }, (_) => false);
-    if (failed) return;
+    if (failed) {
+      // Отвязка убрала ШК из кэша ещё при постановке в очередь — список надо перечитать,
+      // иначе карточка показывает уже отвязанный код.
+      await _reloadBarcodes();
+      return;
+    }
     await load(_goodId);
   }
 
