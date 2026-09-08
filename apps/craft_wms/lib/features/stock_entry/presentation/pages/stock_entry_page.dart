@@ -37,10 +37,17 @@ class _StockEntryView extends StatelessWidget {
   const _StockEntryView();
 
   /// Единая обработка «назад» (кнопка в шапке и системный жест/кнопка). Вариант A — всё в памяти до
-  /// финала, поэтому защищаем от случайной потери прохода:
+  /// финала, поэтому «назад» разбирается по состоянию прохода:
   /// - в ячейке → возврат к списку ячеек (`finishCell`, работа ячейки сохраняется), не выход;
-  /// - на списке с непустым просчётом → подтверждение выхода (иначе потеря);
+  /// - на списке с непустым просчётом → выход, проход остаётся сохранённым;
   /// - пусто / после финала / идёт финал → штатный выход (или ничего).
+  ///
+  /// **Выход НЕ уничтожает проход** (ADHOC-13). Прежде здесь стоял диалог «просчитанные ячейки
+  /// не сохранены и будут потеряны», и по подтверждению слепок стирался. Текст был неправдой с
+  /// момента P2-03: ячейки сохранены, проход переживает и перезапуск, и разрядку батареи. То
+  /// есть приложение предлагало уничтожить единственную копию работы кладовщика за обычное
+  /// нажатие «назад», объясняя это несуществующей причиной. Отбрасывание стало отдельным
+  /// действием в меню шапки.
   Future<void> _onBack(BuildContext context) async {
     final cubit = context.read<StockEntryCubit>();
     final s = cubit.state;
@@ -53,19 +60,24 @@ class _StockEntryView extends StatelessWidget {
       cubit.finishCell(); // назад к списку ячеек — просчёт ячейки сохраняется
       return;
     }
-    if (s.committedCells.isEmpty) {
-      Navigator.of(context).pop();
-      return;
+    if (s.committedCells.isNotEmpty) {
+      // Говорим, что работа не пропала: без этого выход выглядит так же, как прежняя потеря.
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(t.stockEntry.passKept)));
     }
-    final leave = await _confirmDiscard(context);
-    if (!leave) return;
-    // Кладовщик подтвердил потерю просчёта — забываем и сохранённый слепок, иначе
-    // следующее открытие экрана подняло бы брошенный проход (P2-03).
-    await cubit.discardDraft();
+    Navigator.of(context).pop();
+  }
+
+  /// Отбросить проход по явному требованию — единственный способ потерять его намеренно.
+  Future<void> _onDiscard(BuildContext context) async {
+    final cubit = context.read<StockEntryCubit>();
+    if (!await _confirmDiscard(context)) return;
+    await cubit.discardPass();
     if (context.mounted) Navigator.of(context).pop();
   }
 
-  /// Диалог подтверждения выхода с несохранённым просчётом.
+  /// Диалог подтверждения отбрасывания прохода — действие необратимо.
   Future<bool> _confirmDiscard(BuildContext context) async {
     final res = await showDialog<bool>(
       context: context,
@@ -96,58 +108,80 @@ class _StockEntryView extends StatelessWidget {
         if (!didPop) _onBack(context);
       },
       child: SystemUiWrapper(
-      style: StatusBarStyle.light,
-      child: BlocListener<StockEntryCubit, StockEntryState>(
-        listenWhen: (p, c) => c.failure != null && p.failure != c.failure,
-        listener: (context, state) {
-          ScaffoldMessenger.of(context)
-            ..hideCurrentSnackBar()
-            ..showSnackBar(
-              SnackBar(
-                content: Text(
-                  t.stockEntry.error(
-                    message: stockEntryFailureText(state.failure!),
+        style: StatusBarStyle.light,
+        child: BlocListener<StockEntryCubit, StockEntryState>(
+          listenWhen: (p, c) => c.failure != null && p.failure != c.failure,
+          listener: (context, state) {
+            ScaffoldMessenger.of(context)
+              ..hideCurrentSnackBar()
+              ..showSnackBar(
+                SnackBar(
+                  content: Text(
+                    t.stockEntry.error(
+                      message: stockEntryFailureText(state.failure!),
+                    ),
                   ),
                 ),
+              );
+            context.read<StockEntryCubit>().clearFailure();
+          },
+          child: Scaffold(
+            backgroundColor: AppColors.kNeumorphicBg,
+            appBar: AppBar(
+              automaticallyImplyLeading: false,
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              toolbarHeight: AppSizes.kIcon60,
+              flexibleSpace: ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(10),
+                  bottomRight: Radius.circular(10),
+                ),
+                child: Assets.images.stockEntry.image(fit: BoxFit.cover),
               ),
-            );
-          context.read<StockEntryCubit>().clearFailure();
-        },
-        child: Scaffold(
-          backgroundColor: AppColors.kNeumorphicBg,
-          appBar: AppBar(
-            automaticallyImplyLeading: false,
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            toolbarHeight: AppSizes.kIcon60,
-            flexibleSpace: ClipRRect(
-              borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(10),
-                bottomRight: Radius.circular(10),
+              title: PageHeader(
+                title: t.stockEntry.title,
+                goBack: () => _onBack(context),
+                // Отбрасывание — редкое и необратимое действие, поэтому в меню, а не кнопкой
+                // рядом с «Завершить ввод»: там его задели бы случайно.
+                trailing: BlocBuilder<StockEntryCubit, StockEntryState>(
+                  buildWhen: (p, c) =>
+                      p.committedCells.isEmpty != c.committedCells.isEmpty ||
+                      p.finished != c.finished,
+                  builder: (context, state) =>
+                      state.committedCells.isEmpty || state.finished
+                      ? const SizedBox.shrink()
+                      : PopupMenuButton<void>(
+                          icon: const Icon(
+                            Icons.more_vert,
+                            color: AppColors.kNeumorphicBg,
+                          ),
+                          itemBuilder: (context) => [
+                            PopupMenuItem<void>(
+                              onTap: () => _onDiscard(context),
+                              child: Text(t.stockEntry.discardMenu),
+                            ),
+                          ],
+                        ),
+                ),
               ),
-              child: Assets.images.stockEntry.image(fit: BoxFit.cover),
             ),
-            title: PageHeader(
-              title: t.stockEntry.title,
-              goBack: () => _onBack(context),
+            body: Stack(
+              children: [
+                const _Body(),
+                BlocBuilder<StockEntryCubit, StockEntryState>(
+                  buildWhen: (p, c) => p.busy != c.busy,
+                  builder: (context, state) => state.busy
+                      ? const ColoredBox(
+                          color: Colors.black26,
+                          child: Center(child: CircularProgressIndicator()),
+                        )
+                      : const SizedBox.shrink(),
+                ),
+              ],
             ),
-          ),
-          body: Stack(
-            children: [
-              const _Body(),
-              BlocBuilder<StockEntryCubit, StockEntryState>(
-                buildWhen: (p, c) => p.busy != c.busy,
-                builder: (context, state) => state.busy
-                    ? const ColoredBox(
-                        color: Colors.black26,
-                        child: Center(child: CircularProgressIndicator()),
-                      )
-                    : const SizedBox.shrink(),
-              ),
-            ],
           ),
         ),
-      ),
       ),
     );
   }

@@ -12,6 +12,8 @@ import 'package:mocktail/mocktail.dart';
 
 import '../../support/fake_scanner_service.dart';
 
+import '../../support/entry_draft_stub.dart';
+
 class _MockRepo extends Mock implements CatalogRepository {}
 
 /// Строка поиска на экране «Остатки»: крестик очистки виден только при непустом вводе
@@ -23,6 +25,7 @@ void main() {
   final queries = <String?>[];
 
   setUp(() {
+    registerEmptyDraftStore();
     LocaleSettings.useDeviceLocale();
     registerFakeScanner(); // экран подписывается на сканер через DI
     queries.clear();
@@ -159,35 +162,33 @@ void main() {
     verifyNever(() => repo.resolveGoodByBarcode(any()));
   });
 
-  testWidgets(
-    'тап по товару сразу после ввода не оставляет отложенный запрос',
-    (tester) async {
-      // Воспроизведение долга: экран списка при переходе в карточку не уничтожается,
-      // и таймер дебаунса, заведённый последней буквой, доработал бы уже из-под карточки.
-      // При просадке связи его ошибка подменяла список, и кладовщик возвращался
-      // на экран ошибки, хотя поиска не касался.
-      await tester.pumpWidget(
-        MaterialApp(theme: buildAppTheme(), home: const GoodsListPage()),
-      );
-      await tester.pumpAndSettle();
-      queries.clear();
+  testWidgets('тап по товару сразу после ввода не оставляет отложенный запрос', (
+    tester,
+  ) async {
+    // Воспроизведение долга: экран списка при переходе в карточку не уничтожается,
+    // и таймер дебаунса, заведённый последней буквой, доработал бы уже из-под карточки.
+    // При просадке связи его ошибка подменяла список, и кладовщик возвращался
+    // на экран ошибки, хотя поиска не касался.
+    await tester.pumpWidget(
+      MaterialApp(theme: buildAppTheme(), home: const GoodsListPage()),
+    );
+    await tester.pumpAndSettle();
+    queries.clear();
 
-      await tester.enterText(find.byType(TextField), 'арахис');
-      await tester.pump(const Duration(milliseconds: 100)); // дебаунс ещё тикает
+    await tester.enterText(find.byType(TextField), 'арахис');
+    await tester.pump(const Duration(milliseconds: 100)); // дебаунс ещё тикает
 
-      // Тап по товару. Роутера в тесте нет, поэтому push бросит исключение — но отмена
-      // отложенного поиска происходит ДО него, и проверяем мы именно её.
-      await tester.tap(find.text('Арахис жареный'));
-      await tester.pump();
-      tester.takeException();
+    // Тап по товару. Роутера в тесте нет, поэтому push бросит исключение — но отмена
+    // отложенного поиска происходит ДО него, и проверяем мы именно её.
+    await tester.tap(find.text('Арахис жареный'));
+    await tester.pump();
+    tester.takeException();
 
-      await tester.pump(const Duration(milliseconds: 600));
-      expect(
-        queries,
-        isEmpty,
-        reason: 'отложенный запрос должен быть отменён уходом в карточку',
-      );
-    },
-  );
-
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(
+      queries,
+      isEmpty,
+      reason: 'отложенный запрос должен быть отменён уходом в карточку',
+    );
+  });
 }
