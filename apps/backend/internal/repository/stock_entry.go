@@ -61,6 +61,39 @@ func (r *StockEntryRepository) Create(ctx context.Context, warehouseID, createdB
 	return id, nil
 }
 
+// CreateWithID открывает сессию с идентификатором, ВЫДАННЫМ УСТРОЙСТВОМ, и делает это
+// идемпотентно: повторный вызов с тем же id возвращает ту же сессию, а не заводит вторую.
+//
+// Зачем идентификатор с устройства: checkpoint и финал адресуются по session_id, а без сети
+// серверный идентификатор взять неоткуда — кладовщик начал бы проход и не смог бы его продолжить
+// офлайн. Клиент генерирует UUID v4 сам (та же логика, что у operation_id в очереди, P2-03).
+//
+// Отвергнута альтернатива «весь проход одним батчем в конце»: она теряет частичный прогресс на
+// плохой связи, а проход склада идёт часами.
+func (r *StockEntryRepository) CreateWithID(ctx context.Context, sessionID, warehouseID, createdBy string) (string, error) {
+	return createSessionWithID(ctx, r.pool, sessionID, warehouseID, createdBy)
+}
+
+// createSessionWithID — низкоуровневый старт сессии на Querier (пул или tx), чтобы старт из
+// очереди коммитился в одной транзакции с пометкой операции (P2-05).
+func createSessionWithID(ctx context.Context, q Querier, sessionID, warehouseID, createdBy string) (string, error) {
+	var id string
+	err := q.QueryRow(ctx, `
+		INSERT INTO stock_entry_sessions (id, warehouse_id, created_by)
+		VALUES ($1::uuid, $2::uuid, $3::uuid)
+		ON CONFLICT (id) DO NOTHING
+		RETURNING id::text`, sessionID, warehouseID, createdBy).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		// Сессия с таким id уже есть — это и есть повтор старта. Ни склад, ни автора не трогаем:
+		// сессия уже в работе, и переписать их значило бы менять документ задним числом.
+		return sessionID, nil
+	}
+	if err != nil {
+		return "", fmt.Errorf("create stock entry session with id: %w", err)
+	}
+	return id, nil
+}
+
 // Checkpoint фиксирует ячейку в сессии: новые привязки ШК + строки (upsert-SET по грани). Всё в
 // одной транзакции. Сессия должна быть draft, иначе ErrSessionClosed/ErrSessionNotFound.
 func (r *StockEntryRepository) Checkpoint(ctx context.Context, sessionID, cellID string, lines []StockEntryLineInput, barcodes []BarcodeBindInput) error {
@@ -88,34 +121,43 @@ func (r *StockEntryRepository) Checkpoint(ctx context.Context, sessionID, cellID
 func (r *StockEntryRepository) Finalize(ctx context.Context, sessionID string) (int, error) {
 	var written int
 	err := WithinTx(ctx, r.pool, func(q Querier) error {
-		if err := guardSessionDraft(ctx, q, sessionID); err != nil {
-			return err
-		}
-		lines, err := listSessionLines(ctx, q, sessionID)
-		if err != nil {
-			return err
-		}
-		// По каждой строке: партия GetOrCreate (P-FS-02) → SET остатка (P-FS-02).
-		for _, ln := range lines {
-			batchID, err := getOrCreateBatch(ctx, q, ln.goodID, ln.productionDate)
-			if err != nil {
-				return err
-			}
-			key := model.StockKey{CellID: ln.cellID, GoodID: ln.goodID, BatchID: batchID}
-			if err := setStock(ctx, q, key, ln.qty); err != nil {
-				return err
-			}
-			written++
-		}
-		if _, err := q.Exec(ctx, `
-			UPDATE stock_entry_sessions SET status='closed', closed_at=now()
-			WHERE id = $1::uuid`, sessionID); err != nil {
-			return fmt.Errorf("close session: %w", err)
-		}
-		return nil
+		var err error
+		written, err = finalizeSession(ctx, q, sessionID)
+		return err
 	})
 	if err != nil {
 		return 0, err
+	}
+	return written, nil
+}
+
+// finalizeSession — низкоуровневый финал на Querier: строки сессии → stock (SET) + закрытие.
+// Вынесен, чтобы финал из очереди шёл в одной транзакции с пометкой операции (P2-05).
+func finalizeSession(ctx context.Context, q Querier, sessionID string) (int, error) {
+	if err := guardSessionDraft(ctx, q, sessionID); err != nil {
+		return 0, err
+	}
+	lines, err := listSessionLines(ctx, q, sessionID)
+	if err != nil {
+		return 0, err
+	}
+	written := 0
+	// По каждой строке: партия GetOrCreate (P-FS-02) → SET остатка (P-FS-02).
+	for _, ln := range lines {
+		batchID, err := getOrCreateBatch(ctx, q, ln.goodID, ln.productionDate)
+		if err != nil {
+			return 0, err
+		}
+		key := model.StockKey{CellID: ln.cellID, GoodID: ln.goodID, BatchID: batchID}
+		if err := setStock(ctx, q, key, ln.qty); err != nil {
+			return 0, err
+		}
+		written++
+	}
+	if _, err := q.Exec(ctx, `
+		UPDATE stock_entry_sessions SET status='closed', closed_at=now()
+		WHERE id = $1::uuid`, sessionID); err != nil {
+		return 0, fmt.Errorf("close session: %w", err)
 	}
 	return written, nil
 }

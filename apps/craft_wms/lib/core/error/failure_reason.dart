@@ -17,6 +17,8 @@ String failureReason(Failure failure) => switch (failure) {
   AuthFailure() => 'сессия истекла',
   ServerFailure(:final statusCode, :final message) =>
     message?.isNotEmpty ?? false ? message! : 'сервер отказал ($statusCode)',
+  // Причина уже пришла от сервера дословно — она и есть текст.
+  RejectedFailure(:final reason) => reason,
   UnknownFailure(:final message) =>
     message?.isNotEmpty ?? false ? message! : 'неизвестная ошибка',
 };

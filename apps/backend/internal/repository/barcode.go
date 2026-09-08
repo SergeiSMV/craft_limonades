@@ -114,7 +114,14 @@ func (r *BarcodeRepository) List(ctx context.Context, limit, offset int) ([]mode
 // удаляем по коду. Идемпотентно: нет такой привязки → не ошибка (коррекция не должна падать,
 // если ШК уже отвязали).
 func (r *BarcodeRepository) Unbind(ctx context.Context, barcode string) error {
-	if _, err := r.pool.Exec(ctx, `DELETE FROM barcodes WHERE barcode = $1`, barcode); err != nil {
+	return unbindBarcode(ctx, r.pool, barcode)
+}
+
+// unbindBarcode — низкоуровневая отвязка на Querier (пул или tx), зеркало bindBarcode. Нужна,
+// чтобы отвязка коммитилась в одной транзакции с пометкой операции в журнале идемпотентности
+// (P2-05): порознь они дали бы момент, в котором ШК уже отвязан, а операция не помечена.
+func unbindBarcode(ctx context.Context, q Querier, barcode string) error {
+	if _, err := q.Exec(ctx, `DELETE FROM barcodes WHERE barcode = $1`, barcode); err != nil {
 		return fmt.Errorf("unbind barcode %q: %w", barcode, err)
 	}
 	return nil

@@ -74,7 +74,7 @@ func TestStockEntry_fullCycle(t *testing.T) {
 	pool, env := setupStockEntry(t)
 	ctx := context.Background()
 
-	sess, err := env.svc.Start(ctx, env.warehouse, env.user)
+	sess, err := env.svc.Start(ctx, "", env.warehouse, env.user)
 	if err != nil {
 		t.Fatalf("Start: %v", err)
 	}
@@ -143,11 +143,11 @@ func TestStockEntry_validation(t *testing.T) {
 	_, env := setupStockEntry(t)
 	ctx := context.Background()
 
-	if _, err := env.svc.Start(ctx, "   ", env.user); !errors.Is(err, service.ErrEmptyWarehouse) {
+	if _, err := env.svc.Start(ctx, "", "   ", env.user); !errors.Is(err, service.ErrEmptyWarehouse) {
 		t.Fatalf("пустой склад: ожидалась ErrEmptyWarehouse, получено %v", err)
 	}
 
-	sess, err := env.svc.Start(ctx, env.warehouse, env.user)
+	sess, err := env.svc.Start(ctx, "", env.warehouse, env.user)
 	if err != nil {
 		t.Fatalf("Start: %v", err)
 	}

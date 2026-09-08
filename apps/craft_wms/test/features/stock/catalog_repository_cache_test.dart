@@ -1,4 +1,5 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:craft_wms/core/outbox/operations_api.dart';
 import 'package:craft_wms/core/database/app_database.dart';
 import 'package:craft_wms/core/error/failure.dart';
 import 'package:craft_wms/core/outbox/outbox_operation.dart';
@@ -17,15 +18,19 @@ import 'package:mocktail/mocktail.dart';
 import 'package:talker_flutter/talker_flutter.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../support/outbox_stubs.dart';
+
 class _MockApi extends Mock implements CatalogApi {}
 
 class _MockConnectivity extends Mock implements Connectivity {}
 
 /// Фасад справочников: что берётся из кэша, что из сети и что происходит без сети (P2-02).
 void main() {
+  setUpAll(registerOutboxFallbacks);
   late AppDatabase db;
   late CatalogCache cache;
   late _MockApi api;
+  late MockOperationsApi opsApi;
   late OutboxRepository outbox;
   late CatalogRepository repo;
 
@@ -36,13 +41,14 @@ void main() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     cache = CatalogCache(db);
     api = _MockApi();
+    opsApi = MockOperationsApi();
     outbox = OutboxRepository(db, const Uuid());
     final effects = OutboxEffects(cache);
     // Движок в тесте настоящий: отправка идёт через него, и проверять надо именно тот путь,
     // которым операция уходит на самом деле.
     final engine = SyncEngine(
       outbox,
-      OutboxSender(api),
+      OutboxSender(opsApi),
       effects,
       Talker(),
       _MockConnectivity(),
@@ -218,12 +224,7 @@ void main() {
     });
 
     test('успешная привязка помечается отправленной', () async {
-      when(
-        () => api.bindBarcode(
-          goodId: any(named: 'goodId'),
-          barcode: any(named: 'barcode'),
-        ),
-      ).thenAnswer((_) async => const Right(null));
+      stubBatchOutcome(opsApi, OperationOutcome.accepted);
 
       final res = await repo.bindBarcode(goodId: 'g1', barcode: 'NEW');
 
@@ -234,34 +235,35 @@ void main() {
 
     // Главное свойство очереди: операция, не ушедшая с первой попытки, остаётся делом,
     // а не исчезает вместе с неудачным вызовом.
-    test('операция без связи остаётся в очереди, ошибка доходит до экрана', () async {
-      when(
-        () => api.bindBarcode(
-          goodId: any(named: 'goodId'),
-          barcode: any(named: 'barcode'),
-        ),
-      ).thenAnswer((_) async => const Left(Failure.network()));
+    test(
+      'операция без связи остаётся в очереди, ошибка доходит до экрана',
+      () async {
+        stubBatchFailure(opsApi, const Failure.network());
 
-      final res = await repo.bindBarcode(goodId: 'g1', barcode: 'NEW');
+        final res = await repo.bindBarcode(goodId: 'g1', barcode: 'NEW');
 
-      expect(res.isLeft, isTrue, reason: 'UX прежний: экран узнаёт о неудаче');
-      final pending = await outbox.pending();
-      expect(pending, hasLength(1));
-      expect(pending.single.kind, OutboxKind.bindBarcode);
-      expect(pending.single.status, OutboxStatus.pending);
-      expect(pending.single.attempts, 1);
-      expect(pending.single.payload['barcode'], 'NEW');
-    });
+        expect(
+          res.isLeft,
+          isTrue,
+          reason: 'UX прежний: экран узнаёт о неудаче',
+        );
+        final pending = await outbox.pending();
+        expect(pending, hasLength(1));
+        expect(pending.single.kind, OutboxKind.bindBarcode);
+        expect(pending.single.status, OutboxStatus.pending);
+        expect(pending.single.attempts, 1);
+        expect(pending.single.payload['barcode'], 'NEW');
+      },
+    );
 
     // 409 «ШК уже за другим товаром» повтором не лечится — сервер ответит тем же, а очередь
     // встанет намертво на неисполнимой операции.
     test('отказ по существу выводит операцию из очереди', () async {
-      when(
-        () => api.bindBarcode(
-          goodId: any(named: 'goodId'),
-          barcode: any(named: 'barcode'),
-        ),
-      ).thenAnswer((_) async => const Left(Failure.server(409)));
+      stubBatchOutcome(
+        opsApi,
+        OperationOutcome.rejected,
+        error: 'barcode bound to another good',
+      );
 
       final res = await repo.bindBarcode(goodId: 'g1', barcode: 'NEW');
 
@@ -270,12 +272,7 @@ void main() {
     });
 
     test('5xx считается временным и остаётся в очереди', () async {
-      when(
-        () => api.bindBarcode(
-          goodId: any(named: 'goodId'),
-          barcode: any(named: 'barcode'),
-        ),
-      ).thenAnswer((_) async => const Left(Failure.server(503)));
+      stubBatchFailure(opsApi, const Failure.server(503));
 
       await repo.bindBarcode(goodId: 'g1', barcode: 'NEW');
 
@@ -283,9 +280,7 @@ void main() {
     });
 
     test('отвязка тоже проходит через очередь', () async {
-      when(
-        () => api.unbindBarcode(any()),
-      ).thenAnswer((_) async => const Left(Failure.network()));
+      stubBatchFailure(opsApi, const Failure.network());
 
       await repo.unbindBarcode(goodId: 'g1', barcode: 'ITEM');
 
@@ -300,12 +295,7 @@ void main() {
       // Иначе повторный скан того же ШК ушёл бы в сеть до следующей синхронизации.
       await cache.putGoods(const [good]);
       await cache.putBarcodes([]);
-      when(
-        () => api.bindBarcode(
-          goodId: any(named: 'goodId'),
-          barcode: any(named: 'barcode'),
-        ),
-      ).thenAnswer((_) async => const Right(null));
+      stubBatchOutcome(opsApi, OperationOutcome.accepted);
 
       await repo.bindBarcode(goodId: 'g1', barcode: 'BOX');
       expect((await cache.goodByBarcode('BOX'))?.id, 'g1');
@@ -314,12 +304,11 @@ void main() {
     test('неудачная привязка кэш не трогает', () async {
       await cache.putGoods(const [good]);
       await cache.putBarcodes([]);
-      when(
-        () => api.bindBarcode(
-          goodId: any(named: 'goodId'),
-          barcode: any(named: 'barcode'),
-        ),
-      ).thenAnswer((_) async => const Left(Failure.server(409)));
+      stubBatchOutcome(
+        opsApi,
+        OperationOutcome.rejected,
+        error: 'barcode bound to another good',
+      );
 
       await repo.bindBarcode(goodId: 'g1', barcode: 'BOX');
       expect(await cache.goodByBarcode('BOX'), isNull);
@@ -330,9 +319,7 @@ void main() {
       await cache.putBarcodes([
         (barcode: 'ITEM', goodId: 'g1', symbology: null),
       ]);
-      when(
-        () => api.unbindBarcode(any()),
-      ).thenAnswer((_) async => const Right(null));
+      stubBatchOutcome(opsApi, OperationOutcome.accepted);
 
       await repo.unbindBarcode(goodId: 'g1', barcode: 'ITEM');
       expect(await cache.goodByBarcode('ITEM'), isNull);

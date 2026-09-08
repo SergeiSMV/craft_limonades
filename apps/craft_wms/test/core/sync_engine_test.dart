@@ -29,7 +29,10 @@ void main() {
   late _MockSender sender;
   late SyncEngine engine;
 
-  setUpAll(() => registerFallbackValue(_FakeOperation()));
+  setUpAll(() {
+    registerFallbackValue(_FakeOperation());
+    registerFallbackValue(<OutboxOperation>[]);
+  });
 
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
@@ -46,6 +49,27 @@ void main() {
 
   tearDown(() => db.close());
 
+  /// Заглушка пачки: сервер разбирает операции ПО ПОРЯДКУ и прекращает на первой временной
+  /// неудаче — ровно так, как это делает настоящий бэкенд (P2-05). Операции после остановки
+  /// исхода не получают, и очередь обязана оставить их себе.
+  void stubBatch(Either<Failure, void> Function(OutboxOperation) decide) {
+    when(() => sender.sendBatch(any())).thenAnswer((invocation) async {
+      final ops = invocation.positionalArguments.first as List<OutboxOperation>;
+      final outcomes = <String, Either<Failure, void>>{};
+      for (final op in ops) {
+        final res = decide(op);
+        if (res.isLeft && isRetryable(res.left)) break;
+        outcomes[op.operationId] = res;
+      }
+      return Right(outcomes);
+    });
+  }
+
+  /// Пачка не доехала целиком (сеть, 5xx).
+  void stubBatchDown(Failure failure) {
+    when(() => sender.sendBatch(any())).thenAnswer((_) async => Left(failure));
+  }
+
   /// Поставить в очередь привязку ШК.
   Future<String> enqueue(String barcode) => outbox.enqueue(
     kind: OutboxKind.bindBarcode,
@@ -57,7 +81,7 @@ void main() {
 
     expect(res.sent, 0);
     expect(res.isDrained, isTrue);
-    verifyNever(() => sender.send(any()));
+    verifyNever(() => sender.sendBatch(any()));
   });
 
   test('очередь уходит целиком в порядке постановки', () async {
@@ -65,8 +89,7 @@ void main() {
     for (final code in ['a', 'b', 'c']) {
       await enqueue(code);
     }
-    when(() => sender.send(any())).thenAnswer((invocation) async {
-      final op = invocation.positionalArguments.first as OutboxOperation;
+    stubBatch((op) {
       order.add(op.payload['barcode'] as String);
       return const Right(null);
     });
@@ -79,35 +102,60 @@ void main() {
     expect(await outbox.pendingCount(), 0);
   });
 
+  // Ради этого батч и заводился: на складе связь короткая, и три отдельных запроса вместо
+  // одного — это три шанса оборваться вместо одного.
+  test('очередь уходит ОДНИМ запросом, а не по запросу на операцию', () async {
+    for (final code in ['a', 'b', 'c']) {
+      await enqueue(code);
+    }
+    var requests = 0;
+    var largestChunk = 0;
+    when(() => sender.sendBatch(any())).thenAnswer((invocation) async {
+      requests++;
+      final ops = invocation.positionalArguments.first as List<OutboxOperation>;
+      largestChunk = ops.length;
+      return Right({
+        for (final op in ops) op.operationId: const Right<Failure, void>(null),
+      });
+    });
+
+    final res = await engine.drain();
+
+    expect(res.sent, 3);
+    expect(requests, 1, reason: 'три операции — один запрос');
+    expect(largestChunk, 3);
+  });
+
   // Порядок важнее скорости: «привязать ШК» и «отвязать ШК» дают разный итог в разной
   // последовательности, и перескочить через застрявшую операцию значит применить их наоборот.
   test('временная неудача останавливает проход, очередь сохраняется', () async {
     await enqueue('a');
     await enqueue('b');
-    when(
-      () => sender.send(any()),
-    ).thenAnswer((_) async => const Left(Failure.network()));
+    stubBatch((_) => const Left(Failure.network()));
 
     final res = await engine.drain();
 
     expect(res.sent, 0);
     expect(res.remaining, 2, reason: 'вторая операция даже не пробовалась');
-    verify(() => sender.send(any())).called(1);
+    verify(() => sender.sendBatch(any())).called(1);
     final pending = await outbox.pending();
     expect(pending.first.attempts, 1);
-    expect(pending.last.attempts, 0);
+    expect(
+      pending.last.attempts,
+      0,
+      reason: 'до неё сервер не дошёл — попытки ей не засчитываем',
+    );
   });
 
   // Отказ по существу порядку не мешает: такая операция выбывает совсем.
   test('отказ по существу выводит операцию, проход продолжается', () async {
     await enqueue('a');
     await enqueue('b');
-    when(() => sender.send(any())).thenAnswer((invocation) async {
-      final op = invocation.positionalArguments.first as OutboxOperation;
-      return op.payload['barcode'] == 'a'
+    stubBatch(
+      (op) => op.payload['barcode'] == 'a'
           ? const Left(Failure.server(409))
-          : const Right(null);
-    });
+          : const Right(null),
+    );
 
     final res = await engine.drain();
 
@@ -121,13 +169,11 @@ void main() {
     'операция уходит со следующего прохода, когда связь вернулась',
     () async {
       await enqueue('a');
-      when(
-        () => sender.send(any()),
-      ).thenAnswer((_) async => const Left(Failure.network()));
+      stubBatchDown(const Failure.network());
       await engine.drain();
       expect(await outbox.pendingCount(), 1);
 
-      when(() => sender.send(any())).thenAnswer((_) async => const Right(null));
+      stubBatch((_) => const Right(null));
       final res = await engine.drain();
 
       expect(res.sent, 1);
@@ -137,7 +183,7 @@ void main() {
 
   test('отправленные убираются после полной разгрузки', () async {
     await enqueue('a');
-    when(() => sender.send(any())).thenAnswer((_) async => const Right(null));
+    stubBatch((_) => const Right(null));
 
     await engine.drain();
 
@@ -149,17 +195,20 @@ void main() {
   // две параллельные отправки одной операции — это два запроса вместо одного.
   test('повторный вход в проход не удваивает отправку', () async {
     await enqueue('a');
-    when(() => sender.send(any())).thenAnswer((_) async {
+    when(() => sender.sendBatch(any())).thenAnswer((invocation) async {
       // Пока первый проход ждёт сеть, зовём второй — он должен уйти ни с чем.
       final concurrent = await engine.drain();
       expect(concurrent.sent, 0);
-      return const Right(null);
+      final ops = invocation.positionalArguments.first as List<OutboxOperation>;
+      return Right({
+        for (final op in ops) op.operationId: const Right<Failure, void>(null),
+      });
     });
 
     final res = await engine.drain();
 
     expect(res.sent, 1);
-    verify(() => sender.send(any())).called(1);
+    verify(() => sender.sendBatch(any())).called(1);
   });
 
   group('пауза перед повтором', () {
