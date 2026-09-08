@@ -239,7 +239,9 @@ class _BindBarcodeDialogState extends State<BindBarcodeDialog>
                 TextButton(
                   onPressed: _busy
                       ? null
-                      : () => Navigator.of(context).pop(false),
+                      // Без аргумента: диалог возвращает BindOutcome, и `false` здесь
+                      // ронял приведение типа — остаток от времён, когда возвращался bool.
+                      : () => Navigator.of(context).pop(),
                   child: Text(t.stockDetailScreen.cancel),
                 ),
                 AppBoxes.kWidth12,
