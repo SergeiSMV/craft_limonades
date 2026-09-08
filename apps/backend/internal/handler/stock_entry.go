@@ -26,7 +26,11 @@ func NewStockEntryHandler(svc *service.StockEntryService) *StockEntryHandler {
 }
 
 // startRequest — тело POST /stock-entry/sessions.
+//
+// SessionID необязателен: устройство присылает свой UUID, чтобы адресовать checkpoint'ы офлайн
+// (P2-05); пустое поле означает «выдай сам» — так ходит APK, собранная до P2-05.
 type startRequest struct {
+	SessionID   string `json:"session_id"`
 	WarehouseID string `json:"warehouse_id"`
 }
 
@@ -43,7 +47,7 @@ func (h *StockEntryHandler) Start(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "невалидный JSON")
 		return
 	}
-	id, err := h.svc.Start(r.Context(), req.WarehouseID, userID)
+	id, err := h.svc.Start(r.Context(), req.SessionID, req.WarehouseID, userID)
 	if err != nil {
 		stockEntryError(w, err)
 		return
@@ -116,6 +120,7 @@ func stockEntryError(w http.ResponseWriter, err error) {
 		errors.Is(err, service.ErrEmptyGoodID),
 		errors.Is(err, service.ErrEmptyBarcode),
 		errors.Is(err, service.ErrInvalidQuantity),
+		errors.Is(err, service.ErrInvalidSessionID),
 		errors.Is(err, service.ErrInvalidDate):
 		writeError(w, http.StatusBadRequest, err.Error())
 	case errors.Is(err, repository.ErrSessionNotFound),

@@ -23,7 +23,7 @@ import (
 // Как: chi-роутер с цепочкой middleware; прикладные ручки — под /api/v1, пробы — на корне.
 // db (Pinger) может быть nil → /ready ответит 503. authSvc может быть nil (нет БД) →
 // auth-роуты не регистрируются.
-func NewRouter(log *slog.Logger, db Pinger, authSvc *service.AuthService, tokens *auth.TokenManager, importSvc *service.ImportService, catalogSvc *service.CatalogService, barcodeSvc *service.BarcodeService, stockEntrySvc *service.StockEntryService, labelSvc *service.LabelService, stockEntryReportSvc *service.StockEntryReportService) http.Handler {
+func NewRouter(log *slog.Logger, db Pinger, authSvc *service.AuthService, tokens *auth.TokenManager, importSvc *service.ImportService, catalogSvc *service.CatalogService, barcodeSvc *service.BarcodeService, stockEntrySvc *service.StockEntryService, labelSvc *service.LabelService, stockEntryReportSvc *service.StockEntryReportService, operationsSvc *service.OperationsService) http.Handler {
 	r := chi.NewRouter()
 
 	// Общие middleware для всех маршрутов:
@@ -121,6 +121,16 @@ func NewRouter(log *slog.Logger, db Pinger, authSvc *service.AuthService, tokens
 				r.Post("/barcodes", barcodeH.Bind)                 // привязать ШК к товару
 				r.Delete("/barcodes/{code}", barcodeH.Unbind)      // отвязать ошибочный ШК (P-FS-12)
 				r.Get("/goods/{id}/barcodes", barcodeH.ListByGood) // все ШК товара (P-FS-12)
+			})
+		}
+
+		// Батч операций из офлайн-очереди устройства (P2-05) — сотруднику: очередь копится
+		// на ТСД кладовщика. Дедуп по operation_id: повтор не применяет эффект второй раз.
+		if operationsSvc != nil {
+			opsH := NewOperationsHandler(operationsSvc)
+			r.Group(func(r chi.Router) {
+				r.Use(appmw.Authenticator(tokens))
+				r.Post("/operations", opsH.Apply)
 			})
 		}
 

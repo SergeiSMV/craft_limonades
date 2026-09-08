@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 
 	"craftwms/internal/repository"
@@ -25,6 +26,8 @@ var (
 	ErrEmptyWarehouse = errors.New("warehouse_id is required")
 	// ErrEmptyCell — не передана ячейка в checkpoint.
 	ErrEmptyCell = errors.New("cell_id is required")
+	// ErrInvalidSessionID — клиент прислал session_id, не являющийся UUID.
+	ErrInvalidSessionID = errors.New("session_id must be a UUID")
 )
 
 // EntryLine — строка ввода (транспорт): дата в DD-MM-YYYY.
@@ -44,6 +47,7 @@ type EntryBarcode struct {
 // stockEntryRepo — зависимость сервиса от репозитория сессии (интерфейс ради тестируемости).
 type stockEntryRepo interface {
 	Create(ctx context.Context, warehouseID, createdBy string) (string, error)
+	CreateWithID(ctx context.Context, sessionID, warehouseID, createdBy string) (string, error)
 	Checkpoint(ctx context.Context, sessionID, cellID string, lines []repository.StockEntryLineInput, barcodes []repository.BarcodeBindInput) error
 	Finalize(ctx context.Context, sessionID string) (int, error)
 }
@@ -60,12 +64,28 @@ func NewStockEntryService(repo stockEntryRepo) *StockEntryService {
 }
 
 // Start открывает сессию ввода для склада; createdBy — id аутентифицированного кладовщика.
-func (s *StockEntryService) Start(ctx context.Context, warehouseID, createdBy string) (string, error) {
+//
+// sessionID — идентификатор, выданный устройством (P2-05). Пустой означает «сервер, выдай сам»:
+// так ходит APK, собранная до P2-05, и ломать её незачем — старт по-прежнему работает, просто
+// без офлайн-адресации.
+//
+// Непустой id идемпотентен: повторный старт той же сессии возвращает её же. Это нужно ровно
+// потому, что старт едет из очереди и повторяется, пока не подтверждён.
+func (s *StockEntryService) Start(ctx context.Context, sessionID, warehouseID, createdBy string) (string, error) {
 	warehouseID = strings.TrimSpace(warehouseID)
 	if warehouseID == "" {
 		return "", ErrEmptyWarehouse
 	}
-	return s.repo.Create(ctx, warehouseID, createdBy)
+	sessionID = strings.TrimSpace(sessionID)
+	if sessionID == "" {
+		return s.repo.Create(ctx, warehouseID, createdBy)
+	}
+	// Проверяем формат до похода в БД: иначе кривой id уедет в приведение ::uuid и вернётся
+	// 500-й внутренней ошибкой вместо внятного «это не UUID».
+	if _, err := uuid.Parse(sessionID); err != nil {
+		return "", ErrInvalidSessionID
+	}
+	return s.repo.CreateWithID(ctx, sessionID, warehouseID, createdBy)
 }
 
 // Checkpoint фиксирует ячейку: валидирует строки/привязки, парсит даты и передаёт в репозиторий.

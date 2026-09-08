@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:either_dart/either.dart';
@@ -135,16 +136,13 @@ class SyncEngine with WidgetsBindingObserver {
     var rejected = 0;
     try {
       final queue = await _outbox.pending();
-      for (final operation in queue) {
-        final res = await sendOne(operation);
-        if (res.isRight) {
-          sent++;
-          continue;
-        }
-        // Временная неудача останавливает проход: дальше по очереди идти нельзя, порядок
-        // важнее скорости. Отказ по существу порядку не мешает — операция выбыла совсем.
-        if (isRetryable(res.left)) break;
-        rejected++;
+      for (var from = 0; from < queue.length; from += maxBatchOperations) {
+        final to = min(from + maxBatchOperations, queue.length);
+        final chunk = queue.sublist(from, to);
+        final outcome = await _sendChunk(chunk);
+        sent += outcome.sent;
+        rejected += outcome.rejected;
+        if (outcome.stopped) break;
       }
     } finally {
       _draining = false;
@@ -175,6 +173,66 @@ class SyncEngine with WidgetsBindingObserver {
   Future<Either<Failure, void>> sendOne(OutboxOperation operation) async {
     await _outbox.markSending(operation.operationId);
     final res = await _sender.send(operation);
+    await _settle(operation, res);
+    return res;
+  }
+
+  /// Отправить пачку операций одним запросом и довести каждую до её статуса.
+  ///
+  /// Порядок соблюдается и здесь: операции разбираются в порядке очереди, и первая, у которой
+  /// исхода нет или он временный, останавливает проход. Отсутствие исхода — штатный ответ
+  /// сервера «до этой я не дошёл», а не потеря: он тоже прекращает разбор на первой временной
+  /// неудаче, чтобы не применить «привязать» и «отвязать» задом наперёд.
+  Future<_ChunkOutcome> _sendChunk(List<OutboxOperation> chunk) async {
+    for (final operation in chunk) {
+      await _outbox.markSending(operation.operationId);
+    }
+    final batch = await _sender.sendBatch(chunk);
+
+    // Запрос не состоялся целиком — вся пачка возвращается в очередь.
+    if (batch.isLeft) {
+      final failure = batch.left;
+      for (final operation in chunk) {
+        await _outbox.markFailed(operation.operationId, failureReason(failure));
+      }
+      _scheduleRetry(chunk.first.attempts + 1);
+      return const _ChunkOutcome(sent: 0, rejected: 0, stopped: true);
+    }
+
+    final outcomes = batch.right;
+    var sent = 0;
+    var rejected = 0;
+    for (final operation in chunk) {
+      final res = outcomes[operation.operationId];
+      if (res == null) {
+        // Сервер до неё не дошёл. Возвращаем в очередь и останавливаемся: следующие за ней
+        // он тоже не применял, и лезть через неё нельзя.
+        await _outbox.markFailed(operation.operationId, 'нет связи');
+        _scheduleRetry(operation.attempts + 1);
+        return _ChunkOutcome(sent: sent, rejected: rejected, stopped: true);
+      }
+      await _settle(operation, res);
+      if (res.isRight) {
+        sent++;
+        continue;
+      }
+      if (isRetryable(res.left)) {
+        return _ChunkOutcome(sent: sent, rejected: rejected, stopped: true);
+      }
+      rejected++;
+    }
+    return _ChunkOutcome(sent: sent, rejected: rejected, stopped: false);
+  }
+
+  /// Довести статус операции и её локальные следствия до конца.
+  ///
+  /// Единственное место, где исход отправки превращается в статус очереди и правку кэша: им
+  /// пользуются и разбор пачки, и одиночная отправка из репозитория. Пока путей было два,
+  /// отложенная отправка не применяла локальное следствие (P2-06).
+  Future<void> _settle(
+    OutboxOperation operation,
+    Either<Failure, void> res,
+  ) async {
     await res.fold(
       (failure) async {
         if (isRetryable(failure)) {
@@ -198,7 +256,6 @@ class SyncEngine with WidgetsBindingObserver {
         await _effects.confirm(operation);
       },
     );
-    return res;
   }
 
   /// Завести повтор через паузу, растущую с числом попыток.
@@ -215,4 +272,19 @@ class SyncEngine with WidgetsBindingObserver {
     );
     _retryTimer = Timer(delay, () => unawaited(drain()));
   }
+}
+
+/// Итог разбора одной пачки: сколько ушло, сколько отклонено и нужно ли остановиться.
+class _ChunkOutcome {
+  const _ChunkOutcome({
+    required this.sent,
+    required this.rejected,
+    required this.stopped,
+  });
+
+  final int sent;
+  final int rejected;
+
+  /// Проход дальше идти не должен: порядок операций важнее скорости.
+  final bool stopped;
 }

@@ -1,4 +1,5 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:craft_wms/core/outbox/operations_api.dart';
 import 'package:craft_wms/core/database/app_database.dart';
 import 'package:craft_wms/core/error/failure.dart';
 import 'package:craft_wms/core/outbox/outbox_effects.dart';
@@ -12,11 +13,12 @@ import 'package:craft_wms/features/stock/data/catalog_repository.dart';
 // Только Migrator: полный экспорт drift переопределяет матчеры теста.
 import 'package:drift/drift.dart' show Migrator;
 import 'package:drift/native.dart';
-import 'package:either_dart/either.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:talker_flutter/talker_flutter.dart';
 import 'package:uuid/uuid.dart';
+
+import '../support/outbox_stubs.dart';
 
 class _MockApi extends Mock implements CatalogApi {}
 
@@ -29,11 +31,13 @@ class _MockConnectivity extends Mock implements Connectivity {}
 /// только путь немедленной отправки; движок синхронизации отправлял мимо него, и локальное
 /// состояние оставалось прежним до следующей полной синхронизации справочников.
 void main() {
+  setUpAll(registerOutboxFallbacks);
   late AppDatabase db;
   late CatalogCache cache;
   late OutboxRepository outbox;
   late OutboxEffects effects;
   late _MockApi api;
+  late MockOperationsApi opsApi;
   late SyncEngine engine;
   late CatalogRepository repo;
 
@@ -46,9 +50,10 @@ void main() {
     outbox = OutboxRepository(db, const Uuid());
     effects = OutboxEffects(cache);
     api = _MockApi();
+    opsApi = MockOperationsApi();
     engine = SyncEngine(
       outbox,
-      OutboxSender(api),
+      OutboxSender(opsApi),
       effects,
       Talker(),
       _MockConnectivity(),
@@ -65,12 +70,7 @@ void main() {
 
   group('привязка', () {
     test('без связи ШК виден сразу, но помечен как неподтверждённый', () async {
-      when(
-        () => api.bindBarcode(
-          goodId: any(named: 'goodId'),
-          barcode: any(named: 'barcode'),
-        ),
-      ).thenAnswer((_) async => const Left(Failure.network()));
+      stubBatchFailure(opsApi, const Failure.network());
 
       await repo.bindBarcode(goodId: good.id, barcode: barcode);
 
@@ -85,12 +85,7 @@ void main() {
     });
 
     test('успешная привязка подтверждается сразу', () async {
-      when(
-        () => api.bindBarcode(
-          goodId: any(named: 'goodId'),
-          barcode: any(named: 'barcode'),
-        ),
-      ).thenAnswer((_) async => const Right(null));
+      stubBatchOutcome(opsApi, OperationOutcome.accepted);
 
       await repo.bindBarcode(goodId: good.id, barcode: barcode);
 
@@ -99,21 +94,11 @@ void main() {
 
     // Главный сценарий находки: связь появилась, очередь ушла — и кэш обязан догнать.
     test('отложенная привязка снимает пометку, когда уходит движком', () async {
-      when(
-        () => api.bindBarcode(
-          goodId: any(named: 'goodId'),
-          barcode: any(named: 'barcode'),
-        ),
-      ).thenAnswer((_) async => const Left(Failure.network()));
+      stubBatchFailure(opsApi, const Failure.network());
       await repo.bindBarcode(goodId: good.id, barcode: barcode);
       expect((await cached()).single.pending, isTrue);
 
-      when(
-        () => api.bindBarcode(
-          goodId: any(named: 'goodId'),
-          barcode: any(named: 'barcode'),
-        ),
-      ).thenAnswer((_) async => const Right(null));
+      stubBatchOutcome(opsApi, OperationOutcome.accepted);
       await engine.drain();
 
       final rows = await cached();
@@ -126,14 +111,45 @@ void main() {
       expect(await outbox.pendingCount(), 0);
     });
 
+    // Повтор уже применённой операции (P2-05): сервер отвечает duplicate, и это УСПЕХ.
+    //
+    // Случай не выдуманный: попытка оборвалась после того, как сервер её применил, — процесс
+    // умер, ответ не дошёл, статус остался `sending`, и очередь шлёт операцию снова. Прими мы
+    // duplicate за отказ, привязка откатилась бы из карточки, хотя на сервере она есть.
+    test('duplicate подтверждает привязку, а не откатывает её', () async {
+      stubBatchFailure(opsApi, const Failure.network());
+      await repo.bindBarcode(goodId: good.id, barcode: barcode);
+      expect((await cached()).single.pending, isTrue);
+
+      stubBatchOutcome(opsApi, OperationOutcome.duplicate);
+      await engine.drain();
+
+      final rows = await cached();
+      expect(
+        rows,
+        hasLength(1),
+        reason: 'операция применена — привязка на месте',
+      );
+      expect(
+        rows.single.pending,
+        isFalse,
+        reason: 'повтор подтверждает: ждать больше нечего',
+      );
+      expect(await outbox.pendingCount(), 0);
+      expect(
+        await outbox.watchRejected().first,
+        isEmpty,
+        reason: 'успешная работа не должна попадать на экран разбора',
+      );
+    });
+
     // Это и есть «локальный откат» из критерия P2-06.
     test('отказ по существу откатывает привязку', () async {
-      when(
-        () => api.bindBarcode(
-          goodId: any(named: 'goodId'),
-          barcode: any(named: 'barcode'),
-        ),
-      ).thenAnswer((_) async => const Left(Failure.server(409)));
+      stubBatchOutcome(
+        opsApi,
+        OperationOutcome.rejected,
+        error: 'barcode bound to another good',
+      );
 
       await repo.bindBarcode(goodId: good.id, barcode: barcode);
 
@@ -150,9 +166,7 @@ void main() {
     setUp(() => cache.addBarcode(barcode: barcode, goodId: good.id));
 
     test('без связи ШК исчезает из карточки сразу', () async {
-      when(
-        () => api.unbindBarcode(any()),
-      ).thenAnswer((_) async => const Left(Failure.network()));
+      stubBatchFailure(opsApi, const Failure.network());
 
       await repo.unbindBarcode(goodId: good.id, barcode: barcode);
 
@@ -162,9 +176,11 @@ void main() {
     // Товар кладётся в тело операции не для сервера — ему он не нужен, — а чтобы было чем
     // вернуть привязку при отказе.
     test('отказ по существу возвращает привязку на место', () async {
-      when(
-        () => api.unbindBarcode(any()),
-      ).thenAnswer((_) async => const Left(Failure.server(409)));
+      stubBatchOutcome(
+        opsApi,
+        OperationOutcome.rejected,
+        error: 'barcode bound to another good',
+      );
 
       await repo.unbindBarcode(goodId: good.id, barcode: barcode);
 

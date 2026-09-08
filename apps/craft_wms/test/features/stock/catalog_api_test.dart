@@ -172,31 +172,6 @@ void main() {
       expect(result.isRight, isTrue);
       expect(result.right, isEmpty);
     });
-
-    test('unbindBarcode: DELETE 204 → Right', () async {
-      final adapter = RecordingAdapter({
-        'DELETE ${ApiConst.barcodeByCode("460")}': (_) =>
-            ResponseBody.fromString('', 204),
-      });
-      dio.httpClientAdapter = adapter;
-      final repo = CatalogApi(dio);
-
-      final result = await repo.unbindBarcode('460');
-
-      expect(result.isRight, isTrue);
-      expect(adapter.requests.single.method, 'DELETE');
-      expect(adapter.requests.single.path, ApiConst.barcodeByCode('460'));
-    });
-
-    test('unbindBarcode: 401 → Failure.auth', () async {
-      final repo = repoWith({
-        'DELETE ${ApiConst.barcodeByCode("460")}': (_) => jsonResponse({}, 401),
-      });
-
-      final result = await repo.unbindBarcode('460');
-      expect(result.isLeft, isTrue);
-      expect(result.left, isA<AuthFailure>());
-    });
   });
 
   group('listAllCells (пагинация до конца, P-FS-13)', () {
