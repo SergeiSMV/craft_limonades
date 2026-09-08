@@ -44,11 +44,11 @@ void main() {
     catalogRepo = _MockCatalogRepo();
     db = AppDatabase.forTesting(NativeDatabase.memory());
     drafts = EntryDraftStore(db);
-    cubit = StockEntryCubit(entryRepo, drafts);
+    cubit = StockEntryCubit(entryRepo, catalogRepo, drafts);
 
     // Ни один сканированный код не привязан к товару — интересует именно ветка «не нашли».
     when(
-      () => entryRepo.resolveGoodByBarcode(any()),
+      () => catalogRepo.resolveGoodByBarcode(any()),
     ).thenAnswer((_) async => const Right<Failure, Good?>(null));
     when(
       () => catalogRepo.listAllCells(),

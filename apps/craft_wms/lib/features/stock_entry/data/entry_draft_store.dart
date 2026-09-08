@@ -55,6 +55,21 @@ class EntryDraftStore {
     }
   }
 
+  /// Есть ли незавершённый проход — живой признак для бэйджа на входах в раздел (ADHOC-13).
+  ///
+  /// Зачем отдельный поток, а не [load]: проход лежит в своей таблице, и индикатор очереди
+  /// (P2-07) его не видит — он считает только строки `outbox_operations`. Получалось, что на
+  /// устройстве может ждать обход всего склада, а шапка показывает «всё отправлено».
+  ///
+  /// Смотрим только НАЛИЧИЕ строки: содержимое слепка бэйджу не нужно, а разбирать JSON на
+  /// каждое изменение базы — лишняя работа на каждый скан.
+  Stream<bool> watchHasDraft() {
+    final query = _db.selectOnly(_db.entryDrafts)
+      ..addColumns([_db.entryDrafts.id])
+      ..where(_db.entryDrafts.id.equals(_rowId));
+    return query.watch().map((rows) => rows.isNotEmpty);
+  }
+
   /// Убрать слепок — проход завершён или брошен осознанно.
   Future<void> clear() =>
       (_db.delete(_db.entryDrafts)..where((t) => t.id.equals(_rowId))).go();

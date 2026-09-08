@@ -2,6 +2,8 @@
 abstract final class AppSizes {
   //* --- Icon Sizes ------------------------------------------------------- *//
   static const double kIcon2 = 2;
+  static const double kIcon4 = 4;
+  static const double kIcon6 = 6;
   static const double kIcon10 = 10;
   static const double kIcon16 = 16;
   static const double kIcon18 = 18;
@@ -48,7 +50,8 @@ abstract final class AppSizes {
   static const double kText48 = 48;
 
   //* --- Image Sizes ------------------------------------------------------ *//
-  static const double kImagePlaceholder = 240; // иллюстрация-заглушка (ошибка/пусто)
+  static const double kImagePlaceholder =
+      240; // иллюстрация-заглушка (ошибка/пусто)
 
   //* --- Button Sizes ----------------------------------------------------- *//
   static const double kButtonHeight64 = 64;
