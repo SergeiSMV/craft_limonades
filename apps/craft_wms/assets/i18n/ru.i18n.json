@@ -47,7 +47,12 @@
       "stock_subtitle": "текущие запасы",
       "stock_entry_title": "ВВОД ОСТАТКОВ",
       "stock_entry_subtitle": "проход склада"
-    }
+    },
+    "queue_all_sent": "всё отправлено",
+    "queue_sending": "отправляю очередь",
+    "queue_waiting": "ждёт отправки: ${count}",
+    "queue_needs_attention": "требует разбора: ${count}",
+    "queue_offline": "нет связи"
   },
   "scanner_probe": {
     "title": "Сканер",
@@ -272,7 +277,13 @@
     "discard_title": "Отбросить операцию?",
     "discard_body": "Операция исчезнет насовсем. Чтобы вернуть её, работу придётся сделать заново.",
     "discard_confirm": "Отбросить",
-    "menu_tooltip": "Несинхронизированное"
+    "menu_tooltip": "Несинхронизированное",
+    "sync_now": "Отправить сейчас",
+    "sync_running": "Отправляю…",
+    "sync_result_sent": "Отправлено: ${count}",
+    "sync_result_nothing": "Отправлять нечего",
+    "sync_result_stuck": "Не удалось отправить, осталось: ${count}",
+    "sync_result_rejected": "Отклонено сервером: ${count}"
   },
   "good_picker": {
     "title": "Выберите товар",

@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:either_dart/either.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:injectable/injectable.dart';
 import 'package:talker_flutter/talker_flutter.dart';
@@ -14,6 +15,7 @@ import '../outbox/outbox_operation.dart';
 import '../outbox/outbox_repository.dart';
 import '../outbox/outbox_retry.dart';
 import '../outbox/outbox_sender.dart';
+import 'link_state.dart';
 
 /// Итог одного прохода по очереди — для ручной синхронизации и её индикатора (P2-07).
 class SyncResult {
@@ -73,6 +75,24 @@ class SyncEngine with WidgetsBindingObserver {
   Timer? _retryTimer;
   StreamSubscription<List<ConnectivityResult>>? _networkChanges;
 
+  /// Что известно о связи с сервером (P2-07). Меняется по фактам обмена, а не по событиям сети:
+  /// см. [LinkState].
+  final ValueNotifier<LinkState> _link = ValueNotifier(LinkState.unknown);
+
+  /// Идёт ли разгрузка очереди прямо сейчас.
+  ///
+  /// Отдельно от [_draining]: тот — защёлка против повторного входа, а это — то, что видит
+  /// экран. Состояние берётся ИЗ ДВИЖКА, а не из состояния виджета, иначе проход, запущенный
+  /// автоматически (вход, событие сети, таймер), прошёл бы без индикатора — тот же изъян,
+  /// который чинился в ADHOC-10 для обновления справочников.
+  final ValueNotifier<bool> _syncing = ValueNotifier(false);
+
+  /// Связь с сервером — для индикатора в шапке.
+  ValueListenable<LinkState> get link => _link;
+
+  /// Идёт ли отправка очереди — для индикатора в шапке.
+  ValueListenable<bool> get syncing => _syncing;
+
   /// Проход уже идёт. Защита от повторного входа: разбудить движок могут одновременно вход,
   /// возврат на передний план и событие сети, а две параллельные отправки одной операции —
   /// это два запроса вместо одного.
@@ -88,12 +108,17 @@ class SyncEngine with WidgetsBindingObserver {
     _running = true;
     WidgetsBinding.instance.addObserver(this);
     _networkChanges = _connectivity.onConnectivityChanged.listen((results) {
-      // Единственный интересный случай — «сеть появилась». Пропажу ловить незачем:
-      // о ней движок узнает от первой же неудачной отправки.
-      if (results.any((r) => r != ConnectivityResult.none)) {
+      final hasNetwork = results.any((r) => r != ConnectivityResult.none);
+      if (hasNetwork) {
+        // Сеть появилась — пробуем сразу, не дожидаясь таймера. Онлайном это ещё не считаем:
+        // доказательством будет удавшийся обмен, а не наличие интерфейса.
         _talker.info('Сеть изменилась — пробуем разгрести очередь');
         unawaited(drain());
+        return;
       }
+      // Сети нет вовсе — единственный случай, когда о недоступности сервера можно судить
+      // без попытки обмена. Показать это сразу честнее, чем ждать неудачи по таймеру.
+      _link.value = LinkState.offline;
     });
     unawaited(drain());
   }
@@ -107,6 +132,10 @@ class SyncEngine with WidgetsBindingObserver {
     _retryTimer = null;
     unawaited(_networkChanges?.cancel());
     _networkChanges = null;
+    // Знание о связи принадлежит сеансу: следующий пользователь не должен видеть статус,
+    // добытый до его входа.
+    _link.value = LinkState.unknown;
+    _syncing.value = false;
     WidgetsBinding.instance.removeObserver(this);
   }
 
@@ -132,6 +161,7 @@ class SyncEngine with WidgetsBindingObserver {
       );
     }
     _draining = true;
+    _syncing.value = true;
     var sent = 0;
     var rejected = 0;
     try {
@@ -146,6 +176,7 @@ class SyncEngine with WidgetsBindingObserver {
       }
     } finally {
       _draining = false;
+      _syncing.value = false;
     }
 
     final remaining = await _outbox.pendingCount();
@@ -173,8 +204,21 @@ class SyncEngine with WidgetsBindingObserver {
   Future<Either<Failure, void>> sendOne(OutboxOperation operation) async {
     await _outbox.markSending(operation.operationId);
     final res = await _sender.send(operation);
+    _noteExchange(res.fold((failure) => failure, (_) => null));
     await _settle(operation, res);
     return res;
+  }
+
+  /// Отметить, что мы узнали о связи из попытки обмена.
+  ///
+  /// `null` — обмен удался. Иначе судим по типу отказа: временный (обрыв, таймаут, 5xx)
+  /// означает недоступный сервер, а отказ по существу — наоборот, что сервер ответил и работает.
+  void _noteExchange(Failure? failure) {
+    if (failure == null || !isRetryable(failure)) {
+      _link.value = LinkState.online;
+      return;
+    }
+    _link.value = LinkState.offline;
   }
 
   /// Отправить пачку операций одним запросом и довести каждую до её статуса.
@@ -192,12 +236,17 @@ class SyncEngine with WidgetsBindingObserver {
     // Запрос не состоялся целиком — вся пачка возвращается в очередь.
     if (batch.isLeft) {
       final failure = batch.left;
+      _noteExchange(failure);
       for (final operation in chunk) {
         await _outbox.markFailed(operation.operationId, failureReason(failure));
       }
       _scheduleRetry(chunk.first.attempts + 1);
       return const _ChunkOutcome(sent: 0, rejected: 0, stopped: true);
     }
+
+    // Сервер ответил — он достижим. Исход отдельных операций к связи отношения не имеет:
+    // отклонённая по существу операция — это работающий сервер, а не пропавшая связь.
+    _link.value = LinkState.online;
 
     final outcomes = batch.right;
     var sent = 0;
