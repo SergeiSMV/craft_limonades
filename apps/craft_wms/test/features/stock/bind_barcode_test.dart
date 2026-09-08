@@ -71,7 +71,13 @@ void main() {
     ).thenAnswer((inv) async {
       final code = inv.namedArguments[#barcode] as String;
       if (code == conflictCode) return const Left(Failure.server(409));
-      if (code == offlineCode) return const Left(Failure.network());
+      if (code == offlineCode) {
+        // Договор репозитория (P2-06): без связи привязка всё равно ложится в кэш с пометкой
+        // «ожидает», а вызывающему возвращается отказ. Мок повторяет это, иначе тест проверял
+        // бы не то, что происходит на самом деле.
+        current = [...current, Barcode(barcode: code, pending: true)];
+        return const Left(Failure.network());
+      }
       current = [...current, Barcode(barcode: code)];
       return const Right(null);
     });
@@ -178,6 +184,40 @@ void main() {
     await pumpCard(tester, const [Barcode(barcode: '4607044662964')]);
 
     expect(find.text(t.stockDetailScreen.barcodePending), findsNothing);
+  });
+
+  // ADHOC-12, найдено на устройстве: карточка перезагружалась только при успехе, поэтому
+  // отложенная привязка в неё не попадала — кладовщик видел прежний список и считал, что
+  // работа пропала. При этом в кэше она уже лежала.
+  testWidgets('отложенная привязка появляется в карточке с пометкой', (
+    tester,
+  ) async {
+    await pumpCard(tester, const []);
+
+    await scan(tester, offlineCode);
+
+    expect(find.text(offlineCode), findsOneWidget);
+    expect(find.text(t.stockDetailScreen.barcodePending), findsOneWidget);
+    expect(
+      find.text(t.stockDetailScreen.bindOffline),
+      findsOneWidget,
+      reason: 'и сообщение об отсрочке на месте',
+    );
+  });
+
+  // ADHOC-12: на «Отмене» оставался pop(false) со времён, когда диалог возвращал bool.
+  // showDialog<BindOutcome> получал false и падал на приведении типа — диалог не закрывался.
+  testWidgets('«Отмена» закрывает диалог без ошибки типа', (tester) async {
+    await pumpCard(tester, const []);
+    await tester.tap(find.text(t.stockDetailScreen.bindBarcode));
+    await tester.pumpAndSettle();
+    expect(find.byType(BindBarcodeDialog), findsOneWidget);
+
+    await tester.tap(find.text(t.stockDetailScreen.cancel));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(BindBarcodeDialog), findsNothing);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('409 — ошибка в диалоге, диалог остаётся открытым', (
