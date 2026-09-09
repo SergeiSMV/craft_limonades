@@ -32,28 +32,17 @@ abstract class EntryLineDraft with _$EntryLineDraft {
       _$EntryLineDraftFromJson(json);
 }
 
-/// Привязка `ШК → товар`, собранная за проход. Символика — как отдал сканер (сейчас пусто).
-/// Множитель упаковки НЕ храним: ШК только идентифицирует товар, количество оператор вводит
-/// в базовой единице руками (вариант A). У товара может быть сколько угодно ШК (штука, короб…).
-@freezed
-abstract class BarcodeBinding with _$BarcodeBinding {
-  const factory BarcodeBinding({
-    required Good good,
-    @Default('') String symbology,
-  }) = _BarcodeBinding;
-
-  /// Разбор из слепка незавершённого прохода (P2-03).
-  factory BarcodeBinding.fromJson(Map<String, dynamic> json) =>
-      _$BarcodeBindingFromJson(json);
-}
-
 /// Снимок буфера ячейки для Undo: строки + копилка ШК на момент до операции. ШК включён в снимок,
 /// чтобы отмена откатывала и ошибочную привязку, а не только количество.
 @freezed
 abstract class BufferSnapshot with _$BufferSnapshot {
   const factory BufferSnapshot({
     required List<EntryLineDraft> lines,
-    required Map<String, BarcodeBinding> barcodes,
+
+    /// ШК, привязанный на этом шаге, если он был. Отмена шага пытается снять эту привязку,
+    /// пока та не ушла на сервер (ADHOC-14). Раньше здесь лежала вся копилка прохода —
+    /// с переходом привязок в очередь хранить её в снимке стало нечего.
+    String? addedBarcode,
   }) = _BufferSnapshot;
 }
 
@@ -82,9 +71,6 @@ abstract class StockEntryState with _$StockEntryState {
     @Default(<BufferSnapshot>[]) List<BufferSnapshot> undoStack,
     @Default(<CommittedCell>[])
     List<CommittedCell> committedCells, // пройденные ячейки (локально)
-    // Копилка привязок ШК → товар за весь проход (ключ — строка ШК). Собирается ручными привязками,
-    // не зависит от строк остатка; на финале целиком уходит в БД (new_barcodes, аддитивно).
-    @Default(<String, BarcodeBinding>{}) Map<String, BarcodeBinding> barcodes,
     String? sessionId, // серверная сессия — создаётся только на финале
     @Default(false) bool busy, // сетевая операция финала
     @Default(false) bool finished, // финал выполнен
@@ -136,14 +122,12 @@ class StockEntryCubit extends Cubit<StockEntryState> {
     'cell': s.cell?.toJson(),
     'lines': s.lines.map((l) => l.toJson()).toList(),
     'committed_cells': s.committedCells.map((c) => c.toJson()).toList(),
-    'barcodes': s.barcodes.map((code, b) => MapEntry(code, b.toJson())),
     'session_id': s.sessionId,
   };
 
   /// Состояние из слепка.
   StockEntryState _stateFromDraft(Map<String, dynamic> draft) {
     final cell = draft['cell'] as Map<String, dynamic>?;
-    final barcodes = (draft['barcodes'] as Map<String, dynamic>? ?? const {});
     return StockEntryState(
       cell: cell == null ? null : Cell.fromJson(cell),
       lines: (draft['lines'] as List<dynamic>? ?? const [])
@@ -152,10 +136,6 @@ class StockEntryCubit extends Cubit<StockEntryState> {
       committedCells: (draft['committed_cells'] as List<dynamic>? ?? const [])
           .map((e) => CommittedCell.fromJson(e as Map<String, dynamic>))
           .toList(),
-      barcodes: barcodes.map(
-        (code, b) =>
-            MapEntry(code, BarcodeBinding.fromJson(b as Map<String, dynamic>)),
-      ),
       sessionId: draft['session_id'] as String?,
     );
   }
@@ -276,11 +256,6 @@ class StockEntryCubit extends Cubit<StockEntryState> {
     return out;
   }
 
-  /// Товар по ШК среди привязок, собранных за проход (копилка [StockEntryState.barcodes]). Чтобы
-  /// повторный скан любого уже привязанного ШK узнавался локально, а не бил в 404 (данные ещё не на
-  /// сервере) — независимо от того, сколько ШК на товар и в какой ячейке его привязали.
-  Good? localGoodForBarcode(String code) => state.barcodes[code]?.good;
-
   /// Резолв товара по ШК — через общий кэш-first репозиторий справочников.
   ///
   /// **Почему не своим запросом.** Поток ввода держал собственную реализацию поверх `Dio`, мимо
@@ -298,26 +273,27 @@ class StockEntryCubit extends Cubit<StockEntryState> {
       _catalog.resolveGoodByBarcode(code);
 
   /// Добавить/накопить строку. Грань (good, date): та же дата → +qty; другая дата → новая строка.
-  /// [newBarcode] — если товар был опознан ранее НЕизвестным ШК (ручная привязка): кладём привязку
-  /// в копилку [StockEntryState.barcodes] (уедет в БД на финале). Перед изменением — снимок в Undo.
-  void addLine({
+  ///
+  /// [newBarcode] — товар опознан ранее НЕизвестным ШК, кладовщик выбрал его вручную. Привязка
+  /// уходит **обычной операцией очереди** (ADHOC-14), тем же путём, что из карточки товара
+  /// в «Остатках»: ляжет в кэш с пометкой «ожидает», уедет сама при появлении связи, а конфликт
+  /// «ШК уже за другим товаром» будет виден на экране несинхронизированного.
+  ///
+  /// Прежде привязки копились в состоянии прохода и уезжали одним куском с первым checkpoint'ом
+  /// на финале. Это связывало вещи, которые связывать не нужно: строка остатка ссылается на товар
+  /// напрямую, привязка ей не требуется, — а на сервере они лежали в одной транзакции, и один
+  /// конфликтный ШК откатывал вместе с собой просчёт целой ячейки.
+  ///
+  /// Перед изменением — снимок в Undo; в нём запоминается добавленный код, чтобы отмена шага
+  /// могла снять привязку, пока та не ушла.
+  Future<void> addLine({
     required Good good,
     required String date,
     required double qty,
     String? newBarcode,
     String? symbology,
-  }) {
+  }) async {
     final snapLines = List<EntryLineDraft>.from(state.lines);
-    final snapBarcodes = Map<String, BarcodeBinding>.from(state.barcodes);
-
-    final barcodes = Map<String, BarcodeBinding>.from(state.barcodes);
-    if (newBarcode != null && !barcodes.containsKey(newBarcode)) {
-      barcodes[newBarcode] = BarcodeBinding(
-        good: good,
-        symbology: symbology ?? '',
-      );
-    }
-
     final lines = List<EntryLineDraft>.from(state.lines);
     final idx = lines.indexWhere(
       (l) => l.good.id == good.id && l.productionDate == date,
@@ -327,7 +303,17 @@ class StockEntryCubit extends Cubit<StockEntryState> {
     } else {
       lines.add(EntryLineDraft(good: good, productionDate: date, qty: qty));
     }
-    _commit(snapLines, snapBarcodes, lines, barcodes);
+    // Строка кладётся ДО постановки привязки и синхронно: она видна кладовщику сразу, а ждать
+    // записи в очередь ей незачем — от привязки строка не зависит. Порядок наоборот сделал бы
+    // добавление строки асинхронным, и вызывающий, не поставивший await, увидел бы буфер
+    // без только что добавленной строки.
+    _commit(snapLines, lines, addedBarcode: newBarcode);
+
+    if (newBarcode != null) {
+      // Исход не разбираем: очередь примет операцию в любом случае, а отказ по существу
+      // покажет экран разбора. Строка остатка от этого не зависит — товар выбран руками.
+      await _catalog.bindBarcode(goodId: good.id, barcode: newBarcode);
+    }
   }
 
   /// Удалить строку из буфера (по грани good+partiya). Кладёт снимок в Undo. Привязку ШК НЕ трогаем:
@@ -344,12 +330,7 @@ class StockEntryCubit extends Cubit<StockEntryState> {
     if (lines.length == state.lines.length) {
       return;
     }
-    _commit(
-      List<EntryLineDraft>.from(state.lines),
-      state.barcodes,
-      lines,
-      state.barcodes,
-    );
+    _commit(List<EntryLineDraft>.from(state.lines), lines);
   }
 
   /// Отредактировать строку: новые дата и количество (замена, не приращение). Если новая грань
@@ -378,66 +359,53 @@ class StockEntryCubit extends Cubit<StockEntryState> {
     } else {
       lines[idx] = edited.copyWith(productionDate: date, qty: qty);
     }
-    _commit(
-      List<EntryLineDraft>.from(state.lines),
-      state.barcodes,
-      lines,
-      state.barcodes,
-    );
+    _commit(List<EntryLineDraft>.from(state.lines), lines);
   }
 
   /// Применить новый буфер, положив предыдущий снимок (строки + копилка ШК) в стек Undo (глубина
   /// [kUndoDepth]).
   void _commit(
     List<EntryLineDraft> snapLines,
-    Map<String, BarcodeBinding> snapBarcodes,
-    List<EntryLineDraft> newLines,
-    Map<String, BarcodeBinding> newBarcodes,
-  ) {
+    List<EntryLineDraft> newLines, {
+    String? addedBarcode,
+  }) {
     final undo = [
       ...state.undoStack,
-      BufferSnapshot(lines: snapLines, barcodes: snapBarcodes),
+      BufferSnapshot(lines: snapLines, addedBarcode: addedBarcode),
     ];
     final capped = undo.length > kUndoDepth
         ? undo.sublist(undo.length - kUndoDepth)
         : undo;
-    emit(
-      state.copyWith(
-        lines: newLines,
-        barcodes: newBarcodes,
-        undoStack: capped,
-        failure: null,
-      ),
-    );
+    emit(state.copyWith(lines: newLines, undoStack: capped, failure: null));
   }
 
-  /// Убрать ошибочную привязку ШК из копилки прохода (P-FS-12). Применимо только к привязке,
-  /// сделанной в ЭТОЙ сессии (на сервере её ещё нет) — серверную снимает экран через DELETE.
-  /// Кладёт снимок в Undo (откат вернёт привязку). Нет такого ШК в копилке — ничего не делаем.
-  void removeLocalBarcode(String code) {
-    if (!state.barcodes.containsKey(code)) return;
-    final snapBarcodes = Map<String, BarcodeBinding>.from(state.barcodes);
-    final barcodes = Map<String, BarcodeBinding>.from(state.barcodes)
-      ..remove(code);
-    _commit(
-      List<EntryLineDraft>.from(state.lines),
-      snapBarcodes,
-      state.lines,
-      barcodes,
-    );
+  /// Снять ошибочную привязку ШК, сделанную в проходе (P-FS-12, переработано в ADHOC-14).
+  ///
+  /// Сначала пробуем отменить операцию, пока она не ушла. Не успели — шлём отвязку: код уже
+  /// на сервере или в пути, и убрать его можно только там. Обе ветки идут через очередь, так что
+  /// обе переживут отсутствие связи.
+  Future<void> removeBarcode(String code, {required String goodId}) async {
+    if (await _catalog.cancelPendingBind(code)) return;
+    await _catalog.unbindBarcode(goodId: goodId, barcode: code);
   }
 
-  /// Отменить последнюю операцию буфера (восстановить строки И копилку ШК из предыдущего снимка).
-  void undo() {
+  /// Отменить последний шаг буфера: вернуть строки и снять привязку, сделанную этим шагом.
+  ///
+  /// **Привязка снимается, только если ещё не ушла на сервер** (решение пользователя, ADHOC-14).
+  /// Ушедшую отзывать нечем: она уже в справочнике или в полёте, и «отмена» стала бы обещанием,
+  /// которого приложение не выполняет. Убрать такую можно кнопкой «неверный товар» — та шлёт
+  /// отвязку.
+  Future<void> undo() async {
     if (state.undoStack.isEmpty) return;
     final prev = state.undoStack.last;
     emit(
       state.copyWith(
         lines: prev.lines,
-        barcodes: prev.barcodes,
         undoStack: state.undoStack.sublist(0, state.undoStack.length - 1),
       ),
     );
+    final code = prev.addedBarcode;
+    if (code != null) await _catalog.cancelPendingBind(code);
   }
 
   /// Завершить ячейку: положить её в список пройденных (локально, без сети). Пустую (без строк)
@@ -499,16 +467,17 @@ class StockEntryCubit extends Cubit<StockEntryState> {
       ); // сохранить, чтобы ретрай не плодил сессии
     }
 
-    // Привязки ШК — общие на весь проход, не на ячейку. Отправляем всю копилку с ПЕРВЫМ checkpoint
-    // (bind на бэке идемпотентен; при ретрае цикл снова стартует с первой ячейки → пере-отправка).
-    final allBarcodes = _barcodesPayload();
+    // Привязки ШК с checkpoint'ом больше не едут (ADHOC-14): они уходят своими операциями
+    // очереди. Прежде вся копилка прохода везлась с ПЕРВЫМ checkpoint, и на сервере привязки
+    // лежали с строками ячейки в одной транзакции — один конфликтный ШК откатывал вместе с собой
+    // просчёт целой ячейки, хотя строка остатка от привязки не зависит.
     for (var i = 0; i < state.committedCells.length; i++) {
       final cc = state.committedCells[i];
       final res = await _repo.checkpoint(
         sessionId: sid!,
         cellId: cc.cell.id,
         lines: _linesPayload(cc.lines),
-        newBarcodes: i == 0 ? allBarcodes : const [],
+        newBarcodes: const [],
       );
       final failed = res.fold((f) {
         emit(state.copyWith(busy: false, failure: f));
@@ -538,18 +507,6 @@ class StockEntryCubit extends Cubit<StockEntryState> {
           'good_id': l.good.id,
           'production_date': l.productionDate.replaceAll('.', '-'),
           'qty': l.qty,
-        },
-      )
-      .toList();
-
-  /// Вся копилка привязок ШК за проход → payload API (`[{good_id, barcode, symbology}]`). Ключ карты
-  /// — сам ШК, так что дубли исключены по построению.
-  List<Map<String, dynamic>> _barcodesPayload() => state.barcodes.entries
-      .map(
-        (e) => <String, dynamic>{
-          'good_id': e.value.good.id,
-          'barcode': e.key,
-          'symbology': e.value.symbology,
         },
       )
       .toList();
