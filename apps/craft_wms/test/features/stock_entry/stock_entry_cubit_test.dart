@@ -19,15 +19,25 @@ void main() {
   const cell = Cell(id: 'c1', warehouseId: 'w1', address: 'M1-1-1-1');
 
   late _MockRepo repo;
+  late _MockCatalog catalog;
   late AppDatabase db;
   late EntryDraftStore drafts;
   late StockEntryCubit cubit;
 
   setUp(() {
     repo = _MockRepo();
+    catalog = _MockCatalog();
     db = AppDatabase.forTesting(NativeDatabase.memory());
     drafts = EntryDraftStore(db);
-    cubit = StockEntryCubit(repo, _MockCatalog(), drafts);
+    cubit = StockEntryCubit(repo, catalog, drafts);
+    // Привязка уходит операцией очереди (ADHOC-14) — репозиторий её принимает всегда.
+    when(
+      () => catalog.bindBarcode(
+        goodId: any(named: 'goodId'),
+        barcode: any(named: 'barcode'),
+      ),
+    ).thenAnswer((_) async => const Right(null));
+    when(() => catalog.cancelPendingBind(any())).thenAnswer((_) async => true);
   });
 
   tearDown(() => db.close());
@@ -58,92 +68,125 @@ void main() {
       expect(cubit.state.lines.first.qty, 10);
     });
 
-    test('localGoodForBarcode находит товар среди привязок прохода', () {
-      cubit.addLine(
+    // Привязка больше не копится в состоянии прохода, а уходит обычной операцией очереди
+    // (ADHOC-14). Оттуда она сразу попадает в кэш с пометкой «ожидает», и повторный скан
+    // резолвится тем же кэш-first путём, что и везде, — своей дороги у прохода не осталось.
+    test('новый ШК уходит операцией очереди', () async {
+      await cubit.addLine(
         good: goodA,
         date: '15.01.2026',
         qty: 10,
         newBarcode: '460',
         symbology: '',
       );
-      // Повторный скан того же ШК (для другой партии) должен резолвиться локально, без сервера.
-      expect(cubit.localGoodForBarcode('460')?.id, 'gA');
-      expect(cubit.localGoodForBarcode('999'), isNull);
+
+      verify(() => catalog.bindBarcode(goodId: 'gA', barcode: '460')).called(1);
     });
 
-    test('несколько разных ШК на один товар — все узнаются (штука + короб)', () {
-      // Штучный ШК и ШК короба ведут на один товar, одна партия — обе привязки должны жить.
-      cubit.addLine(
-        good: goodA,
-        date: '15.01.2026',
-        qty: 10,
-        newBarcode: 'ITEM',
-        symbology: '',
-      );
-      cubit.addLine(
-        good: goodA,
-        date: '15.01.2026',
-        qty: 120,
-        newBarcode: 'BOX',
-        symbology: '',
-      );
-      expect(
-        cubit.state.lines.length,
-        1,
-      ); // грань (товар,дата) одна → строки слились: 10+120
-      expect(cubit.state.lines.single.qty, 130);
-      // Но обе привязки уцелели — старая модель второй ШК теряла.
-      expect(cubit.localGoodForBarcode('ITEM')?.id, 'gA');
-      expect(cubit.localGoodForBarcode('BOX')?.id, 'gA');
-      expect(cubit.state.barcodes.length, 2);
-    });
+    test('строка без нового ШК привязку не создаёт', () async {
+      await cubit.addLine(good: goodA, date: '15.01.2026', qty: 10);
 
-    test('undo откатывает и привязку ШК, не только количество', () {
-      cubit.addLine(
-        good: goodA,
-        date: '15.01.2026',
-        qty: 10,
-        newBarcode: 'ITEM',
-        symbology: '',
+      verifyNever(
+        () => catalog.bindBarcode(
+          goodId: any(named: 'goodId'),
+          barcode: any(named: 'barcode'),
+        ),
       );
-      cubit.addLine(
-        good: goodA,
-        date: '15.01.2026',
-        qty: 120,
-        newBarcode: 'BOX',
-        symbology: '',
-      );
-      cubit.undo(); // отменить привязку BOX
-      expect(cubit.localGoodForBarcode('BOX'), isNull);
-      expect(cubit.localGoodForBarcode('ITEM')?.id, 'gA'); // первая осталась
-      expect(cubit.state.lines.single.qty, 10);
-    });
-
-    test('removeLocalBarcode убирает привязку из копилки; undo возвращает', () {
-      cubit.addLine(
-        good: goodA,
-        date: '15.01.2026',
-        qty: 10,
-        newBarcode: 'ITEM',
-        symbology: '',
-      );
-      expect(cubit.localGoodForBarcode('ITEM')?.id, 'gA');
-      cubit.removeLocalBarcode('ITEM');
-      expect(cubit.localGoodForBarcode('ITEM'), isNull); // отвязано локально
-      expect(cubit.state.lines.single.qty, 10); // строка не тронута
-      cubit.undo();
-      expect(cubit.localGoodForBarcode('ITEM')?.id, 'gA'); // вернулось
     });
 
     test(
-      'removeLocalBarcode для отсутствующего ШК — no-op (не плодит undo)',
-      () {
-        cubit.addLine(good: goodA, date: '15.01.2026', qty: 10);
-        final undoBefore = cubit.state.undoStack.length;
-        cubit.removeLocalBarcode('НЕТ_ТАКОГО');
-        expect(cubit.state.undoStack.length, undoBefore);
+      'несколько разных ШК на один товар — все узнаются (штука + короб)',
+      () async {
+        // Штучный ШК и ШК короба ведут на один товar, одна партия — обе привязки должны жить.
+        await cubit.addLine(
+          good: goodA,
+          date: '15.01.2026',
+          qty: 10,
+          newBarcode: 'ITEM',
+          symbology: '',
+        );
+        await cubit.addLine(
+          good: goodA,
+          date: '15.01.2026',
+          qty: 120,
+          newBarcode: 'BOX',
+          symbology: '',
+        );
+        expect(
+          cubit.state.lines.length,
+          1,
+        ); // грань (товар,дата) одна → строки слились: 10+120
+        expect(cubit.state.lines.single.qty, 130);
+        // Обе привязки уцелели — старая модель второй ШК теряла (P-FS-11). Теперь это две
+        // независимые операции очереди, и слияние строк на них не влияет.
+        verify(
+          () => catalog.bindBarcode(goodId: 'gA', barcode: 'ITEM'),
+        ).called(1);
+        verify(
+          () => catalog.bindBarcode(goodId: 'gA', barcode: 'BOX'),
+        ).called(1);
       },
     );
+
+    test('undo снимает привязку шага, пока та не ушла', () async {
+      await cubit.addLine(
+        good: goodA,
+        date: '15.01.2026',
+        qty: 10,
+        newBarcode: 'ITEM',
+        symbology: '',
+      );
+      await cubit.addLine(
+        good: goodA,
+        date: '15.01.2026',
+        qty: 120,
+        newBarcode: 'BOX',
+        symbology: '',
+      );
+      await cubit.undo(); // отменить привязку BOX
+
+      // Отменяем только то, что ещё не ушло (решение пользователя, ADHOC-14): cubit просит
+      // снять операцию из очереди. Ушедшую отзывать нечем — её убирают «неверным товаром».
+      verify(() => catalog.cancelPendingBind('BOX')).called(1);
+      verifyNever(() => catalog.cancelPendingBind('ITEM'));
+      expect(cubit.state.lines.single.qty, 10);
+    });
+
+    // «Неверный товар» (P-FS-12): успели снять из очереди — отвязку не шлём, она бессмысленна.
+    test('неверный товар: неушедшую привязку снимаем из очереди', () async {
+      when(
+        () => catalog.cancelPendingBind('ITEM'),
+      ).thenAnswer((_) async => true);
+
+      await cubit.removeBarcode('ITEM', goodId: 'gA');
+
+      verify(() => catalog.cancelPendingBind('ITEM')).called(1);
+      verifyNever(
+        () => catalog.unbindBarcode(
+          goodId: any(named: 'goodId'),
+          barcode: any(named: 'barcode'),
+        ),
+      );
+    });
+
+    // Не успели — код уже на сервере или в пути, убрать его можно только отвязкой.
+    test('неверный товар: ушедшую привязку отвязываем', () async {
+      when(
+        () => catalog.cancelPendingBind('ITEM'),
+      ).thenAnswer((_) async => false);
+      when(
+        () => catalog.unbindBarcode(
+          goodId: any(named: 'goodId'),
+          barcode: any(named: 'barcode'),
+        ),
+      ).thenAnswer((_) async => const Right(null));
+
+      await cubit.removeBarcode('ITEM', goodId: 'gA');
+
+      verify(
+        () => catalog.unbindBarcode(goodId: 'gA', barcode: 'ITEM'),
+      ).called(1);
+    });
 
     test('removeLine удаляет строку (по грани) и кладёт снимок в undo', () {
       cubit.addLine(good: goodA, date: '15.01.2026', qty: 10);
@@ -298,7 +341,7 @@ void main() {
 
         // Ячейка 1: два товара; goodA с двумя разными ШК (штука + короб), goodB с ещё одним ШК.
         cubit.selectCell(cell);
-        cubit.addLine(
+        await cubit.addLine(
           good: goodA,
           date: '15.01.2026',
           qty: 10,
@@ -342,14 +385,19 @@ void main() {
         expect(captured[1], 'c1');
         final lines1 = captured[2] as List;
         expect(lines1.length, 2); // (gA,15.01) + (gB,20.02)
-        // Вся копилка ШК (три разных: 460, BOX460, 777) уходит с ПЕРВЫМ checkpoint.
-        final barcodes1 = captured[3] as List;
-        expect(barcodes1.length, 3);
-        expect(barcodes1.map((b) => (b as Map)['barcode']).toSet(), {
-          '460',
-          'BOX460',
-          '777',
-        });
+        // Привязки с checkpoint'ом больше не едут (ADHOC-14): они ушли своими операциями
+        // очереди. Прежде вся копилка везлась с ПЕРВЫМ checkpoint, и один конфликтный ШК
+        // откатывал вместе с собой просчёт целой ячейки.
+        expect(captured[3] as List, isEmpty);
+        verify(
+          () => catalog.bindBarcode(goodId: 'gA', barcode: '460'),
+        ).called(1);
+        verify(
+          () => catalog.bindBarcode(goodId: 'gA', barcode: 'BOX460'),
+        ).called(1);
+        verify(
+          () => catalog.bindBarcode(goodId: 'gB', barcode: '777'),
+        ).called(1);
         expect((lines1.first as Map)['production_date'], '15-01-2026');
         expect(captured[5], 'c2'); // ячейка 2
         expect(

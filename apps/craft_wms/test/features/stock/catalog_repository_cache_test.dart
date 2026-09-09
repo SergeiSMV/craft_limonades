@@ -290,6 +290,78 @@ void main() {
     });
   });
 
+  // Отмена привязки, ещё не ушедшей на сервер (ADHOC-14). Нужна проходу «Ввод остатков»:
+  // привязка там стала обычной операцией очереди, и Undo должен уметь её снять.
+  group('отмена неушедшей привязки', () {
+    setUp(() async {
+      await cache.putGoods(const [good]);
+      await cache.putBarcodes([]);
+    });
+
+    test('ожидающую снимаем: из очереди и из кэша', () async {
+      stubBatchFailure(opsApi, const Failure.network());
+      await repo.bindBarcode(goodId: 'g1', barcode: 'NEW');
+      expect(await outbox.pending(), hasLength(1));
+      expect(await cache.goodByBarcode('NEW'), isNotNull);
+
+      final cancelled = await repo.cancelPendingBind('NEW');
+
+      expect(cancelled, isTrue);
+      expect(await outbox.pending(), isEmpty, reason: 'операция снята');
+      expect(
+        await cache.goodByBarcode('NEW'),
+        isNull,
+        reason:
+            'след привязки убран, иначе она осталась бы в карточке навсегда',
+      );
+    });
+
+    // Решение пользователя: отменяем только то, что ещё не ушло. Ушедшую отзывать нечем —
+    // «отмена» стала бы обещанием, которого приложение не выполняет.
+    test('уже отправленную не трогаем', () async {
+      stubBatchOutcome(opsApi, OperationOutcome.accepted);
+      await repo.bindBarcode(goodId: 'g1', barcode: 'NEW');
+      expect(await outbox.pending(), isEmpty);
+
+      final cancelled = await repo.cancelPendingBind('NEW');
+
+      expect(cancelled, isFalse);
+      expect(
+        await cache.goodByBarcode('NEW'),
+        isNotNull,
+        reason: 'привязка на сервере — из кэша её убирать нельзя',
+      );
+    });
+
+    // `sending` означает «попытка в полёте, судьба на сервере неизвестна». Снимать такую
+    // операцию нельзя: она может уже примениться.
+    test('операцию в полёте не снимаем', () async {
+      stubBatchFailure(opsApi, const Failure.network());
+      await repo.bindBarcode(goodId: 'g1', barcode: 'NEW');
+      final op = (await outbox.pending()).single;
+      await outbox.markSending(op.operationId);
+
+      final cancelled = await repo.cancelPendingBind('NEW');
+
+      expect(cancelled, isFalse);
+      expect(
+        await outbox.pending(),
+        hasLength(1),
+        reason: 'осталась в очереди',
+      );
+    });
+
+    test('чужой штрихкод не трогаем', () async {
+      stubBatchFailure(opsApi, const Failure.network());
+      await repo.bindBarcode(goodId: 'g1', barcode: 'NEW');
+
+      final cancelled = await repo.cancelPendingBind('ДРУГОЙ');
+
+      expect(cancelled, isFalse);
+      expect(await outbox.pending(), hasLength(1));
+    });
+  });
+
   group('запись', () {
     test('успешная привязка сразу попадает в кэш', () async {
       // Иначе повторный скан того же ШК ушёл бы в сеть до следующей синхронизации.

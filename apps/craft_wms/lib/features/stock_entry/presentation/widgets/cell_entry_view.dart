@@ -23,7 +23,6 @@ import '../../../stock/data/catalog_repository.dart';
 import '../bloc/stock_entry_cubit.dart';
 import 'cell_change_sheet.dart';
 import 'date_qty_dialog.dart';
-import 'failure_text.dart';
 import 'line_tile.dart';
 
 /// Работа с выбранной ячейкой: шапка + поле скана товара + список строк буфера + действия.
@@ -40,7 +39,6 @@ class _CellEntryViewState extends State<CellEntryView>
     with HardwareScanListener {
   final _scanController = TextEditingController();
   final _scanFocus = FocusNode();
-  final _repo = getIt<CatalogRepository>();
 
   /// Отсекает дубль, если устройство отдаёт код и в поле, и интентом.
   final _deduper = ScanDeduper();
@@ -78,13 +76,10 @@ class _CellEntryViewState extends State<CellEntryView>
     final code = value.trim();
     _scanController.clear();
     if (code.isNotEmpty && _deduper.allow(code)) {
-      final local = _cubit.localGoodForBarcode(code);
-      if (local != null) {
-        await _collectAndAdd(
-          local,
-          scannedCode: code,
-        ); // привязан за проход — просто строка
-      } else {
+      // Отдельной проверки «привязан за этот проход» больше нет (ADHOC-14): привязка уходит
+      // обычной операцией очереди и сразу ложится в кэш с пометкой «ожидает», а резолв
+      // кэш-first её оттуда и достаёт. Одна дорога вместо двух.
+      {
         final resolved = await _cubit.resolveBarcode(code);
         if (!mounted) return;
         // Проверить не удалось. Прежде это давало тот же null, что «ШК не привязан», и экран
@@ -164,7 +159,7 @@ class _CellEntryViewState extends State<CellEntryView>
       await _handleWrongGood(scannedCode!, goodId: good.id);
       return;
     }
-    _cubit.addLine(
+    await _cubit.addLine(
       good: good,
       date: res.date,
       qty: res.qty,
@@ -174,24 +169,13 @@ class _CellEntryViewState extends State<CellEntryView>
   }
 
   /// «Неверный товар»: снять ошибочную привязку ШК и предложить правильный товар (перепривязка).
-  /// Привязка этой сессии — убираем из копилки локально; уже в БД — немедленный DELETE (коррекция
-  /// не должна зависеть от финала: бросят проход — исправление всё равно сохранено).
+  ///
+  /// Решение, что именно делать, принимает cubit: привязку, ещё не ушедшую на сервер, он снимает
+  /// из очереди, ушедшую — отвязывает. Экрану различать эти случаи незачем, и обе ветки переживают
+  /// отсутствие связи, потому что обе идут через очередь (ADHOC-14).
   Future<void> _handleWrongGood(String code, {required String goodId}) async {
-    if (_cubit.localGoodForBarcode(code) != null) {
-      _cubit.removeLocalBarcode(code);
-    } else {
-      // Товар передаётся не серверу, а на случай отказа: им привязка вернётся в кэш (P2-06).
-      final res = await _repo.unbindBarcode(goodId: goodId, barcode: code);
-      if (!mounted) return;
-      final failed = res.fold((f) {
-        _snack(stockEntryFailureText(f));
-        return true;
-      }, (_) => false);
-      if (failed) {
-        _refocusScan();
-        return;
-      }
-    }
+    await _cubit.removeBarcode(code, goodId: goodId);
+    if (!mounted) return;
     _snack(t.stockEntry.barcodeUnbound);
     final picked = await _pickGood();
     if (picked != null && mounted) {
@@ -289,7 +273,7 @@ class _CellEntryViewState extends State<CellEntryView>
     constraints: BoxConstraints(
       maxHeight: MediaQuery.of(context).size.height * 0.95,
     ),
-    builder: (_) => GoodPickerSheet(repo: _repo),
+    builder: (_) => GoodPickerSheet(repo: getIt<CatalogRepository>()),
   );
 
   /// Сменить ячейку текущего буфера (ошиблись ячейкой, товары верны): лист выбора → `changeCell`
