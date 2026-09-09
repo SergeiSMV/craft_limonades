@@ -15,6 +15,7 @@ import (
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
 
+	"craftwms/internal/model"
 	"craftwms/internal/repository"
 	"craftwms/migrations"
 )
@@ -68,12 +69,13 @@ func TestReportDocument_snapshotSurvivesGoodRename(t *testing.T) {
 	repo := repository.NewStockEntryRepository(fx.pool)
 	sessionID := closedSession(t, fx, repo)
 
-	before, err := repo.Report(ctx, sessionID)
+	docs := repository.NewReportDocumentRepository(fx.pool)
+	before, err := docs.BySource(ctx, model.SourceTypeStockEntrySession, sessionID)
 	if err != nil {
-		t.Fatalf("отчёт до переименования: %v", err)
+		t.Fatalf("документ до переименования: %v", err)
 	}
-	if len(before.Rows) != 1 || before.Rows[0].GoodName != "Товар" {
-		t.Fatalf("ожидал одну строку с «Товар», получил %+v", before.Rows)
+	if len(before.Snapshot.Rows) != 1 || before.Snapshot.Rows[0].GoodName != "Товар" {
+		t.Fatalf("ожидал одну строку с «Товар», получил %+v", before.Snapshot.Rows)
 	}
 
 	// Импорт номенклатуры переименовал товар и переехала ячейка.
@@ -84,18 +86,18 @@ func TestReportDocument_snapshotSurvivesGoodRename(t *testing.T) {
 		t.Fatalf("сменить адрес ячейки: %v", err)
 	}
 
-	after, err := repo.Report(ctx, sessionID)
+	after, err := docs.BySource(ctx, model.SourceTypeStockEntrySession, sessionID)
 	if err != nil {
-		t.Fatalf("отчёт после переименования: %v", err)
+		t.Fatalf("документ после переименования: %v", err)
 	}
-	if after.Rows[0].GoodName != "Товар" {
-		t.Errorf("наименование поехало за справочником: было «Товар», стало %q", after.Rows[0].GoodName)
+	if after.Snapshot.Rows[0].GoodName != "Товар" {
+		t.Errorf("наименование поехало за справочником: было «Товар», стало %q", after.Snapshot.Rows[0].GoodName)
 	}
-	if after.Rows[0].CellAddress != "A" {
-		t.Errorf("адрес ячейки поехал за справочником: было «A», стало %q", after.Rows[0].CellAddress)
+	if after.Snapshot.Rows[0].CellAddress != "A" {
+		t.Errorf("адрес ячейки поехал за справочником: было «A», стало %q", after.Snapshot.Rows[0].CellAddress)
 	}
-	if after.Rows[0].Qty != before.Rows[0].Qty {
-		t.Errorf("количество разъехалось: %q → %q", before.Rows[0].Qty, after.Rows[0].Qty)
+	if after.Snapshot.Rows[0].Qty != before.Snapshot.Rows[0].Qty {
+		t.Errorf("количество разъехалось: %q → %q", before.Snapshot.Rows[0].Qty, after.Snapshot.Rows[0].Qty)
 	}
 }
 
@@ -132,15 +134,18 @@ func TestReportDocument_oneDocumentPerOperation(t *testing.T) {
 	}
 }
 
-// Контракт отчёта не изменился: 404 для несуществующей сессии, 409 для незакрытой.
-func TestReportDocument_reportErrorsUnchanged(t *testing.T) {
+// Документ существует только у ЗАВЕРШЁННОЙ операции: по несуществующей и по ещё идущей сессии
+// его нет. Раньше эти случаи различал отчёт по сессии (404/409); теперь документ адресуется
+// сам по себе, и обе ситуации сводятся к «документа нет».
+func TestReportDocument_noDocumentForUnfinishedWork(t *testing.T) {
 	fx := setupStock(t)
 	ctx := context.Background()
 	repo := repository.NewStockEntryRepository(fx.pool)
+	docs := repository.NewReportDocumentRepository(fx.pool)
 
-	_, err := repo.Report(ctx, "00000000-0000-0000-0000-000000000000")
-	if !errors.Is(err, repository.ErrSessionNotFound) {
-		t.Errorf("нет сессии: ожидал ErrSessionNotFound, получил %v", err)
+	_, err := docs.BySource(ctx, model.SourceTypeStockEntrySession, "00000000-0000-0000-0000-000000000000")
+	if !errors.Is(err, repository.ErrDocumentNotFound) {
+		t.Errorf("нет сессии: ожидал ErrDocumentNotFound, получил %v", err)
 	}
 
 	user := mustUser(t, fx.pool)
@@ -150,8 +155,8 @@ func TestReportDocument_reportErrorsUnchanged(t *testing.T) {
 	if err != nil {
 		t.Fatalf("создать сессию: %v", err)
 	}
-	if _, err := repo.Report(ctx, draft); !errors.Is(err, repository.ErrSessionNotClosed) {
-		t.Errorf("сессия в работе: ожидал ErrSessionNotClosed, получил %v", err)
+	if _, err := docs.BySource(ctx, model.SourceTypeStockEntrySession, draft); !errors.Is(err, repository.ErrDocumentNotFound) {
+		t.Errorf("сессия в работе: ожидал ErrDocumentNotFound, получил %v", err)
 	}
 }
 
@@ -217,15 +222,15 @@ func TestReportDocument_migrationBackfillsClosedSessions(t *testing.T) {
 		t.Fatalf("migrate to 9: %v", err)
 	}
 
-	repo := repository.NewStockEntryRepository(pool)
-	rep, err := repo.Report(ctx, session)
+	docs := repository.NewReportDocumentRepository(pool)
+	doc, err := docs.BySource(ctx, model.SourceTypeStockEntrySession, session)
 	if err != nil {
-		t.Fatalf("отчёт по добэкофилленной сессии: %v", err)
+		t.Fatalf("документ по добэкофилленной сессии: %v", err)
 	}
-	if rep.WarehouseCode != "WH9" || len(rep.Rows) != 1 {
-		t.Fatalf("бэкофилл собрал не то: %+v", rep)
+	if doc.Snapshot.WarehouseCode != "WH9" || len(doc.Snapshot.Rows) != 1 {
+		t.Fatalf("бэкофилл собрал не то: %+v", doc.Snapshot)
 	}
-	row := rep.Rows[0]
+	row := doc.Snapshot.Rows[0]
 	if row.CellAddress != "K-1" || row.GoodName != "Старое имя" || row.ProductionDate != "2026-02-02" {
 		t.Errorf("строка бэкофилла: %+v", row)
 	}
@@ -237,11 +242,11 @@ func TestReportDocument_migrationBackfillsClosedSessions(t *testing.T) {
 	if _, err := pool.Exec(ctx, `UPDATE goods SET name='Другое' WHERE id=$1::uuid`, good); err != nil {
 		t.Fatalf("переименовать товар: %v", err)
 	}
-	after, err := repo.Report(ctx, session)
+	after, err := docs.BySource(ctx, model.SourceTypeStockEntrySession, session)
 	if err != nil {
-		t.Fatalf("повторный отчёт: %v", err)
+		t.Fatalf("повторное чтение документа: %v", err)
 	}
-	if after.Rows[0].GoodName != "Старое имя" {
-		t.Errorf("снимок бэкофилла поехал за справочником: %q", after.Rows[0].GoodName)
+	if after.Snapshot.Rows[0].GoodName != "Старое имя" {
+		t.Errorf("снимок бэкофилла поехал за справочником: %q", after.Snapshot.Rows[0].GoodName)
 	}
 }

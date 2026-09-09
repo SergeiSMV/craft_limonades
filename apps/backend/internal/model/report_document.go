@@ -36,6 +36,31 @@ type ReportSnapshotRow struct {
 	Qty            string  `json:"qty"`
 }
 
+// Статусы документа (P3-02). Значения лежат в БД под CHECK-ограничением, менять их нельзя
+// без миграции.
+const (
+	// DocStatusNew — документ опубликован и ждёт оператора.
+	DocStatusNew = "new"
+	// DocStatusDownloaded — файл скачали; в 1С ещё не отмечен.
+	DocStatusDownloaded = "downloaded"
+	// DocStatusDone — оператор занёс документ в 1С и отметил «Выполнено».
+	DocStatusDone = "done"
+)
+
+// DocumentListItem — строка списка документов в портале. Снимок целиком сюда не тянем:
+// список показывает шапку и статус, а содержимое нужно только при скачивании.
+type DocumentListItem struct {
+	ID            string
+	Kind          string
+	WarehouseCode string
+	WarehouseName string
+	CreatedAt     time.Time
+	LinesCount    int
+	Status        string
+	DownloadedAt  *time.Time
+	DoneAt        *time.Time
+}
+
 // ReportDocument — документ отчёта: чем он порождён и что в нём заморожено.
 type ReportDocument struct {
 	ID         string
