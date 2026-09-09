@@ -29,12 +29,21 @@ void main() {
   late EntryDraftStore drafts;
   late _MockRepo repo;
   late StockEntryCubit cubit;
+  late _MockCatalog catalog;
 
   setUp(() {
+    catalog = _MockCatalog();
+    // Привязка уходит операцией очереди (ADHOC-14) — репозиторий её принимает.
+    when(
+      () => catalog.bindBarcode(
+        goodId: any(named: 'goodId'),
+        barcode: any(named: 'barcode'),
+      ),
+    ).thenAnswer((_) async => const Right(null));
     db = AppDatabase.forTesting(NativeDatabase.memory());
     drafts = EntryDraftStore(db);
     repo = _MockRepo();
-    cubit = StockEntryCubit(repo, _MockCatalog(), drafts);
+    cubit = StockEntryCubit(repo, catalog, drafts);
   });
 
   tearDown(() => db.close());
@@ -57,9 +66,9 @@ void main() {
     expect(draft['cell'], isNull, reason: 'ячейка завершена, текущей нет');
   });
 
-  test('восстановление возвращает буфер текущей ячейки и копилку ШК', () async {
+  test('восстановление возвращает буфер текущей ячейки', () async {
     cubit.selectCell(cellA);
-    cubit.addLine(
+    await cubit.addLine(
       good: goodA,
       date: '15.01.2026',
       qty: 7,
@@ -69,14 +78,13 @@ void main() {
     await cubit.draftWrites;
 
     // Новый cubit поверх того же хранилища — как после перезапуска экрана.
-    final restored = StockEntryCubit(repo, _MockCatalog(), drafts);
+    final restored = StockEntryCubit(repo, catalog, drafts);
     await restored.restore();
 
     expect(restored.state.cell?.id, cellA.id);
     expect(restored.state.lines, hasLength(1));
     expect(restored.state.lines.single.qty, 7);
     expect(restored.state.lines.single.good.id, goodA.id);
-    expect(restored.state.barcodes['4607044662964']?.good.id, goodA.id);
     expect(
       restored.state.undoStack,
       isEmpty,
@@ -120,7 +128,7 @@ void main() {
     await cubit.draftWrites;
     await cubit.close(); // кладовщик ушёл с экрана
 
-    final reopened = StockEntryCubit(repo, _MockCatalog(), drafts);
+    final reopened = StockEntryCubit(repo, catalog, drafts);
     await reopened.restore();
 
     expect(
@@ -156,7 +164,7 @@ void main() {
         "UPDATE entry_drafts SET payload = 'не json' WHERE id = 'current'",
       );
 
-      final restored = StockEntryCubit(repo, _MockCatalog(), drafts);
+      final restored = StockEntryCubit(repo, catalog, drafts);
       await restored.restore();
 
       expect(restored.state.cell, isNull);
