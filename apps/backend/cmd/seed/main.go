@@ -65,6 +65,13 @@ func main() {
 
 	// 5. Опционально — admin с входом по логину/паролю (P1-01-1), если заданы
 	//    ADMIN_USERNAME/ADMIN_PASSWORD. Так admin/менеджер входит со смартфона без бейджа.
+	//
+	// Молчать здесь нельзя: без этих переменных сид отрабатывает «успешно», а в веб-портал
+	// войти некем — вход по паролю ищет по колонке username, которой у бейдж-админа нет.
+	// Снаружи это неотличимо от неверного пароля: сервис намеренно отвечает одинаково.
+	if os.Getenv("ADMIN_USERNAME") == "" {
+		log.Print("WARNING: ADMIN_USERNAME/ADMIN_PASSWORD не заданы — админ портала НЕ создан, войти в веб-портал будет нечем")
+	}
 	if username := os.Getenv("ADMIN_USERNAME"); username != "" {
 		password := os.Getenv("ADMIN_PASSWORD")
 		if len(username) < 3 {

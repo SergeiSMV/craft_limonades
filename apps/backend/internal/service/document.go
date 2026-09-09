@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"log/slog"
 
 	"craftwms/internal/model"
 	"craftwms/internal/report"
@@ -17,6 +18,8 @@ type documentRepo interface {
 	ByID(ctx context.Context, id string) (model.ReportDocument, error)
 	MarkDownloaded(ctx context.Context, id string) error
 	MarkDone(ctx context.Context, id string) error
+	LogEvent(ctx context.Context, documentID, event, userID, details string) error
+	Events(ctx context.Context, documentID string) ([]model.DocumentEvent, error)
 }
 
 // DocumentService — рабочий список документов оператора (P3-02): что опубликовано, что скачано,
@@ -39,7 +42,10 @@ func (s *DocumentService) List(ctx context.Context) ([]model.DocumentListItem, e
 //
 // Сборка на лету, а не готовый файл из хранилища: снимок уже неизменяем (P3-01), поэтому
 // результат детерминирован, а правка шаблона задним числом применяется и к старым документам.
-func (s *DocumentService) File(ctx context.Context, id string) ([]byte, string, error) {
+//
+// userID передаётся параметром, а не берётся из контекста: журналу нужен явный автор действия,
+// и зависимость, которую видно в сигнатуре, не забудут прокинуть.
+func (s *DocumentService) File(ctx context.Context, id, userID string) ([]byte, string, error) {
 	doc, err := s.repo.ByID(ctx, id)
 	if err != nil {
 		return nil, "", err
@@ -47,6 +53,11 @@ func (s *DocumentService) File(ctx context.Context, id string) ([]byte, string, 
 
 	data, err := report.BuildDocumentXLSX(doc)
 	if err != nil {
+		// Неудачная сборка — тоже судьба документа: оператор видит ошибку, и без записи
+		// разбирать было бы нечего. Ошибку журнала не подменяем исходной — она важнее.
+		if logErr := s.repo.LogEvent(ctx, id, model.DocEventGenerationFailed, userID, err.Error()); logErr != nil {
+			slog.Error("не записал событие неудачной сборки", "document", id, "error", logErr)
+		}
 		return nil, "", err
 	}
 
@@ -55,13 +66,33 @@ func (s *DocumentService) File(ctx context.Context, id string) ([]byte, string, 
 	if err := s.repo.MarkDownloaded(ctx, id); err != nil {
 		return nil, "", err
 	}
+	// Событие пишется на КАЖДОЕ скачивание, в отличие от статуса: спор с 1С — всегда про историю,
+	// а не про последнее состояние.
+	if err := s.repo.LogEvent(ctx, id, model.DocEventDownloaded, userID, ""); err != nil {
+		return nil, "", err
+	}
 	return data, report.DocumentFilename(doc), nil
 }
 
 // MarkDone отмечает документ занесённым в 1С.
-func (s *DocumentService) MarkDone(ctx context.Context, id string) error {
+func (s *DocumentService) MarkDone(ctx context.Context, id, userID string) error {
 	if id == "" {
 		return ErrEmptyDocumentID
 	}
-	return s.repo.MarkDone(ctx, id)
+	if err := s.repo.MarkDone(ctx, id); err != nil {
+		return err
+	}
+	return s.repo.LogEvent(ctx, id, model.DocEventDone, userID, "")
+}
+
+// Events отдаёт историю документа. Пустая история у существующего документа невозможна:
+// событие «сформирован» рождается вместе с ним, поэтому пустой ответ означает, что документа нет.
+func (s *DocumentService) Events(ctx context.Context, id string) ([]model.DocumentEvent, error) {
+	if id == "" {
+		return nil, ErrEmptyDocumentID
+	}
+	if _, err := s.repo.ByID(ctx, id); err != nil {
+		return nil, err
+	}
+	return s.repo.Events(ctx, id)
 }

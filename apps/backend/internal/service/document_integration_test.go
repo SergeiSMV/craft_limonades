@@ -76,7 +76,7 @@ func TestDocuments(t *testing.T) {
 	}
 
 	// --- файл ---
-	data, filename, err := svc.File(ctx, doc.ID)
+	data, filename, err := svc.File(ctx, doc.ID, user)
 	if err != nil {
 		t.Fatalf("File: %v", err)
 	}
@@ -110,7 +110,7 @@ func TestDocuments(t *testing.T) {
 	firstDownload := *docs[0].DownloadedAt
 
 	// --- «Выполнено» ---
-	if err := svc.MarkDone(ctx, doc.ID); err != nil {
+	if err := svc.MarkDone(ctx, doc.ID, user); err != nil {
 		t.Fatalf("MarkDone: %v", err)
 	}
 	docs, _ = svc.List(ctx)
@@ -121,7 +121,7 @@ func TestDocuments(t *testing.T) {
 
 	// Повторное скачивание выполненного НЕ возвращает документ в работу и не двигает отметки:
 	// оператор мог открыть файл для сверки, и откатывать «занесено в 1С» по такому поводу нельзя.
-	if _, _, err := svc.File(ctx, doc.ID); err != nil {
+	if _, _, err := svc.File(ctx, doc.ID, user); err != nil {
 		t.Fatalf("повторное скачивание: %v", err)
 	}
 	docs, _ = svc.List(ctx)
@@ -133,7 +133,7 @@ func TestDocuments(t *testing.T) {
 	}
 
 	// Повторная отметка идемпотентна: время не сдвигается.
-	if err := svc.MarkDone(ctx, doc.ID); err != nil {
+	if err := svc.MarkDone(ctx, doc.ID, user); err != nil {
 		t.Fatalf("повторный MarkDone: %v", err)
 	}
 	docs, _ = svc.List(ctx)
@@ -142,13 +142,48 @@ func TestDocuments(t *testing.T) {
 	}
 
 	// --- границы ---
-	if _, _, err := svc.File(ctx, "00000000-0000-0000-0000-0000000000ff"); !errors.Is(err, repository.ErrDocumentNotFound) {
+	if _, _, err := svc.File(ctx, "00000000-0000-0000-0000-0000000000ff", user); !errors.Is(err, repository.ErrDocumentNotFound) {
 		t.Errorf("нет документа: ожидалась ErrDocumentNotFound, получено %v", err)
 	}
-	if err := svc.MarkDone(ctx, "00000000-0000-0000-0000-0000000000ff"); !errors.Is(err, repository.ErrDocumentNotFound) {
+	if err := svc.MarkDone(ctx, "00000000-0000-0000-0000-0000000000ff", user); !errors.Is(err, repository.ErrDocumentNotFound) {
 		t.Errorf("отметка несуществующего: ожидалась ErrDocumentNotFound, получено %v", err)
 	}
-	if err := svc.MarkDone(ctx, ""); !errors.Is(err, service.ErrEmptyDocumentID) {
+	if err := svc.MarkDone(ctx, "", user); !errors.Is(err, service.ErrEmptyDocumentID) {
 		t.Errorf("пустой id: ожидалась ErrEmptyDocumentID, получено %v", err)
+	}
+
+	// --- журнал (P3-03) ---
+	// К этому моменту документ: сформирован, скачан дважды, отмечен выполненным дважды.
+	events, err := svc.Events(ctx, doc.ID)
+	if err != nil {
+		t.Fatalf("Events: %v", err)
+	}
+	var seq []string
+	for _, e := range events {
+		seq = append(seq, e.Event)
+	}
+	wantEvents := []string{
+		model.DocEventCreated,
+		model.DocEventDownloaded,
+		model.DocEventDone,
+		model.DocEventDownloaded, // повторное скачивание — отдельная запись, статус при этом не менялся
+		model.DocEventDone,
+	}
+	if len(seq) != len(wantEvents) {
+		t.Fatalf("журнал: %v, ожидалось %v", seq, wantEvents)
+	}
+	for i := range wantEvents {
+		if seq[i] != wantEvents[i] {
+			t.Errorf("журнал[%d]: %q, ожидалось %q", i, seq[i], wantEvents[i])
+		}
+	}
+	// Автор виден по имени: журнал хранит ссылку на пользователя, а не копию ФИО.
+	for _, e := range events {
+		if e.UserName != "Тест" {
+			t.Errorf("событие %q: автор %q, ожидался «Тест»", e.Event, e.UserName)
+		}
+	}
+	if _, err := svc.Events(ctx, "00000000-0000-0000-0000-0000000000ff"); !errors.Is(err, repository.ErrDocumentNotFound) {
+		t.Errorf("журнал несуществующего: ожидалась ErrDocumentNotFound, получено %v", err)
 	}
 }

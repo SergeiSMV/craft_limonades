@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	appmw "craftwms/internal/middleware"
 	"craftwms/internal/repository"
 	"craftwms/internal/service"
 )
@@ -68,7 +69,8 @@ func (h *DocumentHandler) List(w http.ResponseWriter, r *http.Request) {
 // 200 .xlsx (attachment) / 404 (нет документа).
 func (h *DocumentHandler) File(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	data, filename, err := h.svc.File(r.Context(), id)
+	userID, _ := appmw.UserIDFromContext(r.Context())
+	data, filename, err := h.svc.File(r.Context(), id, userID)
 	switch {
 	case errors.Is(err, repository.ErrDocumentNotFound):
 		writeError(w, http.StatusNotFound, "документ не найден")
@@ -89,7 +91,8 @@ func (h *DocumentHandler) File(w http.ResponseWriter, r *http.Request) {
 // 204 / 404. Повтор идемпотентен и тоже отвечает 204: оператор нажал дважды — это не ошибка.
 func (h *DocumentHandler) Done(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	err := h.svc.MarkDone(r.Context(), id)
+	userID, _ := appmw.UserIDFromContext(r.Context())
+	err := h.svc.MarkDone(r.Context(), id, userID)
 	switch {
 	case errors.Is(err, service.ErrEmptyDocumentID):
 		writeError(w, http.StatusBadRequest, "не указан документ")
@@ -103,6 +106,40 @@ func (h *DocumentHandler) Done(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// documentEventResponse — запись журнала документа.
+type documentEventResponse struct {
+	Event     string `json:"event"`
+	UserName  string `json:"user_name"` // «» — событие системное или автор не сохранился
+	Details   string `json:"details"`   // причина ошибки для generation_failed
+	CreatedAt string `json:"created_at"`
+}
+
+// Events: GET /api/v1/documents/{id}/events — история документа: сформирован, скачан, выполнен.
+// 200 / 404 (нет документа).
+func (h *DocumentHandler) Events(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	events, err := h.svc.Events(r.Context(), id)
+	switch {
+	case errors.Is(err, repository.ErrDocumentNotFound):
+		writeError(w, http.StatusNotFound, "документ не найден")
+		return
+	case err != nil:
+		slog.Error("document events failed", "document", id, "error", err)
+		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
+		return
+	}
+	out := make([]documentEventResponse, 0, len(events))
+	for _, e := range events {
+		out = append(out, documentEventResponse{
+			Event:     e.Event,
+			UserName:  e.UserName,
+			Details:   e.Details,
+			CreatedAt: e.CreatedAt.Format(time.RFC3339),
+		})
+	}
+	writeJSON(w, http.StatusOK, out)
 }
 
 // formatTimePtr — необязательная отметка времени в RFC3339; nil остаётся null в JSON.

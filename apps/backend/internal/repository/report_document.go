@@ -38,19 +38,28 @@ func (r *ReportDocumentRepository) BySource(ctx context.Context, sourceType, sou
 // Повтор безвреден: при конфликте по (source_type, source_id) сохраняется ПЕРВЫЙ снимок.
 // Так и нужно — повторный финал из очереди устройства (P2-05) не должен переписывать документ
 // содержимым, собранным позже по изменившимся справочникам.
-func saveDocument(ctx context.Context, q Querier, doc model.ReportDocument) error {
+// Возвращает id созданного документа или пустую строку, если документ по этой операции уже был:
+// пустой id — признак повтора, по которому вызывающий понимает, что заводить событие журнала
+// «сформирован» второй раз не нужно.
+func saveDocument(ctx context.Context, q Querier, doc model.ReportDocument) (string, error) {
 	raw, err := json.Marshal(doc.Snapshot)
 	if err != nil {
-		return fmt.Errorf("сериализовать снимок документа: %w", err)
+		return "", fmt.Errorf("сериализовать снимок документа: %w", err)
 	}
-	if _, err := q.Exec(ctx, `
+	var id string
+	err = q.QueryRow(ctx, `
 		INSERT INTO report_documents (kind, source_type, source_id, snapshot)
 		VALUES ($1, $2, $3::uuid, $4)
-		ON CONFLICT (source_type, source_id) DO NOTHING`,
-		doc.Kind, doc.SourceType, doc.SourceID, raw); err != nil {
-		return fmt.Errorf("сохранить документ отчёта: %w", err)
+		ON CONFLICT (source_type, source_id) DO NOTHING
+		RETURNING id::text`,
+		doc.Kind, doc.SourceType, doc.SourceID, raw).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", nil
 	}
-	return nil
+	if err != nil {
+		return "", fmt.Errorf("сохранить документ отчёта: %w", err)
+	}
+	return id, nil
 }
 
 // documentBySource — чтение снимка на Querier (годится и для пула, и для транзакции).
@@ -160,4 +169,60 @@ func (r *ReportDocumentRepository) MarkDone(ctx context.Context, id string) erro
 		return ErrDocumentNotFound
 	}
 	return nil
+}
+
+// logEvent дописывает запись в журнал документа (P3-03).
+//
+// Принимает Querier, а не пул: событие «сформирован» обязано лечь в ту же транзакцию, что и сам
+// документ, — иначе документ и его история могли бы разойтись при сбое между ними.
+// userID пустой → NULL: событие системное, и выдумывать автора нельзя.
+func logEvent(ctx context.Context, q Querier, documentID, event, userID, details string) error {
+	var user any
+	if userID != "" {
+		user = userID
+	}
+	payload := map[string]string{}
+	if details != "" {
+		payload["message"] = details
+	}
+	raw, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("сериализовать детали события: %w", err)
+	}
+	if _, err := q.Exec(ctx, `
+		INSERT INTO report_document_events (document_id, event, user_id, details)
+		VALUES ($1::uuid, $2, $3::uuid, $4)`, documentID, event, user, raw); err != nil {
+		return fmt.Errorf("записать событие журнала: %w", err)
+	}
+	return nil
+}
+
+// LogEvent дописывает событие журнала вне транзакции — для действий из портала.
+func (r *ReportDocumentRepository) LogEvent(ctx context.Context, documentID, event, userID, details string) error {
+	return logEvent(ctx, r.pool, documentID, event, userID, details)
+}
+
+// Events возвращает историю документа по времени. ФИО подтягивается из users: журнал хранит
+// ссылку, а не копию имени, — переименование сотрудника не должно рождать двух разных людей.
+func (r *ReportDocumentRepository) Events(ctx context.Context, documentID string) ([]model.DocumentEvent, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT e.event, e.user_id::text, COALESCE(u.full_name, ''), COALESCE(e.details->>'message', ''), e.created_at
+		FROM report_document_events e
+		LEFT JOIN users u ON u.id = e.user_id
+		WHERE e.document_id = $1::uuid
+		ORDER BY e.created_at, e.id`, documentID)
+	if err != nil {
+		return nil, fmt.Errorf("журнал документа: %w", err)
+	}
+	defer rows.Close()
+
+	out := make([]model.DocumentEvent, 0)
+	for rows.Next() {
+		var ev model.DocumentEvent
+		if err := rows.Scan(&ev.Event, &ev.UserID, &ev.UserName, &ev.Details, &ev.CreatedAt); err != nil {
+			return nil, fmt.Errorf("разбор события журнала: %w", err)
+		}
+		out = append(out, ev)
+	}
+	return out, rows.Err()
 }
