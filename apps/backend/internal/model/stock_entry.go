@@ -18,12 +18,3 @@ type StockEntryReport struct {
 	CreatedAt     time.Time
 	Rows          []StockEntryReportRow
 }
-
-// StockEntryDocument — закрытая сессия ввода остатков как «документ» для портала «Инвентаризация».
-type StockEntryDocument struct {
-	ID            string
-	WarehouseCode string
-	WarehouseName string
-	ClosedAt      time.Time
-	LinesCount    int
-}

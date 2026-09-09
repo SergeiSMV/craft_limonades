@@ -68,7 +68,12 @@ abstract final class ApiConst {
   static String stockEntryFinalize(String id) =>
       'stock-entry/sessions/$id/finalize';
 
-  ///**GET** - .xlsx-отчёт «ввод остатков» по закрытой сессии: `stock-entry/sessions/{id}/report.xlsx`.
-  static String stockEntryReport(String id) =>
-      'stock-entry/sessions/$id/report.xlsx';
+  ///**GET** - рабочий список документов оператора: необработанные сверху (P3-02).
+  static const String documents = 'documents';
+
+  ///**GET** - .xlsx документа; попутно отмечает скачивание: `documents/{id}/file.xlsx`.
+  static String documentFile(String id) => 'documents/$id/file.xlsx';
+
+  ///**POST** - «Выполнено»: документ занесён в 1С (204): `documents/{id}/done`.
+  static String documentDone(String id) => 'documents/$id/done';
 }

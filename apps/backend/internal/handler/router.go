@@ -23,7 +23,7 @@ import (
 // Как: chi-роутер с цепочкой middleware; прикладные ручки — под /api/v1, пробы — на корне.
 // db (Pinger) может быть nil → /ready ответит 503. authSvc может быть nil (нет БД) →
 // auth-роуты не регистрируются.
-func NewRouter(log *slog.Logger, db Pinger, authSvc *service.AuthService, tokens *auth.TokenManager, importSvc *service.ImportService, catalogSvc *service.CatalogService, barcodeSvc *service.BarcodeService, stockEntrySvc *service.StockEntryService, labelSvc *service.LabelService, stockEntryReportSvc *service.StockEntryReportService, operationsSvc *service.OperationsService) http.Handler {
+func NewRouter(log *slog.Logger, db Pinger, authSvc *service.AuthService, tokens *auth.TokenManager, importSvc *service.ImportService, catalogSvc *service.CatalogService, barcodeSvc *service.BarcodeService, stockEntrySvc *service.StockEntryService, labelSvc *service.LabelService, documentSvc *service.DocumentService, operationsSvc *service.OperationsService) http.Handler {
 	r := chi.NewRouter()
 
 	// Общие middleware для всех маршрутов:
@@ -85,13 +85,16 @@ func NewRouter(log *slog.Logger, db Pinger, authSvc *service.AuthService, tokens
 		}
 
 		// Excel-отчёт «ввод остатков» по закрытой сессии (P-FS-08) — только admin (портал «Инвентаризация»).
-		if stockEntryReportSvc != nil {
-			reportH := NewStockEntryReportHandler(stockEntryReportSvc)
+		// Документы оператора (P3-02). Список общий для всех форм отчёта: «ввод остатков» сейчас,
+		// «Поступление» и «Движение» — по мере появления операций в P4-P6.
+		if documentSvc != nil {
+			docH := NewDocumentHandler(documentSvc)
 			r.Group(func(r chi.Router) {
 				r.Use(appmw.Authenticator(tokens))
 				r.Use(appmw.RequireRole(model.RoleAdmin))
-				r.Get("/stock-entry/sessions", reportH.List)                    // список документов (закрытые сессии)
-				r.Get("/stock-entry/sessions/{id}/report.xlsx", reportH.Report) // скачать .xlsx документа
+				r.Get("/documents", docH.List)                // рабочий список: необработанные сверху
+				r.Get("/documents/{id}/file.xlsx", docH.File) // скачать .xlsx (отмечает скачивание)
+				r.Post("/documents/{id}/done", docH.Done)     // «Выполнено»: занесён в 1С
 			})
 		}
 

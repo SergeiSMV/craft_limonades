@@ -85,7 +85,7 @@ func main() {
 	var barcodeSvc *service.BarcodeService
 	var stockEntrySvc *service.StockEntryService
 	var labelSvc *service.LabelService
-	var stockEntryReportSvc *service.StockEntryReportService
+	var documentSvc *service.DocumentService
 	var operationsSvc *service.OperationsService
 	if pool != nil {
 		authSvc = service.NewAuthService(repository.NewUserRepository(pool), tokens)
@@ -107,7 +107,7 @@ func main() {
 		// PDF-этикетки ячеек (P-FastStart, P-FS-05): склад по коду → ячейки → PDF.
 		labelSvc = service.NewLabelService(repository.NewWarehouseRepository(pool), cells)
 		// Excel-отчёт «ввод остатков» по закрытой сессии (P-FastStart, P-FS-08).
-		stockEntryReportSvc = service.NewStockEntryReportService(repository.NewStockEntryRepository(pool))
+		documentSvc = service.NewDocumentService(repository.NewReportDocumentRepository(pool))
 		// Батч операций офлайн-очереди устройства (P2-05): дедуп по operation_id.
 		operationsSvc = service.NewOperationsService(repository.NewOperationsRepository(pool))
 	} else {
@@ -117,7 +117,7 @@ func main() {
 	// 5. HTTP-сервер с собранным роутером транспортного слоя.
 	srv := &http.Server{
 		Addr:              ":" + cfg.AppPort,
-		Handler:           handler.NewRouter(log, pinger, authSvc, tokens, importSvc, catalogSvc, barcodeSvc, stockEntrySvc, labelSvc, stockEntryReportSvc, operationsSvc),
+		Handler:           handler.NewRouter(log, pinger, authSvc, tokens, importSvc, catalogSvc, barcodeSvc, stockEntrySvc, labelSvc, documentSvc, operationsSvc),
 		ReadHeaderTimeout: 5 * time.Second, // защита от медленных клиентов (Slowloris)
 	}
 
