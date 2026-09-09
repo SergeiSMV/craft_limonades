@@ -94,12 +94,21 @@ systemctl reload nginx
 log "certbot --nginx для $DOMAIN…"
 certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos -m "$EMAIL" --redirect --keep-until-expiring
 
-# --- 4. Стек: pull → up → миграции → админ ---
+# --- 4. Стек: pull → миграции → up → админ ---
 log "Тяну образ и поднимаю стек…"
 # Только backend: postgres прибит по версии в compose и после первой установки уже лежит
 # локально. Docker Hub при этом бывает недоступен (TLS handshake timeout), и `compose pull`
 # без имени сервиса ронял под set -e всю установку из-за образа, который и не менялся.
-compose pull --quiet backend || warn "не удалось обновить образ backend — продолжаю с тем, что есть локально." 
+compose pull --quiet backend || warn "не удалось обновить образ backend — продолжаю с тем, что есть локально."
+
+# Миграции — ДО подъёма сервиса, тем же порядком, что и в update.sh. Пункт меню называется
+# «Установить / переустановить», то есть скрипт гоняется и поверх работающего сервера с живой
+# базой: там упавшая миграция после `up -d` оставила бы новый код против старой схемы, и снять
+# его было бы некому (скрипт умирает здесь под set -e). Схему и код меняем в одном направлении:
+# не прошла миграция — прежний контейнер продолжает работать с прежней схемой.
+# БД поднимать отдельно не нужно: `compose run` тянет depends_on: db (condition: service_healthy).
+log "Миграции…"; compose run --rm --entrypoint /usr/local/bin/migrate backend up
+
 compose up -d
 cid="$(compose ps -q backend)"; [[ -n "$cid" ]] || die "контейнер backend не создан."
 log "Жду healthcheck backend…"
@@ -109,7 +118,8 @@ for i in $(seq 1 30); do
   [[ "$st" == "unhealthy" || $i -eq 30 ]] && die "backend не поднялся — логи: docker logs $cid"
   sleep 2
 done
-log "Миграции…"; compose run --rm --entrypoint /usr/local/bin/migrate backend up
+# Сид — после healthcheck: схема к этому моменту накачена, а живой контейнер подтверждает,
+# что образ рабочий, и заведение админа не упрётся в битый бинарь.
 log "Стартовый админ…"; compose run --rm --entrypoint /usr/local/bin/seed backend
 
 # --- 5. systemd-таймеры: авто-обновление, бэкап, проверка восстановимости ---
