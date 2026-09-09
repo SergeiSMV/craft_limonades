@@ -76,4 +76,7 @@ abstract final class ApiConst {
 
   ///**POST** - «Выполнено»: документ занесён в 1С (204): `documents/{id}/done`.
   static String documentDone(String id) => 'documents/$id/done';
+
+  ///**GET** - журнал документа: кто и когда что делал (P3-03): `documents/{id}/events`.
+  static String documentEvents(String id) => 'documents/$id/events';
 }

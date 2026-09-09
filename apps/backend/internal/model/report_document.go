@@ -70,3 +70,25 @@ type ReportDocument struct {
 	Snapshot   ReportSnapshot
 	CreatedAt  time.Time
 }
+
+// События журнала документа (P3-03). Значения лежат в БД под CHECK — менять только миграцией.
+const (
+	// DocEventCreated — документ сформирован в транзакции завершения операции.
+	DocEventCreated = "created"
+	// DocEventDownloaded — файл скачали. Пишется на КАЖДОЕ скачивание, а не только на первое.
+	DocEventDownloaded = "downloaded"
+	// DocEventDone — оператор отметил документ занесённым в 1С.
+	DocEventDone = "done"
+	// DocEventGenerationFailed — файл не собрался; в details лежит причина.
+	DocEventGenerationFailed = "generation_failed"
+)
+
+// DocumentEvent — запись журнала: что случилось с документом, когда и по чьей воле.
+// UserName пустое, когда событие системное или автор не сохранился (события до P3-03).
+type DocumentEvent struct {
+	Event     string
+	UserID    *string
+	UserName  string
+	Details   string
+	CreatedAt time.Time
+}

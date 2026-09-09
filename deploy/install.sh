@@ -27,6 +27,19 @@ for pair in "DEPLOY_DOMAIN=$DOMAIN" "CERTBOT_EMAIL=$EMAIL" "BACKEND_BIND=$BIND";
   [[ -n "$val" ]]                 || die "${pair%%=*} не задан в $ENV_FILE."
   [[ "$val" != *CHANGE_ME* && "$val" != *example* ]] || die "${pair%%=*} содержит шаблонное значение — впишите своё в $ENV_FILE."
 done
+# Учётка администратора портала — обязательна наравне с доменом. Без неё установка проходит
+# «успешно», но войти в портал некем: сид создаёт username-админа только при заданных переменных,
+# а вход по паролю ищет по колонке username, которой у бейдж-админа нет. Отличить «нет учётки»
+# от «неверный пароль» снаружи невозможно — сервис намеренно отвечает одинаково, — и разбор
+# требует SSH, доступного только из LAN.
+ADMIN_USER="$(get_env ADMIN_USERNAME)"; ADMIN_PASS="$(get_env ADMIN_PASSWORD)"
+for pair in "ADMIN_USERNAME=$ADMIN_USER" "ADMIN_PASSWORD=$ADMIN_PASS"; do
+  val="${pair#*=}"
+  [[ -n "$val" ]] || die "${pair%%=*} не задан в $ENV_FILE — без него в веб-портал будет не войти."
+  [[ "$val" != *CHANGE_ME* ]] || die "${pair%%=*} содержит шаблонное значение — впишите своё в $ENV_FILE."
+done
+(( ${#ADMIN_PASS} >= 8 )) || die "ADMIN_PASSWORD короче 8 символов — задайте длиннее в $ENV_FILE."
+
 log "Домен: $DOMAIN · backend: $BIND · env: $ENV_FILE"
 
 preflight_net

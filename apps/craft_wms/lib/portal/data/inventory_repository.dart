@@ -28,6 +28,34 @@ enum DocStatus {
       };
 }
 
+/// Запись журнала документа (P3-03): что произошло, когда и по чьей воле.
+class DocEvent {
+  const DocEvent({
+    required this.event,
+    required this.userName,
+    required this.details,
+    required this.createdAt,
+  });
+
+  /// `created` · `downloaded` · `done` · `generation_failed`.
+  final String event;
+
+  /// Пусто, если событие системное или автор не сохранился (события до появления журнала).
+  final String userName;
+
+  /// Причина ошибки — только у `generation_failed`.
+  final String details;
+
+  final DateTime createdAt;
+
+  factory DocEvent.fromJson(Map<String, dynamic> j) => DocEvent(
+        event: j['event'] as String? ?? '',
+        userName: j['user_name'] as String? ?? '',
+        details: j['details'] as String? ?? '',
+        createdAt: DateTime.parse(j['created_at'] as String),
+      );
+}
+
 /// Документ оператора: что сформировано, по какому складу и в каком состоянии.
 class PortalDoc {
   const PortalDoc({
@@ -100,6 +128,21 @@ class InventoryRepository {
     try {
       await _dio.post<void>(ApiConst.documentDone(id));
       return const Right(null);
+    } on DioException catch (e) {
+      return Left(_mapError(e));
+    } catch (_) {
+      return const Left(Failure.unknown());
+    }
+  }
+
+  /// История документа: сформирован → скачан → выполнен, с авторами.
+  Future<Either<Failure, List<DocEvent>>> events(String id) async {
+    try {
+      final resp = await _dio.get<List<dynamic>>(ApiConst.documentEvents(id));
+      final items = (resp.data ?? const [])
+          .map((e) => DocEvent.fromJson(e as Map<String, dynamic>))
+          .toList();
+      return Right(items);
     } on DioException catch (e) {
       return Left(_mapError(e));
     } catch (_) {

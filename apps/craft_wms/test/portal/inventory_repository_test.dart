@@ -102,10 +102,44 @@ void main() {
     });
   });
 
+  group('events', () {
+    test('успех → разбирает журнал; пустой автор остаётся пустым', () async {
+      dio.httpClientAdapter = RecordingAdapter({
+        'GET ${ApiConst.documentEvents("d1")}': (_) => ResponseBody.fromString(
+              '[{"event":"created","user_name":"Кладовщик","details":"","created_at":"2026-08-13T21:00:00Z"},'
+              '{"event":"downloaded","user_name":"","details":"","created_at":"2026-08-14T07:00:00Z"}]',
+              200,
+              headers: {
+                Headers.contentTypeHeader: [Headers.jsonContentType],
+              },
+            ),
+      });
+      final res = await InventoryRepository(dio).events('d1');
+      expect(res.isRight, isTrue);
+      final events = res.right;
+      expect(events, hasLength(2));
+      expect(events.first.event, 'created');
+      expect(events.first.userName, 'Кладовщик');
+      expect(events.last.userName, isEmpty); // автор не сохранился — не выдумываем
+    });
+
+    test('404 → Failure.server', () async {
+      dio.httpClientAdapter = RecordingAdapter({
+        'GET ${ApiConst.documentEvents("d1")}': (_) => ResponseBody.fromString('{"error":"нет"}', 404, headers: {
+          Headers.contentTypeHeader: [Headers.jsonContentType],
+        }),
+      });
+      final res = await InventoryRepository(dio).events('d1');
+      expect(res.isLeft, isTrue);
+      expect(res.left, isA<ServerFailure>());
+    });
+  });
+
   test('маршруты документов — без ведущего слэша', () {
     expect(ApiConst.documents, 'documents');
     expect(ApiConst.documentFile('d1'), 'documents/d1/file.xlsx');
     expect(ApiConst.documentDone('d1'), 'documents/d1/done');
+    expect(ApiConst.documentEvents('d1'), 'documents/d1/events');
     expect(ApiConst.documentFile('d1').startsWith('/'), isFalse);
     expect(ApiConst.documentDone('d1').startsWith('/'), isFalse);
   });
