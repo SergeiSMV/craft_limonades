@@ -10,8 +10,9 @@ import '../../../../core/gen/strings.g.dart';
 import '../../../data/inventory_repository.dart';
 import '../../../data/web_download.dart';
 
-/// Вкладка «Инвентаризация» (P-FS-09): список документов «ввод остатков» (закрытые сессии) +
-/// скачивание .xlsx для сверки с 1С. Данные тянутся при открытии; всё admin-only на бэке.
+/// Вкладка «Инвентаризация» (P-FS-09, статусы — P3-02): рабочий список документов «ввод остатков».
+/// Оператор скачивает .xlsx, заносит в 1С и отмечает выполненным; необработанные идут сверху.
+/// Данные тянутся при открытии; всё admin-only на бэке.
 class InventoryTab extends StatefulWidget {
   const InventoryTab({super.key});
 
@@ -24,8 +25,9 @@ class _InventoryTabState extends State<InventoryTab> {
 
   bool _loading = true;
   Failure? _error;
-  List<StockEntryDoc> _docs = const [];
+  List<PortalDoc> _docs = const [];
   final _downloading = <String>{}; // id документов, которые сейчас качаются
+  final _marking = <String>{}; // id документов, по которым идёт отметка «Выполнено»
 
   @override
   void initState() {
@@ -47,8 +49,9 @@ class _InventoryTabState extends State<InventoryTab> {
     });
   }
 
-  /// Скачать .xlsx документа и сохранить в браузере.
-  Future<void> _download(StockEntryDoc doc) async {
+  /// Скачать .xlsx документа и сохранить в браузере. Сервер отмечает документ скачанным,
+  /// поэтому после успеха список перечитывается — иначе статус на экране отстанет от факта.
+  Future<void> _download(PortalDoc doc) async {
     if (_downloading.contains(doc.id)) return;
     setState(() => _downloading.add(doc.id));
     final res = await _repo.downloadReport(doc.id);
@@ -56,11 +59,49 @@ class _InventoryTabState extends State<InventoryTab> {
     setState(() => _downloading.remove(doc.id));
     res.fold(
       (f) => _snack(t.portal.inventory.error(message: _errorText(f))),
-      (bytes) => downloadBytes(
-        bytes: bytes,
-        filename: 'vvod-ostatkov-${doc.warehouseCode}.xlsx',
-        mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      (bytes) {
+        downloadBytes(
+          bytes: bytes,
+          filename: 'vvod-ostatkov-${doc.warehouseCode}.xlsx',
+          mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        );
+        _load();
+      },
+    );
+  }
+
+  /// Отметить документ занесённым в 1С — с подтверждением: вернуть документ в работу нельзя.
+  Future<void> _markDone(PortalDoc doc) async {
+    if (_marking.contains(doc.id)) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(t.portal.inventory.confirmTitle),
+        content: Text(t.portal.inventory.confirmBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(t.portal.inventory.confirmNo),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(t.portal.inventory.confirmYes),
+          ),
+        ],
       ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _marking.add(doc.id));
+    final res = await _repo.markDone(doc.id);
+    if (!mounted) return;
+    setState(() => _marking.remove(doc.id));
+    res.fold(
+      (f) => _snack(t.portal.inventory.error(message: _errorText(f))),
+      (_) {
+        _snack(t.portal.inventory.doneOk);
+        _load();
+      },
     );
   }
 
@@ -140,18 +181,35 @@ class _InventoryTabState extends State<InventoryTab> {
       );
     }
     return Column(
-      children: [for (final d in _docs) _DocRow(doc: d, downloading: _downloading.contains(d.id), onDownload: () => _download(d))],
+      children: [
+        for (final d in _docs)
+          _DocRow(
+            doc: d,
+            downloading: _downloading.contains(d.id),
+            marking: _marking.contains(d.id),
+            onDownload: () => _download(d),
+            onMarkDone: () => _markDone(d),
+          ),
+      ],
     );
   }
 }
 
-/// Строка документа: склад · дата · пометка · число позиций + кнопка скачивания.
+/// Строка документа: склад · дата · число позиций · статус + скачивание и отметка «Выполнено».
 class _DocRow extends StatelessWidget {
-  const _DocRow({required this.doc, required this.downloading, required this.onDownload});
+  const _DocRow({
+    required this.doc,
+    required this.downloading,
+    required this.marking,
+    required this.onDownload,
+    required this.onMarkDone,
+  });
 
-  final StockEntryDoc doc;
+  final PortalDoc doc;
   final bool downloading;
+  final bool marking;
   final VoidCallback onDownload;
+  final VoidCallback onMarkDone;
 
   /// Формат даты документа: `дд.мм.гггг чч:мм` в локальной зоне.
   String _date(DateTime dt) {
@@ -162,6 +220,7 @@ class _DocRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final done = doc.status == DocStatus.done;
     return Container(
       margin: AppInsets.bottom8,
       decoration: BoxDecoration(
@@ -169,23 +228,79 @@ class _DocRow extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppSizes.kText12),
       ),
       child: ListTile(
-        leading: const Icon(Icons.description_outlined),
-        title: Text('${t.portal.inventory.mark} · ${doc.warehouseName}'),
+        leading: Icon(done ? Icons.task_alt : Icons.description_outlined),
+        title: Row(
+          children: [
+            Flexible(child: Text('${t.portal.inventory.mark} · ${doc.warehouseName}')),
+            AppBoxes.kWidth8,
+            _StatusBadge(status: doc.status),
+          ],
+        ),
         subtitle: Text(
-          '${_date(doc.closedAt)} · ${t.portal.inventory.lines(count: doc.linesCount)}',
+          '${_date(doc.createdAt)} · ${t.portal.inventory.lines(count: doc.linesCount)}',
           style: const TextStyle(fontSize: AppSizes.kText13, color: AppColors.kTextMuted),
         ),
-        trailing: downloading
-            ? const SizedBox(
-                width: AppSizes.kIcon24,
-                height: AppSizes.kIcon24,
-                child: CircularProgressIndicator(strokeWidth: AppSizes.kIcon2),
-              )
-            : IconButton(
-                icon: const Icon(Icons.download),
-                tooltip: t.portal.inventory.download,
-                onPressed: onDownload,
-              ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Выполненный документ отмечать больше нечем — кнопку убираем, а не гасим:
+            // неактивная кнопка предлагала бы действие, которого нет.
+            if (!done)
+              marking
+                  ? const Padding(
+                      padding: AppInsets.all8,
+                      child: SizedBox(
+                        width: AppSizes.kIcon24,
+                        height: AppSizes.kIcon24,
+                        child: CircularProgressIndicator(strokeWidth: AppSizes.kIcon2),
+                      ),
+                    )
+                  : IconButton(
+                      icon: const Icon(Icons.check_circle_outline),
+                      tooltip: t.portal.inventory.markDone,
+                      onPressed: onMarkDone,
+                    ),
+            downloading
+                ? const Padding(
+                    padding: AppInsets.all8,
+                    child: SizedBox(
+                      width: AppSizes.kIcon24,
+                      height: AppSizes.kIcon24,
+                      child: CircularProgressIndicator(strokeWidth: AppSizes.kIcon2),
+                    ),
+                  )
+                : IconButton(
+                    icon: const Icon(Icons.download),
+                    tooltip: t.portal.inventory.download,
+                    onPressed: onDownload,
+                  ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Бейдж состояния документа. Цвета — общие токены бейджей: жёлтый требует внимания,
+/// голубой — в работе, зелёный — закончено.
+class _StatusBadge extends StatelessWidget {
+  const _StatusBadge({required this.status});
+
+  final DocStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    final (bg, fg, label) = switch (status) {
+      DocStatus.isNew => (AppColors.kBadgeWarningBg, AppColors.kBadgeWarningText, t.portal.inventory.statusNew),
+      DocStatus.downloaded => (AppColors.kBadgeInfoBg, AppColors.kBadgeInfoText, t.portal.inventory.statusDownloaded),
+      DocStatus.done => (AppColors.kBadgeSuccessBg, AppColors.kBadgeSuccessText, t.portal.inventory.statusDone),
+    };
+    return Container(
+      padding: AppInsets.badge,
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(AppSizes.kText12)),
+      child: Text(
+        label,
+        style: TextStyle(fontSize: AppSizes.kText12, color: fg, fontWeight: FontWeight.w600),
       ),
     );
   }
