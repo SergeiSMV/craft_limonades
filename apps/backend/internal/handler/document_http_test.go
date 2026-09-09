@@ -205,3 +205,46 @@ func TestDocumentsHTTP_notFound(t *testing.T) {
 		t.Errorf("отметка: код %d, ожидался 404", got)
 	}
 }
+
+// Журнал документа через HTTP: история приходит с именами и в хронологическом порядке.
+func TestDocumentsHTTP_events(t *testing.T) {
+	e := newDocE2E(t)
+
+	// Скачиваем и отмечаем — журнал должен увидеть оба действия под админом.
+	e.do(t, http.MethodGet, "/api/v1/documents/"+e.docID+"/file.xlsx", e.adminToken)
+	e.do(t, http.MethodPost, "/api/v1/documents/"+e.docID+"/done", e.adminToken)
+
+	resp := e.do(t, http.MethodGet, "/api/v1/documents/"+e.docID+"/events", e.adminToken)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("журнал: код %d", resp.StatusCode)
+	}
+	var events []map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&events); err != nil {
+		t.Fatalf("разбор журнала: %v", err)
+	}
+	if len(events) != 3 {
+		t.Fatalf("ожидалось 3 события (created, downloaded, done), получено %d: %+v", len(events), events)
+	}
+	want := []string{model.DocEventCreated, model.DocEventDownloaded, model.DocEventDone}
+	for i, w := range want {
+		if events[i]["event"] != w {
+			t.Errorf("событие[%d] = %v, ожидалось %q", i, events[i]["event"], w)
+		}
+	}
+	// «сформирован» приписан кладовщику, который вёл проход, а не админу, открывшему портал.
+	if events[0]["user_name"] != "Кладовщик" {
+		t.Errorf("автор создания: %v, ожидался «Кладовщик»", events[0]["user_name"])
+	}
+	if events[1]["user_name"] != "Админ" || events[2]["user_name"] != "Админ" {
+		t.Errorf("автор действий в портале: %v / %v, ожидался «Админ»", events[1]["user_name"], events[2]["user_name"])
+	}
+
+	// Журнал — тоже admin-only, и по несуществующему документу это 404, а не пустой список.
+	if got := e.do(t, http.MethodGet, "/api/v1/documents/"+e.docID+"/events", e.workerToken).StatusCode; got != http.StatusForbidden {
+		t.Errorf("журнал под кладовщиком: код %d, ожидался 403", got)
+	}
+	missing := "00000000-0000-0000-0000-0000000000ff"
+	if got := e.do(t, http.MethodGet, "/api/v1/documents/"+missing+"/events", e.adminToken).StatusCode; got != http.StatusNotFound {
+		t.Errorf("журнал несуществующего: код %d, ожидался 404", got)
+	}
+}

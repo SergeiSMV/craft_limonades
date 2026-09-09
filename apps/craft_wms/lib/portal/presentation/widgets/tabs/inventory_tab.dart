@@ -105,6 +105,37 @@ class _InventoryTabState extends State<InventoryTab> {
     );
   }
 
+  /// Показать историю документа: кто и когда его сформировал, скачал, отметил выполненным.
+  Future<void> _showHistory(PortalDoc doc) async {
+    final res = await _repo.events(doc.id);
+    if (!mounted) return;
+    res.fold(
+      (f) => _snack(t.portal.inventory.error(message: _errorText(f))),
+      (events) => showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(t.portal.inventory.historyTitle),
+          content: SizedBox(
+            width: AppSizes.kContentMaxWidth / 2,
+            child: events.isEmpty
+                ? Text(t.portal.inventory.historyEmpty)
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [for (final e in events) _HistoryRow(event: e)],
+                  ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: Text(t.portal.inventory.close),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   /// Текст ошибки для снекбара по типу Failure.
   String _errorText(Failure f) => switch (f) {
         ServerFailure(:final message, :final statusCode) => message ?? 'HTTP $statusCode',
@@ -189,6 +220,7 @@ class _InventoryTabState extends State<InventoryTab> {
             marking: _marking.contains(d.id),
             onDownload: () => _download(d),
             onMarkDone: () => _markDone(d),
+            onHistory: () => _showHistory(d),
           ),
       ],
     );
@@ -203,6 +235,7 @@ class _DocRow extends StatelessWidget {
     required this.marking,
     required this.onDownload,
     required this.onMarkDone,
+    required this.onHistory,
   });
 
   final PortalDoc doc;
@@ -210,6 +243,7 @@ class _DocRow extends StatelessWidget {
   final bool marking;
   final VoidCallback onDownload;
   final VoidCallback onMarkDone;
+  final VoidCallback onHistory;
 
   /// Формат даты документа: `дд.мм.гггг чч:мм` в локальной зоне.
   String _date(DateTime dt) {
@@ -260,6 +294,11 @@ class _DocRow extends StatelessWidget {
                       tooltip: t.portal.inventory.markDone,
                       onPressed: onMarkDone,
                     ),
+            IconButton(
+              icon: const Icon(Icons.history),
+              tooltip: t.portal.inventory.history,
+              onPressed: onHistory,
+            ),
             downloading
                 ? const Padding(
                     padding: AppInsets.all8,
@@ -301,6 +340,60 @@ class _StatusBadge extends StatelessWidget {
       child: Text(
         label,
         style: TextStyle(fontSize: AppSizes.kText12, color: fg, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+}
+
+/// Строка истории: что произошло, когда и кто это сделал.
+class _HistoryRow extends StatelessWidget {
+  const _HistoryRow({required this.event});
+
+  final DocEvent event;
+
+  /// Человекочитаемое название события. Незнакомое показываем как есть — лучше сырой код,
+  /// чем пустая строка: журнал читают, когда разбираются в расхождении.
+  String get _label => switch (event.event) {
+        'created' => t.portal.inventory.eventCreated,
+        'downloaded' => t.portal.inventory.eventDownloaded,
+        'done' => t.portal.inventory.eventDone,
+        'generation_failed' => t.portal.inventory.eventGenerationFailed,
+        _ => event.event,
+      };
+
+  /// Формат отметки времени: `дд.мм.гггг чч:мм` в локальной зоне.
+  String _at(DateTime dt) {
+    final l = dt.toLocal();
+    String two(int v) => v.toString().padLeft(2, '0');
+    return '${two(l.day)}.${two(l.month)}.${l.year} ${two(l.hour)}:${two(l.minute)}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final failed = event.event == 'generation_failed';
+    return Padding(
+      padding: AppInsets.bottom8,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${_at(event.createdAt)} · $_label',
+            style: TextStyle(
+              fontSize: AppSizes.kText14,
+              color: failed ? AppColors.kDanger : AppColors.kTextMain,
+            ),
+          ),
+          Text(
+            // Автор мог не сохраниться: события до появления журнала и системные записи.
+            event.userName.isEmpty ? t.portal.inventory.eventSystem : event.userName,
+            style: const TextStyle(fontSize: AppSizes.kText13, color: AppColors.kTextMuted),
+          ),
+          if (failed && event.details.isNotEmpty)
+            Text(
+              event.details,
+              style: const TextStyle(fontSize: AppSizes.kText13, color: AppColors.kDanger),
+            ),
+        ],
       ),
     );
   }

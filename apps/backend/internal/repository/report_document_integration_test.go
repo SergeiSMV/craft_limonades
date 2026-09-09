@@ -250,3 +250,78 @@ func TestReportDocument_migrationBackfillsClosedSessions(t *testing.T) {
 		t.Errorf("снимок бэкофилла поехал за справочником: %q", after.Snapshot.Rows[0].GoodName)
 	}
 }
+
+// Бэкофилл миграции 000011: документы, существовавшие до журнала, получают историю задним числом.
+// Иначе она начиналась бы с середины, хотя время создания и отметок известно из колонок состояния.
+func TestReportDocument_migrationBackfillsJournal(t *testing.T) {
+	testcontainers.SkipIfProviderIsNotHealthy(t)
+
+	ctx := context.Background()
+	ctr, err := tcpostgres.Run(ctx, "postgres:16-alpine",
+		tcpostgres.WithDatabase("wms"),
+		tcpostgres.WithUsername("wms"),
+		tcpostgres.WithPassword("wms"),
+		testcontainers.WithWaitStrategy(
+			wait.ForLog("database system is ready to accept connections").
+				WithOccurrence(2).WithStartupTimeout(60*time.Second)),
+	)
+	testcontainers.CleanupContainer(t, ctr)
+	if err != nil {
+		t.Fatalf("запуск postgres-контейнера: %v", err)
+	}
+	dsn, err := ctr.ConnectionString(ctx, "sslmode=disable")
+	if err != nil {
+		t.Fatalf("connection string: %v", err)
+	}
+	src, err := iofs.New(migrations.FS, ".")
+	if err != nil {
+		t.Fatalf("источник миграций: %v", err)
+	}
+	m, err := migrate.NewWithSourceInstance("iofs", src, strings.Replace(dsn, "postgres://", "pgx5://", 1))
+	if err != nil {
+		t.Fatalf("init migrate: %v", err)
+	}
+
+	// Схема состояния «до P3-03»: документы и статусы уже есть, журнала ещё нет.
+	if err := m.Migrate(10); err != nil {
+		t.Fatalf("migrate to 10: %v", err)
+	}
+	pool, err := repository.NewPool(ctx, dsn)
+	if err != nil {
+		t.Fatalf("пул: %v", err)
+	}
+	t.Cleanup(pool.Close)
+
+	var wh, user, session, docID string
+	mustScan(t, pool, `INSERT INTO warehouses (code, name) VALUES ('WH8','до журнала') RETURNING id::text`, &wh)
+	mustScan(t, pool, `INSERT INTO users (login, password_hash, full_name) VALUES ('10000002','x','Прошлый') RETURNING id::text`, &user)
+	mustScan(t, pool, `
+		INSERT INTO stock_entry_sessions (warehouse_id, created_by, status, closed_at)
+		VALUES ($1::uuid,$2::uuid,'closed',now()) RETURNING id::text`, &session, wh, user)
+	// Документ, который успели скачать и отметить выполненным до появления журнала.
+	mustScan(t, pool, `
+		INSERT INTO report_documents (kind, source_type, source_id, snapshot, status, downloaded_at, done_at)
+		VALUES ('stock_entry','stock_entry_session',$1::uuid,'{"rows":[]}'::jsonb,'done',now(),now())
+		RETURNING id::text`, &docID, session)
+
+	if err := m.Migrate(11); err != nil {
+		t.Fatalf("migrate to 11: %v", err)
+	}
+
+	events, err := repository.NewReportDocumentRepository(pool).Events(ctx, docID)
+	if err != nil {
+		t.Fatalf("журнал после бэкофилла: %v", err)
+	}
+	if len(events) != 3 {
+		t.Fatalf("ожидалось 3 события (created/downloaded/done), получено %d: %+v", len(events), events)
+	}
+	if events[0].Event != model.DocEventCreated || events[0].UserName != "Прошлый" {
+		t.Errorf("создание: %+v — автора берём из операции-источника", events[0])
+	}
+	// У скачивания и отметки автор неизвестен: тогда его не записывали, и выдумывать нельзя.
+	for _, e := range events[1:] {
+		if e.UserID != nil || e.UserName != "" {
+			t.Errorf("событие %q получило автора из ниоткуда: %+v", e.Event, e)
+		}
+	}
+}

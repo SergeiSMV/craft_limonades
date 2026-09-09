@@ -95,6 +95,7 @@ func NewRouter(log *slog.Logger, db Pinger, authSvc *service.AuthService, tokens
 				r.Get("/documents", docH.List)                // рабочий список: необработанные сверху
 				r.Get("/documents/{id}/file.xlsx", docH.File) // скачать .xlsx (отмечает скачивание)
 				r.Post("/documents/{id}/done", docH.Done)     // «Выполнено»: занесён в 1С
+				r.Get("/documents/{id}/events", docH.Events)  // журнал: кто и когда что делал
 			})
 		}
 

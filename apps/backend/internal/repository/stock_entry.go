@@ -167,13 +167,28 @@ func finalizeSession(ctx context.Context, q Querier, sessionID string) (int, err
 	if err != nil {
 		return 0, err
 	}
-	if err := saveDocument(ctx, q, model.ReportDocument{
+	documentID, err := saveDocument(ctx, q, model.ReportDocument{
 		Kind:       model.ReportKindStockEntry,
 		SourceType: model.SourceTypeStockEntrySession,
 		SourceID:   sessionID,
 		Snapshot:   snap,
-	}); err != nil {
+	})
+	if err != nil {
 		return 0, err
+	}
+
+	// Журнал документа начинается здесь (P3-03). Пустой id — повтор финала: документ уже был,
+	// и второе событие «сформирован» означало бы, что его сформировали дважды.
+	// Автор — тот, кто вёл проход: у документа нет собственного создателя, он рождается операцией.
+	if documentID != "" {
+		var author string
+		if err := q.QueryRow(ctx,
+			`SELECT created_by::text FROM stock_entry_sessions WHERE id = $1::uuid`, sessionID).Scan(&author); err != nil {
+			return 0, fmt.Errorf("автор сессии для журнала: %w", err)
+		}
+		if err := logEvent(ctx, q, documentID, model.DocEventCreated, author, ""); err != nil {
+			return 0, err
+		}
 	}
 	return written, nil
 }
