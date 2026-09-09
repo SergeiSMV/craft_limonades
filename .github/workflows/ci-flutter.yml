@@ -12,11 +12,16 @@ on:
     branches: [dev]
     paths:
       - 'apps/craft_wms/**'
+      # Эталон формата батча операций живёт в дереве бэкенда, а половина контракта — в тестах
+      # приложения. Без этой строки правка эталона не поднимала бы Flutter-гейт, и клиент
+      # молча разошёлся бы с ним (P2-08).
+      - 'apps/backend/internal/handler/testdata/**'
       - '.github/workflows/ci-flutter.yml'
   push:
     branches: [main]
     paths:
       - 'apps/craft_wms/**'
+      - 'apps/backend/internal/handler/testdata/**'
       - 'infra/portal/**'
       - '.github/workflows/ci-flutter.yml'
 
