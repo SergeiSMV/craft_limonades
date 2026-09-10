@@ -73,6 +73,12 @@ func (r *ReceiptRepository) AddLine(ctx context.Context, receiptID string, in mo
 		}
 		var lu any
 		if in.LoadUnitID != "" {
+			// Короб проверяем ДО вставки строки: без этого незнакомый ярлык упирался бы
+			// в нарушение внешнего ключа, и кладовщик получал бы сбой БД вместо внятного
+			// «такой ГЕ нет» — а это его рабочая ситуация, не авария.
+			if err := guardLoadUnitExists(ctx, q, in.LoadUnitID); err != nil {
+				return err
+			}
 			lu = in.LoadUnitID
 		}
 		_, err = q.Exec(ctx, `
@@ -182,6 +188,19 @@ func addLoadUnitContent(ctx context.Context, q Querier, luID, goodID, batchID, q
 		DO UPDATE SET qty = lu_content.qty + EXCLUDED.qty`, luID, goodID, batchID, qty)
 	if err != nil {
 		return fmt.Errorf("пополнить состав ГЕ: %w", err)
+	}
+	return nil
+}
+
+// guardLoadUnitExists проверяет, что ГЕ заведена.
+func guardLoadUnitExists(ctx context.Context, q Querier, luID string) error {
+	var exists bool
+	err := q.QueryRow(ctx, `SELECT true FROM load_units WHERE id = $1::uuid`, luID).Scan(&exists)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrLoadUnitNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("проверить ГЕ: %w", err)
 	}
 	return nil
 }

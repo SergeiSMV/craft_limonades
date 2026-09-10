@@ -85,9 +85,8 @@ func newDocE2E(t *testing.T) *docEnv {
 	}
 
 	router := handler.NewRouter(
-		slog.New(slog.NewTextHandler(io.Discard, nil)),
-		nil, nil, tokens, nil, nil, nil, nil, nil,
-		service.NewDocumentService(docRepo), nil,
+		slog.New(slog.NewTextHandler(io.Discard, nil)), nil, tokens,
+		handler.Services{Document: service.NewDocumentService(docRepo)},
 	)
 	srv := httptest.NewServer(router)
 	t.Cleanup(srv.Close)

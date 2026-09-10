@@ -28,6 +28,7 @@ type (
 	}
 	cellRepo interface {
 		Upsert(ctx context.Context, q repository.Querier, warehouseID, address string, isFloor bool) (bool, error)
+		EnsureDefault(ctx context.Context, q repository.Querier, warehouseID string) (string, error)
 	}
 )
 
@@ -162,6 +163,13 @@ func (s *ImportService) ImportCells(ctx context.Context, r io.Reader, warehouseC
 			} else {
 				report.CellsUpdated++
 			}
+		}
+		// Дефолтная ячейка приёмки — каждому складу, в том числе появившемуся этим импортом:
+		// без неё приёмка на новом складе упёрлась бы в «некуда приходовать» (P4-03).
+		// После цикла, а не до: если ячейка есть в самом файле, счётчики отчёта считают её строкой
+		// файла, а не нашей добавкой — отчёт обязан сходиться с тем, что человек загрузил.
+		if _, err := s.cells.EnsureDefault(ctx, q, warehouseID); err != nil {
+			return err
 		}
 		return nil
 	})

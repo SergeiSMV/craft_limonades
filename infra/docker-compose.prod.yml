@@ -48,6 +48,10 @@ services:
       ADMIN_FULL_NAME: ${ADMIN_FULL_NAME:-}
       ADMIN_USERNAME: ${ADMIN_USERNAME:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      # Физический склад пилота (P4-03): сид заводит его и дефолтную ячейку приёмки «С-Н-П».
+      # Пусто — берутся значения по умолчанию из кода (SHB / Шабулина).
+      WAREHOUSE_CODE: ${WAREHOUSE_CODE:-}
+      WAREHOUSE_NAME: ${WAREHOUSE_NAME:-}
     depends_on:
       db:
         condition: service_healthy   # стартуем только после «живой» БД
