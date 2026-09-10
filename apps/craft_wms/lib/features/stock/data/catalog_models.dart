@@ -107,6 +107,12 @@ abstract class StockItem with _$StockItem {
     @JsonKey(name: 'batch_id') required String batchId,
     @JsonKey(name: 'production_date') required String productionDate,
     required String qty,
+    // Учётная принадлежность остатка (ADR-0016): «основной», «брак» и т.д. Значения
+    // необязательные — старый бэкенд их не отдаёт, и приложение не должно из-за этого падать.
+    @JsonKey(name: 'internal_warehouse_name') String? internalWarehouseName,
+    // «Основной» приходит флагом, а не сравнением кода: справочник пополняется и
+    // переименовывается из интерфейса, зашитый 'MAIN' сломался бы при первом переименовании.
+    @JsonKey(name: 'internal_warehouse_is_default') @Default(true) bool internalWarehouseIsDefault,
   }) = _StockItem;
 
   factory StockItem.fromJson(Map<String, dynamic> json) =>

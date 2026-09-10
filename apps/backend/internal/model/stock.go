@@ -12,6 +12,10 @@ type StockKey struct {
 	CellID  string // uuid ячейки
 	GoodID  string // uuid товара
 	BatchID string // uuid партии
+	// InternalWarehouseID — учётная принадлежность остатка (ADR-0016): «основной», «брак» и т.д.
+	// Одна физическая ячейка держит остатки разных внутренних складов одновременно, поэтому
+	// без этого поля они схлопывались бы в одну строку и затирали друг друга.
+	InternalWarehouseID string
 }
 
 // Stock — остаток по грани StockKey с количеством. Qty — decimal (не float):
