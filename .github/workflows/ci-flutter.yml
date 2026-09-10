@@ -1,12 +1,20 @@
 name: CI · Flutter
 
 # Гоняется ТОЛЬКО когда менялось приложение (apps/craft_wms/**) — бэкенд зря не гоняем.
-# Два прогона на путь фича→dev→main (dev всегда зелёный — гейт стоит на входе в него):
-# - pull_request → dev: codegen + analyze + test + сборка APK (ТСД) + web (портал) — гейт перед входом в dev;
-# - push → main: то же. Артефакты (APK/web) не выгружаем — CI только гейт, сборку делаем вручную.
-# push→dev и PR dev→main не гоняем — избыточно (см. историю решений).
-# Android и web собираются в ОДНОМ джобе: переиспользуем checkout/setup/pub get/codegen
-# (экономия минут Actions на free-тарифе) и держим один required-чек.
+#
+# Работа разделена по событиям (ADHOC-16): проверка кода — на входе в dev, сборка артефактов —
+# на выходе в main. Раньше оба события делали всё целиком, и полный прогон (13-18 минут)
+# повторялся дважды за задачу, второй раз — ради того же результата.
+# - pull_request → dev: codegen + analyze + test. Быстро: ни Gradle, ни JDK здесь не нужны.
+# - push → main: РЕЛИЗНАЯ сборка APK + веб-бандл портала + публикация образа в GHCR.
+#   Тесты тут гоняются, только если дерево main разошлось с dev (см. джоб gate).
+#
+# Почему APK собирается релизной, а не отладочной: на терминалы ставится release, и различия
+# живут именно там — слияние манифестов, tree-shaking, оптимизация. На этой разнице жил ADHOC-04
+# (в релизном манифесте не было android.permission.INTERNET, и НИ ОДНА релизная сборка не могла
+# обратиться к серверу, а гейт этого не видел, потому что собирал debug). Подписи не нужны:
+# без keystore релиз собирается с отладочной подписью.
+# Артефакты (APK/web) не выгружаем — на free-тарифе они выедали квоту хранилища.
 on:
   pull_request:
     branches: [dev]
@@ -36,10 +44,92 @@ permissions:
   packages: write
 
 jobs:
-  # --- Flutter (ТСД APK + веб-портал): codegen, анализ, тесты, сборка APK и web ---
-  flutter:
-    name: Flutter (Android + Web портал)
+  # --- Привратник: нужно ли гонять проверки на этом событии ---
+  # На PR — всегда. На push в main — только если дерево main ОТЛИЧАЕТСЯ от dev: при обычном
+  # потоке этот код уже прошёл гейт на PR. Совпадение деревьев подтверждает «main не отличается
+  # от dev», а не «dev проверен» — проверенность держится на том, что вход в dev только через PR.
+  # Сравнение ловит прямой push в main мимо dev (branch protection на free-тарифе не enforced).
+  gate:
+    name: Нужны ли проверки
     runs-on: ubuntu-latest
+    outputs:
+      tests: ${{ steps.decide.outputs.tests }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # нужна история: сравниваем с origin/dev
+
+      - name: Решение
+        id: decide
+        run: |
+          if [ "${{ github.event_name }}" != "push" ]; then
+            echo "PR — гейт обязателен."
+            echo "tests=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          head_tree="$(git rev-parse 'HEAD^{tree}')"
+          dev_tree="$(git rev-parse 'origin/dev^{tree}' 2>/dev/null || echo none)"
+          if [ "$head_tree" = "$dev_tree" ]; then
+            echo "Дерево совпадает с dev ($head_tree) — проверки уже проходили на PR."
+            echo "tests=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Дерево отличается от dev (main=$head_tree dev=$dev_tree) — гоняем проверки."
+            echo "tests=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  # --- Проверка кода: codegen, анализ, тесты ---
+  # Ни JDK, ни Gradle: analyze и test их не требуют, а установка JDK и прогрев Gradle —
+  # основное время прежнего единого джоба.
+  flutter:
+    name: Flutter (анализ и тесты)
+    runs-on: ubuntu-latest
+    needs: [gate]
+    if: needs.gate.outputs.tests == 'true'
+    defaults:
+      run:
+        working-directory: apps/craft_wms
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.2'
+          channel: stable
+          cache: true
+
+      # Пакеты pub кешируются отдельно от SDK: flutter-action кеширует только сам SDK,
+      # а зависимости качаются заново на каждом прогоне.
+      - name: Кеш pub
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('apps/craft_wms/pubspec.lock') }}
+          restore-keys: pub-${{ runner.os }}-
+
+      - name: Pub get
+        run: flutter pub get
+
+      # Сгенерированные файлы (*.freezed/*.g/*.gr/*.config.dart) в .gitignore —
+      # без codegen анализ и тесты упадут.
+      - name: Codegen (build_runner)
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: |
+          if [ -d test ]; then flutter test; else echo "тестов пока нет — пропуск"; fi
+
+  # --- Релиз: сборка артефактов и публикация портала (только push в main) ---
+  release:
+    name: Сборка релиза (APK + портал → GHCR)
+    runs-on: ubuntu-latest
+    needs: [gate, flutter]
+    # `skipped` в списке допустимых исходов — случай «проверки не гоняли, потому что дерево
+    # совпадает с проверенным dev». Без него пропуск проверок пропустил бы и публикацию.
+    if: >-
+      !cancelled() && github.event_name == 'push'
+      && (needs.flutter.result == 'success' || needs.flutter.result == 'skipped')
     defaults:
       run:
         working-directory: apps/craft_wms
@@ -58,21 +148,29 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Кеш pub
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('apps/craft_wms/pubspec.lock') }}
+          restore-keys: pub-${{ runner.os }}-
+
+      # Gradle качает зависимости Android заново на каждом прогоне — это и есть основная
+      # часть времени сборки APK.
+      - name: Кеш Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('apps/craft_wms/android/**/*.gradle*', 'apps/craft_wms/android/**/gradle-wrapper.properties') }}
+          restore-keys: gradle-${{ runner.os }}-
+
       - name: Pub get
         run: flutter pub get
 
-      # Сгенерированные файлы (*.freezed/*.g/*.gr/*.config.dart) в .gitignore —
-      # без codegen анализ и сборка упадут.
       - name: Codegen (build_runner)
         run: dart run build_runner build --delete-conflicting-outputs
-
-      - name: Analyze
-        run: flutter analyze
-
-      # Тестов пока нет (test/ появится в P0-08/P2) — не валим пайплайн на пустоте.
-      - name: Test
-        run: |
-          if [ -d test ]; then flutter test; else echo "тестов пока нет — пропуск"; fi
 
       # Реальный .env — в .gitignore (свой на каждой машине). В CI подставляем заглушку
       # из шаблона: так проверяется, что .env.example остаётся разбираемым, и честно
@@ -80,38 +178,46 @@ jobs:
       - name: Prepare .env (CI stub)
         run: cp .env.example .env
 
-      # Гейт компиляции ТСД-APK. Именно из .env: у ТСД нативная сборка, адрес сервера
-      # зашивается в приложение и относительным быть не может — на устройстве нет origin,
-      # относительно которого его разрешать.
-      - name: Build APK (debug)
-        run: flutter build apk --debug --dart-define-from-file=.env
+      # Релизная сборка ТСД-APK — тот же путь, которым приложение ставится на терминалы.
+      # Именно из .env: у ТСД нативная сборка, адрес сервера зашивается в приложение и
+      # относительным быть не может — на устройстве нет origin, относительно которого его
+      # разрешать.
+      - name: Build APK (release)
+        run: flutter build apk --release --dart-define-from-file=.env
+
+      # Разрешения проверяем в самом артефакте, а не на глаз: ADHOC-04 был именно про то,
+      # что в релизном манифесте не оказалось INTERNET, и заметить это можно только здесь.
+      - name: Проверка разрешений в APK
+        run: |
+          aapt_bin="$(find "${ANDROID_HOME:-/usr/local/lib/android/sdk}/build-tools" -name aapt2 2>/dev/null | sort | tail -1)"
+          # Молча пропустить проверку нельзя: зелёный шаг означал бы, что разрешения проверены,
+          # а на деле не проверялось ничего — ровно так ADHOC-04 и дожил до устройства.
+          [ -n "$aapt_bin" ] || { echo "::error::aapt2 не найден — проверка разрешений не выполнена"; exit 1; }
+          perms="$("$aapt_bin" dump badging build/app/outputs/flutter-apk/app-release.apk | grep uses-permission || true)"
+          echo "$perms"
+          echo "$perms" | grep -q 'android.permission.INTERNET' \
+            || { echo "::error::в релизном APK нет android.permission.INTERNET"; exit 1; }
 
       # --- Веб-портал (Flutter Web), точка входа lib/main_portal.dart ---
       # Портал собирается с ОТНОСИТЕЛЬНЫМ BASE_URL и .env не использует: он живёт на одном
       # origin с API (ADR-0015), а dio поддерживает относительный baseUrl на Web. Благодаря
       # этому бандл не привязан к домену — собирается один раз и годится где угодно, поэтому
-      # его и можно публиковать образом. Ничего другого из окружения сборки порталу не нужно:
-      # WAREHOUSE_NAME читает только главный экран ТСД.
+      # его и можно публиковать образом.
       - name: Build web (portal)
         run: flutter build web -t lib/main_portal.dart --dart-define=BASE_URL=/api/v1/ --release
 
-      # APK артефактом не выгружаем: на free-тарифе артефакты выедали квоту хранилища
-      # и роняли upload. Для APK CI остаётся гейтом, готовый файл собирается вручную.
-
-      # --- Публикация портала (только релиз в main) ---
+      # --- Публикация портала ---
       # Бандл уезжает ОБРАЗОМ в GHCR, а не артефактом: артефакты упираются в квоту, а GHCR
       # с прод-сервера доступен и уже используется (Docker Hub из России отваливается по TLS).
-      # Сервер забирает образ в обычном обновлении и раскладывает бандл — publish портала
+      # Сервер забирает образ в обычном обновлении и раскладывает бандл — публикация портала
       # перестаёт быть ручной операцией.
       # Имя образа GHCR должно быть в нижнем регистре, а логин владельца — нет
       # (SergeiSMV). Без приведения docker отвергает имя целиком.
       - name: Compute image name
-        if: github.event_name == 'push'
         id: img
         run: echo "name=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/craft-wms-portal" >> "$GITHUB_OUTPUT"
 
       - name: Log in to GHCR
-        if: github.event_name == 'push'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -119,8 +225,11 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push portal image
-        if: github.event_name == 'push'
         uses: docker/build-push-action@v6
+        env:
+          # Сводку сборки не выгружаем: квота артефактов на free-тарифе исчерпана, и попытка
+          # оставляет предупреждение в зелёном прогоне, маскируя настоящие сбои загрузки.
+          DOCKER_BUILD_RECORD_UPLOAD: false
         with:
           # Контекст — каталог build: Dockerfile копирует из него подкаталог web.
           context: apps/craft_wms/build
@@ -133,7 +242,6 @@ jobs:
       # Прошлые версии остаются в реестре без тега и копятся. Держим одну на всякий случай
       # (откат), остальные удаляем.
       - name: Prune old portal images
-        if: github.event_name == 'push'
         continue-on-error: true
         uses: actions/delete-package-versions@v5
         with:
