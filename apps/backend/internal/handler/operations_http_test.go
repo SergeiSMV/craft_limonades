@@ -61,8 +61,8 @@ func newE2E(t *testing.T) *e2eEnv {
 
 	opsSvc := service.NewOperationsService(repository.NewOperationsRepository(pool))
 	router := handler.NewRouter(
-		slog.New(slog.NewTextHandler(io.Discard, nil)),
-		nil, nil, tokens, nil, nil, nil, nil, nil, nil, opsSvc,
+		slog.New(slog.NewTextHandler(io.Discard, nil)), nil, tokens,
+		handler.Services{Operations: opsSvc},
 	)
 	srv := httptest.NewServer(router)
 	t.Cleanup(srv.Close)

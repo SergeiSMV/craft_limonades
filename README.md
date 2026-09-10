@@ -27,7 +27,7 @@ colima start                        # docker-демон (macOS), если не �
 cp .env.example .env                # окружение (первый раз)
 make up                             # стек: postgres + backend + nginx
 make migrate-up                     # миграции схемы БД
-make seed                           # стартовый админ из .env (ADMIN_BADGE)
+make seed                           # стартовый админ (ADMIN_BADGE) + склад и его дефолтная ячейка приёмки
 make ps                             # статус контейнеров (ждём healthy)
 curl http://localhost:8080/health   # liveness → {"status":"ok"}
 curl http://localhost:8080/ready    # readiness (БД доступна) → {"status":"ready"}

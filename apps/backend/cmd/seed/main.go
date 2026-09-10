@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"craftwms/internal/auth"
+	"craftwms/internal/model"
 	"craftwms/internal/repository"
 )
 
@@ -63,7 +64,36 @@ func main() {
 		log.Printf("badge admin already exists: login=%s (skipped)", login)
 	}
 
-	// 5. Опционально — admin с входом по логину/паролю (P1-01-1), если заданы
+	// 5. Физический склад пилота и его дефолтная ячейка приёмки (P4-03).
+	//
+	// Зачем в сиде: ячейка обязана принадлежать складу, а в пустой базе складов нет вовсе —
+	// они заводятся импортом ячеек, который на свежем развёртывании ещё не делали. Без этой пары
+	// первая же приёмка упёрлась бы в «некуда приходовать». Идемпотентно: повторный сид и
+	// последующий импорт того же склада ничего не дублируют.
+	warehouseCode := os.Getenv("WAREHOUSE_CODE")
+	if warehouseCode == "" {
+		warehouseCode = model.DefaultWarehouseCode
+	}
+	warehouseName := os.Getenv("WAREHOUSE_NAME")
+	if warehouseName == "" {
+		warehouseName = model.DefaultWarehouseName
+	}
+	warehouses := repository.NewWarehouseRepository(pool)
+	cells := repository.NewCellRepository(pool)
+	err = repository.WithinTx(ctx, pool, func(q repository.Querier) error {
+		warehouseID, err := warehouses.Upsert(ctx, q, warehouseCode, warehouseName)
+		if err != nil {
+			return err
+		}
+		_, err = cells.EnsureDefault(ctx, q, warehouseID)
+		return err
+	})
+	if err != nil {
+		log.Fatalf("seed warehouse: %v", err)
+	}
+	log.Printf("warehouse ready: code=%s, default cell %q", warehouseCode, model.DefaultCellAddress)
+
+	// 6. Опционально — admin с входом по логину/паролю (P1-01-1), если заданы
 	//    ADMIN_USERNAME/ADMIN_PASSWORD. Так admin/менеджер входит со смартфона без бейджа.
 	//
 	// Молчать здесь нельзя: без этих переменных сид отрабатывает «успешно», а в веб-портал

@@ -20,16 +20,17 @@ import (
 // а приёмка приращивает, поэтому повтор здесь опасен и закрыт статусом.
 
 type rcEnv struct {
-	pool      *pgxpool.Pool
-	svc       *service.ReceiptService
-	stockRepo *repository.StockRepository
-	warehouse string
-	cell1     string
-	cell2     string
-	good      string
-	supplier  string
-	user      string
-	iwh       string
+	pool        *pgxpool.Pool
+	svc         *service.ReceiptService
+	stockRepo   *repository.StockRepository
+	warehouse   string
+	cell1       string
+	cell2       string
+	cellDefault string
+	good        string
+	supplier    string
+	user        string
+	iwh         string
 }
 
 func setupReceipt(t *testing.T) *rcEnv {
@@ -38,7 +39,7 @@ func setupReceipt(t *testing.T) *rcEnv {
 	ctx := context.Background()
 	e := &rcEnv{
 		pool:      pool,
-		svc:       service.NewReceiptService(repository.NewReceiptRepository(pool)),
+		svc:       service.NewReceiptService(repository.NewReceiptRepository(pool), repository.NewCellRepository(pool)),
 		stockRepo: repository.NewStockRepository(pool),
 	}
 	scan := func(sql string, args ...any) string {
@@ -51,6 +52,9 @@ func setupReceipt(t *testing.T) *rcEnv {
 	e.warehouse = scan(`INSERT INTO warehouses (code,name) VALUES ('SHB','Шабулина') RETURNING id::text`)
 	e.cell1 = scan(`INSERT INTO cells (warehouse_id,address) VALUES ($1::uuid,'M1-1-1-1') RETURNING id::text`, e.warehouse)
 	e.cell2 = scan(`INSERT INTO cells (warehouse_id,address) VALUES ($1::uuid,'M1-1-2-1') RETURNING id::text`, e.warehouse)
+	// Дефолтная ячейка склада — её подставляет приёмка, когда кладовщик место не выбирал (P4-03).
+	// Заводится так же, как в бою: через тот же метод репозитория, что зовут сидер и импорт ячеек.
+	e.cellDefault = mustEnsureDefaultCell(t, pool, e.warehouse)
 	e.good = scan(`INSERT INTO goods (name,uom) VALUES ('Кальмар','шт') RETURNING id::text`)
 	e.supplier = scan(`INSERT INTO suppliers (name) VALUES ('Поставщик') RETURNING id::text`)
 	e.user = scan(`INSERT INTO users (login,password_hash,full_name) VALUES ('90000031','x','Кладовщик') RETURNING id::text`)
@@ -81,6 +85,59 @@ func (e *rcEnv) batchOf(t *testing.T, iso string) string {
 	return id
 }
 
+// mustEnsureDefaultCell заводит складу дефолтную ячейку тем же методом, что зовут сидер и импорт.
+func mustEnsureDefaultCell(t *testing.T, pool *pgxpool.Pool, warehouseID string) string {
+	t.Helper()
+	var id string
+	err := repository.WithinTx(context.Background(), pool, func(q repository.Querier) error {
+		var err error
+		id, err = repository.NewCellRepository(pool).EnsureDefault(context.Background(), q, warehouseID)
+		return err
+	})
+	if err != nil {
+		t.Fatalf("дефолтная ячейка: %v", err)
+	}
+	return id
+}
+
+// Ячейку кладовщик на приёмке не выбирает: пустая ячейка в строке — это просьба подставить
+// дефолтную, а не ошибка ввода. Проверяем и подстановку, и что вернулась именно она:
+// умолчание, работающее вслепую, кладовщик не смог бы отличить от промаха.
+func TestReceipt_defaultCellSubstituted(t *testing.T) {
+	e := setupReceipt(t)
+	ctx := context.Background()
+	id := uuid.NewString()
+
+	if err := e.svc.Start(ctx, id, e.warehouse, "", e.user); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	cell, err := e.svc.AddLine(ctx, id, e.good, "15-01-2026", "", "", decimal.RequireFromString("7"))
+	if err != nil {
+		t.Fatalf("AddLine без ячейки: %v", err)
+	}
+	if cell != e.cellDefault {
+		t.Fatalf("подставлена ячейка %s, ожидалась дефолтная %s", cell, e.cellDefault)
+	}
+
+	// Ячейку ищем по флагу, а не по строке адреса, — но адрес обязан быть тем, о котором
+	// договорились с заказчиком: по нему кладовщик находит место на складе.
+	var address string
+	if err := e.pool.QueryRow(ctx,
+		`SELECT address FROM cells WHERE id = $1::uuid`, cell).Scan(&address); err != nil {
+		t.Fatalf("адрес дефолтной ячейки: %v", err)
+	}
+	if address != model.DefaultCellAddress {
+		t.Errorf("адрес дефолтной ячейки %q, ожидался %q", address, model.DefaultCellAddress)
+	}
+
+	if _, err := e.svc.Post(ctx, id); err != nil {
+		t.Fatalf("Post: %v", err)
+	}
+	if got := e.qty(t, e.cellDefault, e.batchOf(t, "2026-01-15")); !got.Equal(decimal.RequireFromString("7")) {
+		t.Errorf("остаток в дефолтной ячейке: %s, ожидалось 7", got)
+	}
+}
+
 // Критерий задачи: документ проходит по статусам, и оприходование поднимает остаток.
 func TestReceipt_lifecycle(t *testing.T) {
 	e := setupReceipt(t)
@@ -98,7 +155,7 @@ func TestReceipt_lifecycle(t *testing.T) {
 		t.Fatalf("свежий документ: статус=%s posted_at=%v", rc.Status, rc.PostedAt)
 	}
 
-	if err := e.svc.AddLine(ctx, id, e.good, "15-01-2026", e.cell1, "", decimal.RequireFromString("10")); err != nil {
+	if _, err := e.svc.AddLine(ctx, id, e.good, "15-01-2026", e.cell1, "", decimal.RequireFromString("10")); err != nil {
 		t.Fatalf("AddLine: %v", err)
 	}
 	batch := e.batchOf(t, "2026-01-15")
@@ -135,7 +192,7 @@ func TestReceipt_postIsNotRepeatable(t *testing.T) {
 	if err := e.svc.Start(ctx, id, e.warehouse, "", e.user); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
-	if err := e.svc.AddLine(ctx, id, e.good, "15-01-2026", e.cell1, "", decimal.RequireFromString("4")); err != nil {
+	if _, err := e.svc.AddLine(ctx, id, e.good, "15-01-2026", e.cell1, "", decimal.RequireFromString("4")); err != nil {
 		t.Fatalf("AddLine: %v", err)
 	}
 	if _, err := e.svc.Post(ctx, id); err != nil {
@@ -151,7 +208,7 @@ func TestReceipt_postIsNotRepeatable(t *testing.T) {
 	}
 
 	// Оприходованный документ не пополняется: строки уже превратились в остаток.
-	if err := e.svc.AddLine(ctx, id, e.good, "15-01-2026", e.cell1, "", decimal.RequireFromString("1")); !errors.Is(err, repository.ErrReceiptPosted) {
+	if _, err := e.svc.AddLine(ctx, id, e.good, "15-01-2026", e.cell1, "", decimal.RequireFromString("1")); !errors.Is(err, repository.ErrReceiptPosted) {
 		t.Errorf("строка в проведённый документ: ожидалась ErrReceiptPosted, получено %v", err)
 	}
 }
@@ -168,7 +225,7 @@ func TestReceipt_lineGrain(t *testing.T) {
 
 	add := func(cell string, qty string) {
 		t.Helper()
-		if err := e.svc.AddLine(ctx, id, e.good, "15-01-2026", cell, "", decimal.RequireFromString(qty)); err != nil {
+		if _, err := e.svc.AddLine(ctx, id, e.good, "15-01-2026", cell, "", decimal.RequireFromString(qty)); err != nil {
 			t.Fatalf("AddLine: %v", err)
 		}
 	}
@@ -212,7 +269,7 @@ func TestReceipt_intoLoadUnit(t *testing.T) {
 	if err := e.svc.Start(ctx, id, e.warehouse, "", e.user); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
-	if err := e.svc.AddLine(ctx, id, e.good, "15-01-2026", e.cell1, lu, decimal.RequireFromString("6")); err != nil {
+	if _, err := e.svc.AddLine(ctx, id, e.good, "15-01-2026", e.cell1, lu, decimal.RequireFromString("6")); err != nil {
 		t.Fatalf("AddLine: %v", err)
 	}
 	if _, err := e.svc.Post(ctx, id); err != nil {
@@ -250,10 +307,10 @@ func TestReceipt_loadUnitCellConflict(t *testing.T) {
 	if err := e.svc.Start(ctx, id, e.warehouse, "", e.user); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
-	if err := e.svc.AddLine(ctx, id, e.good, "15-01-2026", e.cell1, lu, decimal.RequireFromString("1")); err != nil {
+	if _, err := e.svc.AddLine(ctx, id, e.good, "15-01-2026", e.cell1, lu, decimal.RequireFromString("1")); err != nil {
 		t.Fatalf("AddLine 1: %v", err)
 	}
-	if err := e.svc.AddLine(ctx, id, e.good, "16-01-2026", e.cell2, lu, decimal.RequireFromString("1")); err != nil {
+	if _, err := e.svc.AddLine(ctx, id, e.good, "16-01-2026", e.cell2, lu, decimal.RequireFromString("1")); err != nil {
 		t.Fatalf("AddLine 2: %v", err)
 	}
 
@@ -289,16 +346,13 @@ func TestReceipt_guards(t *testing.T) {
 	if err := e.svc.Start(ctx, uuid.NewString(), "", "", e.user); !errors.Is(err, service.ErrEmptyWarehouse) {
 		t.Errorf("без склада: %v", err)
 	}
-	if err := e.svc.AddLine(ctx, id, "", "15-01-2026", e.cell1, "", decimal.NewFromInt(1)); !errors.Is(err, service.ErrEmptyGoodID) {
+	if _, err := e.svc.AddLine(ctx, id, "", "15-01-2026", e.cell1, "", decimal.NewFromInt(1)); !errors.Is(err, service.ErrEmptyGoodID) {
 		t.Errorf("без товара: %v", err)
 	}
-	if err := e.svc.AddLine(ctx, id, e.good, "15-01-2026", "", "", decimal.NewFromInt(1)); !errors.Is(err, service.ErrEmptyCell) {
-		t.Errorf("без ячейки: %v", err)
-	}
-	if err := e.svc.AddLine(ctx, id, e.good, "15-01-2026", e.cell1, "", decimal.Zero); !errors.Is(err, service.ErrInvalidQuantity) {
+	if _, err := e.svc.AddLine(ctx, id, e.good, "15-01-2026", e.cell1, "", decimal.Zero); !errors.Is(err, service.ErrInvalidQuantity) {
 		t.Errorf("нулевое количество: %v", err)
 	}
-	if err := e.svc.AddLine(ctx, id, e.good, "2026-01-15", e.cell1, "", decimal.NewFromInt(1)); !errors.Is(err, service.ErrInvalidDate) {
+	if _, err := e.svc.AddLine(ctx, id, e.good, "2026-01-15", e.cell1, "", decimal.NewFromInt(1)); !errors.Is(err, service.ErrInvalidDate) {
 		t.Errorf("дата в ISO вместо DD-MM-YYYY: %v", err)
 	}
 	if _, err := e.svc.Post(ctx, uuid.NewString()); !errors.Is(err, repository.ErrReceiptNotFound) {
