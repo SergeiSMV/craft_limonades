@@ -21,6 +21,8 @@ type fakeStockRepo struct {
 	setCalls     int
 	removeCalls  int
 	transferred  bool
+	lastFrom     model.StockKey
+	lastTo       model.StockKey
 }
 
 func newFakeStockRepo() *fakeStockRepo {
@@ -48,11 +50,12 @@ func (f *fakeStockRepo) Remove(_ context.Context, key model.StockKey, qty decima
 	return nil
 }
 
-func (f *fakeStockRepo) Transfer(_ context.Context, _, _ model.StockKey, _ decimal.Decimal) error {
+func (f *fakeStockRepo) Transfer(_ context.Context, from, to model.StockKey, _ decimal.Decimal) error {
 	if f.insufficient {
 		return repository.ErrInsufficientStock
 	}
 	f.transferred = true
+	f.lastFrom, f.lastTo = from, to
 	return nil
 }
 
@@ -165,15 +168,20 @@ func TestTransfer_buildsKeysAndValidates(t *testing.T) {
 	svc := NewStockService(repo)
 
 	// невалидное количество — отказ до репозитория
-	if err := svc.Transfer(context.Background(), "c1", "c2", "g", "b", decimal.Zero); !errors.Is(err, ErrInvalidQuantity) {
+	if err := svc.Transfer(context.Background(), "c1", "c2", "g", "b", "iwh", decimal.Zero); !errors.Is(err, ErrInvalidQuantity) {
 		t.Fatalf("ожидалась ErrInvalidQuantity, получено %v", err)
 	}
 	// валидное — перенос выполнен
-	if err := svc.Transfer(context.Background(), "c1", "c2", "g", "b", decimal.NewFromInt(3)); err != nil {
+	if err := svc.Transfer(context.Background(), "c1", "c2", "g", "b", "iwh", decimal.NewFromInt(3)); err != nil {
 		t.Fatalf("Transfer: неожиданная ошибка: %v", err)
 	}
 	if !repo.transferred {
 		t.Fatalf("ожидался вызов Transfer в репозитории")
+	}
+	// Учётная принадлежность не меняется при переносе: она одна и та же с обеих сторон.
+	if repo.lastFrom.InternalWarehouseID != "iwh" || repo.lastTo.InternalWarehouseID != "iwh" {
+		t.Errorf("внутренний склад потерян при переносе: from=%q to=%q",
+			repo.lastFrom.InternalWarehouseID, repo.lastTo.InternalWarehouseID)
 	}
 }
 
@@ -181,7 +189,7 @@ func TestTransfer_insufficient_mapped(t *testing.T) {
 	repo := newFakeStockRepo()
 	repo.insufficient = true
 	svc := NewStockService(repo)
-	err := svc.Transfer(context.Background(), "c1", "c2", "g", "b", decimal.NewFromInt(3))
+	err := svc.Transfer(context.Background(), "c1", "c2", "g", "b", "iwh", decimal.NewFromInt(3))
 	if !errors.Is(err, ErrInsufficientStock) {
 		t.Fatalf("ожидалась ErrInsufficientStock, получено %v", err)
 	}

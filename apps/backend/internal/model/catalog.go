@@ -75,4 +75,14 @@ type StockItem struct {
 	BatchID        string          `json:"batch_id"`
 	ProductionDate string          `json:"production_date"` // YYYY-MM-DD
 	Qty            decimal.Decimal `json:"qty"`
+
+	// Учётная принадлежность остатка (ADR-0016). Кладовщик должен понимать фактическое
+	// количество на складе независимо от того, числится товар основным или браком, поэтому
+	// строки не складываются, а показываются с пометкой — итог считается отдельно.
+	InternalWarehouseID   string `json:"internal_warehouse_id"`
+	InternalWarehouseCode string `json:"internal_warehouse_code"`
+	InternalWarehouseName string `json:"internal_warehouse_name"`
+	// Флаг, а не сравнение кода на клиенте: справочник пополняется и переименовывается из
+	// интерфейса, поэтому зашитый в приложении 'MAIN' сломался бы при первом же переименовании.
+	InternalWarehouseIsDefault bool `json:"internal_warehouse_is_default"`
 }

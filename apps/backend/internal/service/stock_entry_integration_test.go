@@ -16,6 +16,7 @@ import (
 
 // seEnv — окружение теста сессии ввода: сервис + справочники (склад, ячейки, товары, пользователь).
 type seEnv struct {
+	pool         *pgxpool.Pool
 	svc          *service.StockEntryService
 	stockRepo    *repository.StockRepository
 	barcodeRepo  *repository.BarcodeRepository
@@ -31,6 +32,7 @@ func setupStockEntry(t *testing.T) (*pgxpool.Pool, *seEnv) {
 	ctx := context.Background()
 
 	env := &seEnv{
+		pool:        pool,
 		svc:         service.NewStockEntryService(repository.NewStockEntryRepository(pool)),
 		stockRepo:   repository.NewStockRepository(pool),
 		barcodeRepo: repository.NewBarcodeRepository(pool),
@@ -49,9 +51,16 @@ func setupStockEntry(t *testing.T) (*pgxpool.Pool, *seEnv) {
 	return pool, env
 }
 
+// qty читает остаток на складе ПО УМОЛЧАНИЮ: туда приходует ввод остатков (ADR-0016).
 func (e *seEnv) qty(t *testing.T, cell, good, batch string) decimal.Decimal {
 	t.Helper()
-	q, err := e.stockRepo.GetQty(context.Background(), model.StockKey{CellID: cell, GoodID: good, BatchID: batch})
+	var iwh string
+	if err := e.pool.QueryRow(context.Background(),
+		`SELECT id::text FROM internal_warehouses WHERE is_default`).Scan(&iwh); err != nil {
+		t.Fatalf("склад по умолчанию: %v", err)
+	}
+	q, err := e.stockRepo.GetQty(context.Background(),
+		model.StockKey{CellID: cell, GoodID: good, BatchID: batch, InternalWarehouseID: iwh})
 	if err != nil {
 		t.Fatalf("GetQty: %v", err)
 	}

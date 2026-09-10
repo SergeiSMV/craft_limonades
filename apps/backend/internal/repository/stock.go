@@ -61,11 +61,15 @@ func (r *StockRepository) Transfer(ctx context.Context, from, to model.StockKey,
 
 // GetQty — текущее количество по грани. Нет строки → 0 (остатка нет), это не ошибка.
 func (r *StockRepository) GetQty(ctx context.Context, key model.StockKey) (decimal.Decimal, error) {
+	if err := guardStockKey(key); err != nil {
+		return decimal.Zero, err
+	}
 	var s string
 	// qty::text — чтобы numeric пришёл точной строкой и разобрался в decimal без потерь.
 	err := r.pool.QueryRow(ctx,
-		`SELECT qty::text FROM stock WHERE cell_id = $1 AND good_id = $2 AND batch_id = $3`,
-		key.CellID, key.GoodID, key.BatchID,
+		`SELECT qty::text FROM stock
+		 WHERE cell_id = $1 AND good_id = $2 AND batch_id = $3 AND internal_warehouse_id = $4`,
+		key.CellID, key.GoodID, key.BatchID, key.InternalWarehouseID,
 	).Scan(&s)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return decimal.Zero, nil
@@ -84,13 +88,32 @@ func (r *StockRepository) GetQty(ctx context.Context, key model.StockKey) (decim
 // чтобы их можно было композировать в транзакции (Transfer). qty передаём строкой
 // и приводим $4::numeric — надёжно для numeric-колонки без завязки на кодирование типов.
 
+// ErrEmptyInternalWarehouse — в ключе остатка не задана учётная принадлежность.
+//
+// Отдельная ошибка, а не отказ БД: пустая строка доходит до запроса и падает невнятным
+// «invalid input syntax for type uuid», по которому непонятно, что именно забыли. Поле добавилось
+// к StockKey уже после того, как операции остатка разошлись по коду, и компилятор такие места
+// не подсвечивает — литерал структуры с именованными полями собирается и без него.
+var ErrEmptyInternalWarehouse = errors.New("internal warehouse is required in stock key")
+
+// guardStockKey проверяет, что ключ остатка полон.
+func guardStockKey(key model.StockKey) error {
+	if key.InternalWarehouseID == "" {
+		return ErrEmptyInternalWarehouse
+	}
+	return nil
+}
+
 func addStock(ctx context.Context, q Querier, key model.StockKey, qty decimal.Decimal) error {
+	if err := guardStockKey(key); err != nil {
+		return err
+	}
 	_, err := q.Exec(ctx, `
-		INSERT INTO stock (cell_id, good_id, batch_id, qty)
-		VALUES ($1, $2, $3, $4::numeric)
-		ON CONFLICT (cell_id, good_id, batch_id)
+		INSERT INTO stock (cell_id, good_id, batch_id, internal_warehouse_id, qty)
+		VALUES ($1, $2, $3, $5, $4::numeric)
+		ON CONFLICT (cell_id, good_id, batch_id, internal_warehouse_id)
 		DO UPDATE SET qty = stock.qty + EXCLUDED.qty`,
-		key.CellID, key.GoodID, key.BatchID, qty.String())
+		key.CellID, key.GoodID, key.BatchID, qty.String(), key.InternalWarehouseID)
 	if err != nil {
 		return fmt.Errorf("add stock: %w", err)
 	}
@@ -98,12 +121,15 @@ func addStock(ctx context.Context, q Querier, key model.StockKey, qty decimal.De
 }
 
 func setStock(ctx context.Context, q Querier, key model.StockKey, qty decimal.Decimal) error {
+	if err := guardStockKey(key); err != nil {
+		return err
+	}
 	_, err := q.Exec(ctx, `
-		INSERT INTO stock (cell_id, good_id, batch_id, qty)
-		VALUES ($1, $2, $3, $4::numeric)
-		ON CONFLICT (cell_id, good_id, batch_id)
+		INSERT INTO stock (cell_id, good_id, batch_id, internal_warehouse_id, qty)
+		VALUES ($1, $2, $3, $5, $4::numeric)
+		ON CONFLICT (cell_id, good_id, batch_id, internal_warehouse_id)
 		DO UPDATE SET qty = EXCLUDED.qty`,
-		key.CellID, key.GoodID, key.BatchID, qty.String())
+		key.CellID, key.GoodID, key.BatchID, qty.String(), key.InternalWarehouseID)
 	if err != nil {
 		return fmt.Errorf("set stock: %w", err)
 	}
@@ -111,10 +137,14 @@ func setStock(ctx context.Context, q Querier, key model.StockKey, qty decimal.De
 }
 
 func removeStock(ctx context.Context, q Querier, key model.StockKey, qty decimal.Decimal) error {
+	if err := guardStockKey(key); err != nil {
+		return err
+	}
 	tag, err := q.Exec(ctx, `
 		UPDATE stock SET qty = qty - $4::numeric
-		WHERE cell_id = $1 AND good_id = $2 AND batch_id = $3 AND qty >= $4::numeric`,
-		key.CellID, key.GoodID, key.BatchID, qty.String())
+		WHERE cell_id = $1 AND good_id = $2 AND batch_id = $3 AND internal_warehouse_id = $5
+		  AND qty >= $4::numeric`,
+		key.CellID, key.GoodID, key.BatchID, qty.String(), key.InternalWarehouseID)
 	if err != nil {
 		return fmt.Errorf("remove stock: %w", err)
 	}
@@ -123,4 +153,25 @@ func removeStock(ctx context.Context, q Querier, key model.StockKey, qty decimal
 		return ErrInsufficientStock
 	}
 	return nil
+}
+
+// ErrNoDefaultInternalWarehouse — в справочнике нет склада по умолчанию. Заводить остаток
+// «куда-нибудь» нельзя: учётная принадлежность — часть грани, и ошибка здесь тихо исказит учёт.
+var ErrNoDefaultInternalWarehouse = errors.New("no default internal warehouse")
+
+// defaultInternalWarehouse — внутренний склад, куда приходуем, если он не выбран явно.
+//
+// Ищется по ФЛАГУ, а не по коду: справочник пополняется из интерфейса, склад можно переименовать
+// или заменить другим, и зашитый в код 'MAIN' сделал бы такое переименование поломкой.
+// Значение не кешируется — справочник живой, а вызов происходит раз на операцию, не в цикле.
+func defaultInternalWarehouse(ctx context.Context, q Querier) (string, error) {
+	var id string
+	err := q.QueryRow(ctx, `SELECT id::text FROM internal_warehouses WHERE is_default`).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", ErrNoDefaultInternalWarehouse
+	}
+	if err != nil {
+		return "", fmt.Errorf("склад по умолчанию: %w", err)
+	}
+	return id, nil
 }

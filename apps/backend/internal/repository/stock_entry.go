@@ -141,6 +141,13 @@ func finalizeSession(ctx context.Context, q Querier, sessionID string) (int, err
 	if err != nil {
 		return 0, err
 	}
+	// Ввод остатков приходует в склад по умолчанию: выбор учётной принадлежности сделан для
+	// РАЗМЕЩЕНИЯ (P5), а проход склада фиксирует то, что физически лежит в ячейке.
+	iwh, err := defaultInternalWarehouse(ctx, q)
+	if err != nil {
+		return 0, err
+	}
+
 	written := 0
 	// По каждой строке: партия GetOrCreate (P-FS-02) → SET остатка (P-FS-02).
 	for _, ln := range lines {
@@ -148,7 +155,7 @@ func finalizeSession(ctx context.Context, q Querier, sessionID string) (int, err
 		if err != nil {
 			return 0, err
 		}
-		key := model.StockKey{CellID: ln.cellID, GoodID: ln.goodID, BatchID: batchID}
+		key := model.StockKey{CellID: ln.cellID, GoodID: ln.goodID, BatchID: batchID, InternalWarehouseID: iwh}
 		if err := setStock(ctx, q, key, ln.qty); err != nil {
 			return 0, err
 		}

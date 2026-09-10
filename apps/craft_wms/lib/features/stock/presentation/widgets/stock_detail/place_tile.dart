@@ -53,6 +53,26 @@ class PlaceTile extends StatelessWidget {
                     color: AppColors.kTextMuted,
                   ),
                 ),
+                // Пометку показываем только у НЕосновного склада: подписывать каждую обычную
+                // строку «Основной» — шум, а вот брак в общей ячейке должен бросаться в глаза.
+                // Итог внизу экрана при этом суммирует всё: кладовщику нужно фактическое
+                // количество на складе независимо от учётной принадлежности.
+                if (!item.internalWarehouseIsDefault &&
+                    (item.internalWarehouseName ?? '').isNotEmpty)
+                  Container(
+                    margin: AppInsets.top4,
+                    padding: AppInsets.badge,
+                    decoration: BoxDecoration(
+                      color: AppColors.kBadgeWarningBg,
+                      borderRadius: BorderRadius.circular(AppSizes.kText12),
+                    ),
+                    child: Text(
+                      item.internalWarehouseName!,
+                      style: RegularTextStyles().regularInter12.copyWith(
+                        color: AppColors.kBadgeWarningText,
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
