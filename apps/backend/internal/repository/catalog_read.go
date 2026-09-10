@@ -206,13 +206,17 @@ func (r *StockRepository) List(ctx context.Context, f StockFilter) ([]model.Stoc
 	rows, err := r.pool.Query(ctx, `
 		SELECT s.cell_id::text, c.address, s.good_id::text, s.batch_id::text,
 		       b.production_date::text, s.qty::text,
+		       s.internal_warehouse_id::text, w.code, w.name, w.is_default,
 		       COUNT(*) OVER() AS total
 		FROM stock s
 		JOIN cells   c ON c.id = s.cell_id
 		JOIN batches b ON b.id = s.batch_id
+		JOIN internal_warehouses w ON w.id = s.internal_warehouse_id
 		WHERE ($1::uuid IS NULL OR s.good_id = $1::uuid)
 		  AND ($2::uuid IS NULL OR s.cell_id = $2::uuid)
-		ORDER BY c.address, b.production_date
+		-- Внутри ячейки сортируем по складу, чтобы «основной» и «брак» шли рядом и в одном
+		-- порядке от запроса к запросу.
+		ORDER BY c.address, b.production_date, w.code
 		LIMIT $3 OFFSET $4`,
 		f.GoodID, f.CellID, f.Limit, f.Offset)
 	if err != nil {
@@ -226,7 +230,9 @@ func (r *StockRepository) List(ctx context.Context, f StockFilter) ([]model.Stoc
 		var it model.StockItem
 		var qtyStr string
 		if err := rows.Scan(&it.CellID, &it.CellAddress, &it.GoodID, &it.BatchID,
-			&it.ProductionDate, &qtyStr, &total); err != nil {
+			&it.ProductionDate, &qtyStr,
+			&it.InternalWarehouseID, &it.InternalWarehouseCode, &it.InternalWarehouseName,
+			&it.InternalWarehouseIsDefault, &total); err != nil {
 			return nil, 0, fmt.Errorf("scan stock item: %w", err)
 		}
 		q, err := decimal.NewFromString(qtyStr)

@@ -194,7 +194,11 @@ func TestCatalog_stock(t *testing.T) {
 		t.Fatal(err)
 	}
 	stockRepo := repository.NewStockRepository(pool)
-	if err := stockRepo.Add(ctx, model.StockKey{CellID: cellID, GoodID: goodID, BatchID: batchID},
+	var iwh string
+	if err := pool.QueryRow(ctx, `SELECT id::text FROM internal_warehouses WHERE is_default`).Scan(&iwh); err != nil {
+		t.Fatalf("склад по умолчанию: %v", err)
+	}
+	if err := stockRepo.Add(ctx, model.StockKey{CellID: cellID, GoodID: goodID, BatchID: batchID, InternalWarehouseID: iwh},
 		decimal.RequireFromString("10.5")); err != nil {
 		t.Fatalf("Add stock: %v", err)
 	}

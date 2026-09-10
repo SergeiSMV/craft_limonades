@@ -67,12 +67,16 @@ func (s *StockService) Issue(ctx context.Context, key model.StockKey, qty decima
 }
 
 // Transfer — перенести qty товара (партии) из ячейки fromCell в toCell (атомарно).
-func (s *StockService) Transfer(ctx context.Context, fromCell, toCell, goodID, batchID string, qty decimal.Decimal) error {
+//
+// Учётная принадлежность (внутренний склад) при переносе НЕ меняется: перемещение отвечает
+// на вопрос «где лежит», а не «чей это остаток». Перевод между внутренними складами —
+// отдельная операция, потому что это учётное решение человека, а не следствие переноса коробки.
+func (s *StockService) Transfer(ctx context.Context, fromCell, toCell, goodID, batchID, internalWarehouseID string, qty decimal.Decimal) error {
 	if !qty.IsPositive() {
 		return ErrInvalidQuantity
 	}
-	from := model.StockKey{CellID: fromCell, GoodID: goodID, BatchID: batchID}
-	to := model.StockKey{CellID: toCell, GoodID: goodID, BatchID: batchID}
+	from := model.StockKey{CellID: fromCell, GoodID: goodID, BatchID: batchID, InternalWarehouseID: internalWarehouseID}
+	to := model.StockKey{CellID: toCell, GoodID: goodID, BatchID: batchID, InternalWarehouseID: internalWarehouseID}
 	return mapStockErr(s.stock.Transfer(ctx, from, to, qty))
 }
 

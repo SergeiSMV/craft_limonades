@@ -28,6 +28,8 @@ type stockFixture struct {
 	pool         *pgxpool.Pool
 	cellA, cellB string
 	good, batch  string
+	iwh          string // внутренний склад по умолчанию (ADR-0016) — часть грани остатка
+	iwhDefect    string // «брак»: одна ячейка держит оба остатка одновременно
 }
 
 // setupStock поднимает одноразовый Postgres (testcontainers), накатывает миграции и
@@ -83,6 +85,9 @@ func setupStock(t *testing.T) *stockFixture {
 	mustScan(t, pool, `INSERT INTO cells (warehouse_id, address) VALUES ($1::uuid,'B') RETURNING id::text`, &fx.cellB, wh)
 	mustScan(t, pool, `INSERT INTO goods (name, uom) VALUES ('Товар','шт') RETURNING id::text`, &fx.good)
 	mustScan(t, pool, `INSERT INTO batches (good_id, production_date) VALUES ($1::uuid,'2026-01-01') RETURNING id::text`, &fx.batch, fx.good)
+	// Внутренние склады заводит миграция 000013 — берём их по флагу и коду, а не по id.
+	mustScan(t, pool, `SELECT id::text FROM internal_warehouses WHERE is_default`, &fx.iwh)
+	mustScan(t, pool, `SELECT id::text FROM internal_warehouses WHERE code = 'DEFECT'`, &fx.iwhDefect)
 	return fx
 }
 
@@ -94,10 +99,10 @@ func mustScan(t *testing.T, pool *pgxpool.Pool, sql string, dst *string, args ..
 }
 
 func (fx *stockFixture) keyA() model.StockKey {
-	return model.StockKey{CellID: fx.cellA, GoodID: fx.good, BatchID: fx.batch}
+	return model.StockKey{CellID: fx.cellA, GoodID: fx.good, BatchID: fx.batch, InternalWarehouseID: fx.iwh}
 }
 func (fx *stockFixture) keyB() model.StockKey {
-	return model.StockKey{CellID: fx.cellB, GoodID: fx.good, BatchID: fx.batch}
+	return model.StockKey{CellID: fx.cellB, GoodID: fx.good, BatchID: fx.batch, InternalWarehouseID: fx.iwh}
 }
 
 func TestStock_AddIncrements(t *testing.T) {
