@@ -90,13 +90,17 @@ jobs:
       - name: Структура systemd-юнитов
         run: |
           status=0
+          # Явный if, а не `A && B || C`: цепочка работала верно, но читалась как if-then-else,
+          # которым не является, и линтер справедливо на это указывал.
           for f in deploy/systemd/*.service; do
-            grep -q '^\[Unit\]' "$f" && grep -q '^\[Service\]' "$f" && grep -q '^ExecStart=' "$f" \
-              || { echo "✗ $f: нет [Unit]/[Service]/ExecStart"; status=1; }
+            if ! { grep -q '^\[Unit\]' "$f" && grep -q '^\[Service\]' "$f" && grep -q '^ExecStart=' "$f"; }; then
+              echo "✗ $f: нет [Unit]/[Service]/ExecStart"; status=1
+            fi
           done
           for f in deploy/systemd/*.timer; do
-            grep -q '^\[Timer\]' "$f" && grep -q '^\[Install\]' "$f" \
-              || { echo "✗ $f: нет [Timer]/[Install] (без [Install] таймер не включится)"; status=1; }
+            if ! { grep -q '^\[Timer\]' "$f" && grep -q '^\[Install\]' "$f"; }; then
+              echo "✗ $f: нет [Timer]/[Install] (без [Install] таймер не включится)"; status=1
+            fi
           done
           [ $status -eq 0 ] && echo "· все юниты структурно целы"
           exit $status
