@@ -70,8 +70,7 @@ class _CellSelectViewState extends State<CellSelectView>
 
   /// Код с аппаратного сканера (intent-режим) — тот же путь, что у ввода в поле.
   @override
-  void onHardwareScan(ScanCode code) =>
-      _submitAddress(code.raw, symbology: code.symbology);
+  void onHardwareScan(ScanCode code) => _submitAddress(code.raw);
 
   /// Резолв ячейки по введённому/сканированному адресу (точное совпадение). Основной путь — локально
   /// по загруженному справочнику; если он пуст (загрузка не удалась/не завершилась) — серверный фоллбэк,
@@ -83,7 +82,7 @@ class _CellSelectViewState extends State<CellSelectView>
   ///
   /// Единая точка для обоих источников кода, поэтому отсечение дубля стоит здесь: если бы оно
   /// сидело только на ветке потока, пара «поле + интент» прошла бы мимо него.
-  Future<void> _submitAddress(String value, {String? symbology}) async {
+  Future<void> _submitAddress(String value) async {
     final address = value.trim();
     if (address.isEmpty || !_deduper.allow(address)) return;
     Cell? cell = _matchExact(_allCells, address);
@@ -96,7 +95,7 @@ class _CellSelectViewState extends State<CellSelectView>
       );
     }
     if (cell == null) {
-      final kind = classifyScan(address, symbology: symbology);
+      final kind = classifyScan(address);
       _snack(
         kind == ScanKind.good
             ? t.stockEntry.scannedGoodInCell

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"testing"
 
+	"craftwms/internal/model"
 	"craftwms/internal/repository"
 	"craftwms/internal/service"
 	"craftwms/internal/testutil"
@@ -29,7 +30,18 @@ func TestCellLabelsPDF(t *testing.T) {
 		}
 	}
 
-	svc := service.NewLabelService(repository.NewWarehouseRepository(pool), repository.NewCellRepository(pool))
+	// Дефолтная ячейка приёмки заводится складу автоматически (P4-03), и её адрес «С-Н-П» набран
+	// кириллицей — Code128 его не кодирует. Без исключения такой ячейки падала бы печать этикеток
+	// ВСЕГО склада, а не только её собственной. Заводим её здесь, чтобы тест ловил именно это.
+	cellRepo := repository.NewCellRepository(pool)
+	if err := repository.WithinTx(ctx, pool, func(q repository.Querier) error {
+		_, err := cellRepo.EnsureDefault(ctx, q, wh)
+		return err
+	}); err != nil {
+		t.Fatalf("дефолтная ячейка: %v", err)
+	}
+
+	svc := service.NewLabelService(repository.NewWarehouseRepository(pool), cellRepo)
 
 	pdf, err := svc.CellLabelsPDF(ctx, "SHB")
 	if err != nil {
@@ -40,6 +52,21 @@ func TestCellLabelsPDF(t *testing.T) {
 	}
 	if len(pdf) < 2000 {
 		t.Fatalf("PDF подозрительно мал (%d байт)", len(pdf))
+	}
+
+	// Дефолтная ячейка в набор этикеток не попадает. Проверяем на выборке, а не по содержимому
+	// PDF: на лист влезает восемь этикеток, и число страниц о составе ничего не говорит.
+	labels, err := cellRepo.LabelsByWarehouse(ctx, wh)
+	if err != nil {
+		t.Fatalf("LabelsByWarehouse: %v", err)
+	}
+	if len(labels) != 3 {
+		t.Errorf("ячеек под этикетки: %d, ожидалось 3 (дефолтная исключается)", len(labels))
+	}
+	for _, l := range labels {
+		if l.Address == model.DefaultCellAddress {
+			t.Errorf("дефолтная ячейка %q попала в этикетки — Code128 её адрес не закодирует", l.Address)
+		}
 	}
 
 	// Неизвестный склад → ErrNotFound (хендлер → 404).
