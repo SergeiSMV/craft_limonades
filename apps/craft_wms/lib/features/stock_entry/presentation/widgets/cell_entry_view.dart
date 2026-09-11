@@ -59,8 +59,7 @@ class _CellEntryViewState extends State<CellEntryView>
 
   /// Код с аппаратного сканера (intent-режим) — тот же путь, что у ввода в поле.
   @override
-  void onHardwareScan(ScanCode code) =>
-      _onScan(code.raw, symbology: code.symbology);
+  void onHardwareScan(ScanCode code) => _onScan(code.raw);
 
   /// Скан ШК товара. Порядок резолва: копилка привязок прохода → сервер → ручная привязка. Локальный
   /// шаг нужен, чтобы повторный скан любого уже привязанного за проход ШК узнавался сразу, а не бил в
@@ -72,7 +71,7 @@ class _CellEntryViewState extends State<CellEntryView>
   ///
   /// Единая точка для обоих источников кода, поэтому отсечение дубля стоит здесь: если бы оно
   /// сидело только на ветке потока, пара «поле + интент» дала бы две строки остатка.
-  Future<void> _onScan(String value, {String? symbology}) async {
+  Future<void> _onScan(String value) async {
     final code = value.trim();
     _scanController.clear();
     if (code.isNotEmpty && _deduper.allow(code)) {
@@ -95,7 +94,7 @@ class _CellEntryViewState extends State<CellEntryView>
         final good = resolved.right;
         if (good != null) {
           await _collectAndAdd(good, scannedCode: code); // есть в БД или в кэше
-        } else if (classifyScan(code, symbology: symbology) == ScanKind.cell) {
+        } else if (classifyScan(code) == ScanKind.cell) {
           _snack(t.stockEntry.scannedCellInGood);
         } else {
           _snack(t.stockEntry.goodNotBound);
