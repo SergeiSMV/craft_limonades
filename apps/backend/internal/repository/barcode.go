@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"craftwms/internal/barcode"
 	"craftwms/internal/model"
 )
 
@@ -132,6 +133,67 @@ func unbindBarcode(ctx context.Context, q Querier, barcode string) error {
 // ErrBarcodeConflict; несуществующий товар → ErrGoodNotFound; пустая symbology → NULL.
 func (r *BarcodeRepository) Bind(ctx context.Context, goodID, barcode, symbology string) error {
 	return bindBarcode(ctx, r.pool, goodID, barcode, symbology)
+}
+
+// InternalByGood возвращает внутренний ШК товара или ErrNotFound.
+//
+// Нужен перед генерацией: товару незачем второй внутренний код. Ищем ПО ФЛАГУ, а не по
+// префиксу строки — выгрузка 1С может принести внутренний код чужой системы с тем же
+// префиксом, и разбор строки выдал бы его за наш.
+func (r *BarcodeRepository) InternalByGood(ctx context.Context, goodID string) (string, error) {
+	var code string
+	err := r.pool.QueryRow(ctx, `
+		SELECT barcode FROM barcodes
+		WHERE good_id = $1::uuid AND is_internal
+		ORDER BY created_at
+		LIMIT 1`, goodID).Scan(&code)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", ErrNotFound
+	}
+	if err != nil {
+		return "", fmt.Errorf("внутренний ШК товара: %w", err)
+	}
+	return code, nil
+}
+
+// CreateInternal выдаёт товару новый внутренний ШК и возвращает его.
+//
+// Номер берётся из последовательности: при двух одновременных генерациях выбор max()+1 выдал бы
+// один номер дважды. Код собирается из номера и сразу проверяется контрольной цифрой самим
+// построением (P4-07).
+//
+// Повтор при столкновении нужен не для подстраховки от последовательности — она уникальна,
+// — а на случай, когда ровно такой код уже лежит в справочнике как ВНЕШНИЙ: выгрузка 1С могла
+// принести внутренний код прежней системы с тем же префиксом. Тогда берём следующий номер.
+func (r *BarcodeRepository) CreateInternal(ctx context.Context, goodID string) (string, error) {
+	const attempts = 5
+	for range attempts {
+		var serial int64
+		if err := r.pool.QueryRow(ctx,
+			`SELECT nextval('internal_barcode_serial')`).Scan(&serial); err != nil {
+			return "", fmt.Errorf("номер внутреннего ШК: %w", err)
+		}
+		code, err := barcode.Internal(barcode.InternalPrefix, serial)
+		if err != nil {
+			return "", fmt.Errorf("собрать внутренний ШК: %w", err)
+		}
+		tag, err := r.pool.Exec(ctx, `
+			INSERT INTO barcodes (good_id, barcode, symbology, is_internal)
+			VALUES ($1::uuid, $2, 'ean13', true)
+			ON CONFLICT (barcode) DO NOTHING`, goodID, code)
+		if err != nil {
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) && pgErr.Code == "23503" { // нет такого товара
+				return "", ErrGoodNotFound
+			}
+			return "", fmt.Errorf("выдать внутренний ШК: %w", err)
+		}
+		if tag.RowsAffected() == 1 {
+			return code, nil
+		}
+		// Код занят внешней привязкой — берём следующий номер.
+	}
+	return "", fmt.Errorf("не удалось выдать внутренний ШК за %d попыток", attempts)
 }
 
 // bindBarcode — низкоуровневая привязка на Querier (пул или tx), чтобы checkpoint сессии ввода

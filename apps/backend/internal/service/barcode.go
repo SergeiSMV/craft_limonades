@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"craftwms/internal/model"
+	"craftwms/internal/repository"
 )
 
 // Ошибки валидации ввода привязки ШК.
@@ -23,6 +24,8 @@ type barcodeRepo interface {
 	List(ctx context.Context, limit, offset int) ([]model.BarcodeLink, int, error)
 	Bind(ctx context.Context, goodID, barcode, symbology string) error
 	Unbind(ctx context.Context, barcode string) error
+	InternalByGood(ctx context.Context, goodID string) (string, error)
+	CreateInternal(ctx context.Context, goodID string) (string, error)
 }
 
 // BarcodeService — резолв товара по ШК и привязка ШК к товару (ввод остатков P-FastStart).
@@ -79,6 +82,42 @@ func (s *BarcodeService) Bind(ctx context.Context, goodID, barcode, symbology st
 		return ErrEmptyBarcode
 	}
 	return s.repo.Bind(ctx, goodID, barcode, symbology)
+}
+
+// GenerateInternal выдаёт товару внутренний ШК и возвращает его.
+//
+// Что: EAN-13 с префиксом 20–29 и контрольной цифрой для товара, у которого своего ШК нет.
+// Зачем: без штрихкода товар выпадает из всей работы склада — его не принять сканом, не найти
+// в ячейке, не собрать в заказ. Код печатается на ярлыке (P4-08) и наклеивается.
+//
+// **Идемпотентно по товару.** Уже выданный внутренний ШК возвращается как есть, второй не
+// заводится. Иначе повторное нажатие (связь мигнула, кладовщик не увидел ответа) дало бы товару
+// два кода, из которых на упаковке наклеен один, — и второй жил бы в справочнике мусором.
+// Перепечать испорченной этикетки идёт этим же вызовом и даёт тот же код.
+//
+// Товар при этом может иметь и внешние ШК: привязка аддитивна (1→N), и внутренний код просто
+// встаёт рядом. Это не противоречие — у коробки может быть и свой штрихкод, и наш.
+// Второе возвращаемое значение — создан ли код сейчас. По нему экран отличает «выдали новый»
+// от «он уже был»: во втором случае человеку стоит сказать, что он переклеивает существующий,
+// а не заводит ещё один.
+func (s *BarcodeService) GenerateInternal(ctx context.Context, goodID string) (string, bool, error) {
+	goodID = strings.TrimSpace(goodID)
+	if goodID == "" {
+		return "", false, ErrEmptyGoodID
+	}
+	code, err := s.repo.InternalByGood(ctx, goodID)
+	switch {
+	case err == nil:
+		return code, false, nil
+	case errors.Is(err, repository.ErrNotFound):
+		created, err := s.repo.CreateInternal(ctx, goodID)
+		if err != nil {
+			return "", false, err
+		}
+		return created, true, nil
+	default:
+		return "", false, err
+	}
 }
 
 // Unbind — отвязать ШК (коррекция ошибочной привязки, P-FS-12). Идемпотентно на уровне репозитория
