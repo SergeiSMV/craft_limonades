@@ -122,6 +122,15 @@ class _PrinterProbePageState extends State<PrinterProbePage> {
     if (sent) _snack(t.printerProbe.printed);
   }
 
+  /// Напечатать координатную сетку.
+  Future<void> printLayoutProbe() async {
+    setState(() => _busy = true);
+    final sent = await _run(() => _service.printLayoutProbe(_language));
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (sent) _snack(t.printerProbe.printed);
+  }
+
   /// Напечатать диагностическую этикетку кириллицы.
   Future<void> printCyrillicProbe() async {
     setState(() => _busy = true);
@@ -326,6 +335,11 @@ class _PrinterProbePageState extends State<PrinterProbePage> {
             icon: const Icon(Icons.copy),
             label: Text(t.printerProbe.loadUnitReprint),
           ),
+        OutlinedButton.icon(
+          onPressed: _busy || _selected == null ? null : printLayoutProbe,
+          icon: const Icon(Icons.grid_on),
+          label: Text(t.printerProbe.layoutProbe),
+        ),
         OutlinedButton.icon(
           onPressed: _busy || _selected == null ? null : printCyrillicProbe,
           icon: const Icon(Icons.translate),

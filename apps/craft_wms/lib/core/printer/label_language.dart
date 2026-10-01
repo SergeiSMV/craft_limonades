@@ -31,6 +31,17 @@ abstract interface class LabelLanguage {
   /// годится, — и отвечает быстрее, чем переписка с производителем.
   List<int> cyrillicProbe(LabelGeometry geometry);
 
+  /// Координатная сетка: рамка по объявленным границам этикетки, засечки и центральная линия.
+  ///
+  /// Зачем: печатающая головка принтера шире рулона (72 мм против 58), и где у системы
+  /// координат TSPL начало — на краю головки или на краю наклейки — снаружи не видно.
+  /// Расчётно отцентрованный QR ушёл вправо, и объяснить это без замера нельзя: любое
+  /// рассуждение тут снова оказалось бы догадкой с видом точности.
+  ///
+  /// По напечатанной сетке читается сразу всё: виден ли край рамки, на сколько смещена
+  /// центральная линия относительно середины наклейки и какие засечки попали на бумагу.
+  List<int> layoutProbe(LabelGeometry geometry);
+
   /// Калибровка датчика промежутка под заправленный рулон.
   ///
   /// Зачем отдельной командой: принтер не знает, что в него заправлено. Пока он не измерил
@@ -85,6 +96,28 @@ class TsplLanguage implements LabelLanguage {
     '${_setup(geometry)}'
     'GAPDETECT\r\n',
   );
+
+  @override
+  List<int> layoutProbe(LabelGeometry geometry) {
+    final w = geometry.widthDots;
+    final h = geometry.heightDots;
+    final out = StringBuffer()
+      ..write(_setup(geometry))
+      ..write('DIRECTION 1\r\n')
+      ..write('CLS\r\n')
+      // Рамка по объявленным границам: если её не видно целиком, координаты уезжают за бумагу.
+      ..write('BOX 0,0,${w - 1},${h - 1},2\r\n')
+      // Центральная линия: куда принтер считает серединой объявленной ширины.
+      ..write('BAR ${w ~/ 2},0,2,$h\r\n');
+    // Засечки с подписями каждые 50 точек — по ним видно, какая координата где оказалась.
+    for (var x = 0; x <= w; x += 50) {
+      out
+        ..write('BAR $x,0,2,24\r\n')
+        ..write('TEXT ${x + 4},28,"1",0,1,1,"$x"\r\n');
+    }
+    out.write('PRINT 1,1\r\n');
+    return encodeCommands(out.toString());
+  }
 
   /// Встроенные шрифты TSPL, которые имеет смысл проверять на кириллицу.
   ///
@@ -141,6 +174,10 @@ class ZplLanguage implements LabelLanguage {
   @override
   // ~JC — калибровка датчика носителя. Как и в TSPL, прогоняет несколько этикеток.
   List<int> calibrate(LabelGeometry geometry) => encodeCommands('~JC\r\n');
+
+  @override
+  // Сетка нужна для подбора раскладки, а ярлыки печатаются TSPL — для ZPL она не делается.
+  List<int> layoutProbe(LabelGeometry geometry) => testLabel(geometry);
 
   @override
   List<int> cyrillicProbe(LabelGeometry geometry) {

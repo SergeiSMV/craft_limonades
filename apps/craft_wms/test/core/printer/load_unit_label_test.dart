@@ -82,16 +82,34 @@ void main() {
     test('QR выровнен по центру по ширине', () {
       final m = RegExp(r'QRCODE (\d+),').firstMatch(commands())!;
       final x = int.parse(m.group(1)!);
-      final qrSide =
-          LoadUnitLabel.qrModules(encodeLoadUnitPayload(id).length) * 8;
-      expect(x, ((stock.widthDots - qrSide) / 2).round());
+      expect(x, ((stock.widthDots - LoadUnitLabel.qrSideDots) / 2).round());
     });
 
-    test('ширина QR считается по длине нагрузки, а не константой', () {
-      // Иначе смена формата ярлыка увела бы QR из центра, и заметили бы это только на печати.
-      expect(LoadUnitLabel.qrModules(42), 29);
-      expect(LoadUnitLabel.qrModules(14), 21);
-      expect(LoadUnitLabel.qrModules(50), 33);
+    test('код не налезает на QR — между ними есть зазор', () {
+      // Та самая поломка ADHOC-17: QR вышел крупнее расчётного и упёрся в строку кода.
+      // Теперь размер задан, и тест стережёт, что раскладка не налезает сама на себя.
+      final m = RegExp(r'TEXT \d+,(\d+),').firstMatch(commands())!;
+      final codeTop = int.parse(m.group(1)!);
+      final qrBottom = LoadUnitLabel.marginDots + LoadUnitLabel.qrSideDots;
+      expect(
+        codeTop,
+        greaterThan(qrBottom),
+        reason: 'строка кода начинается выше нижнего края QR',
+      );
+      expect(
+        codeTop - qrBottom,
+        greaterThanOrEqualTo(16),
+        reason: 'зазор меньше 2 мм читается как слипшиеся элементы',
+      );
+    });
+
+    test('QR и код помещаются в высоту этикетки', () {
+      // 40 мм — рулон пилота. Если раскладка перестанет влезать, это обязано упасть здесь,
+      // а не обнаружиться обрезанной наклейкой.
+      const codeHeight = 24;
+      final m = RegExp(r'TEXT \d+,(\d+),').firstMatch(commands())!;
+      final codeBottom = int.parse(m.group(1)!) + codeHeight;
+      expect(codeBottom, lessThanOrEqualTo(stock.heightDots));
     });
 
     test('кодовая страница объявлена до текста', () {

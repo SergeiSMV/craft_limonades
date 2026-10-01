@@ -124,6 +124,10 @@ class PrinterService {
   Future<void> printLoadUnitLabel(String loadUnitId) async =>
       printRaw(LoadUnitLabel(loadUnitId).tspl(await geometry()));
 
+  /// Напечатать координатную сетку — чтобы увидеть, где у принтера начало координат.
+  Future<void> printLayoutProbe(LabelLanguage language) async =>
+      printRaw(language.layoutProbe(await geometry()));
+
   /// Напечатать диагностическую этикетку кириллицы — какие встроенные шрифты её берут.
   ///
   /// Нужна один раз на модель принтера: по документации вопрос не решается, а от ответа
