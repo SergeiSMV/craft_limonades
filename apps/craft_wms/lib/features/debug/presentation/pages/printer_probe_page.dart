@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/di/injection.dart';
 import '../../../../core/gen/strings.g.dart';
+import '../../../../core/load_unit/load_unit_id_generator.dart';
 import '../../../../core/printer/label_geometry.dart';
 import '../../../../core/printer/label_language.dart';
 import '../../../../core/printer/printer_device.dart';
@@ -35,6 +36,11 @@ class PrinterProbePage extends StatefulWidget {
 
 class _PrinterProbePageState extends State<PrinterProbePage> {
   final _service = getIt<PrinterService>();
+  final _ids = getIt<LoadUnitIdGenerator>();
+
+  /// Идентификатор последнего напечатанного пробного ярлыка — чтобы проверить повторную печать
+  /// тем же кодом, а не новым.
+  String? _lastLabelId;
 
   StreamSubscription<PrinterDevice>? _discovery;
   PrinterStatus _status = PrinterStatus.none;
@@ -100,6 +106,29 @@ class _PrinterProbePageState extends State<PrinterProbePage> {
   Future<void> changeGeometry(LabelGeometry value) async {
     await _service.saveGeometry(value);
     if (mounted) setState(() => _geometry = value);
+  }
+
+  /// Напечатать пробный ярлык ГЕ. Первый тап печатает новый код, следующие — тот же:
+  /// так проверяется и печать при создании короба, и повторная печать испорченной наклейки.
+  Future<void> printLoadUnitLabel({required bool reprint}) async {
+    final id = reprint ? _lastLabelId ?? _ids.newId() : _ids.newId();
+    setState(() => _busy = true);
+    final sent = await _run(() => _service.printLoadUnitLabel(id));
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      if (sent) _lastLabelId = id;
+    });
+    if (sent) _snack(t.printerProbe.printed);
+  }
+
+  /// Напечатать диагностическую этикетку кириллицы.
+  Future<void> printCyrillicProbe() async {
+    setState(() => _busy = true);
+    final sent = await _run(() => _service.printCyrillicProbe(_language));
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (sent) _snack(t.printerProbe.printed);
   }
 
   /// Калибровать датчик промежутка под заправленный рулон.
@@ -283,6 +312,24 @@ class _PrinterProbePageState extends State<PrinterProbePage> {
           label: Text(
             _busy ? t.printerProbe.printing : t.printerProbe.printTest,
           ),
+        ),
+        FilledButton.tonalIcon(
+          onPressed: _busy || _selected == null
+              ? null
+              : () => printLoadUnitLabel(reprint: false),
+          icon: const Icon(Icons.qr_code_2),
+          label: Text(t.printerProbe.loadUnitLabel),
+        ),
+        if (_lastLabelId != null)
+          OutlinedButton.icon(
+            onPressed: _busy ? null : () => printLoadUnitLabel(reprint: true),
+            icon: const Icon(Icons.copy),
+            label: Text(t.printerProbe.loadUnitReprint),
+          ),
+        OutlinedButton.icon(
+          onPressed: _busy || _selected == null ? null : printCyrillicProbe,
+          icon: const Icon(Icons.translate),
+          label: Text(t.printerProbe.cyrillicProbe),
         ),
         OutlinedButton.icon(
           onPressed: _busy || _selected == null ? null : calibrate,
