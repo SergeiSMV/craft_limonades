@@ -5,6 +5,26 @@
          показывает «нет связи с сервером» при полностью исправной сети. -->
     <uses-permission android:name="android.permission.INTERNET"/>
 
+    <!--
+      Печать этикеток на Bluetooth-принтере (P4-05).
+
+      Разрешения разведены по версиям Android, потому что модель сменилась на API 31:
+      до него Bluetooth-права выдаются при установке, а обнаружение устройств считается
+      определением местоположения и требует ACCESS_FINE_LOCATION в рантайме; с 31 появились
+      собственные BLUETOOTH_SCAN / BLUETOOTH_CONNECT, а геолокация больше не нужна.
+      ТСД пилота — Android 11 (API 30), то есть живёт по первой модели; вторая объявлена,
+      чтобы приложение не сломалось на терминале посвежее.
+
+      neverForLocation у BLUETOOTH_SCAN — обещание системе, что сканирование не используется
+      для определения местоположения. Это правда: мы ищем принтер.
+    -->
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30"/>
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
+
     <application
         android:label="КЛ: Склад"
         android:name="${applicationName}"
