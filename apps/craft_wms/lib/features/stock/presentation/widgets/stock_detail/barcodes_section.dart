@@ -6,7 +6,10 @@ import '../../../../../core/constants/app_boxes.dart';
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/constants/app_insets.dart';
 import '../../../../../core/constants/app_sizes.dart';
+import '../../../../../core/di/injection.dart';
 import '../../../../../core/gen/strings.g.dart';
+import '../../../../../core/printer/printer_device.dart';
+import '../../../../../core/printer/printer_service.dart';
 import '../../../../../core/theme/regular_text.dart';
 import '../../../../../core/theme/semibold_text.dart';
 import '../../bloc/stock_detail_cubit.dart';
@@ -21,7 +24,37 @@ import 'expandable_card.dart';
 /// Если ШК не привязано ни одного, вместо сворачиваемого блока — одна кнопка «Привязать
 /// штрихкод +»: заголовок «Штрихкоды (0)» и пустой раскрывающийся список только занимали бы место.
 class BarcodesSection extends StatelessWidget {
-  const BarcodesSection({super.key});
+  const BarcodesSection({required this.goodName, super.key});
+
+  /// Наименование товара — печатается на ярлыке рядом со штрихкодом: без него наклейка
+  /// анонимна, и кладовщик не отличит одну от другой, пока не отсканирует.
+  final String goodName;
+
+  /// Напечатать товарный ярлык: штрихкод и наименование (P4-08).
+  ///
+  /// Печать и перепечать — одно действие: ярлык полностью определяется кодом и наименованием,
+  /// и испорченную наклейку меняют на такую же. Отдельной кнопки «перепечатать» поэтому нет.
+  ///
+  /// Отложенную привязку печатать не даём: такого ШК на сервере ещё нет, и наклейка на товаре
+  /// опередила бы справочник — отсканировали бы код, которого система не знает.
+  Future<void> printLabel(BuildContext context, String code) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await getIt<PrinterService>().printGoodLabel(
+        barcode: code,
+        goodName: goodName,
+      );
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(content: Text(t.stockDetailScreen.labelPrinted)),
+        );
+    } on PrinterFailure catch (e) {
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
 
   /// Подтвердить и отвязать ШК от товара.
   Future<void> confirmUnbind(BuildContext context, String code) async {
@@ -105,6 +138,9 @@ class BarcodesSection extends StatelessWidget {
                 pending: state.barcodes[i].pending,
                 onUnbind: () =>
                     confirmUnbind(context, state.barcodes[i].barcode),
+                onPrint: state.barcodes[i].pending
+                    ? null
+                    : () => printLabel(context, state.barcodes[i].barcode),
               ),
             ],
             AppBoxes.kHeight8,
@@ -126,6 +162,7 @@ class _BarcodeRow extends StatelessWidget {
   const _BarcodeRow({
     required this.barcode,
     required this.onUnbind,
+    required this.onPrint,
     this.pending = false,
   });
 
@@ -134,6 +171,9 @@ class _BarcodeRow extends StatelessWidget {
 
   /// Отвязать этот ШК от товара (с подтверждением).
   final VoidCallback onUnbind;
+
+  /// Напечатать ярлык с этим ШК; `null` — печать недоступна (привязка ещё не на сервере).
+  final VoidCallback? onPrint;
 
   /// Привязка сделана на устройстве и сервером ещё не подтверждена (P2-06).
   ///
@@ -175,6 +215,19 @@ class _BarcodeRow extends StatelessWidget {
                     ),
                   ),
               ],
+            ),
+          ),
+          IconButton(
+            // Печать недоступна у неподтверждённой привязки: такого ШК на сервере ещё нет,
+            // и наклейка на товаре опередила бы справочник.
+            onPressed: onPrint,
+            tooltip: t.stockDetailScreen.printLabel,
+            icon: Icon(
+              Icons.print_outlined,
+              size: AppSizes.kIcon20,
+              color: onPrint == null
+                  ? AppColors.kTextMuted
+                  : AppColors.kTextMain,
             ),
           ),
           IconButton(

@@ -108,6 +108,23 @@ class CatalogSyncMarks extends Table {
   Set<Column<Object>> get primaryKey => {catalog};
 }
 
+/// Настройки устройства — пары «ключ → значение» (P4-05).
+///
+/// Что: мелкие настройки, которые принадлежат конкретному терминалу, а не учётной записи:
+/// выбранный принтер и язык его команд.
+/// Зачем в базе, а не в защищённом хранилище: это не секреты, а рабочие предпочтения; у
+/// `flutter_secure_storage` своё назначение — токены. Отдельная таблица на каждую настройку
+/// завела бы миграцию под каждую мелочь.
+/// Как: значение всегда строкой — разбор на стороне того, кто настройку завёл. Типизировать
+/// общее хранилище значило бы тащить в схему всё, что когда-нибудь понадобится сохранить.
+class DeviceSettings extends Table {
+  TextColumn get key => text()();
+  TextColumn get value => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {key};
+}
+
 /// Очередь исходящих операций (Outbox, P2-03).
 ///
 /// Что: операция, которую устройство должно донести до сервера, — сначала строка здесь,
@@ -198,6 +215,7 @@ class EntryDrafts extends Table {
     CatalogSyncMarks,
     OutboxOperations,
     EntryDrafts,
+    DeviceSettings,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -207,7 +225,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   /// Миграции схемы.
   ///
@@ -219,6 +237,8 @@ class AppDatabase extends _$AppDatabase {
   /// пересоздание кэша стоило бы повторной синхронизации, а его данные и так на месте.
   ///
   /// 2 → 3: у привязок ШК появилась пометка «ещё не подтверждена сервером» (P2-06).
+  ///
+  /// 3 → 4: добавлены [deviceSettings] — выбранный принтер и язык его команд (P4-05).
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) => m.createAll(),
@@ -231,6 +251,9 @@ class AppDatabase extends _$AppDatabase {
         // Колонка добавляется со значением по умолчанию, поэтому уже лежащие привязки
         // становятся подтверждёнными — они и есть подтверждённые, их принёс сервер.
         await m.addColumn(cachedBarcodes, cachedBarcodes.pending);
+      }
+      if (from < 4) {
+        await m.createTable(deviceSettings);
       }
     },
   );

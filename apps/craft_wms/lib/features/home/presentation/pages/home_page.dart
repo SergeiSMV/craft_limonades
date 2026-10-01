@@ -44,6 +44,10 @@ class HomePage extends StatelessWidget {
   void goToScannerProbe(BuildContext context) =>
       context.router.push(const ScannerProbeRoute());
 
+  /// Переход к наладке принтера этикеток (служебный экран, P4-05).
+  void goToPrinterProbe(BuildContext context) =>
+      context.router.push(const PrinterProbeRoute());
+
   /// Обновить справочники вручную: перечитать их с сервера в локальный кэш.
   ///
   /// Нужно, когда на портале только что загрузили номенклатуру или напечатали новые ячейки, —
@@ -188,6 +192,15 @@ class HomePage extends StatelessWidget {
                           onTap: () => goToScannerProbe(context),
                           child: Text(
                             t.homeScreen.scannerTooltip,
+                            style: RegularTextStyles().regularInter14.copyWith(
+                              color: AppColors.kTileText,
+                            ),
+                          ),
+                        ),
+                        PopupMenuItem<void>(
+                          onTap: () => goToPrinterProbe(context),
+                          child: Text(
+                            t.homeScreen.printerTooltip,
                             style: RegularTextStyles().regularInter14.copyWith(
                               color: AppColors.kTileText,
                             ),

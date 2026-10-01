@@ -33,9 +33,11 @@ class StockDetailBody extends StatelessWidget {
                 sliver: SliverToBoxAdapter(child: GoodInfoCard(good: good)),
               ),
               const SliverToBoxAdapter(child: AppBoxes.kHeight8),
-              const SliverPadding(
+              SliverPadding(
                 padding: AppInsets.h8,
-                sliver: SliverToBoxAdapter(child: BarcodesSection()),
+                sliver: SliverToBoxAdapter(
+                  child: BarcodesSection(goodName: good.name),
+                ),
               ),
               PlacesSliver(goodId: good.id),
             ],
