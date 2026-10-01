@@ -62,6 +62,34 @@ func (h *BarcodeHandler) ListByGood(w http.ResponseWriter, r *http.Request) {
 
 // List отдаёт страницу всех привязок ШК — справочник для офлайн-кэша устройства (P2-02).
 // Доступ employee, как у остальных справочников: без него не работает скан без сети.
+// GenerateInternal: POST /api/v1/goods/{id}/barcode — выдать товару внутренний ШК (P4-07).
+// 200 {barcode, generated} / 400 / 404 (нет такого товара).
+//
+// Идемпотентно: у товара с уже выданным внутренним ШК возвращается он же. Поэтому ответ 200,
+// а не 201 — вызов не обещает, что код создан именно сейчас. Признак `generated` говорит,
+// что именно произошло: по нему экран решает, печатать ярлык молча или сказать «код уже был».
+func (h *BarcodeHandler) GenerateInternal(w http.ResponseWriter, r *http.Request) {
+	goodID := strings.TrimSpace(chi.URLParam(r, "id"))
+	code, created, err := h.svc.GenerateInternal(r.Context(), goodID)
+	switch {
+	case errors.Is(err, service.ErrEmptyGoodID):
+		writeError(w, http.StatusBadRequest, "пустой идентификатор товара")
+		return
+	case errors.Is(err, repository.ErrGoodNotFound):
+		writeError(w, http.StatusNotFound, "товар не найден")
+		return
+	case err != nil:
+		slog.Error("generate internal barcode failed", "error", err)
+		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"barcode":   code,
+		"symbology": "ean13",
+		"generated": created,
+	})
+}
+
 func (h *BarcodeHandler) List(w http.ResponseWriter, r *http.Request) {
 	limit, offset := paging(r)
 	page, err := h.svc.List(r.Context(), limit, offset)
