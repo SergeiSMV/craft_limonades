@@ -5,6 +5,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 import 'label_geometry.dart';
 import 'label_language.dart';
+import 'good_label.dart';
 import 'load_unit_label.dart';
 import 'printer_device.dart';
 import 'printer_settings.dart';
@@ -123,6 +124,18 @@ class PrinterService {
   /// во власть отладочной настройки.
   Future<void> printLoadUnitLabel(String loadUnitId) async =>
       printRaw(LoadUnitLabel(loadUnitId).tspl(await geometry()));
+
+  /// Напечатать товарный ярлык: штрихкод и наименование (P4-08).
+  ///
+  /// Печать и перепечать — один и тот же вызов: ярлык полностью определяется кодом и
+  /// наименованием, и испорченную наклейку меняют на такую же. Отдельного «перепечатать»
+  /// не нужно ни в API, ни в интерфейсе.
+  Future<void> printGoodLabel({
+    required String barcode,
+    required String goodName,
+  }) async => printRaw(
+    GoodLabel(barcode: barcode, goodName: goodName).tspl(await geometry()),
+  );
 
   /// Напечатать координатную сетку — чтобы увидеть, где у принтера начало координат.
   Future<void> printLayoutProbe(LabelLanguage language) async =>
