@@ -5,6 +5,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 import 'label_geometry.dart';
 import 'label_language.dart';
+import 'load_unit_label.dart';
 import 'printer_device.dart';
 import 'printer_settings.dart';
 import 'printer_transport.dart';
@@ -110,6 +111,25 @@ class PrinterService {
   /// языки между собой, и печать «тем, что сохранено» не дала бы сравнить.
   Future<void> printTestLabel(LabelLanguage language) async =>
       printRaw(language.testLabel(await geometry()));
+
+  /// Напечатать коробочный ярлык грузовой единицы (P4-06).
+  ///
+  /// Повторная печать — тот же вызов с тем же идентификатором: ярлык полностью определяется
+  /// им, и «напечатать ещё раз» не нуждается ни в отдельной команде, ни в признаке повтора.
+  /// Испорченную наклейку просто меняют на такую же.
+  ///
+  /// Язык здесь не выбирается: QR и кириллица проверены на TSPL, и печатать ярлык тем, что
+  /// сейчас стоит переключателем на экране наладки, значило бы отдать рабочую операцию
+  /// во власть отладочной настройки.
+  Future<void> printLoadUnitLabel(String loadUnitId) async =>
+      printRaw(LoadUnitLabel(loadUnitId).tspl(await geometry()));
+
+  /// Напечатать диагностическую этикетку кириллицы — какие встроенные шрифты её берут.
+  ///
+  /// Нужна один раз на модель принтера: по документации вопрос не решается, а от ответа
+  /// зависит, печатать ли ярлык текстом или гнать его графикой (`P4-06`).
+  Future<void> printCyrillicProbe(LabelLanguage language) async =>
+      printRaw(language.cyrillicProbe(await geometry()));
 
   /// Калибровать датчик промежутка под заправленный рулон.
   ///

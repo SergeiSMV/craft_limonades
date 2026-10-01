@@ -33,6 +33,25 @@ void main() {
       expect(calibration.trimRight(), endsWith('GAPDETECT'));
     });
 
+    test(
+      'диагностика кириллицы объявляет кодовую страницу и перебирает шрифты',
+      () {
+        final probe = latin1.decode(language.cyrillicProbe(geometry));
+        // Без CODEPAGE принтер трактует байты своей текущей страницей и печатает мусор.
+        expect(probe, contains('CODEPAGE 1251'));
+        // Каждый встроенный шрифт — отдельной строкой: одна этикетка отвечает на вопрос целиком.
+        for (final font in ['1', '2', '3', '4', '5', '0']) {
+          expect(probe, contains('"$font",0,1,1,'));
+        }
+      },
+    );
+
+    test('кириллица в диагностике уходит однобайтовой CP1251', () {
+      // latin1-декодирование показывает сами байты: «А» обязана быть 0xC0, а не парой байтов.
+      final probe = language.cyrillicProbe(geometry);
+      expect(probe, containsAllInOrder([0xC0, 0xC1, 0xC2])); // АБВ
+    });
+
     test('этикетка открывается размером и закрывается печатью', () {
       // Без SIZE принтер берёт размер из своих настроек и режет содержимое;
       // без PRINT этикетка остаётся в буфере и наружу не выходит.

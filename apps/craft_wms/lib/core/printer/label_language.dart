@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'cp1251.dart';
 import 'label_geometry.dart';
 
 /// Язык команд принтера этикеток (P4-05).
@@ -21,6 +22,14 @@ abstract interface class LabelLanguage {
 
   /// Тестовая этикетка: доказывает, что команды дошли и принтер их понял.
   List<int> testLabel(LabelGeometry geometry);
+
+  /// Диагностика кириллицы: печатает одну и ту же русскую строку всеми встроенными шрифтами.
+  ///
+  /// Зачем: по документации вопрос не решается. Встроенные шрифты принтеров этого класса
+  /// кириллицу обычно не содержат, но XP-P323B продаётся как русифицированный, а TSPL умеет
+  /// `CODEPAGE 1251`. Одна этикетка со всеми шрифтами сразу отвечает на вопрос, какой из них
+  /// годится, — и отвечает быстрее, чем переписка с производителем.
+  List<int> cyrillicProbe(LabelGeometry geometry);
 
   /// Калибровка датчика промежутка под заправленный рулон.
   ///
@@ -76,6 +85,32 @@ class TsplLanguage implements LabelLanguage {
     '${_setup(geometry)}'
     'GAPDETECT\r\n',
   );
+
+  /// Встроенные шрифты TSPL, которые имеет смысл проверять на кириллицу.
+  ///
+  /// «1»…«5» — растровые шрифты фиксированного размера, они есть у всех принтеров этого класса.
+  /// «0» — масштабируемый TrueType у моделей с движком TSPL-EZ; если он есть и знает кириллицу,
+  /// это лучший вариант для ярлыка: размер задаётся свободно.
+  static const List<String> _fonts = ['1', '2', '3', '4', '5', '0'];
+
+  @override
+  List<int> cyrillicProbe(LabelGeometry geometry) {
+    final out = <int>[];
+    out.addAll(encodeCommands('${_setup(geometry)}DIRECTION 1\r\nCLS\r\n'));
+    // Кодовая страница объявляется до текста: после неё принтер трактует байты как CP1251.
+    out.addAll(encodeCommands('CODEPAGE 1251\r\n'));
+    var y = 16;
+    for (final font in _fonts) {
+      // Имя шрифта латиницей рядом с русской строкой: если кириллица не вышла, по строке всё
+      // равно видно, какой шрифт пробовали, — пустая строка сама по себе ничего не сказала бы.
+      out.addAll(encodeCommands('TEXT 16,$y,"$font",0,1,1,"'));
+      out.addAll(encodeCp1251('F$font АБВ абв ЁЖЗ 123'));
+      out.addAll(encodeCommands('"\r\n'));
+      y += 34;
+    }
+    out.addAll(encodeCommands('PRINT 1,1\r\n'));
+    return out;
+  }
 }
 
 /// ZPL — язык Zebra; у этого принтера он входит в заводской режим `EZD`.
@@ -106,6 +141,26 @@ class ZplLanguage implements LabelLanguage {
   @override
   // ~JC — калибровка датчика носителя. Как и в TSPL, прогоняет несколько этикеток.
   List<int> calibrate(LabelGeometry geometry) => encodeCommands('~JC\r\n');
+
+  @override
+  List<int> cyrillicProbe(LabelGeometry geometry) {
+    final out = <int>[];
+    out.addAll(
+      encodeCommands(
+        '^XA\r\n'
+        '^PW${geometry.widthDots}\r\n'
+        '^LL${geometry.heightDots}\r\n'
+        // ^CI — набор символов. 27 — это CP1251 у совместимых прошивок.
+        '^CI27\r\n'
+        '^FO16,16^A0N,34,34^FD',
+      ),
+    );
+    out.addAll(encodeCp1251('A0 АБВ абв ЁЖЗ 123'));
+    out.addAll(encodeCommands('^FS\r\n^FO16,60^ADN,36,20^FD'));
+    out.addAll(encodeCp1251('AD АБВ абв ЁЖЗ 123'));
+    out.addAll(encodeCommands('^FS\r\n^XZ\r\n'));
+    return out;
+  }
 }
 
 /// Языки, между которыми выбирает человек на экране проверки принтера.
