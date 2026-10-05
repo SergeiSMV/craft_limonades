@@ -109,7 +109,7 @@ class _ReceiptView extends StatelessWidget {
               toolbarHeight: AppSizes.kIcon60,
               flexibleSpace: ClipRRect(
                 borderRadius: AppBorders.kBottom10,
-                child: Assets.images.arrivalOfGoods.image(fit: BoxFit.cover),
+                child: Assets.images.featuredSnacks.image(fit: BoxFit.cover),
               ),
               title: PageHeader(
                 title: t.receipt.title,

@@ -7,6 +7,8 @@ import '../../features/debug/presentation/pages/debug_log_page.dart';
 import '../../features/debug/presentation/pages/printer_probe_page.dart';
 import '../../features/debug/presentation/pages/scanner_probe_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
+import '../../features/receipt/presentation/bloc/receipt_cubit.dart'; // ReceiptCubit — аргумент ReceiptBoxRoute
+import '../../features/receipt/presentation/pages/receipt_box_page.dart';
 import '../../features/receipt/presentation/pages/receipt_page.dart';
 import '../../features/splash/presentation/pages/splash_page.dart';
 import '../../features/stock/data/catalog_models.dart'; // Good — аргумент StockDetailRoute
@@ -40,6 +42,8 @@ class AppRouter extends RootStackRouter {
     AutoRoute(page: StockEntryRoute.page, guards: [_authGuard]),
     // Приёмка (P4-09) — под авторизацией: автор документа берётся из токена.
     AutoRoute(page: ReceiptRoute.page, guards: [_authGuard]),
+    // Страница короба приёмки (ADHOC-18): тот же cubit, что у приёмки.
+    AutoRoute(page: ReceiptBoxRoute.page, guards: [_authGuard]),
     AutoRoute(page: DebugLogRoute.page),
     // Диагностика сканера — служебный экран наладки (P2-01).
     AutoRoute(page: ScannerProbeRoute.page),
