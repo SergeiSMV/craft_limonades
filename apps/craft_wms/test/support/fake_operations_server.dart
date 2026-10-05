@@ -92,6 +92,9 @@ class FakeOperationsServer implements HttpClientAdapter {
         barcodes[code!] = goodId;
       case 'unbind_barcode':
         barcodes.remove(code);
+      case 'receipt_submit':
+        // Приёмка (P4-09) справочник не меняет — следствий у фейка нет, только дедуп.
+        break;
       default:
         return {
           'operation_id': id,
