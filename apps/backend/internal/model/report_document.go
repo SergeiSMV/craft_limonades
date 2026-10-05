@@ -5,12 +5,15 @@ import "time"
 // Виды документов и источников (P3-01). Значения попадают в БД как есть, поэтому меняться
 // не могут: строка kind — часть формата хранения, а не деталь реализации.
 const (
-	// ReportKindStockEntry — форма «ввод остатков» (P-FS-08). Дальше добавятся «Поступление» (P4)
-	// и «Движение» (P5/P6).
+	// ReportKindStockEntry — форма «ввод остатков» (P-FS-08). Дальше добавится «Движение» (P5/P6).
 	ReportKindStockEntry = "stock_entry"
+	// ReportKindReceipt — форма «Поступление» (P4-10).
+	ReportKindReceipt = "receipt"
 
 	// SourceTypeStockEntrySession — операция-источник: сессия ввода остатков.
 	SourceTypeStockEntrySession = "stock_entry_session"
+	// SourceTypeReceipt — операция-источник: документ приёмки.
+	SourceTypeReceipt = "receipt"
 )
 
 // ReportSnapshot — содержимое документа, замороженное на момент завершения операции.
@@ -24,6 +27,14 @@ type ReportSnapshot struct {
 	WarehouseName string              `json:"warehouse_name"`
 	CreatedAt     time.Time           `json:"created_at"`
 	Rows          []ReportSnapshotRow `json:"rows"`
+
+	// Шапка «Поступления» (P4-10). У ввода остатков полей нет, и omitempty держит прежние
+	// снимки байт в байт такими, какими они были сохранены.
+	//
+	// Supplier пуст — приёмка без поставщика (внутреннее поступление, возврат).
+	Supplier string `json:"supplier,omitempty"`
+	// Executor — кто принимал: ФИО автора документа приёмки.
+	Executor string `json:"executor,omitempty"`
 }
 
 // ReportSnapshotRow — строка документа. Числа и даты хранятся текстом: qty — decimal, который
@@ -54,6 +65,7 @@ type DocumentListItem struct {
 	Kind          string
 	WarehouseCode string
 	WarehouseName string
+	Supplier      string // только у «Поступления»; пусто — без поставщика или другая форма
 	CreatedAt     time.Time
 	LinesCount    int
 	Status        string

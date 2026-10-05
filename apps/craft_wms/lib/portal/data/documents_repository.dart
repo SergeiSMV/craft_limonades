@@ -60,6 +60,8 @@ class DocEvent {
 class PortalDoc {
   const PortalDoc({
     required this.id,
+    required this.kind,
+    this.supplier = '',
     required this.warehouseCode,
     required this.warehouseName,
     required this.createdAt,
@@ -68,6 +70,12 @@ class PortalDoc {
   });
 
   final String id;
+
+  /// Форма документа: `stock_entry` — ввод остатков, `receipt` — «Поступление» (P4-10).
+  final String kind;
+
+  /// Поставщик — только у «Поступления»; пусто — без поставщика.
+  final String supplier;
   final String warehouseCode;
   final String warehouseName;
   final DateTime createdAt;
@@ -76,6 +84,8 @@ class PortalDoc {
 
   factory PortalDoc.fromJson(Map<String, dynamic> j) => PortalDoc(
         id: j['id'] as String,
+        kind: j['kind'] as String? ?? '',
+        supplier: j['supplier'] as String? ?? '',
         warehouseCode: j['warehouse_code'] as String? ?? '',
         warehouseName: j['warehouse_name'] as String? ?? '',
         createdAt: DateTime.parse(j['created_at'] as String),
@@ -84,19 +94,25 @@ class PortalDoc {
       );
 }
 
-/// Репозиторий раздела «Инвентаризация»: рабочий список документов, скачивание .xlsx
-/// и отметка «Выполнено». Слой data — изолирует HTTP; access-токен подставит AuthInterceptor.
+/// Репозиторий документов оператора: рабочий список, скачивание .xlsx и отметка «Выполнено».
+/// Общий для вкладок «Инвентаризация» и «Приход» (P4-10) — они различаются только формой. Слой data — изолирует HTTP; access-токен подставит AuthInterceptor.
 /// Всё admin-only на бэке.
 @lazySingleton
-class InventoryRepository {
-  InventoryRepository(this._dio);
+class DocumentsRepository {
+  DocumentsRepository(this._dio);
 
   final Dio _dio;
 
-  /// Список документов: необработанные сверху, выполненные — в конце.
-  Future<Either<Failure, List<PortalDoc>>> listDocuments() async {
+  /// Список документов одной формы ([kind]): необработанные сверху, выполненные — в конце.
+  ///
+  /// Форма фильтруется на сервере: без фильтра «Поступление» попадало бы во вкладку
+  /// инвентаризации, и оператор искал бы свои документы среди чужих.
+  Future<Either<Failure, List<PortalDoc>>> listDocuments({String? kind}) async {
     try {
-      final resp = await _dio.get<List<dynamic>>(ApiConst.documents);
+      final resp = await _dio.get<List<dynamic>>(
+        ApiConst.documents,
+        queryParameters: kind == null ? null : {'kind': kind},
+      );
       final items = (resp.data ?? const [])
           .map((e) => PortalDoc.fromJson(e as Map<String, dynamic>))
           .toList();

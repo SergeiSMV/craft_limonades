@@ -189,6 +189,13 @@ func postReceipt(ctx context.Context, q Querier, receiptID string) (int, error) 
 		WHERE id = $1::uuid`, receiptID); err != nil {
 		return 0, fmt.Errorf("оприходовать приёмку: %w", err)
 	}
+
+	// Документ «Поступление» — в ЭТОЙ ЖЕ транзакции (P4-10): оприходованная приёмка без
+	// документа невозможна, как и документ по неоприходованной. Путь один и для прямой ручки,
+	// и для операции очереди — обе проводят приёмку здесь.
+	if err := saveReceiptDocument(ctx, q, receiptID); err != nil {
+		return 0, err
+	}
 	return len(lines), nil
 }
 

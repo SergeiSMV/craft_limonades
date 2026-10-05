@@ -7,21 +7,44 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/gen/strings.g.dart';
-import '../../../data/inventory_repository.dart';
+import '../../../data/documents_repository.dart';
 import '../../../data/web_download.dart';
 
-/// Вкладка «Инвентаризация» (P-FS-09, статусы — P3-02): рабочий список документов «ввод остатков».
-/// Оператор скачивает .xlsx, заносит в 1С и отмечает выполненным; необработанные идут сверху.
-/// Данные тянутся при открытии; всё admin-only на бэке.
-class InventoryTab extends StatefulWidget {
-  const InventoryTab({super.key});
+/// Вкладка документов оператора (P-FS-09, статусы — P3-02): рабочий список документов одной
+/// формы. Оператор скачивает .xlsx, заносит в 1С и отмечает выполненным; необработанные идут
+/// сверху. Данные тянутся при открытии; всё admin-only на бэке.
+///
+/// Одна вкладка на все формы (P4-10): «Инвентаризация» и «Приход» различаются только формой
+/// документов и подписями, а работа оператора с документом одна и та же. Две копии вкладки
+/// разошлись бы на первой же правке — например, в отметке «Выполнено».
+class DocumentsTab extends StatefulWidget {
+  const DocumentsTab({
+    super.key,
+    required this.kind,
+    required this.title,
+    required this.description,
+    required this.mark,
+    required this.empty,
+  });
+
+  /// Форма документов: `stock_entry` — ввод остатков, `receipt` — «Поступление».
+  final String kind;
+
+  final String title;
+  final String description;
+
+  /// Название документа в строке списка.
+  final String mark;
+
+  /// Текст пустого списка.
+  final String empty;
 
   @override
-  State<InventoryTab> createState() => _InventoryTabState();
+  State<DocumentsTab> createState() => _DocumentsTabState();
 }
 
-class _InventoryTabState extends State<InventoryTab> {
-  final _repo = getIt<InventoryRepository>();
+class _DocumentsTabState extends State<DocumentsTab> {
+  final _repo = getIt<DocumentsRepository>();
 
   bool _loading = true;
   Failure? _error;
@@ -41,7 +64,7 @@ class _InventoryTabState extends State<InventoryTab> {
       _loading = true;
       _error = null;
     });
-    final res = await _repo.listDocuments();
+    final res = await _repo.listDocuments(kind: widget.kind);
     if (!mounted) return;
     setState(() {
       _loading = false;
@@ -58,7 +81,7 @@ class _InventoryTabState extends State<InventoryTab> {
     if (!mounted) return;
     setState(() => _downloading.remove(doc.id));
     res.fold(
-      (f) => _snack(t.portal.inventory.error(message: _errorText(f))),
+      (f) => _snack(t.portal.documents.error(message: _errorText(f))),
       (bytes) {
         downloadBytes(
           bytes: bytes,
@@ -76,16 +99,16 @@ class _InventoryTabState extends State<InventoryTab> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(t.portal.inventory.confirmTitle),
-        content: Text(t.portal.inventory.confirmBody),
+        title: Text(t.portal.documents.confirmTitle),
+        content: Text(t.portal.documents.confirmBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(t.portal.inventory.confirmNo),
+            child: Text(t.portal.documents.confirmNo),
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(t.portal.inventory.confirmYes),
+            child: Text(t.portal.documents.confirmYes),
           ),
         ],
       ),
@@ -97,9 +120,9 @@ class _InventoryTabState extends State<InventoryTab> {
     if (!mounted) return;
     setState(() => _marking.remove(doc.id));
     res.fold(
-      (f) => _snack(t.portal.inventory.error(message: _errorText(f))),
+      (f) => _snack(t.portal.documents.error(message: _errorText(f))),
       (_) {
-        _snack(t.portal.inventory.doneOk);
+        _snack(t.portal.documents.doneOk);
         _load();
       },
     );
@@ -110,15 +133,15 @@ class _InventoryTabState extends State<InventoryTab> {
     final res = await _repo.events(doc.id);
     if (!mounted) return;
     res.fold(
-      (f) => _snack(t.portal.inventory.error(message: _errorText(f))),
+      (f) => _snack(t.portal.documents.error(message: _errorText(f))),
       (events) => showDialog<void>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: Text(t.portal.inventory.historyTitle),
+          title: Text(t.portal.documents.historyTitle),
           content: SizedBox(
             width: AppSizes.kContentMaxWidth / 2,
             child: events.isEmpty
-                ? Text(t.portal.inventory.historyEmpty)
+                ? Text(t.portal.documents.historyEmpty)
                 : Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -128,7 +151,7 @@ class _InventoryTabState extends State<InventoryTab> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(),
-              child: Text(t.portal.inventory.close),
+              child: Text(t.portal.documents.close),
             ),
           ],
         ),
@@ -164,12 +187,12 @@ class _InventoryTabState extends State<InventoryTab> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    t.portal.inventory.title,
+                    widget.title,
                     style: const TextStyle(fontSize: AppSizes.kText24, fontWeight: FontWeight.w600),
                   ),
                   AppBoxes.kHeight8,
                   Text(
-                    t.portal.inventory.description,
+                    widget.description,
                     style: const TextStyle(fontSize: AppSizes.kText14, color: AppColors.kTextMuted),
                   ),
                   AppBoxes.kHeight24,
@@ -192,11 +215,11 @@ class _InventoryTabState extends State<InventoryTab> {
       return Column(
         children: [
           Text(
-            t.portal.inventory.error(message: _errorText(_error!)),
+            t.portal.documents.error(message: _errorText(_error!)),
             style: const TextStyle(color: AppColors.kDanger, fontSize: AppSizes.kText15),
           ),
           AppBoxes.kHeight16,
-          OutlinedButton(onPressed: _load, child: Text(t.portal.inventory.retry)),
+          OutlinedButton(onPressed: _load, child: Text(t.portal.documents.retry)),
         ],
       );
     }
@@ -205,7 +228,7 @@ class _InventoryTabState extends State<InventoryTab> {
         padding: AppInsets.all32,
         child: Center(
           child: Text(
-            t.portal.inventory.empty,
+            widget.empty,
             style: const TextStyle(color: AppColors.kTextMuted, fontSize: AppSizes.kText15),
           ),
         ),
@@ -216,6 +239,7 @@ class _InventoryTabState extends State<InventoryTab> {
         for (final d in _docs)
           _DocRow(
             doc: d,
+            mark: widget.mark,
             downloading: _downloading.contains(d.id),
             marking: _marking.contains(d.id),
             onDownload: () => _download(d),
@@ -231,6 +255,7 @@ class _InventoryTabState extends State<InventoryTab> {
 class _DocRow extends StatelessWidget {
   const _DocRow({
     required this.doc,
+    required this.mark,
     required this.downloading,
     required this.marking,
     required this.onDownload,
@@ -239,6 +264,9 @@ class _DocRow extends StatelessWidget {
   });
 
   final PortalDoc doc;
+
+  /// Название документа в строке.
+  final String mark;
   final bool downloading;
   final bool marking;
   final VoidCallback onDownload;
@@ -250,6 +278,14 @@ class _DocRow extends StatelessWidget {
     final l = dt.toLocal();
     String two(int v) => v.toString().padLeft(2, '0');
     return '${two(l.day)}.${two(l.month)}.${l.year} ${two(l.hour)}:${two(l.minute)}';
+  }
+
+  /// Заголовок строки: документ · склад, а у «Поступления» ещё и поставщик — по нему оператор
+  /// узнаёт приход среди других (P4-10).
+  String _title() {
+    if (doc.kind != 'receipt') return '$mark · ${doc.warehouseName}';
+    final supplier = doc.supplier.isEmpty ? t.portal.receipt.noSupplier : doc.supplier;
+    return '$mark · $supplier · ${doc.warehouseName}';
   }
 
   @override
@@ -265,13 +301,13 @@ class _DocRow extends StatelessWidget {
         leading: Icon(done ? Icons.task_alt : Icons.description_outlined),
         title: Row(
           children: [
-            Flexible(child: Text('${t.portal.inventory.mark} · ${doc.warehouseName}')),
+            Flexible(child: Text(_title())),
             AppBoxes.kWidth8,
             _StatusBadge(status: doc.status),
           ],
         ),
         subtitle: Text(
-          '${_date(doc.createdAt)} · ${t.portal.inventory.lines(count: doc.linesCount)}',
+          '${_date(doc.createdAt)} · ${t.portal.documents.lines(count: doc.linesCount)}',
           style: const TextStyle(fontSize: AppSizes.kText13, color: AppColors.kTextMuted),
         ),
         trailing: Row(
@@ -291,12 +327,12 @@ class _DocRow extends StatelessWidget {
                     )
                   : IconButton(
                       icon: const Icon(Icons.check_circle_outline),
-                      tooltip: t.portal.inventory.markDone,
+                      tooltip: t.portal.documents.markDone,
                       onPressed: onMarkDone,
                     ),
             IconButton(
               icon: const Icon(Icons.history),
-              tooltip: t.portal.inventory.history,
+              tooltip: t.portal.documents.history,
               onPressed: onHistory,
             ),
             downloading
@@ -310,7 +346,7 @@ class _DocRow extends StatelessWidget {
                   )
                 : IconButton(
                     icon: const Icon(Icons.download),
-                    tooltip: t.portal.inventory.download,
+                    tooltip: t.portal.documents.download,
                     onPressed: onDownload,
                   ),
           ],
@@ -330,9 +366,9 @@ class _StatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (bg, fg, label) = switch (status) {
-      DocStatus.isNew => (AppColors.kBadgeWarningBg, AppColors.kBadgeWarningText, t.portal.inventory.statusNew),
-      DocStatus.downloaded => (AppColors.kBadgeInfoBg, AppColors.kBadgeInfoText, t.portal.inventory.statusDownloaded),
-      DocStatus.done => (AppColors.kBadgeSuccessBg, AppColors.kBadgeSuccessText, t.portal.inventory.statusDone),
+      DocStatus.isNew => (AppColors.kBadgeWarningBg, AppColors.kBadgeWarningText, t.portal.documents.statusNew),
+      DocStatus.downloaded => (AppColors.kBadgeInfoBg, AppColors.kBadgeInfoText, t.portal.documents.statusDownloaded),
+      DocStatus.done => (AppColors.kBadgeSuccessBg, AppColors.kBadgeSuccessText, t.portal.documents.statusDone),
     };
     return Container(
       padding: AppInsets.badge,
@@ -354,10 +390,10 @@ class _HistoryRow extends StatelessWidget {
   /// Человекочитаемое название события. Незнакомое показываем как есть — лучше сырой код,
   /// чем пустая строка: журнал читают, когда разбираются в расхождении.
   String get _label => switch (event.event) {
-        'created' => t.portal.inventory.eventCreated,
-        'downloaded' => t.portal.inventory.eventDownloaded,
-        'done' => t.portal.inventory.eventDone,
-        'generation_failed' => t.portal.inventory.eventGenerationFailed,
+        'created' => t.portal.documents.eventCreated,
+        'downloaded' => t.portal.documents.eventDownloaded,
+        'done' => t.portal.documents.eventDone,
+        'generation_failed' => t.portal.documents.eventGenerationFailed,
         _ => event.event,
       };
 
@@ -385,7 +421,7 @@ class _HistoryRow extends StatelessWidget {
           ),
           Text(
             // Автор мог не сохраниться: события до появления журнала и системные записи.
-            event.userName.isEmpty ? t.portal.inventory.eventSystem : event.userName,
+            event.userName.isEmpty ? t.portal.documents.eventSystem : event.userName,
             style: const TextStyle(fontSize: AppSizes.kText13, color: AppColors.kTextMuted),
           ),
           if (failed && event.details.isNotEmpty)

@@ -89,15 +89,21 @@ func documentBySource(ctx context.Context, q Querier, sourceType, sourceID strin
 // не исчезают (по ним сверяются), но и не заслоняют то, чем ещё предстоит заняться.
 // Число строк берётся из СНИМКА, а не из таблицы-источника: документ описывает операцию такой,
 // какой она была завершена.
-func (r *ReportDocumentRepository) List(ctx context.Context) ([]model.DocumentListItem, error) {
+//
+// kind пуст — все формы; иначе только одна: у каждой формы в портале своя вкладка
+// («Инвентаризация», «Приход»), и смешанный список заставил бы оператора искать свои документы
+// среди чужих.
+func (r *ReportDocumentRepository) List(ctx context.Context, kind string) ([]model.DocumentListItem, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT id::text, kind,
 		       snapshot->>'warehouse_code', snapshot->>'warehouse_name',
+		       COALESCE(snapshot->>'supplier', ''),
 		       created_at,
 		       jsonb_array_length(COALESCE(snapshot->'rows', '[]'::jsonb)),
 		       status, downloaded_at, done_at
 		FROM report_documents
-		ORDER BY (status = 'done'), created_at DESC`)
+		WHERE ($1 = '' OR kind = $1)
+		ORDER BY (status = 'done'), created_at DESC`, kind)
 	if err != nil {
 		return nil, fmt.Errorf("список документов: %w", err)
 	}
@@ -106,7 +112,7 @@ func (r *ReportDocumentRepository) List(ctx context.Context) ([]model.DocumentLi
 	out := make([]model.DocumentListItem, 0)
 	for rows.Next() {
 		var d model.DocumentListItem
-		if err := rows.Scan(&d.ID, &d.Kind, &d.WarehouseCode, &d.WarehouseName,
+		if err := rows.Scan(&d.ID, &d.Kind, &d.WarehouseCode, &d.WarehouseName, &d.Supplier,
 			&d.CreatedAt, &d.LinesCount, &d.Status, &d.DownloadedAt, &d.DoneAt); err != nil {
 			return nil, fmt.Errorf("разбор строки списка документов: %w", err)
 		}
