@@ -181,6 +181,17 @@ void main() {
       expect((await cache.cells(isFloor: true)).single.id, 'c2');
     });
 
+    // Приёмка находит по флагу склад и ячейку по умолчанию без связи (P4-09).
+    test('флаг дефолтной ячейки переживает укладку в кэш', () async {
+      await cache.putCells(const [
+        Cell(id: 'c1', warehouseId: 'w1', address: 'M1-1-1-1'),
+        Cell(id: 'cd', warehouseId: 'w1', address: 'С-Н-П', isDefault: true),
+      ]);
+      final cells = await cache.cells();
+      expect(cells.where((c) => c.isDefault).single.id, 'cd');
+      expect(cells.firstWhere((c) => c.id == 'c1').isDefault, isFalse);
+    });
+
     test('без фильтров отдаёт весь справочник', () async {
       expect((await cache.cells()).length, 3);
     });

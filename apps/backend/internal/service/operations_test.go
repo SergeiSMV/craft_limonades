@@ -15,6 +15,7 @@ type fakeOpsRepo struct {
 	seen     map[string]bool
 	binds    []repository.BarcodeBindInput
 	unbinds  []string
+	receipts []repository.ReceiptSubmitInput
 	bindErr  error // ошибка, которую вернуть на привязку
 	failWith error // временная ошибка (прерывает батч)
 }
@@ -71,6 +72,15 @@ func (f *fakeOpsRepo) StockEntryFinalize(_ context.Context, operationID, _ strin
 		return repository.Applied{Result: json.RawMessage(`{}`), Duplicate: true}, nil
 	}
 	f.seen[operationID] = true
+	return repository.Applied{Result: json.RawMessage(`{}`)}, nil
+}
+
+func (f *fakeOpsRepo) ReceiptSubmit(_ context.Context, operationID string, in repository.ReceiptSubmitInput) (repository.Applied, error) {
+	if f.seen[operationID] {
+		return repository.Applied{Result: json.RawMessage(`{}`), Duplicate: true}, nil
+	}
+	f.seen[operationID] = true
+	f.receipts = append(f.receipts, in)
 	return repository.Applied{Result: json.RawMessage(`{}`)}, nil
 }
 
@@ -228,5 +238,66 @@ func TestOperations_emptyPayloadFieldsRejected(t *testing.T) {
 		if r.Status != StatusRejected {
 			t.Fatalf("операция %d: ждали %q, получили %q", i, StatusRejected, r.Status)
 		}
+	}
+}
+
+// Приёмка (P4-09): ошибки формы отсекаются до репозитория и приходят отказом по существу.
+func TestOperations_receiptSubmitValidation(t *testing.T) {
+	const (
+		receipt   = "33333333-3333-4333-8333-333333333333"
+		warehouse = "44444444-4444-4444-8444-444444444444"
+		good      = "55555555-5555-4555-8555-555555555555"
+	)
+	line := func(over map[string]any) map[string]any {
+		l := map[string]any{"good_id": good, "production_date": "01-09-2026", "qty": 2}
+		for k, v := range over {
+			l[k] = v
+		}
+		return l
+	}
+	cases := []struct {
+		name    string
+		payload map[string]any
+	}{
+		{"id документа не UUID", map[string]any{"receipt_id": "x", "warehouse_id": warehouse, "lines": []any{line(nil)}}},
+		{"нет склада", map[string]any{"receipt_id": receipt, "lines": []any{line(nil)}}},
+		{"пустой документ", map[string]any{"receipt_id": receipt, "warehouse_id": warehouse}},
+		{"нулевое количество", map[string]any{"receipt_id": receipt, "warehouse_id": warehouse, "lines": []any{line(map[string]any{"qty": 0})}}},
+		{"неверная дата", map[string]any{"receipt_id": receipt, "warehouse_id": warehouse, "lines": []any{line(map[string]any{"production_date": "2026-09-01"})}}},
+		{"ГЕ не UUID", map[string]any{"receipt_id": receipt, "warehouse_id": warehouse, "load_units": []any{map[string]any{"id": "CWLU1:x"}}, "lines": []any{line(nil)}}},
+		{"неизвестный вид ГЕ", map[string]any{"receipt_id": receipt, "warehouse_id": warehouse, "load_units": []any{map[string]any{"id": good, "kind": "bag"}}, "lines": []any{line(nil)}}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := newFakeOpsRepo()
+			res, err := NewOperationsService(repo).Apply(context.Background(), opUserID,
+				[]Operation{op(opID1, repository.KindReceiptSubmit, tc.payload)})
+			if err != nil {
+				t.Fatalf("Apply: %v", err)
+			}
+			if res[0].Status != StatusRejected {
+				t.Fatalf("ждали rejected, получили %q", res[0].Status)
+			}
+			if len(repo.receipts) != 0 {
+				t.Fatal("неверная приёмка дошла до репозитория")
+			}
+		})
+	}
+
+	// Верная приёмка доходит до репозитория с автором из токена и видом ГЕ по умолчанию.
+	repo := newFakeOpsRepo()
+	res, err := NewOperationsService(repo).Apply(context.Background(), opUserID, []Operation{
+		op(opID2, repository.KindReceiptSubmit, map[string]any{
+			"receipt_id": receipt, "warehouse_id": warehouse,
+			"load_units": []any{map[string]any{"id": good}},
+			"lines":      []any{line(map[string]any{"load_unit_id": good})},
+		}),
+	})
+	if err != nil || res[0].Status != StatusAccepted {
+		t.Fatalf("верная приёмка: err=%v, исход %+v", err, res)
+	}
+	got := repo.receipts[0]
+	if got.CreatedBy != opUserID || got.LoadUnits[0].Kind != "box" || got.Lines[0].ProductionDate != "2026-09-01" {
+		t.Fatalf("разбор приёмки: %+v", got)
 	}
 }

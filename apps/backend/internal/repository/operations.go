@@ -3,9 +3,13 @@ package repository
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"craftwms/internal/model"
 )
 
 // Типы операций очереди устройства. Значения совпадают со строками, которыми клиент пишет тип
@@ -19,7 +23,38 @@ const (
 	KindStockEntryStart      = "stock_entry_start"
 	KindStockEntryCheckpoint = "stock_entry_checkpoint"
 	KindStockEntryFinalize   = "stock_entry_finalize"
+
+	// Приёмка целиком: документ, его ГЕ, строки и оприходование — одна операция (P4-09).
+	KindReceiptSubmit = "receipt_submit"
 )
+
+// Ошибки применения приёмки из очереди (P4-09).
+var (
+	// ErrNoDefaultCell — у склада нет ячейки приёмки по умолчанию, а строка ячейку не указала.
+	ErrNoDefaultCell = errors.New("warehouse has no default cell")
+	// ErrUnknownReference — документ ссылается на то, чего нет в справочниках (склад, поставщик,
+	// товар, ячейка). Устройство собирает приёмку по своему кэшу, и между сборкой и отправкой
+	// справочник мог измениться; это разбирается человеком, а не повтором.
+	ErrUnknownReference = errors.New("receipt references a missing catalog entry")
+)
+
+// LoadUnitInput — грузовая единица, собранная на приёмке: идентификатор из QR ярлыка и вид.
+type LoadUnitInput struct {
+	ID   string
+	Kind string
+}
+
+// ReceiptSubmitInput — приёмка, собранная устройством целиком.
+//
+// Строки с пустой ячейкой ложатся в ячейку по умолчанию склада документа.
+type ReceiptSubmitInput struct {
+	ReceiptID   string
+	WarehouseID string
+	SupplierID  string // пусто — без поставщика
+	CreatedBy   string
+	LoadUnits   []LoadUnitInput
+	Lines       []model.ReceiptLineInput
+}
 
 // OperationsRepository — применение операций очереди устройства под ключом идемпотентности.
 //
@@ -101,6 +136,72 @@ func (r *OperationsRepository) StockEntryFinalize(ctx context.Context, operation
 		}
 		return jsonResult(map[string]int{"written": written})
 	})
+}
+
+// ReceiptSubmit применяет приёмку целиком: открывает документ, заводит его ГЕ, кладёт строки
+// и оприходует — всё в одной транзакции с пометкой операции.
+//
+// Зачем одной операцией, а не цепочкой «открыть → строка → … → оприходовать». Очередь
+// устройства отклонённую операцию снимает и идёт дальше. Отклонённая строка в цепочке дала бы
+// оприходование документа БЕЗ неё — остаток поднялся бы на неполный приход, и узнать об этом
+// было бы не из чего. Приёмка приходует целиком или не приходует вовсе; отказ возвращает весь
+// документ человеку на разбор.
+//
+// Повтор безопасен на двух уровнях: журнал операции отдаёт ответ первой попытки, а документ,
+// уже оприходованный другим путём, упирается в статус и даёт ErrReceiptPosted.
+func (r *OperationsRepository) ReceiptSubmit(ctx context.Context, operationID string, in ReceiptSubmitInput) (Applied, error) {
+	applied, err := r.inTx(ctx, operationID, KindReceiptSubmit, func(q Querier) (json.RawMessage, error) {
+		if err := createReceipt(ctx, q, in.ReceiptID, in.WarehouseID, in.SupplierID, in.CreatedBy); err != nil {
+			return nil, err
+		}
+		if err := guardReceiptDraft(ctx, q, in.ReceiptID); err != nil {
+			return nil, err
+		}
+		for _, lu := range in.LoadUnits {
+			if err := createLoadUnit(ctx, q, lu.ID, lu.Kind); err != nil {
+				return nil, err
+			}
+		}
+		// Дефолтную ячейку ищем один раз и только если она нужна: документ, где кладовщик
+		// указал ячейку каждой строке, не должен зависеть от её наличия.
+		var defaultCell string
+		for _, ln := range in.Lines {
+			if ln.CellID == "" {
+				if defaultCell == "" {
+					id, err := defaultCellID(ctx, q, in.WarehouseID)
+					if errors.Is(err, ErrNotFound) {
+						return nil, ErrNoDefaultCell
+					}
+					if err != nil {
+						return nil, err
+					}
+					defaultCell = id
+				}
+				ln.CellID = defaultCell
+			}
+			if err := insertReceiptLine(ctx, q, in.ReceiptID, ln); err != nil {
+				return nil, err
+			}
+		}
+		posted, err := postReceipt(ctx, q, in.ReceiptID)
+		if err != nil {
+			return nil, err
+		}
+		return jsonResult(map[string]any{"receipt_id": in.ReceiptID, "posted": posted})
+	})
+	return applied, missingReference(err)
+}
+
+// missingReference переводит нарушение внешнего ключа в ErrUnknownReference.
+//
+// Без перевода оно считалось бы временной неудачей, и очередь устройства повторяла бы
+// неисполнимую приёмку вечно, застряв на ней вместе со всеми операциями после неё.
+func missingReference(err error) error {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23503" {
+		return ErrUnknownReference
+	}
+	return err
 }
 
 // inTx — общая обвязка: транзакция, в которой лежат пометка операции и её эффект.

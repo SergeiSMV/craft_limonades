@@ -58,6 +58,10 @@ abstract class Cell with _$Cell {
     @Default('storage') String type,
     @JsonKey(name: 'is_floor') @Default(false) bool isFloor,
     @JsonKey(name: 'is_active') @Default(true) bool isActive,
+
+    /// Ячейка приёмки по умолчанию («С-Н-П», одна на склад). По ней приёмка находит склад
+    /// и показывает, куда ляжет товар, если место не выбрано (P4-09).
+    @JsonKey(name: 'is_default') @Default(false) bool isDefault,
   }) = _Cell;
 
   factory Cell.fromJson(Map<String, dynamic> json) => _$CellFromJson(json);
@@ -149,4 +153,20 @@ class Paged<T> {
       offset: json['offset'] as int? ?? 0,
     );
   }
+}
+
+/// Внутренний штрихкод, выданный товару сервером (ответ `POST /goods/{id}/barcode`, P4-07).
+class IssuedBarcode {
+  const IssuedBarcode({
+    required this.barcode,
+    this.symbology,
+    required this.generated,
+  });
+
+  final String barcode;
+  final String? symbology;
+
+  /// Код создан этим вызовом. `false` — у товара он уже был, и сервер вернул прежний: выдача
+  /// идемпотентна, второй внутренний код одному товару не заводится.
+  final bool generated;
 }

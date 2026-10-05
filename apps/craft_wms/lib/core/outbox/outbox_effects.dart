@@ -40,6 +40,8 @@ class OutboxEffects {
           goodId: goodId,
           pending: true,
         );
+      case OutboxKind.receiptSubmit:
+        break; // приёмка справочник не меняет — следствий в кэше у неё нет
       case OutboxKind.unbindBarcode:
         // Отвязка убирает запись сразу: кладовщик отвязал ошибочный код и не должен видеть
         // его в списке до появления связи. Вернуть её при отказе позволяет `good_id`,
@@ -57,6 +59,8 @@ class OutboxEffects {
         await _cache.confirmBarcode(barcode);
       case OutboxKind.unbindBarcode:
         break; // записи уже нет — подтверждать нечего
+      case OutboxKind.receiptSubmit:
+        break; // приёмка в кэше следа не оставляет
     }
   }
 
@@ -70,6 +74,8 @@ class OutboxEffects {
     switch (operation.kind) {
       case OutboxKind.bindBarcode:
         await _cache.removeBarcode(barcode);
+      case OutboxKind.receiptSubmit:
+        break; // откатывать в кэше нечего: документ возвращается человеку на разбор
       case OutboxKind.unbindBarcode:
         // Операция старого формата, без товара в теле, — восстанавливать нечем.
         final goodId = operation.payload['good_id'] as String?;

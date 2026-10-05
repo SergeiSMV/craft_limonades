@@ -65,6 +65,7 @@ type operationsRepo interface {
 	StockEntryStart(ctx context.Context, operationID, sessionID, warehouseID, createdBy string) (repository.Applied, error)
 	StockEntryCheckpoint(ctx context.Context, operationID, sessionID, cellID string, lines []repository.StockEntryLineInput, barcodes []repository.BarcodeBindInput) (repository.Applied, error)
 	StockEntryFinalize(ctx context.Context, operationID, sessionID string) (repository.Applied, error)
+	ReceiptSubmit(ctx context.Context, operationID string, in repository.ReceiptSubmitInput) (repository.Applied, error)
 }
 
 // OperationsService — приём батча операций из очереди устройства с дедупом по operation_id.
@@ -271,6 +272,9 @@ func (s *OperationsService) dispatch(ctx context.Context, userID, id string, op 
 		}
 		return s.repo.StockEntryFinalize(ctx, id, sessionID)
 
+	case repository.KindReceiptSubmit:
+		return s.receiptSubmit(ctx, userID, id, op.Payload)
+
 	default:
 		return repository.Applied{}, ErrUnknownKind
 	}
@@ -296,7 +300,19 @@ func isRejection(err error) bool {
 		errors.Is(err, ErrInvalidDate) ||
 		errors.Is(err, ErrInvalidSessionID) ||
 		errors.Is(err, ErrEmptyWarehouse) ||
-		errors.Is(err, ErrEmptyCell)
+		errors.Is(err, ErrEmptyCell) ||
+		// Приёмка (P4-09): документ уже оприходован, пуст, противоречив или ссылается на то,
+		// чего нет. Ни одно из этого повтор не исправит.
+		errors.Is(err, ErrInvalidReceiptID) ||
+		errors.Is(err, ErrInvalidLoadUnitID) ||
+		errors.Is(err, ErrInvalidLoadUnitKind) ||
+		errors.Is(err, repository.ErrReceiptNotFound) ||
+		errors.Is(err, repository.ErrReceiptPosted) ||
+		errors.Is(err, repository.ErrEmptyReceipt) ||
+		errors.Is(err, repository.ErrLoadUnitCellConflict) ||
+		errors.Is(err, repository.ErrLoadUnitNotFound) ||
+		errors.Is(err, repository.ErrNoDefaultCell) ||
+		errors.Is(err, repository.ErrUnknownReference)
 }
 
 // rejected собирает результат-отказ с причиной, читаемой человеком на экране разбора.

@@ -1,17 +1,20 @@
-import 'package:craft_wms/core/constants/app_insets.dart';
-import 'package:craft_wms/core/constants/app_sizes.dart';
 import 'package:flutter_neumorphic_plus/flutter_neumorphic.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
-import '../../../../core/constants/app_borders.dart';
-import '../../../../core/constants/app_boxes.dart';
-import '../../../../core/constants/app_colors.dart';
-import '../../../../core/gen/strings.g.dart';
-import '../../../../core/theme/regular_text.dart';
-import '../../../../core/theme/semibold_text.dart';
-import '../../../../core/utils/date_input.dart';
-import '../../../../core/utils/qty_format.dart';
-import '../../../stock/data/catalog_models.dart';
+import '../../features/stock/data/catalog_models.dart';
+import '../constants/app_borders.dart';
+import '../constants/app_boxes.dart';
+import '../constants/app_colors.dart';
+import '../constants/app_insets.dart';
+import '../constants/app_sizes.dart';
+import '../gen/strings.g.dart';
+import '../theme/regular_text.dart';
+import '../theme/semibold_text.dart';
+import '../utils/date_input.dart';
+import '../utils/qty_format.dart';
+
+// Общий для «Ввода остатков» и приёмки (P4-09): строка товара в обоих потоках — это партия
+// по дате выпуска и количество, и два диалога разошлись бы в правилах проверки ввода.
 
 /// Результат диалога даты/количества: либо добавление (date+qty), либо сигнал «неверный товар»
 /// (отвязать ошибочный ШК). [wrongGood] различает эти два исхода.
@@ -112,7 +115,7 @@ class _DateQtyDialogState extends State<DateQtyDialog> {
               Padding(
                 padding: AppInsets.left6,
                 child: Text(
-                  t.stockEntry.dateLabel,
+                  t.dateQty.dateLabel,
                   style: RegularTextStyles().regularInter12.copyWith(
                     color: AppColors.kTextMuted,
                   ),
@@ -135,7 +138,7 @@ class _DateQtyDialogState extends State<DateQtyDialog> {
                   keyboardType: TextInputType.number,
                   inputFormatters: [DateTextInputFormatter()],
                   decoration: InputDecoration(
-                    // labelText: t.stockEntry.dateLabel,
+                    // labelText: t.dateQty.dateLabel,
                     hintText: 'дд.мм.гг(гг)',
                     hintStyle: RegularTextStyles().regularInter14.copyWith(
                       color: AppColors.kBorderDashed,
@@ -147,14 +150,14 @@ class _DateQtyDialogState extends State<DateQtyDialog> {
                   ),
                   validator: (v) => isValidEntryDate((v ?? '').trim())
                       ? null
-                      : t.stockEntry.dateInvalid,
+                      : t.dateQty.dateInvalid,
                 ),
               ),
               AppBoxes.kHeight12,
               Padding(
                 padding: AppInsets.left6,
                 child: Text(
-                  t.stockEntry.qtyLabel(uom: widget.good.uom),
+                  t.dateQty.qtyLabel(uom: widget.good.uom),
                   style: RegularTextStyles().regularInter12.copyWith(
                     color: AppColors.kTextMuted,
                   ),
@@ -179,7 +182,7 @@ class _DateQtyDialogState extends State<DateQtyDialog> {
                     decimal: true,
                   ),
                   decoration: InputDecoration(
-                    // labelText: t.stockEntry.qtyLabel(uom: widget.good.uom),
+                    // labelText: t.dateQty.qtyLabel(uom: widget.good.uom),
                     hintText: 'количество',
                     hintStyle: RegularTextStyles().regularInter14.copyWith(
                       color: AppColors.kBorderDashed,
@@ -193,9 +196,7 @@ class _DateQtyDialogState extends State<DateQtyDialog> {
                     final d = double.tryParse(
                       (v ?? '').trim().replaceAll(',', '.'),
                     );
-                    return (d != null && d > 0)
-                        ? null
-                        : t.stockEntry.qtyInvalid;
+                    return (d != null && d > 0) ? null : t.dateQty.qtyInvalid;
                   },
                 ),
               ),
@@ -214,12 +215,9 @@ class _DateQtyDialogState extends State<DateQtyDialog> {
                   Spacer(),
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    child: Text(t.stockEntry.cancel),
+                    child: Text(t.dateQty.cancel),
                   ),
-                  FilledButton(
-                    onPressed: _submit,
-                    child: Text(t.stockEntry.add),
-                  ),
+                  FilledButton(onPressed: _submit, child: Text(t.dateQty.add)),
                 ],
               ),
             ],
@@ -241,9 +239,9 @@ class _DateQtyDialogState extends State<DateQtyDialog> {
       //   //   Spacer(),
       //   //   TextButton(
       //   //     onPressed: () => Navigator.of(context).pop(),
-      //   //     child: Text(t.stockEntry.cancel),
+      //   //     child: Text(t.dateQty.cancel),
       //   //   ),
-      //   //   FilledButton(onPressed: _submit, child: Text(t.stockEntry.add)),
+      //   //   FilledButton(onPressed: _submit, child: Text(t.dateQty.add)),
       // ],
     );
   }

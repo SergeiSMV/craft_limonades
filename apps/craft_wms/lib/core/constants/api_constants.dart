@@ -61,6 +61,9 @@ abstract final class ApiConst {
   ///**GET** - все ШК товара (секция «Штрихкоды» карточки, P-FS-12): `goods/{id}/barcodes`.
   static String goodBarcodes(String id) => 'goods/$id/barcodes';
 
+  ///**POST** - выдать товару внутренний EAN-13 (P4-07; идемпотентно — повтор вернёт тот же код): `goods/{id}/barcode`.
+  static String goodInternalBarcode(String id) => 'goods/$id/barcode';
+
   ///**POST** - checkpoint ячейки в сессии ввода: `stock-entry/sessions/{id}/cells`.
   static String stockEntryCells(String id) => 'stock-entry/sessions/$id/cells';
 

@@ -164,7 +164,7 @@ type CellsFilter struct {
 // List возвращает ячейки под фильтр + общее число.
 func (r *CellRepository) List(ctx context.Context, f CellsFilter) ([]model.Cell, int, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT id::text, warehouse_id::text, address, type, is_floor, is_active,
+		SELECT id::text, warehouse_id::text, address, type, is_floor, is_active, is_default,
 		       COUNT(*) OVER() AS total
 		FROM cells
 		WHERE ($1 = '' OR address ILIKE '%' || $1 || '%')
@@ -182,7 +182,7 @@ func (r *CellRepository) List(ctx context.Context, f CellsFilter) ([]model.Cell,
 	total := 0
 	for rows.Next() {
 		var c model.Cell
-		if err := rows.Scan(&c.ID, &c.WarehouseID, &c.Address, &c.Type, &c.IsFloor, &c.IsActive, &total); err != nil {
+		if err := rows.Scan(&c.ID, &c.WarehouseID, &c.Address, &c.Type, &c.IsFloor, &c.IsActive, &c.IsDefault, &total); err != nil {
 			return nil, 0, fmt.Errorf("scan cell: %w", err)
 		}
 		items = append(items, c)

@@ -75,8 +75,13 @@ func (r *CellRepository) EnsureDefault(ctx context.Context, q Querier, warehouse
 //
 // Ищет ПО ФЛАГУ, а не по адресу: «С-Н-П» — имя ячейки, и переименование не должно ломать приёмку.
 func (r *CellRepository) DefaultID(ctx context.Context, warehouseID string) (string, error) {
+	return defaultCellID(ctx, r.pool, warehouseID)
+}
+
+// defaultCellID — поиск дефолтной ячейки на Querier, для применения приёмки из очереди (P4-09).
+func defaultCellID(ctx context.Context, q Querier, warehouseID string) (string, error) {
 	var id string
-	err := r.pool.QueryRow(ctx, `
+	err := q.QueryRow(ctx, `
 		SELECT id::text FROM cells WHERE warehouse_id = $1::uuid AND is_default`, warehouseID).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", ErrNotFound

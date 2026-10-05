@@ -2,27 +2,33 @@ import 'package:flutter/services.dart';
 import 'package:flutter_neumorphic_plus/flutter_neumorphic.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
-import '../../../../core/constants/app_borders.dart';
-import '../../../../core/constants/app_boxes.dart';
-import '../../../../core/constants/app_colors.dart';
-import '../../../../core/constants/app_insets.dart';
-import '../../../../core/constants/app_sizes.dart';
-import '../../../../core/di/injection.dart';
-import '../../../../core/gen/strings.g.dart';
-import '../../../../core/scanner/hardware_scan_listener.dart';
-import '../../../../core/scanner/scan_code.dart';
-import '../../../../core/scanner/scan_deduper.dart';
-import '../../../../core/theme/regular_text.dart';
-import '../../../../core/theme/semibold_text.dart';
-import '../../../stock/data/catalog_models.dart';
-import '../../../stock/data/catalog_repository.dart';
+import '../constants/app_borders.dart';
+import '../constants/app_boxes.dart';
+import '../constants/app_colors.dart';
+import '../constants/app_insets.dart';
+import '../constants/app_sizes.dart';
+import '../di/injection.dart';
+import '../gen/strings.g.dart';
+import '../scanner/hardware_scan_listener.dart';
+import '../scanner/scan_code.dart';
+import '../scanner/scan_deduper.dart';
+import '../theme/regular_text.dart';
+import '../theme/semibold_text.dart';
+import '../../features/stock/data/catalog_models.dart';
+import '../../features/stock/data/catalog_repository.dart';
 
 /// Нижний лист смены ячейки (коррекция «не та ячейка»): высокий лист с полем сверху и встроенным
 /// прокручиваемым списком ячеек (локальная prefix-фильтрация). В отличие от инлайн-автокомплита на
 /// экране выбора, здесь список НЕ оверлей (в нижнем листе поле у низа — оверлею некуда развернуться),
 /// а обычный список во всю высоту над клавиатурой. По выбору/скану возвращает ячейку через `pop`.
+///
+/// Общий для «Ввода остатков» и приёмки (P4-09): в обоих потоках ячейку меняют одинаково —
+/// сканом этикетки или набором адреса. Заголовок у каждого свой.
 class CellChangeSheet extends StatefulWidget {
-  const CellChangeSheet({super.key});
+  const CellChangeSheet({super.key, this.title});
+
+  /// Заголовок листа; `null` — «Сменить ячейку».
+  final String? title;
 
   @override
   State<CellChangeSheet> createState() => _CellChangeSheetState();
@@ -72,7 +78,7 @@ class _CellChangeSheetState extends State<CellChangeSheet>
       _all = res.fold((_) => const [], (c) => c);
       // Список скрыт, пока не введён адрес (пустой ввод → ничего не показываем).
     });
-    if (res.isLeft) _snack(t.stockEntry.cellsLoadFailed);
+    if (res.isLeft) _snack(t.cellPicker.loadFailed);
   }
 
   /// Пересчитать список по вводу: пусто → список скрыт; иначе — адреса, начинающиеся с ввода (prefix).
@@ -106,7 +112,7 @@ class _CellChangeSheetState extends State<CellChangeSheet>
         return;
       }
     }
-    _snack(t.stockEntry.cellNotFound);
+    _snack(t.cellPicker.notFound);
   }
 
   void _snack(String text) {
@@ -132,7 +138,7 @@ class _CellChangeSheetState extends State<CellChangeSheet>
             Padding(
               padding: AppInsets.h8,
               child: Text(
-                t.stockEntry.changeCell,
+                widget.title ?? t.cellPicker.title,
                 style: SemiboldTextStyles().semiboldInter18,
               ),
             ),
@@ -179,7 +185,7 @@ class _CellChangeSheetState extends State<CellChangeSheet>
               size: AppSizes.kIcon25,
               color: AppColors.kTextMuted,
             ),
-            hintText: t.stockEntry.cellHint,
+            hintText: t.cellPicker.hint,
             hintStyle: RegularTextStyles().regularInter16.copyWith(
               color: AppColors.kBorderDashed,
             ),
@@ -213,7 +219,7 @@ class _CellChangeSheetState extends State<CellChangeSheet>
         AppBoxes.kHeight8,
         Padding(
           padding: AppInsets.v16,
-          child: Center(child: Text(t.stockEntry.nothingFound)),
+          child: Center(child: Text(t.cellPicker.nothingFound)),
         ),
       ];
     }

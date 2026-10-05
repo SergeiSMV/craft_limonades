@@ -132,6 +132,37 @@ class CatalogRepository {
     payload: {'good_id': goodId, 'barcode': barcode},
   );
 
+  /// Выдать товару внутренний штрихкод (P4-07) — **только по сети**.
+  ///
+  /// В очередь операция не ставится сознательно (решение P4-09): код обязан быть уникален во
+  /// всей системе, а офлайн-выдача этого не обещает без диапазонов номеров, выданных терминалу
+  /// заранее. Без связи кладовщик получает отказ и может принять товар без печати ярлыка.
+  ///
+  /// Выданный код сразу кладётся в кэш подтверждённым: его выдал сервер, ждать нечего, а скан
+  /// только что напечатанного ярлыка без связи иначе не опознал бы товар.
+  Future<Either<Failure, IssuedBarcode>> issueInternalBarcode(
+    String goodId,
+  ) async {
+    final res = await _api.issueInternalBarcode(goodId);
+    if (res.isRight) {
+      await _cache.addBarcode(
+        barcode: res.right.barcode,
+        goodId: goodId,
+        symbology: res.right.symbology,
+      );
+    }
+    return res;
+  }
+
+  /// Ячейка приёмки по умолчанию («С-Н-П») — из кэша, а без него по сети (P4-09).
+  ///
+  /// `Right(null)` — справочник прочитан, а дефолтной ячейки в нём нет: склад развёрнут не до
+  /// конца, и это повод звать админа, а не ошибка связи.
+  Future<Either<Failure, Cell?>> defaultCell() async {
+    final res = await listAllCells();
+    return res.map((cells) => cells.where((c) => c.isDefault).firstOrNull);
+  }
+
   /// Отвязать ШК.
   ///
   /// `good_id` кладётся в тело операции не для запроса — серверу он не нужен, — а чтобы при
