@@ -194,6 +194,9 @@ void main() {
   test('миграция 2 → 3 добавляет пометку, не трогая привязки', () async {
     await cache.addBarcode(barcode: barcode, goodId: good.id);
     await db.customStatement('ALTER TABLE cached_barcodes DROP COLUMN pending');
+    // Шаги миграции идут от `from` до текущей версии, а флага дефолтной ячейки (схема 5)
+    // в старой схеме тоже не было.
+    await db.customStatement('ALTER TABLE cached_cells DROP COLUMN is_default');
 
     await db.migration.onUpgrade(Migrator(db), 2, 3);
 

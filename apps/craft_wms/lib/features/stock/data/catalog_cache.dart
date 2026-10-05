@@ -120,6 +120,7 @@ class CatalogCache {
             type: Value(c.type),
             isFloor: Value(c.isFloor),
             isActive: Value(c.isActive),
+            isDefault: Value(c.isDefault),
             addressLower: c.address.toLowerCase(),
           ),
         )
@@ -377,5 +378,6 @@ class CatalogCache {
     type: r.type,
     isFloor: r.isFloor,
     isActive: r.isActive,
+    isDefault: r.isDefault,
   );
 }

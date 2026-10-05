@@ -12,7 +12,13 @@ enum OutboxKind {
   bindBarcode('bind_barcode'),
 
   /// Отвязать штрихкод — `DELETE /barcodes/{code}`.
-  unbindBarcode('unbind_barcode');
+  unbindBarcode('unbind_barcode'),
+
+  /// Приёмка целиком: документ, его ГЕ, строки и оприходование одной операцией (P4-09).
+  ///
+  /// Одной, а не цепочкой «открыть → строка → … → оприходовать»: очередь отклонённую операцию
+  /// снимает и идёт дальше, и отклонённая строка дала бы оприходование документа без неё.
+  receiptSubmit('receipt_submit');
 
   const OutboxKind(this.wire);
 

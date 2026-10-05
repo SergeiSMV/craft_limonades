@@ -22,6 +22,7 @@ import '../../../../core/theme/regular_text.dart';
 import '../../../../core/widgets/pending_pass_badge.dart';
 import '../../../../core/widgets/system_ui_wrapper.dart';
 import '../widgets/menu_tile.dart';
+import '../../../receipt/data/receipt_draft_store.dart';
 import '../../../sync/presentation/bloc/sync_status_cubit.dart';
 import '../../../sync/presentation/widgets/sync_status_chip.dart';
 import '../widgets/sync_indicator.dart';
@@ -89,6 +90,10 @@ class HomePage extends StatelessWidget {
   /// Открыть рабочий раздел «Остатки» (список товаров).
   void openStock(BuildContext context) =>
       context.router.push(const GoodsListRoute());
+
+  /// Открыть приёмку (P4-09).
+  void openReceipt(BuildContext context) =>
+      context.router.push(const ReceiptRoute());
 
   /// Открыть раздел «Ввод остатков» (проход склада, P-FastStart).
   void openStockEntry(BuildContext context) =>
@@ -235,13 +240,18 @@ class HomePage extends StatelessWidget {
                     crossAxisSpacing: AppSizes.kMenuTileSpacing,
                     childAspectRatio: AppSizes.kMenuTileAspect,
                     children: [
-                      MenuTile(
-                        title: t.homeScreen.tiles.receiptTitle,
-                        subtitle: t.homeScreen.tiles.receiptSubtitle,
-                        imageIcon: Assets.icons.menuIcons.arrival,
-                        color: AppColors.kTileReceipt,
-                        enabled: false,
-                        onTap: () => showStub(context),
+                      // Пометка незавершённой приёмки: она лежит черновиком мимо очереди,
+                      // и индикатор синхронизации её не видит (тот же урок, что ADHOC-13).
+                      PendingPassBuilder(
+                        watch: getIt<ReceiptDraftStore>().watchHasDraft,
+                        builder: (context, hasDraft) => MenuTile(
+                          title: t.homeScreen.tiles.receiptTitle,
+                          subtitle: t.homeScreen.tiles.receiptSubtitle,
+                          imageIcon: Assets.icons.menuIcons.arrival,
+                          color: AppColors.kTileReceipt,
+                          showBadge: hasDraft,
+                          onTap: () => openReceipt(context),
+                        ),
                       ),
                       MenuTile(
                         title: t.homeScreen.tiles.movementTitle,

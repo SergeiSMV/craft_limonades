@@ -65,6 +65,32 @@ class CatalogApi {
   }
 
   /// Штрихкоды товара (секция «Штрихкоды» в карточке, P-FS-12). Пустой список — норма.
+  /// Выдать товару внутренний штрихкод (P4-07).
+  ///
+  /// Только по сети: код обязан быть уникален во всей системе, а терминал без связи этого
+  /// гарантировать не может — заранее выданных ему диапазонов номеров нет (решение P4-09).
+  Future<Either<Failure, IssuedBarcode>> issueInternalBarcode(
+    String goodId,
+  ) async {
+    try {
+      final resp = await _dio.post<Map<String, dynamic>>(
+        ApiConst.goodInternalBarcode(goodId),
+      );
+      final data = resp.data!;
+      return Right(
+        IssuedBarcode(
+          barcode: data['barcode'] as String,
+          symbology: data['symbology'] as String?,
+          generated: data['generated'] as bool? ?? true,
+        ),
+      );
+    } on DioException catch (e) {
+      return Left(_mapError(e));
+    } catch (_) {
+      return const Left(Failure.unknown());
+    }
+  }
+
   Future<Either<Failure, List<Barcode>>> listGoodBarcodes(String goodId) async {
     try {
       final resp = await _dio.get<List<dynamic>>(ApiConst.goodBarcodes(goodId));

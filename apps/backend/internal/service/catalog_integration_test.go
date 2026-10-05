@@ -170,6 +170,17 @@ func TestCatalog_goodsCellsSuppliers(t *testing.T) {
 	if byAddr.Total != 1 || byAddr.Items[0].Address != "M1-1-1-1" {
 		t.Errorf("поиск ячейки M1-1-1-1: ожидалась 1, получено total=%d", byAddr.Total)
 	}
+	if byAddr.Items[0].IsDefault {
+		t.Error("обычная ячейка помечена дефолтной")
+	}
+	// Дефолтная ячейка приходит с флагом: по нему терминал находит склад приёмки офлайн (P4-09).
+	def, err := cat.ListCells(ctx, service.CellsQuery{Query: "С-Н-П"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if def.Total != 1 || !def.Items[0].IsDefault {
+		t.Errorf("дефолтная ячейка С-Н-П: ожидалась 1 с флагом, получено total=%d %+v", def.Total, def.Items)
+	}
 }
 
 // TestCatalog_stock — остатки в товарном разрезе: адрес ячейки, дата партии, точное decimal-количество.

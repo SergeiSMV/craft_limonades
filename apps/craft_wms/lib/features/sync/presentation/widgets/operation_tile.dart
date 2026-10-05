@@ -45,7 +45,7 @@ class _OperationTileState extends State<OperationTile> {
 
   OutboxOperation get operation => widget.operation;
 
-  /// Штрихкод из тела операции — он есть у обоих сегодняшних типов.
+  /// Штрихкод из тела операции; у приёмки его нет, и строка не показывается.
   String get _barcode => operation.payload['barcode'] as String? ?? '';
 
   /// Название товара из локального справочника; `null` — товара в кэше нет либо операция
@@ -63,6 +63,10 @@ class _OperationTileState extends State<OperationTile> {
     final title = switch (operation.kind) {
       OutboxKind.bindBarcode => t.syncQueue.opBind(barcode: _barcode),
       OutboxKind.unbindBarcode => t.syncQueue.opUnbind(barcode: _barcode),
+      OutboxKind.receiptSubmit => t.syncQueue.opReceipt(
+        count:
+            (operation.payload['lines'] as List<dynamic>? ?? const []).length,
+      ),
     };
     return Card(
       margin: AppInsets.bottom8,
