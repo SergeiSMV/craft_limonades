@@ -21,8 +21,8 @@ import '../../../../core/widgets/good_picker_sheet.dart';
 import '../../../stock/data/catalog_models.dart';
 import '../../../stock/data/catalog_repository.dart';
 import '../bloc/stock_entry_cubit.dart';
-import 'cell_change_sheet.dart';
-import 'date_qty_dialog.dart';
+import '../../../../core/widgets/cell_change_sheet.dart';
+import '../../../../core/widgets/date_qty_dialog.dart';
 import 'line_tile.dart';
 
 /// Работа с выбранной ячейкой: шапка + поле скана товара + список строк буфера + действия.

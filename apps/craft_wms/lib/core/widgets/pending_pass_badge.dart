@@ -19,18 +19,25 @@ import 'notification_badge.dart';
 ///
 /// ⚠ Подписка заводится ОДИН раз, а не в `build`: поток, созданный там, пересоздаётся на каждый
 /// кадр, и на устройстве это непрерывный поток запросов к локальной базе (ловилось в P2-06).
+///
+/// С P4-09 источник задаётся параметром [watch]: незавершённая приёмка тоже лежит черновиком
+/// мимо очереди, и пометка нужна плитке «Приход» по той же причине. По умолчанию — проход.
 class PendingPassBuilder extends StatefulWidget {
-  const PendingPassBuilder({super.key, required this.builder});
+  const PendingPassBuilder({super.key, required this.builder, this.watch});
 
   /// `hasPass` — есть незавершённый проход.
   final Widget Function(BuildContext context, bool hasPass) builder;
+
+  /// Поток признака «есть черновик»; `null` — проход «Ввода остатков».
+  final Stream<bool> Function()? watch;
 
   @override
   State<PendingPassBuilder> createState() => _PendingPassBuilderState();
 }
 
 class _PendingPassBuilderState extends State<PendingPassBuilder> {
-  late final Stream<bool> _hasPass = getIt<EntryDraftStore>().watchHasDraft();
+  late final Stream<bool> _hasPass =
+      widget.watch?.call() ?? getIt<EntryDraftStore>().watchHasDraft();
 
   @override
   Widget build(BuildContext context) {

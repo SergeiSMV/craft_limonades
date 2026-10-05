@@ -42,11 +42,18 @@ func NewReceiptRepository(pool *pgxpool.Pool) *ReceiptRepository {
 // идентификатор взять неоткуда — кладовщик не смог бы продолжить начатый документ.
 // Тот же приём, что у сессии ввода остатков (P-FS-04).
 func (r *ReceiptRepository) Create(ctx context.Context, id, warehouseID, supplierID, createdBy string) error {
+	return createReceipt(ctx, r.pool, id, warehouseID, supplierID, createdBy)
+}
+
+// createReceipt — низкоуровневое открытие документа на Querier: им пользуется и прямая ручка,
+// и применение приёмки из очереди устройства (P4-09), где документ открывается в одной
+// транзакции со своими строками и оприходованием.
+func createReceipt(ctx context.Context, q Querier, id, warehouseID, supplierID, createdBy string) error {
 	var supplier any
 	if supplierID != "" {
 		supplier = supplierID
 	}
-	_, err := r.pool.Exec(ctx, `
+	_, err := q.Exec(ctx, `
 		INSERT INTO receipts (id, warehouse_id, supplier_id, created_by)
 		VALUES ($1::uuid, $2::uuid, $3::uuid, $4::uuid)
 		ON CONFLICT (id) DO NOTHING`, id, warehouseID, supplier, createdBy)
@@ -67,31 +74,37 @@ func (r *ReceiptRepository) AddLine(ctx context.Context, receiptID string, in mo
 		if err := guardReceiptDraft(ctx, q, receiptID); err != nil {
 			return err
 		}
-		batchID, err := getOrCreateBatch(ctx, q, in.GoodID, in.ProductionDate)
-		if err != nil {
+		return insertReceiptLine(ctx, q, receiptID, in)
+	})
+}
+
+// insertReceiptLine — вставка строки в документ на Querier, без проверки статуса: её делает
+// вызывающий один раз на документ, а не на каждую строку.
+func insertReceiptLine(ctx context.Context, q Querier, receiptID string, in model.ReceiptLineInput) error {
+	batchID, err := getOrCreateBatch(ctx, q, in.GoodID, in.ProductionDate)
+	if err != nil {
+		return err
+	}
+	var lu any
+	if in.LoadUnitID != "" {
+		// Короб проверяем ДО вставки строки: без этого незнакомый ярлык упирался бы
+		// в нарушение внешнего ключа, и кладовщик получал бы сбой БД вместо внятного
+		// «такой ГЕ нет» — а это его рабочая ситуация, не авария.
+		if err := guardLoadUnitExists(ctx, q, in.LoadUnitID); err != nil {
 			return err
 		}
-		var lu any
-		if in.LoadUnitID != "" {
-			// Короб проверяем ДО вставки строки: без этого незнакомый ярлык упирался бы
-			// в нарушение внешнего ключа, и кладовщик получал бы сбой БД вместо внятного
-			// «такой ГЕ нет» — а это его рабочая ситуация, не авария.
-			if err := guardLoadUnitExists(ctx, q, in.LoadUnitID); err != nil {
-				return err
-			}
-			lu = in.LoadUnitID
-		}
-		_, err = q.Exec(ctx, `
-			INSERT INTO receipt_lines (receipt_id, good_id, batch_id, cell_id, load_unit_id, qty)
-			VALUES ($1::uuid, $2::uuid, $3::uuid, $4::uuid, $5::uuid, $6::numeric)
-			ON CONFLICT (receipt_id, good_id, batch_id, cell_id, load_unit_id)
-			DO UPDATE SET qty = receipt_lines.qty + EXCLUDED.qty`,
-			receiptID, in.GoodID, batchID, in.CellID, lu, in.Qty.String())
-		if err != nil {
-			return fmt.Errorf("добавить строку приёмки: %w", err)
-		}
-		return nil
-	})
+		lu = in.LoadUnitID
+	}
+	_, err = q.Exec(ctx, `
+		INSERT INTO receipt_lines (receipt_id, good_id, batch_id, cell_id, load_unit_id, qty)
+		VALUES ($1::uuid, $2::uuid, $3::uuid, $4::uuid, $5::uuid, $6::numeric)
+		ON CONFLICT (receipt_id, good_id, batch_id, cell_id, load_unit_id)
+		DO UPDATE SET qty = receipt_lines.qty + EXCLUDED.qty`,
+		receiptID, in.GoodID, batchID, in.CellID, lu, in.Qty.String())
+	if err != nil {
+		return fmt.Errorf("добавить строку приёмки: %w", err)
+	}
+	return nil
 }
 
 // Post оприходует документ: строки поднимают остаток, состав ГЕ пополняется, документ

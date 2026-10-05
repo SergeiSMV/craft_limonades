@@ -34,7 +34,13 @@ func NewLoadUnitRepository(pool *pgxpool.Pool) *LoadUnitRepository {
 // Повтор с тем же id ничего не меняет: очередь устройства повторяет операцию до подтверждения,
 // и второй короб на том же ярлыке означал бы две ГЕ на одну наклейку.
 func (r *LoadUnitRepository) Create(ctx context.Context, id, kind string) error {
-	_, err := r.pool.Exec(ctx, `
+	return createLoadUnit(ctx, r.pool, id, kind)
+}
+
+// createLoadUnit — низкоуровневое заведение ГЕ на Querier, чтобы приёмка из очереди устройства
+// (P4-09) заводила свои короба в одной транзакции с документом.
+func createLoadUnit(ctx context.Context, q Querier, id, kind string) error {
+	_, err := q.Exec(ctx, `
 		INSERT INTO load_units (id, kind) VALUES ($1::uuid, $2)
 		ON CONFLICT (id) DO NOTHING`, id, kind)
 	if err != nil {
