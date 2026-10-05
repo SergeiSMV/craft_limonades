@@ -9,33 +9,28 @@ import '../../../../core/theme/semibold_text.dart';
 import '../../../../core/utils/qty_format.dart';
 import '../bloc/receipt_models.dart';
 
-/// Строка приёмки: товар · партия · где лежит (короб или штучно, ячейка) · количество.
+/// Строка приёмки: товар · партия · ячейка · количество.
 ///
-/// Место показано на каждой строке: строки разных коробов и ячеек идут в одном списке,
-/// и без пометки кладовщик не отличил бы две строки одного товара.
+/// Ячейка показывается у штучных строк: в общем списке они могут лежать в разных ячейках,
+/// и без пометки кладовщик не отличил бы две строки одного товара. На странице короба ячейка
+/// одна на весь короб и стоит в шапке — там её на строке нет.
 class ReceiptLineTile extends StatelessWidget {
   const ReceiptLineTile({
     super.key,
     required this.line,
-    required this.boxCode,
-    required this.cellAddress,
+    this.cellAddress,
     this.onLongPress,
   });
 
   final ReceiptLineDraft line;
 
-  /// Короткий код короба строки; `null` — штучно.
-  final String? boxCode;
-
-  /// Адрес ячейки строки (для ячейки по умолчанию — её адрес).
-  final String cellAddress;
+  /// Адрес ячейки строки; `null` — не показывать (строка короба).
+  final String? cellAddress;
   final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
-    final place = boxCode == null
-        ? t.receipt.lineLoose
-        : t.receipt.lineBox(code: boxCode!);
+    final batch = t.receipt.lineSubtitle(date: line.productionDate);
     return Container(
       margin: AppInsets.bottom4,
       decoration: BoxDecoration(
@@ -52,7 +47,7 @@ class ReceiptLineTile extends StatelessWidget {
           ),
         ),
         subtitle: Text(
-          '${t.receipt.lineSubtitle(date: line.productionDate)} · $place · $cellAddress',
+          cellAddress == null ? batch : '$batch · $cellAddress',
           style: RegularTextStyles().regularInter10.copyWith(
             color: AppColors.kTextMuted,
           ),

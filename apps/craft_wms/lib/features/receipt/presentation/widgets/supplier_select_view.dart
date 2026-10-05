@@ -10,6 +10,7 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
+import '../../../../core/utils/keyboard.dart';
 import '../../../stock/data/catalog_models.dart';
 import '../../../stock/data/catalog_repository.dart';
 import '../bloc/receipt_cubit.dart';
@@ -69,83 +70,92 @@ class _SupplierSelectViewState extends State<SupplierSelectView> {
   }
 
   /// Начать приёмку от выбранного поставщика (`null` — без поставщика).
-  void _choose(Supplier? supplier) =>
-      context.read<ReceiptCubit>().start(supplier);
+  ///
+  /// Клавиатуру поиска убираем ДО перехода (ADHOC-18): иначе она остаётся на рабочем экране,
+  /// где не нужна вовсе — поле скана её не вызывает, — и съедает половину высоты. На DT50S
+  /// подсказка пустого списка переполнялась под ней на 37 точек.
+  void _choose(Supplier? supplier) {
+    dismissKeyboard();
+    context.read<ReceiptCubit>().start(supplier);
+  }
 
   @override
   Widget build(BuildContext context) {
     final items = _filtered;
-    return Padding(
-      padding: AppInsets.h8,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          AppBoxes.kHeight16,
-          Padding(
-            padding: AppInsets.left12,
-            child: Text(
-              t.receipt.supplierPrompt,
-              style: RegularTextStyles().regularInter14.copyWith(
-                color: AppColors.kTextMuted,
-              ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AppBoxes.kHeight16,
+        Padding(
+          padding: AppInsets.h8,
+          child: Text(
+            t.receipt.supplierPrompt,
+            style: RegularTextStyles().regularInter14.copyWith(
+              color: AppColors.kTextMuted,
             ),
           ),
-          AppBoxes.kHeight8,
-          _searchField(),
-          AppBoxes.kHeight12,
-          _SupplierTile(
+        ),
+        AppBoxes.kHeight8,
+        _searchField(),
+        AppBoxes.kHeight12,
+        Padding(
+          padding: AppInsets.h8,
+          child: _SupplierTile(
             title: t.receipt.noSupplier,
             subtitle: t.receipt.noSupplierHint,
             onTap: () => _choose(null),
           ),
-          AppBoxes.kHeight8,
-          Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : items.isEmpty
-                ? Center(child: Text(t.receipt.nothingFound))
-                : ListView.builder(
-                    padding: AppInsets.bottom16,
-                    itemCount: items.length,
-                    itemBuilder: (context, i) => _SupplierTile(
-                      title: items[i].name,
-                      onTap: () => _choose(items[i]),
-                    ),
+        ),
+        // AppBoxes.kHeight8,
+        Expanded(
+          child: _loading
+              ? const Center(child: CircularProgressIndicator())
+              : items.isEmpty
+              ? Center(child: Text(t.receipt.nothingFound))
+              : ListView.builder(
+                  padding: AppInsets.bottom16 + AppInsets.h8 + AppInsets.top8,
+                  itemCount: items.length,
+                  itemBuilder: (context, i) => _SupplierTile(
+                    title: items[i].name,
+                    onTap: () => _choose(items[i]),
                   ),
-          ),
-        ],
-      ),
+                ),
+        ),
+      ],
     );
   }
 
   /// Вдавленное поле поиска — как поле адреса в «Вводе остатков».
-  Widget _searchField() => Neumorphic(
-    style: NeumorphicStyle(
-      shadowLightColor: AppColors.kNeumorphicLight,
-      shadowDarkColor: AppColors.kNeumorphicDark,
-      intensity: 1,
-      color: AppColors.kNeumorphicBg,
-      depth: -2,
-      shape: NeumorphicShape.flat,
-    ),
-    child: TextField(
-      controller: _controller,
-      cursorColor: AppColors.kTextMuted,
-      decoration: InputDecoration(
-        prefixIcon: Icon(
-          MdiIcons.magnify,
-          size: AppSizes.kIcon25,
-          color: AppColors.kTextMuted,
+  Widget _searchField() => Padding(
+    padding: AppInsets.h8,
+    child: Neumorphic(
+      style: NeumorphicStyle(
+        shadowLightColor: AppColors.kNeumorphicLight,
+        shadowDarkColor: AppColors.kNeumorphicDark,
+        intensity: 1,
+        color: AppColors.kNeumorphicBg,
+        depth: -2,
+        shape: NeumorphicShape.flat,
+      ),
+      child: TextField(
+        controller: _controller,
+        cursorColor: AppColors.kTextMuted,
+        decoration: InputDecoration(
+          prefixIcon: Icon(
+            MdiIcons.magnify,
+            size: AppSizes.kIcon25,
+            color: AppColors.kTextMuted,
+          ),
+          hintText: t.receipt.supplierSearchHint,
+          hintStyle: RegularTextStyles().regularInter16.copyWith(
+            color: AppColors.kBorderDashed,
+          ),
+          border: const OutlineInputBorder(
+            borderRadius: AppBorders.kCircular8,
+            borderSide: BorderSide.none,
+          ),
+          isDense: true,
         ),
-        hintText: t.receipt.supplierSearchHint,
-        hintStyle: RegularTextStyles().regularInter16.copyWith(
-          color: AppColors.kBorderDashed,
-        ),
-        border: const OutlineInputBorder(
-          borderRadius: AppBorders.kCircular8,
-          borderSide: BorderSide.none,
-        ),
-        isDense: true,
       ),
     ),
   );

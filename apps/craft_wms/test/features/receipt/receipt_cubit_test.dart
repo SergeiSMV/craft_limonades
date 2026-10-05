@@ -1,7 +1,6 @@
 import 'package:craft_wms/core/database/app_database.dart';
 import 'package:craft_wms/core/error/failure.dart';
 import 'package:craft_wms/core/load_unit/load_unit_id_generator.dart';
-import 'package:craft_wms/core/printer/load_unit_label.dart';
 import 'package:craft_wms/core/printer/printer_device.dart';
 import 'package:craft_wms/core/printer/printer_service.dart';
 import 'package:craft_wms/features/receipt/data/receipt_draft_store.dart';
@@ -109,48 +108,77 @@ void main() {
       },
     );
 
-    test('короб закрепляет ячейку на момент создания', () async {
+    test('короб получает ячейку на момент создания', () async {
       cubit.setTargetCell(cell1);
       final boxId = cubit.newBox();
-      // Ячейку сменили после создания короба и вернулись в него: строки короба остаются
+      // Ячейку общего списка сменили после создания короба: строки короба остаются
       // в его ячейке — короб не может лежать в двух местах.
       cubit.setTargetCell(defaultCell);
-      cubit.selectBox(boxId);
-      await cubit.addLine(good: goodB, date: '01.09.2026', qty: 3);
+      await cubit.addLine(
+        good: goodB,
+        date: '01.09.2026',
+        qty: 3,
+        boxId: boxId,
+      );
       expect(cubit.state.lines.single.boxId, boxId);
       expect(cubit.state.lines.single.cell, cell1);
-    });
-
-    test('смена ячейки закрывает текущий короб', () {
-      cubit.newBox();
-      expect(cubit.state.currentBox, isNotNull);
-      cubit.setTargetCell(cell1);
-      expect(cubit.state.currentBox, isNull);
       // Дефолтная ячейка сбрасывает выбор, а не становится «выбранной».
-      cubit.setTargetCell(defaultCell);
       expect(cubit.state.targetCell, isNull);
     });
 
-    test('скан чужого короба не принимается, своего — делает его текущим', () {
-      final boxId = cubit.newBox();
-      cubit.closeBox();
-      expect(cubit.selectScannedBox(const Uuid().v4()), isFalse);
-      expect(cubit.state.currentBoxId, isNull);
-      // Регистр ярлыка не важен: разбор ярлыка отдаёт id строчными, но набранный руками
-      // может прийти любым.
-      expect(cubit.selectScannedBox(boxId.toUpperCase()), isTrue);
-      expect(cubit.state.currentBoxId, boxId);
+    test('без короба строка ложится штучно, даже если короба есть', () async {
+      cubit.newBox();
+      await cubit.addLine(good: goodA, date: '01.09.2026', qty: 1);
+      expect(cubit.state.looseLines.single.boxId, isNull);
     });
 
-    test('поиск короба по короткому коду терпит пробел и регистр', () {
+    // ADHOC-18: ячейка на странице короба переносит короб целиком.
+    test('смена ячейки короба переносит все его строки', () async {
       final boxId = cubit.newBox();
-      cubit.newBox();
-      final code = LoadUnitLabel(boxId).shortCodeFormatted; // «AB12 CD34»
-      expect(code, contains(' '));
-      final found = cubit.boxesByShortCode(code.toLowerCase());
-      expect(found.map((b) => b.id), [boxId]);
-      final noSpace = cubit.boxesByShortCode(code.replaceAll(' ', ''));
-      expect(noSpace.map((b) => b.id), [boxId]);
+      await cubit.addLine(
+        good: goodA,
+        date: '01.09.2026',
+        qty: 1,
+        boxId: boxId,
+      );
+      await cubit.addLine(
+        good: goodB,
+        date: '02.09.2026',
+        qty: 2,
+        boxId: boxId,
+      );
+      await cubit.addLine(good: goodA, date: '01.09.2026', qty: 5); // штучно
+
+      cubit.setBoxCell(boxId, cell1);
+      expect(cubit.state.boxById(boxId)!.cell, cell1);
+      expect(cubit.state.linesOf(boxId).map((l) => l.cell), [cell1, cell1]);
+      // Штучная строка осталась на месте.
+      expect(cubit.state.looseLines.single.cell, isNull);
+
+      // Обратно в ячейку по умолчанию — флагом, а не «выбранной» дефолтной.
+      cubit.setBoxCell(boxId, defaultCell);
+      expect(cubit.state.boxById(boxId)!.cell, isNull);
+      expect(cubit.state.linesOf(boxId).every((l) => l.cell == null), isTrue);
+    });
+
+    // ADHOC-18: короб удаляется до завершения приёмки вместе с позициями.
+    test('удаление короба убирает его позиции, остальное не трогает', () async {
+      final boxA = cubit.newBox();
+      final boxB = cubit.newBox();
+      await cubit.addLine(good: goodA, date: '01.09.2026', qty: 1, boxId: boxA);
+      await cubit.addLine(good: goodB, date: '01.09.2026', qty: 2, boxId: boxB);
+      await cubit.addLine(good: goodA, date: '01.09.2026', qty: 3);
+
+      cubit.removeBox(boxA);
+      expect(cubit.state.boxes.map((b) => b.id), [boxB]);
+      expect(cubit.state.linesOf(boxA), isEmpty);
+      expect(cubit.state.lines.length, 2);
+    });
+
+    test('свой короб узнаётся по ярлыку в любом регистре, чужой — нет', () {
+      final boxId = cubit.newBox();
+      expect(cubit.hasBox(const Uuid().v4()), isFalse);
+      expect(cubit.hasBox(boxId.toUpperCase()), isTrue);
     });
 
     test('новый ШК уходит привязкой в очередь', () async {
@@ -173,9 +201,13 @@ void main() {
       'тело операции: склад, поставщик, только непустые короба, формат даты',
       () async {
         final usedBox = cubit.newBox();
-        await cubit.addLine(good: goodA, date: '01.09.2026', qty: 12);
+        await cubit.addLine(
+          good: goodA,
+          date: '01.09.2026',
+          qty: 12,
+          boxId: usedBox,
+        );
         cubit.newBox(); // пустой короб — на сервер не едет
-        cubit.closeBox();
         await cubit.addLine(good: goodB, date: '02.09.2026', qty: 1.5);
 
         Map<String, dynamic>? sent;
@@ -245,7 +277,12 @@ void main() {
       await cubit.start(supplier);
       cubit.setTargetCell(cell1);
       final boxId = cubit.newBox();
-      await cubit.addLine(good: goodA, date: '01.09.2026', qty: 4);
+      await cubit.addLine(
+        good: goodA,
+        date: '01.09.2026',
+        qty: 4,
+        boxId: boxId,
+      );
       await cubit.draftWrites;
 
       final restored = newCubit();
@@ -254,7 +291,7 @@ void main() {
       expect(restored.state.receiptId, cubit.state.receiptId);
       expect(restored.state.supplier, supplier);
       expect(restored.state.targetCell, cell1);
-      expect(restored.state.currentBoxId, boxId);
+      expect(restored.state.linesOf(boxId).single.good, goodA);
       expect(restored.state.boxes.single.cell, cell1);
       expect(restored.state.lines.single.good, goodA);
       await restored.close();

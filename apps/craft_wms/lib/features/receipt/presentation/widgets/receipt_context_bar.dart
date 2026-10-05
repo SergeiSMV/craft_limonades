@@ -11,33 +11,27 @@ import '../../../../core/theme/regular_text.dart';
 import '../../../../core/theme/semibold_text.dart';
 import '../bloc/receipt_cubit.dart';
 
-/// Шапка рабочего экрана приёмки: от кого принимаем, куда кладём и в какой короб.
+/// Шапка общего списка приёмки: от кого принимаем, куда кладём штучный товар, новый короб.
 ///
-/// Все три вещи видны постоянно: они определяют, куда ляжет следующий скан, и кладовщик
-/// должен видеть это до скана, а не узнавать из списка строк после.
+/// Поставщик и ячейка видны постоянно: они определяют, куда ляжет следующий скан, и кладовщик
+/// должен видеть это до скана, а не узнавать из списка строк после. Короб заводится только
+/// кнопкой «короб плюс» (ADHOC-18) — отдельной кнопки «Штучно» больше нет: штучно и есть
+/// общий список.
 class ReceiptContextBar extends StatelessWidget {
   const ReceiptContextBar({
     super.key,
     required this.state,
     required this.onChangeCell,
     required this.onNewBox,
-    required this.onPickBox,
-    required this.onBoxMenu,
   });
 
   final ReceiptState state;
 
-  /// Сменить ячейку для новых строк и коробов.
+  /// Сменить ячейку для штучных строк и новых коробов.
   final VoidCallback onChangeCell;
 
-  /// Завести новый короб и напечатать ярлык.
+  /// Завести новый короб и открыть его.
   final VoidCallback onNewBox;
-
-  /// Выбрать один из коробов приёмки (ярлык не читается).
-  final VoidCallback onPickBox;
-
-  /// Действия с текущим коробом: допечатать ярлык, закрыть.
-  final VoidCallback onBoxMenu;
 
   @override
   Widget build(BuildContext context) {
@@ -66,24 +60,17 @@ class ReceiptContextBar extends StatelessWidget {
             ),
           ),
           AppBoxes.kHeight8,
-          _BarButton(
-            onPressed: onChangeCell,
-            text: cellText,
-            icon: MdiIcons.cogTransfer,
-          ),
-          AppBoxes.kHeight8,
           Row(
             children: [
-              Expanded(child: _boxButton()),
-              if (state.boxes.isNotEmpty) ...[
-                AppBoxes.kWidth8,
-                _IconBarButton(
-                  onPressed: onPickBox,
-                  icon: MdiIcons.formatListBulleted,
+              Expanded(
+                child: ReceiptBarButton(
+                  onPressed: onChangeCell,
+                  text: cellText,
+                  icon: MdiIcons.cogTransfer,
                 ),
-              ],
+              ),
               AppBoxes.kWidth8,
-              _IconBarButton(
+              ReceiptIconButton(
                 onPressed: onNewBox,
                 icon: MdiIcons.packageVariantPlus,
               ),
@@ -93,46 +80,29 @@ class ReceiptContextBar extends StatelessWidget {
       ),
     );
   }
-
-  /// Текущий короб с его наполнением либо «Штучно».
-  Widget _boxButton() {
-    final box = state.currentBox;
-    if (box == null) {
-      return _BarButton(
-        onPressed: onNewBox,
-        text: t.receipt.loose,
-        icon: MdiIcons.packageVariant,
-      );
-    }
-    return _BarButton(
-      onPressed: onBoxMenu,
-      text:
-          '${t.receipt.box(code: box.shortCode)} · ${t.receipt.boxPositions(count: state.linesInBox(box.id))}',
-      icon: MdiIcons.packageVariantClosed,
-      highlighted: true,
-    );
-  }
 }
 
-/// Выпуклая кнопка-строка шапки — как шапка ячейки во «Вводе остатков».
-class _BarButton extends StatelessWidget {
-  const _BarButton({
+/// Выпуклая кнопка-строка шапки — как шапка ячейки во «Вводе остатков». Общая для общего
+/// списка и страницы короба.
+class ReceiptBarButton extends StatelessWidget {
+  const ReceiptBarButton({
+    super.key,
     required this.onPressed,
     required this.text,
     required this.icon,
-    this.highlighted = false,
+    this.color,
   });
 
   final VoidCallback onPressed;
   final String text;
   final IconData icon;
 
-  /// Короб в работе выделен цветом: в него ляжет следующая строка.
-  final bool highlighted;
+  /// Цвет текста и иконки; `null` — обычный цвет шапки.
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
-    final color = highlighted ? AppColors.kPrimary : AppColors.kSidebarHover;
+    final color = this.color ?? AppColors.kSidebarHover;
     return NeumorphicButton(
       onPressed: onPressed,
       style: NeumorphicStyle(
@@ -165,11 +135,19 @@ class _BarButton extends StatelessWidget {
 }
 
 /// Квадратная выпуклая кнопка-иконка — как кнопка отмены во «Вводе остатков».
-class _IconBarButton extends StatelessWidget {
-  const _IconBarButton({required this.onPressed, required this.icon});
+class ReceiptIconButton extends StatelessWidget {
+  const ReceiptIconButton({
+    super.key,
+    required this.onPressed,
+    required this.icon,
+    this.color,
+  });
 
   final VoidCallback onPressed;
   final IconData icon;
+
+  /// Цвет иконки; `null` — обычный цвет шапки.
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
@@ -185,7 +163,11 @@ class _IconBarButton extends StatelessWidget {
         boxShape: NeumorphicBoxShape.roundRect(AppBorders.kCircular8),
       ),
       padding: AppInsets.all12,
-      child: Icon(icon, color: AppColors.kSidebarHover, size: AppSizes.kIcon20),
+      child: Icon(
+        icon,
+        color: color ?? AppColors.kSidebarHover,
+        size: AppSizes.kIcon20,
+      ),
     );
   }
 }
