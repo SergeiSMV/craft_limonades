@@ -19,6 +19,8 @@ func BuildDocumentXLSX(doc model.ReportDocument) ([]byte, error) {
 	switch doc.Kind {
 	case model.ReportKindStockEntry:
 		return BuildStockEntryXLSX(stockEntryReportFrom(doc.Snapshot))
+	case model.ReportKindReceipt:
+		return BuildReceiptXLSX(doc.Snapshot)
 	default:
 		return nil, fmt.Errorf("%w: %q", ErrUnknownKind, doc.Kind)
 	}
@@ -29,8 +31,11 @@ func BuildDocumentXLSX(doc model.ReportDocument) ([]byte, error) {
 // оператора, а кириллица там требует кодирования и по-разному переживает браузеры.
 func DocumentFilename(doc model.ReportDocument) string {
 	prefix := "document"
-	if doc.Kind == model.ReportKindStockEntry {
+	switch doc.Kind {
+	case model.ReportKindStockEntry:
 		prefix = "vvod-ostatkov"
+	case model.ReportKindReceipt:
+		prefix = "postuplenie"
 	}
 	return fmt.Sprintf("%s-%s-%s.xlsx", prefix, doc.Snapshot.WarehouseCode, doc.CreatedAt.Format("20060102"))
 }

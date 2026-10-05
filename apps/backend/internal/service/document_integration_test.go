@@ -60,7 +60,7 @@ func TestDocuments(t *testing.T) {
 	}
 
 	// --- список ---
-	docs, err := svc.List(ctx)
+	docs, err := svc.List(ctx, "")
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
@@ -103,7 +103,7 @@ func TestDocuments(t *testing.T) {
 	}
 
 	// --- статус после скачивания ---
-	docs, _ = svc.List(ctx)
+	docs, _ = svc.List(ctx, "")
 	if docs[0].Status != model.DocStatusDownloaded || docs[0].DownloadedAt == nil {
 		t.Errorf("после скачивания: статус=%s скачан=%v", docs[0].Status, docs[0].DownloadedAt)
 	}
@@ -113,7 +113,7 @@ func TestDocuments(t *testing.T) {
 	if err := svc.MarkDone(ctx, doc.ID, user); err != nil {
 		t.Fatalf("MarkDone: %v", err)
 	}
-	docs, _ = svc.List(ctx)
+	docs, _ = svc.List(ctx, "")
 	if docs[0].Status != model.DocStatusDone || docs[0].DoneAt == nil {
 		t.Fatalf("после отметки: статус=%s выполнен=%v", docs[0].Status, docs[0].DoneAt)
 	}
@@ -124,7 +124,7 @@ func TestDocuments(t *testing.T) {
 	if _, _, err := svc.File(ctx, doc.ID, user); err != nil {
 		t.Fatalf("повторное скачивание: %v", err)
 	}
-	docs, _ = svc.List(ctx)
+	docs, _ = svc.List(ctx, "")
 	if docs[0].Status != model.DocStatusDone {
 		t.Errorf("повторное скачивание сбросило статус: %s", docs[0].Status)
 	}
@@ -136,7 +136,7 @@ func TestDocuments(t *testing.T) {
 	if err := svc.MarkDone(ctx, doc.ID, user); err != nil {
 		t.Fatalf("повторный MarkDone: %v", err)
 	}
-	docs, _ = svc.List(ctx)
+	docs, _ = svc.List(ctx, "")
 	if !docs[0].DoneAt.Equal(doneAt) {
 		t.Errorf("повторная отметка сдвинула время: %v → %v", doneAt, *docs[0].DoneAt)
 	}

@@ -247,3 +247,29 @@ func TestDocumentsHTTP_events(t *testing.T) {
 		t.Errorf("журнал несуществующего: код %d, ожидался 404", got)
 	}
 }
+
+// Фильтр по форме (P4-10): у «Инвентаризации» и «Прихода» в портале свои вкладки.
+// Документ ввода остатков есть в своей выборке и не попадает в чужую.
+func TestDocumentsHTTP_filterByKind(t *testing.T) {
+	e := newDocE2E(t)
+	count := func(query string) int {
+		resp := e.do(t, http.MethodGet, "/api/v1/documents"+query, e.adminToken)
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("список %q: код %d", query, resp.StatusCode)
+		}
+		var out []map[string]any
+		if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+			t.Fatalf("разбор списка: %v", err)
+		}
+		return len(out)
+	}
+	if got := count("?kind=" + model.ReportKindStockEntry); got != 1 {
+		t.Errorf("ввод остатков: %d документов", got)
+	}
+	if got := count("?kind=" + model.ReportKindReceipt); got != 0 {
+		t.Errorf("поступление: %d документов, ждали 0", got)
+	}
+	if got := count(""); got != 1 {
+		t.Errorf("без фильтра: %d документов", got)
+	}
+}

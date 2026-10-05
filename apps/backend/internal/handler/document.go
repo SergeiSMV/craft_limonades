@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -33,6 +34,7 @@ type documentItemResponse struct {
 	Kind          string  `json:"kind"`
 	WarehouseCode string  `json:"warehouse_code"`
 	WarehouseName string  `json:"warehouse_name"`
+	Supplier      string  `json:"supplier"`   // только у «Поступления»; пусто — без поставщика
 	CreatedAt     string  `json:"created_at"` // RFC3339
 	LinesCount    int     `json:"lines_count"`
 	Status        string  `json:"status"`
@@ -41,8 +43,10 @@ type documentItemResponse struct {
 }
 
 // List: GET /api/v1/documents — рабочий список: сначала необработанные, свежие сверху.
+// Необязательный ?kind= оставляет одну форму (`stock_entry`, `receipt`): у каждой в портале
+// своя вкладка. Незнакомая форма — пустой список, а не ошибка: фильтр, ничего не нашедший.
 func (h *DocumentHandler) List(w http.ResponseWriter, r *http.Request) {
-	docs, err := h.svc.List(r.Context())
+	docs, err := h.svc.List(r.Context(), strings.TrimSpace(r.URL.Query().Get("kind")))
 	if err != nil {
 		slog.Error("documents list failed", "error", err)
 		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
@@ -55,6 +59,7 @@ func (h *DocumentHandler) List(w http.ResponseWriter, r *http.Request) {
 			Kind:          d.Kind,
 			WarehouseCode: d.WarehouseCode,
 			WarehouseName: d.WarehouseName,
+			Supplier:      d.Supplier,
 			CreatedAt:     d.CreatedAt.Format(time.RFC3339),
 			LinesCount:    d.LinesCount,
 			Status:        d.Status,
