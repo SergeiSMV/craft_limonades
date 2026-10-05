@@ -79,27 +79,39 @@ class ReceiptScanField extends StatelessWidget {
 }
 
 /// Пустая приёмка — подсказка, что делать.
+///
+/// По центру, когда места хватает, и с прокруткой, когда нет (ADHOC-18): неподвижная колонка
+/// с картинкой переполнялась на DT50S, стоило экрану сжаться под клавиатурой.
 class ReceiptEmptyHint extends StatelessWidget {
   const ReceiptEmptyHint({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Assets.icons.stockEntryEmpty.image(
-            width: AppSizes.kIcon140,
-            height: AppSizes.kIcon140,
-          ),
-          Text(
-            t.receipt.empty,
-            style: RegularTextStyles().regularInter14.copyWith(
-              color: AppColors.kTextMuted,
-            ),
-          ),
-        ],
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+          child: Center(child: _content()),
+        ),
       ),
+    );
+  }
+
+  Widget _content() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Assets.icons.stockEntryEmpty.image(
+          width: AppSizes.kIcon140,
+          height: AppSizes.kIcon140,
+        ),
+        Text(
+          t.receipt.empty,
+          style: RegularTextStyles().regularInter14.copyWith(
+            color: AppColors.kTextMuted,
+          ),
+        ),
+      ],
     );
   }
 }

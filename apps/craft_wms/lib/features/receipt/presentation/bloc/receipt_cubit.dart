@@ -5,7 +5,6 @@ import 'package:injectable/injectable.dart';
 
 import '../../../../core/error/failure.dart';
 import '../../../../core/load_unit/load_unit_id_generator.dart';
-import '../../../../core/printer/load_unit_label.dart';
 import '../../../../core/printer/printer_device.dart';
 import '../../../../core/printer/printer_service.dart';
 import '../../../stock/data/catalog_models.dart';
@@ -19,8 +18,8 @@ part 'receipt_cubit.freezed.dart';
 /// Состояние экрана приёмки (P4-09).
 ///
 /// Поток: поставщик → скан товара (привязка или выдача ШК) → дата и количество → строка ложится
-/// в текущий короб или штучно, в текущую ячейку → … → «Завершить приёмку». Всё копится на
-/// терминале и уходит на сервер одной операцией очереди.
+/// штучно в текущую ячейку, а на странице короба — в короб (ADHOC-18) → … → «Завершить приёмку».
+/// Всё копится на терминале и уходит на сервер одной операцией очереди.
 @freezed
 abstract class ReceiptState with _$ReceiptState {
   const factory ReceiptState({
@@ -36,12 +35,9 @@ abstract class ReceiptState with _$ReceiptState {
     /// Ячейка приёмки по умолчанию («С-Н-П»). Из неё же берётся склад документа.
     Cell? defaultCell,
 
-    /// Куда ложатся новые строки и новые короба; `null` — в ячейку по умолчанию.
+    /// Куда ложатся штучные строки и новые короба; `null` — в ячейку по умолчанию.
     Cell? targetCell,
     @Default(<ReceiptBox>[]) List<ReceiptBox> boxes,
-
-    /// Короб, в который кладут сейчас; `null` — товар принимают штучно.
-    String? currentBoxId,
     @Default(<ReceiptLineDraft>[]) List<ReceiptLineDraft> lines,
 
     /// Идёт отправка.
@@ -57,12 +53,20 @@ abstract class ReceiptState with _$ReceiptState {
 
   const ReceiptState._();
 
-  /// Короб, в который кладут сейчас.
-  ReceiptBox? get currentBox =>
-      boxes.where((b) => b.id == currentBoxId).firstOrNull;
+  /// Короб приёмки по идентификатору; `null` — такого нет (удалён или чужой).
+  ReceiptBox? boxById(String boxId) =>
+      boxes.where((b) => b.id == boxId).firstOrNull;
+
+  /// Строки короба.
+  List<ReceiptLineDraft> linesOf(String boxId) =>
+      lines.where((l) => l.boxId == boxId).toList();
 
   /// Сколько строк лежит в коробе.
   int linesInBox(String boxId) => lines.where((l) => l.boxId == boxId).length;
+
+  /// Штучные строки — те, что в общем списке идут отдельно от коробов.
+  List<ReceiptLineDraft> get looseLines =>
+      lines.where((l) => l.boxId == null).toList();
 
   /// Можно завершать: есть что оприходовать и отправка не идёт.
   bool get canSubmit => started && lines.isNotEmpty && !busy && outcome == null;
@@ -106,7 +110,6 @@ class ReceiptCubit extends Cubit<ReceiptState> {
     'default_cell': s.defaultCell?.toJson(),
     'target_cell': s.targetCell?.toJson(),
     'boxes': s.boxes.map((b) => b.toJson()).toList(),
-    'current_box_id': s.currentBoxId,
     'lines': s.lines.map((l) => l.toJson()).toList(),
   };
 
@@ -126,7 +129,6 @@ class ReceiptCubit extends Cubit<ReceiptState> {
       boxes: list(
         'boxes',
       ).map((e) => ReceiptBox.fromJson(e as Map<String, dynamic>)).toList(),
-      currentBoxId: d['current_box_id'] as String?,
       lines: list('lines')
           .map((e) => ReceiptLineDraft.fromJson(e as Map<String, dynamic>))
           .toList(),
@@ -194,72 +196,67 @@ class ReceiptCubit extends Cubit<ReceiptState> {
 
   //* --- ячейка и короба --- *//
 
-  /// Сменить ячейку для новых строк и новых коробов. Дефолтная ячейка сбрасывает выбор.
+  /// Сменить ячейку для штучных строк и новых коробов. Дефолтная ячейка сбрасывает выбор.
   ///
-  /// Уже собранные короба своей ячейки не меняют — она закреплена при создании (см.
-  /// [ReceiptBox]). Текущий короб при этом закрывается: иначе следующая строка легла бы
-  /// в короб с другой ячейкой, чем та, что кладовщик только что отсканировал.
+  /// Уже собранные короба своей ячейки не меняют: у каждого она своя и меняется на странице
+  /// короба ([setBoxCell]).
   void setTargetCell(Cell cell) {
     emit(
-      state.copyWith(
-        targetCell: cell.isDefault ? null : cell,
-        currentBoxId: null,
-        failure: null,
-      ),
+      state.copyWith(targetCell: cell.isDefault ? null : cell, failure: null),
     );
   }
 
-  /// Новый короб: выдаёт идентификатор, закрепляет за коробом текущую ячейку и делает его
-  /// текущим. Возвращает идентификатор — по нему печатают ярлык.
+  /// Новый короб в текущей ячейке. Возвращает идентификатор — по нему открывают страницу
+  /// короба. Ярлык печатает кладовщик сам со страницы короба (решение пользователя, ADHOC-18).
   ///
-  /// Короб создаётся на терминале, без сети: ярлык печатается и клеится сразу, а на сервере
-  /// ГЕ появится вместе с приёмкой.
+  /// Короб создаётся на терминале, без сети: на сервере ГЕ появится вместе с приёмкой.
   String newBox() {
     final box = ReceiptBox(id: _ids.newId(), cell: state.targetCell);
-    emit(
-      state.copyWith(
-        boxes: [...state.boxes, box],
-        currentBoxId: box.id,
-        failure: null,
-      ),
-    );
+    emit(state.copyWith(boxes: [...state.boxes, box], failure: null));
     return box.id;
   }
 
-  /// Продолжить класть в короб этой приёмки.
-  void selectBox(String boxId) {
-    if (!state.boxes.any((b) => b.id == boxId)) return;
-    emit(state.copyWith(currentBoxId: boxId, failure: null));
-  }
-
-  /// Закрыть текущий короб: дальше товар принимается штучно.
-  void closeBox() => emit(state.copyWith(currentBoxId: null));
-
-  /// Отсканирован ярлык короба. `true` — короб из этой приёмки, он стал текущим.
+  /// Есть ли в приёмке короб с таким идентификатором (скан ярлыка).
   ///
   /// Короб из другой приёмки сюда не берём: он уже где-то лежит со своим составом, и класть
   /// в него на приёмке значит переместить его, а перемещение — отдельная операция (P6).
-  bool selectScannedBox(String loadUnitId) {
-    final id = loadUnitId.toLowerCase();
-    if (!state.boxes.any((b) => b.id == id)) return false;
-    selectBox(id);
-    return true;
+  bool hasBox(String loadUnitId) =>
+      state.boxById(loadUnitId.toLowerCase()) != null;
+
+  /// Перенести короб в другую ячейку — целиком, вместе со всеми его строками (ADHOC-18).
+  ///
+  /// Строки короба меняют ячейку вместе с ним: короб не может лежать в двух местах, и сервер
+  /// отклонил бы документ, где строки одного короба указывают разные ячейки. Слияния строк
+  /// здесь не бывает — внутри короба ячейка у всех строк и так одна.
+  void setBoxCell(String boxId, Cell cell) {
+    final target = cell.isDefault ? null : cell;
+    emit(
+      state.copyWith(
+        boxes: [
+          for (final b in state.boxes)
+            b.id == boxId ? b.copyWith(cell: target) : b,
+        ],
+        lines: [
+          for (final l in state.lines)
+            l.boxId == boxId ? l.copyWith(cell: target) : l,
+        ],
+        failure: null,
+      ),
+    );
   }
 
-  /// Короба приёмки, чей короткий код совпадает с набранным (ярлык затёрт, QR не читается).
+  /// Удалить короб вместе с его строками (ADHOC-18).
   ///
-  /// Сравнение через [LoadUnitLabel.normalizeShortCode]: на ярлыке код разбит пробелом,
-  /// и человек набирает его так, как видит. Совпадение по началу — чтобы список сужался
-  /// по мере набора; полный код из восьми знаков почти всегда оставит один короб.
-  List<ReceiptBox> boxesByShortCode(String input) {
-    final needle = LoadUnitLabel.normalizeShortCode(input);
-    if (needle.isEmpty) return state.boxes;
-    return state.boxes
-        .where(
-          (b) =>
-              LoadUnitLabel.normalizeShortCode(b.shortCode).startsWith(needle),
-        )
-        .toList();
+  /// Напечатанный ярлык при этом остаётся на коробе, а ГЕ на сервере не появится — поэтому
+  /// экран спрашивает подтверждение.
+  void removeBox(String boxId) {
+    emit(
+      state.copyWith(
+        boxes: state.boxes.where((b) => b.id != boxId).toList(),
+        lines: state.lines.where((l) => l.boxId != boxId).toList(),
+        failure: null,
+      ),
+    );
   }
 
   //* --- строки --- *//
@@ -269,8 +266,9 @@ class ReceiptCubit extends Cubit<ReceiptState> {
   Future<Either<Failure, Good?>> resolveBarcode(String code) =>
       _catalog.resolveGoodByBarcode(code);
 
-  /// Добавить строку: в текущий короб (с его ячейкой) или штучно в текущую ячейку. Совпавшая
-  /// грань увеличивает количество.
+  /// Добавить строку: в короб [boxId] (с его ячейкой) или штучно в текущую ячейку. Совпавшая
+  /// грань увеличивает количество. Короб задаёт экран: на странице короба строки идут в него,
+  /// в общем списке — штучно.
   ///
   /// [newBarcode] — товар опознан ранее неизвестным ШК и выбран вручную: привязка уходит
   /// обычной операцией очереди (как в «Вводе остатков», ADHOC-14). От неё строка не зависит —
@@ -280,8 +278,9 @@ class ReceiptCubit extends Cubit<ReceiptState> {
     required String date,
     required double qty,
     String? newBarcode,
+    String? boxId,
   }) async {
-    final box = state.currentBox;
+    final box = boxId == null ? null : state.boxById(boxId);
     final cell = box == null ? state.targetCell : box.cell;
     final lines = List<ReceiptLineDraft>.from(state.lines);
     final idx = lines.indexWhere(
