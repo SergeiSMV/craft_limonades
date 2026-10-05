@@ -14,7 +14,7 @@ var ErrEmptyDocumentID = errors.New("document id is required")
 
 // documentRepo — зависимость сервиса от хранилища документов.
 type documentRepo interface {
-	List(ctx context.Context) ([]model.DocumentListItem, error)
+	List(ctx context.Context, kind string) ([]model.DocumentListItem, error)
 	ByID(ctx context.Context, id string) (model.ReportDocument, error)
 	MarkDownloaded(ctx context.Context, id string) error
 	MarkDone(ctx context.Context, id string) error
@@ -33,9 +33,9 @@ func NewDocumentService(repo documentRepo) *DocumentService {
 	return &DocumentService{repo: repo}
 }
 
-// List отдаёт список документов для портала.
-func (s *DocumentService) List(ctx context.Context) ([]model.DocumentListItem, error) {
-	return s.repo.List(ctx)
+// List отдаёт список документов для портала; kind пуст — все формы, иначе одна.
+func (s *DocumentService) List(ctx context.Context, kind string) ([]model.DocumentListItem, error) {
+	return s.repo.List(ctx, kind)
 }
 
 // File собирает .xlsx документа и отмечает скачивание. Возвращает байты и имя файла.

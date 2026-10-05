@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import 'package:craft_wms/core/constants/api_constants.dart';
 import 'package:craft_wms/core/error/failure.dart';
-import 'package:craft_wms/portal/data/inventory_repository.dart';
+import 'package:craft_wms/portal/data/documents_repository.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -28,7 +28,7 @@ void main() {
               },
             ),
       });
-      final repo = InventoryRepository(dio);
+      final repo = DocumentsRepository(dio);
 
       final res = await repo.listDocuments();
       expect(res.isRight, isTrue);
@@ -39,6 +39,27 @@ void main() {
       expect(docs.first.linesCount, 5);
       expect(docs.first.createdAt.isUtc, isTrue);
       expect(docs.first.status, DocStatus.downloaded);
+    });
+
+    // P4-10: у «Прихода» своя вкладка — форма фильтруется на сервере, поставщик в строке.
+    test('форма уходит параметром kind, поставщик разбирается', () async {
+      final adapter = RecordingAdapter({
+        'GET ${ApiConst.documents}': (_) => ResponseBody.fromString(
+              '[{"id":"r1","kind":"receipt","supplier":"ООО «Голсера»","warehouse_code":"SHB",'
+              '"warehouse_name":"Шабулина","created_at":"2026-10-05T09:00:00Z","lines_count":2,'
+              '"status":"new","downloaded_at":null,"done_at":null}]',
+              200,
+              headers: {
+                Headers.contentTypeHeader: [Headers.jsonContentType],
+              },
+            ),
+      });
+      dio.httpClientAdapter = adapter;
+
+      final res = await DocumentsRepository(dio).listDocuments(kind: 'receipt');
+      expect(adapter.requests.single.queryParameters, {'kind': 'receipt'});
+      expect(res.right.single.kind, 'receipt');
+      expect(res.right.single.supplier, 'ООО «Голсера»');
     });
 
     test('незнакомый статус → показываем как новый, а не прячем в выполненных', () {
@@ -53,7 +74,7 @@ void main() {
           Headers.contentTypeHeader: [Headers.jsonContentType],
         }),
       });
-      final res = await InventoryRepository(dio).listDocuments();
+      final res = await DocumentsRepository(dio).listDocuments();
       expect(res.isLeft, isTrue);
       expect(res.left, isA<ServerFailure>());
     });
@@ -69,7 +90,7 @@ void main() {
       });
       dio.httpClientAdapter = adapter;
 
-      final res = await InventoryRepository(dio).downloadReport('d1');
+      final res = await DocumentsRepository(dio).downloadReport('d1');
       expect(res.isRight, isTrue);
       expect(res.right, equals(xlsx));
       final req = adapter.requests.single;
@@ -85,7 +106,7 @@ void main() {
       });
       dio.httpClientAdapter = adapter;
 
-      final res = await InventoryRepository(dio).markDone('d1');
+      final res = await DocumentsRepository(dio).markDone('d1');
       expect(res.isRight, isTrue);
       expect(adapter.requests.single.path, ApiConst.documentDone('d1'));
     });
@@ -96,7 +117,7 @@ void main() {
           Headers.contentTypeHeader: [Headers.jsonContentType],
         }),
       });
-      final res = await InventoryRepository(dio).markDone('d1');
+      final res = await DocumentsRepository(dio).markDone('d1');
       expect(res.isLeft, isTrue);
       expect(res.left, isA<ServerFailure>());
     });
@@ -114,7 +135,7 @@ void main() {
               },
             ),
       });
-      final res = await InventoryRepository(dio).events('d1');
+      final res = await DocumentsRepository(dio).events('d1');
       expect(res.isRight, isTrue);
       final events = res.right;
       expect(events, hasLength(2));
@@ -129,7 +150,7 @@ void main() {
           Headers.contentTypeHeader: [Headers.jsonContentType],
         }),
       });
-      final res = await InventoryRepository(dio).events('d1');
+      final res = await DocumentsRepository(dio).events('d1');
       expect(res.isLeft, isTrue);
       expect(res.left, isA<ServerFailure>());
     });

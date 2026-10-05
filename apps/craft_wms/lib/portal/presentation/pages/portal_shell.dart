@@ -9,7 +9,7 @@ import '../../../core/constants/app_insets.dart';
 import '../../../core/constants/app_sizes.dart';
 import '../../../core/gen/strings.g.dart';
 import '../widgets/tabs/cells_tab.dart';
-import '../widgets/tabs/inventory_tab.dart';
+import '../widgets/tabs/documents_tab.dart';
 import '../widgets/tabs/nomenclature_tab.dart';
 import '../widgets/tabs/stub_tab.dart';
 
@@ -59,7 +59,14 @@ class _PortalShellState extends State<PortalShell> {
         _NavItem(
           icon: Icons.local_shipping_outlined,
           label: t.portal.tabs.receipt,
-          body: const StubTab(phase: 'P4', icon: Icons.local_shipping_outlined),
+          // P4-10: документы «Поступление» — та же вкладка документов, другая форма.
+          body: DocumentsTab(
+            kind: 'receipt',
+            title: t.portal.receipt.title,
+            description: t.portal.receipt.description,
+            mark: t.portal.receipt.mark,
+            empty: t.portal.receipt.empty,
+          ),
         ),
         _NavItem(
           icon: Icons.shopping_cart_checkout,
@@ -69,7 +76,13 @@ class _PortalShellState extends State<PortalShell> {
         _NavItem(
           icon: Icons.fact_check_outlined,
           label: t.portal.tabs.stocktake,
-          body: const InventoryTab(),
+          body: DocumentsTab(
+            kind: 'stock_entry',
+            title: t.portal.inventory.title,
+            description: t.portal.inventory.description,
+            mark: t.portal.inventory.mark,
+            empty: t.portal.inventory.empty,
+          ),
         ),
       ],
     ),
