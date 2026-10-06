@@ -144,6 +144,39 @@ void main() {
   });
 
   group('статусы', () {
+    // Долг 13: проверка статуса и удаление — один запрос, без окна между ними.
+    test('discardIfPending снимает ожидающую', () async {
+      final id = await outbox.enqueue(
+        kind: OutboxKind.bindBarcode,
+        payload: const {'barcode': 'a'},
+      );
+
+      expect(await outbox.discardIfPending(id), isTrue);
+      expect(await outbox.byOperationId(id), isNull);
+    });
+
+    test('discardIfPending не трогает операцию в полёте', () async {
+      final id = await outbox.enqueue(
+        kind: OutboxKind.bindBarcode,
+        payload: const {'barcode': 'a'},
+      );
+      await outbox.markSending(id);
+
+      expect(await outbox.discardIfPending(id), isFalse);
+      expect((await outbox.byOperationId(id))!.status, OutboxStatus.sending);
+    });
+
+    test('markSending не воскрешает снятую операцию', () async {
+      final id = await outbox.enqueue(
+        kind: OutboxKind.bindBarcode,
+        payload: const {'barcode': 'a'},
+      );
+      await outbox.discardIfPending(id);
+
+      expect(await outbox.markSending(id), isFalse);
+      expect(await outbox.byOperationId(id), isNull);
+    });
+
     test('markSent убирает операцию из ожидающих', () async {
       final id = await outbox.enqueue(
         kind: OutboxKind.bindBarcode,

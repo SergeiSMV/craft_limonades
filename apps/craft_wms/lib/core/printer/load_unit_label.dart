@@ -17,10 +17,18 @@ import 'label_language.dart';
 /// документ приёмки — живёт в системе и видно по скану. Чем меньше на ярлыке, тем меньше на нём
 /// того, что может устареть: короб переложат, а напечатанное останется.
 class LoadUnitLabel {
-  const LoadUnitLabel(this.loadUnitId);
+  const LoadUnitLabel(this.loadUnitId, {this.trialMark});
 
   /// Идентификатор ГЕ (UUID). В QR уезжает он же, обёрнутый в формат ярлыка (P4-04).
   final String loadUnitId;
+
+  /// Пометка пробной печати (ADHOC-19); `null` — рабочий ярлык, без пометки.
+  ///
+  /// Зачем: экран наладки печатает ярлык, не заводя ГЕ на сервере (долг 15). Наклейка
+  /// физическая и живёт дольше отладки; попав на короб, она дала бы «ГЕ не найдена»,
+  /// и поломку искали бы там, где её нет. Пометка объясняет наклейку сама.
+  /// Текст приходит снаружи (из i18n экрана наладки), поэтому он проходит `sanitizeTsplText`.
+  final String? trialMark;
 
   /// Отступ от края этикетки в точках. 2 мм при 203 dpi — меньше брать нельзя:
   /// подача гуляет, и напечатанное у самого края срезается.
@@ -116,18 +124,40 @@ class LoadUnitLabel {
     // Код прижат к низу: так он не зависит от того, насколько вырос QR.
     final codeTop = geometry.heightDots - _margin - fontHeight;
 
-    return encodeCommands(
-      'SIZE ${_mm(geometry.widthMm)} mm,${_mm(geometry.heightMm)} mm\r\n'
-      'GAP ${_mm(geometry.gapMm)} mm,0 mm\r\n'
-      'DIRECTION 1\r\n'
-      'CLS\r\n'
-      'CODEPAGE 1251\r\n'
-      // ECC уровня M: держит до 15% повреждений. Выше брать незачем — код вырос бы
-      // в модулях, а значит уменьшился бы физически при той же ширине этикетки.
-      'QRCODE $qrLeft,$_margin,M,$_qrCell,A,0,"$payload"\r\n'
-      'TEXT $codeLeft,$codeTop,"$font",0,1,1,"$code"\r\n'
-      'PRINT 1,1\r\n',
-    );
+    final out = <int>[
+      ...encodeCommands(
+        'SIZE ${_mm(geometry.widthMm)} mm,${_mm(geometry.heightMm)} mm\r\n'
+        'GAP ${_mm(geometry.gapMm)} mm,0 mm\r\n'
+        'DIRECTION 1\r\n'
+        'CLS\r\n'
+        'CODEPAGE 1251\r\n'
+        // ECC уровня M: держит до 15% повреждений. Выше брать незачем — код вырос бы
+        // в модулях, а значит уменьшился бы физически при той же ширине этикетки.
+        'QRCODE $qrLeft,$_margin,M,$_qrCell,A,0,"$payload"\r\n'
+        'TEXT $codeLeft,$codeTop,"$font",0,1,1,"$code"\r\n',
+      ),
+    ];
+
+    // Пометка пробной печати — тем же шрифтом, по центру зазора между QR и кодом.
+    // Добавляется ПОСЛЕ команд рабочего ярлыка: так рабочий ярлык остаётся байт в байт
+    // прежним (закреплено тестом), а пробный отличается только этой строкой.
+    // ⚠ Ширина символа взята из спецификации шрифта, а реальная у кириллицы может
+    // отличаться (правило P4-08) — центровку подтверждать печатью.
+    final mark = trialMark;
+    if (mark != null && mark.isNotEmpty) {
+      final text = sanitizeTsplText(mark);
+      final qrBottom = _margin + qrSide;
+      final markTop = qrBottom + (codeTop - qrBottom - fontHeight) ~/ 2;
+      final markLeft = ((geometry.widthDots - text.length * fontWidth) / 2)
+          .round()
+          .clamp(_margin, 10000);
+      out
+        ..addAll(encodeCommands('TEXT $markLeft,$markTop,"$font",0,1,1,"'))
+        ..addAll(encodeCp1251(text))
+        ..addAll(encodeCommands('"\r\n'));
+    }
+
+    return out..addAll(encodeCommands('PRINT 1,1\r\n'));
   }
 }
 
@@ -135,7 +165,3 @@ class LoadUnitLabel {
 String _mm(double value) => value == value.roundToDouble()
     ? '${value.round()}'
     : value.toStringAsFixed(1);
-
-/// Кириллица в команды — на будущее: состав ярлыка сейчас без русского текста, но кодировщик
-/// обязан быть под рукой там же, где строится ярлык (P4-08 печатает наименование товара).
-List<int> labelText(String text) => encodeCp1251(text);

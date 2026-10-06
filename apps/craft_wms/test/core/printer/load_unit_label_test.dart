@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:craft_wms/core/load_unit/load_unit_code.dart';
+import 'package:craft_wms/core/printer/cp1251.dart';
 import 'package:craft_wms/core/printer/label_geometry.dart';
 import 'package:craft_wms/core/printer/load_unit_label.dart';
 import 'package:craft_wms/core/scanner/scan_code.dart';
@@ -152,6 +153,91 @@ void main() {
     test('повторная печать даёт те же команды', () {
       // «Повторно» — это тот же ярлык, а не новый: испорченную наклейку меняют на такую же.
       expect(label.tspl(stock), const LoadUnitLabel(id).tspl(stock));
+    });
+  });
+
+  group('пробная печать (ADHOC-19)', () {
+    const trial = LoadUnitLabel(id, trialMark: 'ПРОБНАЯ');
+    final trialText = latin1.decode(trial.tspl(stock));
+
+    test('рабочий ярлык остался байт в байт прежним', () {
+      // Эталон снят с кода до ADHOC-19. Пометка обязана касаться только экрана наладки:
+      // ярлык из приёмки уже клеят на короба, и любой его сдвиг надо подтверждать печатью.
+      expect(
+        commands(),
+        'SIZE 58 mm,40 mm\r\n'
+        'GAP 2 mm,0 mm\r\n'
+        'DIRECTION 1\r\n'
+        'CLS\r\n'
+        'CODEPAGE 1251\r\n'
+        'QRCODE 131,16,M,7,A,0,"${encodeLoadUnitPayload(id)}"\r\n'
+        'TEXT 160,280,"3",0,1,1,"5544 0000"\r\n'
+        'PRINT 1,1\r\n',
+      );
+    });
+
+    test('пустая пометка равна её отсутствию', () {
+      expect(
+        const LoadUnitLabel(id, trialMark: '').tspl(stock),
+        label.tspl(stock),
+      );
+    });
+
+    test('пробный ярлык — тот же рабочий плюс одна строка пометки', () {
+      final lines = trialText.split('\r\n');
+      final base = commands().split('\r\n');
+      expect(lines.length, base.length + 1);
+      // Всё рабочее на месте и в том же порядке; пометка стоит перед PRINT.
+      expect(
+        lines.where((l) => !l.contains(latin1.decode(encodeCp1251('ПРОБНАЯ')))),
+        base,
+      );
+    });
+
+    test('пометка уходит в CP1251, а не в UTF-8', () {
+      // Кириллица встроенными шрифтами печатается только при CODEPAGE 1251 (проверено на XP-P323B).
+      final bytes = trial.tspl(stock);
+      final mark = encodeCp1251('ПРОБНАЯ');
+      expect(
+        String.fromCharCodes(bytes).contains(String.fromCharCodes(mark)),
+        isTrue,
+      );
+    });
+
+    test('пометка лежит в зазоре между QR и кодом, не касаясь их', () {
+      final ys = RegExp(
+        r'TEXT \d+,(\d+),',
+      ).allMatches(trialText).map((m) => int.parse(m.group(1)!)).toList();
+      expect(ys, hasLength(2));
+      final codeTop = ys[0];
+      final markTop = ys[1];
+      const fontHeight = 24;
+      final qrBottom = LoadUnitLabel.marginDots + LoadUnitLabel.qrSideDots;
+      expect(
+        markTop - qrBottom,
+        greaterThanOrEqualTo(16),
+        reason: 'пометка слиплась с QR',
+      );
+      expect(
+        codeTop - (markTop + fontHeight),
+        greaterThanOrEqualTo(16),
+        reason: 'пометка слиплась с кодом',
+      );
+    });
+
+    test('кавычка в пометке не рвёт команду', () {
+      // Текст приходит из i18n — правило P4-08 действует и для него.
+      final text = latin1.decode(
+        const LoadUnitLabel(id, trialMark: 'ТЕСТ "1"').tspl(stock),
+      );
+      final markLine = text
+          .split('\r\n')
+          .firstWhere((l) => l.startsWith('TEXT ') && !l.contains('5544'));
+      expect(
+        '"'.allMatches(markLine).length,
+        4,
+        reason: 'только кавычки шрифта и строки',
+      );
     });
   });
 }

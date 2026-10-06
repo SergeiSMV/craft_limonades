@@ -160,9 +160,24 @@ class OutboxRepository {
     return row == null ? null : OutboxOperation.fromRow(row);
   }
 
-  /// Отметить начало отправки.
-  Future<void> markSending(String operationId) =>
-      _update(operationId, status: OutboxStatus.sending);
+  /// Забрать операцию в отправку: отметить `sending`, если строка ещё есть.
+  ///
+  /// Возвращает `false`, если операцию успели снять (отмена привязки, ADHOC-19 / долг 13):
+  /// тогда отправлять её нельзя — отмена уже сказала человеку «успели».
+  /// Как: один `UPDATE` без предварительного чтения. Локальная база выполняет запросы
+  /// по одному, поэтому захват и условное снятие ([discardIfPending]) не могут перемежиться:
+  /// какой из них прошёл первым, тот и решил судьбу операции.
+  Future<bool> markSending(String operationId) async {
+    final statement = _db.update(_db.outboxOperations)
+      ..where((t) => t.operationId.equals(operationId));
+    final changed = await statement.write(
+      OutboxOperationsCompanion(
+        status: Value(OutboxStatus.sending.wire),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+    return changed > 0;
+  }
 
   /// Сервер принял операцию.
   Future<void> markSent(String operationId) =>
@@ -233,6 +248,23 @@ class OutboxRepository {
   Future<void> discard(String operationId) => (_db.delete(
     _db.outboxOperations,
   )..where((t) => t.operationId.equals(operationId))).go();
+
+  /// Снять операцию, только если она ещё ждёт отправки (`pending`).
+  ///
+  /// Что: условное удаление одним запросом — проверка статуса и удаление неразделимы.
+  /// Зачем: отмена шага (Undo) не должна снимать операцию, которую движок уже забрал
+  /// в отправку: её судьба на сервере неизвестна, и «отменено» было бы неправдой (долг 13).
+  /// Возвращает `true`, если строка удалена.
+  Future<bool> discardIfPending(String operationId) async {
+    final removed =
+        await (_db.delete(_db.outboxOperations)..where(
+              (t) =>
+                  t.operationId.equals(operationId) &
+                  t.status.equals(OutboxStatus.pending.wire),
+            ))
+            .go();
+    return removed > 0;
+  }
 
   /// Убрать успешно отправленные операции: очередь — это список дел, а не журнал.
   /// Историей занимается серверный журнал документов (P3-07).

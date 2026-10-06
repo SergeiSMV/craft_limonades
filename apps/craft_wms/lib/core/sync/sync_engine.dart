@@ -202,7 +202,10 @@ class SyncEngine with WidgetsBindingObserver {
   /// не применяла локальное следствие — привязка уходила на сервер, а в карточке товара
   /// штрихкод не появлялся (найдено на устройстве, P2-06).
   Future<Either<Failure, void>> sendOne(OutboxOperation operation) async {
-    await _outbox.markSending(operation.operationId);
+    // Операцию успели снять (отмена шага) — отправлять нечего, и это не ошибка.
+    if (!await _outbox.markSending(operation.operationId)) {
+      return const Right(null);
+    }
     final res = await _sender.send(operation);
     _noteExchange(res.fold((failure) => failure, (_) => null));
     await _settle(operation, res);
@@ -227,9 +230,17 @@ class SyncEngine with WidgetsBindingObserver {
   /// исхода нет или он временный, останавливает проход. Отсутствие исхода — штатный ответ
   /// сервера «до этой я не дошёл», а не потеря: он тоже прекращает разбор на первой временной
   /// неудаче, чтобы не применить «привязать» и «отвязать» задом наперёд.
-  Future<_ChunkOutcome> _sendChunk(List<OutboxOperation> chunk) async {
-    for (final operation in chunk) {
-      await _outbox.markSending(operation.operationId);
+  Future<_ChunkOutcome> _sendChunk(List<OutboxOperation> candidates) async {
+    // Отправляем только то, что удалось забрать: между чтением очереди и захватом
+    // операцию могли снять отменой шага (долг 13).
+    final chunk = <OutboxOperation>[];
+    for (final operation in candidates) {
+      if (await _outbox.markSending(operation.operationId)) {
+        chunk.add(operation);
+      }
+    }
+    if (chunk.isEmpty) {
+      return const _ChunkOutcome(sent: 0, rejected: 0, stopped: false);
     }
     final batch = await _sender.sendBatch(chunk);
 

@@ -9,9 +9,17 @@ import '../constants/api_constants.dart';
 /// Зачем: кладовщик не пересканирует бейдж посреди работы, когда access протух.
 /// Как: onRequest добавляет заголовок Authorization; onError при 401 дёргает `/auth/refresh`
 /// отдельным «голым» Dio (без этого интерсептора — иначе рекурсия), сохраняет новый access
-/// и повторяет исходный запрос один раз.
+/// и повторяет исходный запрос один раз. Попутно отмечает момент последнего успешного
+/// обмена с сервером — по нему ограничен вход без связи (долг 9).
 class AuthInterceptor extends Interceptor {
   AuthInterceptor(this._storage, this._tokenDio);
+
+  /// Как часто обновлять отметку контакта. Чаще незачем: предел офлайн-входа — сутки,
+  /// а запись в зашифрованное хранилище на каждый запрос прохода — лишняя работа.
+  static const contactWriteInterval = Duration(minutes: 1);
+
+  /// Когда отметка писалась в этом процессе (null — ещё не писалась).
+  DateTime? _contactWrittenAt;
 
   /// Хранилище токенов.
   final TokenStorage _storage;
@@ -34,6 +42,35 @@ class AuthInterceptor extends Interceptor {
       options.headers['Authorization'] = 'Bearer $access';
     }
     handler.next(options);
+  }
+
+  /// Успешный ответ на запрос с токеном — сервер принял сессию: отмечаем контакт.
+  @override
+  Future<void> onResponse(
+    Response<dynamic> response,
+    ResponseInterceptorHandler handler,
+  ) async {
+    await _noteContact(response);
+    handler.next(response);
+  }
+
+  /// Отметить успешный обмен с сервером.
+  ///
+  /// Что: запоминает момент ответа 2xx на запрос, ушедший с access-токеном.
+  /// Зачем: вход без связи разрешён, только пока последний такой обмен свежий (долг 9) —
+  ///        иначе терминалу с отозванным доступом хватало бы живого refresh-токена (30 дней).
+  /// Как: считается только запрос с заголовком `Authorization`: ответ без токена (вход,
+  ///      пробы) не доказывает, что сервер принял именно эту сессию. Пишем не чаще
+  ///      [contactWriteInterval].
+  Future<void> _noteContact(Response<dynamic> response) async {
+    final status = response.statusCode ?? 0;
+    if (status < 200 || status >= 300) return;
+    if (response.requestOptions.headers['Authorization'] == null) return;
+    final now = DateTime.now();
+    final last = _contactWrittenAt;
+    if (last != null && now.difference(last) < contactWriteInterval) return;
+    _contactWrittenAt = now;
+    await _storage.saveLastContact(now);
   }
 
   /// При 401 дёргает `/auth/refresh` отдельным «голым» Dio (без этого интерсептора — иначе рекурсия),
@@ -85,6 +122,8 @@ class AuthInterceptor extends Interceptor {
       req.headers['Authorization'] = 'Bearer $newAccess';
       req.extra[_retriedKey] = true;
       final clone = await _tokenDio.fetch<dynamic>(req);
+      // Повтор идёт мимо onResponse — контакт отмечаем здесь.
+      await _noteContact(clone);
       return handler.resolve(clone);
     } on DioException {
       // refresh тоже протух/невалиден — чистим токены; UI уйдёт на экран входа.

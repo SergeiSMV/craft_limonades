@@ -25,7 +25,13 @@ abstract class TokenStorage {
   /// Сохранить профиль (JSON) — нужен для офлайн-входа.
   Future<void> saveProfile(String json);
 
-  /// Удалить токены и профиль (выход из аккаунта).
+  /// Момент последнего успешного обмена с сервером (null — не было ни одного).
+  Future<DateTime?> readLastContact();
+
+  /// Запомнить момент успешного обмена с сервером — по нему ограничен офлайн-вход (долг 9).
+  Future<void> saveLastContact(DateTime at);
+
+  /// Удалить токены, профиль и отметку последнего контакта (выход из аккаунта).
   Future<void> clear();
 }
 
@@ -49,6 +55,9 @@ class SecureTokenStorage implements TokenStorage {
   /// Профиль вошедшего пользователя. Лежит здесь, а не в локальной базе: это данные
   /// сотрудника (ФИО, логин, роль), а база — открытый кэш справочников.
   static const _kProfile = 'profile';
+
+  /// Момент последнего успешного обмена с сервером, ISO-8601 в UTC.
+  static const _kLastContact = 'last_contact';
 
   @override
   Future<String?> readAccess() => _storage.read(key: _kAccess);
@@ -75,10 +84,21 @@ class SecureTokenStorage implements TokenStorage {
       _storage.write(key: _kProfile, value: json);
 
   @override
+  Future<DateTime?> readLastContact() async {
+    final raw = await _storage.read(key: _kLastContact);
+    return raw == null ? null : DateTime.tryParse(raw);
+  }
+
+  @override
+  Future<void> saveLastContact(DateTime at) =>
+      _storage.write(key: _kLastContact, value: at.toUtc().toIso8601String());
+
+  @override
   Future<void> clear() async {
     await _storage.delete(key: _kAccess);
     await _storage.delete(key: _kRefresh);
     await _storage.delete(key: _kProfile);
+    await _storage.delete(key: _kLastContact);
   }
 }
 
@@ -89,6 +109,7 @@ class InMemoryTokenStorage implements TokenStorage {
   String? _access;
   String? _refresh;
   String? _profile;
+  DateTime? _lastContact;
 
   @override
   Future<String?> readAccess() async => _access;
@@ -112,9 +133,16 @@ class InMemoryTokenStorage implements TokenStorage {
   Future<void> saveProfile(String json) async => _profile = json;
 
   @override
+  Future<DateTime?> readLastContact() async => _lastContact;
+
+  @override
+  Future<void> saveLastContact(DateTime at) async => _lastContact = at;
+
+  @override
   Future<void> clear() async {
     _access = null;
     _refresh = null;
     _profile = null;
+    _lastContact = null;
   }
 }
