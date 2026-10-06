@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:craft_wms/core/auth/auth_repository.dart';
 import 'package:craft_wms/core/auth/token_storage.dart';
 import 'package:craft_wms/core/constants/api_constants.dart';
@@ -27,6 +29,7 @@ void main() {
     storage = _MockTokenStorage();
     // Профиль сохраняется при каждом успешном /auth/me — он нужен для входа без сети (P2-02).
     when(() => storage.saveProfile(any())).thenAnswer((_) async {});
+    when(() => storage.saveLastContact(any())).thenAnswer((_) async {});
   });
 
   /// Настраивает адаптер dio на заданные ответы и собирает репозиторий.
@@ -116,6 +119,68 @@ void main() {
       final repo = repoWith({'GET ${ApiConst.me}': (_) => jsonResponse({}, 401)});
 
       expect((await repo.me()).left, isA<AuthFailure>());
+      verifyNever(() => storage.saveLastContact(any()));
+    });
+
+    // Вход сразу после выхода: интерсептор мог писать отметку меньше минуты назад
+    // и пропустит запись, а выход её стёр. Поэтому me() пишет сам.
+    test('успех отмечает контакт с сервером', () async {
+      final repo = repoWith({'GET ${ApiConst.me}': (_) => jsonResponse(meJson, 200)});
+
+      await repo.me();
+
+      verify(() => storage.saveLastContact(any())).called(1);
+    });
+  });
+
+  // Долг 9: без связи пускаем, только пока последний обмен с сервером не старше суток.
+  group('offlineSession', () {
+    final now = DateTime.utc(2026, 10, 6, 12);
+
+    /// JWT с заданным сроком: клиент читает только полезную нагрузку, подпись не проверяет.
+    String token(DateTime exp) {
+      String part(Map<String, dynamic> m) =>
+          base64Url.encode(utf8.encode(jsonEncode(m))).replaceAll('=', '');
+      final payload = {'exp': exp.millisecondsSinceEpoch ~/ 1000};
+      return '${part({'alg': 'HS256'})}.${part(payload)}.sig';
+    }
+
+    AuthRepository repoWithContact(DateTime? lastContact) {
+      when(() => storage.readRefresh())
+          .thenAnswer((_) async => token(now.add(const Duration(days: 20))));
+      when(() => storage.readProfile())
+          .thenAnswer((_) async => jsonEncode(meJson));
+      when(() => storage.readLastContact()).thenAnswer((_) async => lastContact);
+      return AuthRepository(dio, storage);
+    }
+
+    test('контакт час назад — пускаем', () async {
+      final repo = repoWithContact(now.subtract(const Duration(hours: 1)));
+
+      final profile = await repo.offlineSession(now: now);
+
+      expect(profile?.login, '10000000');
+    });
+
+    test('ровно на границе суток — ещё пускаем', () async {
+      final repo = repoWithContact(now.subtract(AuthRepository.offlineLoginWindow));
+
+      expect(await repo.offlineSession(now: now), isNotNull);
+    });
+
+    test('контакт больше суток назад — не пускаем, хотя refresh жив', () async {
+      final repo = repoWithContact(
+        now.subtract(const Duration(hours: 24, minutes: 1)),
+      );
+
+      expect(await repo.offlineSession(now: now), isNull);
+    });
+
+    test('отметки контакта нет — не пускаем', () async {
+      // Приложение обновлено с версии без отметки: первый вход со связью её заведёт.
+      final repo = repoWithContact(null);
+
+      expect(await repo.offlineSession(now: now), isNull);
     });
   });
 

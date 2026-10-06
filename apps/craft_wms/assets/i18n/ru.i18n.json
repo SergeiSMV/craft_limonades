@@ -442,6 +442,7 @@
     "cyrillic_probe": "Проверить кириллицу",
     "load_unit_label": "Ярлык ГЕ",
     "load_unit_reprint": "Повторно",
+    "trial_mark": "ПРОБНАЯ",
     "layout_probe": "Сетка координат"
   }
 }
