@@ -122,8 +122,15 @@ class PrinterService {
   /// Язык здесь не выбирается: QR и кириллица проверены на TSPL, и печатать ярлык тем, что
   /// сейчас стоит переключателем на экране наладки, значило бы отдать рабочую операцию
   /// во власть отладочной настройки.
-  Future<void> printLoadUnitLabel(String loadUnitId) async =>
-      printRaw(LoadUnitLabel(loadUnitId).tspl(await geometry()));
+  ///
+  /// [trialMark] — пометка пробной печати для экрана наладки (ADHOC-19); рабочая печать
+  /// из приёмки её не передаёт.
+  Future<void> printLoadUnitLabel(
+    String loadUnitId, {
+    String? trialMark,
+  }) async => printRaw(
+    LoadUnitLabel(loadUnitId, trialMark: trialMark).tspl(await geometry()),
+  );
 
   /// Напечатать товарный ярлык: штрихкод и наименование (P4-08).
   ///

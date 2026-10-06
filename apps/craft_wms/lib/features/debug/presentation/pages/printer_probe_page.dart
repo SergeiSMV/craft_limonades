@@ -110,10 +110,16 @@ class _PrinterProbePageState extends State<PrinterProbePage> {
 
   /// Напечатать пробный ярлык ГЕ. Первый тап печатает новый код, следующие — тот же:
   /// так проверяется и печать при создании короба, и повторная печать испорченной наклейки.
+  ///
+  /// ГЕ на сервере здесь не заводится, поэтому наклейка помечается как пробная (ADHOC-19):
+  /// попав на короб, она объясняет отказ при сканировании сама.
   Future<void> printLoadUnitLabel({required bool reprint}) async {
     final id = reprint ? _lastLabelId ?? _ids.newId() : _ids.newId();
     setState(() => _busy = true);
-    final sent = await _run(() => _service.printLoadUnitLabel(id));
+    final sent = await _run(
+      () =>
+          _service.printLoadUnitLabel(id, trialMark: t.printerProbe.trialMark),
+    );
     if (!mounted) return;
     setState(() {
       _busy = false;
