@@ -33,6 +33,7 @@ void main() {
   late MockOperationsApi opsApi;
   late OutboxRepository outbox;
   late CatalogRepository repo;
+  late SyncEngine engine;
 
   const good = Good(id: 'g1', code: '15567', name: 'Арахис Бекон', uom: 'шт');
   const cell = Cell(id: 'c1', warehouseId: 'w1', address: 'M1-1-1-1');
@@ -46,7 +47,7 @@ void main() {
     final effects = OutboxEffects(cache);
     // Движок в тесте настоящий: отправка идёт через него, и проверять надо именно тот путь,
     // которым операция уходит на самом деле.
-    final engine = SyncEngine(
+    engine = SyncEngine(
       outbox,
       OutboxSender(opsApi),
       effects,
@@ -349,6 +350,24 @@ void main() {
         hasLength(1),
         reason: 'осталась в очереди',
       );
+    });
+
+    // Долг 13: движок прочитал очередь, отмена сняла операцию, и только потом движок
+    // взялся её отправлять. Отменённое уехать не должно. Обратный порядок (движок забрал
+    // первым — отмена отвечает «поздно») стережёт тест «операцию в полёте не снимаем».
+    // Проход очереди забирает операции той же проверкой `markSending`.
+    test('снятую отменой операцию движок не отправляет', () async {
+      stubBatchFailure(opsApi, const Failure.network());
+      await repo.bindBarcode(goodId: 'g1', barcode: 'NEW');
+      final stale = (await outbox.pending()).single; // движок успел прочитать
+      clearInteractions(opsApi);
+
+      expect(await repo.cancelPendingBind('NEW'), isTrue);
+      final res = await engine.sendOne(stale);
+
+      expect(res.isRight, isTrue, reason: 'снятая операция — не ошибка');
+      verifyNever(() => opsApi.send(any()));
+      expect(await outbox.byOperationId(stale.operationId), isNull);
     });
 
     test('чужой штрихкод не трогаем', () async {

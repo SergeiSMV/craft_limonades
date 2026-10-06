@@ -190,9 +190,10 @@ class CatalogRepository {
   /// Возвращает `true`, если успели. `false` означает «поздно» — привязка либо уже на сервере,
   /// либо в пути; вызывающий решает, показывать ли это и предлагать ли отвязку.
   ///
-  /// ⚠ Между чтением статуса и снятием операции движок может успеть забрать её в отправку.
-  /// Окно — миллисекунды, блокировки нет: цена гонки — привязка уедет на сервер, хотя отмена
-  /// сказала «успели». Отдельная блокировка ради этого не окупается.
+  /// Гонка с движком синхронизации закрыта (долг 13): чтение очереди здесь лишь находит
+  /// кандидата, а решает условное снятие [OutboxRepository.discardIfPending] — оно удаляет
+  /// строку, только если та всё ещё `pending`. Движок, в свою очередь, забирает операцию
+  /// в отправку лишь если строка на месте. Кто из двух успел первым — того и исход.
   Future<bool> cancelPendingBind(String barcode) async {
     final waiting = await _outbox.pending();
     final match = waiting
@@ -204,7 +205,7 @@ class CatalogRepository {
         )
         .firstOrNull;
     if (match == null) return false;
-    await _outbox.discard(match.operationId);
+    if (!await _outbox.discardIfPending(match.operationId)) return false;
     await _effects.rollback(match);
     return true;
   }
