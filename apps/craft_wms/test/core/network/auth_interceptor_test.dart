@@ -12,7 +12,12 @@ class _MockTokenStorage extends Mock implements TokenStorage {}
 void main() {
   late _MockTokenStorage storage;
 
-  setUp(() => storage = _MockTokenStorage());
+  setUpAll(() => registerFallbackValue(DateTime(2026)));
+
+  setUp(() {
+    storage = _MockTokenStorage();
+    when(() => storage.saveLastContact(any())).thenAnswer((_) async {});
+  });
 
   /// Собирает пару Dio: основной (с AuthInterceptor) и «голый» tokenDio.
   ({Dio dio, RecordingAdapter main, RecordingAdapter token}) build({
@@ -131,5 +136,81 @@ void main() {
     );
     verify(() => storage.clear()).called(1);
     verifyNever(() => storage.saveAccess(any()));
+  });
+
+  // Долг 9: отметка последнего контакта — по ней ограничен вход без связи.
+  group('отметка контакта с сервером', () {
+    test('успешный ответ на запрос с токеном отмечает контакт', () async {
+      when(() => storage.readAccess()).thenAnswer((_) async => 'tok');
+      final h = build(
+        mainResponses: {'GET /ping': (_) => jsonResponse({'ok': true}, 200)},
+        tokenResponses: {},
+      );
+
+      await h.dio.get<dynamic>('/ping');
+
+      verify(() => storage.saveLastContact(any())).called(1);
+    });
+
+    test('ответ на запрос без токена контактом не считается', () async {
+      // Вход и пробы не доказывают, что сервер принял именно эту сессию.
+      when(() => storage.readAccess()).thenAnswer((_) async => null);
+      final h = build(
+        mainResponses: {'GET /ping': (_) => jsonResponse({'ok': true}, 200)},
+        tokenResponses: {},
+      );
+
+      await h.dio.get<dynamic>('/ping');
+
+      verifyNever(() => storage.saveLastContact(any()));
+    });
+
+    test('отказ сервера контактом не считается', () async {
+      when(() => storage.readAccess()).thenAnswer((_) async => 'tok');
+      final h = build(
+        mainResponses: {'GET /ping': (_) => jsonResponse({}, 500)},
+        tokenResponses: {},
+      );
+
+      await expectLater(h.dio.get<dynamic>('/ping'), throwsA(isA<DioException>()));
+
+      verifyNever(() => storage.saveLastContact(any()));
+    });
+
+    test('частые запросы пишут отметку не чаще раза в минуту', () async {
+      when(() => storage.readAccess()).thenAnswer((_) async => 'tok');
+      final h = build(
+        mainResponses: {'GET /ping': (_) => jsonResponse({'ok': true}, 200)},
+        tokenResponses: {},
+      );
+
+      await h.dio.get<dynamic>('/ping');
+      await h.dio.get<dynamic>('/ping');
+      await h.dio.get<dynamic>('/ping');
+
+      verify(() => storage.saveLastContact(any())).called(1);
+    });
+
+    test('повтор после refresh тоже отмечает контакт', () async {
+      // Повтор уходит мимо onResponse — отметка ставится отдельно.
+      var access = 'old';
+      when(() => storage.readAccess()).thenAnswer((_) async => access);
+      when(() => storage.readRefresh()).thenAnswer((_) async => 'ref');
+      when(() => storage.saveAccess(any())).thenAnswer((_) async {
+        access = 'new';
+      });
+      final h = build(
+        mainResponses: {'GET /ping': (_) => jsonResponse({}, 401)},
+        tokenResponses: {
+          'POST ${ApiConst.refreshToken}': (_) =>
+              jsonResponse({'access': 'new'}, 200),
+          'GET /ping': (_) => jsonResponse({'ok': true}, 200),
+        },
+      );
+
+      await h.dio.get<dynamic>('/ping');
+
+      verify(() => storage.saveLastContact(any())).called(1);
+    });
   });
 }

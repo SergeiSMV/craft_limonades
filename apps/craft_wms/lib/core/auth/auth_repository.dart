@@ -22,6 +22,12 @@ class AuthRepository {
   /// Хранилище токенов.
   final TokenStorage _storage;
 
+  /// Сколько после последнего успешного обмена с сервером терминал пускают без связи (долг 9).
+  ///
+  /// Сутки — решение заказчика: отозванный доступ перестаёт действовать на терминале не позже
+  /// чем через 24 часа, а смена, начатая в мёртвой зоне после вчерашней работы, не встаёт.
+  static const offlineLoginWindow = Duration(hours: 24);
+
   /// Вход по бейджу: `/auth/login` → сохраняем пару токенов → `/auth/me` → профиль.
   Future<Either<Failure, Profile>> login(String badge) async {
     try {
@@ -68,11 +74,14 @@ class AuthRepository {
 
   /// Профиль текущего пользователя (защищённый `/auth/me`; access подставит интерсептор).
   /// Успешный ответ попутно сохраняем: он понадобится для входа без сети.
+  /// Отметку контакта пишем здесь явно, а не полагаемся на интерсептор: тот пишет не чаще
+  /// раза в минуту, и вход сразу после выхода (выход отметку стирает) остался бы без неё.
   Future<Either<Failure, Profile>> me() async {
     try {
       final resp = await _dio.get<Map<String, dynamic>>(ApiConst.me);
       final profile = Profile.fromJson(resp.data!);
       await _storage.saveProfile(jsonEncode(resp.data));
+      await _storage.saveLastContact(DateTime.now());
       return Right(profile);
     } on DioException catch (e) {
       return Left(_mapError(e));
@@ -88,18 +97,31 @@ class AuthRepository {
   ///        и весь офлайн-кэш становится недостижим.
   /// Как: срок берём из `exp` refresh-токена — именно он определяет, жива ли сессия;
   ///      access к этому моменту обычно уже истёк и будет обновлён при первой же связи.
+  ///      Сверх того последний успешный обмен с сервером должен быть не старше
+  ///      [offlineLoginWindow].
   ///
-  /// `null` — сессии нет, срок вышел или профиль не сохранён (вход был до появления этой
-  /// возможности). Во всех этих случаях нужен обычный вход.
+  /// `null` — сессии нет, срок вышел, связи не было дольше суток или профиль не сохранён.
+  /// Во всех этих случаях нужен обычный вход.
   ///
-  /// ⚠ Подпись токена клиент проверить не может, и отозвать доступ офлайн нельзя: терминал
-  /// с живым refresh-токеном работает до конца его срока. Это осознанная плата за то, чтобы
-  /// склад не вставал без сети.
-  Future<Profile?> offlineSession() async {
+  /// Зачем предел (долг 9): подпись токена клиент проверить не может, и запрос на отзыв
+  /// доступа без связи не дойдёт. Без предела терминал с живым refresh-токеном работал бы
+  /// до конца его срока — 30 дней; с ним отозванный доступ гаснет не позже чем через сутки.
+  ///
+  /// ⚠ Принятый риск: время берётся с часов терминала, и перевод их назад продлевает окно.
+  /// Защититься от этого без сервера нельзя.
+  ///
+  /// Отметки контакта нет (приложение обновлено с версии без неё) — без связи не пускаем:
+  /// первый же вход со связью её заведёт.
+  Future<Profile?> offlineSession({DateTime? now}) async {
+    final at = now ?? DateTime.now();
     final refresh = await _storage.readRefresh();
     if (refresh == null) return null;
     final payload = JwtPayload.tryParse(refresh);
-    if (payload == null || payload.isExpired()) return null;
+    if (payload == null || payload.isExpired(now: at)) return null;
+
+    final lastContact = await _storage.readLastContact();
+    if (lastContact == null) return null;
+    if (at.difference(lastContact) > offlineLoginWindow) return null;
 
     final saved = await _storage.readProfile();
     if (saved == null) return null;
