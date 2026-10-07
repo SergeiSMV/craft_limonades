@@ -175,12 +175,22 @@ func postReceipt(ctx context.Context, q Querier, receiptID string) (int, error) 
 	}
 
 	// ГЕ уезжает в ту ячейку, куда её приняли, и считается размещённой: приёмка кладёт короб
-	// на место сразу (по умолчанию — дефолтная ячейка), отдельного шага размещения для неё нет.
+	// на место сразу (по умолчанию — дефолтная ячейка). Перенос идёт через общую функцию
+	// размещения — она же пишет первую строку журнала (P5-01).
+	var createdBy string
+	if err := q.QueryRow(ctx, `SELECT created_by::text FROM receipts WHERE id = $1::uuid`, receiptID).
+		Scan(&createdBy); err != nil {
+		return 0, fmt.Errorf("прочитать автора приёмки: %w", err)
+	}
 	for luID, cellID := range luCell {
-		if _, err := q.Exec(ctx, `
-			UPDATE load_units SET cell_id = $2::uuid, status = 'placed'
-			WHERE id = $1::uuid`, luID, cellID); err != nil {
-			return 0, fmt.Errorf("разместить ГЕ: %w", err)
+		if err := placeLoadUnit(ctx, q, model.PlaceLoadUnitInput{
+			LoadUnitID: luID,
+			CellID:     cellID,
+			Source:     model.PlacementReceipt,
+			UserID:     createdBy,
+			ReceiptID:  &receiptID,
+		}); err != nil {
+			return 0, err
 		}
 	}
 
