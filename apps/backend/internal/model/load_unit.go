@@ -32,3 +32,38 @@ type LoadUnit struct {
 	Status    string
 	CreatedAt time.Time
 }
+
+// Источники размещения ГЕ — какая операция перенесла короб в ячейку (P5-01).
+const (
+	// PlacementReceipt — приёмка положила короб на место (по умолчанию в дефолтную ячейку).
+	PlacementReceipt = "receipt"
+	// PlacementPutaway — размещение перенесло короб в ячейку хранения (P5-02).
+	PlacementPutaway = "putaway"
+)
+
+// Placement — одна строка журнала размещений: ГЕ перенесли из ячейки в ячейку (P5-01).
+//
+// Текущее место ГЕ — LoadUnit.CellID; журнал отвечает, где она лежала раньше и кто её двигал.
+// Адреса ячеек приходят вместе со строкой: журнал читают люди (просмотр ГЕ по скану, P5-05),
+// и идентификаторы ячеек им ничего не говорят.
+type Placement struct {
+	ID          string
+	LoadUnitID  string
+	FromCellID  *string // nil — первое размещение: ГЕ появилась на складе
+	FromAddress *string
+	ToCellID    string
+	ToAddress   string
+	Source      string
+	ReceiptID   *string
+	UserID      *string
+	PlacedAt    time.Time
+}
+
+// PlaceLoadUnitInput — что нужно, чтобы перенести ГЕ в ячейку (P5-01).
+type PlaceLoadUnitInput struct {
+	LoadUnitID string
+	CellID     string
+	Source     string  // PlacementReceipt | PlacementPutaway
+	UserID     string  // кто переносит; пусто — неизвестен
+	ReceiptID  *string // документ приёмки, если переносит она
+}
