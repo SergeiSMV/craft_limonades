@@ -69,6 +69,7 @@ abstract final class AppSizes {
 
   //* --- ТСД: главное меню (плитки) --------------------------------------- *//
   static const double kMenuTileSpacing = 12; // зазор между плитками сетки
+  static const double kChipSpacing = 8; // зазор между чипами быстрых фильтров
   static const double kMenuTileAspect =
       1.05; // соотношение сторон плитки (≈квадрат)
 }

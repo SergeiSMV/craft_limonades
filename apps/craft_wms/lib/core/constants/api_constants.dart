@@ -82,4 +82,22 @@ abstract final class ApiConst {
 
   ///**GET** - журнал документа: кто и когда что делал (P3-03): `documents/{id}/events`.
   static String documentEvents(String id) => 'documents/$id/events';
+
+  ///**GET** - текущие задания склада: пул и свои взятые, с позициями (P5-02-1).
+  static const String tasks = 'tasks';
+
+  ///**GET** - лента «Завершённые»: курсор и фильтры (P5-02-1).
+  static const String tasksCompleted = 'tasks/completed';
+
+  ///**GET** - варианты фильтра ленты по исполнителю (P5-02-1).
+  static const String tasksExecutors = 'tasks/executors';
+
+  ///**GET** - карточка задания с заходами: `tasks/{id}`.
+  static String taskById(String id) => 'tasks/$id';
+
+  ///**POST** - взять задание (204; 409 — у другого или выполнено): `tasks/{id}/take`.
+  static String taskTake(String id) => 'tasks/$id/take';
+
+  ///**POST** - отказаться от задания (204): `tasks/{id}/release`.
+  static String taskRelease(String id) => 'tasks/$id/release';
 }

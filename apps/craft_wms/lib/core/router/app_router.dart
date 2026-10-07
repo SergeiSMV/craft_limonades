@@ -16,6 +16,9 @@ import '../../features/stock/presentation/pages/goods_list_page.dart';
 import '../../features/stock/presentation/pages/stock_detail_page.dart';
 import '../../features/stock_entry/presentation/pages/stock_entry_page.dart';
 import '../../features/sync/presentation/pages/sync_queue_page.dart';
+import '../../features/tasks/data/tasks_models.dart'; // WarehouseTask — аргумент TaskDetailRoute
+import '../../features/tasks/presentation/pages/task_detail_page.dart';
+import '../../features/tasks/presentation/pages/tasks_page.dart';
 import 'guards.dart';
 
 part 'app_router.gr.dart';
@@ -44,6 +47,9 @@ class AppRouter extends RootStackRouter {
     AutoRoute(page: ReceiptRoute.page, guards: [_authGuard]),
     // Страница короба приёмки (ADHOC-18): тот же cubit, что у приёмки.
     AutoRoute(page: ReceiptBoxRoute.page, guards: [_authGuard]),
+    // Задания для склада (P5-02-1): текущие и завершённые, карточка задания.
+    AutoRoute(page: TasksRoute.page, guards: [_authGuard]),
+    AutoRoute(page: TaskDetailRoute.page, guards: [_authGuard]),
     AutoRoute(page: DebugLogRoute.page),
     // Диагностика сканера — служебный экран наладки (P2-01).
     AutoRoute(page: ScannerProbeRoute.page),

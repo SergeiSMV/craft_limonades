@@ -95,6 +95,10 @@ class HomePage extends StatelessWidget {
   void openReceipt(BuildContext context) =>
       context.router.push(const ReceiptRoute());
 
+  /// Открыть раздел «ЗАДАНИЯ» (P5-02-1): размещение и, позже, другие задания склада.
+  void openTasks(BuildContext context) =>
+      context.router.push(const TasksRoute());
+
   /// Открыть раздел «Ввод остатков» (проход склада, P-FastStart).
   void openStockEntry(BuildContext context) =>
       context.router.push(const StockEntryRoute());
@@ -266,8 +270,7 @@ class HomePage extends StatelessWidget {
                         subtitle: t.homeScreen.tiles.tasksSubtitle,
                         imageIcon: Assets.icons.menuIcons.tasks,
                         color: AppColors.kTileTasks,
-                        enabled: false,
-                        onTap: () => showStub(context),
+                        onTap: () => openTasks(context),
                       ),
                       // Пометка незавершённого прохода: вход в «Ввод остатков» лежит внутри
                       // «Остатков», и кладовщик должен увидеть незакрытый проход уже отсюда.

@@ -30,6 +30,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations: # русские системные виджеты: календарь, подсказки, меню выделения
+    sdk: flutter
 
   cupertino_icons: ^1.0.8 # иконки в стиле iOS (CupertinoIcons)
   flutter_bloc: ^9.1.1 # state management (BLoC/Cubit)
