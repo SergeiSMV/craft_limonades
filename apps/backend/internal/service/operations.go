@@ -327,7 +327,14 @@ func isRejection(err error) bool {
 		errors.Is(err, repository.ErrLoadUnitNotPlaced) ||
 		errors.Is(err, repository.ErrLoadUnitNested) ||
 		errors.Is(err, repository.ErrLooseStockShort) ||
-		errors.Is(err, repository.ErrInsufficientStock)
+		errors.Is(err, repository.ErrInsufficientStock) ||
+		// Задание сеанса (P5-02-1): нет, выполнено, не того склада или сеанс просит лишнего.
+		errors.Is(err, ErrInvalidTaskID) ||
+		errors.Is(err, repository.ErrTaskNotFound) ||
+		errors.Is(err, repository.ErrTaskDone) ||
+		errors.Is(err, repository.ErrTaskMismatch) ||
+		errors.Is(err, repository.ErrNotInTask) ||
+		errors.Is(err, repository.ErrExceedsTask)
 }
 
 // rejected собирает результат-отказ с причиной, читаемой человеком на экране разбора.

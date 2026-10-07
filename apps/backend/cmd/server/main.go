@@ -108,6 +108,7 @@ func main() {
 		// Приёмка и грузовые единицы (P4-02, P4-03): документ, строка сканом, оприходование.
 		svc.Receipt = service.NewReceiptService(repository.NewReceiptRepository(pool), cells)
 		svc.LoadUnit = service.NewLoadUnitService(repository.NewLoadUnitRepository(pool))
+		svc.Task = service.NewTaskService(repository.NewTaskRepository(pool))
 	} else {
 		log.Warn("no database — auth, import and catalog endpoints disabled")
 	}

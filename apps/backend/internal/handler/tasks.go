@@ -1,0 +1,280 @@
+package handler
+
+import (
+	"errors"
+	"log/slog"
+	"net/http"
+	"strconv"
+	"time"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/shopspring/decimal"
+
+	appmw "craftwms/internal/middleware"
+	"craftwms/internal/model"
+	"craftwms/internal/repository"
+	"craftwms/internal/service"
+)
+
+// TaskHandler — задания для склада на ТСД (P5-02-1): текущие, карточка, взятие и отказ,
+// лента «Завершённые». Сотруднику: задания выполняет кладовщик.
+type TaskHandler struct {
+	svc *service.TaskService
+}
+
+// NewTaskHandler создаёт обработчик заданий.
+func NewTaskHandler(svc *service.TaskService) *TaskHandler {
+	return &TaskHandler{svc: svc}
+}
+
+// productionDateLayout — дата партии в транспорте: DD-MM-YYYY, как на упаковке (и в приёмке).
+const productionDateLayout = "02-01-2006"
+
+type taskGoodResponse struct {
+	ID   string `json:"id"`
+	Code string `json:"code"`
+	Name string `json:"name"`
+	Uom  string `json:"uom"`
+}
+
+type taskContentResponse struct {
+	Good           taskGoodResponse `json:"good"`
+	ProductionDate string           `json:"production_date"`
+	Qty            decimal.Decimal  `json:"qty"`
+}
+
+// taskItemResponse — позиция задания: короб (load_unit_id + contents) ЛИБО россыпь (good …).
+type taskItemResponse struct {
+	LineNo         int                   `json:"line_no"`
+	LoadUnitID     *string               `json:"load_unit_id,omitempty"`
+	Contents       []taskContentResponse `json:"contents,omitempty"`
+	Good           *taskGoodResponse     `json:"good,omitempty"`
+	ProductionDate *string               `json:"production_date,omitempty"`
+	Qty            *decimal.Decimal      `json:"qty,omitempty"`
+	Remaining      *decimal.Decimal      `json:"remaining,omitempty"`
+	Placed         bool                  `json:"placed"`
+}
+
+type taskResponse struct {
+	ID           string             `json:"id"`
+	Number       int64              `json:"number"`
+	Kind         string             `json:"kind"`
+	Status       string             `json:"status"` // как его видит запросивший: чужое зависшее — new
+	WarehouseID  string             `json:"warehouse_id"`
+	ReceiptID    *string            `json:"receipt_id"`
+	Supplier     string             `json:"supplier"`    // пусто — без поставщика
+	ReceivedAt   *string            `json:"received_at"` // RFC3339
+	AssigneeName string             `json:"assignee_name"`
+	TakenAt      *string            `json:"taken_at"`
+	CreatedAt    string             `json:"created_at"`
+	Items        []taskItemResponse `json:"items"`
+}
+
+type taskSessionLineResponse struct {
+	LoadUnitID     *string           `json:"load_unit_id,omitempty"`
+	Good           *taskGoodResponse `json:"good,omitempty"`
+	ProductionDate *string           `json:"production_date,omitempty"`
+	Qty            *decimal.Decimal  `json:"qty,omitempty"`
+	From           string            `json:"from"`
+	To             string            `json:"to"`
+}
+
+type taskUserResponse struct {
+	ID       string `json:"id"`
+	FullName string `json:"full_name"`
+}
+
+type taskSessionResponse struct {
+	PutawayID string                    `json:"putaway_id"`
+	User      taskUserResponse          `json:"user"`
+	PostedAt  string                    `json:"posted_at"`
+	Lines     []taskSessionLineResponse `json:"lines"`
+}
+
+type taskDetailResponse struct {
+	taskResponse
+	Sessions []taskSessionResponse `json:"sessions"`
+}
+
+type completedTaskResponse struct {
+	ID          string             `json:"id"`
+	Number      int64              `json:"number"`
+	Kind        string             `json:"kind"`
+	Supplier    string             `json:"supplier"`
+	CompletedAt string             `json:"completed_at"` // RFC3339Nano — он же курсор подгрузки
+	Executors   []taskUserResponse `json:"executors"`
+	Sessions    int                `json:"sessions"`
+}
+
+// Current: GET /api/v1/tasks — текущие задания: пул и свои взятые, с позициями.
+// ТСД кладёт ответ в кэш: по нему задание выполняется без связи.
+func (h *TaskHandler) Current(w http.ResponseWriter, r *http.Request) {
+	userID, _ := appmw.UserIDFromContext(r.Context())
+	tasks, err := h.svc.Current(r.Context(), userID)
+	if err != nil {
+		slog.Error("tasks current failed", "error", err)
+		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
+		return
+	}
+	out := make([]taskResponse, 0, len(tasks))
+	for _, t := range tasks {
+		out = append(out, toTaskResponse(t))
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+// Get: GET /api/v1/tasks/{id} — карточка задания с позициями и заходами. 200 / 404.
+func (h *TaskHandler) Get(w http.ResponseWriter, r *http.Request) {
+	userID, _ := appmw.UserIDFromContext(r.Context())
+	t, sessions, err := h.svc.Detail(r.Context(), chi.URLParam(r, "id"), userID)
+	if errors.Is(err, repository.ErrTaskNotFound) {
+		writeError(w, http.StatusNotFound, "задание не найдено")
+		return
+	}
+	if err != nil {
+		slog.Error("task detail failed", "error", err)
+		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
+		return
+	}
+	out := taskDetailResponse{taskResponse: toTaskResponse(t), Sessions: []taskSessionResponse{}}
+	for _, s := range sessions {
+		sr := taskSessionResponse{
+			PutawayID: s.PutawayID,
+			User:      taskUserResponse(s.User),
+			PostedAt:  s.PostedAt.Format(time.RFC3339),
+		}
+		for _, ln := range s.Lines {
+			sr.Lines = append(sr.Lines, taskSessionLineResponse{
+				LoadUnitID:     ln.LoadUnitID,
+				Good:           toTaskGood(ln.Good),
+				ProductionDate: formatProductionDate(ln.ProductionDate),
+				Qty:            ln.Qty,
+				From:           ln.FromAddress,
+				To:             ln.ToAddress,
+			})
+		}
+		out.Sessions = append(out.Sessions, sr)
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+// Take: POST /api/v1/tasks/{id}/take — взять в работу. 204 / 404 / 409 (у другого или выполнено).
+// Повтор своим исполнителем — тоже 204.
+func (h *TaskHandler) Take(w http.ResponseWriter, r *http.Request) {
+	userID, _ := appmw.UserIDFromContext(r.Context())
+	h.writeTaskResult(w, h.svc.Take(r.Context(), chi.URLParam(r, "id"), userID), "take")
+}
+
+// Release: POST /api/v1/tasks/{id}/release — отказаться: задание уходит в пул. 204 / 404 / 409.
+func (h *TaskHandler) Release(w http.ResponseWriter, r *http.Request) {
+	userID, _ := appmw.UserIDFromContext(r.Context())
+	h.writeTaskResult(w, h.svc.Release(r.Context(), chi.URLParam(r, "id"), userID), "release")
+}
+
+func (h *TaskHandler) writeTaskResult(w http.ResponseWriter, err error, action string) {
+	switch {
+	case err == nil:
+		w.WriteHeader(http.StatusNoContent)
+	case errors.Is(err, repository.ErrTaskNotFound):
+		writeError(w, http.StatusNotFound, "задание не найдено")
+	case errors.Is(err, repository.ErrTaskTaken):
+		writeError(w, http.StatusConflict, "задание уже взял другой сотрудник")
+	case errors.Is(err, repository.ErrTaskDone):
+		writeError(w, http.StatusConflict, "задание уже выполнено")
+	default:
+		slog.Error("task action failed", "action", action, "error", err)
+		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
+	}
+}
+
+// Completed: GET /api/v1/tasks/completed — лента «Завершённые», свежие сверху.
+//
+// Параметры: from, to (YYYY-MM-DD, по времени склада; to включается), executor (id), kind,
+// before_completed_at + before_id (курсор: последняя показанная запись), limit. 200 / 400.
+func (h *TaskHandler) Completed(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	limit, _ := strconv.Atoi(q.Get("limit"))
+	items, err := h.svc.Completed(r.Context(), service.CompletedQuery{
+		From: q.Get("from"), To: q.Get("to"), ExecutorID: q.Get("executor"), Kind: q.Get("kind"),
+		BeforeCompletedAt: q.Get("before_completed_at"), BeforeID: q.Get("before_id"), Limit: limit,
+	})
+	if errors.Is(err, service.ErrInvalidTaskFilter) {
+		writeError(w, http.StatusBadRequest, "неверный фильтр")
+		return
+	}
+	if err != nil {
+		slog.Error("tasks completed failed", "error", err)
+		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
+		return
+	}
+	out := make([]completedTaskResponse, 0, len(items))
+	for _, c := range items {
+		ex := make([]taskUserResponse, 0, len(c.Executors))
+		for _, u := range c.Executors {
+			ex = append(ex, taskUserResponse(u))
+		}
+		out = append(out, completedTaskResponse{
+			ID: c.ID, Number: c.Number, Kind: c.Kind, Supplier: c.SupplierName,
+			CompletedAt: c.CompletedAt.Format(time.RFC3339Nano), Executors: ex, Sessions: c.Sessions,
+		})
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+// Executors: GET /api/v1/tasks/executors — варианты фильтра ленты по исполнителю.
+func (h *TaskHandler) Executors(w http.ResponseWriter, r *http.Request) {
+	users, err := h.svc.Executors(r.Context())
+	if err != nil {
+		slog.Error("tasks executors failed", "error", err)
+		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
+		return
+	}
+	out := make([]taskUserResponse, 0, len(users))
+	for _, u := range users {
+		out = append(out, taskUserResponse(u))
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+func toTaskResponse(t model.Task) taskResponse {
+	out := taskResponse{
+		ID: t.ID, Number: t.Number, Kind: t.Kind, Status: t.Status, WarehouseID: t.WarehouseID,
+		ReceiptID: t.ReceiptID, Supplier: t.SupplierName, ReceivedAt: formatTimePtr(t.ReceivedAt),
+		AssigneeName: t.AssigneeName, TakenAt: formatTimePtr(t.TakenAt),
+		CreatedAt: t.CreatedAt.Format(time.RFC3339), Items: []taskItemResponse{},
+	}
+	for _, it := range t.Items {
+		ir := taskItemResponse{LineNo: it.LineNo, LoadUnitID: it.LoadUnitID, Placed: it.Placed}
+		if it.LoadUnitID != nil {
+			for _, c := range it.Contents {
+				ir.Contents = append(ir.Contents, taskContentResponse{
+					Good:           *toTaskGood(&c.Good),
+					ProductionDate: c.ProductionDate.Format(productionDateLayout),
+					Qty:            c.Qty,
+				})
+			}
+		} else {
+			qty, left := it.Qty, it.Remaining
+			ir.Good = toTaskGood(it.Good)
+			ir.ProductionDate = formatProductionDate(it.ProductionDate)
+			ir.Qty, ir.Remaining = &qty, &left
+		}
+		out.Items = append(out.Items, ir)
+	}
+	return out
+}
+
+func toTaskGood(g *model.TaskGood) *taskGoodResponse {
+	if g == nil {
+		return nil
+	}
+	return &taskGoodResponse{ID: g.ID, Code: g.Code, Name: g.Name, Uom: g.Uom}
+}
+
+func formatProductionDate(d *time.Time) *string {
+	if d == nil {
+		return nil
+	}
+	s := d.Format(productionDateLayout)
+	return &s
+}

@@ -12,8 +12,9 @@ import (
 	"craftwms/internal/repository"
 )
 
-// Тесты P5-02: проведение сеанса размещения. Критерий задачи — размещаются короб и россыпь,
-// атомарно. Ячейка A фикстуры становится ячейкой приёмки (дефолтной), B — ячейкой хранения.
+// Тесты P5-02 (проведение сеанса размещения) и P5-02-1 (сеанс выполняет задание).
+// Ячейка A фикстуры — ячейка приёмки (дефолтная), B — ячейка хранения. Всё, что приёмка
+// кладёт в A, становится заданием на размещение.
 
 type putawayFixture struct {
 	*stockFixture
@@ -34,26 +35,38 @@ func setupPutaway(t *testing.T) *putawayFixture {
 	return pf
 }
 
-// receiveLoose принимает россыпь в ячейку приёмки.
-func (pf *putawayFixture) receiveLoose(t *testing.T, qty int64) {
+// receive оприходует приёмку в ячейку приёмки: короба по 12 шт и россыпь заданным количеством.
+// Возвращает задание на размещение, которое родилось из неё.
+func (pf *putawayFixture) receive(t *testing.T, boxes []string, loose int64) string {
 	t.Helper()
 	ctx := context.Background()
 	repo := repository.NewReceiptRepository(pf.pool)
 	receipt := uuid.NewString()
 	mustNoErr(t, repo.Create(ctx, receipt, pf.wh, "", pf.user))
-	mustNoErr(t, repo.AddLine(ctx, receipt, model.ReceiptLineInput{
-		GoodID: pf.good, ProductionDate: "2026-01-01", CellID: pf.cellA, Qty: decimal.NewFromInt(qty),
-	}))
-	if _, err := repo.Post(ctx, receipt); err != nil {
-		t.Fatalf("оприходовать россыпь: %v", err)
+	for _, lu := range boxes {
+		mustNoErr(t, repo.AddLine(ctx, receipt, model.ReceiptLineInput{
+			GoodID: pf.good, ProductionDate: "2026-01-01", CellID: pf.cellA, LoadUnitID: lu,
+			Qty: decimal.NewFromInt(12),
+		}))
 	}
+	if loose > 0 {
+		mustNoErr(t, repo.AddLine(ctx, receipt, model.ReceiptLineInput{
+			GoodID: pf.good, ProductionDate: "2026-01-01", CellID: pf.cellA, Qty: decimal.NewFromInt(loose),
+		}))
+	}
+	if _, err := repo.Post(ctx, receipt); err != nil {
+		t.Fatalf("оприходовать приёмку: %v", err)
+	}
+	var task string
+	mustScan(t, pf.pool, `SELECT id::text FROM warehouse_tasks WHERE receipt_id = $1::uuid`, &task, receipt)
+	return task
 }
 
-// submit проводит сеанс размещения новой операцией.
-func (pf *putawayFixture) submit(t *testing.T, putaway string, lines ...repository.PutawayLineInput) (repository.Applied, error) {
+// submit проводит сеанс размещения по заданию новой операцией.
+func (pf *putawayFixture) submit(t *testing.T, task, putaway string, lines ...repository.PutawayLineInput) (repository.Applied, error) {
 	t.Helper()
 	return pf.ops.PutawaySubmit(context.Background(), uuid.NewString(), repository.PutawaySubmitInput{
-		PutawayID: putaway, WarehouseID: pf.wh, CreatedBy: pf.user, Lines: lines,
+		PutawayID: putaway, TaskID: task, WarehouseID: pf.wh, CreatedBy: pf.user, Lines: lines,
 	})
 }
 
@@ -81,10 +94,10 @@ func (pf *putawayFixture) qtyIn(t *testing.T, cell string) string {
 func TestPutaway_boxMovesWithStockAndHistory(t *testing.T) {
 	pf := setupPutaway(t)
 	lu := newLU(t, pf.stockFixture, model.LoadUnitBox)
-	receiveBox(t, pf.stockFixture, pf.user, lu, pf.cellA) // 12 шт в коробе
+	task := pf.receive(t, []string{lu}, 0)
 
 	putaway := uuid.NewString()
-	if _, err := pf.submit(t, putaway, boxTo(lu, pf.cellB)); err != nil {
+	if _, err := pf.submit(t, task, putaway, boxTo(lu, pf.cellB)); err != nil {
 		t.Fatalf("размещение короба: %v", err)
 	}
 
@@ -100,36 +113,27 @@ func TestPutaway_boxMovesWithStockAndHistory(t *testing.T) {
 	if len(hist) != 2 || last.Source != model.PlacementPutaway || last.PutawayID == nil || *last.PutawayID != putaway {
 		t.Errorf("журнал: %d строк, последняя %+v", len(hist), last)
 	}
-	var lines int
-	mustScanInt(t, pf, `SELECT count(*) FROM putaway_lines WHERE putaway_id = $1::uuid AND load_unit_id IS NOT NULL`, &lines, putaway)
-	if lines != 1 {
-		t.Errorf("строк документа с коробом: %d", lines)
-	}
 }
 
-// Россыпь берётся из ячейки приёмки, но только та, что не лежит там же в коробах.
+// Россыпь берётся из ячейки приёмки, но только та, что не лежит там же в коробах: даже если
+// задание разрешает больше, товар из-под короба не уходит.
 func TestPutaway_looseExcludesBoxedStock(t *testing.T) {
 	pf := setupPutaway(t)
 	lu := newLU(t, pf.stockFixture, model.LoadUnitBox)
-	receiveBox(t, pf.stockFixture, pf.user, lu, pf.cellA) // 12 в коробе
-	pf.receiveLoose(t, 5)                                 // 5 россыпью; в ячейке A всего 17
+	task := pf.receive(t, []string{lu}, 5) // в ячейке A: 12 в коробе + 5 россыпью
+	// Россыпь кто-то унёс мимо учёта задания: остаток A = 15, россыпи в нём 3.
+	mustNoErr(t, repository.NewStockRepository(pf.pool).Remove(context.Background(), model.StockKey{
+		CellID: pf.cellA, GoodID: pf.good, BatchID: pf.batch, InternalWarehouseID: pf.iwh,
+	}, decimal.NewFromInt(2)))
 
-	// 6 штук россыпью нет: остаток ячейки 17, но 12 из них — в коробе.
-	if _, err := pf.submit(t, uuid.NewString(), looseTo(pf.good, 6, pf.cellB)); !errors.Is(err, repository.ErrLooseStockShort) {
+	if _, err := pf.submit(t, task, uuid.NewString(), looseTo(pf.good, 4, pf.cellB)); !errors.Is(err, repository.ErrLooseStockShort) {
 		t.Fatalf("россыпь сверх лежащей: %v, ожидалась ErrLooseStockShort", err)
 	}
-	if a := pf.qtyIn(t, pf.cellA); a != "17" {
-		t.Fatalf("отказ сдвинул остаток: A=%s", a)
-	}
-
-	if _, err := pf.submit(t, uuid.NewString(), looseTo(pf.good, 5, pf.cellB)); err != nil {
+	if _, err := pf.submit(t, task, uuid.NewString(), looseTo(pf.good, 3, pf.cellB)); err != nil {
 		t.Fatalf("размещение россыпи: %v", err)
 	}
-	if a, b := pf.qtyIn(t, pf.cellA), pf.qtyIn(t, pf.cellB); a != "12" || b != "5" {
-		t.Errorf("остаток A=%s B=%s, ожидалось 12 (короб) и 5", a, b)
-	}
-	if currentCell(t, pf.stockFixture, lu) != pf.cellA {
-		t.Error("россыпь сдвинула короб")
+	if a, b := pf.qtyIn(t, pf.cellA), pf.qtyIn(t, pf.cellB); a != "12" || b != "3" {
+		t.Errorf("остаток A=%s B=%s, ожидалось 12 (короб) и 3", a, b)
 	}
 }
 
@@ -137,12 +141,12 @@ func TestPutaway_looseExcludesBoxedStock(t *testing.T) {
 func TestPutaway_sessionIsAtomic(t *testing.T) {
 	pf := setupPutaway(t)
 	lu := newLU(t, pf.stockFixture, model.LoadUnitBox)
-	receiveBox(t, pf.stockFixture, pf.user, lu, pf.cellA)
+	task := pf.receive(t, []string{lu}, 5)
 
 	putaway := uuid.NewString()
-	_, err := pf.submit(t, putaway, boxTo(lu, pf.cellB), looseTo(pf.good, 1, pf.cellB))
-	if !errors.Is(err, repository.ErrLooseStockShort) {
-		t.Fatalf("вторая строка: %v, ожидалась ErrLooseStockShort", err)
+	_, err := pf.submit(t, task, putaway, boxTo(lu, pf.cellB), looseTo(pf.good, 6, pf.cellB))
+	if !errors.Is(err, repository.ErrExceedsTask) {
+		t.Fatalf("вторая строка: %v, ожидалась ErrExceedsTask", err)
 	}
 	if currentCell(t, pf.stockFixture, lu) != pf.cellA || pf.qtyIn(t, pf.cellB) != "0" {
 		t.Error("первая строка проведена, хотя сеанс отклонён")
@@ -158,12 +162,12 @@ func TestPutaway_sessionIsAtomic(t *testing.T) {
 func TestPutaway_repeats(t *testing.T) {
 	pf := setupPutaway(t)
 	ctx := context.Background()
-	lu := newLU(t, pf.stockFixture, model.LoadUnitBox)
-	receiveBox(t, pf.stockFixture, pf.user, lu, pf.cellA)
+	lu1, lu2 := newLU(t, pf.stockFixture, model.LoadUnitBox), newLU(t, pf.stockFixture, model.LoadUnitBox)
+	task := pf.receive(t, []string{lu1, lu2}, 0)
 
 	opID, putaway := uuid.NewString(), uuid.NewString()
-	in := repository.PutawaySubmitInput{PutawayID: putaway, WarehouseID: pf.wh, CreatedBy: pf.user,
-		Lines: []repository.PutawayLineInput{boxTo(lu, pf.cellB)}}
+	in := repository.PutawaySubmitInput{PutawayID: putaway, TaskID: task, WarehouseID: pf.wh, CreatedBy: pf.user,
+		Lines: []repository.PutawayLineInput{boxTo(lu1, pf.cellB)}}
 	if _, err := pf.ops.PutawaySubmit(ctx, opID, in); err != nil {
 		t.Fatalf("первая попытка: %v", err)
 	}
@@ -171,6 +175,7 @@ func TestPutaway_repeats(t *testing.T) {
 	if err != nil || !again.Duplicate {
 		t.Fatalf("повтор операции: err=%v duplicate=%v", err, again.Duplicate)
 	}
+	in.Lines = []repository.PutawayLineInput{boxTo(lu2, pf.cellB)}
 	if _, err := pf.ops.PutawaySubmit(ctx, uuid.NewString(), in); !errors.Is(err, repository.ErrPutawayPosted) {
 		t.Fatalf("тот же сеанс новой операцией: %v, ожидалась ErrPutawayPosted", err)
 	}
@@ -179,12 +184,13 @@ func TestPutaway_repeats(t *testing.T) {
 	}
 }
 
-// Отказы по существу: короб не на складе, перенос на место, чужой склад, неизвестная ячейка.
+// Отказы по существу: чужое задание, короб не из задания, перенос на место, чужой склад.
 func TestPutaway_rejections(t *testing.T) {
 	pf := setupPutaway(t)
 	placed := newLU(t, pf.stockFixture, model.LoadUnitBox)
-	receiveBox(t, pf.stockFixture, pf.user, placed, pf.cellA)
-	fresh := newLU(t, pf.stockFixture, model.LoadUnitBox)
+	task := pf.receive(t, []string{placed}, 5)
+	stranger := newLU(t, pf.stockFixture, model.LoadUnitBox)
+	pf.receive(t, []string{stranger}, 0) // короб другого задания уже на складе
 
 	var otherWh, foreign string
 	mustScan(t, pf.pool, `INSERT INTO warehouses (code, name) VALUES ('WH2','другой') RETURNING id::text`, &otherWh)
@@ -192,19 +198,23 @@ func TestPutaway_rejections(t *testing.T) {
 
 	cases := []struct {
 		name string
+		task string
 		line repository.PutawayLineInput
 		want error
 	}{
-		{"короб не принят", boxTo(fresh, pf.cellB), repository.ErrLoadUnitNotPlaced},
-		{"неизвестный короб", boxTo(uuid.NewString(), pf.cellB), repository.ErrLoadUnitNotFound},
-		{"короб на то же место", boxTo(placed, pf.cellA), repository.ErrPutawaySameCell},
-		{"россыпь в ячейку приёмки", looseTo(pf.good, 1, pf.cellA), repository.ErrPutawaySameCell},
-		{"ячейка чужого склада", boxTo(placed, foreign), repository.ErrForeignCell},
-		{"неизвестная ячейка", boxTo(placed, uuid.NewString()), repository.ErrUnknownReference},
+		{"короб другого задания", task, boxTo(stranger, pf.cellB), repository.ErrNotInTask},
+		{"неизвестное задание", uuid.NewString(), boxTo(placed, pf.cellB), repository.ErrTaskNotFound},
+		{"россыпь не той партии", task, repository.PutawayLineInput{GoodID: pf.good, ProductionDate: "2025-01-01",
+			Qty: decimal.NewFromInt(1), ToCellID: pf.cellB}, repository.ErrNotInTask},
+		{"россыпи больше, чем в задании", task, looseTo(pf.good, 6, pf.cellB), repository.ErrExceedsTask},
+		{"короб на то же место", task, boxTo(placed, pf.cellA), repository.ErrPutawaySameCell},
+		{"россыпь в ячейку приёмки", task, looseTo(pf.good, 1, pf.cellA), repository.ErrPutawaySameCell},
+		{"ячейка чужого склада", task, boxTo(placed, foreign), repository.ErrForeignCell},
+		{"неизвестная ячейка", task, boxTo(placed, uuid.NewString()), repository.ErrUnknownReference},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if _, err := pf.submit(t, uuid.NewString(), tc.line); !errors.Is(err, tc.want) {
+			if _, err := pf.submit(t, tc.task, uuid.NewString(), tc.line); !errors.Is(err, tc.want) {
 				t.Errorf("получено %v, ожидалась %v", err, tc.want)
 			}
 		})

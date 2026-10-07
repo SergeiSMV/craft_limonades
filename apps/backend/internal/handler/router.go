@@ -36,6 +36,7 @@ type Services struct {
 	Operations *service.OperationsService
 	Receipt    *service.ReceiptService
 	LoadUnit   *service.LoadUnitService
+	Task       *service.TaskService
 }
 
 // NewRouter собирает HTTP-роутер сервиса: общие middleware + маршруты.
@@ -174,6 +175,22 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 				r.Post("/receipts/{id}/post", rcH.Post)     // оприходовать: поднять остаток
 				r.Post("/load-units", rcH.CreateLoadUnit)   // завести ГЕ по QR ярлыка
 				r.Get("/load-units/{id}", rcH.GetLoadUnit)  // что за короб отсканировали
+			})
+		}
+
+		// Задания для склада (P5-02-1) — сотруднику: пул заданий на ТСД. Взятие и отказ — только
+		// со связью: кто держит задание, знает сервер, иначе двое взяли бы одно и то же.
+		// Выполнение задания идёт операцией очереди putaway_submit и работает без связи.
+		if svc.Task != nil {
+			taskH := NewTaskHandler(svc.Task)
+			r.Group(func(r chi.Router) {
+				r.Use(appmw.Authenticator(tokens))
+				r.Get("/tasks", taskH.Current)               // текущие: пул и свои взятые
+				r.Get("/tasks/completed", taskH.Completed)   // лента «Завершённые»
+				r.Get("/tasks/executors", taskH.Executors)   // варианты фильтра по исполнителю
+				r.Get("/tasks/{id}", taskH.Get)              // карточка с заходами
+				r.Post("/tasks/{id}/take", taskH.Take)       // взять в работу
+				r.Post("/tasks/{id}/release", taskH.Release) // отказаться
 			})
 		}
 
