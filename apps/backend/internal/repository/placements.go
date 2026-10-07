@@ -43,9 +43,9 @@ func placeLoadUnit(ctx context.Context, q Querier, in model.PlaceLoadUnitInput) 
 		return fmt.Errorf("разместить ГЕ: %w", err)
 	}
 	if _, err := q.Exec(ctx, `
-		INSERT INTO placements (load_unit_id, from_cell_id, to_cell_id, source, receipt_id, user_id)
-		VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5::uuid, NULLIF($6, '')::uuid)`,
-		in.LoadUnitID, from, in.CellID, in.Source, in.ReceiptID, in.UserID); err != nil {
+		INSERT INTO placements (load_unit_id, from_cell_id, to_cell_id, source, receipt_id, putaway_id, user_id)
+		VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5::uuid, $6::uuid, NULLIF($7, '')::uuid)`,
+		in.LoadUnitID, from, in.CellID, in.Source, in.ReceiptID, in.PutawayID, in.UserID); err != nil {
 		return fmt.Errorf("записать размещение ГЕ: %w", err)
 	}
 	return nil
@@ -63,7 +63,7 @@ func (r *LoadUnitRepository) Placements(ctx context.Context, id string) ([]model
 		SELECT p.id::text, p.load_unit_id::text,
 		       p.from_cell_id::text, cf.address,
 		       p.to_cell_id::text, ct.address,
-		       p.source, p.receipt_id::text, p.user_id::text, p.placed_at
+		       p.source, p.receipt_id::text, p.putaway_id::text, p.user_id::text, p.placed_at
 		FROM placements p
 		LEFT JOIN cells cf ON cf.id = p.from_cell_id
 		JOIN cells ct      ON ct.id = p.to_cell_id
@@ -78,7 +78,7 @@ func (r *LoadUnitRepository) Placements(ctx context.Context, id string) ([]model
 	for rows.Next() {
 		var p model.Placement
 		if err := rows.Scan(&p.ID, &p.LoadUnitID, &p.FromCellID, &p.FromAddress,
-			&p.ToCellID, &p.ToAddress, &p.Source, &p.ReceiptID, &p.UserID, &p.PlacedAt); err != nil {
+			&p.ToCellID, &p.ToAddress, &p.Source, &p.ReceiptID, &p.PutawayID, &p.UserID, &p.PlacedAt); err != nil {
 			return nil, fmt.Errorf("разобрать историю ГЕ: %w", err)
 		}
 		out = append(out, p)
