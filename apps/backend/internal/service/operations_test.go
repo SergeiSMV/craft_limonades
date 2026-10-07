@@ -16,6 +16,7 @@ type fakeOpsRepo struct {
 	binds    []repository.BarcodeBindInput
 	unbinds  []string
 	receipts []repository.ReceiptSubmitInput
+	putaways []repository.PutawaySubmitInput
 	bindErr  error // ошибка, которую вернуть на привязку
 	failWith error // временная ошибка (прерывает батч)
 }
@@ -81,6 +82,15 @@ func (f *fakeOpsRepo) ReceiptSubmit(_ context.Context, operationID string, in re
 	}
 	f.seen[operationID] = true
 	f.receipts = append(f.receipts, in)
+	return repository.Applied{Result: json.RawMessage(`{}`)}, nil
+}
+
+func (f *fakeOpsRepo) PutawaySubmit(_ context.Context, operationID string, in repository.PutawaySubmitInput) (repository.Applied, error) {
+	if f.seen[operationID] {
+		return repository.Applied{Result: json.RawMessage(`{}`), Duplicate: true}, nil
+	}
+	f.seen[operationID] = true
+	f.putaways = append(f.putaways, in)
 	return repository.Applied{Result: json.RawMessage(`{}`)}, nil
 }
 
@@ -299,5 +309,79 @@ func TestOperations_receiptSubmitValidation(t *testing.T) {
 	got := repo.receipts[0]
 	if got.CreatedBy != opUserID || got.LoadUnits[0].Kind != "box" || got.Lines[0].ProductionDate != "2026-09-01" {
 		t.Fatalf("разбор приёмки: %+v", got)
+	}
+}
+
+// Размещение (P5-02): ошибки формы отсекаются до репозитория и приходят отказом по существу.
+func TestOperations_putawaySubmitValidation(t *testing.T) {
+	const (
+		putaway   = "66666666-6666-4666-8666-666666666666"
+		warehouse = "44444444-4444-4444-8444-444444444444"
+		good      = "55555555-5555-4555-8555-555555555555"
+		box       = "77777777-7777-4777-8777-777777777777"
+		cell      = "88888888-8888-4888-8888-888888888888"
+		task      = "99999999-0000-4000-8000-000000000001"
+	)
+	loose := func(over map[string]any) map[string]any {
+		l := map[string]any{"good_id": good, "production_date": "01-09-2026", "qty": 2, "to_cell_id": cell}
+		for k, v := range over {
+			l[k] = v
+		}
+		return l
+	}
+	boxLine := map[string]any{"load_unit_id": box, "to_cell_id": cell}
+	doc := func(lines ...any) map[string]any {
+		return map[string]any{"putaway_id": putaway, "task_id": task, "warehouse_id": warehouse, "lines": lines}
+	}
+	cases := []struct {
+		name    string
+		payload map[string]any
+	}{
+		{"id документа не UUID", map[string]any{"putaway_id": "x", "task_id": task, "warehouse_id": warehouse, "lines": []any{boxLine}}},
+		// Размещения без задания нет (P5-02-1).
+		{"нет задания", map[string]any{"putaway_id": putaway, "warehouse_id": warehouse, "lines": []any{boxLine}}},
+		{"задание не UUID", map[string]any{"putaway_id": putaway, "task_id": "№57", "warehouse_id": warehouse, "lines": []any{boxLine}}},
+		{"нет склада", map[string]any{"putaway_id": putaway, "task_id": task, "lines": []any{boxLine}}},
+		{"пустой сеанс", map[string]any{"putaway_id": putaway, "task_id": task, "warehouse_id": warehouse}},
+		{"нет ячейки назначения", doc(map[string]any{"load_unit_id": box})},
+		{"короб не UUID", doc(map[string]any{"load_unit_id": "CWLU1:x", "to_cell_id": cell})},
+		// Строка — короб ИЛИ россыпь: товарные поля у короба — противоречие.
+		{"короб с товаром", doc(map[string]any{"load_unit_id": box, "good_id": good, "to_cell_id": cell})},
+		{"короб с количеством", doc(map[string]any{"load_unit_id": box, "qty": 3, "to_cell_id": cell})},
+		{"ни короба, ни товара", doc(map[string]any{"to_cell_id": cell})},
+		{"нулевое количество", doc(loose(map[string]any{"qty": 0}))},
+		{"неверная дата", doc(loose(map[string]any{"production_date": "2026-09-01"}))},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := newFakeOpsRepo()
+			res, err := NewOperationsService(repo).Apply(context.Background(), opUserID,
+				[]Operation{op(opID1, repository.KindPutawaySubmit, tc.payload)})
+			if err != nil {
+				t.Fatalf("Apply: %v", err)
+			}
+			if res[0].Status != StatusRejected {
+				t.Fatalf("ждали rejected, получили %q", res[0].Status)
+			}
+			if len(repo.putaways) != 0 {
+				t.Fatal("неверное размещение дошло до репозитория")
+			}
+		})
+	}
+
+	// Верный сеанс доходит до репозитория с автором из токена и датой в ISO.
+	repo := newFakeOpsRepo()
+	res, err := NewOperationsService(repo).Apply(context.Background(), opUserID, []Operation{
+		op(opID2, repository.KindPutawaySubmit, doc(boxLine, loose(nil))),
+	})
+	if err != nil || res[0].Status != StatusAccepted {
+		t.Fatalf("верное размещение: err=%v, исход %+v", err, res)
+	}
+	got := repo.putaways[0]
+	if got.CreatedBy != opUserID || got.TaskID != task || len(got.Lines) != 2 {
+		t.Fatalf("разбор размещения: %+v", got)
+	}
+	if got.Lines[0].LoadUnitID != box || got.Lines[1].ProductionDate != "2026-09-01" || got.Lines[1].ToCellID != cell {
+		t.Fatalf("строки размещения: %+v", got.Lines)
 	}
 }

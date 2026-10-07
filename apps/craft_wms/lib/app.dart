@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'core/auth/auth_cubit.dart';
 import 'core/di/injection.dart';
@@ -50,6 +51,13 @@ class CraftWmsApp extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           theme: buildAppTheme(),
           routerConfig: _router.config(),
+          // Системные виджеты Flutter (календарь фильтра заданий, подсказки, меню копирования)
+          // без этого говорят по-английски: свои строки приложения идут через slang, а эти —
+          // только через локализацию Material. Приложение одноязычное, поэтому русский задан
+          // явно, а не берётся из настроек терминала.
+          locale: const Locale('ru'),
+          supportedLocales: const [Locale('ru')],
+          localizationsDelegates: GlobalMaterialLocalizations.delegates,
         ),
       ),
     );

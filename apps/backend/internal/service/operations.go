@@ -66,6 +66,7 @@ type operationsRepo interface {
 	StockEntryCheckpoint(ctx context.Context, operationID, sessionID, cellID string, lines []repository.StockEntryLineInput, barcodes []repository.BarcodeBindInput) (repository.Applied, error)
 	StockEntryFinalize(ctx context.Context, operationID, sessionID string) (repository.Applied, error)
 	ReceiptSubmit(ctx context.Context, operationID string, in repository.ReceiptSubmitInput) (repository.Applied, error)
+	PutawaySubmit(ctx context.Context, operationID string, in repository.PutawaySubmitInput) (repository.Applied, error)
 }
 
 // OperationsService — приём батча операций из очереди устройства с дедупом по operation_id.
@@ -275,6 +276,9 @@ func (s *OperationsService) dispatch(ctx context.Context, userID, id string, op 
 	case repository.KindReceiptSubmit:
 		return s.receiptSubmit(ctx, userID, id, op.Payload)
 
+	case repository.KindPutawaySubmit:
+		return s.putawaySubmit(ctx, userID, id, op.Payload)
+
 	default:
 		return repository.Applied{}, ErrUnknownKind
 	}
@@ -312,7 +316,25 @@ func isRejection(err error) bool {
 		errors.Is(err, repository.ErrLoadUnitCellConflict) ||
 		errors.Is(err, repository.ErrLoadUnitNotFound) ||
 		errors.Is(err, repository.ErrNoDefaultCell) ||
-		errors.Is(err, repository.ErrUnknownReference)
+		errors.Is(err, repository.ErrUnknownReference) ||
+		// Размещение (P5-02): сеанс уже проведён, пуст, противоречит складу или просит больше,
+		// чем лежит. Повтор этого не исправит — сеанс разбирает человек.
+		errors.Is(err, ErrInvalidPutawayID) ||
+		errors.Is(err, repository.ErrPutawayPosted) ||
+		errors.Is(err, repository.ErrEmptyPutaway) ||
+		errors.Is(err, repository.ErrPutawaySameCell) ||
+		errors.Is(err, repository.ErrForeignCell) ||
+		errors.Is(err, repository.ErrLoadUnitNotPlaced) ||
+		errors.Is(err, repository.ErrLoadUnitNested) ||
+		errors.Is(err, repository.ErrLooseStockShort) ||
+		errors.Is(err, repository.ErrInsufficientStock) ||
+		// Задание сеанса (P5-02-1): нет, выполнено, не того склада или сеанс просит лишнего.
+		errors.Is(err, ErrInvalidTaskID) ||
+		errors.Is(err, repository.ErrTaskNotFound) ||
+		errors.Is(err, repository.ErrTaskDone) ||
+		errors.Is(err, repository.ErrTaskMismatch) ||
+		errors.Is(err, repository.ErrNotInTask) ||
+		errors.Is(err, repository.ErrExceedsTask)
 }
 
 // rejected собирает результат-отказ с причиной, читаемой человеком на экране разбора.

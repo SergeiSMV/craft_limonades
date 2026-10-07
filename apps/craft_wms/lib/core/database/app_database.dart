@@ -204,6 +204,30 @@ class EntryDrafts extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+/// Текущие задания склада (P5-02-1) — снимок последнего ответа `GET /tasks`.
+///
+/// Зачем: задание выполняется без связи, а значит, и список текущих, и позиции задания должны
+/// открываться офлайн. Взять задание без связи нельзя (кто его держит, знает только сервер),
+/// поэтому снимок — только для чтения и заменяется целиком при каждом удачном запросе.
+///
+/// Одна строка со списком, а не строка на задание: пустой список — тоже ответ сервера
+/// («заданий нет»), и его нельзя путать с отсутствием снимка («ещё ни разу не было связи»).
+/// Строки на задание этого различия не держали бы. JSON — по той же причине, что черновики:
+/// читатель один — экран заданий.
+class CachedTasks extends Table {
+  /// Ключ снимка: он один.
+  TextColumn get id => text().withDefault(const Constant('current'))();
+
+  /// Список заданий целиком, JSON ответа сервера.
+  TextColumn get payload => text()();
+
+  /// Когда снимок получен с сервера — показывается кладовщику без связи.
+  DateTimeColumn get syncedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
 /// Подключение к локальной базе.
 ///
 /// Файл `craft_wms.sqlite` в каталоге приложения; при удалении приложения уходит вместе с ним.
@@ -221,6 +245,7 @@ class EntryDrafts extends Table {
     OutboxOperations,
     EntryDrafts,
     DeviceSettings,
+    CachedTasks,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -230,7 +255,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   /// Миграции схемы.
   ///
@@ -246,6 +271,8 @@ class AppDatabase extends _$AppDatabase {
   /// 3 → 4: добавлены [deviceSettings] — выбранный принтер и язык его команд (P4-05).
   ///
   /// 4 → 5: у ячеек появился признак дефолтной ячейки приёмки (P4-09).
+  ///
+  /// 5 → 6: добавлены [cachedTasks] — снимок текущих заданий склада (P5-02-1).
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) => m.createAll(),
@@ -270,6 +297,9 @@ class AppDatabase extends _$AppDatabase {
         await (delete(
           catalogSyncMarks,
         )..where((t) => t.catalog.equals('cells'))).go();
+      }
+      if (from < 6) {
+        await m.createTable(cachedTasks);
       }
     },
   );

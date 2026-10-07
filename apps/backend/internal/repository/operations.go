@@ -26,6 +26,9 @@ const (
 
 	// Приёмка целиком: документ, его ГЕ, строки и оприходование — одна операция (P4-09).
 	KindReceiptSubmit = "receipt_submit"
+
+	// Размещение целиком: сеанс разноса коробов и россыпи по ячейкам — одна операция (P5-02).
+	KindPutawaySubmit = "putaway_submit"
 )
 
 // Ошибки применения приёмки из очереди (P4-09).
@@ -188,6 +191,23 @@ func (r *OperationsRepository) ReceiptSubmit(ctx context.Context, operationID st
 			return nil, err
 		}
 		return jsonResult(map[string]any{"receipt_id": in.ReceiptID, "posted": posted})
+	})
+	return applied, missingReference(err)
+}
+
+// PutawaySubmit проводит сеанс размещения целиком — в одной транзакции с пометкой операции
+// (P5-02). Почему одной операцией, а не цепочкой, — та же причина, что у приёмки: отклонённая
+// строка в цепочке дала бы проведённый документ «Движение» без неё.
+//
+// Повтор безопасен на двух уровнях: журнал операции отдаёт ответ первой попытки, а сеанс,
+// проведённый другой операцией, упирается в первичный ключ документа и даёт ErrPutawayPosted.
+func (r *OperationsRepository) PutawaySubmit(ctx context.Context, operationID string, in PutawaySubmitInput) (Applied, error) {
+	applied, err := r.inTx(ctx, operationID, KindPutawaySubmit, func(q Querier) (json.RawMessage, error) {
+		placed, err := putawaySubmit(ctx, q, in)
+		if err != nil {
+			return nil, err
+		}
+		return jsonResult(map[string]any{"putaway_id": in.PutawayID, "placed": placed})
 	})
 	return applied, missingReference(err)
 }

@@ -194,6 +194,12 @@ func postReceipt(ctx context.Context, q Querier, receiptID string) (int, error) 
 		}
 	}
 
+	// Что приёмка оставила в ячейке приёмки, становится заданием на размещение (P5-02-1) —
+	// в той же транзакции: оприходованная приёмка без задания потеряла бы свой хвост.
+	if err := createPutawayTaskForReceipt(ctx, q, receiptID); err != nil {
+		return 0, err
+	}
+
 	if _, err := q.Exec(ctx, `
 		UPDATE receipts SET status = 'posted', posted_at = now()
 		WHERE id = $1::uuid`, receiptID); err != nil {
