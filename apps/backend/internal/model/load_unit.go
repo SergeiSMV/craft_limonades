@@ -55,6 +55,7 @@ type Placement struct {
 	ToAddress   string
 	Source      string
 	ReceiptID   *string
+	PutawayID   *string
 	UserID      *string
 	PlacedAt    time.Time
 }
@@ -66,4 +67,5 @@ type PlaceLoadUnitInput struct {
 	Source     string  // PlacementReceipt | PlacementPutaway
 	UserID     string  // кто переносит; пусто — неизвестен
 	ReceiptID  *string // документ приёмки, если переносит она
+	PutawayID  *string // документ размещения, если переносит он (P5-02)
 }
