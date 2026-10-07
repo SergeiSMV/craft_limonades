@@ -46,8 +46,11 @@ type PutawayLineInput struct {
 }
 
 // PutawaySubmitInput — сеанс размещения, собранный устройством целиком (P5-02).
+//
+// TaskID обязателен: размещения без задания нет (P5-02-1).
 type PutawaySubmitInput struct {
 	PutawayID   string
+	TaskID      string
 	WarehouseID string
 	CreatedBy   string
 	Lines       []PutawayLineInput
@@ -71,9 +74,17 @@ func putawaySubmit(ctx context.Context, q Querier, in PutawaySubmitInput) (int, 
 	if len(in.Lines) == 0 {
 		return 0, ErrEmptyPutaway
 	}
+	if err := lockTaskForPutaway(ctx, q, in.TaskID, in.WarehouseID); err != nil {
+		return 0, err
+	}
+	rem, err := loadTaskRemainder(ctx, q, in.TaskID)
+	if err != nil {
+		return 0, err
+	}
 	if _, err := q.Exec(ctx, `
-		INSERT INTO putaways (id, warehouse_id, created_by) VALUES ($1::uuid, $2::uuid, $3::uuid)`,
-		in.PutawayID, in.WarehouseID, in.CreatedBy); err != nil {
+		INSERT INTO putaways (id, task_id, warehouse_id, created_by)
+		VALUES ($1::uuid, $2::uuid, $3::uuid, $4::uuid)`,
+		in.PutawayID, in.TaskID, in.WarehouseID, in.CreatedBy); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 			return 0, ErrPutawayPosted
@@ -95,6 +106,12 @@ func putawaySubmit(ctx context.Context, q Querier, in PutawaySubmitInput) (int, 
 		}
 		var row putawayLineRow
 		if ln.LoadUnitID != "" {
+			// Короб задания, ещё не размещённый им. Отметка сразу: второй раз в том же сеансе
+			// тот же короб — уже не позиция задания.
+			if !rem.boxes[ln.LoadUnitID] {
+				return 0, ErrNotInTask
+			}
+			rem.boxes[ln.LoadUnitID] = false
 			row, err = putawayLoadUnit(ctx, q, in, ln, iwh)
 		} else {
 			if receivingCell == "" {
@@ -106,7 +123,12 @@ func putawaySubmit(ctx context.Context, q Querier, in PutawaySubmitInput) (int, 
 					return 0, err
 				}
 			}
-			row, err = putawayLoose(ctx, q, ln, receivingCell, iwh)
+			var batchID string
+			batchID, err = taskBatch(ctx, q, ln, rem)
+			if err != nil {
+				return 0, err
+			}
+			row, err = putawayLoose(ctx, q, ln, batchID, receivingCell, iwh)
 		}
 		if err != nil {
 			return 0, err
@@ -115,7 +137,36 @@ func putawaySubmit(ctx context.Context, q Querier, in PutawaySubmitInput) (int, 
 			return 0, err
 		}
 	}
+	if err := settleTaskAfterPutaway(ctx, q, in.TaskID, in.CreatedBy); err != nil {
+		return 0, err
+	}
 	return len(in.Lines), nil
+}
+
+// taskBatch находит партию строки россыпи среди позиций задания и списывает с остатка задания
+// её количество. Партия задания — единственная, которую можно разместить: россыпь этой даты
+// не из задания размещается не здесь.
+func taskBatch(ctx context.Context, q Querier, ln PutawayLineInput, rem taskRemainder) (string, error) {
+	var batchID string
+	err := q.QueryRow(ctx, `
+		SELECT id::text FROM batches WHERE good_id = $1::uuid AND production_date = $2::date`,
+		ln.GoodID, ln.ProductionDate).Scan(&batchID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", ErrNotInTask
+	}
+	if err != nil {
+		return "", fmt.Errorf("найти партию: %w", err)
+	}
+	key := [2]string{ln.GoodID, batchID}
+	left, ok := rem.loose[key]
+	if !ok {
+		return "", ErrNotInTask
+	}
+	if left.LessThan(ln.Qty) {
+		return "", ErrExceedsTask
+	}
+	rem.loose[key] = left.Sub(ln.Qty)
+	return batchID, nil
 }
 
 // putawayLineRow — строка документа в том виде, в каком она ложится в putaway_lines.
@@ -213,24 +264,13 @@ func putawayLoadUnit(ctx context.Context, q Querier, in PutawaySubmitInput, ln P
 // Россыпь — это остаток ячейки за вычетом того, что лежит в ней же в коробах. Строка остатка
 // блокируется до проверки: иначе два сеанса одновременно увидели бы одну и ту же россыпь
 // и вместе забрали бы товар из-под короба.
-func putawayLoose(ctx context.Context, q Querier, ln PutawayLineInput, from, iwh string) (putawayLineRow, error) {
+func putawayLoose(ctx context.Context, q Querier, ln PutawayLineInput, batchID, from, iwh string) (putawayLineRow, error) {
 	if from == ln.ToCellID {
 		return putawayLineRow{}, ErrPutawaySameCell
 	}
-	var batchID string
-	err := q.QueryRow(ctx, `
-		SELECT id::text FROM batches WHERE good_id = $1::uuid AND production_date = $2::date`,
-		ln.GoodID, ln.ProductionDate).Scan(&batchID)
-	if errors.Is(err, pgx.ErrNoRows) {
-		// Партии нет вовсе — значит, и в ячейке приёмки этого товара этой даты нет.
-		return putawayLineRow{}, ErrLooseStockShort
-	}
-	if err != nil {
-		return putawayLineRow{}, fmt.Errorf("найти партию: %w", err)
-	}
 
 	var loose decimal.Decimal
-	err = q.QueryRow(ctx, `
+	err := q.QueryRow(ctx, `
 		WITH locked AS (
 			SELECT qty FROM stock
 			WHERE cell_id = $1::uuid AND good_id = $2::uuid AND batch_id = $3::uuid

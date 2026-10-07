@@ -14,6 +14,9 @@ import (
 // ErrInvalidPutawayID — идентификатор документа размещения не UUID.
 var ErrInvalidPutawayID = errors.New("putaway id must be a UUID")
 
+// ErrInvalidTaskID — задание сеанса не указано или не UUID: размещения без задания нет (P5-02-1).
+var ErrInvalidTaskID = errors.New("task id must be a UUID")
+
 // putawaySubmitPayload — тело операции putaway_submit, как его собирает устройство (P5-02).
 //
 // Строка — короб (`load_unit_id`) ЛИБО россыпь (`good_id` + `production_date` + `qty`);
@@ -21,6 +24,7 @@ var ErrInvalidPutawayID = errors.New("putaway id must be a UUID")
 // где числится, россыпь — из ячейки приёмки склада.
 type putawaySubmitPayload struct {
 	PutawayID   string `json:"putaway_id"`
+	TaskID      string `json:"task_id"`
 	WarehouseID string `json:"warehouse_id"`
 	Lines       []struct {
 		LoadUnitID     string          `json:"load_unit_id"`
@@ -43,11 +47,15 @@ func (s *OperationsService) putawaySubmit(ctx context.Context, userID, id string
 	}
 	in := repository.PutawaySubmitInput{
 		PutawayID:   strings.TrimSpace(p.PutawayID),
+		TaskID:      strings.TrimSpace(p.TaskID),
 		WarehouseID: strings.TrimSpace(p.WarehouseID),
 		CreatedBy:   userID,
 	}
 	if !isUUID(in.PutawayID) {
 		return repository.Applied{}, ErrInvalidPutawayID
+	}
+	if !isUUID(in.TaskID) {
+		return repository.Applied{}, ErrInvalidTaskID
 	}
 	if in.WarehouseID == "" {
 		return repository.Applied{}, ErrEmptyWarehouse

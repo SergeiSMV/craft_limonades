@@ -320,6 +320,7 @@ func TestOperations_putawaySubmitValidation(t *testing.T) {
 		good      = "55555555-5555-4555-8555-555555555555"
 		box       = "77777777-7777-4777-8777-777777777777"
 		cell      = "88888888-8888-4888-8888-888888888888"
+		task      = "99999999-0000-4000-8000-000000000001"
 	)
 	loose := func(over map[string]any) map[string]any {
 		l := map[string]any{"good_id": good, "production_date": "01-09-2026", "qty": 2, "to_cell_id": cell}
@@ -330,15 +331,18 @@ func TestOperations_putawaySubmitValidation(t *testing.T) {
 	}
 	boxLine := map[string]any{"load_unit_id": box, "to_cell_id": cell}
 	doc := func(lines ...any) map[string]any {
-		return map[string]any{"putaway_id": putaway, "warehouse_id": warehouse, "lines": lines}
+		return map[string]any{"putaway_id": putaway, "task_id": task, "warehouse_id": warehouse, "lines": lines}
 	}
 	cases := []struct {
 		name    string
 		payload map[string]any
 	}{
-		{"id документа не UUID", map[string]any{"putaway_id": "x", "warehouse_id": warehouse, "lines": []any{boxLine}}},
-		{"нет склада", map[string]any{"putaway_id": putaway, "lines": []any{boxLine}}},
-		{"пустой сеанс", map[string]any{"putaway_id": putaway, "warehouse_id": warehouse}},
+		{"id документа не UUID", map[string]any{"putaway_id": "x", "task_id": task, "warehouse_id": warehouse, "lines": []any{boxLine}}},
+		// Размещения без задания нет (P5-02-1).
+		{"нет задания", map[string]any{"putaway_id": putaway, "warehouse_id": warehouse, "lines": []any{boxLine}}},
+		{"задание не UUID", map[string]any{"putaway_id": putaway, "task_id": "№57", "warehouse_id": warehouse, "lines": []any{boxLine}}},
+		{"нет склада", map[string]any{"putaway_id": putaway, "task_id": task, "lines": []any{boxLine}}},
+		{"пустой сеанс", map[string]any{"putaway_id": putaway, "task_id": task, "warehouse_id": warehouse}},
 		{"нет ячейки назначения", doc(map[string]any{"load_unit_id": box})},
 		{"короб не UUID", doc(map[string]any{"load_unit_id": "CWLU1:x", "to_cell_id": cell})},
 		// Строка — короб ИЛИ россыпь: товарные поля у короба — противоречие.
@@ -374,7 +378,7 @@ func TestOperations_putawaySubmitValidation(t *testing.T) {
 		t.Fatalf("верное размещение: err=%v, исход %+v", err, res)
 	}
 	got := repo.putaways[0]
-	if got.CreatedBy != opUserID || len(got.Lines) != 2 {
+	if got.CreatedBy != opUserID || got.TaskID != task || len(got.Lines) != 2 {
 		t.Fatalf("разбор размещения: %+v", got)
 	}
 	if got.Lines[0].LoadUnitID != box || got.Lines[1].ProductionDate != "2026-09-01" || got.Lines[1].ToCellID != cell {

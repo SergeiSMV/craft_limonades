@@ -95,6 +95,7 @@ func newReceivingE2E(t *testing.T, ids map[string]string) *rcvEnv {
 		LoadUnit:   service.NewLoadUnitService(repository.NewLoadUnitRepository(pool)),
 		Receipt: service.NewReceiptService(repository.NewReceiptRepository(pool),
 			repository.NewCellRepository(pool)),
+		Task: service.NewTaskService(repository.NewTaskRepository(pool)),
 	})
 	e.srv = httptest.NewServer(router)
 	t.Cleanup(e.srv.Close)
