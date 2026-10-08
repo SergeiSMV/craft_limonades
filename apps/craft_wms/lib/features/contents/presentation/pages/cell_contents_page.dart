@@ -10,6 +10,7 @@ import '../../../../core/scanner/hardware_scan_listener.dart';
 import '../../../../core/scanner/scan_code.dart';
 import '../../../../core/widgets/page_header.dart';
 import '../../../../core/widgets/system_ui_wrapper.dart';
+import '../../../stock/presentation/stock_navigation.dart';
 import '../../domain/contents_entities.dart';
 import '../bloc/cell_contents_cubit.dart';
 import '../contents_navigation.dart';
@@ -69,6 +70,15 @@ class _CellContentsViewState extends State<_CellContentsView>
   void openLoadUnit(LoadUnitView loadUnit) =>
       context.router.push(LoadUnitRoute(loadUnitId: loadUnit.id));
 
+  /// Открыть карточку остатков товара из россыпи ячейки.
+  void openGood(ContentLine line) => openGoodCard(
+    context,
+    goodId: line.goodId,
+    name: line.goodName ?? t.contents.unknownGood,
+    code: line.goodCode,
+    uom: line.uom,
+  );
+
   @override
   Widget build(BuildContext context) {
     final state = context.watch<CellContentsCubit>().state;
@@ -91,6 +101,7 @@ class _CellContentsViewState extends State<_CellContentsView>
             data: data,
             onRefresh: reload,
             onOpenLoadUnit: openLoadUnit,
+            onOpenGood: openGood,
           ),
         ),
       ),

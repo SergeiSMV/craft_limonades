@@ -34,6 +34,23 @@ class ContentsApi {
     timeout: _viewTimeout,
   );
 
+  /// Короба по короткому коду — все, живые и нет (P5-05-1).
+  Future<Either<Failure, List<LoadUnitView>>> search(String code) => _get(
+    ApiConst.loadUnits,
+    (d) => [
+      for (final lu in d as List) loadUnitFromJson(lu as Map<String, dynamic>),
+    ],
+    query: {'code': code},
+    timeout: _viewTimeout,
+  );
+
+  /// История короба: приёмка и переносы (P5-05-1).
+  Future<Either<Failure, LoadUnitHistory>> history(String id) => _get(
+    ApiConst.loadUnitHistory(id),
+    (d) => historyFromJson(d as Map<String, dynamic>),
+    timeout: _viewTimeout,
+  );
+
   /// Снимок содержимого всего склада — ждём по общему таймауту: это весь склад одним ответом.
   Future<Either<Failure, ContentsSnapshot>> snapshot() => _get(
     ApiConst.contentsSnapshot,
@@ -43,11 +60,13 @@ class ContentsApi {
   Future<Either<Failure, T>> _get<T>(
     String path,
     T Function(Object? data) parse, {
+    Map<String, dynamic>? query,
     Duration? timeout,
   }) async {
     try {
       final resp = await _dio.get<Object?>(
         path,
+        queryParameters: query,
         options: timeout == null ? null : Options(receiveTimeout: timeout),
       );
       return Right(parse(resp.data));

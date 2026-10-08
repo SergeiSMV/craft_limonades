@@ -2,6 +2,8 @@ import 'package:craft_wms/core/error/failure.dart';
 import 'package:craft_wms/core/di/injection.dart';
 import 'package:craft_wms/features/contents/domain/contents_entities.dart';
 import 'package:craft_wms/features/contents/domain/contents_repository.dart';
+import 'package:craft_wms/features/contents/domain/load_unit_label_printer.dart';
+import 'package:craft_wms/features/contents/presentation/bloc/boxes_cubit.dart';
 import 'package:either_dart/either.dart';
 
 /// Заглушка загрузки снимка содержимого склада (P5-05): ничего не качает, считает просьбы.
@@ -52,6 +54,55 @@ class FakeContentsRepository implements ContentsRepository {
 
   @override
   Future<CellRef?> findCell(String address) async => cells[address];
+
+  /// Короба склада для вкладки «Короба» (P5-05-1).
+  List<LoadUnitView> units = const [];
+
+  /// Откуда список коробов и выдача поиска.
+  DataFreshness unitsFreshness = const FreshFromServer();
+
+  /// Что вернёт [history].
+  Either<Failure, LoadUnitHistory> historyResult = const Left(
+    Failure.network(),
+  );
+
+  /// Коды, по которым искали.
+  final List<String> searches = [];
+
+  @override
+  Future<Viewed<List<LoadUnitView>>> loadUnits({required bool fresh}) async =>
+      Viewed(units, unitsFreshness);
+
+  @override
+  Future<Either<Failure, Viewed<List<LoadUnitView>>>> searchLoadUnits(
+    String code,
+  ) async {
+    searches.add(code);
+    return Right(
+      Viewed([
+        for (final lu in units)
+          if (matchesShortCode(lu.id, code)) lu,
+      ], unitsFreshness),
+    );
+  }
+
+  @override
+  Future<Either<Failure, LoadUnitHistory>> history(String id) async =>
+      historyResult;
+}
+
+/// Заглушка печати ярлыка (P5-05-1): запоминает, что печатали, отвечает [error].
+class FakeLabelPrinter implements LoadUnitLabelPrinter {
+  final List<String> printed = [];
+
+  /// Текст ошибки печати; `null` — напечатано.
+  String? error;
+
+  @override
+  Future<String?> printLabel(String loadUnitId) async {
+    printed.add(loadUnitId);
+    return error;
+  }
 }
 
 /// Зарегистрировать [repo] как репозиторий содержимого в getIt (вместо прежнего).
@@ -63,5 +114,11 @@ FakeContentsRepository registerFakeContentsRepository([
     getIt.unregister<ContentsRepository>();
   }
   getIt.registerSingleton<ContentsRepository>(r);
+  // Вкладку «Короба» в «Остатках» (P5-05-1) страница создаёт всегда — кубиту нужен репозиторий
+  // и загрузка снимка.
+  if (getIt.isRegistered<BoxesCubit>()) getIt.unregister<BoxesCubit>();
+  getIt.registerFactory<BoxesCubit>(
+    () => BoxesCubit(r, FakeContentsSnapshotSync()),
+  );
   return r;
 }

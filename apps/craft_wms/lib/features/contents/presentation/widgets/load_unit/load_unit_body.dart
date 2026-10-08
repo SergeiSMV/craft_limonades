@@ -13,17 +13,37 @@ import '../../../../../core/utils/date_time_format.dart';
 import '../../../../../core/widgets/detail_card.dart';
 import '../../../../../core/widgets/section_title.dart';
 import '../../../domain/contents_entities.dart';
-import '../common/content_line_tile.dart';
 import '../common/contents_message.dart';
 import '../common/freshness_note.dart';
+import '../common/good_line_tile.dart';
 import '../common/pending_mark.dart';
+import 'reprint_button.dart';
 
-/// Карточка короба: короткий код, где лежит, что внутри (P5-05). Тянется вниз — перечитать.
+/// Карточка короба: короткий код, где лежит, что внутри (P5-05); перепечатка ярлыка
+/// и история (P5-05-1); товар в коробе ведёт в свою карточку. Тянется вниз — перечитать.
 class LoadUnitBody extends StatelessWidget {
-  const LoadUnitBody({super.key, required this.data, required this.onRefresh});
+  const LoadUnitBody({
+    super.key,
+    required this.data,
+    required this.onRefresh,
+    required this.reprintBusy,
+    required this.onReprint,
+    required this.onOpenGood,
+    required this.history,
+  });
 
   final Viewed<LoadUnitView> data;
   final Future<void> Function() onRefresh;
+
+  /// Идёт печать ярлыка.
+  final bool reprintBusy;
+  final VoidCallback onReprint;
+
+  /// Открыть карточку товара из строки содержимого.
+  final void Function(ContentLine line) onOpenGood;
+
+  /// Блок истории — со своим состоянием, поэтому приходит готовым виджетом.
+  final Widget history;
 
   @override
   Widget build(BuildContext context) {
@@ -39,14 +59,19 @@ class LoadUnitBody extends StatelessWidget {
           else ...[
             _header(lu),
             AppBoxes.kHeight8,
+            ReprintButton(busy: reprintBusy, onPressed: onReprint),
+            AppBoxes.kHeight8,
             FreshnessNote(freshness: data.freshness),
             SectionTitle(title: t.contents.linesTitle),
             if (lu.lines.isEmpty) ContentsMessage(text: t.contents.boxEmpty),
+            // Вертикальный отступ 8 у каждой плашки и боковой 8 у списка дают то же, что в
+            // «Товарах»: 8 от края экрана и 16 между плашками, тень не режется.
             for (final line in lu.lines)
               Padding(
-                padding: AppInsets.bottom8,
-                child: ContentLineTile(line: line),
+                padding: AppInsets.v8,
+                child: GoodLineTile(line: line, onTap: () => onOpenGood(line)),
               ),
+            history,
           ],
         ],
       ),

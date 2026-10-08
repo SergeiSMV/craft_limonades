@@ -150,3 +150,71 @@ class Viewed<T> {
   final T? value;
   final DataFreshness freshness;
 }
+
+/// Приёмка, которая завела короб: кто принял, от кого, когда оприходована (P5-05-1).
+class LoadUnitReceiptInfo {
+  const LoadUnitReceiptInfo({
+    required this.receivedBy,
+    this.supplier,
+    this.postedAt,
+  });
+
+  final String receivedBy;
+
+  /// `null` — приёмка без поставщика.
+  final String? supplier;
+
+  /// `null` — документ ещё не оприходован.
+  final DateTime? postedAt;
+}
+
+/// Перенос короба: откуда, куда, кто и когда (P5-05-1).
+class LoadUnitMove {
+  const LoadUnitMove({
+    this.from,
+    required this.to,
+    required this.byReceipt,
+    this.userName,
+    required this.at,
+  });
+
+  /// `null` — первое размещение: короб появился на складе.
+  final String? from;
+  final String to;
+
+  /// Перенос сделала приёмка (иначе — размещение).
+  final bool byReceipt;
+  final String? userName;
+  final DateTime at;
+}
+
+/// История короба: создание и переносы по порядку (P5-05-1). Только со связью.
+class LoadUnitHistory {
+  const LoadUnitHistory({
+    required this.createdAt,
+    this.receipt,
+    this.moves = const [],
+  });
+
+  final DateTime createdAt;
+
+  /// `null` — короб не попал ни в одну приёмку.
+  final LoadUnitReceiptInfo? receipt;
+  final List<LoadUnitMove> moves;
+}
+
+/// Короткий код с ярлыка для поиска: без пробелов и дефисов, заглавными; `null` — не код
+/// (нужны 1…8 знаков 0–9, A–F). Правило то же, что на сервере, — иначе терминал искал бы
+/// то, что сервер отвергнет.
+String? shortCodeQuery(String input) {
+  final code = input.replaceAll(RegExp(r'[\s-]'), '').toUpperCase();
+  return RegExp(r'^[0-9A-F]{1,8}$').hasMatch(code) ? code : null;
+}
+
+/// Совпадает ли короб с кодом [code] (уже приведённым [shortCodeQuery]): код входит в последние
+/// восемь знаков идентификатора — их печатает ярлык.
+bool matchesShortCode(String loadUnitId, String code) {
+  final hex = loadUnitId.replaceAll('-', '').toUpperCase();
+  final tail = hex.length > 8 ? hex.substring(hex.length - 8) : hex;
+  return tail.contains(code);
+}

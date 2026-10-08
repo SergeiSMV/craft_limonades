@@ -121,6 +121,71 @@ class ContentsRepositoryImpl implements ContentsRepository {
     return null;
   }
 
+  @override
+  Future<Viewed<List<LoadUnitView>>> loadUnits({required bool fresh}) async {
+    final overlay = await _overlay();
+    final all = overlay.applyToAll(await _cache.allLoadUnits());
+    final freshness = fresh
+        ? const FreshFromServer()
+        : FromSnapshot(await _cache.asOf());
+    return Viewed(await _sorted(all.values, overlay.cells), freshness);
+  }
+
+  @override
+  Future<Either<Failure, Viewed<List<LoadUnitView>>>> searchLoadUnits(
+    String code,
+  ) async {
+    final overlay = await _overlay();
+    final res = await _api.search(code);
+
+    Map<String, LoadUnitView> base;
+    DataFreshness freshness;
+    if (res.isRight) {
+      base = {for (final lu in res.right) lu.id: lu};
+      freshness = const FreshFromServer();
+    } else if (res.left is AuthFailure) {
+      return Left(res.left);
+    } else {
+      // Не только обрыв связи: сервер без этой ручки (старая версия) или со сбоем отвечает
+      // кодом, а короба на терминале уже есть. Поиск — удобство поверх снимка, и отказывать
+      // в нём, когда снимок под рукой, хуже, чем искать по снимку с подписью «данные на».
+      // Найдено на DT50S: прод ещё без ручки поиска, а кэш с коробами был.
+      base = await _cache.allLoadUnits();
+      freshness = FromSnapshot(await _cache.asOf());
+    }
+
+    // Короба своих неотправленных приёмок сервер ещё не знает — наложение их добавляет,
+    // поэтому отбор по коду идёт уже после него.
+    final found = overlay
+        .applyToAll(base)
+        .values
+        .where((lu) => matchesShortCode(lu.id, code));
+    return Right(Viewed(await _sorted(found, overlay.cells), freshness));
+  }
+
+  @override
+  Future<Either<Failure, LoadUnitHistory>> history(String id) =>
+      _api.history(id);
+
+  /// Короба с наименованиями и адресами — живые первыми, затем по адресу ячейки и времени
+  /// создания: так кладовщик идёт вдоль стеллажа.
+  Future<List<LoadUnitView>> _sorted(
+    Iterable<LoadUnitView> units,
+    OverlayCells cells,
+  ) async {
+    final named = [for (final lu in units) await _named(lu, cells)];
+    final epoch = DateTime.fromMillisecondsSinceEpoch(0);
+    named.sort((a, b) {
+      if (a.live != b.live) return a.live ? -1 : 1;
+      final byCell = (a.cellAddress ?? '\uffff').compareTo(
+        b.cellAddress ?? '\uffff',
+      );
+      if (byCell != 0) return byCell;
+      return (a.createdAt ?? epoch).compareTo(b.createdAt ?? epoch);
+    });
+    return named;
+  }
+
   /// Свои неотправленные приёмки и размещения вместе с ячейками, нужными для наложения.
   Future<PendingOverlay> _overlay() async {
     final ops = await _outbox.pending(limit: _queueLimit);
