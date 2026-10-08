@@ -67,6 +67,10 @@ class _OperationTileState extends State<OperationTile> {
         count:
             (operation.payload['lines'] as List<dynamic>? ?? const []).length,
       ),
+      OutboxKind.putawaySubmit => t.syncQueue.opPutaway(
+        count:
+            (operation.payload['lines'] as List<dynamic>? ?? const []).length,
+      ),
     };
     return Card(
       margin: AppInsets.bottom8,

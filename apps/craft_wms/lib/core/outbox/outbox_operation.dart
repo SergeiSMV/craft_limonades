@@ -18,7 +18,10 @@ enum OutboxKind {
   ///
   /// Одной, а не цепочкой «открыть → строка → … → оприходовать»: очередь отклонённую операцию
   /// снимает и идёт дальше, и отклонённая строка дала бы оприходование документа без неё.
-  receiptSubmit('receipt_submit');
+  receiptSubmit('receipt_submit'),
+
+  /// Сеанс размещения по заданию целиком (P5-03).
+  putawaySubmit('putaway_submit');
 
   const OutboxKind(this.wire);
 

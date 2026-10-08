@@ -1,0 +1,218 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:craft_wms/core/database/app_database.dart';
+import 'package:craft_wms/core/error/failure.dart';
+import 'package:craft_wms/core/load_unit/load_unit_id_generator.dart';
+import 'package:craft_wms/features/putaway/data/putaway_draft_store.dart';
+import 'package:craft_wms/features/putaway/data/putaway_repository.dart';
+import 'package:craft_wms/features/putaway/presentation/bloc/putaway_cubit.dart';
+import 'package:craft_wms/features/putaway/presentation/bloc/putaway_models.dart';
+import 'package:craft_wms/features/stock/data/catalog_models.dart';
+import 'package:craft_wms/features/tasks/data/tasks_models.dart';
+import 'package:drift/native.dart';
+import 'package:either_dart/either.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
+
+class _MockRepo extends Mock implements PutawayRepository {}
+
+class _FixedIds extends Mock implements LoadUnitIdGenerator {}
+
+/// Эталон формата — тот же файл, что применяет настоящий роутер сервера (P5-02-1).
+const _fixturePath = '../backend/internal/handler/testdata/putaway_submit.json';
+
+void main() {
+  late AppDatabase db;
+  late PutawayDraftStore drafts;
+  late _FixedIds ids;
+
+  const warehouse = '4d000000-0000-4000-8000-0000000000a1';
+  const box = '4d000000-0000-4000-8000-000000000004';
+  const good = TaskGood(
+    id: '4d000000-0000-4000-8000-0000000000c1',
+    code: '16121',
+    name: 'Кальмар',
+    uom: 'шт',
+  );
+
+  WarehouseTask task({String id = '4d000000-0000-4000-8000-0000000000e1'}) =>
+      WarehouseTask(
+        id: id,
+        number: 7,
+        kind: TaskKind.putaway,
+        status: TaskStatus.inProgress,
+        warehouseId: warehouse,
+        createdAt: DateTime(2026, 10, 8),
+        items: const [
+          TaskItem(lineNo: 1, loadUnitId: box),
+          TaskItem(
+            lineNo: 2,
+            good: good,
+            productionDate: '02-09-2026',
+            qty: '3',
+            remaining: '3',
+          ),
+        ],
+      );
+
+  Cell cell(
+    String id,
+    String address, {
+    bool isDefault = false,
+    String wh = warehouse,
+  }) => Cell(id: id, warehouseId: wh, address: address, isDefault: isDefault);
+
+  setUp(() {
+    db = AppDatabase.forTesting(NativeDatabase.memory());
+    drafts = PutawayDraftStore(db);
+    ids = _FixedIds();
+    when(() => ids.newId()).thenReturn('4d000000-0000-4000-8000-000000000003');
+  });
+  tearDown(() => db.close());
+
+  PutawayCubit cubitFor(WarehouseTask t) =>
+      PutawayCubit(_MockRepo(), drafts, ids, t);
+
+  test('клиент собирает сеанс ровно в формате эталона', () async {
+    final fixture =
+        jsonDecode(File(_fixturePath).readAsStringSync())
+            as Map<String, dynamic>;
+    final expected =
+        ((fixture['operations'] as List).single
+            as Map<String, dynamic>)['payload'];
+    final cubit = cubitFor(task());
+    await cubit.init();
+
+    // Тем же путём, что кладовщик: короб → ячейка, россыпь → количество → ячейка.
+    cubit.pickBox(box.toUpperCase()); // регистр со скана не важен
+    cubit.placeIn(cell('4d000000-0000-4000-8000-0000000000a4', 'M1-1-1-2'));
+    cubit.pickLoose(cubit.state.task.items[1], 3);
+    cubit.placeIn(cell('4d000000-0000-4000-8000-0000000000a3', 'M1-1-1-1'));
+
+    final payload = jsonDecode(jsonEncode(PutawayCubit.payload(cubit.state)));
+    expect(
+      payload,
+      expected,
+      reason: 'формат разошёлся с testdata/putaway_submit.json',
+    );
+    await cubit.close();
+  });
+
+  test(
+    'ячейка без взятого, ячейка приёмки и чужой склад — подсказки, а не строки',
+    () async {
+      final cubit = cubitFor(task());
+      await cubit.init();
+
+      cubit.placeIn(cell('c1', 'A-1'));
+      expect(cubit.state.notice, isA<NoticePickFirst>());
+
+      cubit.pickBox(box);
+      cubit.placeIn(cell('c0', 'С-Н-П', isDefault: true));
+      expect(cubit.state.notice, isA<NoticeReceivingCell>());
+      cubit.placeIn(cell('c9', 'Z-1', wh: 'other'));
+      expect(cubit.state.notice, isA<NoticeForeignCell>());
+
+      expect(cubit.state.lines, isEmpty);
+      expect(cubit.state.pick, isNotNull, reason: 'короб остаётся в руках');
+      await cubit.close();
+    },
+  );
+
+  test('короб не из задания и уже положенный — не берутся', () async {
+    final cubit = cubitFor(task());
+    await cubit.init();
+
+    cubit.pickBox('00000000-0000-4000-8000-000000000000');
+    expect(cubit.state.notice, isA<NoticeNotInTask>());
+
+    cubit.pickBox(box);
+    cubit.placeIn(cell('c1', 'A-1'));
+    cubit.pickBox(box);
+    expect(cubit.state.notice, isA<NoticeAlreadyPlaced>());
+    expect(cubit.state.openBoxes, isEmpty);
+    await cubit.close();
+  });
+
+  test(
+    'россыпь: остаток уменьшается, больше остатка не взять, одна ячейка — одна строка',
+    () async {
+      final cubit = cubitFor(task());
+      await cubit.init();
+      final loose = cubit.state.task.items[1];
+
+      cubit.pickLoose(loose, 1);
+      cubit.placeIn(cell('c1', 'A-1'));
+      cubit.pickLoose(loose, 1);
+      cubit.placeIn(cell('c1', 'A-1'));
+      expect(cubit.state.lines, hasLength(1));
+      expect(cubit.state.lines.single.pick.qty, 2);
+      expect(cubit.state.looseLeft(loose), 1);
+
+      cubit.pickLoose(loose, 2); // больше остатка
+      expect(cubit.state.pick, isNull);
+      await cubit.close();
+    },
+  );
+
+  test(
+    'незавершённый сеанс переживает перезапуск, чужой — не затирается',
+    () async {
+      final first = cubitFor(task());
+      await first.init();
+      first.pickBox(box);
+      first.placeIn(cell('c1', 'A-1'));
+      await first.draftWrites;
+      await first.close();
+
+      final again = cubitFor(task());
+      await again.init();
+      expect(again.state.lines, hasLength(1));
+      expect(again.state.lines.single.cell.address, 'A-1');
+      await again.close();
+
+      // Другое задание: его сеанс не начинается, пока не решён чужой черновик. Отбросив его,
+      // кладовщик отдаёт то задание в пул.
+      final repo = _MockRepo();
+      when(
+        () => repo.releaseTask(any()),
+      ).thenAnswer((_) async => const Right(null));
+      final other = PutawayCubit(repo, drafts, ids, task(id: 'другое'));
+      await other.init();
+      expect(other.state.foreignDraftNumber, 7);
+      await other.discardForeignDraft();
+      verify(
+        () => repo.releaseTask('4d000000-0000-4000-8000-0000000000e1'),
+      ).called(1);
+      expect(other.state.notice, isNull);
+      await other.draftWrites;
+      expect(other.state.foreignDraftNumber, isNull);
+      expect((await drafts.load())?['task_id'], 'другое');
+      await other.close();
+    },
+  );
+
+  test(
+    'без связи отброшенное задание не отдать — кладовщик узнаёт, что оно вернётся само',
+    () async {
+      final first = cubitFor(task());
+      await first.init();
+      first.pickBox(box);
+      await first.draftWrites;
+      await first.close();
+
+      final repo = _MockRepo();
+      when(
+        () => repo.releaseTask(any()),
+      ).thenAnswer((_) async => const Left(Failure.network()));
+      final other = PutawayCubit(repo, drafts, ids, task(id: 'другое'));
+      await other.init();
+      await other.discardForeignDraft();
+
+      expect(other.state.notice, const PutawayNotice.releaseOffline(7));
+      expect(other.state.foreignDraftNumber, isNull);
+      await other.close();
+    },
+  );
+}
