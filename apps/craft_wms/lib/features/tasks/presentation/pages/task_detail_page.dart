@@ -12,6 +12,7 @@ import '../../../../core/error/failure.dart';
 import '../../../../core/error/failure_reason.dart';
 import '../../../../core/gen/assets.gen.dart';
 import '../../../../core/gen/strings.g.dart';
+import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/theme/semibold_text.dart';
 import '../../../../core/widgets/page_header.dart';
@@ -75,8 +76,15 @@ class _TaskDetailView extends StatelessWidget {
     if (ok == true) await cubit.release();
   }
 
-  /// Выполнение задания на размещение — P5-03.
-  void execute(BuildContext context) => snack(context, t.homeScreen.stubSnack);
+  /// Начать размещение по заданию (P5-03); по возврату карточка обновляется — задание могло
+  /// быть выполнено или вернуться в пул.
+  Future<void> execute(BuildContext context) async {
+    final cubit = context.read<TaskDetailCubit>();
+    final task = cubit.state.task;
+    if (task == null) return;
+    await context.router.push(PutawayRoute(task: task));
+    await cubit.refresh();
+  }
 
   /// Показать итог «Взять» / «Отказаться» и забыть его.
   void onAction(BuildContext context, TaskDetailState state) {

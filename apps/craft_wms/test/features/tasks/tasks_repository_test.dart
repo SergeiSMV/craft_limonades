@@ -106,7 +106,7 @@ void main() {
     () async {
       final counts = <int>[];
       final sub = repo.watchCurrentCount().listen(counts.add);
-    await pumpEventQueue(); // первое значение — до любого снимка
+      await pumpEventQueue(); // первое значение — до любого снимка
 
       when(() => api.current()).thenAnswer((_) async => Right([serverTask()]));
       await repo.current();
@@ -135,4 +135,38 @@ void main() {
     expect(ev.prevUser, 'Кладовщик');
     expect(ev.putawayId, isNull);
   });
+
+  test(
+    'сеанс без связи отмечается в снимке: размещённое не предлагается повторно',
+    () async {
+      when(() => api.current()).thenAnswer((_) async => Right([serverTask()]));
+      await repo.current();
+      final cache = TasksCache(db);
+      final task = serverTask();
+
+      // Короб размещён, россыпи из трёх оставшихся положено две.
+      await cache.applyPutaway(
+        taskId: task.id,
+        boxes: {task.items.first.loadUnitId!},
+        loose: {(task.items.last.good!.id, task.items.last.productionDate!): 2},
+      );
+      final (tasks, _) = (await cache.read())!;
+      final updated = tasks.single;
+      expect(updated.items.first.placed, isTrue);
+      expect(double.parse(updated.items.last.remaining!), 1);
+      expect(
+        updated.status,
+        TaskStatus.fresh,
+        reason: 'частичный сеанс возвращает задание в пул',
+      );
+
+      // Остаток положен — задание уходит из текущих, как уйдёт на сервере.
+      await cache.applyPutaway(
+        taskId: task.id,
+        boxes: const {},
+        loose: {(task.items.last.good!.id, task.items.last.productionDate!): 1},
+      );
+      expect((await cache.read())!.$1, isEmpty);
+    },
+  );
 }
