@@ -3,6 +3,7 @@ package repository_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -237,12 +238,73 @@ func TestTasks_migrationBackfillsReceipts(t *testing.T) {
 	lu := newLU(t, pf.stockFixture, model.LoadUnitBox)
 	pf.receive(t, []string{lu}, 5)
 
+	execMigration(t, pf.stockFixture, "000020_task_events.down.sql")
 	execMigration(t, pf.stockFixture, "000019_warehouse_tasks.down.sql")
 	execMigration(t, pf.stockFixture, "000019_warehouse_tasks.up.sql")
+	execMigration(t, pf.stockFixture, "000020_task_events.up.sql")
 
-	tasks, err := repository.NewTaskRepository(pf.pool).Current(context.Background(), pf.user, stale)
+	repo := repository.NewTaskRepository(pf.pool)
+	tasks, err := repo.Current(context.Background(), pf.user, stale)
 	mustNoErr(t, err)
 	if len(tasks) != 1 || len(tasks[0].Items) != 2 || tasks[0].ReceiptID == nil {
 		t.Fatalf("задания после миграции: %+v", tasks)
+	}
+	// Миграция 000020 восстанавливает журнал: у прежнего задания есть хотя бы «создано».
+	events, err := repo.Events(context.Background(), tasks[0].ID)
+	mustNoErr(t, err)
+	if len(events) != 1 || events[0].Event != model.TaskEventCreated {
+		t.Errorf("журнал после миграции: %+v", events)
+	}
+}
+
+// Журнал задания: создано системой, взято, отказ, снова взято, перехвачено как зависшее,
+// заход и завершение — по порядку и с теми, кто это сделал.
+func TestTasks_eventsJournal(t *testing.T) {
+	pf := setupPutaway(t)
+	ctx := context.Background()
+	repo := repository.NewTaskRepository(pf.pool)
+	other := newUserNamed(t, pf, "90000088", "Второй")
+	lu := newLU(t, pf.stockFixture, model.LoadUnitBox)
+	task := pf.receive(t, []string{lu}, 0)
+
+	mustNoErr(t, repo.Take(ctx, task, pf.user, stale))
+	mustNoErr(t, repo.Take(ctx, task, pf.user, stale)) // повтор своим — не событие
+	mustNoErr(t, repo.Release(ctx, task, pf.user))
+	mustNoErr(t, repo.Release(ctx, task, pf.user)) // повторный отказ — не событие
+	mustNoErr(t, repo.Take(ctx, task, pf.user, stale))
+	if _, err := pf.pool.Exec(ctx, `UPDATE warehouse_tasks SET last_activity_at = now() - interval '9 hours'
+		WHERE id = $1::uuid`, task); err != nil {
+		t.Fatal(err)
+	}
+	mustNoErr(t, repo.Take(ctx, task, other, stale))
+	putaway := uuid.NewString()
+	if _, err := pf.ops.PutawaySubmit(ctx, uuid.NewString(), repository.PutawaySubmitInput{
+		PutawayID: putaway, TaskID: task, WarehouseID: pf.wh, CreatedBy: other,
+		Lines: []repository.PutawayLineInput{boxTo(lu, pf.cellB)},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	events, err := repo.Events(ctx, task)
+	mustNoErr(t, err)
+	var got []string
+	for _, e := range events {
+		got = append(got, e.Event)
+	}
+	want := []string{
+		model.TaskEventCreated, model.TaskEventTaken, model.TaskEventReleased, model.TaskEventTaken,
+		model.TaskEventIntercepted, model.TaskEventSession, model.TaskEventCompleted,
+	}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("журнал: %v, ожидалось %v", got, want)
+	}
+	if events[0].UserName != "" {
+		t.Errorf("создание приёмкой — системное событие, автор: %q", events[0].UserName)
+	}
+	if ic := events[4]; ic.UserName != "Второй" || ic.PrevUserName != "Кладовщик" {
+		t.Errorf("перехват: кто %q, у кого %q", ic.UserName, ic.PrevUserName)
+	}
+	if s := events[5]; s.PutawayID == nil || *s.PutawayID != putaway {
+		t.Errorf("заход без ссылки на документ: %+v", s)
 	}
 }

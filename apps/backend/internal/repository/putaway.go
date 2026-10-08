@@ -137,6 +137,9 @@ func putawaySubmit(ctx context.Context, q Querier, in PutawaySubmitInput) (int, 
 			return 0, err
 		}
 	}
+	if err := addTaskEvent(ctx, q, in.TaskID, model.TaskEventSession, in.CreatedBy, "", in.PutawayID); err != nil {
+		return 0, err
+	}
 	if err := settleTaskAfterPutaway(ctx, q, in.TaskID, in.CreatedBy); err != nil {
 		return 0, err
 	}

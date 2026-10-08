@@ -167,6 +167,38 @@ abstract class TaskSession with _$TaskSession {
       _$TaskSessionFromJson(json);
 }
 
+/// События журнала задания.
+abstract final class TaskEventKind {
+  static const created = 'created';
+  static const taken = 'taken';
+  static const released = 'released';
+  static const intercepted = 'intercepted';
+  static const session = 'session';
+  static const completed = 'completed';
+}
+
+/// Запись журнала задания: что случилось, кто, когда. [user] пуст у системных событий.
+@freezed
+abstract class TaskEvent with _$TaskEvent {
+  const factory TaskEvent({
+    required String event,
+    @Default('') String user,
+    @JsonKey(name: 'prev_user') @Default('') String prevUser,
+    @JsonKey(name: 'putaway_id') String? putawayId,
+    required DateTime at,
+  }) = _TaskEvent;
+
+  factory TaskEvent.fromJson(Map<String, dynamic> json) =>
+      _$TaskEventFromJson(json);
+}
+
+/// Карточка задания с сервера: задание, заходы и журнал событий.
+typedef TaskDetailData = ({
+  WarehouseTask task,
+  List<TaskSession> sessions,
+  List<TaskEvent> events,
+});
+
 /// Фильтр ленты «Завершённые». Пустые поля ленту не сужают.
 @freezed
 abstract class CompletedFilter with _$CompletedFilter {

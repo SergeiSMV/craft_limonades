@@ -100,4 +100,39 @@ void main() {
 
     expect(res.left, isA<ServerFailure>());
   });
+
+  test(
+    'счётчик для плитки следует за снимком, в том числе за пустым',
+    () async {
+      final counts = <int>[];
+      final sub = repo.watchCurrentCount().listen(counts.add);
+    await pumpEventQueue(); // первое значение — до любого снимка
+
+      when(() => api.current()).thenAnswer((_) async => Right([serverTask()]));
+      await repo.current();
+      await pumpEventQueue();
+      when(
+        () => api.current(),
+      ).thenAnswer((_) async => const Right(<WarehouseTask>[]));
+      await repo.current();
+      await pumpEventQueue();
+      await sub.cancel();
+
+      // До первого снимка — 0, затем 1, затем снова 0: задание ушло из текущих.
+      expect(counts.first, 0);
+      expect(counts, containsAllInOrder([1, 0]));
+    },
+  );
+
+  test('ответ сервера с журналом разбирается', () {
+    final ev = TaskEvent.fromJson(const {
+      'event': 'intercepted',
+      'user': 'Второй',
+      'prev_user': 'Кладовщик',
+      'at': '2026-10-07T12:00:00Z',
+    });
+    expect(ev.event, TaskEventKind.intercepted);
+    expect(ev.prevUser, 'Кладовщик');
+    expect(ev.putawayId, isNull);
+  });
 }

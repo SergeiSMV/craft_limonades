@@ -21,6 +21,7 @@ import '../../../../core/theme/bold_text.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/widgets/pending_pass_badge.dart';
 import '../../../../core/widgets/system_ui_wrapper.dart';
+import '../../../tasks/presentation/widgets/common/current_tasks_count_builder.dart';
 import '../widgets/menu_tile.dart';
 import '../../../receipt/data/receipt_draft_store.dart';
 import '../../../sync/presentation/bloc/sync_status_cubit.dart';
@@ -265,12 +266,16 @@ class HomePage extends StatelessWidget {
                         enabled: false,
                         onTap: () => showStub(context),
                       ),
-                      MenuTile(
-                        title: t.homeScreen.tiles.tasksTitle,
-                        subtitle: t.homeScreen.tiles.tasksSubtitle,
-                        imageIcon: Assets.icons.menuIcons.tasks,
-                        color: AppColors.kTileTasks,
-                        onTap: () => openTasks(context),
+                      // Счётчик текущих заданий — из снимка на терминале, работает без связи.
+                      CurrentTasksCountBuilder(
+                        builder: (context, count) => MenuTile(
+                          title: t.homeScreen.tiles.tasksTitle,
+                          subtitle: t.homeScreen.tiles.tasksSubtitle,
+                          imageIcon: Assets.icons.menuIcons.tasks,
+                          color: AppColors.kTileTasks,
+                          badgeCount: count,
+                          onTap: () => openTasks(context),
+                        ),
                       ),
                       // Пометка незавершённого прохода: вход в «Ввод остатков» лежит внутри
                       // «Остатков», и кладовщик должен увидеть незакрытый проход уже отсюда.
