@@ -5,6 +5,7 @@ import 'package:craft_wms/core/theme/app_theme.dart';
 import 'package:craft_wms/features/contents/domain/contents_entities.dart';
 import 'package:craft_wms/features/contents/presentation/bloc/cell_contents_cubit.dart';
 import 'package:craft_wms/features/contents/presentation/bloc/load_unit_cubit.dart';
+import 'package:craft_wms/features/contents/presentation/bloc/load_unit_history_cubit.dart';
 import 'package:craft_wms/features/contents/presentation/pages/cell_contents_page.dart';
 import 'package:craft_wms/features/contents/presentation/pages/load_unit_page.dart';
 import 'package:either_dart/either.dart';
@@ -17,6 +18,7 @@ import '../../support/fake_scanner_service.dart';
 /// Экраны «Ячейка» и «Короб» (P5-05): что видно со связью, без связи и когда показать нечего.
 void main() {
   late FakeContentsRepository repo;
+  late FakeLabelPrinter printer;
   final asOf = DateTime(2026, 10, 8, 14, 30);
 
   setUp(() {
@@ -24,12 +26,19 @@ void main() {
     // Экраны подписаны на аппаратный сканер — ему нужна раздача кодов.
     registerFakeScanner();
     repo = registerFakeContentsRepository();
+    printer = FakeLabelPrinter();
+    if (getIt.isRegistered<LoadUnitHistoryCubit>()) {
+      getIt.unregister<LoadUnitHistoryCubit>();
+    }
+    getIt.registerFactory<LoadUnitHistoryCubit>(
+      () => LoadUnitHistoryCubit(repo),
+    );
     if (getIt.isRegistered<CellContentsCubit>()) {
       getIt.unregister<CellContentsCubit>();
     }
     if (getIt.isRegistered<LoadUnitCubit>()) getIt.unregister<LoadUnitCubit>();
     getIt.registerFactory<CellContentsCubit>(() => CellContentsCubit(repo));
-    getIt.registerFactory<LoadUnitCubit>(() => LoadUnitCubit(repo));
+    getIt.registerFactory<LoadUnitCubit>(() => LoadUnitCubit(repo, printer));
   });
 
   Widget wrap(Widget page) => MaterialApp(theme: buildAppTheme(), home: page);
@@ -142,5 +151,108 @@ void main() {
     expect(find.text(t.contents.notLive), findsOneWidget);
     expect(find.text(t.contents.notPlaced), findsOneWidget);
     expect(find.text(t.contents.boxEmpty), findsOneWidget);
+  });
+
+  group('карточка короба: перепечатка и история (P5-05-1)', () {
+    const box = LoadUnitView(
+      id: '5a0c1d2e-3f40-4b51-8c62-7d8e9fa0b1c2',
+      cellId: 'c1',
+      cellAddress: 'A-1-1',
+      live: true,
+    );
+
+    testWidgets(
+      '«Перепечатать ярлык» печатает этот короб и говорит об успехе',
+      (tester) async {
+        repo.loadUnitResult = const Right(Viewed(box, FreshFromServer()));
+
+        await tester.pumpWidget(wrap(LoadUnitPage(loadUnitId: box.id)));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(t.contents.reprint));
+        await tester.pumpAndSettle();
+
+        expect(printer.printed, [box.id]);
+        expect(find.text(t.contents.reprinted), findsOneWidget);
+      },
+    );
+
+    testWidgets('ошибка принтера — её текст, а не «отправлен»', (tester) async {
+      repo.loadUnitResult = const Right(Viewed(box, FreshFromServer()));
+      printer.error = 'Принтер не выбран';
+
+      await tester.pumpWidget(wrap(LoadUnitPage(loadUnitId: box.id)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(t.contents.reprint));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Принтер не выбран'), findsOneWidget);
+      expect(find.text(t.contents.reprinted), findsNothing);
+    });
+
+    testWidgets('без связи: карточка из снимка, история — «только со связью»', (
+      tester,
+    ) async {
+      repo.loadUnitResult = Right(Viewed(box, FromSnapshot(asOf)));
+      repo.historyResult = const Left(Failure.network());
+
+      await tester.pumpWidget(wrap(LoadUnitPage(loadUnitId: box.id)));
+      await tester.pumpAndSettle();
+
+      expect(find.text(t.contents.historyOnlineOnly), findsOneWidget);
+      expect(find.text(t.contents.reprint), findsOneWidget);
+    });
+
+    testWidgets('история: кто принял, поставщик, перенос с ФИО', (
+      tester,
+    ) async {
+      repo.loadUnitResult = const Right(Viewed(box, FreshFromServer()));
+      repo.historyResult = Right(
+        LoadUnitHistory(
+          createdAt: DateTime(2026, 10, 8, 9),
+          receipt: LoadUnitReceiptInfo(
+            receivedBy: 'Иванов И.',
+            supplier: 'ООО «Голсера»',
+            postedAt: DateTime(2026, 10, 8, 10),
+          ),
+          moves: [
+            LoadUnitMove(
+              to: 'С-Н-П',
+              byReceipt: true,
+              userName: 'Иванов И.',
+              at: DateTime(2026, 10, 8, 10),
+            ),
+            LoadUnitMove(
+              from: 'С-Н-П',
+              to: 'A-1-1',
+              byReceipt: false,
+              userName: 'Петров П.',
+              at: DateTime(2026, 10, 8, 11, 5),
+            ),
+          ],
+        ),
+      );
+
+      await tester.pumpWidget(wrap(LoadUnitPage(loadUnitId: box.id)));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(t.contents.historyReceived(name: 'Иванов И.')),
+        findsOneWidget,
+      );
+      expect(
+        find.text(t.contents.historySupplier(name: 'ООО «Голсера»')),
+        findsOneWidget,
+      );
+      expect(
+        find.text(t.contents.movePutaway(from: 'С-Н-П', to: 'A-1-1')),
+        findsOneWidget,
+      );
+      expect(
+        find.text(
+          t.contents.moveBy(name: 'Петров П.', time: '08.10.2026 11:05'),
+        ),
+        findsOneWidget,
+      );
+    });
   });
 }

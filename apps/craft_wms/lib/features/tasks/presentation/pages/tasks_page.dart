@@ -10,11 +10,11 @@ import '../../../../core/di/injection.dart';
 import '../../../../core/gen/assets.gen.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/widgets/page_header.dart';
+import '../../../../core/widgets/tab_switch.dart';
 import '../../../../core/widgets/system_ui_wrapper.dart';
 import '../bloc/completed_tasks_cubit.dart';
 import '../bloc/current_tasks_cubit.dart';
 import '../widgets/common/tasks_filter_button.dart';
-import '../widgets/common/tasks_tab_switch.dart';
 import '../widgets/completed/completed_feed.dart';
 import '../widgets/current/current_tasks_view.dart';
 
@@ -87,7 +87,12 @@ class _TasksViewState extends State<_TasksView> {
           children: [
             Padding(
               padding: AppInsets.h8 + AppInsets.v16,
-              child: TasksTabSwitch(selected: _tab, onSelected: selectTab),
+              child: TabSwitch(
+                labels: [t.tasks.tabCurrent, t.tasks.tabCompleted],
+                selected: _tab,
+                onSelected: selectTab,
+                activeColor: AppColors.kTileTasks,
+              ),
             ),
             Expanded(
               child: IndexedStack(

@@ -90,6 +90,11 @@ class ContentsCache {
     return _withLines(rows);
   }
 
+  /// Все короба снимка (P5-05-1) — для вкладки «Короба» и поиска без связи. Целиком, без
+  /// страниц: на масштабе пилота это сотни строк, а список на экране строится лениво.
+  Future<Map<String, LoadUnitView>> allLoadUnits() async =>
+      _withLines(await _db.select(_db.cachedLoadUnits).get());
+
   /// Короба снимка в ячейке.
   Future<List<LoadUnitView>> loadUnitsInCell(String cellId) async {
     final rows =

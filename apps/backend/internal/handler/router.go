@@ -206,6 +206,9 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 					Get("/contents/snapshot", contentsH.Snapshot) // кэш ТСД: короба и россыпь
 				r.Get("/cells/{id}/contents", contentsH.CellContents)  // что лежит в ячейке
 				r.Get("/load-units/{id}/card", contentsH.LoadUnitCard) // что за короб и где
+				// P5-05-1: поиск по короткому коду с ярлыка и история — для перепечатки ярлыка.
+				r.Get("/load-units", contentsH.SearchLoadUnits)              // ?code=… — все короба
+				r.Get("/load-units/{id}/history", contentsH.LoadUnitHistory) // приёмка и переносы
 			})
 		}
 

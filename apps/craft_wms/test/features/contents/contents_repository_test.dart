@@ -206,4 +206,119 @@ void main() {
     await cache.replace(fixture);
     expect((await cache.loadUnits([box])).keys, [box]);
   });
+
+  group('вкладка «Короба» (P5-05-1)', () {
+    /// Своя неотправленная приёмка: новый короб в ячейку приёмки.
+    Future<void> pendingReceipt(String id) => outbox.enqueue(
+      kind: OutboxKind.receiptSubmit,
+      payload: {
+        'warehouse_id': wh,
+        'load_units': [
+          {'id': id, 'kind': 'box'},
+        ],
+        'lines': [
+          {
+            'good_id': good,
+            'production_date': '01-09-2026',
+            'qty': 1,
+            'load_unit_id': id,
+          },
+        ],
+      },
+    );
+
+    test(
+      'список: снимок и своя приёмка поверх, с адресами и подписью',
+      () async {
+        await cache.replace(fixture);
+        const own = '11111111-2222-4333-8444-555566667777';
+        await pendingReceipt(own);
+
+        final list = await repo.loadUnits(fresh: false);
+        expect(list.value!.map((e) => e.id), [box, own]); // A-1-1 раньше С-Н-П
+        expect(list.value![0].cellAddress, 'A-1-1');
+        expect(list.value![1].cellAddress, 'С-Н-П');
+        expect(list.value![1].pending, isTrue);
+        expect(list.freshness, isA<FromSnapshot>());
+
+        expect(
+          (await repo.loadUnits(fresh: true)).freshness,
+          isA<FreshFromServer>(),
+        );
+      },
+    );
+
+    test('поиск без связи — по хвосту id в снимке и своей очереди', () async {
+      await cache.replace(fixture);
+      const own = '11111111-2222-4333-8444-555566667777';
+      await pendingReceipt(own);
+      when(
+        () => api.search(any()),
+      ).thenAnswer((_) async => const Left(Failure.network()));
+
+      final byFixture = (await repo.searchLoadUnits('9FA0')).right;
+      expect(byFixture.value!.map((e) => e.id), [box]);
+      expect(byFixture.freshness, isA<FromSnapshot>());
+
+      final byOwn = (await repo.searchLoadUnits('66667777')).right;
+      expect(byOwn.value!.single.id, own);
+      expect(byOwn.value!.single.pending, isTrue);
+
+      // Начало UUID в коротком коде не участвует — его нет на ярлыке.
+      expect((await repo.searchLoadUnits('5A0C')).right.value, isEmpty);
+    });
+
+    test('сервер без ручки поиска (старая версия) — поиск по снимку', () async {
+      await cache.replace(fixture);
+      when(
+        () => api.search(any()),
+      ).thenAnswer((_) async => const Left(Failure.server(405)));
+
+      final found = (await repo.searchLoadUnits('7B7A')).right;
+      expect(found.freshness, isA<FromSnapshot>());
+      expect((await repo.searchLoadUnits('9FA0')).right.value!.single.id, box);
+    });
+
+    test('истёкшая сессия — отказ, а не снимок', () async {
+      when(
+        () => api.search(any()),
+      ).thenAnswer((_) async => const Left(Failure.auth()));
+
+      expect((await repo.searchLoadUnits('9FA0')).left, isA<AuthFailure>());
+    });
+
+    test('поиск со связью — выдача сервера, неживой короб тоже', () async {
+      when(() => api.search('9FA0')).thenAnswer(
+        (_) async => const Right([LoadUnitView(id: box, live: false)]),
+      );
+
+      final found = (await repo.searchLoadUnits('9FA0')).right;
+      expect(found.freshness, isA<FreshFromServer>());
+      expect(found.value!.single.live, isFalse);
+    });
+
+    test('история — только по сети', () async {
+      when(() => api.history(box)).thenAnswer(
+        (_) async => Right(LoadUnitHistory(createdAt: DateTime(2026, 10, 8))),
+      );
+
+      expect((await repo.history(box)).isRight, isTrue);
+      when(
+        () => api.history(box),
+      ).thenAnswer((_) async => const Left(Failure.network()));
+      expect((await repo.history(box)).left, isA<NetworkFailure>());
+    });
+  });
+
+  test('короткий код: приведение и совпадение по хвосту', () {
+    expect(shortCodeQuery(' 9fa0 b1c2 '), '9FA0B1C2');
+    expect(shortCodeQuery('9fa0-b1'), '9FA0B1');
+    expect(shortCodeQuery('XYZ'), isNull);
+    expect(shortCodeQuery('123456789'), isNull);
+    expect(shortCodeQuery(''), isNull);
+
+    expect(matchesShortCode(box, '9FA0B1C2'), isTrue);
+    expect(matchesShortCode(box, 'A0B1'), isTrue);
+    expect(matchesShortCode(box, '5A0C'), isFalse);
+  });
 }

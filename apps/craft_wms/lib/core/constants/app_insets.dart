@@ -83,6 +83,12 @@ abstract final class AppInsets {
     horizontal: 40,
     vertical: 48,
   ); // зона загрузки
+  /// Внутренний отступ неоморфной плашки списка — тот, что NeumorphicButton берёт по умолчанию:
+  /// нажимаемые и простые плашки одного списка должны быть одной высоты (P5-05-1).
+  static const EdgeInsets neumorphicTile = EdgeInsets.symmetric(
+    horizontal: 18,
+    vertical: 10,
+  );
   static const EdgeInsets badge = EdgeInsets.symmetric(
     horizontal: 12,
     vertical: 4,

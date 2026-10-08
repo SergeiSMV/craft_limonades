@@ -56,6 +56,14 @@ class PendingOverlay {
     return _addressed(boxes[id]);
   }
 
+  /// Все короба склада с наложенными операциями (P5-05-1): короба своих неотправленных приёмок
+  /// добавляются, переносы своих размещений меняют ячейку. Россыпь не трогается.
+  Map<String, LoadUnitView> applyToAll(Map<String, LoadUnitView> base) {
+    final boxes = {...base};
+    _run(boxes);
+    return boxes.map((id, lu) => MapEntry(id, _addressed(lu)!));
+  }
+
   /// Ячейка с наложенными операциями.
   ///
   /// [known] — короба из снимка, которые упоминают операции (см. [referencedLoadUnits]):

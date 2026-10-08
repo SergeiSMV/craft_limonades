@@ -3,6 +3,7 @@ package repository_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -141,5 +142,87 @@ func TestContents_looseAgreesWithPutaway(t *testing.T) {
 	mustNoErr(t, err)
 	if len(a.Loose) != 0 || len(a.LoadUnits) != 1 {
 		t.Errorf("A после размещения россыпи: короба %+v, россыпь %+v", a.LoadUnits, a.Loose)
+	}
+}
+
+// tail — короткий код с ярлыка: последние восемь знаков UUID без дефисов, заглавными.
+func tail(id string) string {
+	hex := strings.ToUpper(strings.ReplaceAll(id, "-", ""))
+	return hex[len(hex)-8:]
+}
+
+// Поиск по короткому коду находит и живой короб, и неживой — с признаком; частичный код тоже.
+func TestContents_searchByShortCode(t *testing.T) {
+	pf, boxB, _ := setupContents(t)
+	idle := newLU(t, pf.stockFixture, model.LoadUnitBox) // не размещён и пуст
+	repo := repository.NewContentsRepository(pf.pool)
+	ctx := context.Background()
+
+	found, err := repo.SearchLoadUnits(ctx, tail(boxB), 50)
+	mustNoErr(t, err)
+	if len(found) != 1 || found[0].ID != boxB || !found[0].Live || found[0].CellAddress == nil ||
+		len(found[0].Contents) != 1 {
+		t.Errorf("поиск живого короба: %+v", found)
+	}
+
+	found, err = repo.SearchLoadUnits(ctx, tail(idle), 50)
+	mustNoErr(t, err)
+	if len(found) != 1 || found[0].ID != idle || found[0].Live || found[0].CellID != nil {
+		t.Errorf("поиск неживого короба: %+v", found)
+	}
+
+	// Середина кода — тоже совпадение: на мятой наклейке читается не всё.
+	found, err = repo.SearchLoadUnits(ctx, tail(boxB)[2:6], 50)
+	mustNoErr(t, err)
+	var hit bool
+	for _, lu := range found {
+		hit = hit || lu.ID == boxB
+	}
+	if !hit {
+		t.Errorf("частичный код %s не нашёл короб %s: %+v", tail(boxB)[2:6], boxB, found)
+	}
+
+	// Предел выдачи соблюдается.
+	found, err = repo.SearchLoadUnits(ctx, tail(boxB)[7:], 1)
+	mustNoErr(t, err)
+	if len(found) > 1 {
+		t.Errorf("предел выдачи 1, получено %d", len(found))
+	}
+}
+
+// История: приёмка с ФИО кладовщика и переносы по порядку — с адресами.
+func TestContents_loadUnitHistory(t *testing.T) {
+	pf, boxB, _ := setupContents(t)
+	repo := repository.NewContentsRepository(pf.pool)
+	ctx := context.Background()
+
+	h, err := repo.LoadUnitHistory(ctx, boxB)
+	mustNoErr(t, err)
+	if h.Receipt == nil || h.Receipt.ReceivedBy != "Кладовщик" || h.Receipt.PostedAt == nil ||
+		h.Receipt.SupplierName != nil {
+		t.Errorf("приёмка короба: %+v", h.Receipt)
+	}
+	if len(h.Moves) != 2 {
+		t.Fatalf("переносов %d, ожидалось 2: %+v", len(h.Moves), h.Moves)
+	}
+	first, second := h.Moves[0], h.Moves[1]
+	if first.FromAddress != nil || first.Source != model.PlacementReceipt {
+		t.Errorf("первый перенос — приёмка без «откуда»: %+v", first)
+	}
+	if second.FromAddress == nil || *second.FromAddress != first.ToAddress ||
+		second.Source != model.PlacementPutaway || second.UserName == nil || *second.UserName != "Кладовщик" {
+		t.Errorf("второй перенос — размещение из ячейки приёмки: %+v", second)
+	}
+
+	// Короб без приёмки: история есть, приёмки и переносов нет.
+	idle := newLU(t, pf.stockFixture, model.LoadUnitBox)
+	h, err = repo.LoadUnitHistory(ctx, idle)
+	mustNoErr(t, err)
+	if h.Receipt != nil || len(h.Moves) != 0 || h.CreatedAt.IsZero() {
+		t.Errorf("короб без приёмки: %+v", h)
+	}
+
+	if _, err := repo.LoadUnitHistory(ctx, uuid.NewString()); !errors.Is(err, model.ErrLoadUnitNotFound) {
+		t.Errorf("неизвестный короб: %v", err)
 	}
 }

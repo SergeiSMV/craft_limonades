@@ -1,25 +1,29 @@
 import 'package:flutter_neumorphic_plus/flutter_neumorphic.dart';
 
-import '../../../../../core/constants/app_borders.dart';
-import '../../../../../core/constants/app_colors.dart';
-import '../../../../../core/constants/app_insets.dart';
-import '../../../../../core/constants/app_sizes.dart';
-import '../../../../../core/gen/strings.g.dart';
-import '../../../../../core/theme/regular_text.dart';
+import '../constants/app_borders.dart';
+import '../constants/app_colors.dart';
+import '../constants/app_insets.dart';
+import '../constants/app_sizes.dart';
+import '../theme/regular_text.dart';
 
-/// Строка поиска «Остатков»: неоморфная плашка, иконка поиска слева, крестик очистки справа.
+/// Строка поиска: неоморфная плашка, иконка поиска слева, крестик очистки справа.
 ///
 /// Вынесена из страницы отдельным виджетом: вёрстка поля занимала треть файла и мешала читать
 /// логику экрана. Состояние поля живёт в странице — контроллер нужен ей самой, чтобы показывать
-/// в строке текст пришедшего интентом скана (ADHOC-06).
-class GoodsSearchField extends StatelessWidget {
-  const GoodsSearchField({
+/// в строке текст пришедшего интентом скана (ADHOC-06). В `core` — с P5-05-1: тем же полем
+/// в «Остатках» ищут и товары, и короба по короткому коду.
+class SearchField extends StatelessWidget {
+  const SearchField({
     super.key,
+    required this.hintText,
     required this.controller,
     required this.onChanged,
     required this.onSubmitted,
     required this.onClear,
   });
+
+  /// Подсказка в пустом поле — что здесь ищут.
+  final String hintText;
 
   /// Контроллер строки: по нему показывается крестик и чистится поле.
   final TextEditingController controller;
@@ -88,7 +92,7 @@ class GoodsSearchField extends StatelessWidget {
             minWidth: 0,
             minHeight: 0,
           ),
-          hintText: t.stockListScreen.searchHint,
+          hintText: hintText,
           hintStyle: RegularTextStyles().regularInter16.copyWith(
             color: AppColors.kBorderDashed,
           ),

@@ -9,14 +9,18 @@ import '../../../../core/scanner/hardware_scan_listener.dart';
 import '../../../../core/scanner/scan_code.dart';
 import '../../../../core/widgets/page_header.dart';
 import '../../../../core/widgets/system_ui_wrapper.dart';
+import '../../../stock/presentation/stock_navigation.dart';
 import '../../domain/contents_entities.dart';
 import '../bloc/load_unit_cubit.dart';
+import '../bloc/load_unit_history_cubit.dart';
 import '../contents_navigation.dart';
 import '../widgets/common/contents_state_view.dart';
+import '../widgets/load_unit/history_section.dart';
 import '../widgets/load_unit/load_unit_body.dart';
 
 /// Экран «Короб» (P5-05): где лежит и что внутри. Открывается сканом QR короба в «Остатках»
 /// или касанием короба в списке ячейки; скан другого короба или ячейки отсюда открывает их.
+/// С P5-05-1 — перепечатка ярлыка и история короба.
 @RoutePage()
 class LoadUnitPage extends StatelessWidget {
   const LoadUnitPage({super.key, required this.loadUnitId});
@@ -26,8 +30,13 @@ class LoadUnitPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => getIt<LoadUnitCubit>()..load(loadUnitId),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(create: (_) => getIt<LoadUnitCubit>()..load(loadUnitId)),
+        BlocProvider(
+          create: (_) => getIt<LoadUnitHistoryCubit>()..load(loadUnitId),
+        ),
+      ],
       child: _LoadUnitView(loadUnitId: loadUnitId),
     );
   }
@@ -55,9 +64,37 @@ class _LoadUnitViewState extends State<_LoadUnitView>
     }
   }
 
-  /// Перечитать карточку короба.
-  Future<void> reload() =>
-      context.read<LoadUnitCubit>().load(widget.loadUnitId);
+  /// Идёт печать ярлыка — кнопка не принимает повторное нажатие.
+  bool _printing = false;
+
+  /// Перечитать карточку и историю короба.
+  Future<void> reload() async {
+    final history = context.read<LoadUnitHistoryCubit>();
+    await context.read<LoadUnitCubit>().load(widget.loadUnitId);
+    await history.load(widget.loadUnitId);
+  }
+
+  /// Открыть карточку остатков товара из содержимого короба.
+  void openGood(ContentLine line) => openGoodCard(
+    context,
+    goodId: line.goodId,
+    name: line.goodName ?? t.contents.unknownGood,
+    code: line.goodCode,
+    uom: line.uom,
+  );
+
+  /// Перепечатать ярлык и сказать, чем кончилось.
+  Future<void> reprint() async {
+    setState(() => _printing = true);
+    final error = await context.read<LoadUnitCubit>().reprint(
+      widget.loadUnitId,
+    );
+    if (!mounted) return;
+    setState(() => _printing = false);
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(error ?? t.contents.reprinted)));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -77,7 +114,14 @@ class _LoadUnitViewState extends State<_LoadUnitView>
         body: ContentsStateView<LoadUnitView>(
           state: state,
           onRetry: reload,
-          builder: (data) => LoadUnitBody(data: data, onRefresh: reload),
+          builder: (data) => LoadUnitBody(
+            data: data,
+            onRefresh: reload,
+            reprintBusy: _printing,
+            onReprint: reprint,
+            onOpenGood: openGood,
+            history: const HistorySection(),
+          ),
         ),
       ),
     );

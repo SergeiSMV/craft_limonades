@@ -20,6 +20,8 @@ type contentsReader interface {
 	Snapshot(ctx context.Context) (model.ContentsSnapshot, error)
 	CellContents(ctx context.Context, cellID string) (model.CellContents, error)
 	LoadUnitCard(ctx context.Context, id string) (model.LoadUnitCard, error)
+	SearchLoadUnits(ctx context.Context, code string) ([]model.LoadUnitCard, error)
+	LoadUnitHistory(ctx context.Context, id string) (model.LoadUnitHistory, error)
 }
 
 // ContentsHandler — просмотр содержимого ячеек и коробов на ТСД (P5-05).
@@ -168,6 +170,74 @@ func (h *ContentsHandler) LoadUnitCard(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, toLoadUnitCard(card))
 }
 
+// SearchLoadUnits: GET /api/v1/load-units?code=… — короба по короткому коду с ярлыка,
+// живые и нет (P5-05-1). 200 (список, возможно пустой) / 400.
+func (h *ContentsHandler) SearchLoadUnits(w http.ResponseWriter, r *http.Request) {
+	found, err := h.svc.SearchLoadUnits(r.Context(), r.URL.Query().Get("code"))
+	if err != nil {
+		contentsError(w, err)
+		return
+	}
+	out := make([]loadUnitCardResponse, 0, len(found))
+	for _, lu := range found {
+		out = append(out, toLoadUnitCard(lu))
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+type loadUnitReceiptResponse struct {
+	ReceiptID  string  `json:"receipt_id"`
+	ReceivedBy string  `json:"received_by"`
+	Supplier   *string `json:"supplier"`
+	PostedAt   *string `json:"posted_at"` // RFC3339; null — не оприходован
+}
+
+type loadUnitMoveResponse struct {
+	From     *string `json:"from"` // null — первое размещение
+	To       string  `json:"to"`
+	Source   string  `json:"source"` // receipt | putaway
+	UserName *string `json:"user_name"`
+	At       string  `json:"at"` // RFC3339
+}
+
+type loadUnitHistoryResponse struct {
+	LoadUnitID string                   `json:"load_unit_id"`
+	CreatedAt  string                   `json:"created_at"` // RFC3339
+	Receipt    *loadUnitReceiptResponse `json:"receipt"`
+	Moves      []loadUnitMoveResponse   `json:"moves"`
+}
+
+// LoadUnitHistory: GET /api/v1/load-units/{id}/history — приёмка и переносы короба (P5-05-1).
+// 200 / 400 / 404.
+func (h *ContentsHandler) LoadUnitHistory(w http.ResponseWriter, r *http.Request) {
+	hist, err := h.svc.LoadUnitHistory(r.Context(), chi.URLParam(r, "id"))
+	if err != nil {
+		contentsError(w, err)
+		return
+	}
+	out := loadUnitHistoryResponse{
+		LoadUnitID: hist.LoadUnitID,
+		CreatedAt:  hist.CreatedAt.UTC().Format(time.RFC3339),
+		Moves:      make([]loadUnitMoveResponse, 0, len(hist.Moves)),
+	}
+	if rc := hist.Receipt; rc != nil {
+		out.Receipt = &loadUnitReceiptResponse{
+			ReceiptID: rc.ReceiptID, ReceivedBy: rc.ReceivedBy, Supplier: rc.SupplierName,
+		}
+		if rc.PostedAt != nil {
+			at := rc.PostedAt.UTC().Format(time.RFC3339)
+			out.Receipt.PostedAt = &at
+		}
+	}
+	for _, m := range hist.Moves {
+		out.Moves = append(out.Moves, loadUnitMoveResponse{
+			From: m.FromAddress, To: m.ToAddress, Source: m.Source, UserName: m.UserName,
+			At: m.At.UTC().Format(time.RFC3339),
+		})
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
 func toLoadUnitCard(lu model.LoadUnitCard) loadUnitCardResponse {
 	out := loadUnitCardResponse{
 		ID: lu.ID, Kind: lu.Kind, Status: lu.Status,
@@ -200,7 +270,8 @@ func toSnapshotLine(c model.ContentLine) snapshotLineResponse {
 // 404 — отсканированного нет, остальное — 500.
 func contentsError(w http.ResponseWriter, err error) {
 	switch {
-	case errors.Is(err, service.ErrInvalidCellID), errors.Is(err, service.ErrInvalidLoadUnitID):
+	case errors.Is(err, service.ErrInvalidCellID), errors.Is(err, service.ErrInvalidLoadUnitID),
+		errors.Is(err, service.ErrInvalidShortCode):
 		writeError(w, http.StatusBadRequest, err.Error())
 	case errors.Is(err, model.ErrCellNotFound), errors.Is(err, model.ErrLoadUnitNotFound):
 		writeError(w, http.StatusNotFound, err.Error())

@@ -60,6 +60,15 @@ void main() {
 
   tearDown(() => db.close());
 
+  // P5-05-1: переход из содержимого короба в карточку товара берёт товар целиком из справочника.
+  test('товар по id — из загруженного справочника, без него — null', () async {
+    expect(await repo.goodById('g1'), isNull, reason: 'справочник не загружен');
+
+    await cache.putGoods(const [good]);
+    expect(await repo.goodById('g1'), good);
+    expect(await repo.goodById('нет-такого'), isNull);
+  });
+
   group('пустой кэш', () {
     test('до первой синхронизации читает из сети', () async {
       when(
