@@ -26,6 +26,54 @@ class TasksCache {
         ),
       );
 
+  /// Отметить в снимке то, что разместил сеанс, ушедший в очередь без связи (P5-03).
+  ///
+  /// Зачем: без связи снимок остаётся прежним, и задание показывало бы уже перенесённое как
+  /// неразмещённое — кладовщик разместил бы его второй раз, а сервер отклонил бы весь сеанс.
+  /// Как: короба отмечаются размещёнными, остаток россыпи уменьшается; задание, по которому
+  /// размещено всё, из текущих уходит, иначе возвращается в пул «новым» — ровно как сделает
+  /// сервер, когда сеанс до него дойдёт. Следующий удачный запрос заменит снимок целиком.
+  Future<void> applyPutaway({
+    required String taskId,
+    required Set<String> boxes,
+    required Map<(String, String), double> loose,
+  }) async {
+    final snapshot = await read();
+    if (snapshot == null) return;
+    final (tasks, syncedAt) = snapshot;
+    final updated = <WarehouseTask>[];
+    for (final task in tasks) {
+      if (task.id != taskId) {
+        updated.add(task);
+        continue;
+      }
+      final items = [
+        for (final it in task.items)
+          if (it.isBox)
+            boxes.contains(it.loadUnitId) ? it.copyWith(placed: true) : it
+          else
+            _reduceLoose(it, loose),
+      ];
+      final next = task.copyWith(
+        items: items,
+        status: TaskStatus.fresh,
+        assigneeName: '',
+        takenAt: null,
+      );
+      if (next.openItems > 0) updated.add(next);
+    }
+    await replace(updated, syncedAt);
+  }
+
+  TaskItem _reduceLoose(TaskItem it, Map<(String, String), double> loose) {
+    final key = (it.good?.id ?? '', it.productionDate ?? '');
+    final placed = loose[key];
+    if (placed == null) return it;
+    final left = (double.tryParse(it.remaining ?? '') ?? 0) - placed;
+    final rest = left <= 0 ? 0.0 : left;
+    return it.copyWith(remaining: '$rest', placed: rest <= 0);
+  }
+
   /// Сколько текущих заданий в снимке — для счётчика на плитке «ЗАДАНИЯ».
   ///
   /// Поток, а не разовое чтение: снимок обновляют и раздел «Задания», и главный экран, и

@@ -8,8 +8,11 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.location.LocationManager
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
@@ -63,6 +66,14 @@ class PrinterBridge(private val context: Context) :
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
             "status" -> result.success(status())
+            "openLocationSettings" -> {
+                // Экран системных настроек геолокации: на Android 11 поиск Bluetooth без неё
+                // не работает, и кладовщику надо дать кнопку туда, а не объяснять путь словами.
+                val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                runCatching { context.startActivity(intent) }
+                result.success(null)
+            }
             "bonded" -> guarded(result) { bonded() }
             "bond" -> {
                 val address = call.argument<String>("address")
@@ -258,6 +269,23 @@ class PrinterBridge(private val context: Context) :
             sink.error("unsupported", "Bluetooth на устройстве недоступен", null)
             return
         }
+        // Причины отказа называем до запуска: сам startDiscovery() отвечает лишь «не запустился»,
+        // и одно общее сообщение отправляло человека проверять Bluetooth, когда выключена
+        // геолокация (ADHOC-20: новый ТСД, Bluetooth включён, поиск не стартует).
+        if (!a.isEnabled) {
+            sink.error("bluetooth_off", "Bluetooth выключен. Включите его в шторке и повторите поиск", null)
+            return
+        }
+        // До Android 12 обнаружение устройств считается определением местоположения: без
+        // включённой геолокации система поиск не запускает, даже при выданном разрешении.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S && !isLocationEnabled()) {
+            sink.error(
+                "location_off",
+                "Включите геолокацию («Местоположение» в шторке): на этом Android без неё принтер не ищется",
+                null,
+            )
+            return
+        }
         val created = object : BroadcastReceiver() {
             override fun onReceive(ctx: Context?, intent: Intent?) {
                 when (intent?.action) {
@@ -286,6 +314,17 @@ class PrinterBridge(private val context: Context) :
             }
         } catch (e: SecurityException) {
             sink.error("permission", e.message, null)
+        }
+    }
+
+    /** Включена ли геолокация на устройстве — общий переключатель «Местоположение». */
+    private fun isLocationEnabled(): Boolean {
+        val lm = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager ?: return true
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            lm.isLocationEnabled
+        } else {
+            lm.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
+                lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
         }
     }
 
