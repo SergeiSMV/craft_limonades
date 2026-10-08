@@ -50,7 +50,7 @@ class CurrentTasksView extends StatelessWidget {
     return RefreshIndicator(
       onRefresh: cubit.load,
       child: ListView(
-        padding: AppInsets.h16,
+        padding: AppInsets.h8,
         // Пустой список тоже тянется вниз — иначе обновить его было бы нечем.
         physics: const AlwaysScrollableScrollPhysics(),
         children: [

@@ -23,16 +23,20 @@ class TasksApi {
         .toList(),
   );
 
-  /// Карточка задания с заходами.
-  Future<Either<Failure, (WarehouseTask, List<TaskSession>)>> detail(
-    String id,
-  ) => _get(ApiConst.taskById(id), (data) {
-    final map = data as Map<String, dynamic>;
-    final sessions = (map['sessions'] as List? ?? [])
-        .map((e) => TaskSession.fromJson(e as Map<String, dynamic>))
-        .toList();
-    return (WarehouseTask.fromJson(map), sessions);
-  });
+  /// Карточка задания: позиции, заходы и журнал событий.
+  Future<Either<Failure, TaskDetailData>> detail(String id) =>
+      _get(ApiConst.taskById(id), (data) {
+        final map = data as Map<String, dynamic>;
+        List<T> list<T>(String key, T Function(Map<String, dynamic>) f) =>
+            (map[key] as List? ?? [])
+                .map((e) => f(e as Map<String, dynamic>))
+                .toList();
+        return (
+          task: WarehouseTask.fromJson(map),
+          sessions: list('sessions', TaskSession.fromJson),
+          events: list('events', TaskEvent.fromJson),
+        );
+      });
 
   /// Взять задание в работу.
   Future<Either<Failure, void>> take(String id) => _post(ApiConst.taskTake(id));

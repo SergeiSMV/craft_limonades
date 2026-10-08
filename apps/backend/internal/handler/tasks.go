@@ -91,9 +91,19 @@ type taskSessionResponse struct {
 	Lines     []taskSessionLineResponse `json:"lines"`
 }
 
+// taskEventResponse — запись журнала задания. user — пусто у системных событий.
+type taskEventResponse struct {
+	Event     string  `json:"event"`
+	User      string  `json:"user"`
+	PrevUser  string  `json:"prev_user,omitempty"`
+	PutawayID *string `json:"putaway_id,omitempty"`
+	At        string  `json:"at"`
+}
+
 type taskDetailResponse struct {
 	taskResponse
 	Sessions []taskSessionResponse `json:"sessions"`
+	Events   []taskEventResponse   `json:"events"`
 }
 
 type completedTaskResponse struct {
@@ -123,10 +133,10 @@ func (h *TaskHandler) Current(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// Get: GET /api/v1/tasks/{id} — карточка задания с позициями и заходами. 200 / 404.
+// Get: GET /api/v1/tasks/{id} — карточка задания: позиции, заходы, журнал событий. 200 / 404.
 func (h *TaskHandler) Get(w http.ResponseWriter, r *http.Request) {
 	userID, _ := appmw.UserIDFromContext(r.Context())
-	t, sessions, err := h.svc.Detail(r.Context(), chi.URLParam(r, "id"), userID)
+	d, err := h.svc.Detail(r.Context(), chi.URLParam(r, "id"), userID)
 	if errors.Is(err, repository.ErrTaskNotFound) {
 		writeError(w, http.StatusNotFound, "задание не найдено")
 		return
@@ -136,8 +146,18 @@ func (h *TaskHandler) Get(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
 		return
 	}
-	out := taskDetailResponse{taskResponse: toTaskResponse(t), Sessions: []taskSessionResponse{}}
-	for _, s := range sessions {
+	out := taskDetailResponse{
+		taskResponse: toTaskResponse(d.Task),
+		Sessions:     []taskSessionResponse{},
+		Events:       []taskEventResponse{},
+	}
+	for _, ev := range d.Events {
+		out.Events = append(out.Events, taskEventResponse{
+			Event: ev.Event, User: ev.UserName, PrevUser: ev.PrevUserName,
+			PutawayID: ev.PutawayID, At: ev.At.Format(time.RFC3339),
+		})
+	}
+	for _, s := range d.Sessions {
 		sr := taskSessionResponse{
 			PutawayID: s.PutawayID,
 			User:      taskUserResponse(s.User),

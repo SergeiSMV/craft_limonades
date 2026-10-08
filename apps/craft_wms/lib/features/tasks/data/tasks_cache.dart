@@ -26,6 +26,17 @@ class TasksCache {
         ),
       );
 
+  /// Сколько текущих заданий в снимке — для счётчика на плитке «ЗАДАНИЯ».
+  ///
+  /// Поток, а не разовое чтение: снимок обновляют и раздел «Задания», и главный экран, и
+  /// плитка должна меняться вместе с ним, а не только при перерисовке меню.
+  Stream<int> watchCount() =>
+      _db.select(_db.cachedTasks).watchSingleOrNull().map((row) {
+        if (row == null) return 0;
+        final raw = jsonDecode(row.payload);
+        return raw is List ? raw.length : 0;
+      });
+
   /// Снимок: задания в порядке сервера и момент получения. null — снимка ещё нет.
   Future<(List<WarehouseTask>, DateTime)?> read() async {
     final row = await _db.select(_db.cachedTasks).getSingleOrNull();

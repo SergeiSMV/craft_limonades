@@ -22,6 +22,7 @@ class MenuTile extends StatelessWidget {
     required this.onTap,
     this.enabled = true,
     this.showBadge = false,
+    this.badgeCount,
   });
 
   /// заголовок
@@ -49,10 +50,14 @@ class MenuTile extends StatelessWidget {
   /// пометку теперь можно включить любой плитке — их ждут задания, приёмка и подбор.
   final bool showBadge;
 
+  /// Число в пометке («сколько ждёт»). Больше нуля — пометка показывается с числом.
+  final int? badgeCount;
+
   @override
   Widget build(BuildContext context) {
     final tile = _tile();
-    if (!showBadge) return tile;
+    final count = badgeCount ?? 0;
+    if (!showBadge && count <= 0) return tile;
     return Stack(
       // ⚠ Без expand плитка получила бы СВОБОДНЫЕ констрейнты и сжалась по содержимому, а
       // стопка осталась бы во всю ячейку сетки — пометка легла бы в пустоту справа от плитки.
@@ -65,7 +70,7 @@ class MenuTile extends StatelessWidget {
         Positioned(
           top: AppSizes.kIcon6,
           right: AppSizes.kIcon6,
-          child: const NotificationBadge(),
+          child: NotificationBadge(count: count > 0 ? count : null),
         ),
       ],
     );

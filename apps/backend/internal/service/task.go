@@ -32,6 +32,7 @@ type taskRepo interface {
 	Current(ctx context.Context, userID string, staleAfter time.Duration) ([]model.Task, error)
 	ByID(ctx context.Context, id, userID string) (model.Task, error)
 	Sessions(ctx context.Context, taskID string) ([]model.TaskSession, error)
+	Events(ctx context.Context, taskID string) ([]model.TaskEvent, error)
 	Take(ctx context.Context, id, userID string, staleAfter time.Duration) error
 	Release(ctx context.Context, id, userID string) error
 	Completed(ctx context.Context, f model.CompletedTasksFilter) ([]model.CompletedTask, error)
@@ -53,20 +54,31 @@ func (s *TaskService) Current(ctx context.Context, userID string) ([]model.Task,
 	return s.repo.Current(ctx, userID, TaskStaleAfter)
 }
 
-// Detail — задание с позициями и заходами по нему.
-func (s *TaskService) Detail(ctx context.Context, id, userID string) (model.Task, []model.TaskSession, error) {
+// TaskDetail — карточка задания: шапка с позициями, заходы и журнал событий.
+type TaskDetail struct {
+	Task     model.Task
+	Sessions []model.TaskSession
+	Events   []model.TaskEvent
+}
+
+// Detail — задание с позициями, заходами и журналом событий.
+func (s *TaskService) Detail(ctx context.Context, id, userID string) (TaskDetail, error) {
 	if !isUUID(id) {
-		return model.Task{}, nil, repository.ErrTaskNotFound
+		return TaskDetail{}, repository.ErrTaskNotFound
 	}
 	t, err := s.repo.ByID(ctx, id, userID)
 	if err != nil {
-		return model.Task{}, nil, err
+		return TaskDetail{}, err
 	}
 	sessions, err := s.repo.Sessions(ctx, id)
 	if err != nil {
-		return model.Task{}, nil, err
+		return TaskDetail{}, err
 	}
-	return t, sessions, nil
+	events, err := s.repo.Events(ctx, id)
+	if err != nil {
+		return TaskDetail{}, err
+	}
+	return TaskDetail{Task: t, Sessions: sessions, Events: events}, nil
 }
 
 // Take — взять задание в работу.

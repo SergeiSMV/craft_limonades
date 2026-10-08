@@ -40,10 +40,11 @@ class TasksRepository {
     return Right((tasks: tasks, fromCache: true, syncedAt: syncedAt));
   }
 
-  /// Карточка задания с заходами — по сети.
-  Future<Either<Failure, (WarehouseTask, List<TaskSession>)>> detail(
-    String id,
-  ) => _api.detail(id);
+  /// Число текущих заданий по снимку на терминале — для плитки главного меню.
+  Stream<int> watchCurrentCount() => _cache.watchCount();
+
+  /// Карточка задания с заходами и журналом — по сети.
+  Future<Either<Failure, TaskDetailData>> detail(String id) => _api.detail(id);
 
   /// Взять задание в работу.
   Future<Either<Failure, void>> take(String id) => _api.take(id);
