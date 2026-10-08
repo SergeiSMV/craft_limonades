@@ -84,6 +84,11 @@ class FakeTransport implements PrinterTransport {
       connected: false,
     );
   }
+
+  int locationSettingsOpened = 0;
+
+  @override
+  Future<void> openLocationSettings() async => locationSettingsOpened++;
 }
 
 void main() {

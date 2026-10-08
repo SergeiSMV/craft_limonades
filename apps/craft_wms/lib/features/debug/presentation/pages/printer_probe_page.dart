@@ -224,14 +224,26 @@ class _PrinterProbePageState extends State<PrinterProbePage> {
 
   void _report(Object error) {
     final message = error is PrinterFailure ? error.message : '$error';
+    // Выключенная геолокация чинится в системных настройках — даём кнопку туда (ADHOC-20).
+    if (error is PrinterFailure &&
+        error.kind == PrinterFailureKind.locationOff) {
+      _snack(
+        message,
+        action: SnackBarAction(
+          label: t.printerProbe.openLocationSettings,
+          onPressed: _service.openLocationSettings,
+        ),
+      );
+      return;
+    }
     _snack(message);
   }
 
-  void _snack(String message) {
+  void _snack(String message, {SnackBarAction? action}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..clearSnackBars()
-      ..showSnackBar(SnackBar(content: Text(message)));
+      ..showSnackBar(SnackBar(content: Text(message), action: action));
   }
 
   @override

@@ -33,4 +33,7 @@ abstract interface class PrinterTransport {
 
   /// Закрыть соединение.
   Future<void> disconnect();
+
+  /// Открыть системные настройки геолокации — оттуда её включают для поиска (ADHOC-20).
+  Future<void> openLocationSettings();
 }
