@@ -111,6 +111,28 @@ type CompletedTasksFilter struct {
 	Limit             int
 }
 
+// События журнала задания (P5-02-1).
+const (
+	TaskEventCreated     = "created"
+	TaskEventTaken       = "taken"
+	TaskEventReleased    = "released"
+	TaskEventIntercepted = "intercepted"
+	TaskEventSession     = "session"
+	TaskEventCompleted   = "completed"
+)
+
+// TaskEvent — запись журнала задания: что случилось, кто, когда.
+//
+// UserName пуст у системных событий (задание заведено приёмкой). PrevUserName — у кого
+// перехвачено зависшее задание. PutawayID — заход, если событие о нём.
+type TaskEvent struct {
+	Event        string
+	UserName     string
+	PrevUserName string
+	PutawayID    *string
+	At           time.Time
+}
+
 // TaskSession — один заход по заданию: проведённый сеанс размещения.
 type TaskSession struct {
 	PutawayID string

@@ -12,13 +12,14 @@ part 'task_detail_cubit.freezed.dart';
 /// Состояние карточки задания.
 ///
 /// Из «Текущих» задание приходит сразу (в том числе из снимка без связи); из ленты
-/// «Завершённые» — только id, и задание дочитывается с сервера. Заходы — только с сервера:
-/// [sessionsUnavailable] говорит, что показать их сейчас нечем.
+/// «Завершённые» — только id, и задание дочитывается с сервера. Заходы и журнал — только
+/// с сервера: [sessionsUnavailable] говорит, что показать историю сейчас нечем.
 @freezed
 abstract class TaskDetailState with _$TaskDetailState {
   const factory TaskDetailState({
     WarehouseTask? task,
     @Default(<TaskSession>[]) List<TaskSession> sessions,
+    @Default(<TaskEvent>[]) List<TaskEvent> events,
     @Default(false) bool loading,
     @Default(false) bool sessionsUnavailable,
     @Default(false) bool busy,
@@ -63,8 +64,9 @@ class TaskDetailCubit extends Cubit<TaskDetailState> {
       ),
       (r) => emit(
         state.copyWith(
-          task: r.$1,
-          sessions: r.$2,
+          task: r.task,
+          sessions: r.sessions,
+          events: r.events,
           loading: false,
           sessionsUnavailable: false,
           loadFailure: null,

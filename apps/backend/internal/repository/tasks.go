@@ -75,6 +75,10 @@ func createPutawayTaskForReceipt(ctx context.Context, q Querier, receiptID strin
 		RETURNING id::text`, receiptID).Scan(&taskID); err != nil {
 		return fmt.Errorf("создать задание на размещение: %w", err)
 	}
+	// Автора нет: задание заводит система по оприходованной приёмке.
+	if err := addTaskEvent(ctx, q, taskID, model.TaskEventCreated, "", "", ""); err != nil {
+		return err
+	}
 
 	lineNo := 0
 	seenBox := map[string]bool{}
@@ -201,6 +205,9 @@ func settleTaskAfterPutaway(ctx context.Context, q Querier, taskID, userID strin
 			SET status = 'done', assignee_id = NULL, completed_by = $2::uuid,
 			    completed_at = now(), last_activity_at = now()
 			WHERE id = $1::uuid`, taskID, userID)
+		if err == nil {
+			err = addTaskEvent(ctx, q, taskID, model.TaskEventCompleted, userID, "", "")
+		}
 	} else {
 		_, err = q.Exec(ctx, `
 			UPDATE warehouse_tasks
@@ -402,32 +409,68 @@ func (r *TaskRepository) boxContents(ctx context.Context, ids []string) (map[str
 
 // Take отдаёт задание пользователю: из пула, своё повторно или зависшее у другого.
 //
-// Повтор своим исполнителем — не ошибка: кладовщик нажал «Взять» дважды или ответ не дошёл.
+// Повтор своим исполнителем — не ошибка и не событие: кладовщик нажал «Взять» дважды или
+// ответ не дошёл. Взятие из пула пишется в журнал как taken, перехват зависшего — как
+// intercepted с тем, у кого перехватили. Строка задания блокируется, чтобы двое, одновременно
+// взявшие задание, не записали оба своё взятие.
 func (r *TaskRepository) Take(ctx context.Context, id, userID string, staleAfter time.Duration) error {
-	tag, err := r.pool.Exec(ctx, `
-		UPDATE warehouse_tasks t
-		SET status = 'in_progress', assignee_id = $1::uuid, taken_at = now(), last_activity_at = now()
-		WHERE t.id = $3::uuid AND `+visibleSQL, userID, intervalOf(staleAfter), id)
-	if err != nil {
-		return fmt.Errorf("взять задание: %w", err)
-	}
-	if tag.RowsAffected() == 1 {
-		return nil
-	}
-	return r.whyNot(ctx, id)
+	return WithinTx(ctx, r.pool, func(q Querier) error {
+		var status string
+		var holder *string
+		var stale bool
+		err := q.QueryRow(ctx, `
+			SELECT status, assignee_id::text,
+			       COALESCE(last_activity_at < now() - $2::interval, false)
+			FROM warehouse_tasks WHERE id = $1::uuid FOR UPDATE`, id, intervalOf(staleAfter)).
+			Scan(&status, &holder, &stale)
+		switch {
+		case errors.Is(err, pgx.ErrNoRows):
+			return ErrTaskNotFound
+		case err != nil:
+			return fmt.Errorf("взять задание: %w", err)
+		case status == model.TaskDone:
+			return ErrTaskDone
+		}
+
+		event, prev := model.TaskEventTaken, ""
+		if status == model.TaskInProgress {
+			switch {
+			case holder != nil && *holder == userID:
+				return nil
+			case !stale:
+				return ErrTaskTaken
+			}
+			event, prev = model.TaskEventIntercepted, deref(holder)
+		}
+		if _, err := q.Exec(ctx, `
+			UPDATE warehouse_tasks
+			SET status = 'in_progress', assignee_id = $2::uuid, taken_at = now(), last_activity_at = now()
+			WHERE id = $1::uuid`, id, userID); err != nil {
+			return fmt.Errorf("взять задание: %w", err)
+		}
+		return addTaskEvent(ctx, q, id, event, userID, prev, "")
+	})
 }
 
 // Release возвращает своё взятое задание в пул. Задание уже в пуле — не ошибка (повтор).
 func (r *TaskRepository) Release(ctx context.Context, id, userID string) error {
-	tag, err := r.pool.Exec(ctx, `
-		UPDATE warehouse_tasks
-		SET status = 'new', assignee_id = NULL, taken_at = NULL
-		WHERE id = $1::uuid AND status = 'in_progress' AND assignee_id = $2::uuid`, id, userID)
-	if err != nil {
-		return fmt.Errorf("отказаться от задания: %w", err)
-	}
-	if tag.RowsAffected() == 1 {
-		return nil
+	var released bool
+	err := WithinTx(ctx, r.pool, func(q Querier) error {
+		tag, err := q.Exec(ctx, `
+			UPDATE warehouse_tasks
+			SET status = 'new', assignee_id = NULL, taken_at = NULL
+			WHERE id = $1::uuid AND status = 'in_progress' AND assignee_id = $2::uuid`, id, userID)
+		if err != nil {
+			return fmt.Errorf("отказаться от задания: %w", err)
+		}
+		if tag.RowsAffected() == 0 {
+			return nil
+		}
+		released = true
+		return addTaskEvent(ctx, q, id, model.TaskEventReleased, userID, "", "")
+	})
+	if err != nil || released {
+		return err
 	}
 	var status string
 	err = r.pool.QueryRow(ctx, `SELECT status FROM warehouse_tasks WHERE id = $1::uuid`, id).Scan(&status)
@@ -445,20 +488,41 @@ func (r *TaskRepository) Release(ctx context.Context, id, userID string) error {
 	}
 }
 
-// whyNot объясняет, почему задание не удалось взять.
-func (r *TaskRepository) whyNot(ctx context.Context, id string) error {
-	var status string
-	err := r.pool.QueryRow(ctx, `SELECT status FROM warehouse_tasks WHERE id = $1::uuid`, id).Scan(&status)
-	switch {
-	case errors.Is(err, pgx.ErrNoRows):
-		return ErrTaskNotFound
-	case err != nil:
-		return fmt.Errorf("проверить задание: %w", err)
-	case status == model.TaskDone:
-		return ErrTaskDone
-	default:
-		return ErrTaskTaken
+// addTaskEvent дописывает событие в журнал задания — в транзакции того, что его вызвало.
+// Пустые userID, prevUserID, putawayID — «нет» (системное событие, не перехват, не заход).
+func addTaskEvent(ctx context.Context, q Querier, taskID, event, userID, prevUserID, putawayID string) error {
+	_, err := q.Exec(ctx, `
+		INSERT INTO task_events (task_id, event, user_id, prev_user_id, putaway_id)
+		VALUES ($1::uuid, $2, NULLIF($3, '')::uuid, NULLIF($4, '')::uuid, NULLIF($5, '')::uuid)`,
+		taskID, event, userID, prevUserID, putawayID)
+	if err != nil {
+		return fmt.Errorf("журнал задания: %w", err)
 	}
+	return nil
+}
+
+// Events — журнал задания по порядку: что случилось, кто и когда.
+func (r *TaskRepository) Events(ctx context.Context, taskID string) ([]model.TaskEvent, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT e.event, COALESCE(u.full_name, ''), COALESCE(pu.full_name, ''), e.putaway_id::text, e.at
+		FROM task_events e
+		LEFT JOIN users u  ON u.id = e.user_id
+		LEFT JOIN users pu ON pu.id = e.prev_user_id
+		WHERE e.task_id = $1::uuid
+		ORDER BY e.seq`, taskID)
+	if err != nil {
+		return nil, fmt.Errorf("журнал задания: %w", err)
+	}
+	defer rows.Close()
+	out := []model.TaskEvent{}
+	for rows.Next() {
+		var ev model.TaskEvent
+		if err := rows.Scan(&ev.Event, &ev.UserName, &ev.PrevUserName, &ev.PutawayID, &ev.At); err != nil {
+			return nil, fmt.Errorf("разобрать событие задания: %w", err)
+		}
+		out = append(out, ev)
+	}
+	return out, rows.Err()
 }
 
 // Completed — страница ленты «Завершённые»: свежие сверху, подгрузка курсором.

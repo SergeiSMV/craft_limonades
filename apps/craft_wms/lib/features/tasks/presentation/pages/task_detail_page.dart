@@ -21,7 +21,7 @@ import '../bloc/task_detail_cubit.dart';
 import '../widgets/common/task_format.dart';
 import '../widgets/common/task_status_badge.dart';
 import '../widgets/common/tasks_message.dart';
-import '../widgets/detail/session_tile.dart';
+import '../widgets/detail/history_tile.dart';
 import '../widgets/detail/task_actions_bar.dart';
 import '../widgets/detail/task_item_tile.dart';
 
@@ -196,9 +196,14 @@ class _TaskBody extends StatelessWidget {
           ],
         ),
         Text(
-          '${taskBasis(task.supplier)} · ${shortDateTime(task.receivedAt ?? task.createdAt)}',
+          t.tasks.tileNumber(
+            number: task.number,
+            created: fullDateTime(task.createdAt),
+          ),
           style: muted,
         ),
+        Text(taskAuthor(task), style: muted),
+        Text(taskBasis(task), style: muted),
         if (task.isMine && task.assigneeName.isNotEmpty)
           Text(t.tasks.assignee(name: task.assigneeName), style: muted),
         AppBoxes.kHeight16,
@@ -206,14 +211,18 @@ class _TaskBody extends StatelessWidget {
         AppBoxes.kHeight8,
         for (final item in task.items) TaskItemTile(item: item),
         AppBoxes.kHeight16,
-        Text(t.tasks.detailSessions, style: section),
+        Text(t.tasks.detailHistory, style: section),
         AppBoxes.kHeight8,
         if (state.sessionsUnavailable)
-          Text(t.tasks.detailSessionsOffline, style: muted)
-        else if (state.sessions.isEmpty)
-          Text(t.tasks.detailNoSessions, style: muted)
+          Text(t.tasks.detailHistoryOffline, style: muted)
         else
-          for (final s in state.sessions) SessionTile(session: s),
+          for (final e in state.events)
+            HistoryTile(
+              event: e,
+              session: state.sessions
+                  .where((s) => s.putawayId == e.putawayId)
+                  .firstOrNull,
+            ),
         AppBoxes.kHeight16,
       ],
     );

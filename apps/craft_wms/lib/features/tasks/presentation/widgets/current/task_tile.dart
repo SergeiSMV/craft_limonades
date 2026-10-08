@@ -13,8 +13,14 @@ import '../../../data/tasks_models.dart';
 import '../common/task_format.dart';
 import '../common/task_status_badge.dart';
 
-/// Текущее задание в списке: номер и вид, основание, сколько позиций осталось, статус.
-/// Выпуклая плитка — вход в карточку задания, как короб в приёмке.
+/// Текущее задание в списке — стандарт для любого вида задания, три строки:
+///
+///   Размещение                    [в работе]
+///   №2 · 05.10.2026 13:58
+///   Автор: автоматически
+///
+/// Остальное (основание, позиции, кто взял) — в карточке. Статус стоит в строке вида: она
+/// короткая, и пометка не выталкивает текст на перенос, как было с номером в заголовке.
 class TaskTile extends StatelessWidget {
   const TaskTile({super.key, required this.task, required this.onTap});
 
@@ -52,24 +58,32 @@ class TaskTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          taskKindLabel(task.kind),
+                          style: SemiboldTextStyles().semiboldInter14.copyWith(
+                            color: AppColors.kSidebarHover,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      TaskStatusBadge(status: task.status),
+                    ],
+                  ),
                   Text(
-                    '${t.tasks.number(number: task.number)} · ${taskKindLabel(task.kind)}',
-                    style: SemiboldTextStyles().semiboldInter14.copyWith(
-                      color: AppColors.kSidebarHover,
+                    t.tasks.tileNumber(
+                      number: task.number,
+                      created: fullDateTime(task.createdAt),
                     ),
-                  ),
-                  Text(
-                    '${taskBasis(task.supplier)} · ${shortDateTime(task.receivedAt ?? task.createdAt)}',
                     style: muted,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                   ),
-                  Text(t.tasks.openItems(count: task.openItems), style: muted),
+                  Text(taskAuthor(task), style: muted),
                 ],
               ),
             ),
-            AppBoxes.kWidth8,
-            TaskStatusBadge(status: task.status),
           ],
         ),
       ),

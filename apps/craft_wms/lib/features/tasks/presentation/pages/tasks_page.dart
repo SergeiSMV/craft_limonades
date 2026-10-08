@@ -86,7 +86,7 @@ class _TasksViewState extends State<_TasksView> {
         body: Column(
           children: [
             Padding(
-              padding: AppInsets.all16,
+              padding: AppInsets.h8 + AppInsets.v16,
               child: TasksTabSwitch(selected: _tab, onSelected: selectTab),
             ),
             Expanded(

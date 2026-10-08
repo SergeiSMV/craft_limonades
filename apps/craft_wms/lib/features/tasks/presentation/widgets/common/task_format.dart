@@ -10,12 +10,34 @@ String taskKindLabel(String kind) => switch (kind) {
   _ => kind,
 };
 
-/// Основание задания: от какой приёмки.
-String taskBasis(String supplier) => supplier.isEmpty
+/// Основание задания: «Основание: приёмка от 05.10.2026 ИП Березин …».
+String taskBasis(WarehouseTask task) {
+  final date = fullDate(task.receivedAt ?? task.createdAt);
+  return task.supplier.isEmpty
+      ? t.tasks.basisReceiptNoSupplier(date: date)
+      : t.tasks.basisReceipt(date: date, supplier: task.supplier);
+}
+
+/// Автор задания. Задание от приёмки заводит система — «автоматически». Когда задания начнут
+/// создавать люди (портал, P8; пересчёт, P10), сервер начнёт отдавать автора, и он встанет здесь.
+String taskAuthor(WarehouseTask task) =>
+    t.tasks.author(name: t.tasks.authorAuto);
+
+/// Поставщик-основание для ленты, где приёмки как объекта нет — только имя.
+String supplierBasis(String supplier) => supplier.isEmpty
     ? t.tasks.fromReceiptNoSupplier
     : t.tasks.fromReceipt(supplier: supplier);
 
 String _two(int v) => v.toString().padLeft(2, '0');
+
+/// «05.10.2026» — по часам терминала.
+String fullDate(DateTime d) {
+  final l = d.toLocal();
+  return '${_two(l.day)}.${_two(l.month)}.${l.year}';
+}
+
+/// «05.10.2026 13:58» — по часам терминала.
+String fullDateTime(DateTime d) => '${fullDate(d)} ${timeOfDay(d)}';
 
 /// «07.10 14:30» — по часам терминала.
 String shortDateTime(DateTime d) {
