@@ -58,6 +58,9 @@ class BluetoothPrinterTransport implements PrinterTransport {
   @override
   Future<void> disconnect() => _invoke<void>('disconnect');
 
+  @override
+  Future<void> openLocationSettings() => _invoke<void>('openLocationSettings');
+
   /// Вызов канала с переводом платформенной ошибки в доменную.
   Future<T?> _invoke<T>(String method, [Map<String, Object?>? args]) async {
     try {
@@ -82,6 +85,8 @@ class BluetoothPrinterTransport implements PrinterTransport {
       PrinterFailure(switch (e.code) {
         'permission' => PrinterFailureKind.permission,
         'unsupported' => PrinterFailureKind.unsupported,
+        'bluetooth_off' => PrinterFailureKind.bluetoothOff,
+        'location_off' => PrinterFailureKind.locationOff,
         _ => PrinterFailureKind.io,
       }, e.message ?? e.code);
 }

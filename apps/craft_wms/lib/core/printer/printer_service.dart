@@ -169,6 +169,9 @@ class PrinterService {
     await _transport.write(bytes);
   }
 
+  /// Открыть системные настройки геолокации (ADHOC-20).
+  Future<void> openLocationSettings() => _transport.openLocationSettings();
+
   //* --- разрешения --- *//
 
   /// Право на соединение с уже спаренным устройством.

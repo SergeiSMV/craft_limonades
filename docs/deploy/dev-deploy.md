@@ -167,6 +167,9 @@ flutter build apk --dart-define-from-file=.env --release -t lib/main.dart
 adb install -r build/app/outputs/flutter-apk/app-release.apk   # -r: переустановка поверх, данные целы
 ```
 
+Ввод нового терминала целиком — установка, первый вход, подключение принтера — в
+[tsd-setup.md](tsd-setup.md).
+
 > Заметка по Urovo DT50: аппаратный сканер должен быть в режиме вывода **«клавиатура»
 > (intent→keyboard)**, иначе скан не попадает в поле ввода (см. `p0/p0-07.md`). Нативная
 > broadcast-интеграция сканера — P2-01.

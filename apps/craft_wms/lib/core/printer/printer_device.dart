@@ -99,4 +99,11 @@ enum PrinterFailureKind {
 
   /// На этом устройстве Bluetooth нет (эмулятор, веб).
   unsupported,
+
+  /// Bluetooth выключен — включается в шторке.
+  bluetoothOff,
+
+  /// Выключена геолокация, без которой Android до 12 не ищет Bluetooth-устройства (ADHOC-20).
+  /// Отдельно от [permission]: разрешение выдано, чинится это переключателем в шторке.
+  locationOff,
 }
