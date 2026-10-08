@@ -1,0 +1,29 @@
+{
+  "as_of": "2026-10-08T09:00:00Z",
+  "load_units": [
+    {
+      "id": "5a0c1d2e-3f40-4b51-8c62-7d8e9fa0b1c2",
+      "kind": "box",
+      "cell_id": "c1e2d3f4-0a1b-4c2d-9e3f-405162738495",
+      "created_at": "2026-10-08T08:55:00Z",
+      "contents": [
+        {
+          "good_id": "a7b8c9d0-e1f2-4a3b-8c4d-5e6f70819203",
+          "batch_id": "b0000000-0000-4000-8000-000000000001",
+          "production_date": "01-09-2026",
+          "qty": "12"
+        }
+      ]
+    }
+  ],
+  "loose": [
+    {
+      "cell_id": "d0e1f2a3-b4c5-4d6e-8f70-8192a3b4c5d6",
+      "internal_warehouse_id": "e0000000-0000-4000-8000-000000000001",
+      "good_id": "a7b8c9d0-e1f2-4a3b-8c4d-5e6f70819203",
+      "batch_id": "b0000000-0000-4000-8000-000000000002",
+      "production_date": "02-09-2026",
+      "qty": "3"
+    }
+  ]
+}

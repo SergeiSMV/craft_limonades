@@ -9,9 +9,9 @@ import '../../../../../core/gen/assets.gen.dart';
 import '../../../../../core/gen/strings.g.dart';
 import '../../../../../core/theme/regular_text.dart';
 import '../../bloc/stock_detail_cubit.dart';
-import '../common/error_retry.dart';
+import '../../../../../core/widgets/error_retry.dart';
 import 'place_tile.dart';
-import 'section_title.dart';
+import '../../../../../core/widgets/section_title.dart';
 
 /// Секция «Наличие по местам хранения»: строки «ячейка · партия · количество»,
 /// а также индикатор загрузки, ошибка с повтором и «пусто».

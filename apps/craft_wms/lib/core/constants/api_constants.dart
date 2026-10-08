@@ -100,4 +100,13 @@ abstract final class ApiConst {
 
   ///**POST** - отказаться от задания (204): `tasks/{id}/release`.
   static String taskRelease(String id) => 'tasks/$id/release';
+
+  ///**GET** - снимок содержимого склада для кэша ТСД, живые короба и россыпь (P5-05): `contents/snapshot`.
+  static const String contentsSnapshot = 'contents/snapshot';
+
+  ///**GET** - содержимое ячейки, короба и россыпь (P5-05): `cells/{id}/contents`.
+  static String cellContents(String id) => 'cells/$id/contents';
+
+  ///**GET** - карточка короба, где лежит и что внутри (P5-05): `load-units/{id}/card`.
+  static String loadUnitCard(String id) => 'load-units/$id/card';
 }

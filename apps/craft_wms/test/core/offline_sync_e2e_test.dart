@@ -19,6 +19,7 @@ import 'package:talker_flutter/talker_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 import '../support/fake_operations_server.dart';
+import '../support/contents_stubs.dart';
 
 class _MockConnectivity extends Mock implements Connectivity {}
 
@@ -48,7 +49,7 @@ void main() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     cache = CatalogCache(db);
     outbox = OutboxRepository(db, const Uuid());
-    effects = OutboxEffects(cache);
+    effects = OutboxEffects(cache, FakeContentsSnapshotSync());
 
     server = FakeOperationsServer();
     final dio = Dio(BaseOptions(baseUrl: 'https://api.test/api/v1/'))
@@ -226,7 +227,7 @@ void main() {
             ..httpClientAdapter = server,
         ),
       ),
-      OutboxEffects(cache),
+      OutboxEffects(cache, FakeContentsSnapshotSync()),
       Talker(),
       _MockConnectivity(),
     );

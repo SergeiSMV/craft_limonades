@@ -3,6 +3,8 @@ import 'package:flutter/material.dart'; // Key — для аргументов �
 import 'package:injectable/injectable.dart';
 
 import '../../features/auth/presentation/pages/login_page.dart';
+import '../../features/contents/presentation/pages/cell_contents_page.dart';
+import '../../features/contents/presentation/pages/load_unit_page.dart';
 import '../../features/debug/presentation/pages/debug_log_page.dart';
 import '../../features/debug/presentation/pages/printer_probe_page.dart';
 import '../../features/debug/presentation/pages/scanner_probe_page.dart';
@@ -53,6 +55,9 @@ class AppRouter extends RootStackRouter {
     AutoRoute(page: TaskDetailRoute.page, guards: [_authGuard]),
     // Выполнение задания на размещение (P5-03).
     AutoRoute(page: PutawayRoute.page, guards: [_authGuard]),
+    // Содержимое ячейки и короба по скану (P5-05).
+    AutoRoute(page: CellContentsRoute.page, guards: [_authGuard]),
+    AutoRoute(page: LoadUnitRoute.page, guards: [_authGuard]),
     AutoRoute(page: DebugLogRoute.page),
     // Диагностика сканера — служебный экран наладки (P2-01).
     AutoRoute(page: ScannerProbeRoute.page),

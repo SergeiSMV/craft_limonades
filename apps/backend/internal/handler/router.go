@@ -37,6 +37,7 @@ type Services struct {
 	Receipt    *service.ReceiptService
 	LoadUnit   *service.LoadUnitService
 	Task       *service.TaskService
+	Contents   *service.ContentsService
 }
 
 // NewRouter собирает HTTP-роутер сервиса: общие middleware + маршруты.
@@ -191,6 +192,20 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 				r.Get("/tasks/{id}", taskH.Get)              // карточка с заходами
 				r.Post("/tasks/{id}/take", taskH.Take)       // взять в работу
 				r.Post("/tasks/{id}/release", taskH.Release) // отказаться
+			})
+		}
+
+		// Просмотр содержимого ячеек и коробов (P5-05) — сотруднику: кладовщик сканирует ячейку
+		// или короб на ТСД. Только чтение. Снимок для кэша терминала сжимается: это весь склад
+		// одним ответом, а повторяющиеся идентификаторы жмутся в разы.
+		if svc.Contents != nil {
+			contentsH := NewContentsHandler(svc.Contents)
+			r.Group(func(r chi.Router) {
+				r.Use(appmw.Authenticator(tokens))
+				r.With(chimw.Compress(5, "application/json")).
+					Get("/contents/snapshot", contentsH.Snapshot) // кэш ТСД: короба и россыпь
+				r.Get("/cells/{id}/contents", contentsH.CellContents)  // что лежит в ячейке
+				r.Get("/load-units/{id}/card", contentsH.LoadUnitCard) // что за короб и где
 			})
 		}
 
