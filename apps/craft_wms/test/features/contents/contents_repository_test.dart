@@ -1,0 +1,209 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:craft_wms/core/database/app_database.dart';
+import 'package:craft_wms/core/error/failure.dart';
+import 'package:craft_wms/core/outbox/outbox_operation.dart';
+import 'package:craft_wms/core/outbox/outbox_repository.dart';
+import 'package:craft_wms/features/contents/data/contents_api.dart';
+import 'package:craft_wms/features/contents/data/contents_cache.dart';
+import 'package:craft_wms/features/contents/data/contents_dto.dart';
+import 'package:craft_wms/features/contents/data/contents_repository_impl.dart';
+import 'package:craft_wms/features/contents/domain/contents_entities.dart';
+import 'package:craft_wms/features/stock/data/catalog_cache.dart';
+import 'package:craft_wms/features/stock/data/catalog_models.dart';
+import 'package:drift/drift.dart' show Migrator;
+import 'package:drift/native.dart';
+import 'package:either_dart/either.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:uuid/uuid.dart';
+
+class _MockApi extends Mock implements ContentsApi {}
+
+/// Эталон ответа снимка — общий с сервером (`contents_http_test.go`): сервер обязан отдавать
+/// ровно его, терминал — разбирать.
+const _fixturePath =
+    '../backend/internal/handler/testdata/contents_snapshot.json';
+
+/// Содержимое ячейки и короба на терминале (P5-05): сервер → снимок → своя очередь поверх.
+void main() {
+  late AppDatabase db;
+  late _MockApi api;
+  late ContentsCache cache;
+  late CatalogCache catalog;
+  late OutboxRepository outbox;
+  late ContentsRepositoryImpl repo;
+  late ContentsSnapshot fixture;
+
+  // Идентификаторы эталона.
+  const box = '5a0c1d2e-3f40-4b51-8c62-7d8e9fa0b1c2';
+  const boxCell = 'c1e2d3f4-0a1b-4c2d-9e3f-405162738495';
+  const looseCell = 'd0e1f2a3-b4c5-4d6e-8f70-8192a3b4c5d6';
+  const good = 'a7b8c9d0-e1f2-4a3b-8c4d-5e6f70819203';
+  const wh = 'f0000000-0000-4000-8000-000000000001';
+
+  setUp(() async {
+    db = AppDatabase.forTesting(NativeDatabase.memory());
+    api = _MockApi();
+    cache = ContentsCache(db);
+    catalog = CatalogCache(db);
+    outbox = OutboxRepository(db, const Uuid());
+    repo = ContentsRepositoryImpl(api, cache, catalog, outbox);
+    fixture = ContentsSnapshot.fromJson(
+      jsonDecode(File(_fixturePath).readAsStringSync()) as Map<String, dynamic>,
+    );
+    await catalog.putCells(const [
+      Cell(id: boxCell, warehouseId: wh, address: 'A-1-1'),
+      Cell(id: looseCell, warehouseId: wh, address: 'С-Н-П', isDefault: true),
+    ]);
+    await catalog.putGoods(const [
+      Good(id: good, code: '16121', name: 'Кальмар', uom: 'шт'),
+    ]);
+    when(
+      () => api.card(any()),
+    ).thenAnswer((_) async => const Left(Failure.network()));
+    when(
+      () => api.cell(any()),
+    ).thenAnswer((_) async => const Left(Failure.network()));
+  });
+
+  tearDown(() => db.close());
+
+  test('эталон снимка разбирается: короб с содержимым и россыпь', () {
+    expect(fixture.asOf, DateTime.utc(2026, 10, 8, 9));
+    expect(fixture.loadUnits.single.id, box);
+    expect(fixture.loadUnits.single.cellId, boxCell);
+    expect(fixture.loadUnits.single.lines.single.qty, 12);
+    expect(fixture.loadUnits.single.lines.single.productionDate, '01-09-2026');
+    expect(fixture.loose.single.cellId, looseCell);
+    expect(fixture.loose.single.line.qty, 3);
+  });
+
+  test('без связи — снимок с моментом и наименованиями из справочника', () async {
+    await cache.replace(fixture);
+
+    final res = await repo.loadUnit(box);
+    final viewed = res.right;
+    expect(viewed.freshness, isA<FromSnapshot>());
+    // drift отдаёт время по местному поясу — сравниваем момент, а не представление.
+    expect(
+      (viewed.freshness as FromSnapshot).asOf!.isAtSameMomentAs(fixture.asOf),
+      isTrue,
+    );
+    expect(viewed.value!.cellAddress, 'A-1-1');
+    expect(viewed.value!.lines.single.goodName, 'Кальмар');
+
+    final cell = (await repo.cell(
+      const CellRef(id: looseCell, address: 'С-Н-П'),
+    )).right.value!;
+    expect(cell.loadUnits, isEmpty);
+    expect(cell.loose.single.qty, 3);
+    expect(cell.loose.single.goodName, 'Кальмар');
+  });
+
+  test(
+    'без связи и без снимка — показать нечего, кроме своих операций',
+    () async {
+      expect((await repo.loadUnit(box)).left, isA<NetworkFailure>());
+
+      // Своя неотправленная приёмка короба — его уже есть что показать.
+      await outbox.enqueue(
+        kind: OutboxKind.receiptSubmit,
+        payload: {
+          'warehouse_id': wh,
+          'load_units': [
+            {'id': box, 'kind': 'box'},
+          ],
+          'lines': [
+            {
+              'good_id': good,
+              'production_date': '01-09-2026',
+              'qty': 5,
+              'load_unit_id': box,
+            },
+          ],
+        },
+      );
+      final viewed = (await repo.loadUnit(box)).right;
+      expect((viewed.freshness as FromSnapshot).asOf, isNull);
+      expect(viewed.value!.cellAddress, 'С-Н-П');
+      expect(viewed.value!.pending, isTrue);
+    },
+  );
+
+  test('со связью — ответ сервера, снимок не читается', () async {
+    await cache.replace(fixture);
+    when(() => api.card(box)).thenAnswer(
+      (_) async => const Right(
+        LoadUnitView(
+          id: box,
+          cellId: looseCell,
+          cellAddress: 'С-Н-П',
+          live: true,
+        ),
+      ),
+    );
+
+    final viewed = (await repo.loadUnit(box)).right;
+    expect(viewed.freshness, isA<FreshFromServer>());
+    expect(
+      viewed.value!.cellAddress,
+      'С-Н-П',
+    ); // сервер, а не снимок (там A-1-1)
+  });
+
+  test('сервер не знает короба — «не найден», а не снимок', () async {
+    await cache.replace(fixture);
+    when(
+      () => api.card(box),
+    ).thenAnswer((_) async => const Left(Failure.server(404)));
+
+    final viewed = (await repo.loadUnit(box)).right;
+    expect(viewed.value, isNull);
+    expect(viewed.freshness, isA<FreshFromServer>());
+  });
+
+  test('новый снимок заменяет прежний целиком', () async {
+    await cache.replace(fixture);
+    await cache.replace(
+      ContentsSnapshot(
+        asOf: DateTime.utc(2026, 10, 9),
+        loadUnits: const [],
+        loose: const [],
+      ),
+    );
+
+    expect(await cache.loadUnits([box]), isEmpty);
+    expect(await cache.looseInCell(looseCell), isEmpty);
+    expect(
+      (await cache.asOf())!.isAtSameMomentAs(DateTime.utc(2026, 10, 9)),
+      isTrue,
+    );
+  });
+
+  test('ячейка ищется по точному адресу, без учёта регистра', () async {
+    await catalog.putCells(const [
+      Cell(id: 'c1', warehouseId: wh, address: 'A-1-1'),
+      Cell(id: 'c10', warehouseId: wh, address: 'A-1-10'),
+    ]);
+
+    expect((await repo.findCell('a-1-1'))?.id, 'c1');
+    expect(await repo.findCell('A-1'), isNull);
+  });
+
+  test('миграция 6 → 7 заводит таблицы снимка', () async {
+    for (final t in [
+      'cached_load_units',
+      'cached_load_unit_lines',
+      'cached_loose_stock',
+    ]) {
+      await db.customStatement('DROP TABLE $t');
+    }
+
+    await db.migration.onUpgrade(Migrator(db), 6, 7);
+
+    await cache.replace(fixture);
+    expect((await cache.loadUnits([box])).keys, [box]);
+  });
+}

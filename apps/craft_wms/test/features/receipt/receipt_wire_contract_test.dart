@@ -27,6 +27,7 @@ import 'package:uuid/data.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../support/fake_operations_server.dart';
+import '../../support/contents_stubs.dart';
 
 class _MockConnectivity extends Mock implements Connectivity {}
 
@@ -77,7 +78,7 @@ void main() {
     addTearDown(db.close);
     final cache = CatalogCache(db);
     final outbox = OutboxRepository(db, const Uuid());
-    final effects = OutboxEffects(cache);
+    final effects = OutboxEffects(cache, FakeContentsSnapshotSync());
     final server = FakeOperationsServer();
     final dio = Dio(BaseOptions(baseUrl: 'https://api.test/api/v1/'))
       ..httpClientAdapter = server;

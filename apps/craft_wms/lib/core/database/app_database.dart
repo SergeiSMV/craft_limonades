@@ -10,10 +10,10 @@ part 'app_database.g.dart';
 /// Их меняет импорт из 1С и печать этикеток, то есть события редкие и внешние по отношению
 /// к работе кладовщика.
 ///
-/// Чего здесь НЕТ: **остатков**. Остаток меняется от каждой операции любого терминала, и
-/// показать кладовщику число, которое уже неверно, хуже честного «нет связи» — по неверному
-/// он примет решение. Раздел «Остатки» офлайн отдаёт список товаров из кэша, а карточку
-/// остатков — только по сети (решение пользователя, P2-02).
+/// Остатки по товару здесь не лежат: карточка товара в «Остатках» ходит только в сеть
+/// (решение P2-02, долг 22). С P5-05 здесь лежит **снимок содержимого склада** — живые короба
+/// и россыпь по ячейкам: кладовщик сканирует ячейку или короб и без связи, а экран честно
+/// пишет, на какой момент данные (см. [CachedLoadUnits]).
 
 /// Товары. Префикс `Cached` во всех таблицах — не украшение: drift генерирует для таблицы
 /// класс строки в единственном числе, и таблица `Goods` дала бы класс `Good`, столкнувшись
@@ -228,6 +228,65 @@ class CachedTasks extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+/// Живые короба из снимка содержимого склада (P5-05) — `GET /contents/snapshot`.
+///
+/// Зачем: скан ячейки или короба без связи показывает, что внутри. Снимок заменяется целиком
+/// (как справочники): сервер отдаёт только живые короба, и выведенные из обращения иначе
+/// остались бы здесь навсегда. Свои неотправленные приёмки и размещения сюда НЕ пишутся —
+/// следующая замена их стёрла бы; они накладываются при чтении (`PendingOverlay`).
+///
+/// Таблицы, а не JSON одной строкой, как у заданий: читают снимок по ячейке и по коробу,
+/// а разбирать ради одного короба весь склад — лишняя работа на каждый скан.
+@TableIndex(name: 'cached_load_units_cell', columns: {#cellId})
+class CachedLoadUnits extends Table {
+  TextColumn get id => text()();
+  TextColumn get kind => text()();
+  TextColumn get cellId => text()();
+  DateTimeColumn get createdAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// Содержимое коробов снимка: товар партии с количеством.
+///
+/// Партия хранится и идентификатором, и датой: дата — то, что видит человек и что несут
+/// операции очереди (по ней наложение сводит строки), идентификатор — ключ строки.
+@TableIndex(name: 'cached_load_unit_lines_lu', columns: {#loadUnitId})
+class CachedLoadUnitLines extends Table {
+  TextColumn get loadUnitId => text()();
+  TextColumn get goodId => text()();
+  TextColumn get batchId => text()();
+
+  /// Дата партии в транспортном виде DD-MM-YYYY.
+  TextColumn get productionDate => text()();
+  RealColumn get qty => real()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {loadUnitId, goodId, batchId};
+}
+
+/// Россыпь снимка: товар партии в ячейке вне коробов.
+@TableIndex(name: 'cached_loose_stock_cell', columns: {#cellId})
+class CachedLooseStock extends Table {
+  TextColumn get cellId => text()();
+  TextColumn get internalWarehouseId => text()();
+  TextColumn get goodId => text()();
+  TextColumn get batchId => text()();
+
+  /// Дата партии в транспортном виде DD-MM-YYYY.
+  TextColumn get productionDate => text()();
+  RealColumn get qty => real()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {
+    cellId,
+    goodId,
+    batchId,
+    internalWarehouseId,
+  };
+}
+
 /// Подключение к локальной базе.
 ///
 /// Файл `craft_wms.sqlite` в каталоге приложения; при удалении приложения уходит вместе с ним.
@@ -246,6 +305,9 @@ class CachedTasks extends Table {
     EntryDrafts,
     DeviceSettings,
     CachedTasks,
+    CachedLoadUnits,
+    CachedLoadUnitLines,
+    CachedLooseStock,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -255,7 +317,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   /// Миграции схемы.
   ///
@@ -273,6 +335,9 @@ class AppDatabase extends _$AppDatabase {
   /// 4 → 5: у ячеек появился признак дефолтной ячейки приёмки (P4-09).
   ///
   /// 5 → 6: добавлены [cachedTasks] — снимок текущих заданий склада (P5-02-1).
+  ///
+  /// 6 → 7: добавлены таблицы снимка содержимого склада — [cachedLoadUnits],
+  /// [cachedLoadUnitLines], [cachedLooseStock] (P5-05). Пустые до первой загрузки снимка.
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) => m.createAll(),
@@ -300,6 +365,13 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 6) {
         await m.createTable(cachedTasks);
+      }
+      if (from < 7) {
+        // Индексы (@TableIndex) createTable создаёт вместе с таблицей — отдельный createIndex
+        // падал бы на «index already exists» (поймано тестом миграции).
+        await m.createTable(cachedLoadUnits);
+        await m.createTable(cachedLoadUnitLines);
+        await m.createTable(cachedLooseStock);
       }
     },
   );

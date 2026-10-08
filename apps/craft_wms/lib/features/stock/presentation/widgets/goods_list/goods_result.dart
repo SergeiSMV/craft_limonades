@@ -10,7 +10,7 @@ import '../../../../../core/theme/regular_text.dart';
 import '../../../../../core/utils/keyboard.dart';
 import '../../../data/catalog_models.dart';
 import '../../bloc/goods_list_cubit.dart';
-import '../common/error_retry.dart';
+import '../../../../../core/widgets/error_retry.dart';
 
 /// Виджет результат: список товаров / индикатор / ошибка / пусто.
 class GoodsResult extends StatelessWidget {

@@ -3,6 +3,7 @@ import 'package:craft_wms/core/outbox/operations_api.dart';
 import 'package:craft_wms/core/database/app_database.dart';
 import 'package:craft_wms/core/error/failure.dart';
 import 'package:craft_wms/core/outbox/outbox_effects.dart';
+import 'package:craft_wms/core/outbox/outbox_operation.dart';
 import 'package:craft_wms/core/outbox/outbox_repository.dart';
 import 'package:craft_wms/core/outbox/outbox_sender.dart';
 import 'package:craft_wms/core/sync/sync_engine.dart';
@@ -19,6 +20,7 @@ import 'package:talker_flutter/talker_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 import '../support/outbox_stubs.dart';
+import '../support/contents_stubs.dart';
 
 class _MockApi extends Mock implements CatalogApi {}
 
@@ -48,7 +50,7 @@ void main() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     cache = CatalogCache(db);
     outbox = OutboxRepository(db, const Uuid());
-    effects = OutboxEffects(cache);
+    effects = OutboxEffects(cache, FakeContentsSnapshotSync());
     api = _MockApi();
     opsApi = MockOperationsApi();
     engine = SyncEngine(
@@ -191,6 +193,29 @@ void main() {
   });
 
   // Схема поднялась до версии 3: у привязки появилась пометка «ещё не подтверждена».
+  // P5-05: подтверждённая приёмка или размещение устаревают снимок содержимого склада.
+  test('подтверждение приёмки и размещения просит обновить снимок', () async {
+    final contents = FakeContentsSnapshotSync();
+    final e = OutboxEffects(cache, contents);
+    final now = DateTime(2026, 10, 8);
+    OutboxOperation op(OutboxKind kind) => OutboxOperation(
+      seq: 1,
+      operationId: 'op',
+      kind: kind,
+      payload: const {'barcode': barcode, 'good_id': 'g1'},
+      status: OutboxStatus.sent,
+      attempts: 1,
+      createdAt: now,
+      updatedAt: now,
+    );
+
+    await e.confirm(op(OutboxKind.receiptSubmit));
+    await e.confirm(op(OutboxKind.putawaySubmit));
+    await e.confirm(op(OutboxKind.bindBarcode));
+
+    expect(contents.requests, 2);
+  });
+
   test('миграция 2 → 3 добавляет пометку, не трогая привязки', () async {
     await cache.addBarcode(barcode: barcode, goodId: good.id);
     await db.customStatement('ALTER TABLE cached_barcodes DROP COLUMN pending');

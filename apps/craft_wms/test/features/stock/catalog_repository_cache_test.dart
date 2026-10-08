@@ -19,6 +19,7 @@ import 'package:talker_flutter/talker_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../support/outbox_stubs.dart';
+import '../../support/contents_stubs.dart';
 
 class _MockApi extends Mock implements CatalogApi {}
 
@@ -44,7 +45,7 @@ void main() {
     api = _MockApi();
     opsApi = MockOperationsApi();
     outbox = OutboxRepository(db, const Uuid());
-    final effects = OutboxEffects(cache);
+    final effects = OutboxEffects(cache, FakeContentsSnapshotSync());
     // Движок в тесте настоящий: отправка идёт через него, и проверять надо именно тот путь,
     // которым операция уходит на самом деле.
     engine = SyncEngine(
