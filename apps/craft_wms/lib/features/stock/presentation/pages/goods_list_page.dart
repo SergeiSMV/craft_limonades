@@ -21,6 +21,7 @@ import '../../../../core/widgets/appbar_image.dart';
 import '../../../../core/widgets/good_picker_sheet.dart';
 import '../../../../core/widgets/page_header.dart';
 import '../../../../core/widgets/system_ui_wrapper.dart';
+import '../../../contents/presentation/contents_navigation.dart';
 import '../../data/catalog_models.dart';
 import '../../data/catalog_repository.dart';
 import '../bloc/goods_list_cubit.dart';
@@ -73,7 +74,8 @@ class _GoodsListViewState extends State<_GoodsListView>
       context.read<GoodsListCubit>().setQueryDebounced(value);
 
   /// Ввод завершён: сканер шлёт строку целиком и Enter, на софт-клавиатуре это «Поиск».
-  /// Скан ШК резолвим и сразу открываем карточку товара, обычный текст — ищем подстрокой.
+  /// Скан ячейки или короба открывает их содержимое, скан ШК резолвим и сразу открываем
+  /// карточку товара, обычный текст — ищем подстрокой.
   ///
   /// Единая точка для обоих источников кода, поэтому отсечение дубля стоит здесь: если бы оно
   /// сидело только на ветке потока, пара «поле + интент» прошла бы мимо него.
@@ -83,6 +85,14 @@ class _GoodsListViewState extends State<_GoodsListView>
     final cubit = context.read<GoodsListCubit>();
     cubit
         .cancelPendingSearch(); // ввод завершён — отложенный поиск уже не нужен
+    // Ячейка и короб открывают своё содержимое (P5-05). Адрес, которого нет в справочнике
+    // ячеек, остаётся текстом поиска — так ищут товар по фрагменту с дефисом.
+    final opened = await openScannedContents(
+      context,
+      ScanCode(raw: input),
+      unknownCellIsMine: false,
+    );
+    if (opened || !mounted) return;
     if (!looksLikeBarcode(input)) {
       showInSearchField(input);
       await cubit.setQuery(input);

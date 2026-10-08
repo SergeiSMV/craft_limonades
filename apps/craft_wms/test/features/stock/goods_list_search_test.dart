@@ -12,6 +12,7 @@ import 'package:mocktail/mocktail.dart';
 
 import '../../support/fake_scanner_service.dart';
 
+import '../../support/contents_stubs.dart';
 import '../../support/entry_draft_stub.dart';
 
 class _MockRepo extends Mock implements CatalogRepository {}
@@ -26,6 +27,8 @@ void main() {
 
   setUp(() {
     registerEmptyDraftStore();
+    // Адрес ячейки, которой нет в справочнике, остаётся текстом поиска (P5-05).
+    registerFakeContentsRepository();
     LocaleSettings.useDeviceLocale();
     registerFakeScanner(); // экран подписывается на сканер через DI
     queries.clear();

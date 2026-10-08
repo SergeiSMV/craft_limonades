@@ -15,6 +15,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:talker_flutter/talker_flutter.dart';
 import 'package:uuid/uuid.dart';
+import '../support/contents_stubs.dart';
 
 class _MockSender extends Mock implements OutboxSender {}
 
@@ -42,7 +43,7 @@ void main() {
     engine = SyncEngine(
       outbox,
       sender,
-      OutboxEffects(CatalogCache(db)),
+      OutboxEffects(CatalogCache(db), FakeContentsSnapshotSync()),
       Talker(),
       _MockConnectivity(),
     );

@@ -11,6 +11,7 @@ import 'package:either_dart/either.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:talker_flutter/talker_flutter.dart';
+import '../support/contents_stubs.dart';
 
 class _MockApi extends Mock implements CatalogApi {}
 
@@ -20,6 +21,7 @@ void main() {
   late CatalogCache cache;
   late _MockApi api;
   late CatalogSyncService sync;
+  late FakeContentsSnapshotSync contents;
 
   const good = Good(id: 'g1', name: 'Товар', uom: 'шт');
 
@@ -27,7 +29,8 @@ void main() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     cache = CatalogCache(db);
     api = _MockApi();
-    sync = CatalogSyncService(api, cache, Talker());
+    contents = FakeContentsSnapshotSync();
+    sync = CatalogSyncService(api, cache, contents, Talker());
   });
 
   tearDown(() => db.close());
@@ -56,6 +59,18 @@ void main() {
 
     expect(res.right, SyncOutcome.refreshed);
     expect(sync.isRunning, isFalse);
+  });
+
+  // P5-05: снимок содержимого склада грузится в том же заходе, последним, и его отказ —
+  // отказ обновления: без него «Ячейка» и «Короб» без связи показывали бы старое.
+  test('снимок содержимого грузится вместе со справочниками', () async {
+    stubHappyPath();
+
+    expect((await sync.refresh()).right, SyncOutcome.refreshed);
+    expect(contents.refreshes, 1);
+
+    contents.result = const Left(Failure.network());
+    expect((await sync.refresh()).isLeft, isTrue);
   });
 
   test('отказ сети остаётся отказом', () async {

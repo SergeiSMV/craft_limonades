@@ -4,7 +4,7 @@ import '../../../../../core/constants/app_boxes.dart';
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/constants/app_insets.dart';
 import '../../../../../core/constants/app_sizes.dart';
-import 'detail_card.dart';
+import '../../../../../core/widgets/detail_card.dart';
 
 /// Белая плашка с раскрывающимся содержимым: шапка с шевроном видна всегда, тело
 /// раскрывается тапом по шапке. По умолчанию свёрнута.

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../../../../../core/constants/app_colors.dart';
-import '../../../../../core/constants/app_insets.dart';
-import '../../../../../core/theme/semibold_text.dart';
+import '../constants/app_colors.dart';
+import '../constants/app_insets.dart';
+import '../theme/semibold_text.dart';
 
-/// Заголовок секции карточки остатков («Штрихкоды (N)», «Наличие по местам хранения»):
+/// Заголовок секции карточки («Штрихкоды (N)», «Наличие по местам хранения», «Короба»):
 /// тёмный текст на сером фоне, вне белой плашки.
 class SectionTitle extends StatelessWidget {
   const SectionTitle({super.key, required this.title});

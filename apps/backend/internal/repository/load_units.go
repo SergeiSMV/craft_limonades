@@ -13,9 +13,10 @@ import (
 
 // ErrLoadUnitNotFound — нет грузовой единицы с таким идентификатором.
 //
-// Отдельная ошибка, а не нарушение внешнего ключа из строки приёмки: кладовщик сканировал ярлык
-// короба, которого система не знает, и это разбирается человеком, а не показывается как сбой БД.
-var ErrLoadUnitNotFound = errors.New("load unit not found")
+// Сама ошибка живёт в домене (model.ErrLoadUnitNotFound, P5-05): здесь — тот же объект под
+// прежним именем, чтобы существующие проверки errors.Is не разошлись, пока их переводят
+// на домен (долг 21).
+var ErrLoadUnitNotFound = model.ErrLoadUnitNotFound
 
 // LoadUnitRepository — грузовая единица: заведение короба и его чтение (P4-01, P4-03).
 type LoadUnitRepository struct {

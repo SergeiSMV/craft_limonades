@@ -12,7 +12,7 @@ import '../../../../../core/theme/regular_text.dart';
 import '../../../../../core/utils/date_input.dart';
 import '../../../../../core/utils/qty_format.dart';
 import '../../../data/catalog_models.dart';
-import 'detail_card.dart';
+import '../../../../../core/widgets/detail_card.dart';
 
 /// Строка остатка: булавка места хранения, адрес ячейки с датой партии и количество.
 /// Строк по одной ячейке может быть несколько — по одной на каждую партию.
