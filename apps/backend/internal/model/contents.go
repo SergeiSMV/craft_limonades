@@ -79,3 +79,29 @@ type ContentsSnapshot struct {
 	LoadUnits []LoadUnitCard
 	Loose     []LooseLine
 }
+
+// LoadUnitReceipt — приёмка, которая завела короб (P5-05-1): кто, когда, от кого.
+type LoadUnitReceipt struct {
+	ReceiptID    string
+	ReceivedBy   string     // ФИО кладовщика
+	SupplierName *string    // nil — приёмка без поставщика
+	PostedAt     *time.Time // nil — документ ещё не оприходован
+}
+
+// LoadUnitMove — перенос короба из журнала размещений (P5-05-1), в том виде, в каком его читает
+// человек: адреса ячеек и ФИО, а не идентификаторы.
+type LoadUnitMove struct {
+	FromAddress *string // nil — первое размещение: короб появился на складе
+	ToAddress   string
+	Source      string  // PlacementReceipt | PlacementPutaway
+	UserName    *string // nil — исполнитель неизвестен
+	At          time.Time
+}
+
+// LoadUnitHistory — история короба: создание и переносы по порядку (P5-05-1).
+type LoadUnitHistory struct {
+	LoadUnitID string
+	CreatedAt  time.Time
+	Receipt    *LoadUnitReceipt // nil — короб не попал ни в одну приёмку
+	Moves      []LoadUnitMove
+}

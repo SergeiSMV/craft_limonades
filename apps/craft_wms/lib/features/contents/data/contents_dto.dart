@@ -142,3 +142,30 @@ class ContentsSnapshot {
   final List<SnapshotLoadUnit> loadUnits;
   final List<SnapshotLoose> loose;
 }
+
+/// История короба (`GET /load-units/{id}/history`, P5-05-1).
+LoadUnitHistory historyFromJson(Map<String, dynamic> j) {
+  DateTime? at(Object? raw) =>
+      DateTime.tryParse(raw as String? ?? '')?.toLocal();
+  final receipt = j['receipt'] as Map<String, dynamic>?;
+  return LoadUnitHistory(
+    createdAt: at(j['created_at']) ?? DateTime.fromMillisecondsSinceEpoch(0),
+    receipt: receipt == null
+        ? null
+        : LoadUnitReceiptInfo(
+            receivedBy: receipt['received_by'] as String? ?? '',
+            supplier: receipt['supplier'] as String?,
+            postedAt: at(receipt['posted_at']),
+          ),
+    moves: [
+      for (final m in j['moves'] as List? ?? const [])
+        LoadUnitMove(
+          from: (m as Map<String, dynamic>)['from'] as String?,
+          to: m['to'] as String,
+          byReceipt: m['source'] == 'receipt',
+          userName: m['user_name'] as String?,
+          at: at(m['at']) ?? DateTime.fromMillisecondsSinceEpoch(0),
+        ),
+    ],
+  );
+}

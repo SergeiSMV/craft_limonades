@@ -583,6 +583,26 @@
     "unknown_good": "Товар не в справочнике",
     "batch": "Партия: ${date}",
     "no_connection": "Нет связи, а данные склада ещё не загружены. Обновите справочники, когда связь появится",
-    "load_failed": "Не удалось загрузить"
+    "load_failed": "Не удалось загрузить",
+    "tab_goods": "Товары",
+    "tab_boxes": "Короба",
+    "box_search_hint": "Код короба с ярлыка",
+    "short_code_invalid": "Код короба — цифры и буквы A–F, до 8 знаков",
+    "boxes_empty": "Коробов на складе нет",
+    "boxes_not_found": "Коробов с кодом ${code} нет",
+    "reprint": "Перепечатать ярлык",
+    "reprinted": "Ярлык отправлен на принтер",
+    "history_title": "История",
+    "history_online_only": "История видна только со связью",
+    "history_failed": "Не удалось загрузить историю",
+    "history_created": "Короб заведён ${time}",
+    "history_received": "Принял: ${name}",
+    "history_supplier": "Поставщик: ${name}",
+    "history_no_supplier": "Приёмка без поставщика",
+    "history_not_posted": "Приёмка ещё не оприходована",
+    "move_receipt": "Приёмка → ${to}",
+    "move_putaway": "Размещение: ${from} → ${to}",
+    "move_by": "${name} · ${time}",
+    "move_by_unknown": "${time}"
   }
 }

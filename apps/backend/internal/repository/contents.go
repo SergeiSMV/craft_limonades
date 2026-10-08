@@ -260,3 +260,117 @@ func scanContentLine(rows pgx.Rows, lu *string, ln *model.ContentLine) error {
 	ln.Qty = q
 	return nil
 }
+
+// SearchLoadUnits ищет короба по короткому коду с ярлыка — вхождению [code] в последние восемь
+// знаков идентификатора (P5-05-1). [code] уже приведён: шестнадцатеричные знаки, заглавными.
+//
+// Ищутся ВСЕ короба, живые и нет: ярлык перепечатывают как раз тогда, когда короб «пропал» —
+// он пуст, не размещён или появился после снимка на терминале. Живость отдаётся признаком.
+// Сначала живые, затем по адресу ячейки и времени создания; [limit] — защита от выдачи на весь
+// склад по одному знаку.
+//
+// Без индекса: выражение по хвосту id просматривает все короба. На масштабе пилота — сотни
+// строк; рост — индекс по тому же выражению хвоста id.
+func (r *ContentsRepository) SearchLoadUnits(ctx context.Context, code string, limit int) ([]model.LoadUnitCard, error) {
+	var out []model.LoadUnitCard
+	err := r.withinSnapshot(ctx, func(q Querier) error {
+		rows, err := q.Query(ctx, `
+			SELECT lu.id::text, lu.kind, lu.status, lu.cell_id::text, c.address, lu.created_at
+			FROM load_units lu
+			LEFT JOIN cells c ON c.id = lu.cell_id
+			WHERE strpos(upper(right(replace(lu.id::text, '-', ''), 8)), $1) > 0
+			ORDER BY (lu.cell_id IS NOT NULL
+			          AND EXISTS (SELECT 1 FROM lu_content x WHERE x.load_unit_id = lu.id AND x.qty > 0)) DESC,
+			         c.address NULLS LAST, lu.created_at, lu.id
+			LIMIT $2`, code, limit)
+		if err != nil {
+			return fmt.Errorf("поиск коробов по коду: %w", err)
+		}
+		defer rows.Close()
+		var ids []string
+		for rows.Next() {
+			var lu model.LoadUnitCard
+			if err := rows.Scan(&lu.ID, &lu.Kind, &lu.Status, &lu.CellID, &lu.CellAddress, &lu.CreatedAt); err != nil {
+				return fmt.Errorf("разобрать короб: %w", err)
+			}
+			out = append(out, lu)
+			ids = append(ids, lu.ID)
+		}
+		if err := rows.Err(); err != nil {
+			return err
+		}
+		contents, err := loadUnitLines(ctx, q, ids)
+		if err != nil {
+			return err
+		}
+		for i := range out {
+			out[i].Contents = contents[out[i].ID]
+			out[i].Live = out[i].CellID != nil && len(out[i].Contents) > 0
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// LoadUnitHistory возвращает историю короба: приёмку, которая его завела, и переносы из журнала
+// размещений по порядку — с адресами и ФИО (P5-05-1). Нет короба — model.ErrLoadUnitNotFound.
+func (r *ContentsRepository) LoadUnitHistory(ctx context.Context, id string) (model.LoadUnitHistory, error) {
+	h := model.LoadUnitHistory{LoadUnitID: id, Moves: []model.LoadUnitMove{}}
+	err := r.withinSnapshot(ctx, func(q Querier) error {
+		err := q.QueryRow(ctx, `SELECT created_at FROM load_units WHERE id = $1::uuid`, id).Scan(&h.CreatedAt)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return model.ErrLoadUnitNotFound
+		}
+		if err != nil {
+			return fmt.Errorf("прочитать короб: %w", err)
+		}
+
+		// Короб заводит его приёмка (P4-09): строка приёмки ссылается на него. Строк с этим
+		// коробом в документе может быть несколько — документ один.
+		var rc model.LoadUnitReceipt
+		err = q.QueryRow(ctx, `
+			SELECT r.id::text, u.full_name, s.name, r.posted_at
+			FROM receipt_lines rl
+			JOIN receipts r       ON r.id = rl.receipt_id
+			JOIN users u          ON u.id = r.created_by
+			LEFT JOIN suppliers s ON s.id = r.supplier_id
+			WHERE rl.load_unit_id = $1::uuid
+			ORDER BY r.created_at
+			LIMIT 1`, id).Scan(&rc.ReceiptID, &rc.ReceivedBy, &rc.SupplierName, &rc.PostedAt)
+		switch {
+		case errors.Is(err, pgx.ErrNoRows):
+		case err != nil:
+			return fmt.Errorf("приёмка короба: %w", err)
+		default:
+			h.Receipt = &rc
+		}
+
+		rows, err := q.Query(ctx, `
+			SELECT cf.address, ct.address, p.source, u.full_name, p.placed_at
+			FROM placements p
+			LEFT JOIN cells cf ON cf.id = p.from_cell_id
+			JOIN cells ct      ON ct.id = p.to_cell_id
+			LEFT JOIN users u  ON u.id = p.user_id
+			WHERE p.load_unit_id = $1::uuid
+			ORDER BY p.placed_at, p.id`, id)
+		if err != nil {
+			return fmt.Errorf("переносы короба: %w", err)
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var m model.LoadUnitMove
+			if err := rows.Scan(&m.FromAddress, &m.ToAddress, &m.Source, &m.UserName, &m.At); err != nil {
+				return fmt.Errorf("разобрать перенос: %w", err)
+			}
+			h.Moves = append(h.Moves, m)
+		}
+		return rows.Err()
+	})
+	if err != nil {
+		return model.LoadUnitHistory{}, err
+	}
+	return h, nil
+}

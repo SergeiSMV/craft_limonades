@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"net/url"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -183,5 +185,84 @@ func TestContentsHTTP_cardAndCell(t *testing.T) {
 	}
 	if code, _ := e.call(t, http.MethodGet, "/api/v1/contents/snapshot", "", ""); code != http.StatusUnauthorized {
 		t.Errorf("снимок без токена: код %d, ожидалось 401", code)
+	}
+}
+
+// Поиск по короткому коду и история (P5-05-1): код набран так, как на ярлыке, — с пробелом,
+// строчными; история читается людьми — ФИО и адреса.
+func TestContentsHTTP_searchAndHistory(t *testing.T) {
+	e := newReceivingE2E(t, nil)
+	good := uuid.NewString()
+	if _, err := e.pool.Exec(context.Background(),
+		`INSERT INTO goods (id,code,name,uom) VALUES ($1::uuid,'16121','Кальмар','шт')`, good); err != nil {
+		t.Fatalf("товар: %v", err)
+	}
+	box := uuid.NewString()
+	receipt := `{"operations":[{"operation_id":"` + uuid.NewString() + `","kind":"receipt_submit","payload":{
+		"receipt_id":"` + uuid.NewString() + `","warehouse_id":"` + e.warehouse + `","supplier_id":"` + e.supplier + `",
+		"load_units":[{"id":"` + box + `","kind":"box"}],
+		"lines":[{"good_id":"` + good + `","production_date":"01-09-2026","qty":12,"load_unit_id":"` + box + `"}]}}]}`
+	if got := e.operations(t, receipt); len(got) != 1 || got[0] != service.StatusAccepted {
+		t.Fatalf("приёмка не применилась: %v", got)
+	}
+
+	hex := strings.ReplaceAll(box, "-", "")
+	typed := strings.ToLower(hex[24:28] + " " + hex[28:]) // «9fa0 b1c2» — как на ярлыке
+	code, body := e.call(t, http.MethodGet, "/api/v1/load-units?code="+url.QueryEscape(typed), e.workerToken, "")
+	var found []struct {
+		ID          string  `json:"id"`
+		Live        bool    `json:"live"`
+		CellAddress *string `json:"cell_address"`
+	}
+	if code != http.StatusOK || json.Unmarshal(body, &found) != nil {
+		t.Fatalf("поиск: код %d, %s", code, body)
+	}
+	if len(found) != 1 || found[0].ID != box || !found[0].Live || found[0].CellAddress == nil {
+		t.Errorf("поиск по коду %q: %s", typed, body)
+	}
+
+	// Ничего не найдено — пустой список, а не null.
+	code, body = e.call(t, http.MethodGet, "/api/v1/load-units?code=00000000", e.workerToken, "")
+	if code != http.StatusOK || strings.TrimSpace(string(body)) != "[]" {
+		t.Errorf("пустой поиск: код %d, %s", code, body)
+	}
+
+	code, body = e.call(t, http.MethodGet, "/api/v1/load-units/"+box+"/history", e.workerToken, "")
+	var hist struct {
+		Receipt *struct {
+			ReceivedBy string  `json:"received_by"`
+			Supplier   *string `json:"supplier"`
+			PostedAt   *string `json:"posted_at"`
+		} `json:"receipt"`
+		Moves []struct {
+			From   *string `json:"from"`
+			To     string  `json:"to"`
+			Source string  `json:"source"`
+		} `json:"moves"`
+	}
+	if code != http.StatusOK || json.Unmarshal(body, &hist) != nil {
+		t.Fatalf("история: код %d, %s", code, body)
+	}
+	if hist.Receipt == nil || hist.Receipt.ReceivedBy != "Кладовщик" || hist.Receipt.Supplier == nil ||
+		*hist.Receipt.Supplier != "ООО «Голсера»" || hist.Receipt.PostedAt == nil {
+		t.Errorf("приёмка в истории: %s", body)
+	}
+	if len(hist.Moves) != 1 || hist.Moves[0].From != nil || hist.Moves[0].To != "С-Н-П" || hist.Moves[0].Source != "receipt" {
+		t.Errorf("переносы в истории: %s", body)
+	}
+
+	for _, tc := range []struct {
+		path string
+		want int
+	}{
+		{"/api/v1/load-units?code=", http.StatusBadRequest},
+		{"/api/v1/load-units?code=XYZ", http.StatusBadRequest},
+		{"/api/v1/load-units?code=123456789", http.StatusBadRequest},
+		{"/api/v1/load-units/" + uuid.NewString() + "/history", http.StatusNotFound},
+		{"/api/v1/load-units/not-a-uuid/history", http.StatusBadRequest},
+	} {
+		if code, body := e.call(t, http.MethodGet, tc.path, e.workerToken, ""); code != tc.want {
+			t.Errorf("%s: код %d, ожидалось %d (%s)", tc.path, code, tc.want, body)
+		}
 	}
 }

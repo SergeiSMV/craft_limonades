@@ -22,6 +22,19 @@ abstract interface class ContentsRepository {
 
   /// Ячейка по отсканированному адресу — из справочника терминала; `null` — такой нет.
   Future<CellRef?> findCell(String address);
+
+  /// Все живые короба склада из снимка, со своей очередью поверх (P5-05-1). [fresh] — снимок
+  /// только что загружен: подпись «данные на ЧЧ:ММ» не нужна.
+  Future<Viewed<List<LoadUnitView>>> loadUnits({required bool fresh});
+
+  /// Короба по короткому коду, уже приведённому [shortCodeQuery]: сервер ответил — все короба
+  /// склада, живые и нет; не ответил (нет связи, сбой, старая версия) — снимок и своя очередь.
+  Future<Either<Failure, Viewed<List<LoadUnitView>>>> searchLoadUnits(
+    String code,
+  );
+
+  /// История короба — только со связью.
+  Future<Either<Failure, LoadUnitHistory>> history(String id);
 }
 
 /// Загрузка снимка содержимого склада в кэш терминала.

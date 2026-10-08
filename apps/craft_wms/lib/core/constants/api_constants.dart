@@ -109,4 +109,10 @@ abstract final class ApiConst {
 
   ///**GET** - карточка короба, где лежит и что внутри (P5-05): `load-units/{id}/card`.
   static String loadUnitCard(String id) => 'load-units/$id/card';
+
+  ///**GET** - короба по короткому коду с ярлыка, живые и нет (P5-05-1): `load-units?code=…`.
+  static const String loadUnits = 'load-units';
+
+  ///**GET** - история короба, приёмка и переносы (P5-05-1): `load-units/{id}/history`.
+  static String loadUnitHistory(String id) => 'load-units/$id/history';
 }

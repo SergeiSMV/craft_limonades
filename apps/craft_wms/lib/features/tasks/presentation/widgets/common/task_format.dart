@@ -1,9 +1,10 @@
 import '../../../../../core/gen/strings.g.dart';
+import '../../../../../core/utils/date_time_format.dart';
 import '../../../../../core/utils/qty_format.dart';
 import '../../../data/tasks_models.dart';
 
 export '../../../../../core/utils/date_time_format.dart'
-    show batchDate, shortDateTime;
+    show batchDate, fullDate, fullDateTime, shortDateTime, timeOfDay;
 
 /// Форматирование раздела «ЗАДАНИЯ»: вид, основание, даты, количества.
 
@@ -32,21 +33,6 @@ String supplierBasis(String supplier) => supplier.isEmpty
     : t.tasks.fromReceipt(supplier: supplier);
 
 String _two(int v) => v.toString().padLeft(2, '0');
-
-/// «05.10.2026» — по часам терминала.
-String fullDate(DateTime d) {
-  final l = d.toLocal();
-  return '${_two(l.day)}.${_two(l.month)}.${l.year}';
-}
-
-/// «05.10.2026 13:58» — по часам терминала.
-String fullDateTime(DateTime d) => '${fullDate(d)} ${timeOfDay(d)}';
-
-/// «14:30» — время внутри дня ленты.
-String timeOfDay(DateTime d) {
-  final l = d.toLocal();
-  return '${_two(l.hour)}:${_two(l.minute)}';
-}
 
 /// Разделитель дня ленты: «Сегодня», «Вчера» или дата.
 String dayLabel(DateTime day, {DateTime? now}) {

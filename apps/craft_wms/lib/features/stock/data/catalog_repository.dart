@@ -111,6 +111,12 @@ class CatalogRepository {
     return _api.resolveGoodByBarcode(code);
   }
 
+  /// Товар по идентификатору из справочника терминала; `null` — справочник не загружен или
+  /// товара в нём нет (заведён после загрузки). Нужен переходу в карточку товара из содержимого
+  /// короба (P5-05-1), где известен только идентификатор и наименование.
+  Future<Good?> goodById(String id) async =>
+      await _ready(CatalogName.goods) ? _cache.goodById(id) : null;
+
   /// Штрихкоды товара (секция «Штрихкоды» карточки). Пустой список — норма.
   Future<Either<Failure, List<Barcode>>> listGoodBarcodes(String goodId) async {
     if (!await _ready(CatalogName.barcodes)) {
