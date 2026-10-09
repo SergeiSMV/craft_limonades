@@ -83,10 +83,10 @@ class _DocumentsTabState extends State<DocumentsTab> {
     setState(() => _downloading.remove(doc.id));
     res.fold(
       (f) => _snack(t.portal.documents.error(message: _errorText(f))),
-      (bytes) {
+      (file) {
         downloadBytes(
-          bytes: bytes,
-          filename: 'vvod-ostatkov-${doc.warehouseCode}.xlsx',
+          bytes: file.bytes,
+          filename: file.filename,
           mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         );
         _load();

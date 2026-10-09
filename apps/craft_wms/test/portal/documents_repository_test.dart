@@ -86,17 +86,30 @@ void main() {
       final adapter = RecordingAdapter({
         'GET ${ApiConst.documentFile("d1")}': (_) => ResponseBody.fromBytes(xlsx, 200, headers: {
           Headers.contentTypeHeader: ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
+          'content-disposition': ['attachment; filename="dvizhenie-SHB-20261009.xlsx"'],
         }),
       });
       dio.httpClientAdapter = adapter;
 
       final res = await DocumentsRepository(dio).downloadReport('d1');
       expect(res.isRight, isTrue);
-      expect(res.right, equals(xlsx));
+      expect(res.right.bytes, equals(xlsx));
+      // ADHOC-24: имя — то, что прислал сервер, а не зашитое «ввод остатков».
+      expect(res.right.filename, 'dvizhenie-SHB-20261009.xlsx');
       final req = adapter.requests.single;
       expect(req.path, ApiConst.documentFile('d1'));
       expect(req.responseType, ResponseType.bytes);
     });
+  });
+
+  // ADHOC-24: имя файла из Content-Disposition; без него — имя по умолчанию.
+  test('имя файла из Content-Disposition', () {
+    expect(filenameFromDisposition('attachment; filename="postuplenie-SHB-20261009.xlsx"'),
+        'postuplenie-SHB-20261009.xlsx');
+    expect(filenameFromDisposition('attachment; filename=vvod-ostatkov-SHB-20261009.xlsx'),
+        'vvod-ostatkov-SHB-20261009.xlsx');
+    expect(filenameFromDisposition('attachment'), kDefaultDocFilename);
+    expect(filenameFromDisposition(null), kDefaultDocFilename);
   });
 
   group('markDone', () {
