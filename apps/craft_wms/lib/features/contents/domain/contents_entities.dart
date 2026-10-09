@@ -133,13 +133,17 @@ final class FreshFromServer extends DataFreshness {
   const FreshFromServer();
 }
 
-/// Связи нет — данные из снимка на терминале.
+/// Данные из снимка на терминале: сервер сейчас не дал ответа.
 final class FromSnapshot extends DataFreshness {
-  const FromSnapshot(this.asOf);
+  const FromSnapshot(this.asOf, {this.offline = true});
 
   /// Момент, на который согласован снимок; `null` — снимка ещё не было, на экране только
   /// свои неотправленные операции.
   final DateTime? asOf;
+
+  /// Причина — обрыв связи. `false` — связь есть, но сервер ответил ошибкой (сбой, старая
+  /// версия без нужной ручки): писать «нет связи» тогда — неправда (ADHOC-22).
+  final bool offline;
 }
 
 /// Найденное вместе с тем, откуда оно взято. [value] `null` — не найдено: на сервере

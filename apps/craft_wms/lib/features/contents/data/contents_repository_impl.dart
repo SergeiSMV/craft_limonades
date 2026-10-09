@@ -122,12 +122,17 @@ class ContentsRepositoryImpl implements ContentsRepository {
   }
 
   @override
-  Future<Viewed<List<LoadUnitView>>> loadUnits({required bool fresh}) async {
+  Future<Viewed<List<LoadUnitView>>> loadUnits({
+    Failure? refreshFailure,
+  }) async {
     final overlay = await _overlay();
     final all = overlay.applyToAll(await _cache.allLoadUnits());
-    final freshness = fresh
+    final freshness = refreshFailure == null
         ? const FreshFromServer()
-        : FromSnapshot(await _cache.asOf());
+        : FromSnapshot(
+            await _cache.asOf(),
+            offline: refreshFailure is NetworkFailure,
+          );
     return Viewed(await _sorted(all.values, overlay.cells), freshness);
   }
 
@@ -151,7 +156,10 @@ class ContentsRepositoryImpl implements ContentsRepository {
       // в нём, когда снимок под рукой, хуже, чем искать по снимку с подписью «данные на».
       // Найдено на DT50S: прод ещё без ручки поиска, а кэш с коробами был.
       base = await _cache.allLoadUnits();
-      freshness = FromSnapshot(await _cache.asOf());
+      freshness = FromSnapshot(
+        await _cache.asOf(),
+        offline: res.left is NetworkFailure,
+      );
     }
 
     // Короба своих неотправленных приёмок сервер ещё не знает — наложение их добавляет,

@@ -84,4 +84,18 @@ void main() {
     await cubit.open();
     expect(cubit.state.data!.freshness, isA<FromSnapshot>());
   });
+
+  // ADHOC-22: после очистки поиска при живой связи список не помечается «нет связи».
+  test('очистка поиска не теряет исход обновления снимка', () async {
+    await cubit.open();
+    await cubit.submitQuery('9fa0');
+    await cubit.submitQuery('');
+    expect(repo.lastRefreshFailure, isNull);
+
+    snapshot.result = const Left(Failure.network());
+    await cubit.reload();
+    await cubit.submitQuery('9fa0');
+    await cubit.submitQuery('');
+    expect(repo.lastRefreshFailure, isA<NetworkFailure>());
+  });
 }

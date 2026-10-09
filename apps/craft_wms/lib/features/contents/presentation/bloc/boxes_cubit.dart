@@ -74,6 +74,11 @@ class BoxesCubit extends Cubit<BoxesState> {
 
   Timer? _timer;
 
+  /// Чем кончилось последнее обновление снимка; `null` — обновился. Список перечитывается из
+  /// снимка и при очистке поиска — подпись берётся отсюда, а не «обновляли ли только что»:
+  /// иначе после очистки поиска при живой связи экран писал «нет связи» (ADHOC-22).
+  Failure? _refreshFailure;
+
   /// Вкладку открыли: загрузить при первом заходе.
   Future<void> open() async {
     if (state.status == BoxesStatus.initial) await reload();
@@ -82,29 +87,30 @@ class BoxesCubit extends Cubit<BoxesState> {
   /// Обновить снимок и перечитать список или выдачу поиска.
   Future<void> reload() async {
     emit(state.copyWith(status: BoxesStatus.loading));
-    final fresh = (await _snapshot.refresh()).isRight;
+    final res = await _snapshot.refresh();
+    _refreshFailure = res.isLeft ? res.left : null;
     if (isClosed) return;
-    await _show(fresh: fresh);
+    await _show();
   }
 
   /// Набор в строке поиска — поиск после паузы.
   void setQueryDebounced(String text) {
     _timer?.cancel();
     emit(state.copyWith(query: text, invalidQuery: false));
-    _timer = Timer(_debounce, () => unawaited(_show(fresh: false)));
+    _timer = Timer(_debounce, () => unawaited(_show()));
   }
 
   /// Ввод завершён — искать сразу.
   Future<void> submitQuery(String text) async {
     _timer?.cancel();
     emit(state.copyWith(query: text, invalidQuery: false));
-    await _show(fresh: false);
+    await _show();
   }
 
   /// Показать список (строка пуста) или выдачу поиска по коду.
-  Future<void> _show({required bool fresh}) async {
+  Future<void> _show() async {
     if (!state.searching) {
-      final list = await _repo.loadUnits(fresh: fresh);
+      final list = await _repo.loadUnits(refreshFailure: _refreshFailure);
       if (!isClosed) {
         emit(state.copyWith(status: BoxesStatus.ready, data: list));
       }
