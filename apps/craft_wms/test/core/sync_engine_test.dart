@@ -43,7 +43,11 @@ void main() {
     engine = SyncEngine(
       outbox,
       sender,
-      OutboxEffects(CatalogCache(db), FakeContentsSnapshotSync()),
+      OutboxEffects(
+        CatalogCache(db),
+        FakeContentsSnapshotSync(),
+        FakeTasksSnapshotSync(),
+      ),
       Talker(),
       _MockConnectivity(),
     );

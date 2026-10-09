@@ -49,7 +49,11 @@ void main() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     cache = CatalogCache(db);
     outbox = OutboxRepository(db, const Uuid());
-    effects = OutboxEffects(cache, FakeContentsSnapshotSync());
+    effects = OutboxEffects(
+      cache,
+      FakeContentsSnapshotSync(),
+      FakeTasksSnapshotSync(),
+    );
 
     server = FakeOperationsServer();
     final dio = Dio(BaseOptions(baseUrl: 'https://api.test/api/v1/'))
@@ -227,7 +231,11 @@ void main() {
             ..httpClientAdapter = server,
         ),
       ),
-      OutboxEffects(cache, FakeContentsSnapshotSync()),
+      OutboxEffects(
+        cache,
+        FakeContentsSnapshotSync(),
+        FakeTasksSnapshotSync(),
+      ),
       Talker(),
       _MockConnectivity(),
     );

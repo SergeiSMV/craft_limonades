@@ -2,6 +2,7 @@ import 'package:injectable/injectable.dart';
 
 import '../../features/contents/domain/contents_repository.dart';
 import '../../features/stock/data/catalog_cache.dart';
+import '../../features/tasks/domain/tasks_snapshot_sync.dart';
 import 'outbox_operation.dart';
 
 /// Локальные следствия операции очереди (P2-06).
@@ -21,12 +22,15 @@ import 'outbox_operation.dart';
 /// за факт справочника, и снимается обратно, если сервер откажет.
 @lazySingleton
 class OutboxEffects {
-  OutboxEffects(this._cache, this._contents);
+  OutboxEffects(this._cache, this._contents, this._tasks);
 
   final CatalogCache _cache;
 
   /// Снимок содержимого склада: подтверждённая приёмка или размещение его устаревают (P5-05).
   final ContentsSnapshotSync _contents;
+
+  /// Снимок текущих заданий: приёмка рождает задание, размещение меняет его остаток (ADHOC-24).
+  final TasksSnapshotSync _tasks;
 
   /// Применить следствие сразу при постановке в очередь.
   Future<void> applyOptimistic({
@@ -59,10 +63,12 @@ class OutboxEffects {
   Future<void> confirm(OutboxOperation operation) async {
     // Приёмка и размещение двигают короба и россыпь — снимок на терминале устарел. Наложение
     // очереди при чтении эту операцию больше не учитывает (она «отправлена»), поэтому без
-    // свежего снимка без связи короб оказался бы там, где лежал до неё.
+    // свежего снимка без связи короб оказался бы там, где лежал до неё. Задания — по той же
+    // причине: новое задание от приёмки сервер создаёт только при её проведении.
     if (operation.kind == OutboxKind.receiptSubmit ||
         operation.kind == OutboxKind.putawaySubmit) {
       _contents.requestRefresh();
+      _tasks.requestRefresh();
       return;
     }
     final barcode = operation.payload['barcode'] as String?;

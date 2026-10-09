@@ -115,6 +115,23 @@ class PortalDoc {
       );
 }
 
+/// Скачанный документ: содержимое и имя файла, под которым его сохранить.
+typedef DownloadedDoc = ({Uint8List bytes, String filename});
+
+/// Имя файла по умолчанию — если сервер его не прислал.
+const kDefaultDocFilename = 'document.xlsx';
+
+/// Имя файла из заголовка `Content-Disposition` (`attachment; filename="…"`).
+///
+/// Сервер шлёт имя латиницей в простой форме `filename=`, поэтому `filename*` с кодировкой
+/// не разбираем. Заголовка или имени нет — [kDefaultDocFilename]: файл важнее имени.
+String filenameFromDisposition(String? header) {
+  if (header == null) return kDefaultDocFilename;
+  final match = RegExp(r'filename="?([^";]+)"?').firstMatch(header);
+  final name = match?.group(1)?.trim() ?? '';
+  return name.isEmpty ? kDefaultDocFilename : name;
+}
+
 /// Репозиторий документов оператора: рабочий список, скачивание .xlsx и отметка «Выполнено».
 /// Общий для вкладок «Инвентаризация», «Приход» (P4-10) и «Движение» (P5-04) — они различаются только формой. Слой data — изолирует HTTP; access-токен подставит AuthInterceptor.
 /// Всё admin-only на бэке.
@@ -145,14 +162,21 @@ class DocumentsRepository {
     }
   }
 
-  /// Скачать .xlsx документа (байты). Сервер попутно отмечает документ скачанным.
-  Future<Either<Failure, Uint8List>> downloadReport(String id) async {
+  /// Скачать .xlsx документа: байты и имя файла. Сервер попутно отмечает документ скачанным.
+  ///
+  /// Имя берётся из `Content-Disposition`: его собирает сервер по форме документа
+  /// («postuplenie-…», «dvizhenie-…»), и портал не должен знать формы, чтобы назвать файл
+  /// правильно (ADHOC-24 — до этого имя было зашито под ввод остатков у всех форм).
+  Future<Either<Failure, DownloadedDoc>> downloadReport(String id) async {
     try {
       final resp = await _dio.get<List<int>>(
         ApiConst.documentFile(id),
         options: Options(responseType: ResponseType.bytes),
       );
-      return Right(Uint8List.fromList(resp.data!));
+      return Right((
+        bytes: Uint8List.fromList(resp.data!),
+        filename: filenameFromDisposition(resp.headers.value('content-disposition')),
+      ));
     } on DioException catch (e) {
       return Left(_mapError(e));
     } catch (_) {

@@ -4,6 +4,7 @@ import 'package:craft_wms/features/contents/domain/contents_entities.dart';
 import 'package:craft_wms/features/contents/domain/contents_repository.dart';
 import 'package:craft_wms/features/contents/domain/load_unit_label_printer.dart';
 import 'package:craft_wms/features/contents/presentation/bloc/boxes_cubit.dart';
+import 'package:craft_wms/features/tasks/domain/tasks_snapshot_sync.dart';
 import 'package:either_dart/either.dart';
 
 /// Заглушка загрузки снимка содержимого склада (P5-05): ничего не качает, считает просьбы.
@@ -128,4 +129,13 @@ FakeContentsRepository registerFakeContentsRepository([
     () => BoxesCubit(r, FakeContentsSnapshotSync()),
   );
   return r;
+}
+
+/// Заглушка обновления снимка заданий (ADHOC-24): ничего не качает, считает просьбы.
+class FakeTasksSnapshotSync implements TasksSnapshotSync {
+  /// Сколько раз просили загрузить вскоре.
+  int requests = 0;
+
+  @override
+  void requestRefresh() => requests++;
 }
