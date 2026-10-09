@@ -1,36 +1,49 @@
-import 'package:flutter/material.dart';
+import 'package:flutter_neumorphic_plus/flutter_neumorphic.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
+import '../../../../../core/constants/app_borders.dart';
 import '../../../../../core/constants/app_boxes.dart';
 import '../../../../../core/constants/app_colors.dart';
-import '../../../../../core/constants/app_insets.dart';
 import '../../../../../core/constants/app_sizes.dart';
 import '../../../../../core/gen/strings.g.dart';
 import '../../../../../core/printer/load_unit_label.dart';
 import '../../../../../core/theme/regular_text.dart';
-import '../../../../../core/theme/semibold_text.dart';
 import '../../../data/tasks_models.dart';
 import '../common/task_format.dart';
 
-/// Позиция задания: короб с составом либо россыпь с партией и остатком. Размещённое
-/// приглушено и отмечено галочкой — оно ещё видно, но работы по нему нет.
+/// Позиция задания: короб с составом либо россыпь с партией и остатком (P5-02-1).
+///
+/// Выпуклая неоморфная плашка и шрифты — как у товара во вкладке «Товары» и в содержимом
+/// ячейки и короба (ADHOC-21): одни и те же короба и товары не должны выглядеть по-разному
+/// в разных разделах. Касание — карточка короба или карточка остатков товара. Размещённое
+/// приглушено и отмечено галочкой — оно ещё видно, но работы по нему нет; открыть его можно.
 class TaskItemTile extends StatelessWidget {
-  const TaskItemTile({super.key, required this.item});
+  const TaskItemTile({super.key, required this.item, required this.onTap});
 
   final TaskItem item;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final title = SemiboldTextStyles().semiboldInter14.copyWith(
+    final title = RegularTextStyles().regularInter14.copyWith(
+      height: 1.2,
       color: item.placed ? AppColors.kTextMuted : AppColors.kTextMain,
     );
-    final muted = RegularTextStyles().regularInter12.copyWith(
+    final muted = RegularTextStyles().regularInter10.copyWith(
       color: AppColors.kTextMuted,
     );
-    return Padding(
-      padding: AppInsets.v4,
+    return NeumorphicButton(
+      onPressed: onTap,
+      style: NeumorphicStyle(
+        shadowLightColor: AppColors.kNeumorphicLight,
+        shadowDarkColor: AppColors.kNeumorphicDark,
+        intensity: 1,
+        color: AppColors.kNeumorphicBg,
+        depth: 3,
+        shape: NeumorphicShape.flat,
+        boxShape: NeumorphicBoxShape.roundRect(AppBorders.kCircular8),
+      ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(
             item.placed
@@ -38,19 +51,22 @@ class TaskItemTile extends StatelessWidget {
                 : item.isBox
                 ? MdiIcons.packageVariantClosed
                 : MdiIcons.cubeOutline,
-            size: AppSizes.kIcon20,
+            size: AppSizes.kIcon24,
             color: item.placed
                 ? AppColors.kBadgeSuccessText
-                : AppColors.kPrimary,
+                : AppColors.kPlacePin,
           ),
-          AppBoxes.kWidth8,
+          AppBoxes.kWidth12,
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: item.isBox ? _box(title, muted) : _loose(title, muted),
             ),
           ),
-          if (item.placed) Text(t.tasks.placed, style: muted),
+          if (item.placed) ...[
+            AppBoxes.kWidth8,
+            Text(t.tasks.placed, style: muted),
+          ],
         ],
       ),
     );

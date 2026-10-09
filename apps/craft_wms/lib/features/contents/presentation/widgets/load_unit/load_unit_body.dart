@@ -6,7 +6,6 @@ import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/constants/app_insets.dart';
 import '../../../../../core/constants/app_sizes.dart';
 import '../../../../../core/gen/strings.g.dart';
-import '../../../../../core/printer/load_unit_label.dart';
 import '../../../../../core/theme/bold_text.dart';
 import '../../../../../core/theme/regular_text.dart';
 import '../../../../../core/utils/date_time_format.dart';
@@ -86,16 +85,17 @@ class LoadUnitBody extends StatelessWidget {
     _ => t.contents.notFound,
   };
 
-  /// Шапка: код с ярлыка, ячейка, пометки.
+  /// Шапка: где короб лежит и пометки. Код короба — в заголовке экрана (ADHOC-21): он
+  /// известен до загрузки и не должен повторяться в теле.
   Widget _header(LoadUnitView lu) => DetailCard(
     padding: AppInsets.all12,
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Icon(
-          MdiIcons.packageVariantClosed,
+          MdiIcons.mapMarker,
           size: AppSizes.kIcon28,
-          color: AppColors.kPlacePin,
+          color: AppColors.kDanger,
         ),
         AppBoxes.kWidth12,
         Expanded(
@@ -103,29 +103,12 @@ class LoadUnitBody extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                t.contents.boxCode(
-                  code: LoadUnitLabel(lu.id).shortCodeFormatted,
-                ),
-                style: BoldTextStyles().boldInter20.copyWith(
+                lu.cellAddress == null
+                    ? t.contents.notPlaced
+                    : t.contents.placedIn(address: lu.cellAddress!),
+                style: BoldTextStyles().boldInter16.copyWith(
                   color: AppColors.kSidebarHover,
                 ),
-              ),
-              AppBoxes.kHeight4,
-              Row(
-                children: [
-                  Icon(
-                    MdiIcons.mapMarker,
-                    size: AppSizes.kIcon18,
-                    color: AppColors.kDanger,
-                  ),
-                  AppBoxes.kWidth4,
-                  Text(
-                    lu.cellAddress ?? t.contents.notPlaced,
-                    style: BoldTextStyles().boldInter16.copyWith(
-                      color: AppColors.kSidebarHover,
-                    ),
-                  ),
-                ],
               ),
               if (!lu.live)
                 Padding(

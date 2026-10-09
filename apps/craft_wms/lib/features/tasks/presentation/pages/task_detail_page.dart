@@ -15,8 +15,10 @@ import '../../../../core/gen/strings.g.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/theme/semibold_text.dart';
+import '../../../../core/widgets/expandable_card.dart';
 import '../../../../core/widgets/page_header.dart';
 import '../../../../core/widgets/system_ui_wrapper.dart';
+import '../../../stock/presentation/stock_navigation.dart';
 import '../../data/tasks_models.dart';
 import '../bloc/task_detail_cubit.dart';
 import '../widgets/common/task_format.dart';
@@ -183,6 +185,23 @@ class _TaskBody extends StatelessWidget {
   final TaskDetailState state;
   final WarehouseTask task;
 
+  /// Открыть позицию задания: короб — его карточку, россыпь — карточку остатков товара
+  /// (ADHOC-21). Обе работают и без связи: карточка короба — из снимка, товара — из справочника.
+  void openItem(BuildContext context, TaskItem item) {
+    final good = item.good;
+    if (item.isBox) {
+      context.router.push(LoadUnitRoute(loadUnitId: item.loadUnitId!));
+    } else if (good != null) {
+      openGoodCard(
+        context,
+        goodId: good.id,
+        name: good.name,
+        code: good.code,
+        uom: good.uom,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final section = SemiboldTextStyles().semiboldInter16;
@@ -190,7 +209,7 @@ class _TaskBody extends StatelessWidget {
       color: AppColors.kTextMuted,
     );
     return ListView(
-      padding: AppInsets.h16,
+      padding: AppInsets.h8,
       children: [
         Row(
           children: [
@@ -217,20 +236,49 @@ class _TaskBody extends StatelessWidget {
         AppBoxes.kHeight16,
         Text(t.tasks.detailItems, style: section),
         AppBoxes.kHeight8,
-        for (final item in task.items) TaskItemTile(item: item),
-        AppBoxes.kHeight16,
-        Text(t.tasks.detailHistory, style: section),
-        AppBoxes.kHeight8,
-        if (state.sessionsUnavailable)
-          Text(t.tasks.detailHistoryOffline, style: muted)
-        else
-          for (final e in state.events)
-            HistoryTile(
-              event: e,
-              session: state.sessions
-                  .where((s) => s.putawayId == e.putawayId)
-                  .firstOrNull,
+        // Вертикальный отступ у плашки — чтобы тень неоморфной плашки не слипалась с соседней.
+        for (final item in task.items)
+          Padding(
+            padding: AppInsets.v4,
+            child: TaskItemTile(
+              item: item,
+              onTap: () => openItem(context, item),
             ),
+          ),
+        AppBoxes.kHeight16,
+        // Раскрывающаяся плашка, свёрнутая по умолчанию, — как история короба (ADHOC-21):
+        // у задания с несколькими заходами история длиннее позиций и оттесняла бы их вниз.
+        ExpandableCard(
+          headerBuilder: (_) => Padding(
+            padding: AppInsets.top4,
+            child: Text(
+              state.sessionsUnavailable
+                  ? t.tasks.detailHistory
+                  : t.tasks.detailHistoryCount(count: state.events.length),
+              style: SemiboldTextStyles().semiboldInter14.copyWith(
+                color: AppColors.kTextMain,
+              ),
+            ),
+          ),
+          child: Padding(
+            padding: AppInsets.h16 + AppInsets.bottom16,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (state.sessionsUnavailable)
+                  Text(t.tasks.detailHistoryOffline, style: muted)
+                else
+                  for (final e in state.events)
+                    HistoryTile(
+                      event: e,
+                      session: state.sessions
+                          .where((s) => s.putawayId == e.putawayId)
+                          .firstOrNull,
+                    ),
+              ],
+            ),
+          ),
+        ),
         AppBoxes.kHeight16,
       ],
     );

@@ -74,7 +74,7 @@ class _CompletedFeedState extends State<CompletedFeed> {
       child: RefreshIndicator(
         onRefresh: cubit.load,
         child: ListView.builder(
-          padding: AppInsets.h16,
+          padding: AppInsets.h8,
           physics: const AlwaysScrollableScrollPhysics(),
           itemCount: entries.length + (state.loadingMore ? 1 : 0),
           itemBuilder: (context, i) {
