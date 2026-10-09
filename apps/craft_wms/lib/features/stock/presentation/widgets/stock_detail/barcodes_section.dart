@@ -15,7 +15,7 @@ import '../../../../../core/theme/semibold_text.dart';
 import '../../bloc/stock_detail_cubit.dart';
 import 'bind_barcode_button.dart';
 import 'bind_barcode_dialog.dart';
-import 'expandable_card.dart';
+import '../../../../../core/widgets/expandable_card.dart';
 
 /// Секция «Штрихкоды (N)» карточки товара (P-FS-12): раскрывающийся список привязанных ШК
 /// с отвязкой ошибочного (крестик справа, с подтверждением).

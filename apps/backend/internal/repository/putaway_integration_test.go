@@ -227,3 +227,24 @@ func mustScanInt(t *testing.T, pf *putawayFixture, sql string, dst *int, args ..
 		t.Fatalf("%q: %v", sql, err)
 	}
 }
+
+// ADHOC-21: россыпь, унесённая размещением целиком, не остаётся в «где лежит товар» строкой
+// с нулём — расход уменьшает строку остатка, а не удаляет её, и список обязан её скрывать.
+func TestPutaway_emptiedCellNotListedAsStock(t *testing.T) {
+	pf := setupPutaway(t)
+	task := pf.receive(t, nil, 5)
+	if _, err := pf.submit(t, task, uuid.NewString(), looseTo(pf.good, 5, pf.cellB)); err != nil {
+		t.Fatalf("размещение россыпи: %v", err)
+	}
+	if a := pf.qtyIn(t, pf.cellA); a != "0" {
+		t.Fatalf("в ячейке приёмки осталось %s, ожидалось 0 — сценарий не тот", a)
+	}
+
+	good := pf.good
+	items, total, err := repository.NewStockRepository(pf.pool).List(context.Background(),
+		repository.StockFilter{GoodID: &good, Limit: 50})
+	mustNoErr(t, err)
+	if total != 1 || len(items) != 1 || items[0].CellID != pf.cellB {
+		t.Errorf("остатки товара: %d строк (total %d): %+v, ожидалась одна — в B", len(items), total, items)
+	}
+}

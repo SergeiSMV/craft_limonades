@@ -5,7 +5,6 @@ import '../../../../../core/constants/app_insets.dart';
 import '../../../../../core/gen/strings.g.dart';
 import '../../../../../core/printer/load_unit_label.dart';
 import '../../../../../core/theme/regular_text.dart';
-import '../../../../../core/theme/semibold_text.dart';
 import '../../../data/tasks_models.dart';
 import '../common/task_format.dart';
 
@@ -31,7 +30,7 @@ class HistoryTile extends StatelessWidget {
         children: [
           Text(
             '${shortDateTime(event.at)} · ${_label()}',
-            style: SemiboldTextStyles().semiboldInter12,
+            style: RegularTextStyles().regularInter12,
           ),
           if (session != null)
             for (final l in session!.lines)

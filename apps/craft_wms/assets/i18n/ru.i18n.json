@@ -521,6 +521,7 @@
     "batch": "партия ${date}",
     "detail_items": "Что разместить",
     "detail_history": "История выполнения",
+    "detail_history_count": "История выполнения (${count})",
     "detail_history_offline": "История видна только при связи",
     "basis_receipt": "Основание: приёмка от ${date} ${supplier}",
     "basis_receipt_no_supplier": "Основание: приёмка от ${date}",
@@ -603,6 +604,8 @@
     "move_receipt": "Приёмка → ${to}",
     "move_putaway": "Размещение: ${from} → ${to}",
     "move_by": "${name} · ${time}",
-    "move_by_unknown": "${time}"
+    "move_by_unknown": "${time}",
+    "placed_in": "Место размещения: ${address}",
+    "history_title_count": "История (${count})"
   }
 }

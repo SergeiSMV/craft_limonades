@@ -235,6 +235,12 @@ void main() {
       await tester.pumpWidget(wrap(LoadUnitPage(loadUnitId: box.id)));
       await tester.pumpAndSettle();
 
+      // ADHOC-21: код — в заголовке экрана, в теле — место размещения, история свёрнута.
+      expect(find.text(t.contents.boxCode(code: '9FA0 B1C2')), findsOneWidget);
+      expect(find.text(t.contents.placedIn(address: 'A-1-1')), findsOneWidget);
+      await tester.tap(find.text(t.contents.historyTitleCount(count: 2)));
+      await tester.pumpAndSettle();
+
       expect(
         find.text(t.contents.historyReceived(name: 'Иванов И.')),
         findsOneWidget,
