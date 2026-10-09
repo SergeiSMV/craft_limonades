@@ -189,4 +189,29 @@ void main() {
     });
     expect(without.docNumber, isEmpty);
   });
+
+  // P5-04: у «Движения» — операция и задание-основание; у других форм их нет.
+  test('операция и задание в строке «Движения»', () {
+    final movement = PortalDoc.fromJson({
+      'id': 'd3',
+      'kind': 'movement',
+      'operation': 'putaway',
+      'task_number': 57,
+      'supplier': 'ИП Березин',
+      'warehouse_name': 'Шабулина',
+      'created_at': '2026-10-09T10:00:00Z',
+      'status': 'new',
+    });
+    expect(movement.operation, 'putaway');
+    expect(movement.taskNumber, 57);
+    expect(movement.supplier, 'ИП Березин');
+
+    final other = PortalDoc.fromJson({
+      'id': 'd4',
+      'kind': 'receipt',
+      'created_at': '2026-10-09T10:00:00Z',
+    });
+    expect(other.operation, isEmpty);
+    expect(other.taskNumber, 0);
+  });
 }

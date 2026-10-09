@@ -64,6 +64,8 @@ class PortalDoc {
     this.supplier = '',
     this.docNumber = '',
     this.docDate = '',
+    this.operation = '',
+    this.taskNumber = 0,
     required this.warehouseCode,
     required this.warehouseName,
     required this.createdAt,
@@ -73,15 +75,24 @@ class PortalDoc {
 
   final String id;
 
-  /// Форма документа: `stock_entry` — ввод остатков, `receipt` — «Поступление» (P4-10).
+  /// Форма документа: `stock_entry` — ввод остатков, `receipt` — «Поступление» (P4-10),
+  /// `movement` — «Движение» (P5-04).
   final String kind;
 
-  /// Поставщик — только у «Поступления»; пусто — без поставщика.
+  /// Поставщик: у «Поступления» — свой, у «Движения» размещения — приёмки-основания;
+  /// пусто — без поставщика.
   final String supplier;
 
-  /// Документ поставщика «Поступления» (ADHOC-23): номер и дата DD-MM-YYYY; пусто — нет.
+  /// Документ поставщика (ADHOC-23): номер и дата DD-MM-YYYY; пусто — нет. У «Движения»
+  /// размещения — накладная приёмки-основания.
   final String docNumber;
   final String docDate;
+
+  /// Операция «Движения» (`putaway` — размещение); пусто — другая форма.
+  final String operation;
+
+  /// Номер задания-основания «Движения»; 0 — нет.
+  final int taskNumber;
   final String warehouseCode;
   final String warehouseName;
   final DateTime createdAt;
@@ -94,6 +105,8 @@ class PortalDoc {
         supplier: j['supplier'] as String? ?? '',
         docNumber: j['doc_number'] as String? ?? '',
         docDate: j['doc_date'] as String? ?? '',
+        operation: j['operation'] as String? ?? '',
+        taskNumber: (j['task_number'] as num?)?.toInt() ?? 0,
         warehouseCode: j['warehouse_code'] as String? ?? '',
         warehouseName: j['warehouse_name'] as String? ?? '',
         createdAt: DateTime.parse(j['created_at'] as String),
@@ -103,7 +116,7 @@ class PortalDoc {
 }
 
 /// Репозиторий документов оператора: рабочий список, скачивание .xlsx и отметка «Выполнено».
-/// Общий для вкладок «Инвентаризация» и «Приход» (P4-10) — они различаются только формой. Слой data — изолирует HTTP; access-токен подставит AuthInterceptor.
+/// Общий для вкладок «Инвентаризация», «Приход» (P4-10) и «Движение» (P5-04) — они различаются только формой. Слой data — изолирует HTTP; access-токен подставит AuthInterceptor.
 /// Всё admin-only на бэке.
 @lazySingleton
 class DocumentsRepository {

@@ -27,7 +27,8 @@ class DocumentsTab extends StatefulWidget {
     required this.empty,
   });
 
-  /// Форма документов: `stock_entry` — ввод остатков, `receipt` — «Поступление».
+  /// Форма документов: `stock_entry` — ввод остатков, `receipt` — «Поступление»,
+  /// `movement` — «Движение».
   final String kind;
 
   final String title;
@@ -282,14 +283,33 @@ class _DocRow extends StatelessWidget {
 
   /// Заголовок строки: документ · склад, а у «Поступления» ещё поставщик и его документ —
   /// по ним оператор узнаёт приход среди других и находит накладную для 1С (P4-10, ADHOC-23).
+  /// У «Движения» — операция и основание: задание и приёмка, из которой оно родилось (P5-04).
   String _title() {
-    if (doc.kind != 'receipt') return '$mark · ${doc.warehouseName}';
-    final supplier = doc.supplier.isEmpty ? t.portal.receipt.noSupplier : doc.supplier;
-    final supplierDoc = doc.docNumber.isEmpty
-        ? ''
-        : ' · ${t.portal.receipt.doc(number: doc.docNumber, date: doc.docDate.replaceAll('-', '.'))}';
-    return '$mark · $supplier$supplierDoc · ${doc.warehouseName}';
+    switch (doc.kind) {
+      case 'receipt':
+        return '$mark · ${_supplier()}${_supplierDoc()} · ${doc.warehouseName}';
+      case 'movement':
+        final task = doc.taskNumber > 0 ? ' · ${t.portal.movement.task(number: doc.taskNumber)}' : '';
+        final supplier = doc.supplier.isEmpty ? '' : ' · ${doc.supplier}';
+        return '$mark · ${_operation()}$task$supplier${_supplierDoc()} · ${doc.warehouseName}';
+      default:
+        return '$mark · ${doc.warehouseName}';
+    }
   }
+
+  /// Поставщик «Поступления»; пусто — подпись «без поставщика».
+  String _supplier() => doc.supplier.isEmpty ? t.portal.receipt.noSupplier : doc.supplier;
+
+  /// Накладная поставщика « · № … от …»; пусто, если её нет.
+  String _supplierDoc() => doc.docNumber.isEmpty
+      ? ''
+      : ' · ${t.portal.receipt.doc(number: doc.docNumber, date: doc.docDate.replaceAll('-', '.'))}';
+
+  /// Операция «Движения» для человека; незнакомая показывается как есть.
+  String _operation() => switch (doc.operation) {
+        'putaway' => t.portal.movement.opPutaway,
+        _ => doc.operation,
+      };
 
   @override
   Widget build(BuildContext context) {
