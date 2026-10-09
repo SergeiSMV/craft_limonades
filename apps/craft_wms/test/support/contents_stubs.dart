@@ -70,8 +70,15 @@ class FakeContentsRepository implements ContentsRepository {
   final List<String> searches = [];
 
   @override
-  Future<Viewed<List<LoadUnitView>>> loadUnits({required bool fresh}) async =>
-      Viewed(units, unitsFreshness);
+  Future<Viewed<List<LoadUnitView>>> loadUnits({
+    Failure? refreshFailure,
+  }) async {
+    lastRefreshFailure = refreshFailure;
+    return Viewed(units, unitsFreshness);
+  }
+
+  /// С каким исходом обновления снимка читали список в последний раз (ADHOC-22).
+  Failure? lastRefreshFailure;
 
   @override
   Future<Either<Failure, Viewed<List<LoadUnitView>>>> searchLoadUnits(

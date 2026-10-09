@@ -261,4 +261,27 @@ void main() {
       );
     });
   });
+
+  // ADHOC-22: «нет связи» — только при обрыве связи; сервер с ошибкой — просто «данные на».
+  testWidgets('снимок при живой связи подписан без «нет связи»', (
+    tester,
+  ) async {
+    repo.cellResult = Right(
+      Viewed(
+        const CellView(cellId: 'c1', address: 'A-1-1'),
+        FromSnapshot(asOf, offline: false),
+      ),
+    );
+
+    await tester.pumpWidget(
+      wrap(const CellContentsPage(cellId: 'c1', address: 'A-1-1')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(t.contents.snapshotAsOf(time: '08.10 14:30')),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Нет связи'), findsNothing);
+  });
 }

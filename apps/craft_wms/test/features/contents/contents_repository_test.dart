@@ -227,26 +227,28 @@ void main() {
       },
     );
 
-    test(
-      'список: снимок и своя приёмка поверх, с адресами и подписью',
-      () async {
-        await cache.replace(fixture);
-        const own = '11111111-2222-4333-8444-555566667777';
-        await pendingReceipt(own);
+    test('список: снимок и своя приёмка поверх, с адресами и подписью', () async {
+      await cache.replace(fixture);
+      const own = '11111111-2222-4333-8444-555566667777';
+      await pendingReceipt(own);
 
-        final list = await repo.loadUnits(fresh: false);
-        expect(list.value!.map((e) => e.id), [box, own]); // A-1-1 раньше С-Н-П
-        expect(list.value![0].cellAddress, 'A-1-1');
-        expect(list.value![1].cellAddress, 'С-Н-П');
-        expect(list.value![1].pending, isTrue);
-        expect(list.freshness, isA<FromSnapshot>());
+      final list = await repo.loadUnits(
+        refreshFailure: const Failure.network(),
+      );
+      expect(list.value!.map((e) => e.id), [box, own]); // A-1-1 раньше С-Н-П
+      expect(list.value![0].cellAddress, 'A-1-1');
+      expect(list.value![1].cellAddress, 'С-Н-П');
+      expect(list.value![1].pending, isTrue);
+      expect((list.freshness as FromSnapshot).offline, isTrue);
 
-        expect(
-          (await repo.loadUnits(fresh: true)).freshness,
-          isA<FreshFromServer>(),
-        );
-      },
-    );
+      // ADHOC-22: снимок обновился — подписи нет; сервер ответил ошибкой — подпись без
+      // «нет связи».
+      expect((await repo.loadUnits()).freshness, isA<FreshFromServer>());
+      final serverDown = await repo.loadUnits(
+        refreshFailure: const Failure.server(500),
+      );
+      expect((serverDown.freshness as FromSnapshot).offline, isFalse);
+    });
 
     test('поиск без связи — по хвосту id в снимке и своей очереди', () async {
       await cache.replace(fixture);
@@ -275,7 +277,8 @@ void main() {
       ).thenAnswer((_) async => const Left(Failure.server(405)));
 
       final found = (await repo.searchLoadUnits('7B7A')).right;
-      expect(found.freshness, isA<FromSnapshot>());
+      // Связь есть, сервер ответил кодом — снимок, но не «нет связи» (ADHOC-22).
+      expect((found.freshness as FromSnapshot).offline, isFalse);
       expect((await repo.searchLoadUnits('9FA0')).right.value!.single.id, box);
     });
 
