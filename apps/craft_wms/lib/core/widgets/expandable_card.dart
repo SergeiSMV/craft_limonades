@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 
-import '../../../../../core/constants/app_boxes.dart';
-import '../../../../../core/constants/app_colors.dart';
-import '../../../../../core/constants/app_insets.dart';
-import '../../../../../core/constants/app_sizes.dart';
-import '../../../../../core/widgets/detail_card.dart';
+import '../constants/app_boxes.dart';
+import '../constants/app_colors.dart';
+import '../constants/app_insets.dart';
+import '../constants/app_sizes.dart';
+import 'detail_card.dart';
 
 /// Белая плашка с раскрывающимся содержимым: шапка с шевроном видна всегда, тело
 /// раскрывается тапом по шапке. По умолчанию свёрнута.
 ///
-/// Общий механизм для карточки товара и списка штрихкодов — чтобы анимация, шеврон
-/// и зона тапа были описаны в одном месте.
+/// Общий механизм для карточки товара, списка штрихкодов и истории короба (P5-05-1) — чтобы
+/// анимация, шеврон и зона тапа были описаны в одном месте.
 class ExpandableCard extends StatefulWidget {
   const ExpandableCard({
     super.key,

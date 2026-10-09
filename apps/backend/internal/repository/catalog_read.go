@@ -202,6 +202,11 @@ type StockFilter struct {
 
 // List возвращает остатки с адресом ячейки и датой партии + общее число.
 // qty::text — чтобы numeric пришёл точной строкой и разобрался в decimal без потерь.
+//
+// Нулевые строки не отдаются (ADHOC-21): расход уменьшает строку остатка, а не удаляет её,
+// и после размещения, пересчёта в ноль, перемещения или списания в таблице остаётся
+// «партия · ячейка · 0». Для «где лежит товар» это ложь — товара там нет. Фильтр на чтении,
+// а не удаление при расходе: так закрыты все пути к нулю разом, включая будущие.
 func (r *StockRepository) List(ctx context.Context, f StockFilter) ([]model.StockItem, int, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT s.cell_id::text, c.address, s.good_id::text, s.batch_id::text,
@@ -212,7 +217,8 @@ func (r *StockRepository) List(ctx context.Context, f StockFilter) ([]model.Stoc
 		JOIN cells   c ON c.id = s.cell_id
 		JOIN batches b ON b.id = s.batch_id
 		JOIN internal_warehouses w ON w.id = s.internal_warehouse_id
-		WHERE ($1::uuid IS NULL OR s.good_id = $1::uuid)
+		WHERE s.qty > 0
+		  AND ($1::uuid IS NULL OR s.good_id = $1::uuid)
 		  AND ($2::uuid IS NULL OR s.cell_id = $2::uuid)
 		-- Внутри ячейки сортируем по складу, чтобы «основной» и «брак» шли рядом и в одном
 		-- порядке от запроса к запросу.

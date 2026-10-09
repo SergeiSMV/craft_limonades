@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/gen/strings.g.dart';
+import '../../../../core/printer/load_unit_label.dart';
 import '../../../../core/scanner/hardware_scan_listener.dart';
 import '../../../../core/scanner/scan_code.dart';
 import '../../../../core/widgets/page_header.dart';
@@ -106,7 +107,10 @@ class _LoadUnitViewState extends State<_LoadUnitView>
           automaticallyImplyLeading: false,
           backgroundColor: AppColors.kBg,
           title: PageHeader(
-            title: t.contents.loadUnitTitle,
+            // Код короба — в заголовке: он известен из QR до всякой загрузки (ADHOC-21).
+            title: t.contents.boxCode(
+              code: LoadUnitLabel(widget.loadUnitId).shortCodeFormatted,
+            ),
             textColor: AppColors.kSidebarHover,
             goBack: () => Navigator.of(context).pop(),
           ),
