@@ -43,11 +43,6 @@ func saveReceiptDocument(ctx context.Context, q Querier, receiptID string) error
 	return logEvent(ctx, q, documentID, model.DocEventCreated, author, "")
 }
 
-// receiptLineRef — строка приёмки в идентификаторах, как её подаёт разворот.
-type receiptLineRef struct {
-	goodID, batchID, cellID string
-}
-
 // buildReceiptSnapshot собирает шапку и товарные строки «Поступления». Возвращает и автора
 // приёмки — он нужен журналу документа.
 //
@@ -99,55 +94,13 @@ func buildReceiptSnapshot(ctx context.Context, q Querier, receiptID string) (mod
 	return snap, author, nil
 }
 
-// receiptSnapshotRows обогащает товарные строки для человека: адрес ячейки, код и наименование
-// товара, дата партии. Порядок — ячейка, наименование, дата выпуска: оператор сверяет документ
-// по месту хранения, как и отчёт ввода остатков.
+// receiptSnapshotRows обогащает товарные строки для человека (общая часть всех форм
+// с движением) и упорядочивает их: ячейка, наименование, дата выпуска — оператор сверяет
+// документ по месту хранения, как и отчёт ввода остатков.
 func receiptSnapshotRows(ctx context.Context, q Querier, lines []movement.Line) ([]model.ReportSnapshotRow, error) {
-	out := make([]model.ReportSnapshotRow, 0, len(lines))
-	if len(lines) == 0 {
-		return out, nil
-	}
-	// Справочные поля — одним запросом на все строки, а не по запросу на строку.
-	refs := make(map[receiptLineRef]model.ReportSnapshotRow, len(lines))
-	goods, batches, cells := []string{}, []string{}, []string{}
-	for _, l := range lines {
-		goods = append(goods, l.GoodID)
-		batches = append(batches, l.BatchID)
-		cells = append(cells, l.ToCellID)
-	}
-	rows, err := q.Query(ctx, `
-		SELECT x.good_id::text, x.batch_id::text, x.cell_id::text,
-		       c.address, g.code, g.name, b.production_date::text
-		FROM unnest($1::text[]::uuid[], $2::text[]::uuid[], $3::text[]::uuid[])
-		     AS x(good_id, batch_id, cell_id)
-		JOIN goods g   ON g.id = x.good_id
-		JOIN batches b ON b.id = x.batch_id
-		JOIN cells c   ON c.id = x.cell_id`, goods, batches, cells)
+	out, err := movementSnapshotRows(ctx, q, lines)
 	if err != nil {
-		return nil, fmt.Errorf("снимок поступления, справочники: %w", err)
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var ref receiptLineRef
-		var row model.ReportSnapshotRow
-		if err := rows.Scan(&ref.goodID, &ref.batchID, &ref.cellID,
-			&row.CellAddress, &row.GoodCode, &row.GoodName, &row.ProductionDate); err != nil {
-			return nil, fmt.Errorf("снимок поступления, разбор строки: %w", err)
-		}
-		refs[ref] = row
-	}
-	if err := rows.Err(); err != nil {
 		return nil, err
-	}
-
-	for _, l := range lines {
-		row, ok := refs[receiptLineRef{goodID: l.GoodID, batchID: l.BatchID, cellID: l.ToCellID}]
-		if !ok {
-			// Строка уже проведена по этим же ссылкам в этой транзакции — пропасть они не могут.
-			return nil, fmt.Errorf("снимок поступления: нет справочных данных для строки %+v", l)
-		}
-		row.Qty = l.Qty.String()
-		out = append(out, row)
 	}
 	sort.SliceStable(out, func(i, j int) bool {
 		a, b := out[i], out[j]

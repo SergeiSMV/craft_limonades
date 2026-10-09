@@ -97,7 +97,14 @@ class _PortalShellState extends State<PortalShell> {
         _NavItem(
           icon: Icons.swap_horiz,
           label: t.portal.tabs.movement,
-          body: const StubTab(phase: 'P6', icon: Icons.swap_horiz),
+          // P5-04: документы «Движение» (размещение, в P6 — перемещение и пополнение).
+          body: DocumentsTab(
+            kind: 'movement',
+            title: t.portal.movement.title,
+            description: t.portal.movement.description,
+            mark: t.portal.movement.mark,
+            empty: t.portal.movement.empty,
+          ),
         ),
       ],
     ),

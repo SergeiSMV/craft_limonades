@@ -12,7 +12,7 @@ var ErrUnknownKind = fmt.Errorf("неизвестная форма докуме�
 // BuildDocumentXLSX собирает .xlsx документа по его форме.
 //
 // Здесь единственная развилка «форма → шаблон» во всём бэкенде: новая форма (P4 «Поступление»,
-// P5/P6 «Движение») добавляется одной веткой, а вызывающий код — сервис документов и портал —
+// P5-04 «Движение») добавляется одной веткой, а вызывающий код — сервис документов и портал —
 // не меняется вовсе. Данные берутся из снимка, поэтому шаблон видит документ таким, каким его
 // завершили, и не зависит от текущего состояния справочников.
 func BuildDocumentXLSX(doc model.ReportDocument) ([]byte, error) {
@@ -21,6 +21,8 @@ func BuildDocumentXLSX(doc model.ReportDocument) ([]byte, error) {
 		return BuildStockEntryXLSX(stockEntryReportFrom(doc.Snapshot))
 	case model.ReportKindReceipt:
 		return BuildReceiptXLSX(doc.Snapshot)
+	case model.ReportKindMovement:
+		return BuildMovementXLSX(doc.Snapshot)
 	default:
 		return nil, fmt.Errorf("%w: %q", ErrUnknownKind, doc.Kind)
 	}
@@ -36,6 +38,8 @@ func DocumentFilename(doc model.ReportDocument) string {
 		prefix = "vvod-ostatkov"
 	case model.ReportKindReceipt:
 		prefix = "postuplenie"
+	case model.ReportKindMovement:
+		prefix = "dvizhenie"
 	}
 	return fmt.Sprintf("%s-%s-%s.xlsx", prefix, doc.Snapshot.WarehouseCode, doc.CreatedAt.Format("20060102"))
 }
@@ -49,7 +53,12 @@ func stockEntryReportFrom(s model.ReportSnapshot) model.StockEntryReport {
 		Rows:          make([]model.StockEntryReportRow, 0, len(s.Rows)),
 	}
 	for _, r := range s.Rows {
-		rep.Rows = append(rep.Rows, model.StockEntryReportRow(r))
+		// Поле в поле, а не приведение типа: у строки снимка есть поля других форм
+		// (ячейка-отправитель «Движения»), которых у ввода остатков нет.
+		rep.Rows = append(rep.Rows, model.StockEntryReportRow{
+			CellAddress: r.CellAddress, GoodCode: r.GoodCode, GoodName: r.GoodName,
+			ProductionDate: r.ProductionDate, Qty: r.Qty,
+		})
 	}
 	return rep
 }
