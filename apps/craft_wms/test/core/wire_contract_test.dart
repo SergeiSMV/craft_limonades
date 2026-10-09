@@ -54,7 +54,11 @@ void main() {
     addTearDown(db.close);
     final cache = CatalogCache(db);
     final outbox = OutboxRepository(db, const Uuid());
-    final effects = OutboxEffects(cache, FakeContentsSnapshotSync());
+    final effects = OutboxEffects(
+      cache,
+      FakeContentsSnapshotSync(),
+      FakeTasksSnapshotSync(),
+    );
     final server = FakeOperationsServer();
     final dio = Dio(BaseOptions(baseUrl: 'https://api.test/api/v1/'))
       ..httpClientAdapter = server;

@@ -45,7 +45,11 @@ void main() {
     api = _MockApi();
     opsApi = MockOperationsApi();
     outbox = OutboxRepository(db, const Uuid());
-    final effects = OutboxEffects(cache, FakeContentsSnapshotSync());
+    final effects = OutboxEffects(
+      cache,
+      FakeContentsSnapshotSync(),
+      FakeTasksSnapshotSync(),
+    );
     // Движок в тесте настоящий: отправка идёт через него, и проверять надо именно тот путь,
     // которым операция уходит на самом деле.
     engine = SyncEngine(

@@ -50,7 +50,11 @@ void main() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     cache = CatalogCache(db);
     outbox = OutboxRepository(db, const Uuid());
-    effects = OutboxEffects(cache, FakeContentsSnapshotSync());
+    effects = OutboxEffects(
+      cache,
+      FakeContentsSnapshotSync(),
+      FakeTasksSnapshotSync(),
+    );
     api = _MockApi();
     opsApi = MockOperationsApi();
     engine = SyncEngine(
@@ -194,9 +198,11 @@ void main() {
 
   // Схема поднялась до версии 3: у привязки появилась пометка «ещё не подтверждена».
   // P5-05: подтверждённая приёмка или размещение устаревают снимок содержимого склада.
-  test('подтверждение приёмки и размещения просит обновить снимок', () async {
+  // ADHOC-24: и снимок заданий — приёмка рождает задание, размещение меняет его остаток.
+  test('подтверждение приёмки и размещения просит обновить снимки', () async {
     final contents = FakeContentsSnapshotSync();
-    final e = OutboxEffects(cache, contents);
+    final tasks = FakeTasksSnapshotSync();
+    final e = OutboxEffects(cache, contents, tasks);
     final now = DateTime(2026, 10, 8);
     OutboxOperation op(OutboxKind kind) => OutboxOperation(
       seq: 1,
@@ -214,6 +220,7 @@ void main() {
     await e.confirm(op(OutboxKind.bindBarcode));
 
     expect(contents.requests, 2);
+    expect(tasks.requests, 2, reason: 'привязка ШК задания не трогает');
   });
 
   test('миграция 2 → 3 добавляет пометку, не трогая привязки', () async {
