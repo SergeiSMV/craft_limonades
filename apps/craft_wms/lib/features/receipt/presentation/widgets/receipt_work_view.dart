@@ -14,6 +14,7 @@ import 'receipt_label_actions.dart';
 import 'receipt_line_tile.dart';
 import 'receipt_scan_actions.dart';
 import 'receipt_scan_field.dart';
+import 'supplier_doc_dialog.dart';
 
 /// Общий список приёмки: шапка (поставщик, ячейка, «новый короб»), поле скана, короба
 /// и штучные строки, «Завершить приёмку».
@@ -57,8 +58,20 @@ class _ReceiptWorkViewState extends State<ReceiptWorkView>
   /// печатает сам со страницы короба (решение пользователя, ADHOC-18).
   Future<void> _newBox() => _openBox(cubit.newBox());
 
+  /// Указать или исправить документ поставщика (ADHOC-23).
+  Future<bool> _editDoc() async {
+    final doc = await showSupplierDocDialog(context, initial: widget.state.doc);
+    if (doc == null) return false;
+    cubit.setDoc(doc);
+    return true;
+  }
+
   /// Подтвердить и отправить: после отправки приёмку не изменить, поэтому спрашиваем.
+  /// Документа поставщика нет (черновик до ADHOC-23) — сначала он: без него сервер приёмку
+  /// не проведёт.
   Future<void> _submit() async {
+    if (widget.state.doc == null && !await _editDoc()) return;
+    if (!mounted) return;
     final ok = await showBindPromptDialog(
       context,
       title: t.receipt.submitTitle,
@@ -82,6 +95,7 @@ class _ReceiptWorkViewState extends State<ReceiptWorkView>
           state: state,
           onChangeCell: changeCell,
           onNewBox: _newBox,
+          onEditDoc: _editDoc,
         ),
         Padding(
           padding: AppInsets.h8,

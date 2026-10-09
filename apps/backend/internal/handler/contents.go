@@ -187,6 +187,8 @@ func (h *ContentsHandler) SearchLoadUnits(w http.ResponseWriter, r *http.Request
 
 type loadUnitReceiptResponse struct {
 	ReceiptID  string  `json:"receipt_id"`
+	DocNumber  string  `json:"doc_number"` // накладная поставщика (ADHOC-23)
+	DocDate    string  `json:"doc_date"`   // DD-MM-YYYY
 	ReceivedBy string  `json:"received_by"`
 	Supplier   *string `json:"supplier"`
 	PostedAt   *string `json:"posted_at"` // RFC3339; null — не оприходован
@@ -223,6 +225,7 @@ func (h *ContentsHandler) LoadUnitHistory(w http.ResponseWriter, r *http.Request
 	if rc := hist.Receipt; rc != nil {
 		out.Receipt = &loadUnitReceiptResponse{
 			ReceiptID: rc.ReceiptID, ReceivedBy: rc.ReceivedBy, Supplier: rc.SupplierName,
+			DocNumber: rc.Doc.Number, DocDate: rc.Doc.Date.Format(productionDateLayout),
 		}
 		if rc.PostedAt != nil {
 			at := rc.PostedAt.UTC().Format(time.RFC3339)

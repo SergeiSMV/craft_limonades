@@ -210,6 +210,8 @@ void main() {
         LoadUnitHistory(
           createdAt: DateTime(2026, 10, 8, 9),
           receipt: LoadUnitReceiptInfo(
+            docNumber: 'ТН-1042/2',
+            docDate: '01-10-2026',
             receivedBy: 'Иванов И.',
             supplier: 'ООО «Голсера»',
             postedAt: DateTime(2026, 10, 8, 10),
@@ -241,6 +243,12 @@ void main() {
       await tester.tap(find.text(t.contents.historyTitleCount(count: 2)));
       await tester.pumpAndSettle();
 
+      expect(
+        find.text(
+          t.contents.historyDoc(number: 'ТН-1042/2', date: '01.10.2026'),
+        ),
+        findsOneWidget,
+      );
       expect(
         find.text(t.contents.historyReceived(name: 'Иванов И.')),
         findsOneWidget,

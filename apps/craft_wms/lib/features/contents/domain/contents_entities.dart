@@ -158,10 +158,16 @@ class Viewed<T> {
 /// Приёмка, которая завела короб: кто принял, от кого, когда оприходована (P5-05-1).
 class LoadUnitReceiptInfo {
   const LoadUnitReceiptInfo({
+    this.docNumber,
+    this.docDate,
     required this.receivedBy,
     this.supplier,
     this.postedAt,
   });
+
+  /// Документ поставщика (ADHOC-23): номер и дата DD-MM-YYYY; `null` — сервер до ADHOC-23.
+  final String? docNumber;
+  final String? docDate;
 
   final String receivedBy;
 

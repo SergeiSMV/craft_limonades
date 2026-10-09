@@ -308,6 +308,9 @@ func isRejection(err error) bool {
 		// Приёмка (P4-09): документ уже оприходован, пуст, противоречив или ссылается на то,
 		// чего нет. Ни одно из этого повтор не исправит.
 		errors.Is(err, ErrInvalidReceiptID) ||
+		errors.Is(err, ErrEmptyDocNumber) ||
+		errors.Is(err, ErrDocNumberTooLong) ||
+		errors.Is(err, ErrInvalidDocDate) ||
 		errors.Is(err, ErrInvalidLoadUnitID) ||
 		errors.Is(err, ErrInvalidLoadUnitKind) ||
 		errors.Is(err, repository.ErrReceiptNotFound) ||

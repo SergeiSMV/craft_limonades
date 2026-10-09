@@ -280,12 +280,15 @@ class _DocRow extends StatelessWidget {
     return '${two(l.day)}.${two(l.month)}.${l.year} ${two(l.hour)}:${two(l.minute)}';
   }
 
-  /// Заголовок строки: документ · склад, а у «Поступления» ещё и поставщик — по нему оператор
-  /// узнаёт приход среди других (P4-10).
+  /// Заголовок строки: документ · склад, а у «Поступления» ещё поставщик и его документ —
+  /// по ним оператор узнаёт приход среди других и находит накладную для 1С (P4-10, ADHOC-23).
   String _title() {
     if (doc.kind != 'receipt') return '$mark · ${doc.warehouseName}';
     final supplier = doc.supplier.isEmpty ? t.portal.receipt.noSupplier : doc.supplier;
-    return '$mark · $supplier · ${doc.warehouseName}';
+    final supplierDoc = doc.docNumber.isEmpty
+        ? ''
+        : ' · ${t.portal.receipt.doc(number: doc.docNumber, date: doc.docDate.replaceAll('-', '.'))}';
+    return '$mark · $supplier$supplierDoc · ${doc.warehouseName}';
   }
 
   @override

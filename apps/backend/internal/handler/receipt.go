@@ -37,6 +37,8 @@ type createReceiptRequest struct {
 	ReceiptID   string `json:"receipt_id"`
 	WarehouseID string `json:"warehouse_id"`
 	SupplierID  string `json:"supplier_id"`
+	DocNumber   string `json:"doc_number"` // накладная поставщика, обязательна (ADHOC-23)
+	DocDate     string `json:"doc_date"`   // DD-MM-YYYY
 }
 
 // Create: POST /api/v1/receipts — открыть документ приёмки. 201 {receipt_id} / 400.
@@ -53,7 +55,7 @@ func (h *ReceiptHandler) Create(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "невалидный JSON")
 		return
 	}
-	if err := h.svc.Start(r.Context(), req.ReceiptID, req.WarehouseID, req.SupplierID, userID); err != nil {
+	if err := h.svc.Start(r.Context(), req.ReceiptID, req.WarehouseID, req.SupplierID, userID, req.DocNumber, req.DocDate); err != nil {
 		receiptError(w, err)
 		return
 	}
@@ -216,7 +218,10 @@ func receiptError(w http.ResponseWriter, err error) {
 		errors.Is(err, service.ErrInvalidQuantity),
 		errors.Is(err, service.ErrInvalidDate),
 		errors.Is(err, service.ErrInvalidLoadUnitID),
-		errors.Is(err, service.ErrInvalidLoadUnitKind):
+		errors.Is(err, service.ErrInvalidLoadUnitKind),
+		errors.Is(err, service.ErrEmptyDocNumber),
+		errors.Is(err, service.ErrDocNumberTooLong),
+		errors.Is(err, service.ErrInvalidDocDate):
 		writeError(w, http.StatusBadRequest, err.Error())
 	case errors.Is(err, repository.ErrReceiptNotFound),
 		errors.Is(err, repository.ErrGoodNotFound),

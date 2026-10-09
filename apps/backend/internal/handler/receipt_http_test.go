@@ -171,7 +171,7 @@ func TestReceiptHTTP_looseGoodsWithBarcodeBinding(t *testing.T) {
 	}
 
 	receipt := uuid.NewString()
-	create := fmt.Sprintf(`{"receipt_id":%q,"warehouse_id":%q}`, receipt, e.warehouse)
+	create := fmt.Sprintf(`{"receipt_id":%q,"warehouse_id":%q,"doc_number":"ТН-1","doc_date":"01-10-2026"}`, receipt, e.warehouse)
 	if code, body := e.do(t, http.MethodPost, "/api/v1/receipts", create); code != http.StatusCreated {
 		t.Fatalf("создать приёмку: код %d, тело %+v", code, body)
 	}
@@ -232,7 +232,7 @@ func TestReceiptHTTP_loadUnitBranch(t *testing.T) {
 
 	receipt := uuid.NewString()
 	if code, _ := e.do(t, http.MethodPost, "/api/v1/receipts",
-		fmt.Sprintf(`{"receipt_id":%q,"warehouse_id":%q}`, receipt, e.warehouse)); code != http.StatusCreated {
+		fmt.Sprintf(`{"receipt_id":%q,"warehouse_id":%q,"doc_number":"ТН-1","doc_date":"01-10-2026"}`, receipt, e.warehouse)); code != http.StatusCreated {
 		t.Fatalf("создать приёмку: код %d", code)
 	}
 	line := fmt.Sprintf(`{"good_id":%q,"production_date":"15-01-2026","qty":"6","cell_id":%q,"load_unit_id":%q}`,
@@ -268,7 +268,7 @@ func TestReceiptHTTP_unknownLoadUnitIsNotFound(t *testing.T) {
 	e := newReceiptE2E(t)
 	receipt := uuid.NewString()
 	if code, _ := e.do(t, http.MethodPost, "/api/v1/receipts",
-		fmt.Sprintf(`{"receipt_id":%q,"warehouse_id":%q}`, receipt, e.warehouse)); code != http.StatusCreated {
+		fmt.Sprintf(`{"receipt_id":%q,"warehouse_id":%q,"doc_number":"ТН-1","doc_date":"01-10-2026"}`, receipt, e.warehouse)); code != http.StatusCreated {
 		t.Fatalf("создать приёмку: код %d", code)
 	}
 	line := fmt.Sprintf(`{"good_id":%q,"production_date":"15-01-2026","qty":"1","load_unit_id":%q}`,
@@ -283,7 +283,7 @@ func TestReceiptHTTP_getShowsHumanReadableLines(t *testing.T) {
 	e := newReceiptE2E(t)
 	receipt := uuid.NewString()
 	if code, _ := e.do(t, http.MethodPost, "/api/v1/receipts",
-		fmt.Sprintf(`{"receipt_id":%q,"warehouse_id":%q}`, receipt, e.warehouse)); code != http.StatusCreated {
+		fmt.Sprintf(`{"receipt_id":%q,"warehouse_id":%q,"doc_number":"ТН-1","doc_date":"01-10-2026"}`, receipt, e.warehouse)); code != http.StatusCreated {
 		t.Fatalf("создать приёмку: код %d", code)
 	}
 	line := fmt.Sprintf(`{"good_id":%q,"production_date":"15-01-2026","qty":"3"}`, e.good)

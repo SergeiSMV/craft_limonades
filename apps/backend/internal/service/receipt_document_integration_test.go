@@ -74,7 +74,7 @@ func TestReceiptDocument_directPostToo(t *testing.T) {
 	e := setupReceipt(t)
 	ctx := context.Background()
 	id := uuid.NewString()
-	if err := e.svc.Start(ctx, id, e.warehouse, "", e.user); err != nil {
+	if err := e.svc.Start(ctx, id, e.warehouse, "", e.user, "ТН-1", "01-10-2026"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := e.svc.AddLine(ctx, id, e.good, "01-09-2026", "", "", decimal.NewFromInt(2)); err != nil {

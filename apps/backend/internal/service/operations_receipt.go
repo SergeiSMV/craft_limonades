@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
@@ -24,6 +25,8 @@ type receiptSubmitPayload struct {
 	ReceiptID   string `json:"receipt_id"`
 	WarehouseID string `json:"warehouse_id"`
 	SupplierID  string `json:"supplier_id"`
+	DocNumber   string `json:"doc_number"` // накладная поставщика (ADHOC-23)
+	DocDate     string `json:"doc_date"`   // DD-MM-YYYY
 	LoadUnits   []struct {
 		ID   string `json:"id"`
 		Kind string `json:"kind"`
@@ -64,6 +67,13 @@ func (s *OperationsService) receiptSubmit(ctx context.Context, userID, id string
 	if !isUUID(in.WarehouseID) || !isOptionalUUID(in.SupplierID) {
 		return repository.Applied{}, ErrInvalidPayload
 	}
+	// Накладная обязательна (ADHOC-23): приёмку без неё сервер не проводит — нечего занести
+	// в 1С основанием. Отказ по существу: повтор того же тела ничего не исправит.
+	doc, err := parseSupplierDoc(p.DocNumber, p.DocDate, time.Now())
+	if err != nil {
+		return repository.Applied{}, err
+	}
+	in.Doc = doc
 	// Пустую приёмку отсекаем до базы: оприходовать нечего, а открытый ради отказа документ
 	// откатился бы вместе с транзакцией и всё равно ничего не дал.
 	if len(p.Lines) == 0 {

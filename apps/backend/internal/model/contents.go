@@ -83,9 +83,10 @@ type ContentsSnapshot struct {
 // LoadUnitReceipt — приёмка, которая завела короб (P5-05-1): кто, когда, от кого.
 type LoadUnitReceipt struct {
 	ReceiptID    string
-	ReceivedBy   string     // ФИО кладовщика
-	SupplierName *string    // nil — приёмка без поставщика
-	PostedAt     *time.Time // nil — документ ещё не оприходован
+	Doc          SupplierDoc // накладная поставщика (ADHOC-23)
+	ReceivedBy   string      // ФИО кладовщика
+	SupplierName *string     // nil — приёмка без поставщика
+	PostedAt     *time.Time  // nil — документ ещё не оприходован
 }
 
 // LoadUnitMove — перенос короба из журнала размещений (P5-05-1), в том виде, в каком его читает

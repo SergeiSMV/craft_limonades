@@ -221,6 +221,8 @@ func TestReceivingHTTP_clientWireFormat(t *testing.T) {
 			Payload struct {
 				WarehouseID string `json:"warehouse_id"`
 				SupplierID  string `json:"supplier_id"`
+				DocNumber   string `json:"doc_number"`
+				DocDate     string `json:"doc_date"`
 				LoadUnits   []struct {
 					ID string `json:"id"`
 				} `json:"load_units"`
@@ -252,8 +254,19 @@ func TestReceivingHTTP_clientWireFormat(t *testing.T) {
 		t.Fatalf("документов «Поступление»: %d", len(docs))
 	}
 	header, rows := e.xlsxRows(t, docs[0]["id"].(string))
-	if header["Поставщик"] != "ООО «Голсера»" || header["Исполнитель"] != "Кладовщик" {
+	if header["Поставщик"] != "ООО «Голсера»" || header["Исполнитель"] != "Кладовщик" ||
+		header["Документ поставщика"] != "№ ТН-1042/2 от 01.10.2026" {
 		t.Fatalf("шапка документа: %v", header)
+	}
+	if docs[0]["doc_number"] != "ТН-1042/2" || docs[0]["doc_date"] != "01-10-2026" {
+		t.Errorf("документ поставщика в списке «Приход»: %v", docs[0])
+	}
+	// Накладная поставщика (ADHOC-23) легла в документ приёмки как прислана.
+	var docNumber, docDate string
+	if err := e.pool.QueryRow(context.Background(),
+		`SELECT doc_number, to_char(doc_date, 'DD-MM-YYYY') FROM receipts`).Scan(&docNumber, &docDate); err != nil ||
+		docNumber != p.DocNumber || docDate != p.DocDate {
+		t.Fatalf("накладная приёмки: %q от %q (%v), ожидалось %q от %q", docNumber, docDate, err, p.DocNumber, p.DocDate)
 	}
 	want := [][]string{
 		{"M1-1-1-1", "16121", "Кальмар", "01.09.2026", "12"},
@@ -287,7 +300,7 @@ func TestReceivingHTTP_looseWithNewBarcode(t *testing.T) {
 
 	got := e.operations(t, jsonf(`{"operations":[
 		{"operation_id":%q,"kind":"bind_barcode","payload":{"good_id":%q,"barcode":%q}},
-		{"operation_id":%q,"kind":"receipt_submit","payload":{
+		{"operation_id":%q,"kind":"receipt_submit","payload":{"doc_number":"ТН-1","doc_date":"01-10-2026",
 			"receipt_id":%q,"warehouse_id":%q,
 			"lines":[{"good_id":%q,"production_date":"01-09-2026","qty":5}]}}]}`,
 		uuid.NewString(), good, code,
@@ -350,7 +363,7 @@ func TestReceivingHTTP_boxesWithInternalBarcode(t *testing.T) {
 	}
 
 	box1, box2 := uuid.NewString(), uuid.NewString()
-	got := e.operations(t, jsonf(`{"operations":[{"operation_id":%q,"kind":"receipt_submit","payload":{
+	got := e.operations(t, jsonf(`{"operations":[{"operation_id":%q,"kind":"receipt_submit","payload":{"doc_number":"ТН-1","doc_date":"01-10-2026",
 		"receipt_id":%q,"warehouse_id":%q,"supplier_id":%q,
 		"load_units":[{"id":%q,"kind":"box"},{"id":%q,"kind":"box"}],
 		"lines":[
@@ -384,7 +397,7 @@ func TestReceivingHTTP_boxesWithInternalBarcode(t *testing.T) {
 func TestReceivingHTTP_replayAfterLostResponse(t *testing.T) {
 	e := newReceivingE2E(t, nil)
 	good := seedGood(t, e.pool, "Кальмар")
-	batch := jsonf(`{"operations":[{"operation_id":%q,"kind":"receipt_submit","payload":{
+	batch := jsonf(`{"operations":[{"operation_id":%q,"kind":"receipt_submit","payload":{"doc_number":"ТН-1","doc_date":"01-10-2026",
 		"receipt_id":%q,"warehouse_id":%q,
 		"lines":[{"good_id":%q,"production_date":"01-09-2026","qty":7}]}}]}`,
 		uuid.NewString(), uuid.NewString(), e.warehouse, good)
@@ -414,5 +427,33 @@ func assertRows(t *testing.T, got, want [][]string) {
 		if strings.Join(got[i], "|") != strings.Join(want[i], "|") {
 			t.Fatalf("строка %d: %v, ждали %v", i, got[i], want[i])
 		}
+	}
+}
+
+// ADHOC-23: приёмку без накладной поставщика сервер не проводит — отказ по существу,
+// а не временная неудача: повтор того же тела ничего не исправит.
+func TestReceivingHTTP_supplierDocRequired(t *testing.T) {
+	e := newReceivingE2E(t, nil)
+	good := uuid.NewString()
+	if _, err := e.pool.Exec(context.Background(),
+		`INSERT INTO goods (id,code,name,uom) VALUES ($1::uuid,'16121','Кальмар','шт')`, good); err != nil {
+		t.Fatalf("товар: %v", err)
+	}
+	for name, doc := range map[string]string{
+		"без документа":   ``,
+		"пустой номер":    `"doc_number":"  ","doc_date":"01-10-2026",`,
+		"будущая дата":    `"doc_number":"1","doc_date":"01-10-2099",`,
+		"дата без номера": `"doc_date":"01-10-2026",`,
+	} {
+		batch := `{"operations":[{"operation_id":"` + uuid.NewString() + `","kind":"receipt_submit","payload":{` + doc + `
+			"receipt_id":"` + uuid.NewString() + `","warehouse_id":"` + e.warehouse + `",
+			"lines":[{"good_id":"` + good + `","production_date":"01-09-2026","qty":3}]}}]}`
+		if got := e.operations(t, batch); len(got) != 1 || got[0] != service.StatusRejected {
+			t.Errorf("%s: статус %v, ожидался отказ", name, got)
+		}
+	}
+	var n int
+	if err := e.pool.QueryRow(context.Background(), `SELECT count(*) FROM receipts`).Scan(&n); err != nil || n != 0 {
+		t.Errorf("приёмок после отказов: %d (%v), ожидалось 0", n, err)
 	}
 }

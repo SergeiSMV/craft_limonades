@@ -32,6 +32,7 @@ void main() {
   );
   const cell1 = Cell(id: 'c1', warehouseId: 'w1', address: 'M1-1-1-1');
   const supplier = Supplier(id: 's1', name: 'Поставщик');
+  const doc = ReceiptDoc(number: 'ТН-1042/2', date: '01.10.2026');
 
   late _MockCatalog catalog;
   late _MockRepo repo;
@@ -75,13 +76,13 @@ void main() {
       when(
         () => catalog.defaultCell(),
       ).thenAnswer((_) async => const Right(null));
-      await cubit.start(supplier);
+      await cubit.start(supplier, doc);
       expect(cubit.state.started, isFalse);
       expect(cubit.state.failure, const Failure.unknown(kNoDefaultCell));
     });
 
     test('начало выдаёт id документа и запоминает склад по ячейке', () async {
-      await cubit.start(supplier);
+      await cubit.start(supplier, doc);
       expect(cubit.state.started, isTrue);
       expect(cubit.state.receiptId, isNotNull);
       expect(cubit.state.defaultCell, defaultCell);
@@ -90,7 +91,7 @@ void main() {
   });
 
   group('строки: короб и штучно', () {
-    setUp(() => cubit.start(supplier));
+    setUp(() => cubit.start(supplier, doc));
 
     test(
       'штучная строка ложится в текущую ячейку; повтор грани копит',
@@ -195,7 +196,7 @@ void main() {
   });
 
   group('завершение', () {
-    setUp(() => cubit.start(supplier));
+    setUp(() => cubit.start(supplier, doc));
 
     test(
       'тело операции: склад, поставщик, только непустые короба, формат даты',
@@ -221,6 +222,9 @@ void main() {
         expect(sent!['receipt_id'], cubit.state.receiptId);
         expect(sent!['warehouse_id'], 'w1');
         expect(sent!['supplier_id'], 's1');
+        // Документ поставщика (ADHOC-23): номер как введён, дата — в транспортном виде.
+        expect(sent!['doc_number'], 'ТН-1042/2');
+        expect(sent!['doc_date'], '01-10-2026');
         expect(sent!['load_units'], [
           {'id': usedBox, 'kind': 'box'},
         ]);
@@ -274,7 +278,7 @@ void main() {
   test(
     'приёмка переживает перезапуск: короба, ячейки и строки на месте',
     () async {
-      await cubit.start(supplier);
+      await cubit.start(supplier, doc);
       cubit.setTargetCell(cell1);
       final boxId = cubit.newBox();
       await cubit.addLine(
@@ -290,6 +294,7 @@ void main() {
       expect(restored.state.started, isTrue);
       expect(restored.state.receiptId, cubit.state.receiptId);
       expect(restored.state.supplier, supplier);
+      expect(restored.state.doc, doc);
       expect(restored.state.targetCell, cell1);
       expect(restored.state.linesOf(boxId).single.good, goodA);
       expect(restored.state.boxes.single.cell, cell1);
@@ -299,12 +304,48 @@ void main() {
   );
 
   test('ошибка принтера возвращается текстом и приёмку не трогает', () async {
-    await cubit.start(supplier);
+    await cubit.start(supplier, doc);
     final boxId = cubit.newBox();
     when(() => printer.printLoadUnitLabel(boxId)).thenThrow(
       const PrinterFailure(PrinterFailureKind.io, 'Принтер не выбран'),
     );
     expect(await cubit.printBoxLabel(boxId), 'Принтер не выбран');
     expect(cubit.state.boxes.single.id, boxId);
+  });
+
+  group('документ поставщика (ADHOC-23)', () {
+    test('исправленный документ уходит в теле операции', () async {
+      await cubit.start(supplier, doc);
+      cubit.setDoc(const ReceiptDoc(number: 'б/н', date: '02.10.2026'));
+      await cubit.addLine(good: goodA, date: '01.09.2026', qty: 1);
+
+      Map<String, dynamic>? sent;
+      when(() => repo.submit(any())).thenAnswer((inv) async {
+        sent = inv.positionalArguments.first as Map<String, dynamic>;
+        return const Right(null);
+      });
+      await cubit.submit();
+
+      expect(sent!['doc_number'], 'б/н');
+      expect(sent!['doc_date'], '02-10-2026');
+    });
+
+    test('черновик без документа (до ADHOC-23) не отправляется', () async {
+      // Черновик пишет настоящий кубит; документ из него убираем — так выглядит черновик,
+      // сохранённый версией приложения до ADHOC-23.
+      await cubit.start(supplier, doc);
+      await cubit.addLine(good: goodA, date: '01.09.2026', qty: 1);
+      await cubit.draftWrites;
+      final saved = (await drafts.load())!..remove('doc');
+      await drafts.save(saved);
+
+      final restored = newCubit();
+      await restored.restore();
+      expect(restored.state.doc, isNull);
+
+      await restored.submit();
+      verifyNever(() => repo.submit(any()));
+      await restored.close();
+    });
   });
 }

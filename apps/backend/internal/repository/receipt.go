@@ -41,22 +41,24 @@ func NewReceiptRepository(pool *pgxpool.Pool) *ReceiptRepository {
 // Зачем id с устройства: приёмка начинается на ТСД, в том числе без сети, и серверный
 // идентификатор взять неоткуда — кладовщик не смог бы продолжить начатый документ.
 // Тот же приём, что у сессии ввода остатков (P-FS-04).
-func (r *ReceiptRepository) Create(ctx context.Context, id, warehouseID, supplierID, createdBy string) error {
-	return createReceipt(ctx, r.pool, id, warehouseID, supplierID, createdBy)
+func (r *ReceiptRepository) Create(ctx context.Context, id, warehouseID, supplierID, createdBy string, doc model.SupplierDoc) error {
+	return createReceipt(ctx, r.pool, id, warehouseID, supplierID, createdBy, doc)
 }
 
 // createReceipt — низкоуровневое открытие документа на Querier: им пользуется и прямая ручка,
 // и применение приёмки из очереди устройства (P4-09), где документ открывается в одной
 // транзакции со своими строками и оприходованием.
-func createReceipt(ctx context.Context, q Querier, id, warehouseID, supplierID, createdBy string) error {
+//
+// [doc] — накладная поставщика (ADHOC-23); проверена сервисом, база держит тот же CHECK.
+func createReceipt(ctx context.Context, q Querier, id, warehouseID, supplierID, createdBy string, doc model.SupplierDoc) error {
 	var supplier any
 	if supplierID != "" {
 		supplier = supplierID
 	}
 	_, err := q.Exec(ctx, `
-		INSERT INTO receipts (id, warehouse_id, supplier_id, created_by)
-		VALUES ($1::uuid, $2::uuid, $3::uuid, $4::uuid)
-		ON CONFLICT (id) DO NOTHING`, id, warehouseID, supplier, createdBy)
+		INSERT INTO receipts (id, warehouse_id, supplier_id, created_by, doc_number, doc_date)
+		VALUES ($1::uuid, $2::uuid, $3::uuid, $4::uuid, $5, $6::date)
+		ON CONFLICT (id) DO NOTHING`, id, warehouseID, supplier, createdBy, doc.Number, doc.Date)
 	if err != nil {
 		return fmt.Errorf("создать приёмку: %w", err)
 	}
@@ -288,9 +290,11 @@ func listReceiptLines(ctx context.Context, q Querier, receiptID string) ([]model
 func (r *ReceiptRepository) ByID(ctx context.Context, receiptID string) (model.Receipt, error) {
 	var rc model.Receipt
 	err := r.pool.QueryRow(ctx, `
-		SELECT id::text, warehouse_id::text, supplier_id::text, status, created_by::text, posted_at, created_at
+		SELECT id::text, warehouse_id::text, supplier_id::text, status, created_by::text, posted_at, created_at,
+		       doc_number, doc_date
 		FROM receipts WHERE id = $1::uuid`, receiptID).
-		Scan(&rc.ID, &rc.WarehouseID, &rc.SupplierID, &rc.Status, &rc.CreatedBy, &rc.PostedAt, &rc.CreatedAt)
+		Scan(&rc.ID, &rc.WarehouseID, &rc.SupplierID, &rc.Status, &rc.CreatedBy, &rc.PostedAt, &rc.CreatedAt,
+			&rc.Doc.Number, &rc.Doc.Date)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return model.Receipt{}, ErrReceiptNotFound
 	}

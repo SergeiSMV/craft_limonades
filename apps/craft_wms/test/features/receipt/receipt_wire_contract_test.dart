@@ -137,7 +137,14 @@ void main() {
 
     // Тот же путь, что у кладовщика: поставщик → короб в M1-1-1-1 → строка в коробе →
     // штучная строка в ячейку по умолчанию → «Завершить приёмку».
-    await cubit.start(supplier);
+    // Документ поставщика (ADHOC-23) кладовщик вводит в дд.мм.гггг — как в эталоне, но с точками.
+    await cubit.start(
+      supplier,
+      ReceiptDoc(
+        number: p['doc_number'] as String,
+        date: (p['doc_date'] as String).replaceAll('-', '.'),
+      ),
+    );
     cubit.setTargetCell(cell1);
     final boxId = cubit.newBox();
     await cubit.addLine(
