@@ -32,6 +32,10 @@ abstract class ReceiptState with _$ReceiptState {
     /// `null` при начатой приёмке — без поставщика (внутреннее поступление, возврат).
     Supplier? supplier,
 
+    /// Документ поставщика (ADHOC-23). `null` у начатой приёмки — черновик сохранён до того,
+    /// как документ стал обязательным: «Завершить» сначала спросит его.
+    ReceiptDoc? doc,
+
     /// Ячейка приёмки по умолчанию («С-Н-П»). Из неё же берётся склад документа.
     Cell? defaultCell,
 
@@ -107,6 +111,7 @@ class ReceiptCubit extends Cubit<ReceiptState> {
   Map<String, dynamic> _draftJson(ReceiptState s) => {
     'receipt_id': s.receiptId,
     'supplier': s.supplier?.toJson(),
+    'doc': s.doc?.toJson(),
     'default_cell': s.defaultCell?.toJson(),
     'target_cell': s.targetCell?.toJson(),
     'boxes': s.boxes.map((b) => b.toJson()).toList(),
@@ -118,12 +123,14 @@ class ReceiptCubit extends Cubit<ReceiptState> {
     Map<String, dynamic>? map(String key) => d[key] as Map<String, dynamic>?;
     List<dynamic> list(String key) => d[key] as List<dynamic>? ?? const [];
     final supplier = map('supplier');
+    final doc = map('doc');
     final defaultCell = map('default_cell');
     final targetCell = map('target_cell');
     return ReceiptState(
       started: true,
       receiptId: d['receipt_id'] as String?,
       supplier: supplier == null ? null : Supplier.fromJson(supplier),
+      doc: doc == null ? null : ReceiptDoc.fromJson(doc),
       defaultCell: defaultCell == null ? null : Cell.fromJson(defaultCell),
       targetCell: targetCell == null ? null : Cell.fromJson(targetCell),
       boxes: list(
@@ -168,12 +175,12 @@ class ReceiptCubit extends Cubit<ReceiptState> {
 
   //* --- начало --- *//
 
-  /// Начать приёмку от поставщика (`null` — без поставщика).
+  /// Начать приёмку от поставщика (`null` — без поставщика) по документу [doc] (ADHOC-23).
   ///
   /// Ячейка по умолчанию нужна сразу: из неё берётся склад документа, и без неё приёмку
   /// не оприходовать. Её отсутствие — незавершённое развёртывание, чинится админом,
   /// поэтому приёмку не начинаем вовсе, а не обнаруживаем это на финале.
-  Future<void> start(Supplier? supplier) async {
+  Future<void> start(Supplier? supplier, ReceiptDoc doc) async {
     final res = await _catalog.defaultCell();
     if (res.isLeft) {
       emit(state.copyWith(failure: res.left));
@@ -189,10 +196,14 @@ class ReceiptCubit extends Cubit<ReceiptState> {
         started: true,
         receiptId: _ids.newId(),
         supplier: supplier,
+        doc: doc,
         defaultCell: cell,
       ),
     );
   }
+
+  /// Исправить документ поставщика — до завершения приёмки (ADHOC-23).
+  void setDoc(ReceiptDoc doc) => emit(state.copyWith(doc: doc));
 
   //* --- ячейка и короба --- *//
 
@@ -399,7 +410,9 @@ class ReceiptCubit extends Cubit<ReceiptState> {
   /// приёмки живёт в очереди операций. Связи нет — она уйдёт сама; отказ сервера — её разбирают
   /// на экране несинхронизированного.
   Future<void> submit() async {
-    if (!state.canSubmit) return;
+    // Без документа поставщика сервер приёмку не проведёт (ADHOC-23); экран спрашивает его
+    // до вызова, здесь — страховка от вызова в обход экрана.
+    if (!state.canSubmit || state.doc == null) return;
     emit(state.copyWith(busy: true, failure: null));
     final res = await _repo.submit(_payload(state));
     final s = state.copyWith(busy: false);
@@ -427,6 +440,8 @@ class ReceiptCubit extends Cubit<ReceiptState> {
       'receipt_id': s.receiptId,
       'warehouse_id': s.defaultCell!.warehouseId,
       if (s.supplier != null) 'supplier_id': s.supplier!.id,
+      'doc_number': s.doc!.number,
+      'doc_date': s.doc!.transportDate,
       'load_units': [
         for (final b in s.boxes)
           if (usedBoxes.contains(b.id)) {'id': b.id, 'kind': 'box'},

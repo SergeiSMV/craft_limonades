@@ -35,6 +35,9 @@ type Task struct {
 	ReceiptID    *string
 	SupplierName string
 	ReceivedAt   *time.Time
+	// Накладная поставщика приёмки-основания (ADHOC-23); nil — задание не от приёмки.
+	DocNumber *string
+	DocDate   *time.Time
 
 	AssigneeID   *string
 	AssigneeName string
@@ -85,6 +88,8 @@ type CompletedTask struct {
 	Number       int64
 	Kind         string
 	SupplierName string
+	DocNumber    *string    // накладная приёмки-основания (ADHOC-23); nil — нет
+	DocDate      *time.Time // её дата
 	CompletedAt  time.Time
 	// Исполнители — все, кто проводил по заданию сеансы, в порядке первого захода.
 	Executors []TaskUser

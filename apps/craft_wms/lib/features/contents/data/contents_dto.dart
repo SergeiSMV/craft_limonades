@@ -153,6 +153,8 @@ LoadUnitHistory historyFromJson(Map<String, dynamic> j) {
     receipt: receipt == null
         ? null
         : LoadUnitReceiptInfo(
+            docNumber: receipt['doc_number'] as String?,
+            docDate: receipt['doc_date'] as String?,
             receivedBy: receipt['received_by'] as String? ?? '',
             supplier: receipt['supplier'] as String?,
             postedAt: at(receipt['posted_at']),

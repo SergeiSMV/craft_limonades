@@ -55,6 +55,7 @@ type ReceiptSubmitInput struct {
 	WarehouseID string
 	SupplierID  string // пусто — без поставщика
 	CreatedBy   string
+	Doc         model.SupplierDoc // накладная поставщика (ADHOC-23)
 	LoadUnits   []LoadUnitInput
 	Lines       []model.ReceiptLineInput
 }
@@ -154,7 +155,7 @@ func (r *OperationsRepository) StockEntryFinalize(ctx context.Context, operation
 // уже оприходованный другим путём, упирается в статус и даёт ErrReceiptPosted.
 func (r *OperationsRepository) ReceiptSubmit(ctx context.Context, operationID string, in ReceiptSubmitInput) (Applied, error) {
 	applied, err := r.inTx(ctx, operationID, KindReceiptSubmit, func(q Querier) (json.RawMessage, error) {
-		if err := createReceipt(ctx, q, in.ReceiptID, in.WarehouseID, in.SupplierID, in.CreatedBy); err != nil {
+		if err := createReceipt(ctx, q, in.ReceiptID, in.WarehouseID, in.SupplierID, in.CreatedBy, in.Doc); err != nil {
 			return nil, err
 		}
 		if err := guardReceiptDraft(ctx, q, in.ReceiptID); err != nil {

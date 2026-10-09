@@ -35,6 +35,10 @@ type ReportSnapshot struct {
 	Supplier string `json:"supplier,omitempty"`
 	// Executor — кто принимал: ФИО автора документа приёмки.
 	Executor string `json:"executor,omitempty"`
+	// Накладная поставщика (ADHOC-23): номер и дата в виде YYYY-MM-DD. Пусто — снимок,
+	// сохранённый до ADHOC-23: прежние документы читаются как были.
+	DocNumber string `json:"doc_number,omitempty"`
+	DocDate   string `json:"doc_date,omitempty"`
 }
 
 // ReportSnapshotRow — строка документа. Числа и даты хранятся текстом: qty — decimal, который
@@ -66,6 +70,8 @@ type DocumentListItem struct {
 	WarehouseCode string
 	WarehouseName string
 	Supplier      string // только у «Поступления»; пусто — без поставщика или другая форма
+	DocNumber     string // накладная поставщика, только у «Поступления» (ADHOC-23); пусто — нет
+	DocDate       string // её дата YYYY-MM-DD
 	CreatedAt     time.Time
 	LinesCount    int
 	Status        string

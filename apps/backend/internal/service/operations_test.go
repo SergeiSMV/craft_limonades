@@ -269,13 +269,15 @@ func TestOperations_receiptSubmitValidation(t *testing.T) {
 		name    string
 		payload map[string]any
 	}{
-		{"id документа не UUID", map[string]any{"receipt_id": "x", "warehouse_id": warehouse, "lines": []any{line(nil)}}},
-		{"нет склада", map[string]any{"receipt_id": receipt, "lines": []any{line(nil)}}},
-		{"пустой документ", map[string]any{"receipt_id": receipt, "warehouse_id": warehouse}},
-		{"нулевое количество", map[string]any{"receipt_id": receipt, "warehouse_id": warehouse, "lines": []any{line(map[string]any{"qty": 0})}}},
-		{"неверная дата", map[string]any{"receipt_id": receipt, "warehouse_id": warehouse, "lines": []any{line(map[string]any{"production_date": "2026-09-01"})}}},
-		{"ГЕ не UUID", map[string]any{"receipt_id": receipt, "warehouse_id": warehouse, "load_units": []any{map[string]any{"id": "CWLU1:x"}}, "lines": []any{line(nil)}}},
-		{"неизвестный вид ГЕ", map[string]any{"receipt_id": receipt, "warehouse_id": warehouse, "load_units": []any{map[string]any{"id": good, "kind": "bag"}}, "lines": []any{line(nil)}}},
+		{"id документа не UUID", map[string]any{"doc_number": "ТН-1", "doc_date": "01-10-2026", "receipt_id": "x", "warehouse_id": warehouse, "lines": []any{line(nil)}}},
+		{"нет склада", map[string]any{"doc_number": "ТН-1", "doc_date": "01-10-2026", "receipt_id": receipt, "lines": []any{line(nil)}}},
+		{"пустой документ", map[string]any{"doc_number": "ТН-1", "doc_date": "01-10-2026", "receipt_id": receipt, "warehouse_id": warehouse}},
+		{"нулевое количество", map[string]any{"doc_number": "ТН-1", "doc_date": "01-10-2026", "receipt_id": receipt, "warehouse_id": warehouse, "lines": []any{line(map[string]any{"qty": 0})}}},
+		{"неверная дата", map[string]any{"doc_number": "ТН-1", "doc_date": "01-10-2026", "receipt_id": receipt, "warehouse_id": warehouse, "lines": []any{line(map[string]any{"production_date": "2026-09-01"})}}},
+		{"ГЕ не UUID", map[string]any{"doc_number": "ТН-1", "doc_date": "01-10-2026", "receipt_id": receipt, "warehouse_id": warehouse, "load_units": []any{map[string]any{"id": "CWLU1:x"}}, "lines": []any{line(nil)}}},
+		{"нет накладной", map[string]any{"receipt_id": receipt, "warehouse_id": warehouse, "lines": []any{line(nil)}}},
+		{"накладная в будущем", map[string]any{"doc_number": "1", "doc_date": "01-10-2099", "receipt_id": receipt, "warehouse_id": warehouse, "lines": []any{line(nil)}}},
+		{"неизвестный вид ГЕ", map[string]any{"doc_number": "ТН-1", "doc_date": "01-10-2026", "receipt_id": receipt, "warehouse_id": warehouse, "load_units": []any{map[string]any{"id": good, "kind": "bag"}}, "lines": []any{line(nil)}}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -299,6 +301,7 @@ func TestOperations_receiptSubmitValidation(t *testing.T) {
 	res, err := NewOperationsService(repo).Apply(context.Background(), opUserID, []Operation{
 		op(opID2, repository.KindReceiptSubmit, map[string]any{
 			"receipt_id": receipt, "warehouse_id": warehouse,
+			"doc_number": " ТН-1042/2 ", "doc_date": "01-10-2026",
 			"load_units": []any{map[string]any{"id": good}},
 			"lines":      []any{line(map[string]any{"load_unit_id": good})},
 		}),
@@ -307,6 +310,9 @@ func TestOperations_receiptSubmitValidation(t *testing.T) {
 		t.Fatalf("верная приёмка: err=%v, исход %+v", err, res)
 	}
 	got := repo.receipts[0]
+	if got.Doc.Number != "ТН-1042/2" || got.Doc.Date.Format("02-01-2006") != "01-10-2026" {
+		t.Errorf("накладная до репозитория: %+v", got.Doc)
+	}
 	if got.CreatedBy != opUserID || got.LoadUnits[0].Kind != "box" || got.Lines[0].ProductionDate != "2026-09-01" {
 		t.Fatalf("разбор приёмки: %+v", got)
 	}

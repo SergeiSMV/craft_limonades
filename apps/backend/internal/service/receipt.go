@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/shopspring/decimal"
 
@@ -27,7 +28,7 @@ var ErrNoDefaultCell = errors.New("warehouse has no default cell")
 
 // receiptRepo — зависимость сервиса от хранилища приёмки.
 type receiptRepo interface {
-	Create(ctx context.Context, id, warehouseID, supplierID, createdBy string) error
+	Create(ctx context.Context, id, warehouseID, supplierID, createdBy string, doc model.SupplierDoc) error
 	AddLine(ctx context.Context, receiptID string, in model.ReceiptLineInput) error
 	Post(ctx context.Context, receiptID string) (int, error)
 	ByID(ctx context.Context, receiptID string) (model.Receipt, error)
@@ -53,14 +54,19 @@ func NewReceiptService(repo receiptRepo, cells receiptCellRepo) *ReceiptService 
 
 // Start открывает документ приёмки с идентификатором, выданным устройством.
 // Повтор с тем же id безопасен: документ уже есть, второй не заводится.
-func (s *ReceiptService) Start(ctx context.Context, id, warehouseID, supplierID, createdBy string) error {
+// [docNumber], [docDate] — накладная поставщика, обязательна (ADHOC-23).
+func (s *ReceiptService) Start(ctx context.Context, id, warehouseID, supplierID, createdBy, docNumber, docDate string) error {
 	if id == "" {
 		return ErrEmptyReceiptID
 	}
 	if warehouseID == "" {
 		return ErrEmptyWarehouse
 	}
-	return s.repo.Create(ctx, id, warehouseID, supplierID, createdBy)
+	doc, err := parseSupplierDoc(docNumber, docDate, time.Now())
+	if err != nil {
+		return err
+	}
+	return s.repo.Create(ctx, id, warehouseID, supplierID, createdBy, doc)
 }
 
 // AddLine добавляет строку в документ и возвращает ячейку, в которую она легла.

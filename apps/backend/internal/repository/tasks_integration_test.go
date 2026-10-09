@@ -68,7 +68,7 @@ func TestTasks_receiptCreatesPutawayTask(t *testing.T) {
 	ctx := context.Background()
 	rr := repository.NewReceiptRepository(pf.pool)
 	receipt := uuid.NewString()
-	mustNoErr(t, rr.Create(ctx, receipt, pf.wh, "", pf.user))
+	mustNoErr(t, rr.Create(ctx, receipt, pf.wh, "", pf.user, testDoc))
 	mustNoErr(t, rr.AddLine(ctx, receipt, model.ReceiptLineInput{
 		GoodID: pf.good, ProductionDate: "2026-01-01", CellID: pf.cellB, Qty: decimal.NewFromInt(1),
 	}))

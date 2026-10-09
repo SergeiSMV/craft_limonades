@@ -17,6 +17,8 @@ func receiptSnap() model.ReportSnapshot {
 		WarehouseName: "Шабулина",
 		Supplier:      "ООО «Голсера»",
 		Executor:      "Иванов Иван",
+		DocNumber:     "ТН-1042/2",
+		DocDate:       "2026-10-01",
 		// 22:30 UTC — уже следующий день по Москве.
 		CreatedAt: time.Date(2026, 10, 5, 22, 30, 0, 0, time.UTC),
 		Rows: []model.ReportSnapshotRow{
@@ -57,11 +59,12 @@ func TestBuildReceiptXLSX(t *testing.T) {
 		"A1": "Поступление",
 		"A2": "Склад", "B2": "Шабулина",
 		"A3": "Поставщик", "B3": "ООО «Голсера»",
-		"A4": "Исполнитель", "B4": "Иванов Иван",
-		"A5": "Дата", "B5": "06.10.2026 01:30", // сервер в UTC, документ — по Москве
-		"A7": "Ячейка", "B7": "Код", "C7": "Наименование", "D7": "Дата выпуска", "E7": "Количество",
-		"A8": "С-Н-П", "B8": "16121", "C8": "Кальмар", "D8": "01.09.2026", "E8": "36",
-		"B9": "", "C9": "Креветка", "E9": "1.5",
+		"A4": "Документ поставщика", "B4": "№ ТН-1042/2 от 01.10.2026",
+		"A5": "Исполнитель", "B5": "Иванов Иван",
+		"A6": "Дата", "B6": "06.10.2026 01:30", // сервер в UTC, документ — по Москве
+		"A8": "Ячейка", "B8": "Код", "C8": "Наименование", "D8": "Дата выпуска", "E8": "Количество",
+		"A9": "С-Н-П", "B9": "16121", "C9": "Кальмар", "D9": "01.09.2026", "E9": "36",
+		"B10": "", "C10": "Креветка", "E10": "1.5",
 	}
 	for cell, v := range want {
 		if got := cellValue(t, f, cell); got != v {
@@ -69,7 +72,7 @@ func TestBuildReceiptXLSX(t *testing.T) {
 		}
 	}
 	// Количество — числом, а не текстом: оператор сверяет суммы в Excel.
-	if typ, _ := f.GetCellType(receiptSheet, "E9"); typ == excelize.CellTypeSharedString || typ == excelize.CellTypeInlineString {
+	if typ, _ := f.GetCellType(receiptSheet, "E10"); typ == excelize.CellTypeSharedString || typ == excelize.CellTypeInlineString {
 		t.Error("количество записано текстом")
 	}
 }
@@ -98,5 +101,19 @@ func TestBuildDocumentXLSX_receipt(t *testing.T) {
 	}
 	if got := DocumentFilename(doc); got != "postuplenie-SHB-20261005.xlsx" {
 		t.Fatalf("имя файла: %q", got)
+	}
+}
+
+// Снимок до ADHOC-23 накладной не несёт — строки «Документ поставщика» нет, шапка прежняя.
+func TestBuildReceiptXLSX_snapshotWithoutDoc(t *testing.T) {
+	snap := receiptSnap()
+	snap.DocNumber, snap.DocDate = "", ""
+	raw, err := BuildReceiptXLSX(snap)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := openSheet(t, raw)
+	if got := cellValue(t, f, "A4"); got != "Исполнитель" {
+		t.Errorf("A4: %q, ожидалось «Исполнитель»", got)
 	}
 }

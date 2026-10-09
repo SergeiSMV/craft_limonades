@@ -42,7 +42,7 @@ func (pf *putawayFixture) receive(t *testing.T, boxes []string, loose int64) str
 	ctx := context.Background()
 	repo := repository.NewReceiptRepository(pf.pool)
 	receipt := uuid.NewString()
-	mustNoErr(t, repo.Create(ctx, receipt, pf.wh, "", pf.user))
+	mustNoErr(t, repo.Create(ctx, receipt, pf.wh, "", pf.user, testDoc))
 	for _, lu := range boxes {
 		mustNoErr(t, repo.AddLine(ctx, receipt, model.ReceiptLineInput{
 			GoodID: pf.good, ProductionDate: "2026-01-01", CellID: pf.cellA, LoadUnitID: lu,

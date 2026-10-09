@@ -20,6 +20,8 @@ func (e *rcEnv) receiptOp(opID, receiptID string, loadUnits []map[string]any, li
 	return opWith(opID, repository.KindReceiptSubmit, map[string]any{
 		"receipt_id":   receiptID,
 		"warehouse_id": e.warehouse,
+		"doc_number":   "ТН-1",
+		"doc_date":     "01-10-2026",
 		"supplier_id":  e.supplier,
 		"load_units":   loadUnits,
 		"lines":        lines,

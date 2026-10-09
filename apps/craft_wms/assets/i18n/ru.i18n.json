@@ -245,7 +245,8 @@
       "description": "Документы «Поступление» — приёмки, проведённые на ТСД. Скачайте .xlsx, занесите в 1С и отметьте выполненным.",
       "mark": "Поступление",
       "empty": "Пока нет документов",
-      "no_supplier": "без поставщика"
+      "no_supplier": "без поставщика",
+      "doc": "№ ${number} от ${date}"
     }
   },
   "stock_entry": {
@@ -303,6 +304,16 @@
     "nothing_found": "Ничего не найдено",
     "supplier": "Поставщик: ${name}",
     "supplier_none": "Поставщик не указан",
+    "doc_title": "Документ поставщика",
+    "doc_number_label": "Номер документа",
+    "doc_number_hint": "номер накладной",
+    "doc_no_number": "б/н",
+    "doc_date_label": "Дата документа",
+    "doc_number_required": "Укажите номер или «б/н»",
+    "doc_date_invalid": "Дата дд.мм.гггг, не позже сегодняшней",
+    "doc_save": "Готово",
+    "doc_line": "Документ № ${number} от ${date}",
+    "doc_missing": "Документ поставщика не указан — нажмите, чтобы указать",
     "cell_default": "Ячейка: ${address} (по умолчанию)",
     "cell": "Ячейка: ${address}",
     "cell_sheet_title": "Ячейка приёмки",
@@ -525,6 +536,8 @@
     "detail_history_offline": "История видна только при связи",
     "basis_receipt": "Основание: приёмка от ${date} ${supplier}",
     "basis_receipt_no_supplier": "Основание: приёмка от ${date}",
+    "basis_doc": "Основание: документ № ${number} от ${date} ${supplier}",
+    "basis_doc_no_supplier": "Основание: документ № ${number} от ${date}",
     "tile_number": "№${number} · ${created}",
     "author": "Автор: ${name}",
     "author_auto": "автоматически",
@@ -599,6 +612,7 @@
     "history_failed": "Не удалось загрузить историю",
     "history_created": "Короб заведён ${time}",
     "history_received": "Принял: ${name}",
+    "history_doc": "Документ № ${number} от ${date}",
     "history_supplier": "Поставщик: ${name}",
     "history_no_supplier": "Приёмка без поставщика",
     "history_not_posted": "Приёмка ещё не оприходована",
