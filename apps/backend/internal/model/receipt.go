@@ -22,6 +22,7 @@ type Receipt struct {
 	ID          string
 	WarehouseID string
 	SupplierID  *string
+	Doc         SupplierDoc
 	Status      string
 	CreatedBy   string
 	PostedAt    *time.Time
@@ -50,4 +51,11 @@ type ReceiptLineInput struct {
 	CellID         string
 	LoadUnitID     string // пусто — россыпь
 	Qty            decimal.Decimal
+}
+
+// SupplierDoc — документ поставщика, по которому пришёл товар (ADHOC-23): номер и дата
+// накладной. Обязателен: накладной без номера кладовщик ставит «б/н».
+type SupplierDoc struct {
+	Number string
+	Date   time.Time
 }

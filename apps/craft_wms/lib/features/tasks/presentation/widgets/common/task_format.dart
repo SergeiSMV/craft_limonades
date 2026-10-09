@@ -14,8 +14,20 @@ String taskKindLabel(String kind) => switch (kind) {
   _ => kind,
 };
 
-/// Основание задания: «Основание: приёмка от 05.10.2026 ИП Березин …».
+/// Основание задания: «Основание: документ № ТН-1042 от 01.10.2026 ИП Березин …» (ADHOC-23);
+/// у задания от приёмки до ADHOC-23 документа нет — «Основание: приёмка от 05.10.2026 …».
 String taskBasis(WarehouseTask task) {
+  final number = task.docNumber;
+  final docDate = task.docDate;
+  if (number != null && docDate != null) {
+    return task.supplier.isEmpty
+        ? t.tasks.basisDocNoSupplier(number: number, date: batchDate(docDate))
+        : t.tasks.basisDoc(
+            number: number,
+            date: batchDate(docDate),
+            supplier: task.supplier,
+          );
+  }
   final date = fullDate(task.receivedAt ?? task.createdAt);
   return task.supplier.isEmpty
       ? t.tasks.basisReceiptNoSupplier(date: date)

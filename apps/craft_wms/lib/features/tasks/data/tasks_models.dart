@@ -83,6 +83,10 @@ abstract class WarehouseTask with _$WarehouseTask {
     @JsonKey(name: 'receipt_id') String? receiptId,
     @Default('') String supplier,
     @JsonKey(name: 'received_at') DateTime? receivedAt,
+
+    /// Документ поставщика приёмки-основания (ADHOC-23); дата — DD-MM-YYYY. `null` — нет.
+    @JsonKey(name: 'doc_number') String? docNumber,
+    @JsonKey(name: 'doc_date') String? docDate,
     @JsonKey(name: 'assignee_name') @Default('') String assigneeName,
     @JsonKey(name: 'taken_at') DateTime? takenAt,
     @JsonKey(name: 'created_at') required DateTime createdAt,
@@ -121,6 +125,10 @@ abstract class CompletedTask with _$CompletedTask {
     required int number,
     required String kind,
     @Default('') String supplier,
+
+    /// Документ поставщика приёмки-основания (ADHOC-23); дата — DD-MM-YYYY. `null` — нет.
+    @JsonKey(name: 'doc_number') String? docNumber,
+    @JsonKey(name: 'doc_date') String? docDate,
     // Строкой, а не DateTime: это и курсор подгрузки, и сервер ждёт его ровно в том виде,
     // в каком отдал, — до наносекунд. Перевод в DateTime и обратно их терял бы.
     @JsonKey(name: 'completed_at') required String completedAt,

@@ -64,6 +64,8 @@ type taskResponse struct {
 	ReceiptID    *string            `json:"receipt_id"`
 	Supplier     string             `json:"supplier"`    // пусто — без поставщика
 	ReceivedAt   *string            `json:"received_at"` // RFC3339
+	DocNumber    *string            `json:"doc_number"`  // накладная приёмки (ADHOC-23); null — нет
+	DocDate      *string            `json:"doc_date"`    // DD-MM-YYYY
 	AssigneeName string             `json:"assignee_name"`
 	TakenAt      *string            `json:"taken_at"`
 	CreatedAt    string             `json:"created_at"`
@@ -111,6 +113,8 @@ type completedTaskResponse struct {
 	Number      int64              `json:"number"`
 	Kind        string             `json:"kind"`
 	Supplier    string             `json:"supplier"`
+	DocNumber   *string            `json:"doc_number"`   // накладная приёмки (ADHOC-23); null — нет
+	DocDate     *string            `json:"doc_date"`     // DD-MM-YYYY
 	CompletedAt string             `json:"completed_at"` // RFC3339Nano — он же курсор подгрузки
 	Executors   []taskUserResponse `json:"executors"`
 	Sessions    int                `json:"sessions"`
@@ -235,6 +239,7 @@ func (h *TaskHandler) Completed(w http.ResponseWriter, r *http.Request) {
 		}
 		out = append(out, completedTaskResponse{
 			ID: c.ID, Number: c.Number, Kind: c.Kind, Supplier: c.SupplierName,
+			DocNumber: c.DocNumber, DocDate: formatProductionDate(c.DocDate),
 			CompletedAt: c.CompletedAt.Format(time.RFC3339Nano), Executors: ex, Sessions: c.Sessions,
 		})
 	}
@@ -260,6 +265,7 @@ func toTaskResponse(t model.Task) taskResponse {
 	out := taskResponse{
 		ID: t.ID, Number: t.Number, Kind: t.Kind, Status: t.Status, WarehouseID: t.WarehouseID,
 		ReceiptID: t.ReceiptID, Supplier: t.SupplierName, ReceivedAt: formatTimePtr(t.ReceivedAt),
+		DocNumber: t.DocNumber, DocDate: formatProductionDate(t.DocDate),
 		AssigneeName: t.AssigneeName, TakenAt: formatTimePtr(t.TakenAt),
 		CreatedAt: t.CreatedAt.Format(time.RFC3339), Items: []taskItemResponse{},
 	}

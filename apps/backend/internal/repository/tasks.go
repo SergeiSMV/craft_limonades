@@ -243,6 +243,7 @@ const taskHeaderSQL = `
 	            WHEN t.status = 'in_progress' THEN 'new'
 	            ELSE t.status END,
 	       t.warehouse_id::text, t.receipt_id::text, COALESCE(s.name, ''), r.posted_at,
+	       r.doc_number, r.doc_date,
 	       CASE WHEN t.assignee_id = $1::uuid THEN t.assignee_id::text END,
 	       CASE WHEN t.assignee_id = $1::uuid THEN COALESCE(u.full_name, '') ELSE '' END,
 	       CASE WHEN t.assignee_id = $1::uuid THEN t.taken_at END,
@@ -296,7 +297,7 @@ func scanTasks(rows pgx.Rows) ([]model.Task, error) {
 	for rows.Next() {
 		var t model.Task
 		if err := rows.Scan(&t.ID, &t.Number, &t.Kind, &t.Status, &t.WarehouseID, &t.ReceiptID,
-			&t.SupplierName, &t.ReceivedAt, &t.AssigneeID, &t.AssigneeName, &t.TakenAt, &t.CreatedAt); err != nil {
+			&t.SupplierName, &t.ReceivedAt, &t.DocNumber, &t.DocDate, &t.AssigneeID, &t.AssigneeName, &t.TakenAt, &t.CreatedAt); err != nil {
 			return nil, fmt.Errorf("разобрать задание: %w", err)
 		}
 		out = append(out, t)
@@ -528,7 +529,7 @@ func (r *TaskRepository) Events(ctx context.Context, taskID string) ([]model.Tas
 // Completed — страница ленты «Завершённые»: свежие сверху, подгрузка курсором.
 func (r *TaskRepository) Completed(ctx context.Context, f model.CompletedTasksFilter) ([]model.CompletedTask, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT t.id::text, t.number, t.kind, COALESCE(s.name, ''), t.completed_at,
+		SELECT t.id::text, t.number, t.kind, COALESCE(s.name, ''), r.doc_number, r.doc_date, t.completed_at,
 		       (SELECT count(*) FROM putaways p WHERE p.task_id = t.id)
 		FROM warehouse_tasks t
 		LEFT JOIN receipts r  ON r.id = t.receipt_id
@@ -550,7 +551,7 @@ func (r *TaskRepository) Completed(ctx context.Context, f model.CompletedTasksFi
 	index := map[string]int{}
 	for rows.Next() {
 		var c model.CompletedTask
-		if err := rows.Scan(&c.ID, &c.Number, &c.Kind, &c.SupplierName, &c.CompletedAt, &c.Sessions); err != nil {
+		if err := rows.Scan(&c.ID, &c.Number, &c.Kind, &c.SupplierName, &c.DocNumber, &c.DocDate, &c.CompletedAt, &c.Sessions); err != nil {
 			rows.Close()
 			return nil, fmt.Errorf("разобрать завершённое задание: %w", err)
 		}

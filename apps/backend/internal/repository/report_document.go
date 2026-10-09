@@ -98,6 +98,7 @@ func (r *ReportDocumentRepository) List(ctx context.Context, kind string) ([]mod
 		SELECT id::text, kind,
 		       snapshot->>'warehouse_code', snapshot->>'warehouse_name',
 		       COALESCE(snapshot->>'supplier', ''),
+		       COALESCE(snapshot->>'doc_number', ''), COALESCE(snapshot->>'doc_date', ''),
 		       created_at,
 		       jsonb_array_length(COALESCE(snapshot->'rows', '[]'::jsonb)),
 		       status, downloaded_at, done_at
@@ -113,7 +114,7 @@ func (r *ReportDocumentRepository) List(ctx context.Context, kind string) ([]mod
 	for rows.Next() {
 		var d model.DocumentListItem
 		if err := rows.Scan(&d.ID, &d.Kind, &d.WarehouseCode, &d.WarehouseName, &d.Supplier,
-			&d.CreatedAt, &d.LinesCount, &d.Status, &d.DownloadedAt, &d.DoneAt); err != nil {
+			&d.DocNumber, &d.DocDate, &d.CreatedAt, &d.LinesCount, &d.Status, &d.DownloadedAt, &d.DoneAt); err != nil {
 			return nil, fmt.Errorf("разбор строки списка документов: %w", err)
 		}
 		out = append(out, d)

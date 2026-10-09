@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
@@ -26,6 +27,9 @@ func newUser(t *testing.T, fx *stockFixture) string {
 	return id
 }
 
+// testDoc — накладная поставщика тестовых приёмок (ADHOC-23).
+var testDoc = model.SupplierDoc{Number: "ТН-1", Date: time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)}
+
 // receiveBox принимает короб с товаром в ячейку и оприходует приёмку — так ГЕ появляется
 // на складе в жизни.
 func receiveBox(t *testing.T, fx *stockFixture, user, lu, cell string) string {
@@ -35,7 +39,7 @@ func receiveBox(t *testing.T, fx *stockFixture, user, lu, cell string) string {
 	var wh string
 	mustScan(t, fx.pool, `SELECT warehouse_id::text FROM cells WHERE id = $1::uuid`, &wh, cell)
 	receipt := uuid.NewString()
-	mustNoErr(t, repo.Create(ctx, receipt, wh, "", user))
+	mustNoErr(t, repo.Create(ctx, receipt, wh, "", user, testDoc))
 	mustNoErr(t, repo.AddLine(ctx, receipt, model.ReceiptLineInput{
 		GoodID: fx.good, ProductionDate: "2026-01-01", CellID: cell, LoadUnitID: lu,
 		Qty: decimal.NewFromInt(12),

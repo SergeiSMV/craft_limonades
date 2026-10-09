@@ -164,4 +164,29 @@ void main() {
     expect(ApiConst.documentFile('d1').startsWith('/'), isFalse);
     expect(ApiConst.documentDone('d1').startsWith('/'), isFalse);
   });
+
+  // ADHOC-23: документ поставщика «Поступления» разбирается; у других форм его нет.
+  test('документ поставщика в строке «Прихода»', () {
+    final withDoc = PortalDoc.fromJson({
+      'id': 'd1',
+      'kind': 'receipt',
+      'supplier': 'ИП Березин',
+      'doc_number': 'ТН-1042/2',
+      'doc_date': '01-10-2026',
+      'warehouse_code': 'SHB',
+      'warehouse_name': 'Шабулина',
+      'created_at': '2026-10-09T10:00:00Z',
+      'lines_count': 2,
+      'status': 'new',
+    });
+    expect(withDoc.docNumber, 'ТН-1042/2');
+    expect(withDoc.docDate, '01-10-2026');
+
+    final without = PortalDoc.fromJson({
+      'id': 'd2',
+      'kind': 'stock_entry',
+      'created_at': '2026-10-09T10:00:00Z',
+    });
+    expect(without.docNumber, isEmpty);
+  });
 }

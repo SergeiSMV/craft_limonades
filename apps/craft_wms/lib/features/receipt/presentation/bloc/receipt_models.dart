@@ -25,6 +25,24 @@ abstract class ReceiptBox with _$ReceiptBox {
   String get shortCode => LoadUnitLabel(id).shortCodeFormatted;
 }
 
+/// Документ поставщика, по которому пришёл товар (ADHOC-23): номер накладной и её дата.
+///
+/// Обязателен: без него приёмка не начинается и не завершается. Накладной без номера ставят
+/// «б/н». Дата хранится так, как её видит кладовщик (дд.мм.гггг), в операцию уходит DD-MM-YYYY.
+@freezed
+abstract class ReceiptDoc with _$ReceiptDoc {
+  const ReceiptDoc._();
+
+  const factory ReceiptDoc({required String number, required String date}) =
+      _ReceiptDoc;
+
+  factory ReceiptDoc.fromJson(Map<String, dynamic> json) =>
+      _$ReceiptDocFromJson(json);
+
+  /// Дата в транспортном виде DD-MM-YYYY — как у дат партий.
+  String get transportDate => date.replaceAll('.', '-');
+}
+
 /// Строка приёмки: товар, партия (дата выпуска), количество, короб и ячейка.
 ///
 /// Грань — (товар, дата, короб, ячейка), та же, что у строки документа на сервере: повторный

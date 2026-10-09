@@ -108,7 +108,7 @@ func TestReceipt_defaultCellSubstituted(t *testing.T) {
 	ctx := context.Background()
 	id := uuid.NewString()
 
-	if err := e.svc.Start(ctx, id, e.warehouse, "", e.user); err != nil {
+	if err := e.svc.Start(ctx, id, e.warehouse, "", e.user, "ТН-1", "01-10-2026"); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
 	cell, err := e.svc.AddLine(ctx, id, e.good, "15-01-2026", "", "", decimal.RequireFromString("7"))
@@ -144,7 +144,7 @@ func TestReceipt_lifecycle(t *testing.T) {
 	ctx := context.Background()
 	id := uuid.NewString()
 
-	if err := e.svc.Start(ctx, id, e.warehouse, e.supplier, e.user); err != nil {
+	if err := e.svc.Start(ctx, id, e.warehouse, e.supplier, e.user, "ТН-1", "01-10-2026"); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
 	rc, _, err := e.svc.Get(ctx, id)
@@ -189,7 +189,7 @@ func TestReceipt_postIsNotRepeatable(t *testing.T) {
 	ctx := context.Background()
 	id := uuid.NewString()
 
-	if err := e.svc.Start(ctx, id, e.warehouse, "", e.user); err != nil {
+	if err := e.svc.Start(ctx, id, e.warehouse, "", e.user, "ТН-1", "01-10-2026"); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
 	if _, err := e.svc.AddLine(ctx, id, e.good, "15-01-2026", e.cell1, "", decimal.RequireFromString("4")); err != nil {
@@ -219,7 +219,7 @@ func TestReceipt_lineGrain(t *testing.T) {
 	e := setupReceipt(t)
 	ctx := context.Background()
 	id := uuid.NewString()
-	if err := e.svc.Start(ctx, id, e.warehouse, "", e.user); err != nil {
+	if err := e.svc.Start(ctx, id, e.warehouse, "", e.user, "ТН-1", "01-10-2026"); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
 
@@ -266,7 +266,7 @@ func TestReceipt_intoLoadUnit(t *testing.T) {
 	if _, err := e.pool.Exec(ctx, `INSERT INTO load_units (id, kind) VALUES ($1::uuid,'box')`, lu); err != nil {
 		t.Fatalf("создать ГЕ: %v", err)
 	}
-	if err := e.svc.Start(ctx, id, e.warehouse, "", e.user); err != nil {
+	if err := e.svc.Start(ctx, id, e.warehouse, "", e.user, "ТН-1", "01-10-2026"); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
 	if _, err := e.svc.AddLine(ctx, id, e.good, "15-01-2026", e.cell1, lu, decimal.RequireFromString("6")); err != nil {
@@ -304,7 +304,7 @@ func TestReceipt_loadUnitCellConflict(t *testing.T) {
 	if _, err := e.pool.Exec(ctx, `INSERT INTO load_units (id, kind) VALUES ($1::uuid,'box')`, lu); err != nil {
 		t.Fatalf("создать ГЕ: %v", err)
 	}
-	if err := e.svc.Start(ctx, id, e.warehouse, "", e.user); err != nil {
+	if err := e.svc.Start(ctx, id, e.warehouse, "", e.user, "ТН-1", "01-10-2026"); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
 	if _, err := e.svc.AddLine(ctx, id, e.good, "15-01-2026", e.cell1, lu, decimal.RequireFromString("1")); err != nil {
@@ -333,17 +333,17 @@ func TestReceipt_guards(t *testing.T) {
 	e := setupReceipt(t)
 	ctx := context.Background()
 	id := uuid.NewString()
-	if err := e.svc.Start(ctx, id, e.warehouse, "", e.user); err != nil {
+	if err := e.svc.Start(ctx, id, e.warehouse, "", e.user, "ТН-1", "01-10-2026"); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
 
 	if _, err := e.svc.Post(ctx, id); !errors.Is(err, repository.ErrEmptyReceipt) {
 		t.Errorf("пустой документ: ожидалась ErrEmptyReceipt, получено %v", err)
 	}
-	if err := e.svc.Start(ctx, "", e.warehouse, "", e.user); !errors.Is(err, service.ErrEmptyReceiptID) {
+	if err := e.svc.Start(ctx, "", e.warehouse, "", e.user, "ТН-1", "01-10-2026"); !errors.Is(err, service.ErrEmptyReceiptID) {
 		t.Errorf("без id: %v", err)
 	}
-	if err := e.svc.Start(ctx, uuid.NewString(), "", "", e.user); !errors.Is(err, service.ErrEmptyWarehouse) {
+	if err := e.svc.Start(ctx, uuid.NewString(), "", "", e.user, "ТН-1", "01-10-2026"); !errors.Is(err, service.ErrEmptyWarehouse) {
 		t.Errorf("без склада: %v", err)
 	}
 	if _, err := e.svc.AddLine(ctx, id, "", "15-01-2026", e.cell1, "", decimal.NewFromInt(1)); !errors.Is(err, service.ErrEmptyGoodID) {

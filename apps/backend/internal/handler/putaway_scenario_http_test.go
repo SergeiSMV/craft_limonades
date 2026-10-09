@@ -48,7 +48,7 @@ func TestPutawayHTTP_clientWireFormat(t *testing.T) {
 	}
 
 	// Приёмка кладёт короб (12) и россыпь (3) в ячейку приёмки — из неё рождается задание.
-	receipt := `{"operations":[{"operation_id":"` + uuid.NewString() + `","kind":"receipt_submit","payload":{
+	receipt := `{"operations":[{"operation_id":"` + uuid.NewString() + `","kind":"receipt_submit","payload":{"doc_number":"ТН-1","doc_date":"01-10-2026",
 		"receipt_id":"` + uuid.NewString() + `","warehouse_id":"` + p.WarehouseID + `",
 		"load_units":[{"id":"` + box + `","kind":"box"}],
 		"lines":[

@@ -36,7 +36,7 @@ func TestContentsHTTP_snapshotWireFormat(t *testing.T) {
 		`INSERT INTO goods (id,code,name,uom) VALUES ($1::uuid,'16121','Кальмар','шт')`, good); err != nil {
 		t.Fatalf("товар эталона: %v", err)
 	}
-	receipt := `{"operations":[{"operation_id":"` + uuid.NewString() + `","kind":"receipt_submit","payload":{
+	receipt := `{"operations":[{"operation_id":"` + uuid.NewString() + `","kind":"receipt_submit","payload":{"doc_number":"ТН-1","doc_date":"01-10-2026",
 		"receipt_id":"` + uuid.NewString() + `","warehouse_id":"` + e.warehouse + `",
 		"load_units":[{"id":"` + box + `","kind":"box"}],
 		"lines":[
@@ -113,7 +113,7 @@ func TestContentsHTTP_cardAndCell(t *testing.T) {
 		t.Fatalf("товар: %v", err)
 	}
 	box := uuid.NewString()
-	receipt := `{"operations":[{"operation_id":"` + uuid.NewString() + `","kind":"receipt_submit","payload":{
+	receipt := `{"operations":[{"operation_id":"` + uuid.NewString() + `","kind":"receipt_submit","payload":{"doc_number":"ТН-1","doc_date":"01-10-2026",
 		"receipt_id":"` + uuid.NewString() + `","warehouse_id":"` + e.warehouse + `",
 		"load_units":[{"id":"` + box + `","kind":"box"}],
 		"lines":[
@@ -198,7 +198,7 @@ func TestContentsHTTP_searchAndHistory(t *testing.T) {
 		t.Fatalf("товар: %v", err)
 	}
 	box := uuid.NewString()
-	receipt := `{"operations":[{"operation_id":"` + uuid.NewString() + `","kind":"receipt_submit","payload":{
+	receipt := `{"operations":[{"operation_id":"` + uuid.NewString() + `","kind":"receipt_submit","payload":{"doc_number":"ТН-1","doc_date":"01-10-2026",
 		"receipt_id":"` + uuid.NewString() + `","warehouse_id":"` + e.warehouse + `","supplier_id":"` + e.supplier + `",
 		"load_units":[{"id":"` + box + `","kind":"box"}],
 		"lines":[{"good_id":"` + good + `","production_date":"01-09-2026","qty":12,"load_unit_id":"` + box + `"}]}}]}`
@@ -230,6 +230,8 @@ func TestContentsHTTP_searchAndHistory(t *testing.T) {
 	code, body = e.call(t, http.MethodGet, "/api/v1/load-units/"+box+"/history", e.workerToken, "")
 	var hist struct {
 		Receipt *struct {
+			DocNumber  string  `json:"doc_number"`
+			DocDate    string  `json:"doc_date"`
 			ReceivedBy string  `json:"received_by"`
 			Supplier   *string `json:"supplier"`
 			PostedAt   *string `json:"posted_at"`
@@ -244,6 +246,7 @@ func TestContentsHTTP_searchAndHistory(t *testing.T) {
 		t.Fatalf("история: код %d, %s", code, body)
 	}
 	if hist.Receipt == nil || hist.Receipt.ReceivedBy != "Кладовщик" || hist.Receipt.Supplier == nil ||
+		hist.Receipt.DocNumber != "ТН-1" || hist.Receipt.DocDate != "01-10-2026" ||
 		*hist.Receipt.Supplier != "ООО «Голсера»" || hist.Receipt.PostedAt == nil {
 		t.Errorf("приёмка в истории: %s", body)
 	}

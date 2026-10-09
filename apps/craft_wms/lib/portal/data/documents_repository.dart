@@ -62,6 +62,8 @@ class PortalDoc {
     required this.id,
     required this.kind,
     this.supplier = '',
+    this.docNumber = '',
+    this.docDate = '',
     required this.warehouseCode,
     required this.warehouseName,
     required this.createdAt,
@@ -76,6 +78,10 @@ class PortalDoc {
 
   /// Поставщик — только у «Поступления»; пусто — без поставщика.
   final String supplier;
+
+  /// Документ поставщика «Поступления» (ADHOC-23): номер и дата DD-MM-YYYY; пусто — нет.
+  final String docNumber;
+  final String docDate;
   final String warehouseCode;
   final String warehouseName;
   final DateTime createdAt;
@@ -86,6 +92,8 @@ class PortalDoc {
         id: j['id'] as String,
         kind: j['kind'] as String? ?? '',
         supplier: j['supplier'] as String? ?? '',
+        docNumber: j['doc_number'] as String? ?? '',
+        docDate: j['doc_date'] as String? ?? '',
         warehouseCode: j['warehouse_code'] as String? ?? '',
         warehouseName: j['warehouse_name'] as String? ?? '',
         createdAt: DateTime.parse(j['created_at'] as String),

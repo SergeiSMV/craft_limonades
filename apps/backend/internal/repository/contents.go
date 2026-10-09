@@ -332,14 +332,15 @@ func (r *ContentsRepository) LoadUnitHistory(ctx context.Context, id string) (mo
 		// коробом в документе может быть несколько — документ один.
 		var rc model.LoadUnitReceipt
 		err = q.QueryRow(ctx, `
-			SELECT r.id::text, u.full_name, s.name, r.posted_at
+			SELECT r.id::text, u.full_name, s.name, r.posted_at, r.doc_number, r.doc_date
 			FROM receipt_lines rl
 			JOIN receipts r       ON r.id = rl.receipt_id
 			JOIN users u          ON u.id = r.created_by
 			LEFT JOIN suppliers s ON s.id = r.supplier_id
 			WHERE rl.load_unit_id = $1::uuid
 			ORDER BY r.created_at
-			LIMIT 1`, id).Scan(&rc.ReceiptID, &rc.ReceivedBy, &rc.SupplierName, &rc.PostedAt)
+			LIMIT 1`, id).Scan(&rc.ReceiptID, &rc.ReceivedBy, &rc.SupplierName, &rc.PostedAt,
+			&rc.Doc.Number, &rc.Doc.Date)
 		switch {
 		case errors.Is(err, pgx.ErrNoRows):
 		case err != nil:

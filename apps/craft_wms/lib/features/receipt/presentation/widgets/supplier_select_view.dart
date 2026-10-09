@@ -14,6 +14,7 @@ import '../../../../core/utils/keyboard.dart';
 import '../../../stock/data/catalog_models.dart';
 import '../../../stock/data/catalog_repository.dart';
 import '../bloc/receipt_cubit.dart';
+import 'supplier_doc_dialog.dart';
 
 /// Первый шаг приёмки — поставщик.
 ///
@@ -71,12 +72,19 @@ class _SupplierSelectViewState extends State<SupplierSelectView> {
 
   /// Начать приёмку от выбранного поставщика (`null` — без поставщика).
   ///
+  /// Сначала — документ поставщика (ADHOC-23): без него приёмка не начинается. Отмена окна
+  /// оставляет на выборе поставщика.
+  ///
   /// Клавиатуру поиска убираем ДО перехода (ADHOC-18): иначе она остаётся на рабочем экране,
   /// где не нужна вовсе — поле скана её не вызывает, — и съедает половину высоты. На DT50S
   /// подсказка пустого списка переполнялась под ней на 37 точек.
-  void _choose(Supplier? supplier) {
+  Future<void> _choose(Supplier? supplier) async {
     dismissKeyboard();
-    context.read<ReceiptCubit>().start(supplier);
+    final cubit = context.read<ReceiptCubit>();
+    final doc = await showSupplierDocDialog(context);
+    if (doc == null) return;
+    dismissKeyboard();
+    await cubit.start(supplier, doc);
   }
 
   @override

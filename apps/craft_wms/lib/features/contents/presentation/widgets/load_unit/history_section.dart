@@ -86,6 +86,13 @@ class _History extends StatelessWidget {
             t.contents.historyCreated(time: fullDateTime(history.createdAt)),
           ),
           if (receipt != null) ...[
+            if (receipt.docNumber != null && receipt.docDate != null)
+              _muted(
+                t.contents.historyDoc(
+                  number: receipt.docNumber!,
+                  date: batchDate(receipt.docDate!),
+                ),
+              ),
             _muted(t.contents.historyReceived(name: receipt.receivedBy)),
             _muted(
               receipt.supplier == null

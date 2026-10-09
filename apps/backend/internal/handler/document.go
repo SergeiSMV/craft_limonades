@@ -35,6 +35,8 @@ type documentItemResponse struct {
 	WarehouseCode string  `json:"warehouse_code"`
 	WarehouseName string  `json:"warehouse_name"`
 	Supplier      string  `json:"supplier"`   // только у «Поступления»; пусто — без поставщика
+	DocNumber     string  `json:"doc_number"` // накладная поставщика (ADHOC-23); пусто — нет
+	DocDate       string  `json:"doc_date"`   // её дата DD-MM-YYYY; пусто — нет
 	CreatedAt     string  `json:"created_at"` // RFC3339
 	LinesCount    int     `json:"lines_count"`
 	Status        string  `json:"status"`
@@ -60,6 +62,8 @@ func (h *DocumentHandler) List(w http.ResponseWriter, r *http.Request) {
 			WarehouseCode: d.WarehouseCode,
 			WarehouseName: d.WarehouseName,
 			Supplier:      d.Supplier,
+			DocNumber:     d.DocNumber,
+			DocDate:       isoToTransportDate(d.DocDate),
 			CreatedAt:     d.CreatedAt.Format(time.RFC3339),
 			LinesCount:    d.LinesCount,
 			Status:        d.Status,
@@ -154,4 +158,14 @@ func formatTimePtr(t *time.Time) *string {
 	}
 	s := t.Format(time.RFC3339)
 	return &s
+}
+
+// isoToTransportDate переводит дату снимка YYYY-MM-DD в транспортный вид DD-MM-YYYY, как у дат
+// партий; пустая или неразборчивая — пусто.
+func isoToTransportDate(iso string) string {
+	d, err := time.Parse("2006-01-02", iso)
+	if err != nil {
+		return ""
+	}
+	return d.Format(productionDateLayout)
 }
