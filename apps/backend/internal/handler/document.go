@@ -30,22 +30,26 @@ func NewDocumentHandler(svc *service.DocumentService) *DocumentHandler {
 
 // documentItemResponse — элемент списка документов.
 type documentItemResponse struct {
-	ID            string  `json:"id"`
-	Kind          string  `json:"kind"`
-	WarehouseCode string  `json:"warehouse_code"`
-	WarehouseName string  `json:"warehouse_name"`
-	Supplier      string  `json:"supplier"`   // только у «Поступления»; пусто — без поставщика
-	DocNumber     string  `json:"doc_number"` // накладная поставщика (ADHOC-23); пусто — нет
-	DocDate       string  `json:"doc_date"`   // её дата DD-MM-YYYY; пусто — нет
-	CreatedAt     string  `json:"created_at"` // RFC3339
-	LinesCount    int     `json:"lines_count"`
-	Status        string  `json:"status"`
-	DownloadedAt  *string `json:"downloaded_at"` // RFC3339 или null
-	DoneAt        *string `json:"done_at"`       // RFC3339 или null
+	ID            string `json:"id"`
+	Kind          string `json:"kind"`
+	WarehouseCode string `json:"warehouse_code"`
+	WarehouseName string `json:"warehouse_name"`
+	// Supplier, DocNumber, DocDate — поставщик и его накладная: у «Поступления» — свои,
+	// у «Движения» размещения — приёмки-основания. Пусто — нет.
+	Supplier     string  `json:"supplier"`
+	DocNumber    string  `json:"doc_number"`
+	DocDate      string  `json:"doc_date"`    // DD-MM-YYYY
+	Operation    string  `json:"operation"`   // операция «Движения» (`putaway`); пусто — другая форма
+	TaskNumber   int64   `json:"task_number"` // задание-основание «Движения»; 0 — нет
+	CreatedAt    string  `json:"created_at"`  // RFC3339
+	LinesCount   int     `json:"lines_count"`
+	Status       string  `json:"status"`
+	DownloadedAt *string `json:"downloaded_at"` // RFC3339 или null
+	DoneAt       *string `json:"done_at"`       // RFC3339 или null
 }
 
 // List: GET /api/v1/documents — рабочий список: сначала необработанные, свежие сверху.
-// Необязательный ?kind= оставляет одну форму (`stock_entry`, `receipt`): у каждой в портале
+// Необязательный ?kind= оставляет одну форму (`stock_entry`, `receipt`, `movement`): у каждой в портале
 // своя вкладка. Незнакомая форма — пустой список, а не ошибка: фильтр, ничего не нашедший.
 func (h *DocumentHandler) List(w http.ResponseWriter, r *http.Request) {
 	docs, err := h.svc.List(r.Context(), strings.TrimSpace(r.URL.Query().Get("kind")))
@@ -64,6 +68,8 @@ func (h *DocumentHandler) List(w http.ResponseWriter, r *http.Request) {
 			Supplier:      d.Supplier,
 			DocNumber:     d.DocNumber,
 			DocDate:       isoToTransportDate(d.DocDate),
+			Operation:     d.Operation,
+			TaskNumber:    d.TaskNumber,
 			CreatedAt:     d.CreatedAt.Format(time.RFC3339),
 			LinesCount:    d.LinesCount,
 			Status:        d.Status,

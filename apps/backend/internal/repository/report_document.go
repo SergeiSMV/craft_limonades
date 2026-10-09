@@ -91,7 +91,7 @@ func documentBySource(ctx context.Context, q Querier, sourceType, sourceID strin
 // какой она была завершена.
 //
 // kind пуст — все формы; иначе только одна: у каждой формы в портале своя вкладка
-// («Инвентаризация», «Приход»), и смешанный список заставил бы оператора искать свои документы
+// («Инвентаризация», «Приход», «Движение»), и смешанный список заставил бы оператора искать свои документы
 // среди чужих.
 func (r *ReportDocumentRepository) List(ctx context.Context, kind string) ([]model.DocumentListItem, error) {
 	rows, err := r.pool.Query(ctx, `
@@ -99,6 +99,7 @@ func (r *ReportDocumentRepository) List(ctx context.Context, kind string) ([]mod
 		       snapshot->>'warehouse_code', snapshot->>'warehouse_name',
 		       COALESCE(snapshot->>'supplier', ''),
 		       COALESCE(snapshot->>'doc_number', ''), COALESCE(snapshot->>'doc_date', ''),
+		       COALESCE(snapshot->>'operation', ''), COALESCE((snapshot->>'task_number')::bigint, 0),
 		       created_at,
 		       jsonb_array_length(COALESCE(snapshot->'rows', '[]'::jsonb)),
 		       status, downloaded_at, done_at
@@ -114,7 +115,7 @@ func (r *ReportDocumentRepository) List(ctx context.Context, kind string) ([]mod
 	for rows.Next() {
 		var d model.DocumentListItem
 		if err := rows.Scan(&d.ID, &d.Kind, &d.WarehouseCode, &d.WarehouseName, &d.Supplier,
-			&d.DocNumber, &d.DocDate, &d.CreatedAt, &d.LinesCount, &d.Status, &d.DownloadedAt, &d.DoneAt); err != nil {
+			&d.DocNumber, &d.DocDate, &d.Operation, &d.TaskNumber, &d.CreatedAt, &d.LinesCount, &d.Status, &d.DownloadedAt, &d.DoneAt); err != nil {
 			return nil, fmt.Errorf("разбор строки списка документов: %w", err)
 		}
 		out = append(out, d)

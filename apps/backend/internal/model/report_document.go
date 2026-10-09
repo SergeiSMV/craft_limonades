@@ -5,15 +5,26 @@ import "time"
 // Виды документов и источников (P3-01). Значения попадают в БД как есть, поэтому меняться
 // не могут: строка kind — часть формата хранения, а не деталь реализации.
 const (
-	// ReportKindStockEntry — форма «ввод остатков» (P-FS-08). Дальше добавится «Движение» (P5/P6).
+	// ReportKindStockEntry — форма «ввод остатков» (P-FS-08).
 	ReportKindStockEntry = "stock_entry"
 	// ReportKindReceipt — форма «Поступление» (P4-10).
 	ReportKindReceipt = "receipt"
+	// ReportKindMovement — форма «Движение» (P5-04): одна на размещение, перемещение и
+	// пополнение (P6); какая операция её породила — поле снимка Operation.
+	ReportKindMovement = "movement"
 
 	// SourceTypeStockEntrySession — операция-источник: сессия ввода остатков.
 	SourceTypeStockEntrySession = "stock_entry_session"
 	// SourceTypeReceipt — операция-источник: документ приёмки.
 	SourceTypeReceipt = "receipt"
+	// SourceTypePutaway — операция-источник: документ (сеанс) размещения.
+	SourceTypePutaway = "putaway"
+)
+
+// Операции «Движения» (P5-04). Значение лежит в снимке документа — менять нельзя.
+const (
+	// MovementOperationPutaway — размещение из зоны приёмки по ячейкам хранения.
+	MovementOperationPutaway = "putaway"
 )
 
 // ReportSnapshot — содержимое документа, замороженное на момент завершения операции.
@@ -37,18 +48,31 @@ type ReportSnapshot struct {
 	Executor string `json:"executor,omitempty"`
 	// Накладная поставщика (ADHOC-23): номер и дата в виде YYYY-MM-DD. Пусто — снимок,
 	// сохранённый до ADHOC-23: прежние документы читаются как были.
+	//
+	// У «Движения» размещения Supplier, DocNumber и DocDate описывают приёмку-основание:
+	// по ней оператор узнаёт в 1С, какой товар разносили.
 	DocNumber string `json:"doc_number,omitempty"`
 	DocDate   string `json:"doc_date,omitempty"`
+
+	// Шапка «Движения» (P5-04). Operation — какая операция породила документ
+	// (MovementOperation*); TaskNumber — номер задания-основания, 0 — операция без задания.
+	Operation  string `json:"operation,omitempty"`
+	TaskNumber int64  `json:"task_number,omitempty"`
 }
 
 // ReportSnapshotRow — строка документа. Числа и даты хранятся текстом: qty — decimal, который
 // нельзя гонять через float без потери точности, production_date — уже отформатированная дата.
+//
+// CellAddress — ячейка, где товар оказался: у ввода остатков и поступления это единственная
+// ячейка строки, у «Движения» — ячейка-адресат.
 type ReportSnapshotRow struct {
-	CellAddress    string  `json:"cell_address"`
-	GoodCode       *string `json:"good_code"`
-	GoodName       string  `json:"good_name"`
-	ProductionDate string  `json:"production_date"`
-	Qty            string  `json:"qty"`
+	CellAddress string `json:"cell_address"`
+	// FromCellAddress — ячейка-отправитель «Движения» (P5-04); у остальных форм пусто.
+	FromCellAddress string  `json:"from_cell_address,omitempty"`
+	GoodCode        *string `json:"good_code"`
+	GoodName        string  `json:"good_name"`
+	ProductionDate  string  `json:"production_date"`
+	Qty             string  `json:"qty"`
 }
 
 // Статусы документа (P3-02). Значения лежат в БД под CHECK-ограничением, менять их нельзя
@@ -72,6 +96,8 @@ type DocumentListItem struct {
 	Supplier      string // только у «Поступления»; пусто — без поставщика или другая форма
 	DocNumber     string // накладная поставщика, только у «Поступления» (ADHOC-23); пусто — нет
 	DocDate       string // её дата YYYY-MM-DD
+	Operation     string // операция «Движения» (P5-04); пусто — другая форма
+	TaskNumber    int64  // задание-основание «Движения»; 0 — нет
 	CreatedAt     time.Time
 	LinesCount    int
 	Status        string
