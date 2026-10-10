@@ -58,6 +58,12 @@ abstract final class AppSizes {
 
   //* --- Web-портал (layout) ---------------------------------------------- *//
   static const double kSidebarWidth = 280; // тёмный сайдбар портала
+  // Окно портала уже — меню уезжает в выдвижную панель (ADHOC-25): телефон, узкое окно.
+  static const double kPortalCompactWidth = 900;
+  // Область вкладки уже — меньше поля по краям, чтобы не терять ширину на телефоне.
+  static const double kPortalCompactContentWidth = 600;
+  // Строка документа уже — кнопки уходят под текст, иначе заголовку остаётся пара букв.
+  static const double kDocRowCompactWidth = 560;
   static const double kHeaderHeight = 72; // верхняя панель контента
   static const double kContentMaxWidth =
       900; // предел ширины карточки (по макету)
@@ -66,6 +72,11 @@ abstract final class AppSizes {
   static const double kBrandMaxWidth = 500; // бренд-текст на панели входа
   static const double kAvatar = 40; // аватар пользователя в сайдбаре
   static const double kActiveBarWidth = 4; // янтарная полоса активного пункта
+
+  //* --- Неоморфизм ------------------------------------------------------- *//
+  static const double kNeumorphicDepth = 3; // высота выпуклой кнопки над фоном
+  static const double kNeumorphicInsetDepth = -2; // вдавленное: поле поиска, выбранный пункт
+  static const double kSectionLetterSpacing = 0.5; // разрядка заголовков секций меню
 
   //* --- ТСД: главное меню (плитки) --------------------------------------- *//
   static const double kMenuTileSpacing = 12; // зазор между плитками сетки
