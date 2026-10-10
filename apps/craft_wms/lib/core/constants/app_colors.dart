@@ -47,6 +47,7 @@ abstract final class AppColors {
   ); // фон полей ввода / зоны загрузки
   static const Color kTextMain = Color(0xFF0F172A); // основной текст
   static const Color kTextMuted = Color(0xFF64748B); // вторичный текст
+  static const Color kTextSecondary = Color(0xFF475569); // заголовок строки списка
   static const Color kBorder = Color(0xFFE2E8F0); // границы карточек/полей
   static const Color kBorderDashed = Color(0xFFCBD5E1); // пунктир зоны загрузки
 

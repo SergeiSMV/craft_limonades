@@ -9,6 +9,9 @@ import '../../../../core/error/failure.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../data/documents_repository.dart';
 import '../../../data/web_download.dart';
+import '../documents/doc_history_dialog.dart';
+import '../documents/doc_row.dart';
+import '../documents/mark_done_dialog.dart';
 
 /// Вкладка документов оператора (P-FS-09, статусы — P3-02): рабочий список документов одной
 /// формы. Оператор скачивает .xlsx, заносит в 1С и отмечает выполненным; необработанные идут
@@ -21,8 +24,6 @@ class DocumentsTab extends StatefulWidget {
   const DocumentsTab({
     super.key,
     required this.kind,
-    required this.title,
-    required this.description,
     required this.mark,
     required this.empty,
   });
@@ -30,9 +31,6 @@ class DocumentsTab extends StatefulWidget {
   /// Форма документов: `stock_entry` — ввод остатков, `receipt` — «Поступление»,
   /// `movement` — «Движение».
   final String kind;
-
-  final String title;
-  final String description;
 
   /// Название документа в строке списка.
   final String mark;
@@ -97,24 +95,8 @@ class _DocumentsTabState extends State<DocumentsTab> {
   /// Отметить документ занесённым в 1С — с подтверждением: вернуть документ в работу нельзя.
   Future<void> _markDone(PortalDoc doc) async {
     if (_marking.contains(doc.id)) return;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(t.portal.documents.confirmTitle),
-        content: Text(t.portal.documents.confirmBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(t.portal.documents.confirmNo),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(t.portal.documents.confirmYes),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
+    final confirmed = await showMarkDoneDialog(context);
+    if (!confirmed || !mounted) return;
 
     setState(() => _marking.add(doc.id));
     final res = await _repo.markDone(doc.id);
@@ -135,28 +117,7 @@ class _DocumentsTabState extends State<DocumentsTab> {
     if (!mounted) return;
     res.fold(
       (f) => _snack(t.portal.documents.error(message: _errorText(f))),
-      (events) => showDialog<void>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text(t.portal.documents.historyTitle),
-          content: SizedBox(
-            width: AppSizes.kContentMaxWidth / 2,
-            child: events.isEmpty
-                ? Text(t.portal.documents.historyEmpty)
-                : Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [for (final e in events) _HistoryRow(event: e)],
-                  ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: Text(t.portal.documents.close),
-            ),
-          ],
-        ),
-      ),
+      (events) => showDocHistoryDialog(context, events),
     );
   }
 
@@ -176,32 +137,18 @@ class _DocumentsTabState extends State<DocumentsTab> {
 
   @override
   Widget build(BuildContext context) {
+    // Без карточки: список лежит прямо на фоне рабочей области, колонка прижата влево
+    // (ADHOC-25) — неоморфные кнопки строк выдавлены из этого фона. Заголовок раздела
+    // и пояснение — в шапке портала.
+    // На узкой области (телефон) поля по краям меньше — иначе на текст не хватает ширины.
+    final compact = MediaQuery.sizeOf(context).width < AppSizes.kPortalCompactContentWidth;
     return SingleChildScrollView(
-      padding: AppInsets.all32,
-      child: Center(
+      padding: compact ? AppInsets.all16 : AppInsets.all32,
+      child: Align(
+        alignment: Alignment.topLeft,
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: AppSizes.kContentMaxWidth),
-          child: Card(
-            child: Padding(
-              padding: AppInsets.all32,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    widget.title,
-                    style: const TextStyle(fontSize: AppSizes.kText24, fontWeight: FontWeight.w600),
-                  ),
-                  AppBoxes.kHeight8,
-                  Text(
-                    widget.description,
-                    style: const TextStyle(fontSize: AppSizes.kText14, color: AppColors.kTextMuted),
-                  ),
-                  AppBoxes.kHeight24,
-                  _body(),
-                ],
-              ),
-            ),
-          ),
+          child: _body(),
         ),
       ),
     );
@@ -235,10 +182,13 @@ class _DocumentsTabState extends State<DocumentsTab> {
         ),
       );
     }
+    // Строки — во всю ширину колонки: иначе узкая строка (кнопки под текстом) брала бы
+    // ширину своего текста и вставала по центру — у каждой строки со своим сдвигом.
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         for (final d in _docs)
-          _DocRow(
+          DocRow(
             doc: d,
             mark: widget.mark,
             downloading: _downloading.contains(d.id),
@@ -248,212 +198,6 @@ class _DocumentsTabState extends State<DocumentsTab> {
             onHistory: () => _showHistory(d),
           ),
       ],
-    );
-  }
-}
-
-/// Строка документа: склад · дата · число позиций · статус + скачивание и отметка «Выполнено».
-class _DocRow extends StatelessWidget {
-  const _DocRow({
-    required this.doc,
-    required this.mark,
-    required this.downloading,
-    required this.marking,
-    required this.onDownload,
-    required this.onMarkDone,
-    required this.onHistory,
-  });
-
-  final PortalDoc doc;
-
-  /// Название документа в строке.
-  final String mark;
-  final bool downloading;
-  final bool marking;
-  final VoidCallback onDownload;
-  final VoidCallback onMarkDone;
-  final VoidCallback onHistory;
-
-  /// Формат даты документа: `дд.мм.гггг чч:мм` в локальной зоне.
-  String _date(DateTime dt) {
-    final l = dt.toLocal();
-    String two(int v) => v.toString().padLeft(2, '0');
-    return '${two(l.day)}.${two(l.month)}.${l.year} ${two(l.hour)}:${two(l.minute)}';
-  }
-
-  /// Заголовок строки: документ · склад, а у «Поступления» ещё поставщик и его документ —
-  /// по ним оператор узнаёт приход среди других и находит накладную для 1С (P4-10, ADHOC-23).
-  /// У «Движения» — операция и основание: задание и приёмка, из которой оно родилось (P5-04).
-  String _title() {
-    switch (doc.kind) {
-      case 'receipt':
-        return '$mark · ${_supplier()}${_supplierDoc()} · ${doc.warehouseName}';
-      case 'movement':
-        final task = doc.taskNumber > 0 ? ' · ${t.portal.movement.task(number: doc.taskNumber)}' : '';
-        final supplier = doc.supplier.isEmpty ? '' : ' · ${doc.supplier}';
-        return '$mark · ${_operation()}$task$supplier${_supplierDoc()} · ${doc.warehouseName}';
-      default:
-        return '$mark · ${doc.warehouseName}';
-    }
-  }
-
-  /// Поставщик «Поступления»; пусто — подпись «без поставщика».
-  String _supplier() => doc.supplier.isEmpty ? t.portal.receipt.noSupplier : doc.supplier;
-
-  /// Накладная поставщика « · № … от …»; пусто, если её нет.
-  String _supplierDoc() => doc.docNumber.isEmpty
-      ? ''
-      : ' · ${t.portal.receipt.doc(number: doc.docNumber, date: doc.docDate.replaceAll('-', '.'))}';
-
-  /// Операция «Движения» для человека; незнакомая показывается как есть.
-  String _operation() => switch (doc.operation) {
-        'putaway' => t.portal.movement.opPutaway,
-        _ => doc.operation,
-      };
-
-  @override
-  Widget build(BuildContext context) {
-    final done = doc.status == DocStatus.done;
-    return Container(
-      margin: AppInsets.bottom8,
-      decoration: BoxDecoration(
-        border: Border.all(color: AppColors.kBorder),
-        borderRadius: BorderRadius.circular(AppSizes.kText12),
-      ),
-      child: ListTile(
-        leading: Icon(done ? Icons.task_alt : Icons.description_outlined),
-        title: Row(
-          children: [
-            Flexible(child: Text(_title())),
-            AppBoxes.kWidth8,
-            _StatusBadge(status: doc.status),
-          ],
-        ),
-        subtitle: Text(
-          '${_date(doc.createdAt)} · ${t.portal.documents.lines(count: doc.linesCount)}',
-          style: const TextStyle(fontSize: AppSizes.kText13, color: AppColors.kTextMuted),
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Выполненный документ отмечать больше нечем — кнопку убираем, а не гасим:
-            // неактивная кнопка предлагала бы действие, которого нет.
-            if (!done)
-              marking
-                  ? const Padding(
-                      padding: AppInsets.all8,
-                      child: SizedBox(
-                        width: AppSizes.kIcon24,
-                        height: AppSizes.kIcon24,
-                        child: CircularProgressIndicator(strokeWidth: AppSizes.kIcon2),
-                      ),
-                    )
-                  : IconButton(
-                      icon: const Icon(Icons.check_circle_outline),
-                      tooltip: t.portal.documents.markDone,
-                      onPressed: onMarkDone,
-                    ),
-            IconButton(
-              icon: const Icon(Icons.history),
-              tooltip: t.portal.documents.history,
-              onPressed: onHistory,
-            ),
-            downloading
-                ? const Padding(
-                    padding: AppInsets.all8,
-                    child: SizedBox(
-                      width: AppSizes.kIcon24,
-                      height: AppSizes.kIcon24,
-                      child: CircularProgressIndicator(strokeWidth: AppSizes.kIcon2),
-                    ),
-                  )
-                : IconButton(
-                    icon: const Icon(Icons.download),
-                    tooltip: t.portal.documents.download,
-                    onPressed: onDownload,
-                  ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Бейдж состояния документа. Цвета — общие токены бейджей: жёлтый требует внимания,
-/// голубой — в работе, зелёный — закончено.
-class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({required this.status});
-
-  final DocStatus status;
-
-  @override
-  Widget build(BuildContext context) {
-    final (bg, fg, label) = switch (status) {
-      DocStatus.isNew => (AppColors.kBadgeWarningBg, AppColors.kBadgeWarningText, t.portal.documents.statusNew),
-      DocStatus.downloaded => (AppColors.kBadgeInfoBg, AppColors.kBadgeInfoText, t.portal.documents.statusDownloaded),
-      DocStatus.done => (AppColors.kBadgeSuccessBg, AppColors.kBadgeSuccessText, t.portal.documents.statusDone),
-    };
-    return Container(
-      padding: AppInsets.badge,
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(AppSizes.kText12)),
-      child: Text(
-        label,
-        style: TextStyle(fontSize: AppSizes.kText12, color: fg, fontWeight: FontWeight.w600),
-      ),
-    );
-  }
-}
-
-/// Строка истории: что произошло, когда и кто это сделал.
-class _HistoryRow extends StatelessWidget {
-  const _HistoryRow({required this.event});
-
-  final DocEvent event;
-
-  /// Человекочитаемое название события. Незнакомое показываем как есть — лучше сырой код,
-  /// чем пустая строка: журнал читают, когда разбираются в расхождении.
-  String get _label => switch (event.event) {
-        'created' => t.portal.documents.eventCreated,
-        'downloaded' => t.portal.documents.eventDownloaded,
-        'done' => t.portal.documents.eventDone,
-        'generation_failed' => t.portal.documents.eventGenerationFailed,
-        _ => event.event,
-      };
-
-  /// Формат отметки времени: `дд.мм.гггг чч:мм` в локальной зоне.
-  String _at(DateTime dt) {
-    final l = dt.toLocal();
-    String two(int v) => v.toString().padLeft(2, '0');
-    return '${two(l.day)}.${two(l.month)}.${l.year} ${two(l.hour)}:${two(l.minute)}';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final failed = event.event == 'generation_failed';
-    return Padding(
-      padding: AppInsets.bottom8,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '${_at(event.createdAt)} · $_label',
-            style: TextStyle(
-              fontSize: AppSizes.kText14,
-              color: failed ? AppColors.kDanger : AppColors.kTextMain,
-            ),
-          ),
-          Text(
-            // Автор мог не сохраниться: события до появления журнала и системные записи.
-            event.userName.isEmpty ? t.portal.documents.eventSystem : event.userName,
-            style: const TextStyle(fontSize: AppSizes.kText13, color: AppColors.kTextMuted),
-          ),
-          if (failed && event.details.isNotEmpty)
-            Text(
-              event.details,
-              style: const TextStyle(fontSize: AppSizes.kText13, color: AppColors.kDanger),
-            ),
-        ],
-      ),
     );
   }
 }
