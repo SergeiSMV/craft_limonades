@@ -16,6 +16,7 @@ abstract final class AppInsets {
   static const EdgeInsets v2 = EdgeInsets.symmetric(vertical: 2);
   static const EdgeInsets v4 = EdgeInsets.symmetric(vertical: 4);
   static const EdgeInsets v8 = EdgeInsets.symmetric(vertical: 8);
+  static const EdgeInsets v12 = EdgeInsets.symmetric(vertical: 12);
   static const EdgeInsets v16 = EdgeInsets.symmetric(vertical: 16);
   static const EdgeInsets h8 = EdgeInsets.symmetric(horizontal: 8);
   static const EdgeInsets h14 = EdgeInsets.symmetric(horizontal: 14);
@@ -58,6 +59,13 @@ abstract final class AppInsets {
   //* --- Диалоги ---------------------------------------------------------- *//
   /// Поля вокруг диалога. Дефолтные 40 по бокам на экране ТСД (360dp) съедают ширину —
   /// подписи кнопок переносятся на вторую строку.
+  // Действия диалога портала: запас под тени неоморфных кнопок (ADHOC-25).
+  static const EdgeInsets dialogActions = EdgeInsets.fromLTRB(24, 8, 24, 24);
+  // Кнопка-пилюля с подписью.
+  static const EdgeInsets h24v12 = EdgeInsets.symmetric(
+    horizontal: 24,
+    vertical: 12,
+  );
   static const EdgeInsets dialogInset = EdgeInsets.symmetric(
     horizontal: 16,
     vertical: 24,
@@ -69,8 +77,13 @@ abstract final class AppInsets {
   ); // прокручиваемое меню
   static const EdgeInsets menuItem = EdgeInsets.symmetric(
     horizontal: 24,
-    vertical: 14,
+    vertical: 8,
   ); // пункт меню
+  // Пункт меню портала: поля вокруг пилюли — запас под тени неоморфизма (ADHOC-25).
+  static const EdgeInsets menuItemOuter = EdgeInsets.symmetric(
+    horizontal: 16,
+    vertical: 2,
+  );
   static const EdgeInsets sectionTitle = EdgeInsets.fromLTRB(
     24,
     0,
