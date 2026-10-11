@@ -61,11 +61,13 @@ abstract final class AppInsets {
   /// подписи кнопок переносятся на вторую строку.
   // Действия диалога портала: запас под тени неоморфных кнопок (ADHOC-25).
   static const EdgeInsets dialogActions = EdgeInsets.fromLTRB(24, 8, 24, 24);
-  // Кнопка-пилюля с подписью.
-  static const EdgeInsets h24v12 = EdgeInsets.symmetric(
-    horizontal: 24,
-    vertical: 12,
-  );
+  // Таблица документов (ADHOC-26): ячейка, фильтр-чип, поле поиска, поля плашки таблицы.
+  static const EdgeInsets tableCell = EdgeInsets.symmetric(horizontal: 12, vertical: 14);
+  static const EdgeInsets filterChip = EdgeInsets.symmetric(horizontal: 14, vertical: 9);
+  static const EdgeInsets searchBox = EdgeInsets.symmetric(vertical: 12);
+  static const EdgeInsets tablePlate = EdgeInsets.fromLTRB(20, 4, 20, 8);
+  // Неоморфная кнопка с подписью (ADHOC-25/26).
+  static const EdgeInsets h16v10 = EdgeInsets.symmetric(horizontal: 16, vertical: 10);
   static const EdgeInsets dialogInset = EdgeInsets.symmetric(
     horizontal: 16,
     vertical: 24,

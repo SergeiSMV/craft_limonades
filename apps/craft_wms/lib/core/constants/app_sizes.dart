@@ -63,7 +63,23 @@ abstract final class AppSizes {
   // Область вкладки уже — меньше поля по краям, чтобы не терять ширину на телефоне.
   static const double kPortalCompactContentWidth = 600;
   // Строка документа уже — кнопки уходят под текст, иначе заголовку остаётся пара букв.
-  static const double kDocRowCompactWidth = 560;
+  // Таблица документов (ADHOC-26) — пороги по ширине самой таблицы: не шире максимума —
+  // строки не растягиваются на весь монитор; от «полных действий» — кнопки с подписями,
+  // уже — иконками; уже минимума (телефон) — карточки вместо таблицы.
+  static const double kDocTableMaxWidth = 1200;
+  static const double kDocTableFullActionsWidth = 900;
+  // Минимум — сумма минимумов колонок с компактными действиями (~780) с запасом: уже него таблица
+  // шире своей плашки, и плашка молча обрезала бы действия.
+  static const double kDocTableMinWidth = 840;
+  static const double kDocSearchMaxWidth = 460; // поле поиска над таблицей
+  static const double kDocListGap =
+      24; // от закреплённой панели поиска до списка
+  // Колонки: документ и контрагент делят остаток долями, но не уже минимума; время, статус
+  // и действия — по содержимому.
+  static const double kColDoc = 2;
+  static const double kColParty = 3;
+  static const double kColDocMin = 140;
+  static const double kColPartyMin = 180;
   static const double kHeaderHeight = 72; // верхняя панель контента
   static const double kContentMaxWidth =
       900; // предел ширины карточки (по макету)
@@ -75,8 +91,10 @@ abstract final class AppSizes {
 
   //* --- Неоморфизм ------------------------------------------------------- *//
   static const double kNeumorphicDepth = 3; // высота выпуклой кнопки над фоном
-  static const double kNeumorphicInsetDepth = -2; // вдавленное: поле поиска, выбранный пункт
-  static const double kSectionLetterSpacing = 0.5; // разрядка заголовков секций меню
+  static const double kNeumorphicInsetDepth =
+      -2; // вдавленное: поле поиска, выбранный пункт
+  static const double kSectionLetterSpacing =
+      0.5; // разрядка заголовков секций меню
 
   //* --- ТСД: главное меню (плитки) --------------------------------------- *//
   static const double kMenuTileSpacing = 12; // зазор между плитками сетки
