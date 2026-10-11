@@ -1,7 +1,6 @@
 import 'package:flutter_neumorphic_plus/flutter_neumorphic.dart';
 
 import '../../../../core/auth/profile.dart';
-import '../../../../core/constants/app_borders.dart';
 import '../../../../core/constants/app_boxes.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_insets.dart';
@@ -10,6 +9,7 @@ import '../../../../core/gen/assets.gen.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/theme/semibold_text.dart';
+import '../common/neumorphic_plate.dart';
 import 'nav_item.dart';
 import 'sidebar_menu_item.dart';
 
@@ -96,7 +96,7 @@ class PortalSidebar extends StatelessWidget {
             decoration: const BoxDecoration(
               border: Border(top: BorderSide(color: AppColors.kBorder)),
             ),
-            child: _RaisedPlate(
+            child: NeumorphicPlate(
               child: Row(
                 children: [
                   CircleAvatar(
@@ -134,30 +134,6 @@ class PortalSidebar extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-/// Выпуклая неоморфная плашка сайдбара: карточка пользователя.
-class _RaisedPlate extends StatelessWidget {
-  const _RaisedPlate({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Neumorphic(
-      padding: AppInsets.all16,
-      style: NeumorphicStyle(
-        color: AppColors.kBg,
-        shadowLightColor: AppColors.kNeumorphicLight,
-        shadowDarkColor: AppColors.kNeumorphicDark,
-        intensity: 1,
-        depth: AppSizes.kNeumorphicDepth,
-        shape: NeumorphicShape.flat,
-        boxShape: NeumorphicBoxShape.roundRect(AppBorders.kCircular16),
-      ),
-      child: child,
     );
   }
 }

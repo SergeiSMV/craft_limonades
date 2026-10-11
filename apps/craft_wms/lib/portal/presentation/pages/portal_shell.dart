@@ -51,7 +51,6 @@ class _PortalShellState extends State<PortalShell> {
           description: t.portal.receipt.description,
           body: DocumentsTab(
             kind: 'receipt',
-            mark: t.portal.receipt.mark,
             empty: t.portal.receipt.empty,
           ),
         ),
@@ -70,7 +69,6 @@ class _PortalShellState extends State<PortalShell> {
           description: t.portal.inventory.description,
           body: DocumentsTab(
             kind: 'stock_entry',
-            mark: t.portal.inventory.mark,
             empty: t.portal.inventory.empty,
           ),
         ),
@@ -91,7 +89,6 @@ class _PortalShellState extends State<PortalShell> {
           description: t.portal.movement.description,
           body: DocumentsTab(
             kind: 'movement',
-            mark: t.portal.movement.mark,
             empty: t.portal.movement.empty,
           ),
         ),
