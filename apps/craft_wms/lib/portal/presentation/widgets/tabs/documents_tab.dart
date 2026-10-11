@@ -9,13 +9,18 @@ import '../../../../core/error/failure.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../data/documents_repository.dart';
 import '../../../data/web_download.dart';
+import '../../../../core/theme/regular_text.dart';
+import '../documents/doc_filter.dart';
+import '../documents/doc_form.dart';
 import '../documents/doc_history_dialog.dart';
-import '../documents/doc_row.dart';
+import '../documents/doc_table.dart';
+import '../documents/doc_toolbar.dart';
 import '../documents/mark_done_dialog.dart';
 
-/// Вкладка документов оператора (P-FS-09, статусы — P3-02): рабочий список документов одной
-/// формы. Оператор скачивает .xlsx, заносит в 1С и отмечает выполненным; необработанные идут
-/// сверху. Данные тянутся при открытии; всё admin-only на бэке.
+/// Вкладка документов оператора (P-FS-09, статусы — P3-02, таблица — ADHOC-26): рабочий список
+/// документов одной формы. Оператор ищет документ, скачивает .xlsx, заносит в 1С и проводит;
+/// ожидающие идут сверху. Данные тянутся при открытии; поиск и фильтр — по загруженному списку,
+/// без запроса к серверу. Всё admin-only на бэке.
 ///
 /// Одна вкладка на все формы (P4-10): «Инвентаризация» и «Приход» различаются только формой
 /// документов и подписями, а работа оператора с документом одна и та же. Две копии вкладки
@@ -24,16 +29,12 @@ class DocumentsTab extends StatefulWidget {
   const DocumentsTab({
     super.key,
     required this.kind,
-    required this.mark,
     required this.empty,
   });
 
   /// Форма документов: `stock_entry` — ввод остатков, `receipt` — «Поступление»,
   /// `movement` — «Движение».
   final String kind;
-
-  /// Название документа в строке списка.
-  final String mark;
 
   /// Текст пустого списка.
   final String empty;
@@ -49,7 +50,18 @@ class _DocumentsTabState extends State<DocumentsTab> {
   Failure? _error;
   List<PortalDoc> _docs = const [];
   final _downloading = <String>{}; // id документов, которые сейчас качаются
-  final _marking = <String>{}; // id документов, по которым идёт отметка «Выполнено»
+  final _marking = <String>{}; // id документов, по которым идёт проведение
+
+  /// Что показывать в колонках и по чему искать — по форме документов вкладки.
+  late final _form = DocForm.of(widget.kind);
+  DocFilter _filter = DocFilter.all;
+  String _query = '';
+
+  /// Сменить фильтр по состоянию в 1С.
+  void _onFilter(DocFilter f) => setState(() => _filter = f);
+
+  /// Запрос поиска изменился.
+  void _onQuery(String q) => setState(() => _query = q);
 
   @override
   void initState() {
@@ -92,7 +104,7 @@ class _DocumentsTabState extends State<DocumentsTab> {
     );
   }
 
-  /// Отметить документ занесённым в 1С — с подтверждением: вернуть документ в работу нельзя.
+  /// Провести документ — отметить занесённым в 1С, с подтверждением: вернуть его в работу нельзя.
   Future<void> _markDone(PortalDoc doc) async {
     if (_marking.contains(doc.id)) return;
     final confirmed = await showMarkDoneDialog(context);
@@ -137,25 +149,66 @@ class _DocumentsTabState extends State<DocumentsTab> {
 
   @override
   Widget build(BuildContext context) {
-    // Без карточки: список лежит прямо на фоне рабочей области, колонка прижата влево
-    // (ADHOC-25) — неоморфные кнопки строк выдавлены из этого фона. Заголовок раздела
-    // и пояснение — в шапке портала.
+    // Плашка поиска и фильтров закреплена сверху, прокручивается только таблица под ней
+    // (ADHOC-26): поиск и фильтр нужны и в конце длинного списка. Колонка прижата влево.
+    // Заголовок раздела и пояснение — в шапке портала.
     // На узкой области (телефон) поля по краям меньше — иначе на текст не хватает ширины.
     final compact = MediaQuery.sizeOf(context).width < AppSizes.kPortalCompactContentWidth;
-    return SingleChildScrollView(
-      padding: compact ? AppInsets.all16 : AppInsets.all32,
-      child: Align(
-        alignment: Alignment.topLeft,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: AppSizes.kContentMaxWidth),
-          child: _body(),
+    final pad = compact ? AppInsets.all16 : AppInsets.all32;
+    final state = _state();
+    if (state != null) {
+      return SingleChildScrollView(padding: pad, child: _column(state));
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: pad.copyWith(bottom: 0),
+          child: _column(
+            DocToolbar(
+              hint: _form.searchHint,
+              onQuery: _onQuery,
+              filter: _filter,
+              counts: countByFilter(_docs),
+              onFilter: _onFilter,
+            ),
+          ),
         ),
-      ),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: pad.copyWith(top: AppSizes.kDocListGap),
+            child: _column(
+              DocTable(
+                form: _form,
+                docs: applyFilter(_docs, filter: _filter, query: _query, searchText: _form.searchText),
+                downloading: _downloading,
+                posting: _marking,
+                onDownload: _download,
+                onPost: _markDone,
+                onHistory: _showHistory,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
-  /// Тело вкладки по состоянию: индикатор загрузки / пусто / список документов инвентаризации.
-  Widget _body() {
+  /// Колонка вкладки: прижата влево, во всю доступную ширину, но не шире таблицы.
+  ///
+  /// Ширина — точная, а не «не больше»: панель поиска и список лежат в разных блоках
+  /// (панель закреплена), и при свободной ширине панель сжималась бы по своему содержимому,
+  /// а таблица растягивалась бы на всю — края разошлись бы.
+  Widget _column(Widget child) => Align(
+    alignment: Alignment.topLeft,
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: AppSizes.kDocTableMaxWidth),
+      child: SizedBox(width: double.infinity, child: child),
+    ),
+  );
+
+  /// Состояние вместо списка: загрузка / ошибка / пусто; `null` — есть документы.
+  Widget? _state() {
     if (_loading) {
       return const Padding(padding: AppInsets.all32, child: Center(child: CircularProgressIndicator()));
     }
@@ -164,7 +217,7 @@ class _DocumentsTabState extends State<DocumentsTab> {
         children: [
           Text(
             t.portal.documents.error(message: _errorText(_error!)),
-            style: const TextStyle(color: AppColors.kDanger, fontSize: AppSizes.kText15),
+            style: RegularTextStyles().regularInter14.copyWith(color: AppColors.kDanger),
           ),
           AppBoxes.kHeight16,
           OutlinedButton(onPressed: _load, child: Text(t.portal.documents.retry)),
@@ -177,27 +230,11 @@ class _DocumentsTabState extends State<DocumentsTab> {
         child: Center(
           child: Text(
             widget.empty,
-            style: const TextStyle(color: AppColors.kTextMuted, fontSize: AppSizes.kText15),
+            style: RegularTextStyles().regularInter14.copyWith(color: AppColors.kTextMuted),
           ),
         ),
       );
     }
-    // Строки — во всю ширину колонки: иначе узкая строка (кнопки под текстом) брала бы
-    // ширину своего текста и вставала по центру — у каждой строки со своим сдвигом.
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (final d in _docs)
-          DocRow(
-            doc: d,
-            mark: widget.mark,
-            downloading: _downloading.contains(d.id),
-            marking: _marking.contains(d.id),
-            onDownload: () => _download(d),
-            onMarkDone: () => _markDone(d),
-            onHistory: () => _showHistory(d),
-          ),
-      ],
-    );
+    return null;
   }
 }
