@@ -50,7 +50,8 @@ class OutboxEffects {
         );
       case OutboxKind.receiptSubmit:
       case OutboxKind.putawaySubmit:
-        break; // приёмка и размещение справочник не меняют — следствий в кэше у них нет
+      case OutboxKind.movementSubmit:
+        break; // приёмка, размещение и движение справочник не меняют — следствий в кэше нет
       case OutboxKind.unbindBarcode:
         // Отвязка убирает запись сразу: кладовщик отвязал ошибочный код и не должен видеть
         // его в списке до появления связи. Вернуть её при отказе позволяет `good_id`,
@@ -61,7 +62,7 @@ class OutboxEffects {
 
   /// Сервер подтвердил операцию: снимаем пометку ожидания.
   Future<void> confirm(OutboxOperation operation) async {
-    // Приёмка и размещение двигают короба и россыпь — снимок на терминале устарел. Наложение
+    // Приёмка, размещение и движение двигают короба и россыпь — снимок на терминале устарел. Наложение
     // очереди при чтении эту операцию больше не учитывает (она «отправлена»), поэтому без
     // свежего снимка без связи короб оказался бы там, где лежал до неё. Задания — по той же
     // причине: новое задание от приёмки сервер создаёт только при её проведении.
@@ -69,6 +70,11 @@ class OutboxEffects {
         operation.kind == OutboxKind.putawaySubmit) {
       _contents.requestRefresh();
       _tasks.requestRefresh();
+      return;
+    }
+    // Движение заданий не касается — устаревает только содержимое склада (P6-04).
+    if (operation.kind == OutboxKind.movementSubmit) {
+      _contents.requestRefresh();
       return;
     }
     final barcode = operation.payload['barcode'] as String?;
@@ -80,7 +86,8 @@ class OutboxEffects {
         break; // записи уже нет — подтверждать нечего
       case OutboxKind.receiptSubmit:
       case OutboxKind.putawaySubmit:
-        break; // приёмка и размещение в кэше справочников следа не оставляют
+      case OutboxKind.movementSubmit:
+        break; // приёмка, размещение и движение в кэше справочников следа не оставляют
     }
   }
 
@@ -96,6 +103,7 @@ class OutboxEffects {
         await _cache.removeBarcode(barcode);
       case OutboxKind.receiptSubmit:
       case OutboxKind.putawaySubmit:
+      case OutboxKind.movementSubmit:
         break; // откатывать в кэше нечего: документ возвращается человеку на разбор
       case OutboxKind.unbindBarcode:
         // Операция старого формата, без товара в теле, — восстанавливать нечем.

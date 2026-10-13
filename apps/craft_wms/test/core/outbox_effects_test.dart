@@ -218,9 +218,15 @@ void main() {
     await e.confirm(op(OutboxKind.receiptSubmit));
     await e.confirm(op(OutboxKind.putawaySubmit));
     await e.confirm(op(OutboxKind.bindBarcode));
+    // P6-04: движение двигает содержимое, но заданий не касается.
+    await e.confirm(op(OutboxKind.movementSubmit));
 
-    expect(contents.requests, 2);
-    expect(tasks.requests, 2, reason: 'привязка ШК задания не трогает');
+    expect(contents.requests, 3);
+    expect(
+      tasks.requests,
+      2,
+      reason: 'привязка ШК и движение задания не трогают',
+    );
   });
 
   test('миграция 2 → 3 добавляет пометку, не трогая привязки', () async {

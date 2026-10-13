@@ -22,6 +22,10 @@ infra/.env.prod
 # Бэкапы БД (deploy/pg-backup.sh)
 /backups/
 
+# Тестовый стенд (ADHOC-27): снимки боевой базы (ФИО, логины, хеши паролей) и локальные настройки
+/deploy/test_stand/snapshots/
+/deploy/test_stand/stand.env
+
 # IDE (корневой уровень; Flutter-подпапка имеет свой .gitignore)
 .idea/
 .vscode/

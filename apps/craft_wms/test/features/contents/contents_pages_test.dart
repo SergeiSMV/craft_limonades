@@ -219,16 +219,24 @@ void main() {
           moves: [
             LoadUnitMove(
               to: 'С-Н-П',
-              byReceipt: true,
+              kind: LoadUnitMoveKind.receipt,
               userName: 'Иванов И.',
               at: DateTime(2026, 10, 8, 10),
             ),
             LoadUnitMove(
               from: 'С-Н-П',
               to: 'A-1-1',
-              byReceipt: false,
+              kind: LoadUnitMoveKind.putaway,
               userName: 'Петров П.',
               at: DateTime(2026, 10, 8, 11, 5),
+            ),
+            // P6-04: перемещение подписывается перемещением, а не размещением.
+            LoadUnitMove(
+              from: 'A-1-1',
+              to: 'B-2-2',
+              kind: LoadUnitMoveKind.move,
+              userName: 'Петров П.',
+              at: DateTime(2026, 10, 13, 18, 50),
             ),
           ],
         ),
@@ -240,7 +248,7 @@ void main() {
       // ADHOC-21: код — в заголовке экрана, в теле — место размещения, история свёрнута.
       expect(find.text(t.contents.boxCode(code: '9FA0 B1C2')), findsOneWidget);
       expect(find.text(t.contents.placedIn(address: 'A-1-1')), findsOneWidget);
-      await tester.tap(find.text(t.contents.historyTitleCount(count: 2)));
+      await tester.tap(find.text(t.contents.historyTitleCount(count: 3)));
       await tester.pumpAndSettle();
 
       expect(
@@ -259,6 +267,10 @@ void main() {
       );
       expect(
         find.text(t.contents.movePutaway(from: 'С-Н-П', to: 'A-1-1')),
+        findsOneWidget,
+      );
+      expect(
+        find.text(t.contents.moveMove(from: 'A-1-1', to: 'B-2-2')),
         findsOneWidget,
       );
       expect(

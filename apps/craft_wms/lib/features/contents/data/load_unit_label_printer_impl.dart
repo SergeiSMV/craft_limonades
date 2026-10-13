@@ -21,7 +21,7 @@ class LoadUnitLabelPrinterImpl implements LoadUnitLabelPrinter {
       await _printer.printLoadUnitLabel(loadUnitId);
       return null;
     } on PrinterFailure catch (e) {
-      return e.message;
+      return e.userMessage;
     } catch (e) {
       return e.toString();
     }

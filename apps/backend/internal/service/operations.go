@@ -67,6 +67,7 @@ type operationsRepo interface {
 	StockEntryFinalize(ctx context.Context, operationID, sessionID string) (repository.Applied, error)
 	ReceiptSubmit(ctx context.Context, operationID string, in repository.ReceiptSubmitInput) (repository.Applied, error)
 	PutawaySubmit(ctx context.Context, operationID string, in repository.PutawaySubmitInput) (repository.Applied, error)
+	MovementSubmit(ctx context.Context, operationID string, in repository.MovementSubmitInput) (repository.Applied, error)
 }
 
 // OperationsService — приём батча операций из очереди устройства с дедупом по operation_id.
@@ -279,6 +280,9 @@ func (s *OperationsService) dispatch(ctx context.Context, userID, id string, op 
 	case repository.KindPutawaySubmit:
 		return s.putawaySubmit(ctx, userID, id, op.Payload)
 
+	case repository.KindMovementSubmit:
+		return s.movementSubmit(ctx, userID, id, op.Payload)
+
 	default:
 		return repository.Applied{}, ErrUnknownKind
 	}
@@ -337,7 +341,19 @@ func isRejection(err error) bool {
 		errors.Is(err, repository.ErrTaskDone) ||
 		errors.Is(err, repository.ErrTaskMismatch) ||
 		errors.Is(err, repository.ErrNotInTask) ||
-		errors.Is(err, repository.ErrExceedsTask)
+		errors.Is(err, repository.ErrExceedsTask) ||
+		// Движение (P6-03): документ уже проведён, пуст, противоречив или просит больше, чем
+		// лежит в источнике. Повтор этого не исправит — документ разбирает человек.
+		errors.Is(err, ErrInvalidMovementID) ||
+		errors.Is(err, repository.ErrMovementPosted) ||
+		errors.Is(err, repository.ErrEmptyMovement) ||
+		errors.Is(err, repository.ErrUnknownMovementKind) ||
+		errors.Is(err, repository.ErrLoadUnitNotMoved) ||
+		errors.Is(err, repository.ErrEmptyMovementLine) ||
+		errors.Is(err, repository.ErrSameCell) ||
+		errors.Is(err, repository.ErrSamePlace) ||
+		errors.Is(err, repository.ErrGoodsShort) ||
+		errors.Is(err, repository.ErrMovementQty)
 }
 
 // rejected собирает результат-отказ с причиной, читаемой человеком на экране разбора.

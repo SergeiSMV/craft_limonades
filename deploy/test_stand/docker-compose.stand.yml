@@ -1,0 +1,75 @@
+# Тестовый стенд Craft WMS: копия боевого контура на машине разработчика.
+# Управляется только скриптом deploy/test_stand/stand.sh — руками compose не вызывать.
+#
+# Отдельный compose-проект (`craft-stand`) со своими портами и своим томом БД: стенд живёт
+# рядом с обычным dev-стеком (`make up`), не задевая его базу.
+#
+# Раскладка повторяет прод: бэкенд и портал за одним nginx, API под /api/v1/, пробы на корне.
+# Бэкенд собирается из ТЕКУЩЕЙ ветки — ради этого стенд и нужен: новые миграции и код
+# проверяются на копии боевых данных до мержа.
+#
+# Доступа к боевой базе у стенда нет и быть не может: DATABASE_URL смотрит только на свой
+# контейнер db. Снимок прода приходит файлом (stand.sh pull), а не подключением.
+
+name: craft-stand
+
+services:
+  db:
+    image: postgres:16-alpine          # та же версия, что на проде: снимок восстанавливается без сюрпризов
+    environment:
+      POSTGRES_USER: wms
+      POSTGRES_PASSWORD: stand         # локальная база стенда, наружу не публикуется дальше 127.0.0.1
+      POSTGRES_DB: craft_wms
+    ports:
+      - "127.0.0.1:${STAND_DB_PORT:-5433}:5432"   # psql/GUI с этой машины; 5433 — не мешать dev-стеку на 5432
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wms -d craft_wms"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build:
+      context: ../../apps/backend
+      dockerfile: Dockerfile
+    environment:
+      APP_PORT: 8080
+      LOG_LEVEL: ${STAND_LOG_LEVEL:-debug}
+      DATABASE_URL: postgres://wms:stand@db:5432/craft_wms?sslmode=disable
+      # Свой секрет, не боевой: токены прода стенд не примет, вход — заново (бейджи из снимка работают).
+      JWT_SECRET: ${STAND_JWT_SECRET:?STAND_JWT_SECRET не задан — запускайте через stand.sh}
+      ACCESS_TTL: 12h
+      REFRESH_TTL: 720h
+    depends_on:
+      db:
+        condition: service_healthy
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/health"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      # Все интерфейсы, а не 127.0.0.1: стенд должен быть виден ТСД в локальной сети.
+      - "${STAND_HTTP_PORT:-8090}:80"
+    volumes:
+      - ./nginx.stand.conf:/etc/nginx/conf.d/default.conf:ro
+      # Бандл портала собирает `stand.sh portal`; пока его нет — на корне 404, API работает.
+      - ../../apps/craft_wms/build/web:/usr/share/nginx/html:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/health"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  db_data:

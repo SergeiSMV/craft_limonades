@@ -15,8 +15,11 @@ import '../../../../core/load_unit/load_unit_code.dart';
 import '../../../../core/scanner/hardware_scan_listener.dart';
 import '../../../../core/scanner/scan_code.dart';
 import '../../../../core/scanner/scan_deduper.dart';
+import '../../../../core/utils/keyboard.dart';
 import '../../../../core/widgets/cell_change_sheet.dart';
 import '../../../../core/widgets/page_header.dart';
+import '../../../../core/widgets/qty_dialog.dart';
+import '../../../../core/widgets/scan_field.dart';
 import '../../../../core/widgets/system_ui_wrapper.dart';
 import '../../../stock/data/catalog_models.dart';
 import '../../../stock/data/catalog_repository.dart';
@@ -27,8 +30,6 @@ import '../bloc/putaway_models.dart';
 import '../widgets/pick_card.dart';
 import '../widgets/putaway_lists.dart';
 import '../widgets/putaway_messages.dart';
-import '../widgets/putaway_qty_dialog.dart';
-import '../widgets/putaway_scan_field.dart';
 
 /// Выполнение задания на размещение (P5-03): скан короба или товара → скан ячейки → … →
 /// «Завершить». Работает без связи: сеанс копится на терминале и уходит одной операцией.
@@ -183,7 +184,7 @@ class _PutawayViewState extends State<_PutawayView> with HardwareScanListener {
 
   /// Спросить количество россыпи и взять её в руки.
   Future<void> pickLoose(TaskItem item, double left) async {
-    final qty = await showPutawayQtyDialog(
+    final qty = await showQtyDialog(
       context,
       max: left,
       uom: item.good?.uom ?? '',
@@ -210,6 +211,8 @@ class _PutawayViewState extends State<_PutawayView> with HardwareScanListener {
       ),
       builder: (_) => const CellChangeSheet(),
     );
+    // Поле поиска в листе могло открыть клавиатуру — на экране скана она не нужна.
+    await hideKeyboard();
     if (cell != null && mounted) cubit.placeIn(cell);
     refocusScan();
   }
@@ -282,6 +285,10 @@ class _PutawayViewState extends State<_PutawayView> with HardwareScanListener {
       builder: (context, state) => SystemUiWrapper(
         style: StatusBarStyle.light,
         child: Scaffold(
+          // Под клавиатуру экран не сжимается: текст здесь вводит только сканер, а диалоги
+          // количества и выбора ячейки держат клавиатуру сами. Сжатие ломало вёрстку, стоило
+          // клавиатуре остаться после листа выбора ячейки (переполнение снизу, DT50S).
+          resizeToAvoidBottomInset: false,
           backgroundColor: AppColors.kNeumorphicBg,
           appBar: AppBar(
             automaticallyImplyLeading: false,
@@ -324,11 +331,11 @@ class _PutawayViewState extends State<_PutawayView> with HardwareScanListener {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: AppInsets.all16,
+          padding: AppInsets.h8 + AppInsets.v16,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              PutawayScanField(
+              ScanField(
                 controller: _scanController,
                 focusNode: _scanFocus,
                 hint: state.pick == null

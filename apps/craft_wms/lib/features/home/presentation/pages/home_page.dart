@@ -23,6 +23,7 @@ import '../../../../core/widgets/pending_pass_badge.dart';
 import '../../../../core/widgets/system_ui_wrapper.dart';
 import '../../../tasks/presentation/widgets/common/current_tasks_count_builder.dart';
 import '../widgets/menu_tile.dart';
+import '../../../movement/data/movement_repository_impl.dart';
 import '../../../receipt/data/receipt_draft_store.dart';
 import '../../../sync/presentation/bloc/sync_status_cubit.dart';
 import '../../../sync/presentation/widgets/sync_status_chip.dart';
@@ -99,6 +100,10 @@ class HomePage extends StatelessWidget {
   /// Открыть раздел «ЗАДАНИЯ» (P5-02-1): размещение и, позже, другие задания склада.
   void openTasks(BuildContext context) =>
       context.router.push(const TasksRoute());
+
+  /// Перемещение (P6-04).
+  void openMovement(BuildContext context) =>
+      context.router.push(const MovementRoute());
 
   /// Открыть раздел «Ввод остатков» (проход склада, P-FastStart).
   void openStockEntry(BuildContext context) =>
@@ -258,13 +263,17 @@ class HomePage extends StatelessWidget {
                           onTap: () => openReceipt(context),
                         ),
                       ),
-                      MenuTile(
-                        title: t.homeScreen.tiles.movementTitle,
-                        subtitle: t.homeScreen.tiles.movementSubtitle,
-                        imageIcon: Assets.icons.menuIcons.swapbox,
-                        color: AppColors.kTileMovement,
-                        enabled: false,
-                        onTap: () => showStub(context),
+                      // Пометка незавершённого перемещения — та же, что у приёмки (P6-04).
+                      PendingPassBuilder(
+                        watch: getIt<MovementDraftStore>().watchHasDraft,
+                        builder: (context, hasDraft) => MenuTile(
+                          title: t.homeScreen.tiles.movementTitle,
+                          subtitle: t.homeScreen.tiles.movementSubtitle,
+                          imageIcon: Assets.icons.menuIcons.swapbox,
+                          color: AppColors.kTileMovement,
+                          showBadge: hasDraft,
+                          onTap: () => openMovement(context),
+                        ),
                       ),
                       // Счётчик текущих заданий — из снимка на терминале, работает без связи.
                       CurrentTasksCountBuilder(

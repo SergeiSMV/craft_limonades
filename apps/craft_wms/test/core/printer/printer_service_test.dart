@@ -7,6 +7,7 @@ import 'package:craft_wms/core/printer/printer_settings.dart';
 import 'package:craft_wms/core/printer/printer_transport.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:talker_flutter/talker_flutter.dart';
 
 /// Поведение сервиса печати (P4-05): выбор принтера, соединение, отправка команд.
 ///
@@ -27,8 +28,18 @@ class FakeTransport implements PrinterTransport {
   /// Соединение рвётся при следующей попытке записи — имитация ухода принтера из зоны.
   bool failWrite = false;
 
+  /// Сколько следующих записей упадёт с «Broken pipe» — принтер выключили и включили (P6-04).
+  int brokenWrites = 0;
+
   @override
   Future<PrinterStatus> status() async => _status;
+
+  /// Выключить Bluetooth на терминале.
+  void turnBluetoothOff() => _status = const PrinterStatus(
+    supported: true,
+    enabled: false,
+    connected: false,
+  );
 
   @override
   Future<List<PrinterDevice>> bondedDevices() async => const [
@@ -66,6 +77,10 @@ class FakeTransport implements PrinterTransport {
 
   @override
   Future<void> write(List<int> bytes) async {
+    if (brokenWrites > 0) {
+      brokenWrites--;
+      throw const PrinterFailure(PrinterFailureKind.io, 'Broken pipe');
+    }
     if (failWrite) {
       throw const PrinterFailure(
         PrinterFailureKind.io,
@@ -101,7 +116,8 @@ void main() {
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     transport = FakeTransport();
-    service = PrinterService(transport, PrinterSettings(db));
+    service = PrinterService(transport, PrinterSettings(db), Talker())
+      ..reconnectPause = Duration.zero;
   });
 
   tearDown(() => db.close());
@@ -114,7 +130,7 @@ void main() {
         isA<PrinterFailure>().having(
           (e) => e.kind,
           'kind',
-          PrinterFailureKind.io,
+          PrinterFailureKind.notSelected,
         ),
       ),
     );
@@ -253,5 +269,82 @@ void main() {
 
     expect(transport.disconnects, 1);
     expect(await service.selected(), isNull);
+  });
+
+  // P6-04: принтер выключили и включили — сокет на терминале «жив», запись даёт Broken pipe.
+  test('после обрыва связи печать переподключается сама и печатает', () async {
+    await service.select(printer);
+    transport.brokenWrites = 2;
+    final seen = <bool>[];
+    service.reconnecting.addListener(
+      () => seen.add(service.reconnecting.value),
+    );
+
+    await service.printTestLabel(const TsplLanguage());
+
+    expect(transport.writes, hasLength(1), reason: 'этикетка ушла один раз');
+    expect(
+      transport.disconnects,
+      2,
+      reason: 'старое соединение сброшено перед каждой попыткой',
+    );
+    expect(seen, [
+      true,
+      false,
+    ], reason: 'плашка «Подключаюсь…» показана и убрана');
+  });
+
+  test('принтер так и не ответил — отказ связи с понятным текстом', () async {
+    await service.select(printer);
+    transport.brokenWrites = 100;
+
+    final error = await service
+        .printTestLabel(const TsplLanguage())
+        .then<Object?>((_) => null, onError: (Object e) => e);
+
+    expect(
+      error,
+      isA<PrinterFailure>().having(
+        (e) => e.kind,
+        'kind',
+        PrinterFailureKind.io,
+      ),
+    );
+    final failure = error! as PrinterFailure;
+    expect(failure.userMessage, isNot(contains('Broken pipe')));
+    expect(failure.userMessage, contains('Принтер не отвечает'));
+    expect(service.reconnecting.value, isFalse);
+  });
+
+  test(
+    'выключенный Bluetooth не переподключается — сразу просит включить',
+    () async {
+      await service.select(printer);
+      transport.turnBluetoothOff();
+
+      await expectLater(
+        service.printTestLabel(const TsplLanguage()),
+        throwsA(
+          isA<PrinterFailure>().having(
+            (e) => e.kind,
+            'kind',
+            PrinterFailureKind.bluetoothOff,
+          ),
+        ),
+      );
+      expect(transport.disconnects, 0);
+    },
+  );
+
+  test('печати идут по одной: вторая ждёт переподключения первой', () async {
+    await service.select(printer);
+    transport.brokenWrites = 1;
+
+    await Future.wait([
+      service.printTestLabel(const TsplLanguage()),
+      service.printTestLabel(const TsplLanguage()),
+    ]);
+
+    expect(transport.writes, hasLength(2));
   });
 }

@@ -13,3 +13,15 @@ import (
 func PlaceLoadUnitForTest(ctx context.Context, pool *pgxpool.Pool, in model.PlaceLoadUnitInput) error {
 	return WithinTx(ctx, pool, func(q Querier) error { return placeLoadUnit(ctx, q, in) })
 }
+
+// MovementSubmitForTest открывает тестам проведение документа движения (P6-02). Публичная
+// операция очереди появится в P6-03 вместе с веткой товара.
+func MovementSubmitForTest(ctx context.Context, pool *pgxpool.Pool, in MovementSubmitInput) (int, error) {
+	var n int
+	err := WithinTx(ctx, pool, func(q Querier) error {
+		var err error
+		n, err = movementSubmit(ctx, q, in)
+		return err
+	})
+	return n, err
+}

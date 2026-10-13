@@ -26,11 +26,7 @@ import '../documents/mark_done_dialog.dart';
 /// документов и подписями, а работа оператора с документом одна и та же. Две копии вкладки
 /// разошлись бы на первой же правке — например, в отметке «Выполнено».
 class DocumentsTab extends StatefulWidget {
-  const DocumentsTab({
-    super.key,
-    required this.kind,
-    required this.empty,
-  });
+  const DocumentsTab({super.key, required this.kind, required this.empty});
 
   /// Форма документов: `stock_entry` — ввод остатков, `receipt` — «Поступление»,
   /// `movement` — «Движение».
@@ -91,17 +87,17 @@ class _DocumentsTabState extends State<DocumentsTab> {
     final res = await _repo.downloadReport(doc.id);
     if (!mounted) return;
     setState(() => _downloading.remove(doc.id));
-    res.fold(
-      (f) => _snack(t.portal.documents.error(message: _errorText(f))),
-      (file) {
-        downloadBytes(
-          bytes: file.bytes,
-          filename: file.filename,
-          mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        );
-        _load();
-      },
-    );
+    res.fold((f) => _snack(t.portal.documents.error(message: _errorText(f))), (
+      file,
+    ) {
+      downloadBytes(
+        bytes: file.bytes,
+        filename: file.filename,
+        mime:
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      );
+      _load();
+    });
   }
 
   /// Провести документ — отметить занесённым в 1С, с подтверждением: вернуть его в работу нельзя.
@@ -114,13 +110,12 @@ class _DocumentsTabState extends State<DocumentsTab> {
     final res = await _repo.markDone(doc.id);
     if (!mounted) return;
     setState(() => _marking.remove(doc.id));
-    res.fold(
-      (f) => _snack(t.portal.documents.error(message: _errorText(f))),
-      (_) {
-        _snack(t.portal.documents.doneOk);
-        _load();
-      },
-    );
+    res.fold((f) => _snack(t.portal.documents.error(message: _errorText(f))), (
+      _,
+    ) {
+      _snack(t.portal.documents.doneOk);
+      _load();
+    });
   }
 
   /// Показать историю документа: кто и когда его сформировал, скачал, отметил выполненным.
@@ -135,10 +130,11 @@ class _DocumentsTabState extends State<DocumentsTab> {
 
   /// Текст ошибки для снекбара по типу Failure.
   String _errorText(Failure f) => switch (f) {
-        ServerFailure(:final message, :final statusCode) => message ?? 'HTTP $statusCode',
-        NetworkFailure() => t.portal.login.errorNetwork,
-        _ => t.portal.login.errorUnknown,
-      };
+    ServerFailure(:final message, :final statusCode) =>
+      message ?? 'HTTP $statusCode',
+    NetworkFailure() => t.portal.login.errorNetwork,
+    _ => t.portal.login.errorUnknown,
+  };
 
   /// Показать снекбар с текстом (ошибки скачивания отчёта).
   void _snack(String text) {
@@ -153,7 +149,8 @@ class _DocumentsTabState extends State<DocumentsTab> {
     // (ADHOC-26): поиск и фильтр нужны и в конце длинного списка. Колонка прижата влево.
     // Заголовок раздела и пояснение — в шапке портала.
     // На узкой области (телефон) поля по краям меньше — иначе на текст не хватает ширины.
-    final compact = MediaQuery.sizeOf(context).width < AppSizes.kPortalCompactContentWidth;
+    final compact =
+        MediaQuery.sizeOf(context).width < AppSizes.kPortalCompactContentWidth;
     final pad = compact ? AppInsets.all16 : AppInsets.all32;
     final state = _state();
     if (state != null) {
@@ -174,13 +171,19 @@ class _DocumentsTabState extends State<DocumentsTab> {
             ),
           ),
         ),
+        AppBoxes.kHeight8,
         Expanded(
           child: SingleChildScrollView(
             padding: pad.copyWith(top: AppSizes.kDocListGap),
             child: _column(
               DocTable(
                 form: _form,
-                docs: applyFilter(_docs, filter: _filter, query: _query, searchText: _form.searchText),
+                docs: applyFilter(
+                  _docs,
+                  filter: _filter,
+                  query: _query,
+                  searchText: _form.searchText,
+                ),
                 downloading: _downloading,
                 posting: _marking,
                 onDownload: _download,
@@ -210,17 +213,25 @@ class _DocumentsTabState extends State<DocumentsTab> {
   /// Состояние вместо списка: загрузка / ошибка / пусто; `null` — есть документы.
   Widget? _state() {
     if (_loading) {
-      return const Padding(padding: AppInsets.all32, child: Center(child: CircularProgressIndicator()));
+      return const Padding(
+        padding: AppInsets.all32,
+        child: Center(child: CircularProgressIndicator()),
+      );
     }
     if (_error != null) {
       return Column(
         children: [
           Text(
             t.portal.documents.error(message: _errorText(_error!)),
-            style: RegularTextStyles().regularInter14.copyWith(color: AppColors.kDanger),
+            style: RegularTextStyles().regularInter14.copyWith(
+              color: AppColors.kDanger,
+            ),
           ),
           AppBoxes.kHeight16,
-          OutlinedButton(onPressed: _load, child: Text(t.portal.documents.retry)),
+          OutlinedButton(
+            onPressed: _load,
+            child: Text(t.portal.documents.retry),
+          ),
         ],
       );
     }
@@ -230,7 +241,9 @@ class _DocumentsTabState extends State<DocumentsTab> {
         child: Center(
           child: Text(
             widget.empty,
-            style: RegularTextStyles().regularInter14.copyWith(color: AppColors.kTextMuted),
+            style: RegularTextStyles().regularInter14.copyWith(
+              color: AppColors.kTextMuted,
+            ),
           ),
         ),
       );

@@ -8,6 +8,7 @@ import 'core/router/app_router.dart';
 import 'core/sync/catalog_sync_service.dart';
 import 'core/sync/sync_engine.dart';
 import 'core/theme/app_theme.dart';
+import 'core/widgets/printer_reconnect_banner.dart';
 
 /// Корневой виджет. Держит роутер и слушает состояние входа, чтобы гейтить навигацию.
 class CraftWmsApp extends StatelessWidget {
@@ -51,6 +52,10 @@ class CraftWmsApp extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           theme: buildAppTheme(),
           routerConfig: _router.config(),
+          // Плашка «Подключаюсь к принтеру…» поверх любого экрана: печатают из приёмки,
+          // «Остатков» и карточки товара, и переподключение может идти секунды (P6-04).
+          builder: (context, child) =>
+              PrinterReconnectBanner(child: child ?? const SizedBox.shrink()),
           // Системные виджеты Flutter (календарь фильтра заданий, подсказки, меню копирования)
           // без этого говорят по-английски: свои строки приложения идут через slang, а эти —
           // только через локализацию Material. Приложение одноязычное, поэтому русский задан
