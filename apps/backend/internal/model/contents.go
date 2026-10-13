@@ -94,7 +94,7 @@ type LoadUnitReceipt struct {
 type LoadUnitMove struct {
 	FromAddress *string // nil — первое размещение: короб появился на складе
 	ToAddress   string
-	Source      string  // PlacementReceipt | PlacementPutaway
+	Source      string  // PlacementReceipt | PlacementPutaway | PlacementMove
 	UserName    *string // nil — исполнитель неизвестен
 	At          time.Time
 }

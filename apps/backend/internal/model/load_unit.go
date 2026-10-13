@@ -39,6 +39,8 @@ const (
 	PlacementReceipt = "receipt"
 	// PlacementPutaway — размещение перенесло короб в ячейку хранения (P5-02).
 	PlacementPutaway = "putaway"
+	// PlacementMove — перемещение перенесло короб из ячейки в ячейку (P6).
+	PlacementMove = "move"
 )
 
 // Placement — одна строка журнала размещений: ГЕ перенесли из ячейки в ячейку (P5-01).
@@ -56,6 +58,7 @@ type Placement struct {
 	Source      string
 	ReceiptID   *string
 	PutawayID   *string
+	MovementID  *string
 	UserID      *string
 	PlacedAt    time.Time
 }
@@ -64,8 +67,9 @@ type Placement struct {
 type PlaceLoadUnitInput struct {
 	LoadUnitID string
 	CellID     string
-	Source     string  // PlacementReceipt | PlacementPutaway
+	Source     string  // PlacementReceipt | PlacementPutaway | PlacementMove
 	UserID     string  // кто переносит; пусто — неизвестен
 	ReceiptID  *string // документ приёмки, если переносит она
 	PutawayID  *string // документ размещения, если переносит он (P5-02)
+	MovementID *string // документ движения, если переносит перемещение (P6-01)
 }
