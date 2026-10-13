@@ -187,84 +187,26 @@ type putawayLineRow struct {
 	toCellID   string
 }
 
-// putawayLoadUnit переносит короб целиком: остаток по составу и место в журнале.
-//
-// Состав читается здесь же, в транзакции проведения: он и есть то, что физически переехало.
-// Остаток переносится из той ячейки, где короб числится, — его состав лежит в остатке именно
-// там (приёмка кладёт их вместе).
+// putawayLoadUnit переносит короб задания целиком в ячейку хранения — общей функцией переноса
+// ГЕ (P6-02) с источником «размещение» и ссылкой на сеанс.
 func putawayLoadUnit(ctx context.Context, q Querier, in PutawaySubmitInput, ln PutawayLineInput, iwh string) (putawayLineRow, error) {
-	var from *string
-	var parent *string
-	var hasChildren bool
-	err := q.QueryRow(ctx, `
-		SELECT cell_id::text, parent_id::text,
-		       EXISTS (SELECT 1 FROM load_units c WHERE c.parent_id = lu.id)
-		FROM load_units lu WHERE id = $1::uuid FOR UPDATE`, ln.LoadUnitID).
-		Scan(&from, &parent, &hasChildren)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return putawayLineRow{}, ErrLoadUnitNotFound
-	}
-	if err != nil {
-		return putawayLineRow{}, fmt.Errorf("прочитать короб: %w", err)
-	}
-	if from == nil {
-		return putawayLineRow{}, ErrLoadUnitNotPlaced
-	}
-	if parent != nil || hasChildren {
-		return putawayLineRow{}, ErrLoadUnitNested
-	}
-	if *from == ln.ToCellID {
+	from, err := transferLoadUnit(ctx, q, loadUnitTransfer{
+		LoadUnitID:          ln.LoadUnitID,
+		ToCellID:            ln.ToCellID,
+		WarehouseID:         in.WarehouseID,
+		InternalWarehouseID: iwh,
+		Source:              model.PlacementPutaway,
+		UserID:              in.CreatedBy,
+		PutawayID:           &in.PutawayID,
+	})
+	if errors.Is(err, ErrSameCell) {
 		return putawayLineRow{}, ErrPutawaySameCell
 	}
-	if err := guardCellOfWarehouse(ctx, q, *from, in.WarehouseID); err != nil {
-		return putawayLineRow{}, err
-	}
-
-	rows, err := q.Query(ctx, `
-		SELECT good_id::text, batch_id::text, qty::text
-		FROM lu_content WHERE load_unit_id = $1::uuid AND qty > 0`, ln.LoadUnitID)
 	if err != nil {
-		return putawayLineRow{}, fmt.Errorf("прочитать состав короба: %w", err)
-	}
-	type content struct{ good, batch, qty string }
-	var items []content
-	for rows.Next() {
-		var c content
-		if err := rows.Scan(&c.good, &c.batch, &c.qty); err != nil {
-			rows.Close()
-			return putawayLineRow{}, fmt.Errorf("разобрать состав короба: %w", err)
-		}
-		items = append(items, c)
-	}
-	rows.Close()
-	if err := rows.Err(); err != nil {
-		return putawayLineRow{}, fmt.Errorf("прочитать состав короба: %w", err)
-	}
-
-	for _, c := range items {
-		qty, err := decimal.NewFromString(c.qty)
-		if err != nil {
-			return putawayLineRow{}, fmt.Errorf("количество в составе короба: %w", err)
-		}
-		if err := transferStock(ctx, q,
-			model.StockKey{CellID: *from, GoodID: c.good, BatchID: c.batch, InternalWarehouseID: iwh},
-			model.StockKey{CellID: ln.ToCellID, GoodID: c.good, BatchID: c.batch, InternalWarehouseID: iwh},
-			qty); err != nil {
-			return putawayLineRow{}, err
-		}
-	}
-
-	if err := placeLoadUnit(ctx, q, model.PlaceLoadUnitInput{
-		LoadUnitID: ln.LoadUnitID,
-		CellID:     ln.ToCellID,
-		Source:     model.PlacementPutaway,
-		UserID:     in.CreatedBy,
-		PutawayID:  &in.PutawayID,
-	}); err != nil {
 		return putawayLineRow{}, err
 	}
 	lu := ln.LoadUnitID
-	return putawayLineRow{loadUnitID: &lu, fromCellID: *from, toCellID: ln.ToCellID}, nil
+	return putawayLineRow{loadUnitID: &lu, fromCellID: from, toCellID: ln.ToCellID}, nil
 }
 
 // putawayLoose переносит россыпь из ячейки приёмки.
