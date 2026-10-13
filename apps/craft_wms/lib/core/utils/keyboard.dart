@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 /// Снять фокус с поля ввода и убрать экранную клавиатуру.
@@ -10,3 +11,11 @@ import 'package:flutter/widgets.dart';
 /// Как: `unfocus()` с дефолтным [UnfocusDisposition.scope] не только снимает фокус, но и
 /// очищает `focusedChild` охватывающего скоупа — иначе фокус вернулся бы вместе с экраном.
 void dismissKeyboard() => FocusManager.instance.primaryFocus?.unfocus();
+
+/// Спрятать экранную клавиатуру, не трогая фокус.
+///
+/// Зачем: лист с полем поиска (выбор ячейки) закрывают свайпом, и клавиатура, открытая его
+/// полем, остаётся на экране сканирования — поле скана её не прячет само (P6-04, DT50S).
+/// Фокус при этом нужен полю скана: сканер в режиме «клавиатуры» печатает в него.
+Future<void> hideKeyboard() =>
+    SystemChannels.textInput.invokeMethod<void>('TextInput.hide');

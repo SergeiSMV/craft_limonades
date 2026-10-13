@@ -15,10 +15,11 @@ class OverlayCells {
   final Map<String, String> defaultCellByWarehouse;
 }
 
-/// Свои неотправленные приёмки и размещения поверх данных сервера или снимка (P5-05).
+/// Свои неотправленные приёмки, размещения и движения поверх данных сервера или снимка
+/// (P5-05, P6-04).
 ///
-/// Что: применяет к короба́м и россыпи операции очереди `receipt_submit` и `putaway_submit`
-/// в статусах «ожидает» и «отправляется» — так, как их проведёт сервер.
+/// Что: применяет к короба́м и россыпи операции очереди `receipt_submit`, `putaway_submit` и
+/// `movement_submit` в статусах «ожидает» и «отправляется» — так, как их проведёт сервер.
 /// Зачем: без этого короб из своей приёмки без связи «не существует», а перенесённый своим
 ///        размещением — лежит в старой ячейке. Кладовщик пошёл бы искать его не туда.
 /// Как: при чтении, а не записью в кэш: снимок заменяется целиком и стёр бы записанное.
@@ -26,13 +27,16 @@ class OverlayCells {
 ///      `pending`, чтобы не выдавать очередь за факт.
 ///
 /// Правила сервера, которые здесь повторены: строка приёмки без ячейки ложится в ячейку
-/// приёмки склада; россыпь размещения уходит из ячейки приёмки; короб переезжает целиком.
+/// приёмки склада; россыпь размещения уходит из ячейки приёмки; короб переезжает целиком;
+/// товар движения уходит из короба или россыпи источника и ложится в короб или россыпь
+/// приёмника.
 class PendingOverlay {
   PendingOverlay(Iterable<OutboxOperation> operations, this.cells)
     : ops = [
         for (final op in operations)
           if ((op.kind == OutboxKind.receiptSubmit ||
-                  op.kind == OutboxKind.putawaySubmit) &&
+                  op.kind == OutboxKind.putawaySubmit ||
+                  op.kind == OutboxKind.movementSubmit) &&
               (op.status == OutboxStatus.pending ||
                   op.status == OutboxStatus.sending))
             op,
@@ -46,7 +50,13 @@ class PendingOverlay {
   /// размещение переносит короб, не повторяя, что в нём.
   Set<String> get referencedLoadUnits => {
     for (final op in ops)
-      ..._lines(op).map((l) => l['load_unit_id']).whereType<String>(),
+      for (final l in _lines(op))
+        for (final key in const [
+          'load_unit_id',
+          'from_load_unit_id',
+          'to_load_unit_id',
+        ])
+          if (l[key] case final String id) id,
   };
 
   /// Короб с наложенными операциями. [base] — с сервера или из снимка, `null` — не найден.
@@ -109,6 +119,10 @@ class PendingOverlay {
       final isReceipt = op.kind == OutboxKind.receiptSubmit;
       for (final l in _lines(op)) {
         final box = l['load_unit_id'] as String?;
+        if (op.kind == OutboxKind.movementSubmit && box == null) {
+          _moveGoods(l, boxes, only: only, cellId: cellId, loose: loose);
+          continue;
+        }
         if (only != null && box != only) continue;
         if (isReceipt) {
           final cell = l['cell_id'] as String? ?? receivingCell;
@@ -140,6 +154,38 @@ class PendingOverlay {
           if (to == cellId) _replace(loose, _add(loose, line));
         }
       }
+    }
+  }
+
+  /// Товар строки движения: из короба или россыпи источника — в короб или россыпь приёмника.
+  ///
+  /// Короб меняется, только если он уже есть в [boxes] (известен серверу, снимку или своей
+  /// очереди): состав неизвестного короба выдумывать нечем.
+  void _moveGoods(
+    Map<String, dynamic> l,
+    Map<String, LoadUnitView> boxes, {
+    String? only,
+    String? cellId,
+    List<ContentLine>? loose,
+  }) {
+    final line = _line(l);
+    final fromBox = l['from_load_unit_id'] as String?;
+    final toBox = l['to_load_unit_id'] as String?;
+    for (final (id, add) in [(fromBox, false), (toBox, true)]) {
+      if (id == null || (only != null && id != only)) continue;
+      final lu = boxes[id];
+      if (lu == null) continue;
+      boxes[id] = lu.copyWith(
+        pending: true,
+        lines: add ? _add(lu.lines, line) : _sub(lu.lines, line),
+      );
+    }
+    if (loose == null) return;
+    if (fromBox == null && l['from_cell_id'] == cellId) {
+      _replace(loose, _sub(loose, line));
+    }
+    if (toBox == null && l['to_cell_id'] == cellId) {
+      _replace(loose, _add(loose, line));
     }
   }
 

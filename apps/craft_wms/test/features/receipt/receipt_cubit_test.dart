@@ -306,10 +306,14 @@ void main() {
   test('ошибка принтера возвращается текстом и приёмку не трогает', () async {
     await cubit.start(supplier, doc);
     final boxId = cubit.newBox();
-    when(() => printer.printLoadUnitLabel(boxId)).thenThrow(
-      const PrinterFailure(PrinterFailureKind.io, 'Принтер не выбран'),
+    // Технический текст Android кладовщику не показывается — только понятный (P6-04).
+    when(
+      () => printer.printLoadUnitLabel(boxId),
+    ).thenThrow(const PrinterFailure(PrinterFailureKind.io, 'Broken pipe'));
+    expect(
+      await cubit.printBoxLabel(boxId),
+      const PrinterFailure(PrinterFailureKind.io, 'Broken pipe').userMessage,
     );
-    expect(await cubit.printBoxLabel(boxId), 'Принтер не выбран');
     expect(cubit.state.boxes.single.id, boxId);
   });
 

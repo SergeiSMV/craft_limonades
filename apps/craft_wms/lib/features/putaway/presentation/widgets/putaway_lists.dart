@@ -43,7 +43,7 @@ class PutawayLists extends StatelessWidget {
     final boxes = state.openBoxes;
     final loose = state.openLoose;
     return ListView(
-      padding: AppInsets.h16,
+      padding: AppInsets.h8,
       children: [
         Text(t.putaway.leftSection, style: section),
         AppBoxes.kHeight8,

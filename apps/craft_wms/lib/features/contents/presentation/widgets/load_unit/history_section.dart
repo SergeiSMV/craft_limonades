@@ -103,11 +103,22 @@ class _History extends StatelessWidget {
           ],
           for (final m in history.moves) ...[
             AppBoxes.kHeight8,
-            _line(
-              m.byReceipt || m.from == null
-                  ? t.contents.moveReceipt(to: m.to)
-                  : t.contents.movePutaway(from: m.from!, to: m.to),
-            ),
+            _line(switch ((m.kind, m.from)) {
+              (LoadUnitMoveKind.receipt, _) ||
+              (_, null) => t.contents.moveReceipt(to: m.to),
+              (LoadUnitMoveKind.putaway, final from?) => t.contents.movePutaway(
+                from: from,
+                to: m.to,
+              ),
+              (LoadUnitMoveKind.move, final from?) => t.contents.moveMove(
+                from: from,
+                to: m.to,
+              ),
+              (LoadUnitMoveKind.other, final from?) => t.contents.moveOther(
+                from: from,
+                to: m.to,
+              ),
+            }),
             _muted(
               m.userName == null
                   ? t.contents.moveByUnknown(time: fullDateTime(m.at))

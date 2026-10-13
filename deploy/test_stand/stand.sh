@@ -55,8 +55,14 @@ load_env() {
 # compose ... — docker compose стенда.
 compose() { docker compose -f "$COMPOSE_FILE" "$@"; }
 
+# require_docker — Docker доступен; нет — поднять Colima сам. На этой машине Docker живёт в
+# Colima, и её штатно гасят после работы (`colima stop`) — стенд не должен падать из-за этого.
 require_docker() {
-  docker info >/dev/null 2>&1 || die "Docker недоступен. Запустите: colima start"
+  docker info >/dev/null 2>&1 && return 0
+  command -v colima >/dev/null 2>&1 || die "Docker недоступен, а colima не установлена."
+  log "Docker недоступен — запускаю Colima…"
+  colima start || die "Colima не запустилась (colima status)."
+  docker info >/dev/null 2>&1 || die "Colima запущена, но Docker не отвечает."
 }
 
 # latest_snapshot — путь к самому свежему снимку или пусто. Имена несут время, сортировка

@@ -52,7 +52,7 @@ class BarcodesSection extends StatelessWidget {
     } on PrinterFailure catch (e) {
       messenger
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(e.message)));
+        ..showSnackBar(SnackBar(content: Text(e.userMessage)));
     }
   }
 

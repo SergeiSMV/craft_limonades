@@ -179,4 +179,68 @@ void main() {
     final cell = overlay.applyToCell(emptyCell(receiving), const {});
     expect(cell.loose.single.qty, 0.3);
   });
+
+  // P6-04: своё неотправленное перемещение.
+  test(
+    'перемещение: короб едет целиком, товар — между коробами и россыпью',
+    () {
+      const other = 'cell-b2';
+      const cellsMove = OverlayCells(
+        addressById: {receiving: 'С-Н-П', storage: 'A-1-1', other: 'B-2'},
+        defaultCellByWarehouse: {wh: receiving},
+      );
+      final move = op(OutboxKind.movementSubmit, {
+        'movement_id': 'mv-1',
+        'movement_kind': 'move',
+        'warehouse_id': wh,
+        'lines': [
+          {'load_unit_id': 'box-1', 'to_cell_id': other},
+          {
+            'good_id': 'g1',
+            'production_date': '01-09-2026',
+            'qty': 3,
+            'from_load_unit_id': 'box-2',
+            'to_cell_id': storage,
+          },
+          {
+            'good_id': 'g1',
+            'production_date': '01-09-2026',
+            'qty': 1,
+            'from_cell_id': storage,
+            'to_load_unit_id': 'box-1',
+          },
+        ],
+      });
+      final overlay = PendingOverlay([move], cellsMove);
+      expect(overlay.referencedLoadUnits, {'box-1', 'box-2'});
+
+      LoadUnitView box(String id) => LoadUnitView(
+        id: id,
+        cellId: storage,
+        live: true,
+        lines: const [
+          ContentLine(goodId: 'g1', productionDate: '01-09-2026', qty: 12),
+        ],
+      );
+
+      final box1 = overlay.applyToLoadUnit('box-1', box('box-1'))!;
+      expect(box1.cellId, other);
+      expect(box1.cellAddress, 'B-2');
+      expect(box1.lines.single.qty, 13, reason: '12 + 1 из россыпи');
+      expect(box1.pending, isTrue);
+
+      final box2 = overlay.applyToLoadUnit('box-2', box('box-2'))!;
+      expect(box2.cellId, storage);
+      expect(box2.lines.single.qty, 9, reason: '12 − 3 в россыпь');
+
+      final cell = overlay.applyToCell(
+        CellView(cellId: storage, address: 'A-1-1', loadUnits: [box('box-2')]),
+        {'box-1': box('box-1')},
+      );
+      expect(cell.loose.single.qty, 2, reason: '3 из короба − 1 в короб');
+      expect(cell.loadUnits.map((lu) => lu.id), [
+        'box-2',
+      ], reason: 'box-1 уехал');
+    },
+  );
 }
