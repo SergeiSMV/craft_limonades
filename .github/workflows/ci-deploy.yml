@@ -38,7 +38,7 @@ jobs:
       # Синтаксис. Ловит опечатку, из-за которой скрипт упал бы на первой же строке.
       - name: bash -n
         run: |
-          for f in deploy/*.sh; do
+          for f in deploy/*.sh deploy/test_stand/*.sh; do
             echo "· $f"
             bash -n "$f"
           done
@@ -46,7 +46,7 @@ jobs:
       # shellcheck предустановлен на ubuntu-latest. -S warning: стилевые info-замечания
       # сборку не валят, а реальные ошибки (незакавыченные переменные, битые ветвления) — да.
       - name: shellcheck
-        run: shellcheck -S warning -x deploy/*.sh
+        run: shellcheck -S warning -x deploy/*.sh deploy/test_stand/*.sh
 
       # Юниты ставятся подстановкой плейсхолдеров (install_systemd_units в _lib.sh). Если
       # добавить в юнит новый плейсхолдер и забыть sed — на сервере встанет юнит с «__FOO__»
