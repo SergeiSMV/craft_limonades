@@ -21,7 +21,10 @@ enum OutboxKind {
   receiptSubmit('receipt_submit'),
 
   /// Сеанс размещения по заданию целиком (P5-03).
-  putawaySubmit('putaway_submit');
+  putawaySubmit('putaway_submit'),
+
+  /// Сеанс перемещения или пополнения целиком (P6-04).
+  movementSubmit('movement_submit');
 
   const OutboxKind(this.wire);
 

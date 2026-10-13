@@ -1,7 +1,9 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:talker_flutter/talker_flutter.dart';
 
 import 'label_geometry.dart';
 import 'label_language.dart';
@@ -20,10 +22,26 @@ import 'printer_transport.dart';
 /// столько раз, сколько мест печатает.
 @lazySingleton
 class PrinterService {
-  const PrinterService(this._transport, this._settings);
+  PrinterService(this._transport, this._settings, this._talker);
 
   final PrinterTransport _transport;
   final PrinterSettings _settings;
+
+  /// Журнал приложения: технический текст отказа печати — туда, а не на экран.
+  final Talker _talker;
+
+  /// Идёт переподключение к принтеру — поверх экрана показывается «Подключаюсь к принтеру…».
+  final ValueNotifier<bool> reconnecting = ValueNotifier(false);
+
+  /// Попыток переподключения после обрыва и пауза между ними: включённому принтеру нужно
+  /// несколько секунд, чтобы начать принимать соединения, — в сумме около 10 секунд.
+  static const _reconnectAttempts = 5;
+  @visibleForTesting
+  Duration reconnectPause = const Duration(seconds: 2);
+
+  /// Печати идут по одной: пока одна ждёт переподключения, повторное нажатие «Печать» не
+  /// должно открывать второе соединение к тому же принтеру.
+  Future<void> _jobs = Future<void>.value();
 
   /// Состояние Bluetooth и соединения.
   Future<PrinterStatus> status() => _transport.status();
@@ -85,7 +103,10 @@ class PrinterService {
   Future<void> connect() async {
     final device = await selected();
     if (device == null) {
-      throw const PrinterFailure(PrinterFailureKind.io, 'Принтер не выбран');
+      throw const PrinterFailure(
+        PrinterFailureKind.notSelected,
+        'Принтер не выбран',
+      );
     }
     await _connectTo(device);
   }
@@ -98,6 +119,12 @@ class PrinterService {
   /// и нужна на случай, когда принтер убрали из спаренных в настройках Android.
   Future<void> _connectTo(PrinterDevice device) async {
     final current = await _transport.status();
+    if (current.supported && !current.enabled) {
+      throw const PrinterFailure(
+        PrinterFailureKind.bluetoothOff,
+        'Bluetooth выключен',
+      );
+    }
     if (current.connected && current.address == device.address) return;
     await _requireConnectPermission();
     await _transport.bond(device.address);
@@ -164,9 +191,56 @@ class PrinterService {
       printRaw(language.calibrate(await geometry()));
 
   /// Отправить готовые команды. Соединение поднимается само, если его ещё нет.
-  Future<void> printRaw(List<int> bytes) async {
-    await connect();
-    await _transport.write(bytes);
+  Future<void> printRaw(List<int> bytes) {
+    final job = _jobs.then((_) => _printWithReconnect(bytes));
+    _jobs = job.catchError((_) {});
+    return job;
+  }
+
+  /// Печать с переподключением после обрыва связи (P6-04, найдено на DT50S).
+  ///
+  /// Зачем: соединение держится открытым между этикетками, а Android считает сокет живым и
+  /// после того, как принтер выключили, — узнаёт об обратном только при записи («Broken
+  /// pipe»). Без переподключения каждая следующая печать писала в тот же мёртвый сокет.
+  /// Как: при отказе связи старое соединение закрывается, и сервис подключается к тому же
+  /// выбранному принтеру заново, несколько раз с паузой — только что включённый принтер
+  /// принимает соединения не сразу. Двойной этикетки не будет: оборванное соединение ничего
+  /// в принтер не донесло. Отказы, которые повтором не лечатся (права, Bluetooth выключен,
+  /// принтер не выбран), уходят сразу.
+  Future<void> _printWithReconnect(List<int> bytes) async {
+    try {
+      await connect();
+      await _transport.write(bytes);
+      return;
+    } on PrinterFailure catch (e) {
+      if (e.kind != PrinterFailureKind.io) rethrow;
+      _talker.warning(
+        'Печать: связь с принтером потеряна (${e.message}) — переподключаюсь',
+      );
+    }
+    reconnecting.value = true;
+    try {
+      late PrinterFailure last;
+      for (var i = 0; i < _reconnectAttempts; i++) {
+        if (i > 0) await Future<void>.delayed(reconnectPause);
+        await _transport.disconnect();
+        try {
+          await connect();
+          await _transport.write(bytes);
+          _talker.info('Печать: переподключился с попытки ${i + 1}');
+          return;
+        } on PrinterFailure catch (e) {
+          if (e.kind != PrinterFailureKind.io) rethrow;
+          last = e;
+        }
+      }
+      _talker.error(
+        'Печать: принтер не ответил за $_reconnectAttempts попыток (${last.message})',
+      );
+      throw last;
+    } finally {
+      reconnecting.value = false;
+    }
   }
 
   /// Открыть системные настройки геолокации (ADHOC-20).

@@ -178,12 +178,28 @@ class LoadUnitReceiptInfo {
   final DateTime? postedAt;
 }
 
+/// Какая операция перенесла короб — источник строки журнала размещений (P5-05-1, P6-04).
+enum LoadUnitMoveKind {
+  /// Приёмка положила короб на склад.
+  receipt,
+
+  /// Размещение по заданию.
+  putaway,
+
+  /// Перемещение (P6).
+  move,
+
+  /// Источник, которого эта версия терминала не знает (появится с новыми операциями) —
+  /// подписывается нейтрально, а не выдаётся за размещение.
+  other,
+}
+
 /// Перенос короба: откуда, куда, кто и когда (P5-05-1).
 class LoadUnitMove {
   const LoadUnitMove({
     this.from,
     required this.to,
-    required this.byReceipt,
+    required this.kind,
     this.userName,
     required this.at,
   });
@@ -192,8 +208,8 @@ class LoadUnitMove {
   final String? from;
   final String to;
 
-  /// Перенос сделала приёмка (иначе — размещение).
-  final bool byReceipt;
+  /// Какая операция перенесла короб.
+  final LoadUnitMoveKind kind;
   final String? userName;
   final DateTime at;
 }

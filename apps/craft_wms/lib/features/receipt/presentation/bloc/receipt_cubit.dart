@@ -396,7 +396,7 @@ class ReceiptCubit extends Cubit<ReceiptState> {
       await job();
       return null;
     } on PrinterFailure catch (e) {
-      return e.message;
+      return e.userMessage;
     } catch (e) {
       return e.toString();
     }

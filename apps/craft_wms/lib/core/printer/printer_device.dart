@@ -1,3 +1,5 @@
+import '../gen/strings.g.dart';
+
 /// Bluetooth-устройство, пригодное на роль принтера этикеток (P4-05).
 ///
 /// Имя может быть пустым: оно приходит от самого устройства и иногда не успевает прочитаться
@@ -76,7 +78,24 @@ class PrinterFailure implements Exception {
   const PrinterFailure(this.kind, this.message);
 
   final PrinterFailureKind kind;
+
+  /// Текст как есть — от Android или драйвера («Broken pipe», «read failed…»). Для журнала
+  /// и экрана диагностики, не для кладовщика.
   final String message;
+
+  /// Что сказать кладовщику: что случилось и что сделать (P6-04).
+  ///
+  /// Технический текст ему ничего не скажет — «Broken pipe» после выключенного принтера
+  /// выглядел поломкой приложения. Отказы прав и спаривания и так сформулированы по-русски
+  /// для человека, их текст остаётся.
+  String get userMessage => switch (kind) {
+    PrinterFailureKind.io => t.printer.notResponding,
+    PrinterFailureKind.notSelected => t.printer.notSelected,
+    PrinterFailureKind.bluetoothOff => t.printer.bluetoothOff,
+    PrinterFailureKind.locationOff => t.printer.locationOff,
+    PrinterFailureKind.unsupported => t.printer.unsupported,
+    PrinterFailureKind.permission || PrinterFailureKind.pairing => message,
+  };
 
   @override
   String toString() => 'PrinterFailure(${kind.name}: $message)';
@@ -106,4 +125,7 @@ enum PrinterFailureKind {
   /// Выключена геолокация, без которой Android до 12 не ищет Bluetooth-устройства (ADHOC-20).
   /// Отдельно от [permission]: разрешение выдано, чинится это переключателем в шторке.
   locationOff,
+
+  /// Принтер не выбран — выбирается в настройках печати, повтор не поможет.
+  notSelected,
 }

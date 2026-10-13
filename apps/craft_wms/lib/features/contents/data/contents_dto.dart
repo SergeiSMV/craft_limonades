@@ -164,7 +164,12 @@ LoadUnitHistory historyFromJson(Map<String, dynamic> j) {
         LoadUnitMove(
           from: (m as Map<String, dynamic>)['from'] as String?,
           to: m['to'] as String,
-          byReceipt: m['source'] == 'receipt',
+          kind: switch (m['source']) {
+            'receipt' => LoadUnitMoveKind.receipt,
+            'putaway' => LoadUnitMoveKind.putaway,
+            'move' => LoadUnitMoveKind.move,
+            _ => LoadUnitMoveKind.other,
+          },
           userName: m['user_name'] as String?,
           at: at(m['at']) ?? DateTime.fromMillisecondsSinceEpoch(0),
         ),
