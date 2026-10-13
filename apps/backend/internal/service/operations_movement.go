@@ -1,0 +1,119 @@
+package service
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"strings"
+
+	"github.com/shopspring/decimal"
+
+	"craftwms/internal/repository"
+)
+
+// ErrInvalidMovementID — идентификатор документа движения не UUID.
+var ErrInvalidMovementID = errors.New("movement id must be a UUID")
+
+// movementSubmitPayload — тело операции movement_submit, как его собирает устройство (P6-03).
+//
+// Строка — ГЕ целиком (`load_unit_id` + `to_cell_id`) ЛИБО товар (`good_id` +
+// `production_date` + `qty`) с одним источником и одним приёмником: источник — ячейка
+// (`from_cell_id`, россыпь) или короб (`from_load_unit_id`), приёмник — ячейка (`to_cell_id`)
+// или короб (`to_load_unit_id`). Ячейку короба устройство не шлёт: сервер знает, где он лежит.
+type movementSubmitPayload struct {
+	MovementID   string `json:"movement_id"`
+	MovementKind string `json:"movement_kind"` // move | replenish
+	WarehouseID  string `json:"warehouse_id"`
+	Lines        []struct {
+		LoadUnitID     string          `json:"load_unit_id"`
+		GoodID         string          `json:"good_id"`
+		ProductionDate string          `json:"production_date"`
+		Qty            decimal.Decimal `json:"qty"`
+		FromCellID     string          `json:"from_cell_id"`
+		FromLoadUnitID string          `json:"from_load_unit_id"`
+		ToCellID       string          `json:"to_cell_id"`
+		ToLoadUnitID   string          `json:"to_load_unit_id"`
+	} `json:"lines"`
+}
+
+// movementSubmit разбирает и проверяет документ движения из очереди устройства (P6-03).
+//
+// Всё, что проверяется без базы, проверяется здесь: идентификаторы по форме, «ГЕ или товар»,
+// ровно один источник и один приёмник у товара, количество и дата. Ошибка формы — отказ по
+// существу, и лучше получить его до открытия транзакции. Автор — из токена, а не из тела.
+func (s *OperationsService) movementSubmit(ctx context.Context, userID, id string, raw json.RawMessage) (repository.Applied, error) {
+	var p movementSubmitPayload
+	if err := json.Unmarshal(raw, &p); err != nil {
+		return repository.Applied{}, ErrInvalidPayload
+	}
+	in := repository.MovementSubmitInput{
+		MovementID:  strings.TrimSpace(p.MovementID),
+		Kind:        strings.TrimSpace(p.MovementKind),
+		WarehouseID: strings.TrimSpace(p.WarehouseID),
+		CreatedBy:   userID,
+	}
+	if !isUUID(in.MovementID) {
+		return repository.Applied{}, ErrInvalidMovementID
+	}
+	if in.WarehouseID == "" {
+		return repository.Applied{}, ErrEmptyWarehouse
+	}
+	if !isUUID(in.WarehouseID) {
+		return repository.Applied{}, ErrInvalidPayload
+	}
+	if len(p.Lines) == 0 {
+		return repository.Applied{}, repository.ErrEmptyMovement
+	}
+
+	for _, ln := range p.Lines {
+		line := repository.MovementLineInput{
+			LoadUnitID:     strings.TrimSpace(ln.LoadUnitID),
+			GoodID:         strings.TrimSpace(ln.GoodID),
+			Qty:            ln.Qty,
+			FromCellID:     strings.TrimSpace(ln.FromCellID),
+			FromLoadUnitID: strings.TrimSpace(ln.FromLoadUnitID),
+			ToCellID:       strings.TrimSpace(ln.ToCellID),
+			ToLoadUnitID:   strings.TrimSpace(ln.ToLoadUnitID),
+		}
+		// Все идентификаторы строки — UUID или пусто: мусор в них — ошибка формы.
+		for _, v := range []string{line.FromCellID, line.FromLoadUnitID, line.ToCellID, line.ToLoadUnitID, line.GoodID} {
+			if v != "" && !isUUID(v) {
+				return repository.Applied{}, ErrInvalidPayload
+			}
+		}
+
+		if line.LoadUnitID != "" {
+			// ГЕ целиком: товарные поля и источник у такой строки — противоречие, а не подсказка.
+			if !isUUID(line.LoadUnitID) {
+				return repository.Applied{}, ErrInvalidLoadUnitID
+			}
+			if line.GoodID != "" || ln.ProductionDate != "" || !ln.Qty.IsZero() ||
+				line.FromCellID != "" || line.FromLoadUnitID != "" || line.ToLoadUnitID != "" {
+				return repository.Applied{}, ErrInvalidPayload
+			}
+			if line.ToCellID == "" {
+				return repository.Applied{}, ErrEmptyCell
+			}
+			in.Lines = append(in.Lines, line)
+			continue
+		}
+
+		if line.GoodID == "" {
+			return repository.Applied{}, ErrEmptyGoodID
+		}
+		if (line.FromCellID == "") == (line.FromLoadUnitID == "") ||
+			(line.ToCellID == "") == (line.ToLoadUnitID == "") {
+			return repository.Applied{}, repository.ErrEmptyMovementLine
+		}
+		if !ln.Qty.IsPositive() {
+			return repository.Applied{}, ErrInvalidQuantity
+		}
+		iso, err := parseEntryDate(ln.ProductionDate)
+		if err != nil {
+			return repository.Applied{}, err
+		}
+		line.ProductionDate = iso
+		in.Lines = append(in.Lines, line)
+	}
+	return s.repo.MovementSubmit(ctx, id, in)
+}

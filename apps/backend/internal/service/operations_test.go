@@ -17,6 +17,7 @@ type fakeOpsRepo struct {
 	unbinds  []string
 	receipts []repository.ReceiptSubmitInput
 	putaways []repository.PutawaySubmitInput
+	moves    []repository.MovementSubmitInput
 	bindErr  error // ошибка, которую вернуть на привязку
 	failWith error // временная ошибка (прерывает батч)
 }
@@ -91,6 +92,15 @@ func (f *fakeOpsRepo) PutawaySubmit(_ context.Context, operationID string, in re
 	}
 	f.seen[operationID] = true
 	f.putaways = append(f.putaways, in)
+	return repository.Applied{Result: json.RawMessage(`{}`)}, nil
+}
+
+func (f *fakeOpsRepo) MovementSubmit(_ context.Context, operationID string, in repository.MovementSubmitInput) (repository.Applied, error) {
+	if f.seen[operationID] {
+		return repository.Applied{Result: json.RawMessage(`{}`), Duplicate: true}, nil
+	}
+	f.seen[operationID] = true
+	f.moves = append(f.moves, in)
 	return repository.Applied{Result: json.RawMessage(`{}`)}, nil
 }
 
@@ -389,5 +399,89 @@ func TestOperations_putawaySubmitValidation(t *testing.T) {
 	}
 	if got.Lines[0].LoadUnitID != box || got.Lines[1].ProductionDate != "2026-09-01" || got.Lines[1].ToCellID != cell {
 		t.Fatalf("строки размещения: %+v", got.Lines)
+	}
+}
+
+// Движение (P6-03): ошибки формы отсекаются до репозитория и приходят отказом по существу.
+func TestOperations_movementSubmitValidation(t *testing.T) {
+	const (
+		movement  = "66666666-6666-4666-8666-666666666667"
+		warehouse = "44444444-4444-4444-8444-444444444444"
+		good      = "55555555-5555-4555-8555-555555555555"
+		box       = "77777777-7777-4777-8777-777777777777"
+		box2      = "77777777-7777-4777-8777-777777777778"
+		cell      = "88888888-8888-4888-8888-888888888888"
+		cell2     = "88888888-8888-4888-8888-888888888889"
+	)
+	goods := func(over map[string]any) map[string]any {
+		l := map[string]any{"good_id": good, "production_date": "01-09-2026", "qty": 2,
+			"from_load_unit_id": box, "to_cell_id": cell}
+		for k, v := range over {
+			if v == nil {
+				delete(l, k)
+			} else {
+				l[k] = v
+			}
+		}
+		return l
+	}
+	luLine := map[string]any{"load_unit_id": box, "to_cell_id": cell}
+	doc := func(lines ...any) map[string]any {
+		return map[string]any{"movement_id": movement, "movement_kind": "move", "warehouse_id": warehouse, "lines": lines}
+	}
+	cases := []struct {
+		name    string
+		payload map[string]any
+	}{
+		{"id документа не UUID", map[string]any{"movement_id": "x", "movement_kind": "move", "warehouse_id": warehouse, "lines": []any{luLine}}},
+		{"нет склада", map[string]any{"movement_id": movement, "movement_kind": "move", "lines": []any{luLine}}},
+		{"пустой документ", map[string]any{"movement_id": movement, "movement_kind": "move", "warehouse_id": warehouse}},
+		{"ГЕ без ячейки назначения", doc(map[string]any{"load_unit_id": box})},
+		{"ГЕ не UUID", doc(map[string]any{"load_unit_id": "CWLU1:x", "to_cell_id": cell})},
+		// Строка — ГЕ ИЛИ товар: товарные поля и источник у ГЕ целиком — противоречие.
+		{"ГЕ с товаром", doc(map[string]any{"load_unit_id": box, "good_id": good, "to_cell_id": cell})},
+		{"ГЕ с источником", doc(map[string]any{"load_unit_id": box, "from_cell_id": cell2, "to_cell_id": cell})},
+		{"ГЕ в короб", doc(map[string]any{"load_unit_id": box, "to_load_unit_id": box2})},
+		{"ни ГЕ, ни товара", doc(map[string]any{"to_cell_id": cell})},
+		// У товара ровно один источник и один приёмник.
+		{"товар без источника", doc(goods(map[string]any{"from_load_unit_id": nil}))},
+		{"товар с двумя источниками", doc(goods(map[string]any{"from_cell_id": cell2}))},
+		{"товар без приёмника", doc(goods(map[string]any{"to_cell_id": nil}))},
+		{"товар с двумя приёмниками", doc(goods(map[string]any{"to_load_unit_id": box2}))},
+		{"ячейка не UUID", doc(goods(map[string]any{"to_cell_id": "M1-1-1-1"}))},
+		{"нулевое количество", doc(goods(map[string]any{"qty": 0}))},
+		{"неверная дата", doc(goods(map[string]any{"production_date": "2026-09-01"}))},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := newFakeOpsRepo()
+			res, err := NewOperationsService(repo).Apply(context.Background(), opUserID,
+				[]Operation{op(opID1, repository.KindMovementSubmit, tc.payload)})
+			if err != nil {
+				t.Fatalf("Apply: %v", err)
+			}
+			if res[0].Status != StatusRejected {
+				t.Fatalf("ждали rejected, получили %q", res[0].Status)
+			}
+			if len(repo.moves) != 0 {
+				t.Fatal("неверное движение дошло до репозитория")
+			}
+		})
+	}
+
+	// Верный документ доходит до репозитория с автором из токена, видом и датой в ISO.
+	repo := newFakeOpsRepo()
+	res, err := NewOperationsService(repo).Apply(context.Background(), opUserID, []Operation{
+		op(opID2, repository.KindMovementSubmit, doc(luLine, goods(map[string]any{"to_cell_id": nil, "to_load_unit_id": box2}))),
+	})
+	if err != nil || res[0].Status != StatusAccepted {
+		t.Fatalf("верное движение: err=%v, исход %+v", err, res)
+	}
+	got := repo.moves[0]
+	if got.CreatedBy != opUserID || got.Kind != "move" || len(got.Lines) != 2 {
+		t.Fatalf("разбор движения: %+v", got)
+	}
+	if g := got.Lines[1]; g.FromLoadUnitID != box || g.ToLoadUnitID != box2 || g.ProductionDate != "2026-09-01" {
+		t.Fatalf("строка товара: %+v", g)
 	}
 }

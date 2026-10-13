@@ -220,3 +220,122 @@ func TestMove_rejections(t *testing.T) {
 		t.Error("отклонённые документы сдвинули короб")
 	}
 }
+
+// Тесты P6-03: ветка товара. Источник и приёмник — россыпь ячейки или короб в любых сочетаниях.
+
+// goodsLine — строка товара фикстуры партии 01.01 с одним источником и одним приёмником.
+func (mf *moveFixture) goodsLine(qty int64, fromCell, fromLU, toCell, toLU string) repository.MovementLineInput {
+	return repository.MovementLineInput{
+		GoodID: mf.good, ProductionDate: "2026-01-01", Qty: decimal.NewFromInt(qty),
+		FromCellID: fromCell, FromLoadUnitID: fromLU, ToCellID: toCell, ToLoadUnitID: toLU,
+	}
+}
+
+// luQty — количество товара фикстуры партии 01.01 в коробе.
+func (mf *moveFixture) luQty(t *testing.T, lu string) string {
+	t.Helper()
+	var q string
+	mustScan(t, mf.pool, `SELECT COALESCE((SELECT qty::text FROM lu_content
+		WHERE load_unit_id = $1::uuid AND good_id = $2::uuid AND batch_id = $3::uuid), 'нет')`, &q, lu, mf.good, mf.batch)
+	return q
+}
+
+// twoBoxes оприходует два короба по 12 и россыпь 5 в A и переносит второй короб в B.
+func (mf *moveFixture) twoBoxes(t *testing.T) (boxA, boxB string) {
+	t.Helper()
+	boxA, boxB = newLU(t, mf.stockFixture, model.LoadUnitBox), newLU(t, mf.stockFixture, model.LoadUnitBox)
+	mf.receive(t, []string{boxA, boxB}, 5)
+	if _, err := mf.move(t, uuid.NewString(), luTo(boxB, mf.cellB)); err != nil {
+		t.Fatalf("перенести второй короб в B: %v", err)
+	}
+	return boxA, boxB
+}
+
+// Все четыре сочетания одним документом: остаток ячеек и состав коробов сходятся после каждой
+// строки; движение внутри ячейки меняет состав короба, но не остаток ячейки.
+func TestMove_goodsAllCombinations(t *testing.T) {
+	mf := setupMove(t)
+	boxA, boxB := mf.twoBoxes(t) // A: короб 12 + россыпь 5 = 17; B: короб 12
+
+	mv := uuid.NewString()
+	if _, err := mf.move(t, mv,
+		mf.goodsLine(2, "", boxA, "", boxB),         // короб → короб другой ячейки
+		mf.goodsLine(1, "", boxA, mf.cellA, ""),     // короб → россыпь той же ячейки
+		mf.goodsLine(3, mf.cellA, "", "", boxA),     // россыпь → короб той же ячейки
+		mf.goodsLine(3, mf.cellA, "", mf.cellB, ""), // россыпь → россыпь другой ячейки
+	); err != nil {
+		t.Fatalf("движение товара: %v", err)
+	}
+
+	if a, b := mf.qtyOf(t, mf.cellA, mf.batch), mf.qtyOf(t, mf.cellB, mf.batch); a != "12" || b != "17" {
+		t.Errorf("остаток A=%s B=%s, ожидалось 12 и 17", a, b)
+	}
+	if ba, bb := mf.luQty(t, boxA), mf.luQty(t, boxB); ba != "12.000" || bb != "14.000" {
+		t.Errorf("состав коробов A=%s B=%s, ожидалось 12 и 14", ba, bb)
+	}
+	var lines string
+	mustScan(t, mf.pool, `SELECT string_agg(cf.address || (CASE WHEN l.from_load_unit_id IS NULL THEN '' ELSE '[]' END)
+		|| '>' || ct.address || (CASE WHEN l.to_load_unit_id IS NULL THEN '' ELSE '[]' END), ' ' ORDER BY l.line_no)
+		FROM movement_lines l JOIN cells cf ON cf.id = l.from_cell_id JOIN cells ct ON ct.id = l.to_cell_id
+		WHERE l.movement_id = $1::uuid`, &lines, mv)
+	if lines != "A[]>B[] A[]>A A>A[] A>B" {
+		t.Errorf("строки документа: %s", lines)
+	}
+}
+
+// Пополнение двигает товар той же механикой: строка товара проходит и в документе пополнения.
+func TestMove_replenishMovesGoods(t *testing.T) {
+	mf := setupMove(t)
+	_, boxB := mf.twoBoxes(t)
+
+	_, err := repository.MovementSubmitForTest(context.Background(), mf.pool, repository.MovementSubmitInput{
+		MovementID: uuid.NewString(), Kind: model.MovementReplenish, WarehouseID: mf.wh, CreatedBy: mf.user,
+		Lines: []repository.MovementLineInput{mf.goodsLine(4, "", boxB, mf.cellC, "")},
+	})
+	if err != nil {
+		t.Fatalf("пополнение: %v", err)
+	}
+	if b, c, box := mf.qtyOf(t, mf.cellB, mf.batch), mf.qtyOf(t, mf.cellC, mf.batch), mf.luQty(t, boxB); b != "8" || c != "4" || box != "8.000" {
+		t.Errorf("B=%s C=%s короб=%s, ожидалось 8 / 4 / 8", b, c, box)
+	}
+}
+
+// Источник проверяется под блокировкой: из короба — не больше его состава, из россыпи — не
+// больше остатка ячейки за вычетом её коробов, несуществующей партии в источнике нет.
+func TestMove_goodsRejections(t *testing.T) {
+	mf := setupMove(t)
+	boxA, boxB := mf.twoBoxes(t)
+	unplaced := newLU(t, mf.stockFixture, model.LoadUnitBox)
+
+	unknownBatch := mf.goodsLine(1, mf.cellA, "", mf.cellB, "")
+	unknownBatch.ProductionDate = "2020-01-01"
+	both := mf.goodsLine(1, mf.cellA, boxA, mf.cellB, "")
+	zero := mf.goodsLine(1, mf.cellA, "", mf.cellB, "")
+	zero.Qty = decimal.Zero
+
+	cases := []struct {
+		name string
+		line repository.MovementLineInput
+		want error
+	}{
+		{"из короба больше состава", mf.goodsLine(13, "", boxA, mf.cellB, ""), repository.ErrGoodsShort},
+		{"россыпи меньше, чем просят", mf.goodsLine(6, mf.cellA, "", mf.cellB, ""), repository.ErrGoodsShort},
+		{"россыпь там, где только короб", mf.goodsLine(1, mf.cellB, "", mf.cellC, ""), repository.ErrGoodsShort},
+		{"партии нет", unknownBatch, repository.ErrGoodsShort},
+		{"россыпь туда же", mf.goodsLine(1, mf.cellA, "", mf.cellA, ""), repository.ErrSamePlace},
+		{"короб в себя же", mf.goodsLine(1, "", boxB, "", boxB), repository.ErrSamePlace},
+		{"короб не на складе", mf.goodsLine(1, mf.cellA, "", "", unplaced), repository.ErrLoadUnitNotPlaced},
+		{"два источника", both, repository.ErrEmptyMovementLine},
+		{"нулевое количество", zero, repository.ErrMovementQty},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := mf.move(t, uuid.NewString(), tc.line); !errors.Is(err, tc.want) {
+				t.Errorf("получено %v, ожидалась %v", err, tc.want)
+			}
+		})
+	}
+	if a, b, ba := mf.qtyOf(t, mf.cellA, mf.batch), mf.qtyOf(t, mf.cellB, mf.batch), mf.luQty(t, boxA); a != "17" || b != "12" || ba != "12.000" {
+		t.Errorf("отклонённые документы сдвинули товар: A=%s B=%s короб=%s", a, b, ba)
+	}
+}

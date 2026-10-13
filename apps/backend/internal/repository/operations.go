@@ -29,6 +29,9 @@ const (
 
 	// Размещение целиком: сеанс разноса коробов и россыпи по ячейкам — одна операция (P5-02).
 	KindPutawaySubmit = "putaway_submit"
+
+	// Движение целиком: документ перемещения или пополнения — одна операция (P6-03).
+	KindMovementSubmit = "movement_submit"
 )
 
 // Ошибки применения приёмки из очереди (P4-09).
@@ -209,6 +212,20 @@ func (r *OperationsRepository) PutawaySubmit(ctx context.Context, operationID st
 			return nil, err
 		}
 		return jsonResult(map[string]any{"putaway_id": in.PutawayID, "placed": placed})
+	})
+	return applied, missingReference(err)
+}
+
+// MovementSubmit проводит документ движения (перемещение или пополнение) целиком — в одной
+// транзакции с пометкой операции (P6-03). Повтор той же операции отдаёт ответ первой попытки;
+// тот же документ другой операцией упирается в первичный ключ и даёт ErrMovementPosted.
+func (r *OperationsRepository) MovementSubmit(ctx context.Context, operationID string, in MovementSubmitInput) (Applied, error) {
+	applied, err := r.inTx(ctx, operationID, KindMovementSubmit, func(q Querier) (json.RawMessage, error) {
+		lines, err := movementSubmit(ctx, q, in)
+		if err != nil {
+			return nil, err
+		}
+		return jsonResult(map[string]any{"movement_id": in.MovementID, "lines": lines})
 	})
 	return applied, missingReference(err)
 }
