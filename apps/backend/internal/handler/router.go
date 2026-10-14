@@ -37,7 +37,9 @@ type Services struct {
 	Receipt    *service.ReceiptService
 	LoadUnit   *service.LoadUnitService
 	Task       *service.TaskService
-	Contents   *service.ContentsService
+	// MovementHistory — история перемещений на ТСД (ADHOC-28).
+	MovementHistory *service.MovementHistoryService
+	Contents        *service.ContentsService
 }
 
 // NewRouter собирает HTTP-роутер сервиса: общие middleware + маршруты.
@@ -192,6 +194,19 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 				r.Get("/tasks/{id}", taskH.Get)              // карточка с заходами
 				r.Post("/tasks/{id}/take", taskH.Take)       // взять в работу
 				r.Post("/tasks/{id}/release", taskH.Release) // отказаться
+			})
+		}
+
+		// История перемещений (ADHOC-28) — сотруднику: лента «Завершённые» в разделе
+		// «Перемещение», перемещения всего склада. Только онлайн, только чтение: проводит
+		// перемещение операция очереди movement_submit.
+		if svc.MovementHistory != nil {
+			mhH := NewMovementHistoryHandler(svc.MovementHistory)
+			r.Group(func(r chi.Router) {
+				r.Use(appmw.Authenticator(tokens))
+				r.Get("/movements", mhH.List)                // лента, свежие сверху
+				r.Get("/movements/executors", mhH.Executors) // варианты фильтра по исполнителю
+				r.Get("/movements/{id}", mhH.Get)            // запись со строками
 			})
 		}
 

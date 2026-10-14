@@ -10,6 +10,7 @@ import '../../features/debug/presentation/pages/printer_probe_page.dart';
 import '../../features/debug/presentation/pages/scanner_probe_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/movement/presentation/pages/movement_page.dart';
+import '../../features/movement/presentation/pages/movement_record_page.dart';
 import '../../features/putaway/presentation/pages/putaway_page.dart';
 import '../../features/receipt/presentation/bloc/receipt_cubit.dart'; // ReceiptCubit — аргумент ReceiptBoxRoute
 import '../../features/receipt/presentation/pages/receipt_box_page.dart';
@@ -56,6 +57,8 @@ class AppRouter extends RootStackRouter {
     AutoRoute(page: TaskDetailRoute.page, guards: [_authGuard]),
     // Перемещение (P6-04): сеанс «взял → положил» с черновиком на терминале.
     AutoRoute(page: MovementRoute.page, guards: [_authGuard]),
+    // Запись истории перемещений (ADHOC-28): что, откуда и куда — только онлайн.
+    AutoRoute(page: MovementRecordRoute.page, guards: [_authGuard]),
     // Выполнение задания на размещение (P5-03).
     AutoRoute(page: PutawayRoute.page, guards: [_authGuard]),
     // Содержимое ячейки и короба по скану (P5-05).

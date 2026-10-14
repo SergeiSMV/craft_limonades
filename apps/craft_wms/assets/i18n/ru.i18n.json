@@ -600,7 +600,17 @@
     "outcome_posted": "Перемещение проведено",
     "outcome_queued": "Нет связи — перемещение уйдёт само, как только появится сеть",
     "outcome_rejected": "Сервер отклонил перемещение: ${reason}",
-    "outcome_done": "Готово"
+    "outcome_done": "Готово",
+    "tab_new": "Новое",
+    "tab_completed": "Завершённые",
+    "kind_move": "Перемещение",
+    "kind_replenish": "Пополнение",
+    "history_summary": "коробов: ${boxes} · строк товара: ${goods}",
+    "history_empty": "Перемещений пока нет",
+    "history_online_only": "История перемещений доступна только при связи",
+    "history_load_failed": "Не удалось загрузить историю перемещений",
+    "record_meta": "${name} · ${time}",
+    "record_lines": "Что перемещено"
   },
   "tasks": {
     "title": "Задания",

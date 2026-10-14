@@ -13,12 +13,14 @@ import 'task_format.dart';
 /// Открыть лист фильтра заданий. Возвращает выбранный фильтр или null, если лист закрыли.
 ///
 /// [kindOnly] — только вид задания: так фильтруются «Текущие» (период и исполнитель им
-/// пока не нужны — задание текущее, пока его не выполнили).
+/// пока не нужны — задание текущее, пока его не выполнили). [showKind] = false — без вида:
+/// так лист служит истории перемещений (ADHOC-28), где видов заданий нет.
 Future<CompletedFilter?> showTasksFilterSheet(
   BuildContext context, {
   required CompletedFilter current,
   List<TaskUser> executors = const [],
   bool kindOnly = false,
+  bool showKind = true,
 }) => showModalBottomSheet<CompletedFilter>(
   backgroundColor: AppColors.kNeumorphicBg,
   context: context,
@@ -27,6 +29,7 @@ Future<CompletedFilter?> showTasksFilterSheet(
     current: current,
     executors: executors,
     kindOnly: kindOnly,
+    showKind: showKind,
   ),
 );
 
@@ -38,11 +41,13 @@ class _TasksFilterSheet extends StatefulWidget {
     required this.current,
     required this.executors,
     required this.kindOnly,
+    required this.showKind,
   });
 
   final CompletedFilter current;
   final List<TaskUser> executors;
   final bool kindOnly;
+  final bool showKind;
 
   @override
   State<_TasksFilterSheet> createState() => _TasksFilterSheetState();
@@ -173,17 +178,19 @@ class _TasksFilterSheetState extends State<_TasksFilterSheet> {
               ),
               AppBoxes.kHeight8,
             ],
-            Text(t.tasks.filterKind, style: label),
-            DropdownButton<String?>(
-              isExpanded: true,
-              value: _draft.kind,
-              items: [
-                DropdownMenuItem(value: null, child: Text(t.tasks.filterAll)),
-                for (final k in TaskKind.all)
-                  DropdownMenuItem(value: k, child: Text(taskKindLabel(k))),
-              ],
-              onChanged: setKind,
-            ),
+            if (widget.showKind) ...[
+              Text(t.tasks.filterKind, style: label),
+              DropdownButton<String?>(
+                isExpanded: true,
+                value: _draft.kind,
+                items: [
+                  DropdownMenuItem(value: null, child: Text(t.tasks.filterAll)),
+                  for (final k in TaskKind.all)
+                    DropdownMenuItem(value: k, child: Text(taskKindLabel(k))),
+                ],
+                onChanged: setKind,
+              ),
+            ],
             AppBoxes.kHeight16,
             Row(
               children: [
