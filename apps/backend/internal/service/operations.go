@@ -348,7 +348,7 @@ func isRejection(err error) bool {
 		errors.Is(err, repository.ErrMovementPosted) ||
 		errors.Is(err, repository.ErrEmptyMovement) ||
 		errors.Is(err, repository.ErrUnknownMovementKind) ||
-		errors.Is(err, repository.ErrLoadUnitNotMoved) ||
+		errors.Is(err, repository.ErrReceivingCell) ||
 		errors.Is(err, repository.ErrEmptyMovementLine) ||
 		errors.Is(err, repository.ErrSameCell) ||
 		errors.Is(err, repository.ErrSamePlace) ||
