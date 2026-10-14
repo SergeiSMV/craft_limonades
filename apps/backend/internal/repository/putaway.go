@@ -190,7 +190,7 @@ type putawayLineRow struct {
 // putawayLoadUnit переносит короб задания целиком в ячейку хранения — общей функцией переноса
 // ГЕ (P6-02) с источником «размещение» и ссылкой на сеанс.
 func putawayLoadUnit(ctx context.Context, q Querier, in PutawaySubmitInput, ln PutawayLineInput, iwh string) (putawayLineRow, error) {
-	from, err := transferLoadUnit(ctx, q, loadUnitTransfer{
+	from, _, err := transferLoadUnit(ctx, q, loadUnitTransfer{
 		LoadUnitID:          ln.LoadUnitID,
 		ToCellID:            ln.ToCellID,
 		WarehouseID:         in.WarehouseID,
