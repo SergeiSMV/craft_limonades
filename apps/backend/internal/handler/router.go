@@ -39,7 +39,9 @@ type Services struct {
 	Task       *service.TaskService
 	// MovementHistory — история перемещений на ТСД (ADHOC-28).
 	MovementHistory *service.MovementHistoryService
-	Contents        *service.ContentsService
+	// InternalWarehouse — справочник внутренних складов для ТСД (P6-07-1).
+	InternalWarehouse *service.InternalWarehouseService
+	Contents          *service.ContentsService
 }
 
 // NewRouter собирает HTTP-роутер сервиса: общие middleware + маршруты.
@@ -207,6 +209,16 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 				r.Get("/movements", mhH.List)                // лента, свежие сверху
 				r.Get("/movements/executors", mhH.Executors) // варианты фильтра по исполнителю
 				r.Get("/movements/{id}", mhH.Get)            // запись со строками
+			})
+		}
+
+		// Внутренние склады (P6-07-1) — сотруднику: ТСД выбирает, каким складом пометить короб
+		// или товар («Брак», «Изолятор» …). Пометка — операция очереди problem_submit.
+		if svc.InternalWarehouse != nil {
+			iwH := NewInternalWarehouseHandler(svc.InternalWarehouse)
+			r.Group(func(r chi.Router) {
+				r.Use(appmw.Authenticator(tokens))
+				r.Get("/internal-warehouses", iwH.List) // действующие, по умолчанию первым
 			})
 		}
 

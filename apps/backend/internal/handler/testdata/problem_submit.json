@@ -1,0 +1,31 @@
+{
+  "operations": [
+    {
+      "operation_id": "7e000000-0000-4000-8000-0000000000f1",
+      "kind": "problem_submit",
+      "payload": {
+        "problem_id": "7e000000-0000-4000-8000-000000000001",
+        "warehouse_id": "7e000000-0000-4000-8000-0000000000a1",
+        "good_id": "7e000000-0000-4000-8000-0000000000c1",
+        "production_date": "01-09-2026",
+        "qty": 2,
+        "cell_id": "7e000000-0000-4000-8000-0000000000a2",
+        "to_internal_warehouse_id": "DEFECT",
+        "reason": "breakage",
+        "comment": "разбита при снятии с полки"
+      }
+    },
+    {
+      "operation_id": "7e000000-0000-4000-8000-0000000000f2",
+      "kind": "problem_submit",
+      "payload": {
+        "problem_id": "7e000000-0000-4000-8000-000000000002",
+        "warehouse_id": "7e000000-0000-4000-8000-0000000000a1",
+        "load_unit_id": "7e000000-0000-4000-8000-000000000004",
+        "to_internal_warehouse_id": "ISOLATOR",
+        "reason": "foreign_mark",
+        "mark": "0104600000000015215abcde"
+      }
+    }
+  ]
+}

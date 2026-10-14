@@ -38,6 +38,9 @@ var (
 	// ErrGoodsShort — в источнике меньше товара этой партии, чем просят перенести. Россыпью
 	// считается остаток ячейки за вычетом того, что лежит в её коробах.
 	ErrGoodsShort = errors.New("not enough goods at the source")
+	// ErrWarehouseMismatch — товар кладут в короб другого внутреннего склада (P6-07-1):
+	// короб принадлежит складу целиком, брак в «Основной» короб не кладётся, и наоборот.
+	ErrWarehouseMismatch = errors.New("goods and load unit belong to different internal warehouses")
 	// ErrMovementQty — количество товара в строке не положительное.
 	ErrMovementQty = errors.New("goods quantity must be positive")
 )
@@ -47,9 +50,6 @@ type loadUnitTransfer struct {
 	LoadUnitID  string
 	ToCellID    string
 	WarehouseID string // склад документа: обе ячейки обязаны принадлежать ему
-	// Учётная принадлежность состава. Короба на складе лежат в «Основном» — приёмка и
-	// размещение кладут туда (уточнение ADR-0016); брак коробом не изолируется.
-	InternalWarehouseID string
 
 	// Для журнала размещений: кто и каким документом перенёс.
 	Source     string
@@ -76,11 +76,15 @@ func transferLoadUnit(ctx context.Context, q Querier, in loadUnitTransfer) (stri
 	var from *string
 	var parent *string
 	var hasChildren bool
+	// Учётная принадлежность состава — склад короба (P6-07-1): короб «Брака» переезжает
+	// «Браком», его остаток едет строкой «Брака».
+	var iwh string
 	err := q.QueryRow(ctx, `
 		SELECT cell_id::text, parent_id::text,
-		       EXISTS (SELECT 1 FROM load_units c WHERE c.parent_id = lu.id)
+		       EXISTS (SELECT 1 FROM load_units c WHERE c.parent_id = lu.id),
+		       internal_warehouse_id::text
 		FROM load_units lu WHERE id = $1::uuid FOR UPDATE`, in.LoadUnitID).
-		Scan(&from, &parent, &hasChildren)
+		Scan(&from, &parent, &hasChildren, &iwh)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", nil, ErrLoadUnitNotFound
 	}
@@ -111,8 +115,8 @@ func transferLoadUnit(ctx context.Context, q Querier, in loadUnitTransfer) (stri
 	}
 	for _, c := range items {
 		if err := transferStock(ctx, q,
-			model.StockKey{CellID: *from, GoodID: c.good, BatchID: c.batch, InternalWarehouseID: in.InternalWarehouseID},
-			model.StockKey{CellID: in.ToCellID, GoodID: c.good, BatchID: c.batch, InternalWarehouseID: in.InternalWarehouseID},
+			model.StockKey{CellID: *from, GoodID: c.good, BatchID: c.batch, InternalWarehouseID: iwh},
+			model.StockKey{CellID: in.ToCellID, GoodID: c.good, BatchID: c.batch, InternalWarehouseID: iwh},
 			c.qty); err != nil {
 			return "", nil, err
 		}
@@ -180,6 +184,9 @@ type MovementLineInput struct {
 	FromCellID     string
 	FromLoadUnitID string
 	ToLoadUnitID   string
+	// InternalWarehouseID — склад россыпи-источника (P6-07-1); пусто — склад по умолчанию.
+	// У товара из короба склад — склад короба, поле должно быть пусто или совпадать.
+	InternalWarehouseID string
 
 	ToCellID string
 }
@@ -237,7 +244,7 @@ func movementSubmit(ctx context.Context, q Querier, in MovementSubmitInput) (int
 		var step []movement.Move
 		var err error
 		if ln.LoadUnitID != "" {
-			step, err = movementLoadUnit(ctx, q, in, i+1, ln, iwh)
+			step, err = movementLoadUnit(ctx, q, in, i+1, ln)
 		} else {
 			step, err = movementGoods(ctx, q, in, i+1, ln, iwh)
 		}
@@ -260,7 +267,7 @@ func movementSubmit(ctx context.Context, q Querier, in MovementSubmitInput) (int
 //
 // Возвращает состав короба товарными движениями «откуда → куда»: именно он переехал на этом
 // шаге, даже если дальше в документе в короб доложат или из него возьмут.
-func movementLoadUnit(ctx context.Context, q Querier, in MovementSubmitInput, lineNo int, ln MovementLineInput, iwh string) ([]movement.Move, error) {
+func movementLoadUnit(ctx context.Context, q Querier, in MovementSubmitInput, lineNo int, ln MovementLineInput) ([]movement.Move, error) {
 	if ln.ToCellID == "" {
 		return nil, ErrEmptyMovementLine
 	}
@@ -268,13 +275,12 @@ func movementLoadUnit(ctx context.Context, q Querier, in MovementSubmitInput, li
 		return nil, err
 	}
 	from, items, err := transferLoadUnit(ctx, q, loadUnitTransfer{
-		LoadUnitID:          ln.LoadUnitID,
-		ToCellID:            ln.ToCellID,
-		WarehouseID:         in.WarehouseID,
-		InternalWarehouseID: iwh,
-		Source:              model.PlacementMove,
-		UserID:              in.CreatedBy,
-		MovementID:          &in.MovementID,
+		LoadUnitID:  ln.LoadUnitID,
+		ToCellID:    ln.ToCellID,
+		WarehouseID: in.WarehouseID,
+		Source:      model.PlacementMove,
+		UserID:      in.CreatedBy,
+		MovementID:  &in.MovementID,
 	})
 	if err != nil {
 		return nil, err
@@ -303,13 +309,18 @@ func movementLoadUnit(ctx context.Context, q Querier, in MovementSubmitInput, li
 //
 //	сочетаниях. Так устроены и перемещение товара, и пополнение (решение 2026-10-13).
 //
+// Склад (P6-07-1): товар едет строкой своего внутреннего склада — из короба это склад короба,
+//
+//	из россыпи — склад строки (ln.InternalWarehouseID, пусто — по умолчанию, defIwh). В короб
+//	кладётся только товар того же склада: короб «Основного» не принимает брак, и наоборот.
+//
 // Как: короба блокируются по порядку идентификаторов — два документа с теми же коробами
 //
 //	не сцепятся намертво; ячейка короба — его текущее место. Наличие проверяется под
 //	блокировкой: россыпь — строка остатка минус её короба, короб — строка состава. Состав
 //	коробов меняется прямо, остаток ячеек — общими примитивами stock и только между разными
 //	ячейками: из короба в россыпь той же ячейки остаток ячейки не меняется.
-func movementGoods(ctx context.Context, q Querier, in MovementSubmitInput, lineNo int, ln MovementLineInput, iwh string) ([]movement.Move, error) {
+func movementGoods(ctx context.Context, q Querier, in MovementSubmitInput, lineNo int, ln MovementLineInput, defIwh string) ([]movement.Move, error) {
 	// Источник и приёмник — ровно по одному: ячейка (россыпь) или короб.
 	if ln.GoodID == "" ||
 		(ln.FromCellID == "") == (ln.FromLoadUnitID == "") ||
@@ -324,16 +335,28 @@ func movementGoods(ctx context.Context, q Querier, in MovementSubmitInput, lineN
 		return nil, err
 	}
 
-	cells, err := lockPlacedLoadUnits(ctx, q, ln.FromLoadUnitID, ln.ToLoadUnitID)
+	boxes, err := lockPlacedLoadUnits(ctx, q, ln.FromLoadUnitID, ln.ToLoadUnitID)
 	if err != nil {
 		return nil, err
 	}
 	fromCell, toCell := ln.FromCellID, ln.ToCellID
+	iwh := ln.InternalWarehouseID
+	if iwh == "" {
+		iwh = defIwh
+	}
 	if ln.FromLoadUnitID != "" {
-		fromCell = cells[ln.FromLoadUnitID]
+		box := boxes[ln.FromLoadUnitID]
+		if ln.InternalWarehouseID != "" && ln.InternalWarehouseID != box.iwh {
+			return nil, ErrWarehouseMismatch
+		}
+		fromCell, iwh = box.cell, box.iwh
 	}
 	if ln.ToLoadUnitID != "" {
-		toCell = cells[ln.ToLoadUnitID]
+		box := boxes[ln.ToLoadUnitID]
+		if box.iwh != iwh {
+			return nil, ErrWarehouseMismatch
+		}
+		toCell = box.cell
 	}
 	if fromCell == toCell && ln.FromLoadUnitID == ln.ToLoadUnitID {
 		return nil, ErrSamePlace
@@ -440,9 +463,14 @@ func existingBatch(ctx context.Context, q Querier, goodID, productionDate string
 	return id, nil
 }
 
+// placedLoadUnit — где лежит заблокированный короб и какому внутреннему складу принадлежит.
+type placedLoadUnit struct {
+	cell, iwh string
+}
+
 // lockPlacedLoadUnits блокирует непустые идентификаторы коробов по порядку и возвращает их
-// ячейки. Короб обязан лежать на складе и не быть частью паллеты.
-func lockPlacedLoadUnits(ctx context.Context, q Querier, ids ...string) (map[string]string, error) {
+// ячейки и склады. Короб обязан лежать на складе и не быть частью паллеты.
+func lockPlacedLoadUnits(ctx context.Context, q Querier, ids ...string) (map[string]placedLoadUnit, error) {
 	var want []string
 	for _, id := range ids {
 		if id != "" && !slices.Contains(want, id) {
@@ -450,14 +478,16 @@ func lockPlacedLoadUnits(ctx context.Context, q Querier, ids ...string) (map[str
 		}
 	}
 	slices.Sort(want)
-	cells := make(map[string]string, len(want))
+	out := make(map[string]placedLoadUnit, len(want))
 	for _, id := range want {
 		var cell, parent *string
 		var hasChildren bool
+		var iwh string
 		err := q.QueryRow(ctx, `
 			SELECT cell_id::text, parent_id::text,
-			       EXISTS (SELECT 1 FROM load_units c WHERE c.parent_id = lu.id)
-			FROM load_units lu WHERE id = $1::uuid FOR UPDATE`, id).Scan(&cell, &parent, &hasChildren)
+			       EXISTS (SELECT 1 FROM load_units c WHERE c.parent_id = lu.id),
+			       internal_warehouse_id::text
+			FROM load_units lu WHERE id = $1::uuid FOR UPDATE`, id).Scan(&cell, &parent, &hasChildren, &iwh)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrLoadUnitNotFound
 		}
@@ -470,9 +500,9 @@ func lockPlacedLoadUnits(ctx context.Context, q Querier, ids ...string) (map[str
 		if parent != nil || hasChildren {
 			return nil, ErrLoadUnitNested
 		}
-		cells[id] = *cell
+		out[id] = placedLoadUnit{cell: *cell, iwh: iwh}
 	}
-	return cells, nil
+	return out, nil
 }
 
 // takeFromLoadUnit уменьшает состав короба на qty, если товара этой партии в нём хватает.
@@ -491,9 +521,11 @@ func takeFromLoadUnit(ctx context.Context, q Querier, loadUnitID, goodID, batchI
 	return nil
 }
 
-// looseQty — россыпь товара партии в ячейке: остаток за вычетом того, что лежит в её коробах.
+// looseQty — россыпь товара партии склада iwh в ячейке: остаток этого склада за вычетом того,
+// что лежит в коробах ЭТОГО склада в ячейке. Короб принадлежит складу целиком (P6-07-1): короб
+// «Брака» вычитается из строки «Брака», а не «Основного».
 // Строка остатка блокируется до подсчёта: иначе два документа увидели бы одну и ту же россыпь
-// и вместе забрали бы товар из-под короба. Тот же расчёт, что у россыпи размещения (P5-02).
+// и вместе забрали бы товар из-под короба. Её же считает размещение россыпи (P5-02).
 func looseQty(ctx context.Context, q Querier, cellID, goodID, batchID, iwh string) (decimal.Decimal, error) {
 	var loose decimal.Decimal
 	err := q.QueryRow(ctx, `
@@ -507,7 +539,7 @@ func looseQty(ctx context.Context, q Querier, cellID, goodID, batchID, iwh strin
 		     - COALESCE((SELECT sum(c.qty) FROM lu_content c
 		                 JOIN load_units lu ON lu.id = c.load_unit_id
 		                 WHERE lu.cell_id = $1::uuid AND c.good_id = $2::uuid
-		                   AND c.batch_id = $3::uuid), 0)`,
+		                   AND c.batch_id = $3::uuid AND lu.internal_warehouse_id = $4::uuid), 0)`,
 		cellID, goodID, batchID, iwh).Scan(&loose)
 	if err != nil {
 		return decimal.Zero, fmt.Errorf("посчитать россыпь: %w", err)
