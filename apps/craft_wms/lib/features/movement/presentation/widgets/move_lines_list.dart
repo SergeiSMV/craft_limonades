@@ -12,11 +12,23 @@ import '../../domain/movement_models.dart';
 import 'move_format.dart';
 
 /// «Перемещено в этом сеансе»: что, откуда и куда. Строку можно убрать — перемещено не туда.
+///
+/// Тот же список показывает и запись истории (ADHOC-28): там строки только для чтения
+/// ([onRemove] = null), идут по порядку проведения ([newestFirst] = false) и под своим
+/// заголовком — кладовщик видит историю теми же словами, что и свой сеанс.
 class MoveLinesList extends StatelessWidget {
-  const MoveLinesList({super.key, required this.lines, required this.onRemove});
+  const MoveLinesList({
+    super.key,
+    required this.lines,
+    this.onRemove,
+    this.title,
+    this.newestFirst = true,
+  });
 
   final List<MoveLine> lines;
-  final ValueChanged<MoveLine> onRemove;
+  final ValueChanged<MoveLine>? onRemove;
+  final String? title;
+  final bool newestFirst;
 
   @override
   Widget build(BuildContext context) {
@@ -27,12 +39,12 @@ class MoveLinesList extends StatelessWidget {
       padding: AppInsets.h8,
       children: [
         Text(
-          t.movement.linesSection,
+          title ?? t.movement.linesSection,
           style: SemiboldTextStyles().semiboldInter16,
         ),
         AppBoxes.kHeight8,
         if (lines.isEmpty) Text(t.movement.linesEmpty, style: muted),
-        for (final l in lines.reversed)
+        for (final l in newestFirst ? lines.reversed : lines)
           ListTile(
             contentPadding: EdgeInsets.zero,
             dense: true,
@@ -56,11 +68,13 @@ class MoveLinesList extends StatelessWidget {
               ),
               style: muted,
             ),
-            trailing: IconButton(
-              tooltip: t.movement.removeLine,
-              icon: Icon(MdiIcons.close, size: AppSizes.kIcon18),
-              onPressed: () => onRemove(l),
-            ),
+            trailing: onRemove == null
+                ? null
+                : IconButton(
+                    tooltip: t.movement.removeLine,
+                    icon: Icon(MdiIcons.close, size: AppSizes.kIcon18),
+                    onPressed: () => onRemove!(l),
+                  ),
           ),
       ],
     );

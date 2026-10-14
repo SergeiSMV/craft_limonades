@@ -3,6 +3,7 @@ package handler_test
 import (
 	"context"
 	"encoding/json"
+	"net/http"
 	"strings"
 	"testing"
 
@@ -128,6 +129,52 @@ func applyMovementFixture(t *testing.T, raw []byte, kind string) {
 	}
 	if got != "M1-1-1-1>M1-1-1-2:2 M1-1-1-3>M1-1-1-1:3 M1-1-1-3>M1-1-1-2:12 " {
 		t.Errorf("строки файла: %q", got)
+	}
+
+	// История перемещений (ADHOC-28): запись в ленте со счётом строк, в записи — строки
+	// с коробами по порядку проведения; несуществующая — 404, кривой фильтр — 400.
+	code, body := e.call(t, http.MethodGet, "/api/v1/movements", e.workerToken, "")
+	var feed []map[string]any
+	if code != http.StatusOK || json.Unmarshal(body, &feed) != nil || len(feed) != 1 ||
+		feed[0]["load_units"] != float64(1) || feed[0]["goods"] != float64(2) || feed[0]["kind"] != kind {
+		t.Fatalf("лента истории: %d %s", code, body)
+	}
+	code, body = e.call(t, http.MethodGet, "/api/v1/movements/"+feed[0]["id"].(string), e.workerToken, "")
+	var rec struct {
+		Lines []struct {
+			LoadUnitID *string `json:"load_unit_id"`
+			Good       *struct {
+				Name string `json:"name"`
+			} `json:"good"`
+			ProductionDate string `json:"production_date"`
+			From           struct {
+				CellAddress string  `json:"cell_address"`
+				LoadUnitID  *string `json:"load_unit_id"`
+			} `json:"from"`
+			To struct {
+				CellAddress string  `json:"cell_address"`
+				LoadUnitID  *string `json:"load_unit_id"`
+			} `json:"to"`
+		} `json:"lines"`
+	}
+	if code != http.StatusOK || json.Unmarshal(body, &rec) != nil || len(rec.Lines) != 3 {
+		t.Fatalf("запись истории: %d %s", code, body)
+	}
+	if l := rec.Lines[0]; l.LoadUnitID == nil || *l.LoadUnitID != box1 || l.To.CellAddress != "M1-1-1-2" {
+		t.Errorf("строка короба: %+v", l)
+	}
+	if l := rec.Lines[1]; l.Good == nil || l.Good.Name != "Кальмар" || l.ProductionDate != "01-09-2026" ||
+		l.From.LoadUnitID == nil || *l.From.LoadUnitID != box2 || l.To.LoadUnitID != nil || l.To.CellAddress != "M1-1-1-1" {
+		t.Errorf("строка товара из короба: %+v", l)
+	}
+	if l := rec.Lines[2]; l.To.LoadUnitID == nil || *l.To.LoadUnitID != box1 || l.From.CellAddress != "M1-1-1-1" {
+		t.Errorf("строка товара в короб: %+v", l)
+	}
+	if code, _ := e.call(t, http.MethodGet, "/api/v1/movements/"+uuid.NewString(), e.workerToken, ""); code != http.StatusNotFound {
+		t.Errorf("несуществующая запись: %d", code)
+	}
+	if code, _ := e.call(t, http.MethodGet, "/api/v1/movements?from=вчера", e.workerToken, ""); code != http.StatusBadRequest {
+		t.Errorf("кривой фильтр: %d", code)
 	}
 
 	// Ячейка приёмки С-Н-П движению не источник: документ отклоняется сервером, даже если

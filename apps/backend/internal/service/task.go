@@ -121,42 +121,21 @@ var warehouseZone = func() *time.Location {
 
 // Completed — страница ленты «Завершённые» по фильтру.
 func (s *TaskService) Completed(ctx context.Context, q CompletedQuery) ([]model.CompletedTask, error) {
-	f := model.CompletedTasksFilter{
-		ExecutorID: strings.TrimSpace(q.ExecutorID),
-		Kind:       strings.TrimSpace(q.Kind),
-		BeforeID:   strings.TrimSpace(q.BeforeID),
-		Limit:      q.Limit,
-	}
-	if f.Limit <= 0 {
-		f.Limit = completedDefaultLimit
-	}
-	if f.Limit > completedMaxLimit {
-		f.Limit = completedMaxLimit
-	}
-	if !isOptionalUUID(f.ExecutorID) || !isOptionalUUID(f.BeforeID) {
+	w, err := parseFeedWindow(q.From, q.To, q.BeforeCompletedAt, q.BeforeID, q.Limit,
+		completedDefaultLimit, completedMaxLimit)
+	if err != nil {
 		return nil, ErrInvalidTaskFilter
 	}
-	if v := strings.TrimSpace(q.From); v != "" {
-		d, err := time.ParseInLocation(time.DateOnly, v, warehouseZone)
-		if err != nil {
-			return nil, ErrInvalidTaskFilter
-		}
-		f.From = &d
+	f := model.CompletedTasksFilter{
+		From: w.From, To: w.To,
+		ExecutorID:        strings.TrimSpace(q.ExecutorID),
+		Kind:              strings.TrimSpace(q.Kind),
+		BeforeCompletedAt: w.Before,
+		BeforeID:          w.BeforeID,
+		Limit:             w.Limit,
 	}
-	if v := strings.TrimSpace(q.To); v != "" {
-		d, err := time.ParseInLocation(time.DateOnly, v, warehouseZone)
-		if err != nil {
-			return nil, ErrInvalidTaskFilter
-		}
-		end := d.AddDate(0, 0, 1) // день «по» включается целиком
-		f.To = &end
-	}
-	if v := strings.TrimSpace(q.BeforeCompletedAt); v != "" {
-		t, err := time.Parse(time.RFC3339Nano, v)
-		if err != nil || f.BeforeID == "" {
-			return nil, ErrInvalidTaskFilter
-		}
-		f.BeforeCompletedAt = &t
+	if !isOptionalUUID(f.ExecutorID) {
+		return nil, ErrInvalidTaskFilter
 	}
 	return s.repo.Completed(ctx, f)
 }

@@ -95,6 +95,15 @@ abstract final class ApiConst {
   ///**GET** - карточка задания с заходами: `tasks/{id}`.
   static String taskById(String id) => 'tasks/$id';
 
+  /// История перемещений всего склада (ADHOC-28): лента, курсор и фильтр — query.
+  static const String movements = 'movements';
+
+  /// Варианты фильтра истории перемещений по исполнителю.
+  static const String movementsExecutors = 'movements/executors';
+
+  /// Запись истории перемещений со строками.
+  static String movementById(String id) => 'movements/$id';
+
   ///**POST** - взять задание (204; 409 — у другого или выполнено): `tasks/{id}/take`.
   static String taskTake(String id) => 'tasks/$id/take';
 
