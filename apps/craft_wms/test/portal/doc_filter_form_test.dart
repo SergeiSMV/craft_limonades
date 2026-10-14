@@ -14,6 +14,7 @@ PortalDoc doc(
   String docDate = '',
   String operation = '',
   int taskNumber = 0,
+  String executor = '',
   int lines = 1,
 }) => PortalDoc(
   id: id,
@@ -23,6 +24,7 @@ PortalDoc doc(
   docDate: docDate,
   operation: operation,
   taskNumber: taskNumber,
+  executor: executor,
   warehouseCode: 'SHB',
   warehouseName: 'Шабулина',
   createdAt: DateTime(2026, 10, 9, 19, 5),
@@ -115,6 +117,21 @@ void main() {
       expect(f.document(m), (main: 'Задание № 57', sub: 'Размещение'));
       expect(f.party(m), (main: 'ИП Лапушкин', sub: '№ ТН-1 от 01.10.2026'));
       expect(f.searchText(m), contains('Задание № 57'));
+    });
+
+    // P6-07: перемещение идёт без задания — операция и исполнитель, основания нет.
+    test('перемещение: операция и исполнитель, без основания', () {
+      final f = DocForm.of('movement');
+      final m = doc(
+        'mv',
+        kind: 'movement',
+        operation: 'move',
+        executor: 'Иванов Иван',
+      );
+      expect(f.document(m), (main: 'Перемещение', sub: 'Иванов Иван'));
+      expect(f.party(m), (main: t.portal.movement.noBasis, sub: ''));
+      expect(f.cardTitle(m), 'Перемещение');
+      expect(f.searchText(m), contains('Иванов Иван'));
     });
 
     test('ввод остатков: без колонки контрагента, позиции под названием', () {

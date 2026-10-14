@@ -226,5 +226,22 @@ void main() {
     });
     expect(other.operation, isEmpty);
     expect(other.taskNumber, 0);
+    expect(other.executor, isEmpty);
+  });
+
+  // P6-07: перемещение — без задания, с исполнителем.
+  test('перемещение в строке «Движения»: операция и исполнитель', () {
+    final move = PortalDoc.fromJson({
+      'id': 'd5',
+      'kind': 'movement',
+      'operation': 'move',
+      'task_number': 0,
+      'executor': 'Иванов Иван',
+      'created_at': '2026-10-14T10:00:00Z',
+      'status': 'new',
+    });
+    expect(move.operation, 'move');
+    expect(move.taskNumber, 0);
+    expect(move.executor, 'Иванов Иван');
   });
 }

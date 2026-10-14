@@ -89,3 +89,17 @@ func TestBuildDocumentXLSX_movement(t *testing.T) {
 		t.Fatalf("имя файла: %q", got)
 	}
 }
+
+// Операция в шапке — по-человечески для всех трёх движений; незнакомая — как есть.
+func TestMovementOperationTitle(t *testing.T) {
+	for op, want := range map[string]string{
+		model.MovementOperationPutaway:   "Размещение",
+		model.MovementOperationMove:      "Перемещение",
+		model.MovementOperationReplenish: "Пополнение",
+		"teleport":                       "teleport",
+	} {
+		if got := movementOperationTitle(op); got != want {
+			t.Errorf("%q: %q, ожидалось %q", op, got, want)
+		}
+	}
+}

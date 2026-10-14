@@ -39,8 +39,9 @@ type documentItemResponse struct {
 	Supplier     string  `json:"supplier"`
 	DocNumber    string  `json:"doc_number"`
 	DocDate      string  `json:"doc_date"`    // DD-MM-YYYY
-	Operation    string  `json:"operation"`   // операция «Движения» (`putaway`); пусто — другая форма
+	Operation    string  `json:"operation"`   // операция «Движения» (`putaway`, `move`); пусто — другая форма
 	TaskNumber   int64   `json:"task_number"` // задание-основание «Движения»; 0 — нет
+	Executor     string  `json:"executor"`    // кто выполнил операцию; пусто — неизвестно
 	CreatedAt    string  `json:"created_at"`  // RFC3339
 	LinesCount   int     `json:"lines_count"`
 	Status       string  `json:"status"`
@@ -70,6 +71,7 @@ func (h *DocumentHandler) List(w http.ResponseWriter, r *http.Request) {
 			DocDate:       isoToTransportDate(d.DocDate),
 			Operation:     d.Operation,
 			TaskNumber:    d.TaskNumber,
+			Executor:      d.Executor,
 			CreatedAt:     d.CreatedAt.Format(time.RFC3339),
 			LinesCount:    d.LinesCount,
 			Status:        d.Status,

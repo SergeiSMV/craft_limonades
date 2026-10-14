@@ -110,6 +110,26 @@ func applyMovementFixture(t *testing.T, raw []byte, kind string) {
 		t.Fatalf("вид документа: %q (%v), ожидалось %q", docKind, err, kind)
 	}
 
+	// «Движение» для 1С (P6-07): короб — 12, как переехал (доложенные потом 2 — своей строкой
+	// из M1-1-1-1), товар из второго короба — 3 в M1-1-1-1. Коробов в документе нет.
+	docs := e.movementDocs(t)
+	if len(docs) != 1 || docs[0]["operation"] != kind || docs[0]["executor"] == "" ||
+		docs[0]["task_number"] != float64(0) || docs[0]["lines_count"] != float64(3) {
+		t.Fatalf("«Движение» в портале: %v", docs)
+	}
+	header, rows := e.movementXLSX(t, docs[0]["id"].(string))
+	title := map[string]string{"move": "Перемещение", "replenish": "Пополнение"}[kind]
+	if header["Операция"] != title || header["Задание"] != "" {
+		t.Errorf("шапка файла: %v", header)
+	}
+	got := ""
+	for _, r := range rows {
+		got += r[0] + ">" + r[1] + ":" + r[5] + " "
+	}
+	if got != "M1-1-1-1>M1-1-1-2:2 M1-1-1-3>M1-1-1-1:3 M1-1-1-3>M1-1-1-2:12 " {
+		t.Errorf("строки файла: %q", got)
+	}
+
 	// Ячейка приёмки С-Н-П движению не источник: документ отклоняется сервером, даже если
 	// терминал его прислал: инвариант задания на размещение держит сервер.
 	fromReceiving := jsonf(`{"operations":[{"operation_id":%q,"kind":"movement_submit","payload":{

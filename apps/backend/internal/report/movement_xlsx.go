@@ -21,6 +21,10 @@ func movementOperationTitle(op string) string {
 	switch op {
 	case model.MovementOperationPutaway:
 		return "Размещение"
+	case model.MovementOperationMove:
+		return "Перемещение"
+	case model.MovementOperationReplenish:
+		return "Пополнение"
 	default:
 		return op
 	}

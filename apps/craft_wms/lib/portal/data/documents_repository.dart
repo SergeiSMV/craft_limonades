@@ -66,6 +66,7 @@ class PortalDoc {
     this.docDate = '',
     this.operation = '',
     this.taskNumber = 0,
+    this.executor = '',
     required this.warehouseCode,
     required this.warehouseName,
     required this.createdAt,
@@ -88,11 +89,15 @@ class PortalDoc {
   final String docNumber;
   final String docDate;
 
-  /// Операция «Движения» (`putaway` — размещение); пусто — другая форма.
+  /// Операция «Движения» (`putaway` — размещение, `move` — перемещение); пусто — другая
+  /// форма.
   final String operation;
 
-  /// Номер задания-основания «Движения»; 0 — нет.
+  /// Номер задания-основания «Движения»; 0 — нет (перемещение идёт без задания).
   final int taskNumber;
+
+  /// Кто выполнил операцию — ФИО из документа; пусто — неизвестно.
+  final String executor;
   final String warehouseCode;
   final String warehouseName;
   final DateTime createdAt;
@@ -107,6 +112,7 @@ class PortalDoc {
         docDate: j['doc_date'] as String? ?? '',
         operation: j['operation'] as String? ?? '',
         taskNumber: (j['task_number'] as num?)?.toInt() ?? 0,
+        executor: j['executor'] as String? ?? '',
         warehouseCode: j['warehouse_code'] as String? ?? '',
         warehouseName: j['warehouse_name'] as String? ?? '',
         createdAt: DateTime.parse(j['created_at'] as String),

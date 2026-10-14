@@ -12,6 +12,7 @@ import (
 	"github.com/shopspring/decimal"
 
 	"craftwms/internal/model"
+	"craftwms/internal/movement"
 )
 
 // Ошибки переноса ГЕ и проведения документа движения (P6-02). Все — отказ по существу:
@@ -69,8 +70,9 @@ type loadUnitTransfer struct {
 //
 //	он и есть то, что физически переехало. Остаток двигают общие примитивы stock: через них
 //	проходит любое изменение остатка, и проверку пересчёта (P10) добавят в одном месте.
-//	Возвращает ячейку, откуда ГЕ взяли.
-func transferLoadUnit(ctx context.Context, q Querier, in loadUnitTransfer) (string, error) {
+//	Возвращает ячейку, откуда ГЕ взяли, и состав, который переехал: документ «Движение»
+//	раскладывает короб по составу на момент переноса (P6-07), а не на конец документа.
+func transferLoadUnit(ctx context.Context, q Querier, in loadUnitTransfer) (string, []luStockItem, error) {
 	var from *string
 	var parent *string
 	var hasChildren bool
@@ -80,39 +82,39 @@ func transferLoadUnit(ctx context.Context, q Querier, in loadUnitTransfer) (stri
 		FROM load_units lu WHERE id = $1::uuid FOR UPDATE`, in.LoadUnitID).
 		Scan(&from, &parent, &hasChildren)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", ErrLoadUnitNotFound
+		return "", nil, ErrLoadUnitNotFound
 	}
 	if err != nil {
-		return "", fmt.Errorf("прочитать ГЕ: %w", err)
+		return "", nil, fmt.Errorf("прочитать ГЕ: %w", err)
 	}
 	if from == nil {
-		return "", ErrLoadUnitNotPlaced
+		return "", nil, ErrLoadUnitNotPlaced
 	}
 	// Паллетная логика вне объёма пилота: перенос части дерева разорвал бы место коробов
 	// и их остаток.
 	if parent != nil || hasChildren {
-		return "", ErrLoadUnitNested
+		return "", nil, ErrLoadUnitNested
 	}
 	if *from == in.ToCellID {
-		return "", ErrSameCell
+		return "", nil, ErrSameCell
 	}
 	if err := guardCellOfWarehouse(ctx, q, in.ToCellID, in.WarehouseID); err != nil {
-		return "", err
+		return "", nil, err
 	}
 	if err := guardCellOfWarehouse(ctx, q, *from, in.WarehouseID); err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	items, err := loadUnitStock(ctx, q, in.LoadUnitID)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 	for _, c := range items {
 		if err := transferStock(ctx, q,
 			model.StockKey{CellID: *from, GoodID: c.good, BatchID: c.batch, InternalWarehouseID: in.InternalWarehouseID},
 			model.StockKey{CellID: in.ToCellID, GoodID: c.good, BatchID: c.batch, InternalWarehouseID: in.InternalWarehouseID},
 			c.qty); err != nil {
-			return "", err
+			return "", nil, err
 		}
 	}
 
@@ -124,9 +126,9 @@ func transferLoadUnit(ctx context.Context, q Querier, in loadUnitTransfer) (stri
 		PutawayID:  in.PutawayID,
 		MovementID: in.MovementID,
 	}); err != nil {
-		return "", err
+		return "", nil, err
 	}
-	return *from, nil
+	return *from, items, nil
 }
 
 // luStockItem — позиция состава ГЕ: товар, партия, количество.
@@ -206,6 +208,8 @@ type MovementSubmitInput struct {
 //
 //	документом упирается в первичный ключ и даёт ErrMovementPosted. Одну ГЕ можно перенести
 //	в документе дважды (A → B → C): вторая строка берёт её оттуда, куда положила первая.
+//	Каждая строка отдаёт товарные движения — что и откуда куда переехало на её шаге; по ним
+//	в конце той же транзакции публикуется «Движение» для 1С (P6-07).
 func movementSubmit(ctx context.Context, q Querier, in MovementSubmitInput) (int, error) {
 	if in.Kind != model.MovementMove && in.Kind != model.MovementReplenish {
 		return 0, ErrUnknownMovementKind
@@ -228,16 +232,22 @@ func movementSubmit(ctx context.Context, q Querier, in MovementSubmitInput) (int
 	if err != nil {
 		return 0, err
 	}
+	var moves []movement.Move
 	for i, ln := range in.Lines {
+		var step []movement.Move
 		var err error
 		if ln.LoadUnitID != "" {
-			err = movementLoadUnit(ctx, q, in, i+1, ln, iwh)
+			step, err = movementLoadUnit(ctx, q, in, i+1, ln, iwh)
 		} else {
-			err = movementGoods(ctx, q, in, i+1, ln, iwh)
+			step, err = movementGoods(ctx, q, in, i+1, ln, iwh)
 		}
 		if err != nil {
 			return 0, err
 		}
+		moves = append(moves, step...)
+	}
+	if err := saveMovementDocument(ctx, q, in.MovementID, moves); err != nil {
+		return 0, err
 	}
 	return len(in.Lines), nil
 }
@@ -247,14 +257,17 @@ func movementSubmit(ctx context.Context, q Querier, in MovementSubmitInput) (int
 //
 // Ячейку приёмки приёмник проверяет до переноса, источник — после: где лежит ГЕ, узнаёт
 // transferLoadUnit под блокировкой, а отказ всё равно откатывает перенос вместе с документом.
-func movementLoadUnit(ctx context.Context, q Querier, in MovementSubmitInput, lineNo int, ln MovementLineInput, iwh string) error {
+//
+// Возвращает состав короба товарными движениями «откуда → куда»: именно он переехал на этом
+// шаге, даже если дальше в документе в короб доложат или из него возьмут.
+func movementLoadUnit(ctx context.Context, q Querier, in MovementSubmitInput, lineNo int, ln MovementLineInput, iwh string) ([]movement.Move, error) {
 	if ln.ToCellID == "" {
-		return ErrEmptyMovementLine
+		return nil, ErrEmptyMovementLine
 	}
 	if err := guardNotReceivingCell(ctx, q, ln.ToCellID); err != nil {
-		return err
+		return nil, err
 	}
-	from, err := transferLoadUnit(ctx, q, loadUnitTransfer{
+	from, items, err := transferLoadUnit(ctx, q, loadUnitTransfer{
 		LoadUnitID:          ln.LoadUnitID,
 		ToCellID:            ln.ToCellID,
 		WarehouseID:         in.WarehouseID,
@@ -264,18 +277,24 @@ func movementLoadUnit(ctx context.Context, q Querier, in MovementSubmitInput, li
 		MovementID:          &in.MovementID,
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if err := guardNotReceivingCell(ctx, q, from); err != nil {
-		return err
+		return nil, err
 	}
 	if _, err := q.Exec(ctx, `
 		INSERT INTO movement_lines (movement_id, line_no, load_unit_id, from_cell_id, to_cell_id)
 		VALUES ($1::uuid, $2, $3::uuid, $4::uuid, $5::uuid)`,
 		in.MovementID, lineNo, ln.LoadUnitID, from, ln.ToCellID); err != nil {
-		return fmt.Errorf("записать строку движения: %w", err)
+		return nil, fmt.Errorf("записать строку движения: %w", err)
 	}
-	return nil
+	moves := make([]movement.Move, 0, len(items))
+	for _, c := range items {
+		moves = append(moves, movement.Move{
+			FromCellID: from, ToCellID: ln.ToCellID, GoodID: c.good, BatchID: c.batch, Qty: c.qty,
+		})
+	}
+	return moves, nil
 }
 
 // movementGoods переносит товар между ячейками и коробами и пишет строку документа (P6-03).
@@ -290,24 +309,24 @@ func movementLoadUnit(ctx context.Context, q Querier, in MovementSubmitInput, li
 //	блокировкой: россыпь — строка остатка минус её короба, короб — строка состава. Состав
 //	коробов меняется прямо, остаток ячеек — общими примитивами stock и только между разными
 //	ячейками: из короба в россыпь той же ячейки остаток ячейки не меняется.
-func movementGoods(ctx context.Context, q Querier, in MovementSubmitInput, lineNo int, ln MovementLineInput, iwh string) error {
+func movementGoods(ctx context.Context, q Querier, in MovementSubmitInput, lineNo int, ln MovementLineInput, iwh string) ([]movement.Move, error) {
 	// Источник и приёмник — ровно по одному: ячейка (россыпь) или короб.
 	if ln.GoodID == "" ||
 		(ln.FromCellID == "") == (ln.FromLoadUnitID == "") ||
 		(ln.ToCellID == "") == (ln.ToLoadUnitID == "") {
-		return ErrEmptyMovementLine
+		return nil, ErrEmptyMovementLine
 	}
 	if !ln.Qty.IsPositive() {
-		return ErrMovementQty
+		return nil, ErrMovementQty
 	}
 	batchID, err := existingBatch(ctx, q, ln.GoodID, ln.ProductionDate)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	cells, err := lockPlacedLoadUnits(ctx, q, ln.FromLoadUnitID, ln.ToLoadUnitID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	fromCell, toCell := ln.FromCellID, ln.ToCellID
 	if ln.FromLoadUnitID != "" {
@@ -317,32 +336,32 @@ func movementGoods(ctx context.Context, q Querier, in MovementSubmitInput, lineN
 		toCell = cells[ln.ToLoadUnitID]
 	}
 	if fromCell == toCell && ln.FromLoadUnitID == ln.ToLoadUnitID {
-		return ErrSamePlace
+		return nil, ErrSamePlace
 	}
 	if err := guardCellOfWarehouse(ctx, q, fromCell, in.WarehouseID); err != nil {
-		return err
+		return nil, err
 	}
 	if err := guardCellOfWarehouse(ctx, q, toCell, in.WarehouseID); err != nil {
-		return err
+		return nil, err
 	}
 	for _, cell := range []string{fromCell, toCell} {
 		if err := guardNotReceivingCell(ctx, q, cell); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
 	// Источник: хватает ли товара — под блокировкой той строки, из которой он уйдёт.
 	if ln.FromLoadUnitID != "" {
 		if err := takeFromLoadUnit(ctx, q, ln.FromLoadUnitID, ln.GoodID, batchID, ln.Qty); err != nil {
-			return err
+			return nil, err
 		}
 	} else {
 		loose, err := looseQty(ctx, q, fromCell, ln.GoodID, batchID, iwh)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if loose.LessThan(ln.Qty) {
-			return ErrGoodsShort
+			return nil, ErrGoodsShort
 		}
 	}
 	if ln.ToLoadUnitID != "" {
@@ -351,7 +370,7 @@ func movementGoods(ctx context.Context, q Querier, in MovementSubmitInput, lineN
 			VALUES ($1::uuid, $2::uuid, $3::uuid, $4::numeric)
 			ON CONFLICT (load_unit_id, good_id, batch_id) DO UPDATE SET qty = lu_content.qty + EXCLUDED.qty`,
 			ln.ToLoadUnitID, ln.GoodID, batchID, ln.Qty.String()); err != nil {
-			return fmt.Errorf("положить товар в короб: %w", err)
+			return nil, fmt.Errorf("положить товар в короб: %w", err)
 		}
 	}
 	if fromCell != toCell {
@@ -359,7 +378,7 @@ func movementGoods(ctx context.Context, q Querier, in MovementSubmitInput, lineN
 			model.StockKey{CellID: fromCell, GoodID: ln.GoodID, BatchID: batchID, InternalWarehouseID: iwh},
 			model.StockKey{CellID: toCell, GoodID: ln.GoodID, BatchID: batchID, InternalWarehouseID: iwh},
 			ln.Qty); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
@@ -371,9 +390,11 @@ func movementGoods(ctx context.Context, q Querier, in MovementSubmitInput, lineN
 		        NULLIF($7, '')::uuid, NULLIF($8, '')::uuid, $9::uuid, $10::uuid)`,
 		in.MovementID, lineNo, ln.GoodID, batchID, ln.Qty.String(), iwh,
 		ln.FromLoadUnitID, ln.ToLoadUnitID, fromCell, toCell); err != nil {
-		return fmt.Errorf("записать строку движения: %w", err)
+		return nil, fmt.Errorf("записать строку движения: %w", err)
 	}
-	return nil
+	return []movement.Move{{
+		FromCellID: fromCell, ToCellID: toCell, GoodID: ln.GoodID, BatchID: batchID, Qty: ln.Qty,
+	}}, nil
 }
 
 // guardNotReceivingCell отклоняет ячейку приёмки (`cells.is_default`) в движении (P6-05).

@@ -19,12 +19,21 @@ const (
 	SourceTypeReceipt = "receipt"
 	// SourceTypePutaway — операция-источник: документ (сеанс) размещения.
 	SourceTypePutaway = "putaway"
+	// SourceTypeMovement — операция-источник: документ движения — перемещение или
+	// пополнение (P6-07).
+	SourceTypeMovement = "movement"
 )
 
 // Операции «Движения» (P5-04). Значение лежит в снимке документа — менять нельзя.
 const (
 	// MovementOperationPutaway — размещение из зоны приёмки по ячейкам хранения.
 	MovementOperationPutaway = "putaway"
+	// MovementOperationMove — перемещение (P6-07). Совпадает с видом документа движения
+	// (`movements.kind`): операция «Движения» перемещения — это и есть его вид.
+	MovementOperationMove = MovementMove
+	// MovementOperationReplenish — пополнение (P6-07). Пополнение заморожено, ТСД его
+	// не шлёт; значение — задел, сервер документ пополнения проводит и публикует.
+	MovementOperationReplenish = MovementReplenish
 )
 
 // ReportSnapshot — содержимое документа, замороженное на момент завершения операции.
@@ -44,7 +53,8 @@ type ReportSnapshot struct {
 	//
 	// Supplier пуст — приёмка без поставщика (внутреннее поступление, возврат).
 	Supplier string `json:"supplier,omitempty"`
-	// Executor — кто принимал: ФИО автора документа приёмки.
+	// Executor — кто выполнил операцию: ФИО автора приёмки, сеанса размещения или
+	// документа движения.
 	Executor string `json:"executor,omitempty"`
 	// Накладная поставщика (ADHOC-23): номер и дата в виде YYYY-MM-DD. Пусто — снимок,
 	// сохранённый до ADHOC-23: прежние документы читаются как были.
@@ -98,6 +108,7 @@ type DocumentListItem struct {
 	DocDate       string // её дата YYYY-MM-DD
 	Operation     string // операция «Движения» (P5-04); пусто — другая форма
 	TaskNumber    int64  // задание-основание «Движения»; 0 — нет
+	Executor      string // кто выполнил операцию (ФИО из снимка); пусто — снимок без исполнителя
 	CreatedAt     time.Time
 	LinesCount    int
 	Status        string

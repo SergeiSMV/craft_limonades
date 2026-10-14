@@ -11,7 +11,7 @@ import (
 
 // Снимок документа «Движение» (P5-04).
 //
-// Одна форма на размещение, перемещение и пополнение (P6): операция видна в шапке, а строки
+// Одна форма на размещение, перемещение и пополнение (P6-07): операция видна в шапке, а строки
 // у всех одни — товар · партия · откуда · куда · количество. Снимок собирается в транзакции
 // проведения, после записи строк: короба к этому моменту уже переехали, но их состав
 // размещение не меняет, поэтому разворот видит ровно то, что переехало (P3-01).
@@ -80,10 +80,15 @@ func buildPutawaySnapshot(ctx context.Context, q Querier, putawayID string) (mod
 	if err != nil {
 		return model.ReportSnapshot{}, "", err
 	}
-	// Порядок — откуда, куда, наименование, дата выпуска: оператор заносит в 1С перемещение
-	// парой ячеек, и строки одной пары должны идти подряд.
-	sort.SliceStable(snap.Rows, func(i, j int) bool {
-		a, b := snap.Rows[i], snap.Rows[j]
+	sortMovementRows(snap.Rows)
+	return snap, author, nil
+}
+
+// sortMovementRows упорядочивает строки «Движения»: откуда, куда, наименование, дата выпуска.
+// Оператор заносит в 1С перемещение парой ячеек, и строки одной пары должны идти подряд.
+func sortMovementRows(rows []model.ReportSnapshotRow) {
+	sort.SliceStable(rows, func(i, j int) bool {
+		a, b := rows[i], rows[j]
 		if a.FromCellAddress != b.FromCellAddress {
 			return a.FromCellAddress < b.FromCellAddress
 		}
@@ -95,6 +100,76 @@ func buildPutawaySnapshot(ctx context.Context, q Querier, putawayID string) (mod
 		}
 		return a.ProductionDate < b.ProductionDate
 	})
+}
+
+// saveMovementDocument публикует «Движение» по документу перемещения или пополнения (P6-07)
+// и открывает его журнал. Зовётся в транзакции проведения, после записи строк.
+//
+// Что: moves — товарные движения документа по шагам: короб уже разложен по составу на
+// момент своего переноса, товар — как есть.
+// Зачем «нулевые» отбрасываются: товар из короба в россыпь той же ячейки (и обратно) остаток
+//
+//	ячейки не меняет, а 1С коробов не знает — для неё ничего не переехало. Документ, где
+//	все строки такие, не публикуется вовсе: оператору нечего заносить.
+//
+// Повтор безвреден: документ по движению один (уникальность источника), а повтор операции
+// упирается в первичный ключ movements раньше.
+func saveMovementDocument(ctx context.Context, q Querier, movementID string, moves []movement.Move) error {
+	snap, author, err := buildMovementSnapshot(ctx, q, movementID, moves)
+	if err != nil {
+		return err
+	}
+	if len(snap.Rows) == 0 {
+		return nil
+	}
+	documentID, err := saveDocument(ctx, q, model.ReportDocument{
+		Kind:       model.ReportKindMovement,
+		SourceType: model.SourceTypeMovement,
+		SourceID:   movementID,
+		Snapshot:   snap,
+	})
+	if err != nil {
+		return err
+	}
+	if documentID == "" {
+		return nil
+	}
+	return logEvent(ctx, q, documentID, model.DocEventCreated, author, "")
+}
+
+// buildMovementSnapshot собирает шапку и строки «Движения» перемещения или пополнения.
+// Операция — вид документа движения; основания (задания, поставщика) у перемещения нет.
+func buildMovementSnapshot(ctx context.Context, q Querier, movementID string, moves []movement.Move) (model.ReportSnapshot, string, error) {
+	var snap model.ReportSnapshot
+	var author string
+	if err := q.QueryRow(ctx, `
+		SELECT w.code, w.name, u.full_name, m.created_by::text, m.posted_at, m.kind
+		FROM movements m
+		JOIN warehouses w ON w.id = m.warehouse_id
+		JOIN users u      ON u.id = m.created_by
+		WHERE m.id = $1::uuid`, movementID).
+		Scan(&snap.WarehouseCode, &snap.WarehouseName, &snap.Executor, &author, &snap.CreatedAt,
+			&snap.Operation); err != nil {
+		return model.ReportSnapshot{}, "", fmt.Errorf("снимок движения, шапка: %w", err)
+	}
+
+	// Короба в moves уже разложены по составу, поэтому состав разворот не читает: агрегирует
+	// одинаковые товар · партия · откуда · куда и отбрасывает нулевые итоги.
+	expanded, err := movement.Expand(ctx, moves, NewLoadUnitContents(q))
+	if err != nil {
+		return model.ReportSnapshot{}, "", fmt.Errorf("снимок движения, разворот: %w", err)
+	}
+	lines := make([]movement.Line, 0, len(expanded))
+	for _, l := range expanded {
+		if l.FromCellID != l.ToCellID {
+			lines = append(lines, l)
+		}
+	}
+	snap.Rows, err = movementSnapshotRows(ctx, q, lines)
+	if err != nil {
+		return model.ReportSnapshot{}, "", err
+	}
+	sortMovementRows(snap.Rows)
 	return snap, author, nil
 }
 
