@@ -25,8 +25,9 @@ var (
 	ErrEmptyMovement = errors.New("movement has no lines")
 	// ErrUnknownMovementKind — вид документа не перемещение и не пополнение.
 	ErrUnknownMovementKind = errors.New("unknown movement kind")
-	// ErrLoadUnitNotMoved — ГЕ целиком едет только перемещением: пополнение двигает товар.
-	ErrLoadUnitNotMoved = errors.New("whole load unit moves only by a move document")
+	// ErrReceivingCell — ячейка приёмки (С-Н-П) в движении ни источник, ни приёмник: её
+	// разносит задание на размещение (P5-02-1), иначе остаток задания разошёлся бы с ячейкой.
+	ErrReceivingCell = errors.New("receiving cell is emptied only by a putaway task")
 	// ErrEmptyMovementLine — в строке нет ни ГЕ, ни товара.
 	// У товара источник и приёмник — ровно по одному: ячейка или короб.
 	ErrEmptyMovementLine = errors.New("movement line must have a load unit or goods with one source and one target")
@@ -197,6 +198,10 @@ type MovementSubmitInput struct {
 //
 //	дала бы проведённый документ без неё — тот же урок, что у приёмки и размещения.
 //
+// Перемещение и пополнение проводятся одинаково и различаются только видом в шапке (P6-05):
+// пополнение — то же перемещение товара или короба, оно не ограничено ни сочетанием
+// источника и приёмника, ни ветвью строки.
+//
 // Как: строки идут по порядку ТСД; любая ошибка откатывает весь документ. Повтор с тем же
 //
 //	документом упирается в первичный ключ и даёт ErrMovementPosted. Одну ГЕ можно перенести
@@ -237,14 +242,17 @@ func movementSubmit(ctx context.Context, q Querier, in MovementSubmitInput) (int
 	return len(in.Lines), nil
 }
 
-// movementLoadUnit переносит ГЕ целиком и пишет строку документа. Только перемещение:
-// пополнение двигает товар, а не короба.
+// movementLoadUnit переносит ГЕ целиком и пишет строку документа. Так двигают короб и
+// перемещение, и пополнение (P6-05): пополнить нижнюю ячейку можно и целым коробом.
+//
+// Ячейку приёмки приёмник проверяет до переноса, источник — после: где лежит ГЕ, узнаёт
+// transferLoadUnit под блокировкой, а отказ всё равно откатывает перенос вместе с документом.
 func movementLoadUnit(ctx context.Context, q Querier, in MovementSubmitInput, lineNo int, ln MovementLineInput, iwh string) error {
-	if in.Kind != model.MovementMove {
-		return ErrLoadUnitNotMoved
-	}
 	if ln.ToCellID == "" {
 		return ErrEmptyMovementLine
+	}
+	if err := guardNotReceivingCell(ctx, q, ln.ToCellID); err != nil {
+		return err
 	}
 	from, err := transferLoadUnit(ctx, q, loadUnitTransfer{
 		LoadUnitID:          ln.LoadUnitID,
@@ -256,6 +264,9 @@ func movementLoadUnit(ctx context.Context, q Querier, in MovementSubmitInput, li
 		MovementID:          &in.MovementID,
 	})
 	if err != nil {
+		return err
+	}
+	if err := guardNotReceivingCell(ctx, q, from); err != nil {
 		return err
 	}
 	if _, err := q.Exec(ctx, `
@@ -314,6 +325,11 @@ func movementGoods(ctx context.Context, q Querier, in MovementSubmitInput, lineN
 	if err := guardCellOfWarehouse(ctx, q, toCell, in.WarehouseID); err != nil {
 		return err
 	}
+	for _, cell := range []string{fromCell, toCell} {
+		if err := guardNotReceivingCell(ctx, q, cell); err != nil {
+			return err
+		}
+	}
 
 	// Источник: хватает ли товара — под блокировкой той строки, из которой он уйдёт.
 	if ln.FromLoadUnitID != "" {
@@ -356,6 +372,33 @@ func movementGoods(ctx context.Context, q Querier, in MovementSubmitInput, lineN
 		in.MovementID, lineNo, ln.GoodID, batchID, ln.Qty.String(), iwh,
 		ln.FromLoadUnitID, ln.ToLoadUnitID, fromCell, toCell); err != nil {
 		return fmt.Errorf("записать строку движения: %w", err)
+	}
+	return nil
+}
+
+// guardNotReceivingCell отклоняет ячейку приёмки (`cells.is_default`) в движении (P6-05).
+//
+// Что: ячейка приёмки — не источник и не приёмник перемещения и пополнения.
+// Зачем: её содержимое разносит задание на размещение, и остаток задания считается по сеансам
+//
+//	размещения (P5-02-1). Движение мимо задания оставило бы задание с товаром, которого
+//	в ячейке уже нет, — или положило бы туда товар без задания. Терминал такую ячейку не
+//	предлагает, но инвариант задания держит тот, кто хранит задание: старая сборка
+//	приложения, ошибка в новом экране или другая операция пришлют такую строку мимо ТСД.
+//	Запрет — по ячейке, а не по заданию: размещённое по заданию дальше движется свободно.
+//
+// Как: ячейку ищем по флагу, а не по адресу «С-Н-П» — так же, как приёмка и размещение.
+func guardNotReceivingCell(ctx context.Context, q Querier, cellID string) error {
+	var receiving bool
+	err := q.QueryRow(ctx, `SELECT is_default FROM cells WHERE id = $1::uuid`, cellID).Scan(&receiving)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrUnknownReference
+	}
+	if err != nil {
+		return fmt.Errorf("проверить ячейку приёмки: %w", err)
+	}
+	if receiving {
+		return ErrReceivingCell
 	}
 	return nil
 }

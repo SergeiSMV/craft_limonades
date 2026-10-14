@@ -3,6 +3,7 @@ package handler_test
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -15,8 +16,27 @@ import (
 // лежат в ячейке хранения M1-1-1-3 (из ячейки приёмки терминал не перемещает — её разносят
 // заданием); первый короб целиком переезжает в M1-1-1-2, товар из второго ложится россыпью
 // в M1-1-1-1, и часть этой россыпи докладывается в переехавший короб.
+//
+// Пополнение (P6-05) — тот же формат с другим видом документа, поэтому тот же эталон
+// прогоняется и пополнением: короб целиком и товар в любых сочетаниях проходят одинаково.
+// Клиентская половина пополнения появится с выбором вида операции на ТСД (P6-06).
 func TestMovementHTTP_clientWireFormat(t *testing.T) {
-	raw := readFixture(t, "movement_submit.json")
+	fixture := string(readFixture(t, "movement_submit.json"))
+	for _, kind := range []string{"move", "replenish"} {
+		t.Run(kind, func(t *testing.T) {
+			body := strings.Replace(fixture, `"movement_kind": "move"`, `"movement_kind": "`+kind+`"`, 1)
+			if !strings.Contains(body, `"movement_kind": "`+kind+`"`) {
+				t.Fatal("в эталоне не найден вид документа")
+			}
+			applyMovementFixture(t, []byte(body), kind)
+		})
+	}
+}
+
+// applyMovementFixture готовит склад под эталон движения, применяет тело raw настоящим
+// роутером и сверяет остаток, состав коробов и вид проведённого документа.
+func applyMovementFixture(t *testing.T, raw []byte, kind string) {
+	t.Helper()
 	var mf struct {
 		Operations []struct {
 			Payload struct {
@@ -84,5 +104,19 @@ func TestMovementHTTP_clientWireFormat(t *testing.T) {
 	if err := e.pool.QueryRow(ctx, `SELECT string_agg(qty::text, ' ' ORDER BY load_unit_id = $2::uuid DESC)
 		FROM lu_content WHERE load_unit_id IN ($1::uuid, $2::uuid)`, box2, box1).Scan(&contents); err != nil || contents != "14.000 9.000" {
 		t.Fatalf("состав коробов: %q (%v), ожидалось 14 (переехавший) и 9", contents, err)
+	}
+	var docKind string
+	if err := e.pool.QueryRow(ctx, `SELECT kind FROM movements`).Scan(&docKind); err != nil || docKind != kind {
+		t.Fatalf("вид документа: %q (%v), ожидалось %q", docKind, err, kind)
+	}
+
+	// Ячейка приёмки С-Н-П движению не источник: документ отклоняется сервером, даже если
+	// терминал его прислал: инвариант задания на размещение держит сервер.
+	fromReceiving := jsonf(`{"operations":[{"operation_id":%q,"kind":"movement_submit","payload":{
+		"movement_id":%q,"movement_kind":%q,"warehouse_id":%q,
+		"lines":[{"good_id":%q,"production_date":"01-09-2026","qty":1,"from_cell_id":%q,"to_cell_id":%q}]}}]}`,
+		uuid.NewString(), uuid.NewString(), kind, p.WarehouseID, good, e.cellDefault, cell1)
+	if got := e.operations(t, fromReceiving); len(got) != 1 || got[0] != service.StatusRejected {
+		t.Fatalf("движение из ячейки приёмки: %v, ожидался отказ", got)
 	}
 }

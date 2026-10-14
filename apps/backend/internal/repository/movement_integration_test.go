@@ -14,11 +14,15 @@ import (
 
 // Тесты P6-02: перенос ГЕ перемещением. Критерий задачи — состав едет вместе с ГЕ.
 // Фикстура setupPutaway — из putaway_integration_test.go: A — ячейка приёмки, B — хранения;
-// здесь добавляется вторая ячейка хранения C.
+// здесь добавляются вторая ячейка хранения C и ячейка приёмки R.
+//
+// Движение из ячейки приёмки и в неё запрещено (P6-05), а тесты движения берут товар из A,
+// куда его кладёт приёмка. Поэтому A — ячейка приёмки только на время оприходования, после
+// него флаг переходит к R: проводить каждый тест через задание на размещение незачем.
 
 type moveFixture struct {
 	*putawayFixture
-	cellC string
+	cellC, cellR string
 }
 
 func setupMove(t *testing.T) *moveFixture {
@@ -26,7 +30,31 @@ func setupMove(t *testing.T) *moveFixture {
 	mf := &moveFixture{putawayFixture: setupPutaway(t)}
 	mustScan(t, mf.pool, `INSERT INTO cells (warehouse_id, address) VALUES ($1::uuid,'C') RETURNING id::text`,
 		&mf.cellC, mf.wh)
+	mustScan(t, mf.pool, `INSERT INTO cells (warehouse_id, address) VALUES ($1::uuid,'R') RETURNING id::text`,
+		&mf.cellR, mf.wh)
+	mf.setReceiving(t, mf.cellR)
 	return mf
+}
+
+// setReceiving делает ячейку cell ячейкой приёмки склада фикстуры. Флаг снимается отдельным
+// запросом: ячейка приёмки на складе одна, и два флага сразу не допустит база.
+func (mf *moveFixture) setReceiving(t *testing.T, cell string) {
+	t.Helper()
+	ctx := context.Background()
+	if _, err := mf.pool.Exec(ctx, `UPDATE cells SET is_default = false WHERE warehouse_id = $1::uuid AND is_default`, mf.wh); err != nil {
+		t.Fatalf("снять флаг ячейки приёмки: %v", err)
+	}
+	if _, err := mf.pool.Exec(ctx, `UPDATE cells SET is_default = true WHERE id = $1::uuid`, cell); err != nil {
+		t.Fatalf("назначить ячейку приёмки: %v", err)
+	}
+}
+
+// receive оприходует приёмку в A (см. putawayFixture.receive) и возвращает флаг приёмки R.
+func (mf *moveFixture) receive(t *testing.T, boxes []string, loose int64) string {
+	t.Helper()
+	mf.setReceiving(t, mf.cellA)
+	defer mf.setReceiving(t, mf.cellR)
+	return mf.putawayFixture.receive(t, boxes, loose)
 }
 
 // move проводит документ перемещения со строками «ГЕ → ячейка».
@@ -55,6 +83,8 @@ func (mf *moveFixture) qtyOf(t *testing.T, cell, batch string) string {
 // приёмки. Возвращает партию второй позиции.
 func (mf *moveFixture) receiveMixedBox(t *testing.T, lu string) string {
 	t.Helper()
+	mf.setReceiving(t, mf.cellA)
+	defer mf.setReceiving(t, mf.cellR)
 	ctx := context.Background()
 	repo := repository.NewReceiptRepository(mf.pool)
 	receipt := uuid.NewString()
@@ -197,7 +227,6 @@ func TestMove_rejections(t *testing.T) {
 	}{
 		{"неизвестный вид", "teleport", []repository.MovementLineInput{luTo(placed, mf.cellB)}, repository.ErrUnknownMovementKind},
 		{"пустой документ", model.MovementMove, nil, repository.ErrEmptyMovement},
-		{"ГЕ целиком пополнением", model.MovementReplenish, []repository.MovementLineInput{luTo(placed, mf.cellB)}, repository.ErrLoadUnitNotMoved},
 		{"строка без ГЕ", model.MovementMove, []repository.MovementLineInput{{ToCellID: mf.cellB}}, repository.ErrEmptyMovementLine},
 		{"на то же место", model.MovementMove, []repository.MovementLineInput{luTo(placed, mf.cellA)}, repository.ErrSameCell},
 		{"неизвестная ГЕ", model.MovementMove, []repository.MovementLineInput{luTo(uuid.NewString(), mf.cellB)}, repository.ErrLoadUnitNotFound},
@@ -337,5 +366,95 @@ func TestMove_goodsRejections(t *testing.T) {
 	}
 	if a, b, ba := mf.qtyOf(t, mf.cellA, mf.batch), mf.qtyOf(t, mf.cellB, mf.batch), mf.luQty(t, boxA); a != "17" || b != "12" || ba != "12.000" {
 		t.Errorf("отклонённые документы сдвинули товар: A=%s B=%s короб=%s", a, b, ba)
+	}
+}
+
+// Тесты P6-05: пополнение и ячейка приёмки.
+
+// replenish проводит документ пополнения.
+func (mf *moveFixture) replenish(t *testing.T, id string, lines ...repository.MovementLineInput) (int, error) {
+	t.Helper()
+	return repository.MovementSubmitForTest(context.Background(), mf.pool, repository.MovementSubmitInput{
+		MovementID: id, Kind: model.MovementReplenish, WarehouseID: mf.wh, CreatedBy: mf.user, Lines: lines,
+	})
+}
+
+// Пополнение переносит и короб целиком: состав едет с ним, как при перемещении, а документ
+// и журнал размещений помнят, что это пополнение.
+func TestReplenish_wholeLoadUnit(t *testing.T) {
+	mf := setupMove(t)
+	lu := newLU(t, mf.stockFixture, model.LoadUnitBox)
+	mf.receive(t, []string{lu}, 5)
+
+	mv := uuid.NewString()
+	if _, err := mf.replenish(t, mv, luTo(lu, mf.cellB), mf.goodsLine(2, mf.cellA, "", mf.cellB, "")); err != nil {
+		t.Fatalf("пополнение коробом и россыпью: %v", err)
+	}
+	if a, b := mf.qtyOf(t, mf.cellA, mf.batch), mf.qtyOf(t, mf.cellB, mf.batch); a != "3" || b != "14" {
+		t.Errorf("остаток A=%s B=%s, ожидалось 3 и 14", a, b)
+	}
+	if currentCell(t, mf.stockFixture, lu) != mf.cellB || mf.luQty(t, lu) != "12.000" {
+		t.Error("короб не переехал в B со своим составом")
+	}
+	var doc string
+	mustScan(t, mf.pool, `SELECT m.kind || ' ' || count(l.*)::text FROM movements m
+		JOIN movement_lines l ON l.movement_id = m.id WHERE m.id = $1::uuid GROUP BY m.kind`, &doc, mv)
+	if doc != "replenish 2" {
+		t.Errorf("документ: %q, ожидалось «replenish 2»", doc)
+	}
+}
+
+// Ячейка приёмки — ни источник, ни приёмник движения: её разносит задание на размещение.
+// Запрет одинаков для перемещения и пополнения, для короба целиком и для товара.
+func TestMove_receivingCellRejected(t *testing.T) {
+	mf := setupMove(t)
+	ctx := context.Background()
+	placed := newLU(t, mf.stockFixture, model.LoadUnitBox)
+	mf.receive(t, []string{placed}, 5) // A: короб 12 + россыпь 5
+
+	// В ячейку приёмки R — короб 12 и россыпь 5 настоящей приёмкой: R сейчас ячейка приёмки.
+	inR := newLU(t, mf.stockFixture, model.LoadUnitBox)
+	repo := repository.NewReceiptRepository(mf.pool)
+	receipt := uuid.NewString()
+	mustNoErr(t, repo.Create(ctx, receipt, mf.wh, "", mf.user, testDoc))
+	for _, ln := range []model.ReceiptLineInput{
+		{GoodID: mf.good, ProductionDate: "2026-01-01", CellID: mf.cellR, LoadUnitID: inR, Qty: decimal.NewFromInt(12)},
+		{GoodID: mf.good, ProductionDate: "2026-01-01", CellID: mf.cellR, Qty: decimal.NewFromInt(5)},
+	} {
+		mustNoErr(t, repo.AddLine(ctx, receipt, ln))
+	}
+	if _, err := repo.Post(ctx, receipt); err != nil {
+		t.Fatalf("оприходовать приёмку в R: %v", err)
+	}
+
+	cases := []struct {
+		name string
+		line repository.MovementLineInput
+	}{
+		{"короб из приёмки", luTo(inR, mf.cellB)},
+		{"короб в приёмку", luTo(placed, mf.cellR)},
+		{"россыпь из приёмки", mf.goodsLine(1, mf.cellR, "", mf.cellB, "")},
+		{"товар из короба в приёмке", mf.goodsLine(1, "", inR, mf.cellB, "")},
+		{"россыпь в приёмку", mf.goodsLine(1, mf.cellA, "", mf.cellR, "")},
+		{"товар в короб в приёмке", mf.goodsLine(1, mf.cellA, "", "", inR)},
+	}
+	for _, tc := range cases {
+		for _, kind := range []string{model.MovementMove, model.MovementReplenish} {
+			t.Run(tc.name+"/"+kind, func(t *testing.T) {
+				_, err := repository.MovementSubmitForTest(ctx, mf.pool, repository.MovementSubmitInput{
+					MovementID: uuid.NewString(), Kind: kind, WarehouseID: mf.wh, CreatedBy: mf.user,
+					Lines: []repository.MovementLineInput{tc.line},
+				})
+				if !errors.Is(err, repository.ErrReceivingCell) {
+					t.Errorf("получено %v, ожидалась ErrReceivingCell", err)
+				}
+			})
+		}
+	}
+	if a, r := mf.qtyOf(t, mf.cellA, mf.batch), mf.qtyOf(t, mf.cellR, mf.batch); a != "17" || r != "17" {
+		t.Errorf("отклонённые документы сдвинули товар: A=%s R=%s, ожидалось 17 и 17", a, r)
+	}
+	if currentCell(t, mf.stockFixture, inR) != mf.cellR || currentCell(t, mf.stockFixture, placed) != mf.cellA {
+		t.Error("отклонённые документы сдвинули короб")
 	}
 }
