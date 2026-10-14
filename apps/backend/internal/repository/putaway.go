@@ -112,7 +112,7 @@ func putawaySubmit(ctx context.Context, q Querier, in PutawaySubmitInput) (int, 
 				return 0, ErrNotInTask
 			}
 			rem.boxes[ln.LoadUnitID] = false
-			row, err = putawayLoadUnit(ctx, q, in, ln, iwh)
+			row, err = putawayLoadUnit(ctx, q, in, ln)
 		} else {
 			if receivingCell == "" {
 				receivingCell, err = defaultCellID(ctx, q, in.WarehouseID)
@@ -189,15 +189,14 @@ type putawayLineRow struct {
 
 // putawayLoadUnit переносит короб задания целиком в ячейку хранения — общей функцией переноса
 // ГЕ (P6-02) с источником «размещение» и ссылкой на сеанс.
-func putawayLoadUnit(ctx context.Context, q Querier, in PutawaySubmitInput, ln PutawayLineInput, iwh string) (putawayLineRow, error) {
+func putawayLoadUnit(ctx context.Context, q Querier, in PutawaySubmitInput, ln PutawayLineInput) (putawayLineRow, error) {
 	from, _, err := transferLoadUnit(ctx, q, loadUnitTransfer{
-		LoadUnitID:          ln.LoadUnitID,
-		ToCellID:            ln.ToCellID,
-		WarehouseID:         in.WarehouseID,
-		InternalWarehouseID: iwh,
-		Source:              model.PlacementPutaway,
-		UserID:              in.CreatedBy,
-		PutawayID:           &in.PutawayID,
+		LoadUnitID:  ln.LoadUnitID,
+		ToCellID:    ln.ToCellID,
+		WarehouseID: in.WarehouseID,
+		Source:      model.PlacementPutaway,
+		UserID:      in.CreatedBy,
+		PutawayID:   &in.PutawayID,
 	})
 	if errors.Is(err, ErrSameCell) {
 		return putawayLineRow{}, ErrPutawaySameCell
@@ -211,30 +210,17 @@ func putawayLoadUnit(ctx context.Context, q Querier, in PutawaySubmitInput, ln P
 
 // putawayLoose переносит россыпь из ячейки приёмки.
 //
-// Россыпь — это остаток ячейки за вычетом того, что лежит в ней же в коробах. Строка остатка
-// блокируется до проверки: иначе два сеанса одновременно увидели бы одну и ту же россыпь
-// и вместе забрали бы товар из-под короба.
+// Россыпь — это остаток ячейки за вычетом того, что лежит в ней же в коробах того же склада
+// (looseQty, общий с перемещением). Строка остатка блокируется до проверки: иначе два сеанса
+// одновременно увидели бы одну и ту же россыпь и вместе забрали бы товар из-под короба.
 func putawayLoose(ctx context.Context, q Querier, ln PutawayLineInput, batchID, from, iwh string) (putawayLineRow, error) {
 	if from == ln.ToCellID {
 		return putawayLineRow{}, ErrPutawaySameCell
 	}
 
-	var loose decimal.Decimal
-	err := q.QueryRow(ctx, `
-		WITH locked AS (
-			SELECT qty FROM stock
-			WHERE cell_id = $1::uuid AND good_id = $2::uuid AND batch_id = $3::uuid
-			  AND internal_warehouse_id = $4::uuid
-			FOR UPDATE
-		)
-		SELECT COALESCE((SELECT qty FROM locked), 0)
-		     - COALESCE((SELECT sum(c.qty) FROM lu_content c
-		                 JOIN load_units lu ON lu.id = c.load_unit_id
-		                 WHERE lu.cell_id = $1::uuid AND c.good_id = $2::uuid
-		                   AND c.batch_id = $3::uuid), 0)`,
-		from, ln.GoodID, batchID, iwh).Scan(&loose)
+	loose, err := looseQty(ctx, q, from, ln.GoodID, batchID, iwh)
 	if err != nil {
-		return putawayLineRow{}, fmt.Errorf("посчитать россыпь в ячейке приёмки: %w", err)
+		return putawayLineRow{}, err
 	}
 	if loose.LessThan(ln.Qty) {
 		return putawayLineRow{}, ErrLooseStockShort

@@ -54,6 +54,8 @@ type loadUnitCardResponse struct {
 	CreatedAt   string                `json:"created_at"` // RFC3339
 	Live        bool                  `json:"live"`
 	Contents    []contentLineResponse `json:"contents"`
+	// Склад короба целиком (P6-07-1): товар кладётся в короб только того же склада.
+	InternalWarehouseID string `json:"internal_warehouse_id"`
 }
 
 type looseLineResponse struct {
@@ -84,6 +86,8 @@ type snapshotLoadUnitResponse struct {
 	CellID    string                 `json:"cell_id"`
 	CreatedAt string                 `json:"created_at"` // RFC3339
 	Contents  []snapshotLineResponse `json:"contents"`
+	// Склад короба целиком (P6-07-1).
+	InternalWarehouseID string `json:"internal_warehouse_id"`
 }
 
 type snapshotLooseResponse struct {
@@ -118,8 +122,9 @@ func (h *ContentsHandler) Snapshot(w http.ResponseWriter, r *http.Request) {
 		}
 		item := snapshotLoadUnitResponse{
 			ID: lu.ID, Kind: lu.Kind, CellID: cellID,
-			CreatedAt: lu.CreatedAt.UTC().Format(time.RFC3339),
-			Contents:  make([]snapshotLineResponse, 0, len(lu.Contents)),
+			CreatedAt:           lu.CreatedAt.UTC().Format(time.RFC3339),
+			InternalWarehouseID: lu.InternalWarehouseID,
+			Contents:            make([]snapshotLineResponse, 0, len(lu.Contents)),
 		}
 		for _, c := range lu.Contents {
 			item.Contents = append(item.Contents, toSnapshotLine(c))
@@ -248,6 +253,8 @@ func toLoadUnitCard(lu model.LoadUnitCard) loadUnitCardResponse {
 		CreatedAt: lu.CreatedAt.UTC().Format(time.RFC3339),
 		Live:      lu.Live,
 		Contents:  make([]contentLineResponse, 0, len(lu.Contents)),
+
+		InternalWarehouseID: lu.InternalWarehouseID,
 	}
 	for _, c := range lu.Contents {
 		out.Contents = append(out.Contents, toContentLine(c))

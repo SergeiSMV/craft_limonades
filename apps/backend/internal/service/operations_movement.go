@@ -33,6 +33,8 @@ type movementSubmitPayload struct {
 		FromLoadUnitID string          `json:"from_load_unit_id"`
 		ToCellID       string          `json:"to_cell_id"`
 		ToLoadUnitID   string          `json:"to_load_unit_id"`
+		// Склад россыпи-источника (P6-07-1); пусто — «Основной». Прежние клиенты его не шлют.
+		InternalWarehouseID string `json:"internal_warehouse_id"`
 	} `json:"lines"`
 }
 
@@ -74,9 +76,11 @@ func (s *OperationsService) movementSubmit(ctx context.Context, userID, id strin
 			FromLoadUnitID: strings.TrimSpace(ln.FromLoadUnitID),
 			ToCellID:       strings.TrimSpace(ln.ToCellID),
 			ToLoadUnitID:   strings.TrimSpace(ln.ToLoadUnitID),
+
+			InternalWarehouseID: strings.TrimSpace(ln.InternalWarehouseID),
 		}
 		// Все идентификаторы строки — UUID или пусто: мусор в них — ошибка формы.
-		for _, v := range []string{line.FromCellID, line.FromLoadUnitID, line.ToCellID, line.ToLoadUnitID, line.GoodID} {
+		for _, v := range []string{line.FromCellID, line.FromLoadUnitID, line.ToCellID, line.ToLoadUnitID, line.GoodID, line.InternalWarehouseID} {
 			if v != "" && !isUUID(v) {
 				return repository.Applied{}, ErrInvalidPayload
 			}
@@ -87,8 +91,10 @@ func (s *OperationsService) movementSubmit(ctx context.Context, userID, id strin
 			if !isUUID(line.LoadUnitID) {
 				return repository.Applied{}, ErrInvalidLoadUnitID
 			}
+			// Склад у короба свой (P6-07-1): из строки его не берём.
 			if line.GoodID != "" || ln.ProductionDate != "" || !ln.Qty.IsZero() ||
-				line.FromCellID != "" || line.FromLoadUnitID != "" || line.ToLoadUnitID != "" {
+				line.FromCellID != "" || line.FromLoadUnitID != "" || line.ToLoadUnitID != "" ||
+				line.InternalWarehouseID != "" {
 				return repository.Applied{}, ErrInvalidPayload
 			}
 			if line.ToCellID == "" {

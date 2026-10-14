@@ -32,6 +32,9 @@ const (
 
 	// Движение целиком: документ перемещения или пополнения — одна операция (P6-03).
 	KindMovementSubmit = "movement_submit"
+
+	// Проблема склада: пометка короба или товара другим внутренним складом (P6-07-1).
+	KindProblemSubmit = "problem_submit"
 )
 
 // Ошибки применения приёмки из очереди (P4-09).
@@ -226,6 +229,18 @@ func (r *OperationsRepository) MovementSubmit(ctx context.Context, operationID s
 			return nil, err
 		}
 		return jsonResult(map[string]any{"movement_id": in.MovementID, "lines": lines})
+	})
+	return applied, missingReference(err)
+}
+
+// ProblemSubmit фиксирует проблему склада и переводит остаток на склад назначения — в одной
+// транзакции с пометкой операции (P6-07-1).
+func (r *OperationsRepository) ProblemSubmit(ctx context.Context, operationID string, in ProblemSubmitInput) (Applied, error) {
+	applied, err := r.inTx(ctx, operationID, KindProblemSubmit, func(q Querier) (json.RawMessage, error) {
+		if err := problemSubmit(ctx, q, in); err != nil {
+			return nil, err
+		}
+		return jsonResult(map[string]any{"problem_id": in.ProblemID})
 	})
 	return applied, missingReference(err)
 }

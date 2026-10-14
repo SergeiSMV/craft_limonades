@@ -95,11 +95,13 @@ func (r *ContentsRepository) LoadUnitCard(ctx context.Context, id string) (model
 	var card model.LoadUnitCard
 	err := r.withinSnapshot(ctx, func(q Querier) error {
 		err := q.QueryRow(ctx, `
-			SELECT lu.id::text, lu.kind, lu.status, lu.cell_id::text, c.address, lu.created_at
+			SELECT lu.id::text, lu.kind, lu.status, lu.cell_id::text, c.address, lu.created_at,
+			       lu.internal_warehouse_id::text
 			FROM load_units lu
 			LEFT JOIN cells c ON c.id = lu.cell_id
 			WHERE lu.id = $1::uuid`, id).
-			Scan(&card.ID, &card.Kind, &card.Status, &card.CellID, &card.CellAddress, &card.CreatedAt)
+			Scan(&card.ID, &card.Kind, &card.Status, &card.CellID, &card.CellAddress, &card.CreatedAt,
+				&card.InternalWarehouseID)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return model.ErrLoadUnitNotFound
 		}
@@ -127,7 +129,8 @@ func (r *ContentsRepository) LoadUnitCard(ctx context.Context, id string) (model
 // показывается со своим содержимым. Тот же фильтр «qty > 0» применяют задания и размещение.
 func liveLoadUnits(ctx context.Context, q Querier, cellID *string) ([]model.LoadUnitCard, error) {
 	rows, err := q.Query(ctx, `
-		SELECT lu.id::text, lu.kind, lu.status, lu.cell_id::text, c.address, lu.created_at
+		SELECT lu.id::text, lu.kind, lu.status, lu.cell_id::text, c.address, lu.created_at,
+			       lu.internal_warehouse_id::text
 		FROM load_units lu
 		JOIN cells c ON c.id = lu.cell_id
 		WHERE ($1::uuid IS NULL OR lu.cell_id = $1::uuid)
@@ -142,7 +145,8 @@ func liveLoadUnits(ctx context.Context, q Querier, cellID *string) ([]model.Load
 	var ids []string
 	for rows.Next() {
 		var lu model.LoadUnitCard
-		if err := rows.Scan(&lu.ID, &lu.Kind, &lu.Status, &lu.CellID, &lu.CellAddress, &lu.CreatedAt); err != nil {
+		if err := rows.Scan(&lu.ID, &lu.Kind, &lu.Status, &lu.CellID, &lu.CellAddress, &lu.CreatedAt,
+			&lu.InternalWarehouseID); err != nil {
 			return nil, fmt.Errorf("разобрать короб: %w", err)
 		}
 		lu.Live = true
@@ -198,18 +202,17 @@ func loadUnitLines(ctx context.Context, q Querier, ids []string) (map[string][]m
 // то же правило, что у размещения россыпи (putawayLoose); согласие двух расчётов проверяет
 // тест. Строки без россыпи (всё в коробах) отбрасываются.
 //
-// ⚠ Содержимое короба не знает внутреннего склада, и вычет идёт из строки остатка любого
-// внутреннего склада — как и в putawayLoose. Верно, пока приёмка кладёт всё в склад по
-// умолчанию (ADR-0016, P4-01-1); перевод в «Брак» (P6-07) должен будет это учесть.
+// Короб принадлежит внутреннему складу целиком (P6-07-1), поэтому вычет идёт из строки
+// остатка склада короба: россыпь «Брака» — остаток «Брака» минус короба «Брака».
 func looseStock(ctx context.Context, q Querier, cellID *string) ([]model.LooseLine, error) {
 	rows, err := q.Query(ctx, `
 		WITH boxed AS (
-			SELECT lu.cell_id, c.good_id, c.batch_id, sum(c.qty) AS qty
+			SELECT lu.cell_id, lu.internal_warehouse_id, c.good_id, c.batch_id, sum(c.qty) AS qty
 			FROM lu_content c
 			JOIN load_units lu ON lu.id = c.load_unit_id
 			WHERE lu.cell_id IS NOT NULL
 			  AND ($1::uuid IS NULL OR lu.cell_id = $1::uuid)
-			GROUP BY lu.cell_id, c.good_id, c.batch_id
+			GROUP BY lu.cell_id, lu.internal_warehouse_id, c.good_id, c.batch_id
 		)
 		SELECT s.cell_id::text, s.internal_warehouse_id::text,
 		       g.id::text, g.code, g.name, g.uom,
@@ -219,6 +222,7 @@ func looseStock(ctx context.Context, q Querier, cellID *string) ([]model.LooseLi
 		JOIN batches b ON b.id = s.batch_id
 		JOIN cells c   ON c.id = s.cell_id
 		LEFT JOIN boxed bx ON bx.cell_id = s.cell_id AND bx.good_id = s.good_id AND bx.batch_id = s.batch_id
+		                  AND bx.internal_warehouse_id = s.internal_warehouse_id
 		WHERE ($1::uuid IS NULL OR s.cell_id = $1::uuid)
 		  AND s.qty - COALESCE(bx.qty, 0) > 0
 		ORDER BY c.address, g.name, b.production_date`, cellID)
@@ -275,7 +279,8 @@ func (r *ContentsRepository) SearchLoadUnits(ctx context.Context, code string, l
 	var out []model.LoadUnitCard
 	err := r.withinSnapshot(ctx, func(q Querier) error {
 		rows, err := q.Query(ctx, `
-			SELECT lu.id::text, lu.kind, lu.status, lu.cell_id::text, c.address, lu.created_at
+			SELECT lu.id::text, lu.kind, lu.status, lu.cell_id::text, c.address, lu.created_at,
+			       lu.internal_warehouse_id::text
 			FROM load_units lu
 			LEFT JOIN cells c ON c.id = lu.cell_id
 			WHERE strpos(upper(right(replace(lu.id::text, '-', ''), 8)), $1) > 0
@@ -290,7 +295,8 @@ func (r *ContentsRepository) SearchLoadUnits(ctx context.Context, code string, l
 		var ids []string
 		for rows.Next() {
 			var lu model.LoadUnitCard
-			if err := rows.Scan(&lu.ID, &lu.Kind, &lu.Status, &lu.CellID, &lu.CellAddress, &lu.CreatedAt); err != nil {
+			if err := rows.Scan(&lu.ID, &lu.Kind, &lu.Status, &lu.CellID, &lu.CellAddress, &lu.CreatedAt,
+				&lu.InternalWarehouseID); err != nil {
 				return fmt.Errorf("разобрать короб: %w", err)
 			}
 			out = append(out, lu)
