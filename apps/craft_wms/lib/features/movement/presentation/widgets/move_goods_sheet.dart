@@ -9,6 +9,7 @@ import '../../../../core/utils/date_time_format.dart';
 import '../../../../core/utils/qty_format.dart';
 import '../../../../core/widgets/neumorphic_line_tile.dart';
 import '../../../contents/domain/contents_entities.dart';
+import 'move_format.dart';
 
 /// Выбрать товар и партию из источника: что лежит и сколько его можно взять.
 ///
@@ -39,7 +40,10 @@ Future<(ContentLine, double)?> showMoveGoodsSheet(
           AppBoxes.kHeight8,
           NeumorphicLineTile(
             title: o.$1.goodName ?? o.$1.goodCode ?? '',
-            subtitle: t.movement.batch(date: batchDate(o.$1.productionDate)),
+            subtitle: withWarehouse(
+              t.movement.batch(date: batchDate(o.$1.productionDate)),
+              o.$1.internalWarehouseName,
+            ),
             trailing: '${fmtQty(o.$2)} ${o.$1.uom ?? ''}'.trim(),
             onTap: () => Navigator.of(ctx).pop(o),
           ),

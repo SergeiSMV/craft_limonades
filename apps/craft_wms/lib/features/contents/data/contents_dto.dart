@@ -10,29 +10,39 @@ import '../domain/contents_entities.dart';
 /// Количество приходит строкой (decimal с сервера).
 double _qty(Object? raw) => double.tryParse('$raw') ?? 0;
 
-/// Строка содержимого карточки или ячейки — с наименованием товара.
-ContentLine contentLineFromJson(Map<String, dynamic> j) => ContentLine(
+/// Строка содержимого карточки или ячейки — с наименованием товара. Склад строки — свой
+/// у россыпи, у содержимого короба — [warehouseId] короба. Id склада — как прислал сервер;
+/// к соглашению терминала («Основной» — `null`) его приводит репозиторий.
+ContentLine contentLineFromJson(
+  Map<String, dynamic> j, {
+  String? warehouseId,
+}) => ContentLine(
   goodId: j['good_id'] as String,
   goodName: j['good_name'] as String?,
   goodCode: j['good_code'] as String?,
   uom: j['uom'] as String?,
   productionDate: j['production_date'] as String,
   qty: _qty(j['qty']),
+  internalWarehouseId: warehouseId ?? j['internal_warehouse_id'] as String?,
 );
 
 /// Карточка короба.
-LoadUnitView loadUnitFromJson(Map<String, dynamic> j) => LoadUnitView(
-  id: j['id'] as String,
-  kind: j['kind'] as String? ?? 'box',
-  cellId: j['cell_id'] as String?,
-  cellAddress: j['cell_address'] as String?,
-  createdAt: DateTime.tryParse(j['created_at'] as String? ?? '')?.toLocal(),
-  live: j['live'] as bool? ?? false,
-  lines: [
-    for (final c in j['contents'] as List? ?? const [])
-      contentLineFromJson(c as Map<String, dynamic>),
-  ],
-);
+LoadUnitView loadUnitFromJson(Map<String, dynamic> j) {
+  final warehouse = j['internal_warehouse_id'] as String?;
+  return LoadUnitView(
+    id: j['id'] as String,
+    kind: j['kind'] as String? ?? 'box',
+    cellId: j['cell_id'] as String?,
+    cellAddress: j['cell_address'] as String?,
+    createdAt: DateTime.tryParse(j['created_at'] as String? ?? '')?.toLocal(),
+    live: j['live'] as bool? ?? false,
+    internalWarehouseId: warehouse,
+    lines: [
+      for (final c in j['contents'] as List? ?? const [])
+        contentLineFromJson(c as Map<String, dynamic>, warehouseId: warehouse),
+    ],
+  );
+}
 
 /// Содержимое ячейки.
 CellView cellFromJson(Map<String, dynamic> j) => CellView(
@@ -78,6 +88,7 @@ class SnapshotLoadUnit {
     required this.cellId,
     required this.createdAt,
     required this.lines,
+    this.internalWarehouseId = '',
   });
 
   factory SnapshotLoadUnit.fromJson(Map<String, dynamic> j) => SnapshotLoadUnit(
@@ -85,6 +96,7 @@ class SnapshotLoadUnit {
     kind: j['kind'] as String,
     cellId: j['cell_id'] as String,
     createdAt: DateTime.parse(j['created_at'] as String),
+    internalWarehouseId: j['internal_warehouse_id'] as String? ?? '',
     lines: [
       for (final c in j['contents'] as List? ?? const [])
         SnapshotLine.fromJson(c as Map<String, dynamic>),
@@ -96,6 +108,9 @@ class SnapshotLoadUnit {
   final String cellId;
   final DateTime createdAt;
   final List<SnapshotLine> lines;
+
+  /// Склад короба целиком (P6-07-2); пусто — сервер до P6-07-1.
+  final String internalWarehouseId;
 }
 
 /// Россыпь снимка.

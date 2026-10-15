@@ -3,6 +3,7 @@ import 'package:injectable/injectable.dart';
 
 import '../../../core/error/failure.dart';
 import '../../../core/outbox/outbox_repository.dart';
+import '../../../core/warehouse/internal_warehouses.dart';
 import '../../stock/data/catalog_cache.dart';
 import '../domain/contents_entities.dart';
 import '../domain/contents_repository.dart';
@@ -19,15 +20,23 @@ import 'pending_overlay.dart';
 ///    о них ещё не знает, снимок тем более.
 ///
 /// Наименования товаров и адреса ячеек, которых нет в снимке и в операциях, подставляются
-/// из справочников терминала.
+/// из справочников терминала. Склады (P6-07-2) приводятся к соглашению терминала
+/// («Основной» — `null`) до наложения очереди и подписываются по справочнику складов.
 @LazySingleton(as: ContentsRepository)
 class ContentsRepositoryImpl implements ContentsRepository {
-  ContentsRepositoryImpl(this._api, this._cache, this._catalog, this._outbox);
+  ContentsRepositoryImpl(
+    this._api,
+    this._cache,
+    this._catalog,
+    this._outbox,
+    this._warehouses,
+  );
 
   final ContentsApi _api;
   final ContentsCache _cache;
   final CatalogCache _catalog;
   final OutboxRepository _outbox;
+  final InternalWarehouses _warehouses;
 
   /// Сколько операций очереди просматривать. Неотправленных приёмок и размещений на терминале
   /// единицы; предел — только защита от разбора тысяч привязок ШК.
@@ -57,7 +66,7 @@ class ContentsRepositoryImpl implements ContentsRepository {
       return Left(res.left);
     }
 
-    final view = overlay.applyToLoadUnit(id, base);
+    final view = overlay.applyToLoadUnit(id, _unit(base, overlay.cells));
     return Right(
       Viewed(
         view == null ? null : await _named(view, overlay.cells),
@@ -90,8 +99,25 @@ class ContentsRepositoryImpl implements ContentsRepository {
       return Left(res.left);
     }
 
-    final known = await _cache.loadUnits(overlay.referencedLoadUnits);
-    final view = overlay.applyToCell(base, known);
+    final known = _units(
+      await _cache.loadUnits(overlay.referencedLoadUnits),
+      overlay.cells,
+    );
+    final def = overlay.cells.defaultInternalWarehouse;
+    final view = overlay.applyToCell(
+      CellView(
+        cellId: base.cellId,
+        address: base.address,
+        loadUnits: [for (final lu in base.loadUnits) _unit(lu, overlay.cells)!],
+        loose: [
+          for (final l in base.loose)
+            l.onWarehouse(
+              InternalWarehouses.normalize(l.internalWarehouseId, def),
+            ),
+        ],
+      ),
+      known,
+    );
     return Right(
       Viewed(
         CellView(
@@ -100,7 +126,7 @@ class ContentsRepositoryImpl implements ContentsRepository {
           loadUnits: [
             for (final lu in view.loadUnits) await _named(lu, overlay.cells),
           ],
-          loose: await _namedLines(view.loose),
+          loose: await _namedLines(view.loose, await _warehouseNames()),
         ),
         freshness,
       ),
@@ -126,7 +152,9 @@ class ContentsRepositoryImpl implements ContentsRepository {
     Failure? refreshFailure,
   }) async {
     final overlay = await _overlay();
-    final all = overlay.applyToAll(await _cache.allLoadUnits());
+    final all = overlay.applyToAll(
+      _units(await _cache.allLoadUnits(), overlay.cells),
+    );
     final freshness = refreshFailure == null
         ? const FreshFromServer()
         : FromSnapshot(
@@ -165,7 +193,7 @@ class ContentsRepositoryImpl implements ContentsRepository {
     // Короба своих неотправленных приёмок сервер ещё не знает — наложение их добавляет,
     // поэтому отбор по коду идёт уже после него.
     final found = overlay
-        .applyToAll(base)
+        .applyToAll(_units(base, overlay.cells))
         .values
         .where((lu) => matchesShortCode(lu.id, code));
     return Right(Viewed(await _sorted(found, overlay.cells), freshness));
@@ -201,6 +229,7 @@ class ContentsRepositoryImpl implements ContentsRepository {
     return PendingOverlay(
       ops,
       OverlayCells(
+        defaultInternalWarehouse: await _warehouses.defaultId(),
         addressById: {for (final c in cells) c.id: c.address},
         defaultCellByWarehouse: {
           for (final c in cells)
@@ -210,26 +239,59 @@ class ContentsRepositoryImpl implements ContentsRepository {
     );
   }
 
-  /// Короб с наименованиями товаров и адресом ячейки из справочников, где их нет.
-  Future<LoadUnitView> _named(LoadUnitView lu, OverlayCells cells) async =>
-      lu.copyWith(
-        cellAddress: lu.cellAddress ?? cells.addressById[lu.cellId],
-        lines: await _namedLines(lu.lines),
-      );
+  /// Короб со складом в соглашении терминала: «Основной» — `null`; строки — склада короба.
+  LoadUnitView? _unit(LoadUnitView? lu, OverlayCells cells) {
+    if (lu == null) return null;
+    final id = InternalWarehouses.normalize(
+      lu.internalWarehouseId,
+      cells.defaultInternalWarehouse,
+    );
+    return id == lu.internalWarehouseId &&
+            lu.lines.every((l) => l.internalWarehouseId == id)
+        ? lu
+        : lu.onWarehouse(id);
+  }
 
-  Future<List<ContentLine>> _namedLines(List<ContentLine> lines) async => [
+  Map<String, LoadUnitView> _units(
+    Map<String, LoadUnitView> units,
+    OverlayCells cells,
+  ) => units.map((id, lu) => MapEntry(id, _unit(lu, cells)!));
+
+  /// Имена складов, кроме «Основного», — для подписи помеченного товара.
+  Future<Map<String, String>> _warehouseNames() async => {
+    for (final w in await _warehouses.all())
+      if (!w.isDefault) w.id: w.name,
+  };
+
+  /// Короб с наименованиями товаров, адресом ячейки и именем склада из справочников.
+  Future<LoadUnitView> _named(LoadUnitView lu, OverlayCells cells) async {
+    final names = await _warehouseNames();
+    return lu.copyWith(
+      cellAddress: lu.cellAddress ?? cells.addressById[lu.cellId],
+      lines: await _namedLines(lu.lines, names),
+      internalWarehouseName: names[lu.internalWarehouseId],
+    );
+  }
+
+  Future<List<ContentLine>> _namedLines(
+    List<ContentLine> lines,
+    Map<String, String> warehouses,
+  ) async => [
     for (final l in lines)
-      if (l.goodName != null)
-        l
-      else
-        await _catalog
-            .goodById(l.goodId)
-            .then(
-              (g) => g == null
-                  ? l
-                  : l.copyWith(goodName: g.name, goodCode: g.code, uom: g.uom),
-            ),
+      await _namedLine(l).then(
+        (n) => n.copyWith(
+          internalWarehouseName: warehouses[n.internalWarehouseId],
+        ),
+      ),
   ];
+
+  Future<ContentLine> _namedLine(ContentLine l) async {
+    if (l.goodName != null) return l;
+    final g = await _catalog.goodById(l.goodId);
+    return g == null
+        ? l
+        : l.copyWith(goodName: g.name, goodCode: g.code, uom: g.uom);
+  }
 
   static bool _isNotFound(Failure f) =>
       f is ServerFailure && f.statusCode == 404;

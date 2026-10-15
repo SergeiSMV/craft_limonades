@@ -45,7 +45,10 @@ class MoveQtyHeader extends StatelessWidget {
           ),
         ),
         Text(
-          t.movement.qtyBatch(date: batchDate(line.productionDate)),
+          withWarehouse(
+            t.movement.qtyBatch(date: batchDate(line.productionDate)),
+            line.internalWarehouseName,
+          ),
           style: muted,
         ),
         Text(

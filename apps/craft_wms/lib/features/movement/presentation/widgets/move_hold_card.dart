@@ -53,9 +53,20 @@ class MoveHoldCard extends StatelessWidget {
         null,
         t.movement.scanCellHint,
       ),
-      HoldGoods(:final good, :final productionDate, :final qty, :final from) =>
+      HoldGoods(
+        :final good,
+        :final productionDate,
+        :final qty,
+        :final from,
+        :final internalWarehouseName,
+      ) =>
         (
-          goodsLabel(good, productionDate, qty),
+          goodsLabel(
+            good,
+            productionDate,
+            qty,
+            warehouse: internalWarehouseName,
+          ),
           t.movement.from(place: placeLabel(from)),
           t.movement.scanTargetHint,
         ),

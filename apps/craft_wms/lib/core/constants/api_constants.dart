@@ -104,6 +104,9 @@ abstract final class ApiConst {
   /// Запись истории перемещений со строками.
   static String movementById(String id) => 'movements/$id';
 
+  /// Справочник внутренних складов (P6-07-1): «Основной», «Брак», «Изолятор» …
+  static const String internalWarehouses = 'internal-warehouses';
+
   ///**POST** - взять задание (204; 409 — у другого или выполнено): `tasks/{id}/take`.
   static String taskTake(String id) => 'tasks/$id/take';
 

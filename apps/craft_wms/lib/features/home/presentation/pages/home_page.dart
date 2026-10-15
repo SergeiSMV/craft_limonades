@@ -105,6 +105,10 @@ class HomePage extends StatelessWidget {
   void openMovement(BuildContext context) =>
       context.router.push(const MovementRoute());
 
+  /// «Проблемы склада» (P6-07-2): пометка брака и изолятора.
+  void openProblems(BuildContext context) =>
+      context.router.push(const ProblemRoute());
+
   /// Открыть раздел «Ввод остатков» (проход склада, P-FastStart).
   void openStockEntry(BuildContext context) =>
       context.router.push(const StockEntryRoute());
@@ -299,6 +303,13 @@ class HomePage extends StatelessWidget {
                           showBadge: hasPass,
                           onTap: () => openStock(context),
                         ),
+                      ),
+                      MenuTile(
+                        title: t.homeScreen.tiles.problemsTitle,
+                        subtitle: t.homeScreen.tiles.problemsSubtitle,
+                        imageIcon: Assets.icons.menuIcons.check,
+                        color: AppColors.kTileProblems,
+                        onTap: () => openProblems(context),
                       ),
                       MenuTile(
                         title: t.homeScreen.tiles.historyTitle,
