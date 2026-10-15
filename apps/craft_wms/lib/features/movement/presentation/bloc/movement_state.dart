@@ -28,6 +28,10 @@ sealed class MoveHold with _$MoveHold {
     required String productionDate,
     required double qty,
     required MovePlace from,
+
+    /// Склад взятого товара (P6-07-2); `null` — «Основной».
+    String? internalWarehouseId,
+    String? internalWarehouseName,
   }) = HoldGoods;
 }
 
@@ -82,6 +86,9 @@ sealed class MoveNotice with _$MoveNotice {
   /// В руках короб, отсканирован другой короб: короб в короб не кладётся.
   const factory MoveNotice.boxIntoBox() = NoticeBoxIntoBox;
 
+  /// Товар другого склада в короб не кладётся: брак — только в короб брака (P6-07-2).
+  const factory MoveNotice.warehouseMismatch() = NoticeWarehouseMismatch;
+
   /// Перемещено — куда.
   const factory MoveNotice.moved(String address) = NoticeMoved;
 }
@@ -108,17 +115,29 @@ abstract class MovementState with _$MovementState {
 
   const MovementState._();
 
-  /// Сколько товара партии [productionDate] есть в источнике сейчас: состав на момент скана
-  /// плюс то, что сеанс в этот источник положил, минус то, что из него уже взял.
-  double available(HoldSource source, String goodId, String productionDate) {
+  /// Сколько товара партии [productionDate] склада [warehouseId] есть в источнике сейчас:
+  /// состав на момент скана плюс то, что сеанс в этот источник положил, минус то, что из него
+  /// уже взял. Брак и основной товар одной партии считаются раздельно (P6-07-2).
+  double available(
+    HoldSource source,
+    String goodId,
+    String productionDate, {
+    String? warehouseId,
+  }) {
     final base = source.contents
-        .where((c) => c.goodId == goodId && c.productionDate == productionDate)
+        .where(
+          (c) =>
+              c.goodId == goodId &&
+              c.productionDate == productionDate &&
+              c.internalWarehouseId == warehouseId,
+        )
         .fold<double>(0, (s, c) => s + c.qty);
     var delta = 0.0;
     for (final l in lines) {
       if (l.isWholeBox ||
           l.good?.id != goodId ||
-          l.productionDate != productionDate) {
+          l.productionDate != productionDate ||
+          l.internalWarehouseId != warehouseId) {
         continue;
       }
       if (l.to.samePlace(source.place)) delta += l.qty ?? 0;
@@ -144,12 +163,23 @@ abstract class MovementState with _$MovementState {
             uom: l.good!.uom,
             productionDate: l.productionDate!,
             qty: 0,
+            internalWarehouseId: l.internalWarehouseId,
+            internalWarehouseName: l.internalWarehouseName,
           ),
     ];
     for (final c in batches) {
       if (goodId != null && c.goodId != goodId) continue;
-      if (!seen.add('${c.goodId}|${c.productionDate}')) continue;
-      final left = available(source, c.goodId, c.productionDate);
+      if (!seen.add(
+        '${c.goodId}|${c.productionDate}|${c.internalWarehouseId}',
+      )) {
+        continue;
+      }
+      final left = available(
+        source,
+        c.goodId,
+        c.productionDate,
+        warehouseId: c.internalWarehouseId,
+      );
       if (left > 0) out.add((c, left));
     }
     return out;

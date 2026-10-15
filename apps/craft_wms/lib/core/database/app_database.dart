@@ -244,6 +244,11 @@ class CachedLoadUnits extends Table {
   TextColumn get cellId => text()();
   DateTimeColumn get createdAt => dateTime()();
 
+  /// Внутренний склад короба целиком (P6-07-1): «Основной», «Брак», «Изолятор» … Пусто —
+  /// снимок сервера без склада у коробов (до P6-07-1): короб «Основной».
+  TextColumn get internalWarehouseId =>
+      text().withDefault(const Constant(''))();
+
   @override
   Set<Column<Object>> get primaryKey => {id};
 }
@@ -287,6 +292,18 @@ class CachedLooseStock extends Table {
   };
 }
 
+/// Внутренние склады (P6-07-2): «Основной», «Брак», «Изолятор» … — чтобы пометить товар
+/// браком без связи и подписать его на экранах.
+class CachedInternalWarehouses extends Table {
+  TextColumn get id => text()();
+  TextColumn get code => text()();
+  TextColumn get name => text()();
+  BoolColumn get isDefault => boolean().withDefault(const Constant(false))();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
 /// Подключение к локальной базе.
 ///
 /// Файл `craft_wms.sqlite` в каталоге приложения; при удалении приложения уходит вместе с ним.
@@ -308,6 +325,7 @@ class CachedLooseStock extends Table {
     CachedLoadUnits,
     CachedLoadUnitLines,
     CachedLooseStock,
+    CachedInternalWarehouses,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -317,7 +335,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   /// Миграции схемы.
   ///
@@ -338,6 +356,9 @@ class AppDatabase extends _$AppDatabase {
   ///
   /// 6 → 7: добавлены таблицы снимка содержимого склада — [cachedLoadUnits],
   /// [cachedLoadUnitLines], [cachedLooseStock] (P5-05). Пустые до первой загрузки снимка.
+  ///
+  /// 7 → 8: у коробов снимка — внутренний склад, добавлен справочник внутренних складов
+  /// [cachedInternalWarehouses] (P6-07-2).
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) => m.createAll(),
@@ -372,6 +393,23 @@ class AppDatabase extends _$AppDatabase {
         await m.createTable(cachedLoadUnits);
         await m.createTable(cachedLoadUnitLines);
         await m.createTable(cachedLooseStock);
+      }
+      if (from < 8) {
+        // Колонку добавляем только базе версии 7: при подъёме с более ранних таблицу коробов
+        // только что создал шаг «< 7» — по текущей схеме, уже с колонкой (поймано тестом
+        // миграции).
+        if (from == 7) {
+          await m.addColumn(
+            cachedLoadUnits,
+            cachedLoadUnits.internalWarehouseId,
+          );
+        }
+        await m.createTable(cachedInternalWarehouses);
+        // Склад встаёт пустым у всех коробов — бракованный короб выглядел бы «Основным».
+        // Снимаем отметку снимка: до следующей загрузки содержимое читается с сервера.
+        await (delete(
+          catalogSyncMarks,
+        )..where((t) => t.catalog.equals('contents'))).go();
       }
     },
   );

@@ -1,4 +1,5 @@
 import '../../../core/outbox/outbox_operation.dart';
+import '../../../core/warehouse/internal_warehouses.dart';
 import '../domain/contents_entities.dart';
 
 /// Ячейки, которые нужны наложению: адреса и ячейка приёмки каждого склада.
@@ -6,17 +7,22 @@ class OverlayCells {
   const OverlayCells({
     this.addressById = const {},
     this.defaultCellByWarehouse = const {},
+    this.defaultInternalWarehouse,
   });
 
   final Map<String, String> addressById;
+
+  /// Id склада по умолчанию («Основной») — операции очереди несут id складов, а сущности
+  /// терминала зовут его `null` (P6-07-2).
+  final String? defaultInternalWarehouse;
 
   /// Ячейка приёмки («С-Н-П») склада: туда приёмка кладёт строку без ячейки, оттуда
   /// размещение берёт россыпь (P5-02).
   final Map<String, String> defaultCellByWarehouse;
 }
 
-/// Свои неотправленные приёмки, размещения и движения поверх данных сервера или снимка
-/// (P5-05, P6-04).
+/// Свои неотправленные приёмки, размещения, движения и пометки брака поверх данных сервера
+/// или снимка (P5-05, P6-04, P6-07-2).
 ///
 /// Что: применяет к короба́м и россыпи операции очереди `receipt_submit`, `putaway_submit` и
 /// `movement_submit` в статусах «ожидает» и «отправляется» — так, как их проведёт сервер.
@@ -29,14 +35,17 @@ class OverlayCells {
 /// Правила сервера, которые здесь повторены: строка приёмки без ячейки ложится в ячейку
 /// приёмки склада; россыпь размещения уходит из ячейки приёмки; короб переезжает целиком;
 /// товар движения уходит из короба или россыпи источника и ложится в короб или россыпь
-/// приёмника.
+/// приёмника; пометка (`problem_submit`) переводит короб целиком на другой склад, а товар —
+/// из россыпи или короба в россыпь склада назначения той же ячейки. Склад строки — свой
+/// у россыпи и склад короба у его содержимого.
 class PendingOverlay {
   PendingOverlay(Iterable<OutboxOperation> operations, this.cells)
     : ops = [
         for (final op in operations)
           if ((op.kind == OutboxKind.receiptSubmit ||
                   op.kind == OutboxKind.putawaySubmit ||
-                  op.kind == OutboxKind.movementSubmit) &&
+                  op.kind == OutboxKind.movementSubmit ||
+                  op.kind == OutboxKind.problemSubmit) &&
               (op.status == OutboxStatus.pending ||
                   op.status == OutboxStatus.sending))
             op,
@@ -50,7 +59,10 @@ class PendingOverlay {
   /// размещение переносит короб, не повторяя, что в нём.
   Set<String> get referencedLoadUnits => {
     for (final op in ops)
-      for (final l in _lines(op))
+      for (final l in [
+        ..._lines(op),
+        if (op.kind == OutboxKind.problemSubmit) op.payload,
+      ])
         for (final key in const [
           'load_unit_id',
           'from_load_unit_id',
@@ -114,6 +126,10 @@ class PendingOverlay {
     // окно — время одной отправки, пометка «ожидает» на строке честно говорит о нём.
     final known = boxes.keys.toSet();
     for (final op in ops) {
+      if (op.kind == OutboxKind.problemSubmit) {
+        _problem(op.payload, boxes, only: only, cellId: cellId, loose: loose);
+        continue;
+      }
       final warehouse = op.payload['warehouse_id'] as String?;
       final receivingCell = cells.defaultCellByWarehouse[warehouse];
       final isReceipt = op.kind == OutboxKind.receiptSubmit;
@@ -153,6 +169,7 @@ class PendingOverlay {
           if (receivingCell == cellId) _replace(loose, _sub(loose, line));
           if (to == cellId) _replace(loose, _add(loose, line));
         }
+        // Склада у строк приёмки и размещения нет: всё приходует и разносит «Основной».
       }
     }
   }
@@ -168,9 +185,12 @@ class PendingOverlay {
     String? cellId,
     List<ContentLine>? loose,
   }) {
-    final line = _line(l);
     final fromBox = l['from_load_unit_id'] as String?;
     final toBox = l['to_load_unit_id'] as String?;
+    // Склад товара: из короба — склад короба, из россыпи — склад строки.
+    final line = fromBox != null && boxes[fromBox] != null
+        ? _line(l).onWarehouse(boxes[fromBox]!.internalWarehouseId)
+        : _line(l);
     for (final (id, add) in [(fromBox, false), (toBox, true)]) {
       if (id == null || (only != null && id != only)) continue;
       final lu = boxes[id];
@@ -189,6 +209,47 @@ class PendingOverlay {
     }
   }
 
+  /// Пометка брака (P6-07-2): короб целиком — на склад назначения со всем составом; товар —
+  /// из россыпи или короба в россыпь склада назначения той же ячейки.
+  void _problem(
+    Map<String, dynamic> p,
+    Map<String, LoadUnitView> boxes, {
+    String? only,
+    String? cellId,
+    List<ContentLine>? loose,
+  }) {
+    final to = _warehouse(p['to_internal_warehouse_id']);
+    final box = p['load_unit_id'] as String?;
+    if (box != null) {
+      if (only != null && box != only) return;
+      final lu = boxes[box];
+      if (lu != null) {
+        boxes[box] = lu.onWarehouse(to).copyWith(pending: true);
+      }
+      return;
+    }
+    final fromBox = p['from_load_unit_id'] as String?;
+    if (fromBox != null) {
+      final lu = boxes[fromBox];
+      if (lu == null) return;
+      final line = _line(p).onWarehouse(lu.internalWarehouseId);
+      if (only == null || only == fromBox) {
+        boxes[fromBox] = lu.copyWith(
+          pending: true,
+          lines: _sub(lu.lines, line),
+        );
+      }
+      if (loose != null && lu.cellId == cellId) {
+        _replace(loose, _add(loose, line.onWarehouse(to)));
+      }
+      return;
+    }
+    if (loose == null || p['cell_id'] != cellId) return;
+    final line = _line(p);
+    _replace(loose, _sub(loose, line));
+    _replace(loose, _add(loose, line.onWarehouse(to)));
+  }
+
   LoadUnitView? _addressed(LoadUnitView? lu) {
     if (lu == null || !lu.pending || lu.cellId == null) return lu;
     final address = cells.addressById[lu.cellId];
@@ -201,12 +262,20 @@ class PendingOverlay {
   ];
 
   /// Строка операции как строка содержимого. Количество в теле — число (приёмка) или строка
-  /// (размещение берёт его из задания).
-  static ContentLine _line(Map<String, dynamic> l) => ContentLine(
+  /// (размещение берёт его из задания). Склад — `internal_warehouse_id` строки (россыпь
+  /// движения и пометки), без него — «Основной».
+  ContentLine _line(Map<String, dynamic> l) => ContentLine(
     goodId: l['good_id'] as String,
     productionDate: l['production_date'] as String,
     qty: double.tryParse('${l['qty']}') ?? 0,
     pending: true,
+    internalWarehouseId: _warehouse(l['internal_warehouse_id']),
+  );
+
+  /// Id склада из операции — в соглашение терминала: «Основной» — `null`.
+  String? _warehouse(Object? id) => InternalWarehouses.normalize(
+    id as String?,
+    cells.defaultInternalWarehouse,
   );
 
   static List<ContentLine> _add(List<ContentLine> lines, ContentLine add) {

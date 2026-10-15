@@ -95,6 +95,7 @@ class MovementCubit extends Cubit<MovementState> {
       cellId: cell.id,
       cellAddress: cell.address,
       loadUnitId: box.id,
+      internalWarehouseId: box.internalWarehouseId,
     );
     switch (state.hold) {
       case HoldGoods():
@@ -205,7 +206,12 @@ class MovementCubit extends Cubit<MovementState> {
   void takeGoods(ContentLine line, double qty) {
     final hold = state.hold;
     if (hold is! HoldSource) return;
-    final left = state.available(hold, line.goodId, line.productionDate);
+    final left = state.available(
+      hold,
+      line.goodId,
+      line.productionDate,
+      warehouseId: line.internalWarehouseId,
+    );
     if (qty <= 0 || qty > left) return;
     emit(
       state.copyWith(
@@ -219,6 +225,8 @@ class MovementCubit extends Cubit<MovementState> {
           productionDate: line.productionDate,
           qty: qty,
           from: hold.place,
+          internalWarehouseId: line.internalWarehouseId,
+          internalWarehouseName: line.internalWarehouseName,
         ),
         notice: null,
       ),
@@ -234,12 +242,18 @@ class MovementCubit extends Cubit<MovementState> {
       emit(state.copyWith(notice: const MoveNotice.samePlace()));
       return;
     }
+    // Короб принадлежит складу целиком: брак кладётся только в короб брака (P6-07-2).
+    if (to.isBox && to.internalWarehouseId != g.internalWarehouseId) {
+      emit(state.copyWith(notice: const MoveNotice.warehouseMismatch()));
+      return;
+    }
     final lines = List<MoveLine>.from(state.lines);
     final same = lines.indexWhere(
       (l) =>
           !l.isWholeBox &&
           l.good?.id == g.good.id &&
           l.productionDate == g.productionDate &&
+          l.internalWarehouseId == g.internalWarehouseId &&
           l.from.samePlace(g.from) &&
           l.to.samePlace(to),
     );
@@ -253,6 +267,8 @@ class MovementCubit extends Cubit<MovementState> {
           qty: g.qty,
           from: g.from,
           to: to,
+          internalWarehouseId: g.internalWarehouseId,
+          internalWarehouseName: g.internalWarehouseName,
         ),
       );
     }
@@ -311,7 +327,8 @@ class MovementCubit extends Cubit<MovementState> {
   /// Тело операции `movement_submit` — формат эталона `testdata/movement_submit.json`.
   ///
   /// У короба ячейку не шлём: сервер берёт её из места короба. Дата партии — в транспортном
-  /// виде DD-MM-YYYY.
+  /// виде DD-MM-YYYY. Склад товара шлём только у россыпи не «Основного» склада (P6-07-2): из
+  /// короба склад — склад короба, а «Основной» сервер подставляет сам.
   @visibleForTesting
   static Map<String, dynamic> payload(MovementState s) => {
     'movement_id': s.movementId,
@@ -329,6 +346,8 @@ class MovementCubit extends Cubit<MovementState> {
                   'from_load_unit_id': l.from.loadUnitId
                 else
                   'from_cell_id': l.from.cellId,
+                if (!l.from.isBox && l.internalWarehouseId != null)
+                  'internal_warehouse_id': l.internalWarehouseId,
                 if (l.to.isBox)
                   'to_load_unit_id': l.to.loadUnitId
                 else

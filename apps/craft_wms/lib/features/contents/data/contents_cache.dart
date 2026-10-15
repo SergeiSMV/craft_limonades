@@ -36,6 +36,7 @@ class ContentsCache {
             kind: lu.kind,
             cellId: lu.cellId,
             createdAt: lu.createdAt,
+            internalWarehouseId: Value(lu.internalWarehouseId),
           ),
       ]);
       b.insertAll(_db.cachedLoadUnitLines, [
@@ -105,8 +106,8 @@ class ContentsCache {
     return (await _withLines(rows)).values.toList();
   }
 
-  /// Россыпь снимка в ячейке. Строки разных внутренних складов одной партии складываются:
-  /// кладовщик видит, сколько лежит, а учётную принадлежность — в карточке товара.
+  /// Россыпь снимка в ячейке. Строки разных внутренних складов — разные строки (P6-07-2):
+  /// брак рядом с основным товаром показывается и перемещается отдельно.
   Future<List<ContentLine>> looseInCell(String cellId) async {
     final rows = await (_db.select(
       _db.cachedLooseStock,
@@ -117,6 +118,7 @@ class ContentsCache {
         goodId: r.goodId,
         productionDate: r.productionDate,
         qty: r.qty,
+        internalWarehouseId: r.internalWarehouseId,
       );
       final i = out.indexWhere(line.sameBatch);
       if (i < 0) {
@@ -136,6 +138,7 @@ class ContentsCache {
     final lines = await (_db.select(
       _db.cachedLoadUnitLines,
     )..where((t) => t.loadUnitId.isIn(rows.map((r) => r.id)))).get();
+    final warehouseOf = {for (final r in rows) r.id: r.internalWarehouseId};
     final byUnit = <String, List<ContentLine>>{};
     for (final l in lines) {
       byUnit
@@ -145,6 +148,7 @@ class ContentsCache {
               goodId: l.goodId,
               productionDate: l.productionDate,
               qty: l.qty,
+              internalWarehouseId: warehouseOf[l.loadUnitId],
             ),
           );
     }
@@ -157,6 +161,7 @@ class ContentsCache {
           createdAt: r.createdAt.toLocal(),
           // В снимке только живые короба.
           live: true,
+          internalWarehouseId: r.internalWarehouseId,
           lines: byUnit[r.id] ?? const [],
         ),
     };

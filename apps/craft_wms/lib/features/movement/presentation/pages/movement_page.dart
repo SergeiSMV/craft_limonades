@@ -341,6 +341,7 @@ class _MovementViewState extends State<_MovementView>
       NoticeSameCell() => t.movement.noticeSameCell,
       NoticeSamePlace() => t.movement.noticeSamePlace,
       NoticeBoxIntoBox() => t.movement.noticeBoxIntoBox,
+      NoticeWarehouseMismatch() => t.movement.noticeWarehouseMismatch,
       NoticeMoved(:final address) => t.movement.noticeMoved(cell: address),
     });
     cubit.clearNotice();

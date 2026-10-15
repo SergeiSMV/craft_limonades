@@ -7,6 +7,7 @@ import '../../features/stock/data/catalog_api.dart';
 import '../../features/contents/domain/contents_repository.dart';
 import '../../features/stock/data/catalog_cache.dart';
 import '../error/failure.dart';
+import '../warehouse/internal_warehouses.dart';
 
 /// Чем закончилась попытка обновить справочники (ADHOC-10).
 ///
@@ -31,7 +32,13 @@ enum SyncOutcome {
 ///      в кэше, а не откатывает всё: половина свежего справочника лучше, чем ничего.
 @lazySingleton
 class CatalogSyncService {
-  CatalogSyncService(this._api, this._cache, this._contents, this._talker);
+  CatalogSyncService(
+    this._api,
+    this._cache,
+    this._contents,
+    this._warehouses,
+    this._talker,
+  );
 
   final CatalogApi _api;
   final CatalogCache _cache;
@@ -39,6 +46,9 @@ class CatalogSyncService {
   /// Снимок содержимого склада (P5-05) грузится в том же заходе, последним: его строки
   /// называют товары и ячейки справочников, которые к этому моменту уже свежие.
   final ContentsSnapshotSync _contents;
+
+  /// Внутренние склады (P6-07-2) — до снимка: им подписывается помеченный товар.
+  final InternalWarehouses _warehouses;
   final Talker _talker;
 
   /// Идёт синхронизация. Защищает от параллельных запусков: вход и ручное обновление могут
@@ -98,6 +108,13 @@ class CatalogSyncService {
             )
             .toList(),
       );
+
+      // Не останавливает синхронизацию: без справочника складов терминал работает как до
+      // P6-07-1 (брак не подписан и не помечается), а без снимка — нет.
+      final warehouses = await _warehouses.refresh();
+      if (warehouses.isLeft) {
+        _talker.warning('Внутренние склады не загрузились: ${warehouses.left}');
+      }
 
       final contents = await _contents.refresh();
       if (contents.isLeft) return Left(contents.left);

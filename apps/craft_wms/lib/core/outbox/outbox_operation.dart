@@ -24,7 +24,10 @@ enum OutboxKind {
   putawaySubmit('putaway_submit'),
 
   /// Сеанс перемещения или пополнения целиком (P6-04).
-  movementSubmit('movement_submit');
+  movementSubmit('movement_submit'),
+
+  /// Проблема склада: пометка короба или товара браком, изолятором … (P6-07-2).
+  problemSubmit('problem_submit');
 
   const OutboxKind(this.wire);
 

@@ -58,7 +58,12 @@ class MoveLinesList extends StatelessWidget {
             title: Text(
               l.isWholeBox
                   ? t.movement.lineBox(code: boxCode(l.loadUnitId!))
-                  : goodsLabel(l.good!, l.productionDate!, l.qty ?? 0),
+                  : goodsLabel(
+                      l.good!,
+                      l.productionDate!,
+                      l.qty ?? 0,
+                      warehouse: l.internalWarehouseName,
+                    ),
               style: RegularTextStyles().regularInter14,
             ),
             subtitle: Text(

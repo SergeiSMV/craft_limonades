@@ -16,6 +16,10 @@ abstract class MovePlace with _$MovePlace {
     @JsonKey(name: 'cell_id') required String cellId,
     @JsonKey(name: 'cell_address') required String cellAddress,
     @JsonKey(name: 'load_unit_id') String? loadUnitId,
+
+    /// Склад короба (P6-07-2); `null` — «Основной» или не короб. Товар кладётся в короб
+    /// только того же склада.
+    @JsonKey(name: 'internal_warehouse_id') String? internalWarehouseId,
   }) = _MovePlace;
 
   const MovePlace._();
@@ -59,6 +63,12 @@ abstract class MoveLine with _$MoveLine {
     double? qty,
     required MovePlace from,
     required MovePlace to,
+
+    /// Склад товара (P6-07-2): «Брак», «Изолятор» …; `null` — «Основной».
+    @JsonKey(name: 'internal_warehouse_id') String? internalWarehouseId,
+
+    /// Как склад товара показывается человеку.
+    @JsonKey(name: 'internal_warehouse_name') String? internalWarehouseName,
   }) = _MoveLine;
 
   const MoveLine._();
