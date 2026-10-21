@@ -27,6 +27,8 @@ class InternalWarehouse {
   final bool isDefault;
 
   /// В выборе (ADHOC-29): скрытым складом не помечают, но его остаток подписывается.
+  /// Системный склад («Возврат поставщику», P6-07-3) для терминала тоже не в выборе: на него
+  /// переводит только решение офиса.
   final bool isActive;
 }
 
@@ -60,7 +62,11 @@ class InternalWarehouses {
             code: e['code'] as String? ?? '',
             name: e['name'] as String? ?? '',
             isDefault: e['is_default'] as bool? ?? false,
-            isActive: e['is_active'] as bool? ?? true,
+            // Системный склад кладётся в кэш невыбираемым: локальной базе отдельная колонка
+            // не нужна — для терминала он то же, что скрытый.
+            isActive:
+                (e['is_active'] as bool? ?? true) &&
+                (e['system_role'] as String? ?? '').isEmpty,
           ),
       ];
       await _db.transaction(() async {

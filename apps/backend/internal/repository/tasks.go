@@ -255,9 +255,13 @@ const taskHeaderSQL = `
 
 // Current возвращает текущие задания, видимые пользователю, — пул и свои взятые, с позициями.
 // Старые сверху: задание, ждущее дольше, важнее разобрать раньше.
+//
+// Только размещение: задание «Возврат поставщику» (P6-07-3) уже рождается решением офиса, но
+// ТСД его пока не умеет выполнять — показать его терминалу можно будет вместе с потоком
+// отгрузки возврата.
 func (r *TaskRepository) Current(ctx context.Context, userID string, staleAfter time.Duration) ([]model.Task, error) {
 	rows, err := r.pool.Query(ctx, taskHeaderSQL+`
-		WHERE `+visibleSQL+`
+		WHERE t.kind = 'putaway' AND `+visibleSQL+`
 		ORDER BY t.created_at, t.number`, userID, intervalOf(staleAfter))
 	if err != nil {
 		return nil, fmt.Errorf("текущие задания: %w", err)

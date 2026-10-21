@@ -110,6 +110,12 @@ abstract final class ApiConst {
   /// Внутренний склад — переименовать, скрыть, удалить (ADHOC-29, admin).
   static String internalWarehouseById(String id) => 'internal-warehouses/$id';
 
+  ///**GET** - «Проблемы склада» для офиса (P6-07-3, admin): открытые сверху.
+  static const String problems = 'problems';
+
+  ///**POST** - «Провести» решение по проблеме (204): `problems/{id}/resolve`.
+  static String problemResolve(String id) => 'problems/$id/resolve';
+
   ///**POST** - взять задание (204; 409 — у другого или выполнено): `tasks/{id}/take`.
   static String taskTake(String id) => 'tasks/$id/take';
 

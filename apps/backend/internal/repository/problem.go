@@ -24,6 +24,9 @@ var (
 	ErrUnknownReason = errors.New("unknown problem reason")
 	// ErrUnknownInternalWarehouse — склада назначения нет или он скрыт.
 	ErrUnknownInternalWarehouse = errors.New("unknown or inactive internal warehouse")
+	// ErrSystemInternalWarehouse — склад системный (возврат поставщику, P6-07-3): на него и с него
+	// переводит только решение офиса; скрыть и удалить его нельзя.
+	ErrSystemInternalWarehouse = errors.New("system internal warehouse is managed by the program")
 	// ErrSameInternalWarehouse — товар уже числится на складе назначения.
 	ErrSameInternalWarehouse = errors.New("goods already belong to the target internal warehouse")
 )
@@ -212,11 +215,14 @@ func problemGoods(ctx context.Context, q Querier, in ProblemSubmitInput, cell, f
 	return problemRow{cell: cell, fromIwh: fromIwh, batch: batchID, qty: &qty}, nil
 }
 
-// guardProblemPlace — ячейка склада документа, не ячейка приёмки, и товар не числится уже
-// на складе назначения.
+// guardProblemPlace — ячейка склада документа, не ячейка приёмки, товар не числится уже
+// на складе назначения и не лежит на системном складе.
 func guardProblemPlace(ctx context.Context, q Querier, cell, fromIwh string, in ProblemSubmitInput) error {
 	if fromIwh == in.ToInternalWarehouseID {
 		return ErrSameInternalWarehouse
+	}
+	if err := guardNotSystemSource(ctx, q, fromIwh); err != nil {
+		return err
 	}
 	if err := guardCellOfWarehouse(ctx, q, cell, in.WarehouseID); err != nil {
 		return err
@@ -224,15 +230,36 @@ func guardProblemPlace(ctx context.Context, q Querier, cell, fromIwh string, in 
 	return guardNotReceivingCell(ctx, q, cell)
 }
 
-// guardActiveInternalWarehouse — склад назначения существует и не скрыт.
+// guardActiveInternalWarehouse — склад назначения существует, не скрыт и не системный:
+// на системный склад (возврат поставщику) товар переводит только решение офиса (P6-07-3).
 func guardActiveInternalWarehouse(ctx context.Context, q Querier, id string) error {
-	var active bool
-	err := q.QueryRow(ctx, `SELECT is_active FROM internal_warehouses WHERE id = $1::uuid`, id).Scan(&active)
+	var active, system bool
+	err := q.QueryRow(ctx, `
+		SELECT is_active, system_role IS NOT NULL FROM internal_warehouses WHERE id = $1::uuid`,
+		id).Scan(&active, &system)
 	if errors.Is(err, pgx.ErrNoRows) || (err == nil && !active) {
 		return ErrUnknownInternalWarehouse
 	}
 	if err != nil {
 		return fmt.Errorf("проверить внутренний склад: %w", err)
+	}
+	if system {
+		return ErrSystemInternalWarehouse
+	}
+	return nil
+}
+
+// guardNotSystemSource — товар на системном складе уже в задании возврата: пометить его
+// заново значило бы увести из-под задания (P6-07-3).
+func guardNotSystemSource(ctx context.Context, q Querier, iwh string) error {
+	var system bool
+	if err := q.QueryRow(ctx, `
+		SELECT system_role IS NOT NULL FROM internal_warehouses WHERE id = $1::uuid`,
+		iwh).Scan(&system); err != nil {
+		return fmt.Errorf("проверить склад-источник: %w", err)
+	}
+	if system {
+		return ErrSystemInternalWarehouse
 	}
 	return nil
 }
@@ -264,7 +291,7 @@ func NewInternalWarehouseRepository(pool *pgxpool.Pool) *InternalWarehouseReposi
 // это история), короб этого склада или запись проблемы. Внешние ключи этих таблиц и так не
 // дадут его удалить; признак нужен порталу, чтобы не предлагать удаление заведомо зря.
 const internalWarehouseSelect = `
-	SELECT w.id::text, w.code, w.name, w.is_default, w.is_active,
+	SELECT w.id::text, w.code, w.name, w.is_default, w.is_active, COALESCE(w.system_role, ''),
 	       EXISTS (SELECT 1 FROM stock s WHERE s.internal_warehouse_id = w.id)
 	       OR EXISTS (SELECT 1 FROM load_units lu WHERE lu.internal_warehouse_id = w.id)
 	       OR EXISTS (SELECT 1 FROM warehouse_problems p
@@ -274,7 +301,7 @@ const internalWarehouseSelect = `
 
 func scanInternalWarehouse(row pgx.Row) (model.InternalWarehouse, error) {
 	var w model.InternalWarehouse
-	err := row.Scan(&w.ID, &w.Code, &w.Name, &w.IsDefault, &w.IsActive, &w.InUse)
+	err := row.Scan(&w.ID, &w.Code, &w.Name, &w.IsDefault, &w.IsActive, &w.SystemRole, &w.InUse)
 	return w, err
 }
 
@@ -324,6 +351,9 @@ func (r *InternalWarehouseRepository) Update(ctx context.Context, id string, nam
 	if current.IsDefault && active != nil && !*active {
 		return model.InternalWarehouse{}, ErrDefaultInternalWarehouse
 	}
+	if current.SystemRole != "" && active != nil && !*active {
+		return model.InternalWarehouse{}, ErrSystemInternalWarehouse
+	}
 	if _, err := r.pool.Exec(ctx, `
 		UPDATE internal_warehouses
 		SET name = COALESCE($2, name), is_active = COALESCE($3, is_active)
@@ -342,6 +372,9 @@ func (r *InternalWarehouseRepository) Delete(ctx context.Context, id string) err
 	}
 	if current.IsDefault {
 		return ErrDefaultInternalWarehouse
+	}
+	if current.SystemRole != "" {
+		return ErrSystemInternalWarehouse
 	}
 	if current.InUse {
 		return ErrInternalWarehouseInUse

@@ -360,14 +360,15 @@ func isRejection(err error) bool {
 		errors.Is(err, repository.ErrGoodsShort) ||
 		errors.Is(err, repository.ErrMovementQty) ||
 		// Проблемы склада (P6-07-1): уже зафиксирована, пуста, причина или склад не те, товар
-		// уже на складе назначения. Повтор этого не исправит.
+		// уже на складе назначения или склад системный (P6-07-3). Повтор этого не исправит.
 		errors.Is(err, ErrInvalidProblemID) ||
 		errors.Is(err, ErrProblemCommentRequired) ||
 		errors.Is(err, repository.ErrProblemPosted) ||
 		errors.Is(err, repository.ErrEmptyProblem) ||
 		errors.Is(err, repository.ErrUnknownReason) ||
 		errors.Is(err, repository.ErrUnknownInternalWarehouse) ||
-		errors.Is(err, repository.ErrSameInternalWarehouse)
+		errors.Is(err, repository.ErrSameInternalWarehouse) ||
+		errors.Is(err, repository.ErrSystemInternalWarehouse)
 }
 
 // rejected собирает результат-отказ с причиной, читаемой человеком на экране разбора.
