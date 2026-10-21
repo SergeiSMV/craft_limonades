@@ -11,10 +11,12 @@ import '../../../../core/theme/semibold_text.dart';
 import '../../../../core/utils/date_time_format.dart';
 import '../../../data/problems_repository.dart';
 import '../common/neumorphic_text_button.dart';
+import '../common/portal_date_picker.dart';
 import '../common/portal_dialog.dart';
 import '../common/portal_filter_chip.dart';
 import '../common/portal_text_field.dart';
 import 'problem_labels.dart';
+import 'supplier_picker.dart';
 
 /// Диалог «Решение по проблеме» (P6-07-3): выбор решения из допустимых при причине и поля
 /// своего вида — документ списания 1С (номер и дата) или поставщик возврата. Возвращает
@@ -94,11 +96,12 @@ class _ResolveDialogState extends State<_ResolveDialog> {
   /// Выбрать дату документа списания.
   Future<void> pickDate() async {
     final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _docDate,
-      firstDate: DateTime(now.year - 1),
-      lastDate: now,
+    final picked = await showPortalDatePicker(
+      context,
+      title: t.portal.problems.docDateTitle,
+      initial: _docDate,
+      first: DateTime(now.year - 1),
+      last: now,
     );
     if (picked != null && mounted) setState(() => _docDate = picked);
   }
@@ -229,18 +232,13 @@ class _ResolveDialogState extends State<_ResolveDialog> {
       if (_suppliers == null && _error == null)
         const Center(child: CircularProgressIndicator())
       else if (_suppliers != null)
-        DropdownMenu<String>(
-          expandedInsets: EdgeInsets.zero,
-          enableFilter: true,
-          requestFocusOnTap: true,
-          initialSelection: _supplierId.isEmpty ? null : _supplierId,
-          label: Text(t.portal.problems.supplier),
-          hintText: t.portal.problems.supplierHint,
-          onSelected: (id) => setState(() => _supplierId = id ?? ''),
-          dropdownMenuEntries: [
-            for (final s in _suppliers!)
-              DropdownMenuEntry(value: s.id, label: s.name),
-          ],
+        SupplierPicker(
+          suppliers: _suppliers!,
+          selectedId: _supplierId,
+          onSelected: (id) => setState(() {
+            _supplierId = id;
+            _error = null;
+          }),
         ),
     ],
     _ => const [],

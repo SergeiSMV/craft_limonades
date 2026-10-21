@@ -99,20 +99,20 @@ class ProblemCard extends StatelessWidget {
             ],
           ),
           AppBoxes.kHeight12,
-          for (final it in p.items)
-            Padding(
-              padding: AppInsets.bottom4,
-              child: Text(
-                t.portal.problems.item(
-                  name: it.goodName,
-                  date: isoToRu(it.productionDate),
-                  qty: fmtQty(it.qty),
-                  cell: it.cellAddress,
-                ),
-                style: main,
-              ),
+          // Товар построчно: наименование, партия, количество, ячейка — как на ТСД.
+          for (final it in p.items) ...[
+            Text(it.goodName, style: main),
+            Text(
+              t.portal.problems.itemBatch(date: isoToRu(it.productionDate)),
+              style: muted,
             ),
-          AppBoxes.kHeight4,
+            Text(t.portal.problems.itemQty(qty: fmtQty(it.qty)), style: muted),
+            Text(
+              t.portal.problems.itemCell(cell: it.cellAddress),
+              style: muted,
+            ),
+            AppBoxes.kHeight8,
+          ],
           Text(
             t.portal.problems.warehouses(
               from: p.fromWarehouse,

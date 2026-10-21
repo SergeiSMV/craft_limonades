@@ -120,4 +120,49 @@ void main() {
     expect(r.docDate, matches(RegExp(r'^\d{4}-\d{2}-\d{2}$')));
     verify(() => repo.list()).called(2); // после проведения список перечитан
   });
+
+  testWidgets('порча — возврат: поиск поставщика, выбор, проведение', (
+    tester,
+  ) async {
+    when(() => repo.list()).thenAnswer(
+      (_) async => Right([
+        problem(
+          'p3',
+          reason: 'spoilage',
+          decisions: [ProblemDecision.writeOff, ProblemDecision.supplierReturn],
+        ),
+      ]),
+    );
+    when(() => repo.suppliers()).thenAnswer(
+      (_) async => const Right([
+        PortalSupplier(id: 's1', name: 'ООО "МИР"'),
+        PortalSupplier(id: 's2', name: 'ООО "Комус"'),
+      ]),
+    );
+    tester.view.physicalSize = const Size(1200, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      const MaterialApp(home: Scaffold(body: ProblemsTab())),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text(t.portal.problems.resolve));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(t.portal.problems.decisionSupplierReturn));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).last, 'мир');
+    await tester.pumpAndSettle();
+    expect(find.text('ООО "Комус"'), findsNothing);
+    await tester.tap(find.text('ООО "МИР"'));
+    await tester.pump();
+    await tester.tap(find.text(t.portal.problems.post));
+    await tester.pumpAndSettle();
+
+    final r =
+        verify(() => repo.resolve('p3', captureAny())).captured.single
+            as ProblemResolution;
+    expect(r.decision, ProblemDecision.supplierReturn);
+    expect(r.supplierId, 's1');
+  });
 }
