@@ -12,22 +12,22 @@ func TestInternalWarehousesHTTP_adminManages(t *testing.T) {
 	e := newReceivingE2E(t, nil)
 
 	if code, _ := e.call(t, http.MethodPost, "/api/v1/internal-warehouses", e.workerToken,
-		`{"code":"RETURN","name":"Возврат"}`); code != http.StatusForbidden {
+		`{"code":"RECALL","name":"Возврат"}`); code != http.StatusForbidden {
 		t.Fatalf("кладовщик заводит склад: %d", code)
 	}
 
 	code, body := e.call(t, http.MethodPost, "/api/v1/internal-warehouses", e.adminToken,
-		`{"code":"return","name":"Возврат"}`)
+		`{"code":"recall","name":"Возврат"}`)
 	var created struct {
 		ID       string `json:"id"`
 		Code     string `json:"code"`
 		IsActive bool   `json:"is_active"`
 	}
-	if code != http.StatusCreated || json.Unmarshal(body, &created) != nil || created.Code != "RETURN" || !created.IsActive {
+	if code != http.StatusCreated || json.Unmarshal(body, &created) != nil || created.Code != "RECALL" || !created.IsActive {
 		t.Fatalf("завести: %d %s", code, body)
 	}
 	if code, _ := e.call(t, http.MethodPost, "/api/v1/internal-warehouses", e.adminToken,
-		`{"code":"RETURN","name":"Повтор"}`); code != http.StatusConflict {
+		`{"code":"RECALL","name":"Повтор"}`); code != http.StatusConflict {
 		t.Errorf("повтор кода: %d", code)
 	}
 	if code, _ := e.call(t, http.MethodPost, "/api/v1/internal-warehouses", e.adminToken,
