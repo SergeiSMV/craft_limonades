@@ -596,8 +596,8 @@ CHECK: строка — короб (только `load_unit_id`) **либо** р
 
 Возврат поставщику (`000024`, P6-07-3): одно открытое задание на поставщика склада — частичный
 уникальный индекс `(warehouse_id, supplier_id) WHERE kind = 'supplier_return' AND status <> 'done'`.
-Позиции — проблемы, решённые возвратом (`warehouse_problems.return_task_id`). Пока ТСД не умеет
-отгружать возврат, текущие задания на ТСД отдают только `putaway`.
+Позиции — проблемы, решённые возвратом (`warehouse_problems.return_task_id`); отгружает их ТСД
+сеансом `supplier_return_shipments` (ADHOC-31).
 
 ### 3.25 `putaway_task_items` — позиции задания на размещение (миграция `000019`)
 
@@ -752,6 +752,26 @@ CHECK: короб целиком (только `load_unit_id`) **либо** то
 | `good_id`      | `uuid`          | NOT NULL; составной FK `(batch_id, good_id)`         |
 | `batch_id`     | `uuid`          | NOT NULL                                             |
 | `qty`          | `numeric(20,3)` | NOT NULL, `> 0`                                      |
+
+### 3.31 `supplier_return_shipments` — сеанс отгрузки возврата (миграция `000025`, ADHOC-31)
+
+Сеанс на ТСД отгружает позиции задания возврата целиком; проводится одной операцией очереди
+`return_submit`. Отгруженная позиция — `warehouse_problems.shipment_id` (CHECK: только у решения
+`supplier_return`); в журнал задания сеанс пишется событием `session` (`task_events.shipment_id`).
+
+| Колонка        | Тип           | Ограничения / смысл                       |
+|----------------|---------------|--------------------------------------------|
+| `id`           | `uuid`        | PK, **выдаёт устройство**                  |
+| `task_id`      | `uuid`        | FK → `warehouse_tasks(id)`                 |
+| `warehouse_id` | `uuid`        | FK → `warehouses(id)`                      |
+| `created_by`   | `uuid`        | FK → `users(id)` — кто отгрузил            |
+| `posted_at`    | `timestamptz` | DEFAULT `now()` — время сервера            |
+
+### 3.32 `supplier_return_shipment_lines` — что ушло с остатка (миграция `000025`, ADHOC-31)
+
+Те же колонки, что у строк решения (§3.30), плюс `shipment_id` (FK, `ON DELETE CASCADE`)
+и `problem_id` (FK → `warehouse_problems(id)`): товар партии с количеством, ячейка и короб,
+откуда позиция ушла. История ячейки для пересчёта (P10).
 
 ---
 

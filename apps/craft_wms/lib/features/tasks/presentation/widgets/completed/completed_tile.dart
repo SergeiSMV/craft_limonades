@@ -59,7 +59,7 @@ class CompletedTile extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    supplierBasis(task.supplier),
+                    supplierBasis(task.supplier, kind: task.kind),
                     style: muted,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,

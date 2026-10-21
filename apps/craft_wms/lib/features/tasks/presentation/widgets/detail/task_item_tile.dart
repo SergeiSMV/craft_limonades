@@ -65,7 +65,10 @@ class TaskItemTile extends StatelessWidget {
           ),
           if (item.placed) ...[
             AppBoxes.kWidth8,
-            Text(t.tasks.placed, style: muted),
+            Text(
+              item.problemId != null ? t.tasks.shipped : t.tasks.placed,
+              style: muted,
+            ),
           ],
         ],
       ),
@@ -83,14 +86,22 @@ class TaskItemTile extends StatelessWidget {
         '${qtyText(c.qty)} ${c.good.uom}',
         style: muted,
       ),
+    ..._cell(muted),
+  ];
+
+  /// Где позиция возврата лежит сейчас (ADHOC-31); у размещения ячейки нет.
+  List<Widget> _cell(TextStyle muted) => [
+    if (item.cell.isNotEmpty) Text(t.tasks.cell(cell: item.cell), style: muted),
   ];
 
   List<Widget> _loose(TextStyle title, TextStyle muted) => [
     Text(item.good?.name ?? '', style: title),
     Text(
       '${t.tasks.batch(date: batchDate(item.productionDate ?? ''))} · '
-      '${t.tasks.remaining(qty: qtyText(item.remaining), total: qtyText(item.qty), uom: item.good?.uom ?? '')}',
+      // У возврата позиция отгружается целиком — «осталось из» там не к чему (ADHOC-31).
+      '${item.problemId != null ? '${qtyText(item.qty)} ${item.good?.uom ?? ''}' : t.tasks.remaining(qty: qtyText(item.remaining), total: qtyText(item.qty), uom: item.good?.uom ?? '')}',
       style: muted,
     ),
+    ..._cell(muted),
   ];
 }

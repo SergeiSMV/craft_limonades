@@ -107,7 +107,7 @@ func TestProblemResolve_placeBoxAndNotAllowed(t *testing.T) {
 }
 
 // Возврат: товар переходит на склад возврата и копится в одном открытом задании поставщика;
-// ТСД задания возврата пока не видит; на склад возврата не помечают и с него не перепомечают.
+// ТСД видит задание возврата; на склад возврата не помечают и с него не перепомечают.
 func TestProblemResolve_supplierReturn(t *testing.T) {
 	mf := setupMove(t)
 	defect := mf.iwhByCode(t, "DEFECT")
@@ -136,12 +136,20 @@ func TestProblemResolve_supplierReturn(t *testing.T) {
 	if tasks != "1 supplier_return new" {
 		t.Errorf("задания возврата: %q", tasks)
 	}
+	// ТСД видит задание возврата с двумя позициями, ячейкой и поставщиком (ADHOC-31).
 	current, err := repository.NewTaskRepository(mf.pool).Current(context.Background(), mf.user, 0)
 	mustNoErr(t, err)
+	var found bool
 	for _, task := range current {
-		if task.Kind != "putaway" {
-			t.Errorf("ТСД видит задание %s", task.Kind)
+		if task.Kind == model.TaskSupplierReturn {
+			found = true
+			if task.SupplierName != "ООО Вкуснярики" || len(task.Items) != 2 || task.Items[0].CellAddress != "A" {
+				t.Errorf("задание возврата на ТСД: %+v", task)
+			}
 		}
+	}
+	if !found {
+		t.Error("ТСД не видит задание возврата")
 	}
 
 	if err := mf.problem(t, ret, mf.goodsProblem(1, mf.cellA, "")); !errors.Is(err, repository.ErrSystemInternalWarehouse) {

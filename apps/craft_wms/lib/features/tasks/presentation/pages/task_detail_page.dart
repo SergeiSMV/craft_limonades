@@ -78,13 +78,17 @@ class _TaskDetailView extends StatelessWidget {
     if (ok == true) await cubit.release();
   }
 
-  /// Начать размещение по заданию (P5-03); по возврату карточка обновляется — задание могло
-  /// быть выполнено или вернуться в пул.
+  /// Выполнить задание: размещение (P5-03) или отгрузку возврата (ADHOC-31); по возврату
+  /// карточка обновляется — задание могло быть выполнено или вернуться в пул.
   Future<void> execute(BuildContext context) async {
     final cubit = context.read<TaskDetailCubit>();
     final task = cubit.state.task;
     if (task == null) return;
-    await context.router.push(PutawayRoute(task: task));
+    await context.router.push(
+      task.kind == TaskKind.supplierReturn
+          ? SupplierReturnRoute(task: task)
+          : PutawayRoute(task: task),
+    );
     await cubit.refresh();
   }
 
@@ -234,7 +238,12 @@ class _TaskBody extends StatelessWidget {
         if (task.isMine && task.assigneeName.isNotEmpty)
           Text(t.tasks.assignee(name: task.assigneeName), style: muted),
         AppBoxes.kHeight16,
-        Text(t.tasks.detailItems, style: section),
+        Text(
+          task.kind == TaskKind.supplierReturn
+              ? t.tasks.detailItemsReturn
+              : t.tasks.detailItems,
+          style: section,
+        ),
         AppBoxes.kHeight8,
         // Вертикальный отступ у плашки — чтобы тень неоморфной плашки не слипалась с соседней.
         for (final item in task.items)
@@ -271,6 +280,7 @@ class _TaskBody extends StatelessWidget {
                   for (final e in state.events)
                     HistoryTile(
                       event: e,
+                      kind: task.kind,
                       session: state.sessions
                           .where((s) => s.putawayId == e.putawayId)
                           .firstOrNull,

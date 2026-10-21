@@ -30,3 +30,14 @@ func MovementSubmitForTest(ctx context.Context, pool *pgxpool.Pool, in MovementS
 func ProblemSubmitForTest(ctx context.Context, pool *pgxpool.Pool, in ProblemSubmitInput) error {
 	return WithinTx(ctx, pool, func(q Querier) error { return problemSubmit(ctx, q, in) })
 }
+
+// ReturnSubmitForTest открывает тестам сеанс отгрузки возврата (ADHOC-31) в своей транзакции.
+func ReturnSubmitForTest(ctx context.Context, pool *pgxpool.Pool, in ReturnSubmitInput) (int, error) {
+	var n int
+	err := WithinTx(ctx, pool, func(q Querier) error {
+		var err error
+		n, err = returnSubmit(ctx, q, in)
+		return err
+	})
+	return n, err
+}

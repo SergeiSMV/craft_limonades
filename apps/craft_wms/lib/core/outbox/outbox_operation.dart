@@ -27,7 +27,10 @@ enum OutboxKind {
   movementSubmit('movement_submit'),
 
   /// Проблема склада: пометка короба или товара браком, изолятором … (P6-07-2).
-  problemSubmit('problem_submit');
+  problemSubmit('problem_submit'),
+
+  /// Сеанс отгрузки возврата поставщику по заданию целиком (ADHOC-31).
+  returnSubmit('return_submit');
 
   const OutboxKind(this.wire);
 

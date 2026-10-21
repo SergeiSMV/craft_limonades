@@ -169,4 +169,29 @@ void main() {
       expect((await cache.read())!.$1, isEmpty);
     },
   );
+
+  test(
+    'отгрузка возврата без связи (ADHOC-31): задание уходит из снимка целиком',
+    () async {
+      final cache = TasksCache(db);
+      final ret = serverTask().copyWith(
+        id: 'r1',
+        kind: TaskKind.supplierReturn,
+        items: const [
+          TaskItem(lineNo: 1, loadUnitId: 'lu1', problemId: 'p1', cell: 'A'),
+          TaskItem(lineNo: 2, problemId: 'p2', qty: '2', cell: 'B'),
+        ],
+      );
+      await cache.replace([ret, serverTask()], DateTime(2026, 10, 21));
+
+      await cache.applyReturn(taskId: 'r1', problemIds: {'p1'});
+      var (tasks, _) = (await cache.read())!;
+      expect(tasks.first.items.first.placed, isTrue);
+      expect(tasks.first.openItems, 1);
+
+      await cache.applyReturn(taskId: 'r1', problemIds: {'p2'});
+      (tasks, _) = (await cache.read())!;
+      expect(tasks.map((t) => t.id), [serverTask().id]);
+    },
+  );
 }

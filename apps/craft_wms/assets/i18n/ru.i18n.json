@@ -525,7 +525,8 @@
     "op_receipt": "Приёмка: позиций ${count}",
     "op_putaway": "Размещение: позиций ${count}",
     "op_movement": "Перемещение: строк ${count}",
-    "op_problem": "Проблема склада"
+    "op_problem": "Проблема склада",
+    "op_return": "Возврат поставщику: позиций ${count}"
   },
   "good_picker": {
     "title": "Выберите товар",
@@ -626,6 +627,38 @@
     "outcome_queued": "Нет связи — размещение уйдёт само, как только появится сеть",
     "outcome_rejected": "Сервер отклонил размещение: ${reason}",
     "outcome_done": "Готово"
+  },
+  "supplier_return": {
+    "title": "Возврат № ${number}",
+    "supplier": "Поставщик: ${name}",
+    "scan_hint": "Короб, ячейка или товар",
+    "progress": "Отмечено ${done} из ${total}",
+    "empty": "В задании нет позиций к отгрузке",
+    "box": "Короб ${code}",
+    "content_line": "${name} — ${qty} ${uom}, партия ${date}",
+    "batch_line": "Партия: ${date}",
+    "qty_line": "Количество: ${qty} ${uom}",
+    "cell_line": "Ячейка: ${cell}",
+    "checked_mark": "✓",
+    "ship": "Отгружено",
+    "not_all": "Отметьте все позиции: осталось ${left}",
+    "notice_not_in_task": "Этого нет среди позиций возврата",
+    "notice_already_checked": "Позиция уже отмечена",
+    "barcode_unknown": "Штрихкод ${code} не найден в справочнике",
+    "barcode_offline": "Нет связи — штрихкод ${code} не найден на терминале",
+    "box_label_unsupported": "Ярлык короба нового формата — обновите приложение",
+    "outcome_posted": "Возврат отгружен, задание выполнено",
+    "outcome_queued": "Нет связи — отгрузка уйдёт сама, как только появится сеть",
+    "outcome_rejected": "Сервер отклонил отгрузку: ${reason}",
+    "outcome_done": "К заданию",
+    "step_place": "Отсканируйте ячейку позиции, короб — его ярлык",
+    "step_goods": "Ячейка ${cell}: отсканируйте товар или коснитесь позиции",
+    "scan_cell": "Отсканируйте ячейку ${cell}",
+    "scan_box_or_cell": "Отсканируйте короб ${code} или ячейку ${cell}",
+    "notice_cell_not_in_task": "В этой ячейке нет позиций возврата",
+    "notice_need_cell": "Сначала отсканируйте ячейку ${cell}",
+    "step_cell": "Отсканируйте ячейку позиции",
+    "notice_box_not_in_task": "Этого короба нет среди позиций: товар вынут из него при пометке — отсканируйте ячейку"
   },
   "movement": {
     "title": "Перемещение",
@@ -805,7 +838,14 @@
     "filter_kind": "Вид задания",
     "filter_all": "Все",
     "filter_reset": "Сбросить",
-    "filter_apply": "Применить"
+    "filter_apply": "Применить",
+    "kind_supplier_return": "Возврат поставщику",
+    "basis_return": "Кому: ${supplier}",
+    "shipped": "отгружено",
+    "cell": "Ячейка: ${cell}",
+    "return_supplier": "Поставщик: ${supplier}",
+    "detail_items_return": "К отгрузке",
+    "event_shipped": "Отгрузил: ${user}"
   },
   "contents": {
     "cell_title": "Ячейка",

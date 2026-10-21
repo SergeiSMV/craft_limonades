@@ -65,6 +65,35 @@ class TasksCache {
     await replace(updated, syncedAt);
   }
 
+  /// Отметить в снимке позиции возврата отгруженными (ADHOC-31) — сеанс ушёл в очередь без
+  /// связи. Задание отгружается целиком, поэтому выполненное из снимка уходит, как у размещения.
+  Future<void> applyReturn({
+    required String taskId,
+    required Set<String> problemIds,
+  }) async {
+    final snapshot = await read();
+    if (snapshot == null) return;
+    final (tasks, syncedAt) = snapshot;
+    final updated = <WarehouseTask>[];
+    for (final task in tasks) {
+      if (task.id != taskId) {
+        updated.add(task);
+        continue;
+      }
+      final next = task.copyWith(
+        items: [
+          for (final it in task.items)
+            problemIds.contains(it.problemId) ? it.copyWith(placed: true) : it,
+        ],
+        status: TaskStatus.fresh,
+        assigneeName: '',
+        takenAt: null,
+      );
+      if (next.openItems > 0) updated.add(next);
+    }
+    await replace(updated, syncedAt);
+  }
+
   TaskItem _reduceLoose(TaskItem it, Map<(String, String), double> loose) {
     final key = (it.good?.id ?? '', it.productionDate ?? '');
     final placed = loose[key];

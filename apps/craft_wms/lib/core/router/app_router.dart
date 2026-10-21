@@ -13,6 +13,7 @@ import '../../features/movement/presentation/pages/movement_page.dart';
 import '../../features/movement/presentation/pages/movement_record_page.dart';
 import '../../features/problems/presentation/pages/problem_page.dart';
 import '../../features/putaway/presentation/pages/putaway_page.dart';
+import '../../features/supplier_return/presentation/pages/supplier_return_page.dart';
 import '../../features/receipt/presentation/bloc/receipt_cubit.dart'; // ReceiptCubit — аргумент ReceiptBoxRoute
 import '../../features/receipt/presentation/pages/receipt_box_page.dart';
 import '../../features/receipt/presentation/pages/receipt_page.dart';
@@ -64,6 +65,7 @@ class AppRouter extends RootStackRouter {
     AutoRoute(page: ProblemRoute.page, guards: [_authGuard]),
     // Выполнение задания на размещение (P5-03).
     AutoRoute(page: PutawayRoute.page, guards: [_authGuard]),
+    AutoRoute(page: SupplierReturnRoute.page, guards: [_authGuard]),
     // Содержимое ячейки и короба по скану (P5-05).
     AutoRoute(page: CellContentsRoute.page, guards: [_authGuard]),
     AutoRoute(page: LoadUnitRoute.page, guards: [_authGuard]),
