@@ -7,6 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/shopspring/decimal"
 
 	"craftwms/internal/model"
 )
@@ -323,6 +324,65 @@ func (r *ContentsRepository) SearchLoadUnits(ctx context.Context, code string, l
 
 // LoadUnitHistory возвращает историю короба: приёмку, которая его завела, и переносы из журнала
 // размещений по порядку — с адресами и ФИО (P5-05-1). Нет короба — model.ErrLoadUnitNotFound.
+// loadUnitContentEvents — изменения состава короба из всех журналов, по времени (ADHOC-32):
+// строки движения в короб и из него, вынимание части короба при пометке проблемы, списание
+// и отгрузка возврата его содержимого. Одним запросом — порядок задаёт база.
+func loadUnitContentEvents(ctx context.Context, q Querier, id string) ([]model.LoadUnitContentEvent, error) {
+	rows, err := q.Query(ctx, `
+		SELECT e.kind, g.name, g.uom, b.production_date, e.qty::text, e.peer, e.peer_lu::text,
+		       u.full_name, e.at
+		FROM (
+			SELECT 'in' AS kind, l.good_id, l.batch_id, l.qty, cf.address AS peer,
+			       l.from_load_unit_id AS peer_lu, m.created_by AS user_id, m.posted_at AS at, l.line_no AS ord
+			FROM movement_lines l JOIN movements m ON m.id = l.movement_id
+			JOIN cells cf ON cf.id = l.from_cell_id
+			WHERE l.to_load_unit_id = $1::uuid AND l.good_id IS NOT NULL
+			UNION ALL
+			SELECT 'out', l.good_id, l.batch_id, l.qty, ct.address, l.to_load_unit_id,
+			       m.created_by, m.posted_at, l.line_no
+			FROM movement_lines l JOIN movements m ON m.id = l.movement_id
+			JOIN cells ct ON ct.id = l.to_cell_id
+			WHERE l.from_load_unit_id = $1::uuid AND l.good_id IS NOT NULL
+			UNION ALL
+			SELECT 'problem', p.good_id, p.batch_id, p.qty, c.address, NULL,
+			       p.created_by, p.created_at, 0
+			FROM warehouse_problems p JOIN cells c ON c.id = p.cell_id
+			WHERE p.from_load_unit_id = $1::uuid
+			UNION ALL
+			SELECT 'write_off', l.good_id, l.batch_id, l.qty, NULL, NULL,
+			       p.resolved_by, p.resolved_at, l.line_no
+			FROM warehouse_problem_lines l JOIN warehouse_problems p ON p.id = l.problem_id
+			WHERE l.load_unit_id = $1::uuid AND p.decision = 'write_off'
+			UNION ALL
+			SELECT 'return', l.good_id, l.batch_id, l.qty, NULL, NULL,
+			       s.created_by, s.posted_at, l.line_no
+			FROM supplier_return_shipment_lines l JOIN supplier_return_shipments s ON s.id = l.shipment_id
+			WHERE l.load_unit_id = $1::uuid
+		) e
+		JOIN goods g   ON g.id = e.good_id
+		JOIN batches b ON b.id = e.batch_id
+		LEFT JOIN users u ON u.id = e.user_id
+		ORDER BY e.at, e.ord, g.name`, id)
+	if err != nil {
+		return nil, fmt.Errorf("состав короба в истории: %w", err)
+	}
+	defer rows.Close()
+	out := []model.LoadUnitContentEvent{}
+	for rows.Next() {
+		var ev model.LoadUnitContentEvent
+		var qty string
+		if err := rows.Scan(&ev.Kind, &ev.GoodName, &ev.Uom, &ev.ProductionDate, &qty, &ev.PeerAddress,
+			&ev.PeerLoadUnitID, &ev.UserName, &ev.At); err != nil {
+			return nil, fmt.Errorf("разобрать изменение состава: %w", err)
+		}
+		if ev.Qty, err = decimal.NewFromString(qty); err != nil {
+			return nil, fmt.Errorf("количество в истории короба: %w", err)
+		}
+		out = append(out, ev)
+	}
+	return out, rows.Err()
+}
+
 func (r *ContentsRepository) LoadUnitHistory(ctx context.Context, id string) (model.LoadUnitHistory, error) {
 	h := model.LoadUnitHistory{LoadUnitID: id, Moves: []model.LoadUnitMove{}}
 	err := r.withinSnapshot(ctx, func(q Querier) error {
@@ -374,7 +434,12 @@ func (r *ContentsRepository) LoadUnitHistory(ctx context.Context, id string) (mo
 			}
 			h.Moves = append(h.Moves, m)
 		}
-		return rows.Err()
+		if err := rows.Err(); err != nil {
+			return err
+		}
+		rows.Close()
+		h.Contents, err = loadUnitContentEvents(ctx, q, id)
+		return err
 	})
 	if err != nil {
 		return model.LoadUnitHistory{}, err
