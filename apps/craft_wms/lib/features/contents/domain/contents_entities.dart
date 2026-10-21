@@ -15,6 +15,8 @@ class ContentLine {
     required this.productionDate,
     required this.qty,
     this.pending = false,
+    this.internalWarehouseId,
+    this.internalWarehouseName,
   });
 
   final String goodId;
@@ -31,9 +33,19 @@ class ContentLine {
   /// Строку изменила своя неотправленная операция — показывается с пометкой.
   final bool pending;
 
-  /// Та же ли это партия товара — по ней сводятся строки снимка и операций очереди.
+  /// Внутренний склад строки (P6-07-2); `null` — «Основной». У строки короба — склад короба.
+  final String? internalWarehouseId;
+
+  /// Как склад показывается человеку («Брак», «Изолятор»); `null` — «Основной» или склад,
+  /// которого нет в справочнике терминала.
+  final String? internalWarehouseName;
+
+  /// Та же ли это партия товара того же склада — по ней сводятся строки снимка и операций
+  /// очереди. Брак и основной товар одной партии — разные строки.
   bool sameBatch(ContentLine other) =>
-      goodId == other.goodId && productionDate == other.productionDate;
+      goodId == other.goodId &&
+      productionDate == other.productionDate &&
+      internalWarehouseId == other.internalWarehouseId;
 
   ContentLine copyWith({
     String? goodName,
@@ -41,6 +53,7 @@ class ContentLine {
     String? uom,
     double? qty,
     bool? pending,
+    String? internalWarehouseName,
   }) => ContentLine(
     goodId: goodId,
     goodName: goodName ?? this.goodName,
@@ -49,6 +62,20 @@ class ContentLine {
     productionDate: productionDate,
     qty: qty ?? this.qty,
     pending: pending ?? this.pending,
+    internalWarehouseId: internalWarehouseId,
+    internalWarehouseName: internalWarehouseName ?? this.internalWarehouseName,
+  );
+
+  /// Та же строка на другом складе (P6-07-2): пометка браком переводит её целиком.
+  ContentLine onWarehouse(String? id) => ContentLine(
+    goodId: goodId,
+    goodName: goodName,
+    goodCode: goodCode,
+    uom: uom,
+    productionDate: productionDate,
+    qty: qty,
+    pending: pending,
+    internalWarehouseId: id,
   );
 }
 
@@ -63,6 +90,8 @@ class LoadUnitView {
     required this.live,
     this.lines = const [],
     this.pending = false,
+    this.internalWarehouseId,
+    this.internalWarehouseName,
   });
 
   final String id;
@@ -80,12 +109,19 @@ class LoadUnitView {
   /// Короб создан или перенесён своей неотправленной операцией.
   final bool pending;
 
+  /// Внутренний склад короба целиком (P6-07-2); `null` — «Основной».
+  final String? internalWarehouseId;
+
+  /// Как склад показывается человеку; `null` — «Основной».
+  final String? internalWarehouseName;
+
   LoadUnitView copyWith({
     String? cellId,
     String? cellAddress,
     bool? live,
     List<ContentLine>? lines,
     bool? pending,
+    String? internalWarehouseName,
   }) => LoadUnitView(
     id: id,
     kind: kind,
@@ -95,6 +131,21 @@ class LoadUnitView {
     live: live ?? this.live,
     lines: lines ?? this.lines,
     pending: pending ?? this.pending,
+    internalWarehouseId: internalWarehouseId,
+    internalWarehouseName: internalWarehouseName ?? this.internalWarehouseName,
+  );
+
+  /// Тот же короб на другом складе — со строками этого склада (P6-07-2).
+  LoadUnitView onWarehouse(String? id) => LoadUnitView(
+    id: this.id,
+    kind: kind,
+    cellId: cellId,
+    cellAddress: cellAddress,
+    createdAt: createdAt,
+    live: live,
+    lines: [for (final l in lines) l.onWarehouse(id)],
+    pending: pending,
+    internalWarehouseId: id,
   );
 }
 

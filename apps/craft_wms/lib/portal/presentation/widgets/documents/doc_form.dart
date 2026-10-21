@@ -39,7 +39,8 @@ class DocForm {
   };
 
   /// Колонка «Документ». Поступление — номер накладной и её дата; движение — задание
-  /// и операция; ввод остатков — название и число позиций.
+  /// и операция, а без задания (перемещение, P6-07) — операция и исполнитель; ввод
+  /// остатков — название и число позиций.
   CellText document(PortalDoc doc) => switch (kind) {
     'receipt' =>
       doc.docNumber.isEmpty
@@ -48,10 +49,12 @@ class DocForm {
               main: doc.docNumber,
               sub: t.portal.documents.docDate(date: _date(doc.docDate)),
             ),
+    'movement' when doc.taskNumber == 0 => (
+      main: _operation(doc.operation),
+      sub: doc.executor,
+    ),
     'movement' => (
-      main: doc.taskNumber > 0
-          ? t.portal.movement.task(number: doc.taskNumber)
-          : '—',
+      main: t.portal.movement.task(number: doc.taskNumber),
       sub: _operation(doc.operation),
     ),
     _ => (
@@ -70,13 +73,17 @@ class DocForm {
               number: doc.docNumber,
               date: _date(doc.docDate),
             ),
+    'movement' when doc.taskNumber == 0 => _operation(doc.operation),
     'movement' => '${document(doc).main} · ${_operation(doc.operation)}',
     _ => t.portal.inventory.mark,
   };
 
   /// Колонка контрагента. Поступление — поставщик; движение — поставщик и накладная приёмки,
-  /// из которой родилось задание.
+  /// из которой родилось задание; у перемещения основания нет.
   CellText party(PortalDoc doc) {
+    if (kind == 'movement' && doc.taskNumber == 0) {
+      return (main: t.portal.movement.noBasis, sub: '');
+    }
     final supplier = doc.supplier.isEmpty
         ? t.portal.receipt.noSupplier
         : doc.supplier;
@@ -114,6 +121,8 @@ class DocForm {
   /// Операция «Движения» для человека; незнакомая показывается как есть.
   static String _operation(String op) => switch (op) {
     'putaway' => t.portal.movement.opPutaway,
+    'move' => t.portal.movement.opMove,
+    'replenish' => t.portal.movement.opReplenish,
     _ => op,
   };
 }

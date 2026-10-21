@@ -109,6 +109,10 @@ func main() {
 		svc.Receipt = service.NewReceiptService(repository.NewReceiptRepository(pool), cells)
 		svc.LoadUnit = service.NewLoadUnitService(repository.NewLoadUnitRepository(pool))
 		svc.Task = service.NewTaskService(repository.NewTaskRepository(pool))
+		// История перемещений на ТСД (ADHOC-28).
+		svc.MovementHistory = service.NewMovementHistoryService(repository.NewMovementHistoryRepository(pool))
+		// Справочник внутренних складов для пометки брака на ТСД (P6-07-1).
+		svc.InternalWarehouse = service.NewInternalWarehouseService(repository.NewInternalWarehouseRepository(pool))
 		// Просмотр содержимого ячеек и коробов на ТСД (P5-05).
 		svc.Contents = service.NewContentsService(repository.NewContentsRepository(pool))
 	} else {

@@ -25,3 +25,8 @@ func MovementSubmitForTest(ctx context.Context, pool *pgxpool.Pool, in MovementS
 	})
 	return n, err
 }
+
+// ProblemSubmitForTest открывает тестам фиксацию проблемы склада (P6-07-1) в своей транзакции.
+func ProblemSubmitForTest(ctx context.Context, pool *pgxpool.Pool, in ProblemSubmitInput) error {
+	return WithinTx(ctx, pool, func(q Querier) error { return problemSubmit(ctx, q, in) })
+}

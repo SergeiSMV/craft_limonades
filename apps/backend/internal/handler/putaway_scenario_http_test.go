@@ -210,7 +210,7 @@ func (e *putawayEnv) stock(t *testing.T) string {
 }
 
 // movementDocs — документы «Движение» глазами портала.
-func (e *putawayEnv) movementDocs(t *testing.T) []map[string]any {
+func (e *rcvEnv) movementDocs(t *testing.T) []map[string]any {
 	t.Helper()
 	code, raw := e.call(t, http.MethodGet, "/api/v1/documents?kind="+model.ReportKindMovement, e.adminToken, "")
 	var out []map[string]any
@@ -221,7 +221,7 @@ func (e *putawayEnv) movementDocs(t *testing.T) []map[string]any {
 }
 
 // movementXLSX скачивает «Движение» из портала: шапка и строки таблицы под ней.
-func (e *putawayEnv) movementXLSX(t *testing.T, docID string) (map[string]string, [][]string) {
+func (e *rcvEnv) movementXLSX(t *testing.T, docID string) (map[string]string, [][]string) {
 	t.Helper()
 	code, raw := e.call(t, http.MethodGet, "/api/v1/documents/"+docID+"/file.xlsx", e.adminToken, "")
 	if code != http.StatusOK {

@@ -306,4 +306,42 @@ void main() {
     expect(c.state.lines.single.to.loadUnitId, box1);
     await c.close();
   });
+
+  test(
+    'брак и основной товар одной партии — раздельно; брак не кладётся в основной короб',
+    () async {
+      const defect = 'e0000000-0000-4000-8000-0000000000de';
+      ContentLine defectLine(double qty) => ContentLine(
+        goodId: good,
+        goodName: 'Кальмар',
+        uom: 'шт',
+        productionDate: date,
+        qty: qty,
+        internalWarehouseId: defect,
+        internalWarehouseName: 'Брак',
+      );
+      final c = await started();
+      c.onCell(cell1, loose: [line(5), defectLine(2)]);
+      final hold = c.state.hold! as HoldSource;
+      expect(c.state.available(hold, good, date), 5);
+      expect(c.state.available(hold, good, date, warehouseId: defect), 2);
+      expect(c.candidates().map((o) => o.$1.internalWarehouseId), [
+        null,
+        defect,
+      ]);
+
+      c.takeGoods(defectLine(2), 2);
+      c.onBox(box(box1), cell3);
+      expect(c.state.notice, const MoveNotice.warehouseMismatch());
+      expect(c.state.lines, isEmpty);
+
+      c.onCell(cell2);
+      final payload = MovementCubit.payload(c.state);
+      final l = (payload['lines'] as List).single as Map<String, dynamic>;
+      expect(l['internal_warehouse_id'], defect);
+      expect(l['from_cell_id'], cell1.id);
+      expect(c.state.lines.single.internalWarehouseName, 'Брак');
+      await c.close();
+    },
+  );
 }

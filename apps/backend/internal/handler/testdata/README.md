@@ -8,7 +8,8 @@
 | `outbox_batch.json`   | привязка и отвязка ШК (P2-08)     | `operations_http_test.go`         | `test/core/wire_contract_test.dart`                     |
 | `receipt_submit.json` | приёмка: короб и россыпь (P4-11D) | `receiving_scenario_http_test.go` | `test/features/receipt/receipt_wire_contract_test.dart` |
 | `putaway_submit.json` | размещение: короб и россыпь (P5-02) | `putaway_scenario_http_test.go` | `test/features/putaway/putaway_cubit_test.dart` |
-| `movement_submit.json` | движение: ГЕ целиком и товар между коробами и россыпью (P6-03) | `movement_http_test.go` | `test/features/movement/movement_cubit_test.dart` |
+| `movement_submit.json` | движение: ГЕ целиком и товар между коробами и россыпью (P6-03); Go-тест гоняет его и пополнением (P6-05) | `movement_http_test.go` | `test/features/movement/movement_cubit_test.dart` |
+| `problem_submit.json` | проблема склада: россыпь в «Брак», короб в «Изолятор» (P6-07-1); вместо id складов — коды | `problem_http_test.go` | `test/features/problems/problem_cubit_test.dart` |
 | `contents_snapshot.json` | **ответ** `GET /contents/snapshot`: снимок для кэша ТСД (P5-05) | `contents_http_test.go` | `test/features/contents/contents_repository_test.dart` |
 
 Go-тест скармливает файл настоящему роутеру и проверяет, что операции применяются. Эталон

@@ -51,6 +51,7 @@ class OutboxEffects {
       case OutboxKind.receiptSubmit:
       case OutboxKind.putawaySubmit:
       case OutboxKind.movementSubmit:
+      case OutboxKind.problemSubmit:
         break; // приёмка, размещение и движение справочник не меняют — следствий в кэше нет
       case OutboxKind.unbindBarcode:
         // Отвязка убирает запись сразу: кладовщик отвязал ошибочный код и не должен видеть
@@ -72,8 +73,10 @@ class OutboxEffects {
       _tasks.requestRefresh();
       return;
     }
-    // Движение заданий не касается — устаревает только содержимое склада (P6-04).
-    if (operation.kind == OutboxKind.movementSubmit) {
+    // Движение и пометка брака заданий не касаются — устаревает только содержимое склада
+    // (P6-04, P6-07-2).
+    if (operation.kind == OutboxKind.movementSubmit ||
+        operation.kind == OutboxKind.problemSubmit) {
       _contents.requestRefresh();
       return;
     }
@@ -87,6 +90,7 @@ class OutboxEffects {
       case OutboxKind.receiptSubmit:
       case OutboxKind.putawaySubmit:
       case OutboxKind.movementSubmit:
+      case OutboxKind.problemSubmit:
         break; // приёмка, размещение и движение в кэше справочников следа не оставляют
     }
   }
@@ -104,6 +108,7 @@ class OutboxEffects {
       case OutboxKind.receiptSubmit:
       case OutboxKind.putawaySubmit:
       case OutboxKind.movementSubmit:
+      case OutboxKind.problemSubmit:
         break; // откатывать в кэше нечего: документ возвращается человеку на разбор
       case OutboxKind.unbindBarcode:
         // Операция старого формата, без товара в теле, — восстанавливать нечем.

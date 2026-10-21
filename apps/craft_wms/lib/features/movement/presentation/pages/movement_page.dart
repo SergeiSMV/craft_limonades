@@ -21,14 +21,18 @@ import '../../../../core/widgets/page_header.dart';
 import '../../../../core/widgets/qty_dialog.dart';
 import '../../../../core/widgets/scan_field.dart';
 import '../../../../core/widgets/system_ui_wrapper.dart';
+import '../../../../core/widgets/tab_switch.dart';
 import '../../../contents/domain/contents_entities.dart';
 import '../../../contents/domain/contents_repository.dart';
 import '../../../contents/domain/load_unit_label_printer.dart';
 import '../../../stock/data/catalog_models.dart';
 import '../../../stock/data/catalog_repository.dart';
 import '../bloc/movement_cubit.dart';
+import '../bloc/movement_history_cubit.dart';
 import '../bloc/movement_state.dart';
 import '../widgets/find_box_sheet.dart';
+import '../widgets/history/move_history_feed.dart';
+import '../widgets/history/move_history_filter_button.dart';
 import '../widgets/move_goods_sheet.dart';
 import '../widgets/move_hold_card.dart';
 import '../widgets/move_lines_list.dart';
@@ -39,14 +43,20 @@ import '../widgets/move_qty_header.dart';
 /// Перемещение (P6-04): взял (короб, товар из короба или из россыпи) → положил (ячейка или
 /// короб) → … → «Завершить». Работает без связи: сеанс копится на терминале и уходит одной
 /// операцией, а состав источников берётся из снимка содержимого склада.
+///
+/// Вкладки «Новое» и «Завершённые» (ADHOC-28), как в разделе «ЗАДАНИЯ»: «Завершённые» —
+/// история перемещений всего склада, только онлайн, грузится при первом открытии вкладки.
 @RoutePage()
 class MovementPage extends StatelessWidget {
   const MovementPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => getIt<MovementCubit>()..init(),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(create: (_) => getIt<MovementCubit>()..init()),
+        BlocProvider(create: (_) => getIt<MovementHistoryCubit>()),
+      ],
       child: const _MovementView(),
     );
   }
@@ -64,6 +74,7 @@ class _MovementViewState extends State<_MovementView>
   final _scanController = TextEditingController();
   final _scanFocus = FocusNode();
   final _deduper = ScanDeduper();
+  int _tab = 0;
 
   MovementCubit get cubit => context.read<MovementCubit>();
   ContentsRepository get contents => getIt<ContentsRepository>();
@@ -83,12 +94,26 @@ class _MovementViewState extends State<_MovementView>
   @override
   void onHardwareScan(ScanCode code) => onScan(code.raw);
 
+  //* --- вкладки --- *//
+
+  /// Переключить вкладку; историю грузим при первом заходе в «Завершённые».
+  void selectTab(int index) {
+    setState(() => _tab = index);
+    final history = context.read<MovementHistoryCubit>();
+    if (index == 1 && history.state.status == HistoryStatus.initial) {
+      history.load();
+    }
+    if (index == 0) refocusScan();
+  }
+
   //* --- скан --- *//
 
   /// Единая точка для обоих источников кода (поле и интент), поэтому отсечение дубля здесь.
   Future<void> onScan(String value) async {
     final code = value.trim();
     _scanController.clear();
+    // Скан на вкладке истории — кладовщик начал перемещать: возвращаемся к сеансу.
+    if (_tab != 0) setState(() => _tab = 0);
     if (code.isEmpty || !_deduper.allow(code) || cubit.state.outcome != null) {
       refocusScan();
       return;
@@ -316,6 +341,7 @@ class _MovementViewState extends State<_MovementView>
       NoticeSameCell() => t.movement.noticeSameCell,
       NoticeSamePlace() => t.movement.noticeSamePlace,
       NoticeBoxIntoBox() => t.movement.noticeBoxIntoBox,
+      NoticeWarehouseMismatch() => t.movement.noticeWarehouseMismatch,
       NoticeMoved(:final address) => t.movement.noticeMoved(cell: address),
     });
     cubit.clearNotice();
@@ -349,11 +375,40 @@ class _MovementViewState extends State<_MovementView>
               borderRadius: AppBorders.kBottom10,
               child: Assets.images.featuredSnacks.image(fit: BoxFit.cover),
             ),
-            title: PageHeader(title: t.movement.title, goBack: goBack),
+            title: PageHeader(
+              title: t.movement.title,
+              goBack: goBack,
+              trailing: _tab == 1 ? const MoveHistoryFilterButton() : null,
+            ),
           ),
-          body: SafeArea(top: false, child: _body(state)),
+          body: SafeArea(top: false, child: _tabs(state)),
         ),
       ),
+    );
+  }
+
+  /// Вкладки «Новое» / «Завершённые». Итог сеанса — во весь экран, без вкладок.
+  Widget _tabs(MovementState state) {
+    if (state.outcome != null) return _body(state);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: AppInsets.h8 + AppInsets.top16,
+          child: TabSwitch(
+            labels: [t.movement.tabNew, t.movement.tabCompleted],
+            selected: _tab,
+            onSelected: selectTab,
+            activeColor: AppColors.kTileMovement,
+          ),
+        ),
+        Expanded(
+          child: IndexedStack(
+            index: _tab,
+            children: [_body(state), const MoveHistoryFeed()],
+          ),
+        ),
+      ],
     );
   }
 

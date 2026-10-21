@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 
 	"craftwms/internal/repository"
@@ -18,6 +19,7 @@ type fakeOpsRepo struct {
 	receipts []repository.ReceiptSubmitInput
 	putaways []repository.PutawaySubmitInput
 	moves    []repository.MovementSubmitInput
+	problems []repository.ProblemSubmitInput
 	bindErr  error // ошибка, которую вернуть на привязку
 	failWith error // временная ошибка (прерывает батч)
 }
@@ -101,6 +103,15 @@ func (f *fakeOpsRepo) MovementSubmit(_ context.Context, operationID string, in r
 	}
 	f.seen[operationID] = true
 	f.moves = append(f.moves, in)
+	return repository.Applied{Result: json.RawMessage(`{}`)}, nil
+}
+
+func (f *fakeOpsRepo) ProblemSubmit(_ context.Context, operationID string, in repository.ProblemSubmitInput) (repository.Applied, error) {
+	if f.seen[operationID] {
+		return repository.Applied{Result: json.RawMessage(`{}`), Duplicate: true}, nil
+	}
+	f.seen[operationID] = true
+	f.problems = append(f.problems, in)
 	return repository.Applied{Result: json.RawMessage(`{}`)}, nil
 }
 
@@ -483,5 +494,84 @@ func TestOperations_movementSubmitValidation(t *testing.T) {
 	}
 	if g := got.Lines[1]; g.FromLoadUnitID != box || g.ToLoadUnitID != box2 || g.ProductionDate != "2026-09-01" {
 		t.Fatalf("строка товара: %+v", g)
+	}
+}
+
+// Проблема склада (P6-07-1): ошибки формы отсекаются до репозитория и приходят отказом по
+// существу; верная доходит с автором из токена и датой в ISO.
+func TestOperations_problemSubmitValidation(t *testing.T) {
+	const (
+		problem   = "66666666-6666-4666-8666-666666666668"
+		warehouse = "44444444-4444-4444-8444-444444444444"
+		defect    = "99999999-9999-4999-8999-999999999999"
+		good      = "55555555-5555-4555-8555-555555555555"
+		box       = "77777777-7777-4777-8777-777777777777"
+		cell      = "88888888-8888-4888-8888-888888888888"
+	)
+	body := func(over map[string]any) map[string]any {
+		p := map[string]any{"problem_id": problem, "warehouse_id": warehouse,
+			"to_internal_warehouse_id": defect, "reason": "breakage",
+			"good_id": good, "production_date": "01-09-2026", "qty": 2, "cell_id": cell}
+		for k, v := range over {
+			if v == nil {
+				delete(p, k)
+			} else {
+				p[k] = v
+			}
+		}
+		return p
+	}
+	wholeBox := body(map[string]any{"good_id": nil, "production_date": nil, "qty": nil, "cell_id": nil, "load_unit_id": box})
+	cases := []struct {
+		name    string
+		payload map[string]any
+	}{
+		{"id не UUID", body(map[string]any{"problem_id": "x"})},
+		{"нет склада", body(map[string]any{"warehouse_id": nil})},
+		{"нет склада назначения", body(map[string]any{"to_internal_warehouse_id": nil})},
+		{"причины нет в списке", body(map[string]any{"reason": "лень"})},
+		{"«прочее» без комментария", body(map[string]any{"reason": "other"})},
+		{"комментарий длиннее предела", body(map[string]any{"comment": strings.Repeat("я", problemCommentMax+1)})},
+		{"короб с товаром", map[string]any{"problem_id": problem, "warehouse_id": warehouse,
+			"to_internal_warehouse_id": defect, "reason": "breakage", "load_unit_id": box, "good_id": good}},
+		{"короб со складом россыпи", body(map[string]any{"good_id": nil, "production_date": nil, "qty": nil,
+			"cell_id": nil, "load_unit_id": box, "internal_warehouse_id": defect})},
+		{"товар без источника", body(map[string]any{"cell_id": nil})},
+		{"товар с двумя источниками", body(map[string]any{"from_load_unit_id": box})},
+		{"из короба со складом строки", body(map[string]any{"cell_id": nil, "from_load_unit_id": box, "internal_warehouse_id": defect})},
+		{"нулевое количество", body(map[string]any{"qty": 0})},
+		{"неверная дата", body(map[string]any{"production_date": "2026-09-01"})},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := newFakeOpsRepo()
+			res, err := NewOperationsService(repo).Apply(context.Background(), opUserID,
+				[]Operation{op(opID1, repository.KindProblemSubmit, tc.payload)})
+			if err != nil {
+				t.Fatalf("Apply: %v", err)
+			}
+			if res[0].Status != StatusRejected {
+				t.Fatalf("ждали rejected, получили %q", res[0].Status)
+			}
+			if len(repo.problems) != 0 {
+				t.Fatal("неверная проблема дошла до репозитория")
+			}
+		})
+	}
+
+	repo := newFakeOpsRepo()
+	res, err := NewOperationsService(repo).Apply(context.Background(), opUserID, []Operation{
+		op(opID1, repository.KindProblemSubmit, body(map[string]any{"reason": "other", "comment": " развакуум "})),
+		op(opID2, repository.KindProblemSubmit, wholeBox),
+	})
+	if err != nil || res[0].Status != StatusAccepted || res[1].Status != StatusAccepted {
+		t.Fatalf("верные проблемы: err=%v, исход %+v", err, res)
+	}
+	if g := repo.problems[0]; g.CreatedBy != opUserID || g.ProductionDate != "2026-09-01" ||
+		g.CellID != cell || g.Comment != "развакуум" || g.ToInternalWarehouseID != defect {
+		t.Fatalf("разбор товара: %+v", g)
+	}
+	if g := repo.problems[1]; g.LoadUnitID != box || g.GoodID != "" {
+		t.Fatalf("разбор короба: %+v", g)
 	}
 }

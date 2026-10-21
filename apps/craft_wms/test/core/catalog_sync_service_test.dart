@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:craft_wms/core/database/app_database.dart';
 import 'package:craft_wms/core/error/failure.dart';
 import 'package:craft_wms/core/sync/catalog_sync_service.dart';
+import 'package:craft_wms/core/warehouse/internal_warehouses.dart';
 import 'package:craft_wms/features/stock/data/catalog_api.dart';
 import 'package:craft_wms/features/stock/data/catalog_cache.dart';
 import 'package:craft_wms/features/stock/data/catalog_models.dart';
@@ -14,6 +15,8 @@ import 'package:talker_flutter/talker_flutter.dart';
 import '../support/contents_stubs.dart';
 
 class _MockApi extends Mock implements CatalogApi {}
+
+class _MockWarehouses extends Mock implements InternalWarehouses {}
 
 /// Обновление справочников (P2-02) и его наблюдаемое состояние (ADHOC-10).
 void main() {
@@ -30,7 +33,9 @@ void main() {
     cache = CatalogCache(db);
     api = _MockApi();
     contents = FakeContentsSnapshotSync();
-    sync = CatalogSyncService(api, cache, contents, Talker());
+    final warehouses = _MockWarehouses();
+    when(warehouses.refresh).thenAnswer((_) async => const Right(null));
+    sync = CatalogSyncService(api, cache, contents, warehouses, Talker());
   });
 
   tearDown(() => db.close());

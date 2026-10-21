@@ -5,6 +5,7 @@ import 'package:craft_wms/core/database/app_database.dart';
 import 'package:craft_wms/core/error/failure.dart';
 import 'package:craft_wms/core/outbox/outbox_operation.dart';
 import 'package:craft_wms/core/outbox/outbox_repository.dart';
+import 'package:craft_wms/core/warehouse/internal_warehouses.dart';
 import 'package:craft_wms/features/contents/data/contents_api.dart';
 import 'package:craft_wms/features/contents/data/contents_cache.dart';
 import 'package:craft_wms/features/contents/data/contents_dto.dart';
@@ -12,7 +13,8 @@ import 'package:craft_wms/features/contents/data/contents_repository_impl.dart';
 import 'package:craft_wms/features/contents/domain/contents_entities.dart';
 import 'package:craft_wms/features/stock/data/catalog_cache.dart';
 import 'package:craft_wms/features/stock/data/catalog_models.dart';
-import 'package:drift/drift.dart' show Migrator;
+import 'package:drift/drift.dart' show Migrator, Value;
+import 'package:dio/dio.dart';
 import 'package:drift/native.dart';
 import 'package:either_dart/either.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -42,6 +44,9 @@ void main() {
   const looseCell = 'd0e1f2a3-b4c5-4d6e-8f70-8192a3b4c5d6';
   const good = 'a7b8c9d0-e1f2-4a3b-8c4d-5e6f70819203';
   const wh = 'f0000000-0000-4000-8000-000000000001';
+  // Склад эталона — «Основной»; «Брак» — для пометок (P6-07-2).
+  const mainIwh = 'e0000000-0000-4000-8000-000000000001';
+  const defectIwh = 'e0000000-0000-4000-8000-0000000000de';
 
   setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
@@ -49,7 +54,28 @@ void main() {
     cache = ContentsCache(db);
     catalog = CatalogCache(db);
     outbox = OutboxRepository(db, const Uuid());
-    repo = ContentsRepositoryImpl(api, cache, catalog, outbox);
+    await db.batch(
+      (b) => b.insertAll(db.cachedInternalWarehouses, [
+        CachedInternalWarehousesCompanion.insert(
+          id: mainIwh,
+          code: 'MAIN',
+          name: 'Основной',
+          isDefault: const Value(true),
+        ),
+        CachedInternalWarehousesCompanion.insert(
+          id: defectIwh,
+          code: 'DEFECT',
+          name: 'Брак',
+        ),
+      ]),
+    );
+    repo = ContentsRepositoryImpl(
+      api,
+      cache,
+      catalog,
+      outbox,
+      InternalWarehouses(Dio(), db),
+    );
     fixture = ContentsSnapshot.fromJson(
       jsonDecode(File(_fixturePath).readAsStringSync()) as Map<String, dynamic>,
     );
@@ -205,6 +231,101 @@ void main() {
 
     await cache.replace(fixture);
     expect((await cache.loadUnits([box])).keys, [box]);
+  });
+
+  test(
+    'миграция 7 → 8: склад у коробов снимка, справочник складов, снимок перечитать',
+    () async {
+      await db.customStatement('DROP TABLE cached_internal_warehouses');
+      await db.customStatement('DROP TABLE cached_load_units');
+      await db.customStatement(
+        'CREATE TABLE cached_load_units (id TEXT NOT NULL, kind TEXT NOT NULL, '
+        'cell_id TEXT NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY (id))',
+      );
+      await db
+          .into(db.catalogSyncMarks)
+          .insert(
+            CatalogSyncMarksCompanion.insert(
+              catalog: ContentsCache.markName,
+              syncedAt: DateTime.utc(2026, 10, 8),
+            ),
+          );
+
+      await db.migration.onUpgrade(Migrator(db), 7, 8);
+
+      expect(
+        await cache.asOf(),
+        isNull,
+        reason: 'склад коробов неизвестен — снимок перечитать',
+      );
+      await cache.replace(fixture);
+      expect((await cache.loadUnits([box]))[box]?.internalWarehouseId, mainIwh);
+      expect(await db.select(db.cachedInternalWarehouses).get(), isEmpty);
+    },
+  );
+
+  group('пометка брака своей очередью (P6-07-2)', () {
+    setUp(() => cache.replace(fixture));
+
+    Future<void> pendingProblem(Map<String, dynamic> body) => outbox.enqueue(
+      kind: OutboxKind.problemSubmit,
+      payload: {
+        'problem_id': const Uuid().v4(),
+        'warehouse_id': wh,
+        'to_internal_warehouse_id': defectIwh,
+        'reason': 'breakage',
+        ...body,
+      },
+    );
+
+    test('короб целиком — «Брак» со всем составом, склад подписан', () async {
+      await pendingProblem({'load_unit_id': box});
+
+      final lu = (await repo.loadUnit(box)).right.value!;
+      expect(lu.internalWarehouseId, defectIwh);
+      expect(lu.internalWarehouseName, 'Брак');
+      expect(lu.lines.single.internalWarehouseId, defectIwh);
+      expect(lu.pending, isTrue);
+    });
+
+    test(
+      'часть короба — вынута в россыпь брака той же ячейки, короб основной',
+      () async {
+        await pendingProblem({
+          'good_id': good,
+          'production_date': '01-09-2026',
+          'qty': 2,
+          'from_load_unit_id': box,
+        });
+
+        final cell = (await repo.cell(
+          const CellRef(id: boxCell, address: 'A-1-1'),
+        )).right.value!;
+        final lu = cell.loadUnits.single;
+        expect(lu.internalWarehouseId, isNull);
+        expect(lu.lines.single.qty, 10);
+        final loose = cell.loose.single;
+        expect((loose.internalWarehouseId, loose.qty), (defectIwh, 2));
+        expect(loose.internalWarehouseName, 'Брак');
+      },
+    );
+
+    test('россыпь — основная и брак одной партии раздельно', () async {
+      await pendingProblem({
+        'good_id': good,
+        'production_date': '02-09-2026',
+        'qty': 1,
+        'cell_id': looseCell,
+      });
+
+      final cell = (await repo.cell(
+        const CellRef(id: looseCell, address: 'С-Н-П'),
+      )).right.value!;
+      expect(
+        {for (final l in cell.loose) l.internalWarehouseId: l.qty},
+        {null: 2, defectIwh: 1},
+      );
+    });
   });
 
   group('вкладка «Короба» (P5-05-1)', () {

@@ -49,6 +49,8 @@ type LoadUnitCard struct {
 	CreatedAt   time.Time
 	Live        bool
 	Contents    []ContentLine // только строки с количеством больше нуля
+	// InternalWarehouseID — склад короба целиком (P6-07-1): «Основной», «Брак», «Изолятор» …
+	InternalWarehouseID string
 }
 
 // LooseLine — россыпь: товар партии в ячейке вне коробов (P5-05).

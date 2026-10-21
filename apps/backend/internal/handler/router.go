@@ -37,7 +37,11 @@ type Services struct {
 	Receipt    *service.ReceiptService
 	LoadUnit   *service.LoadUnitService
 	Task       *service.TaskService
-	Contents   *service.ContentsService
+	// MovementHistory — история перемещений на ТСД (ADHOC-28).
+	MovementHistory *service.MovementHistoryService
+	// InternalWarehouse — справочник внутренних складов для ТСД (P6-07-1).
+	InternalWarehouse *service.InternalWarehouseService
+	Contents          *service.ContentsService
 }
 
 // NewRouter собирает HTTP-роутер сервиса: общие middleware + маршруты.
@@ -192,6 +196,37 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 				r.Get("/tasks/{id}", taskH.Get)              // карточка с заходами
 				r.Post("/tasks/{id}/take", taskH.Take)       // взять в работу
 				r.Post("/tasks/{id}/release", taskH.Release) // отказаться
+			})
+		}
+
+		// История перемещений (ADHOC-28) — сотруднику: лента «Завершённые» в разделе
+		// «Перемещение», перемещения всего склада. Только онлайн, только чтение: проводит
+		// перемещение операция очереди movement_submit.
+		if svc.MovementHistory != nil {
+			mhH := NewMovementHistoryHandler(svc.MovementHistory)
+			r.Group(func(r chi.Router) {
+				r.Use(appmw.Authenticator(tokens))
+				r.Get("/movements", mhH.List)                // лента, свежие сверху
+				r.Get("/movements/executors", mhH.Executors) // варианты фильтра по исполнителю
+				r.Get("/movements/{id}", mhH.Get)            // запись со строками
+			})
+		}
+
+		// Внутренние склады (P6-07-1, ADHOC-29). Читает сотрудник: ТСД выбирает, каким складом
+		// пометить короб или товар, и подписывает помеченное. Ведёт справочник только admin из
+		// портала: завести, переименовать, скрыть, удалить без остатка и истории.
+		if svc.InternalWarehouse != nil {
+			iwH := NewInternalWarehouseHandler(svc.InternalWarehouse)
+			r.Group(func(r chi.Router) {
+				r.Use(appmw.Authenticator(tokens))
+				r.Get("/internal-warehouses", iwH.List) // все, и скрытые; по умолчанию первым
+			})
+			r.Group(func(r chi.Router) {
+				r.Use(appmw.Authenticator(tokens))
+				r.Use(appmw.RequireRole(model.RoleAdmin))
+				r.Post("/internal-warehouses", iwH.Create)
+				r.Patch("/internal-warehouses/{id}", iwH.Update)
+				r.Delete("/internal-warehouses/{id}", iwH.Delete)
 			})
 		}
 

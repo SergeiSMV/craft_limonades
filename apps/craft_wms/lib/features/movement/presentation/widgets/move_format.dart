@@ -15,11 +15,23 @@ String placeLabel(MovePlace p) => p.isBox
     ? t.movement.placeBox(code: boxCode(p.loadUnitId!), cell: p.cellAddress)
     : p.cellAddress;
 
-/// Товар с партией и количеством.
-String goodsLabel(MoveGood good, String productionDate, double qty) =>
-    t.movement.goods(
-      name: good.name,
-      date: batchDate(productionDate),
-      qty: fmtQty(qty),
-      uom: good.uom,
-    );
+/// Товар с партией и количеством; [warehouse] — склад не «Основной» («Брак» …) — дописывается.
+String goodsLabel(
+  MoveGood good,
+  String productionDate,
+  double qty, {
+  String? warehouse,
+}) => withWarehouse(
+  t.movement.goods(
+    name: good.name,
+    date: batchDate(productionDate),
+    qty: fmtQty(qty),
+    uom: good.uom,
+  ),
+  warehouse,
+);
+
+/// Подпись с меткой склада (P6-07-2): «… · Брак». «Основной» не подписывается.
+String withWarehouse(String text, String? warehouse) => warehouse == null
+    ? text
+    : t.movement.withWarehouse(text: text, warehouse: warehouse);
