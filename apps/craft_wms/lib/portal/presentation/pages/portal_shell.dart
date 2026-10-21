@@ -12,6 +12,7 @@ import '../widgets/shell/portal_sidebar.dart';
 import '../widgets/tabs/cells_tab.dart';
 import '../widgets/tabs/documents_tab.dart';
 import '../widgets/tabs/nomenclature_tab.dart';
+import '../widgets/tabs/settings_tab.dart';
 import '../widgets/tabs/stub_tab.dart';
 
 /// Оболочка портала после входа: сайдбар (меню по секциям + профиль), шапка с заголовком
@@ -100,7 +101,9 @@ class _PortalShellState extends State<PortalShell> {
         NavItem(
           icon: Icons.settings_outlined,
           label: t.portal.tabs.settings,
-          body: const StubTab(phase: 'P8', icon: Icons.settings_outlined),
+          // ADHOC-29: внутренние склады («Брак», «Изолятор» …) — первый раздел настроек.
+          description: t.portal.settings.description,
+          body: const SettingsTab(),
         ),
       ],
     ),

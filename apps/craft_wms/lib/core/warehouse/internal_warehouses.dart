@@ -16,6 +16,7 @@ class InternalWarehouse {
     required this.code,
     required this.name,
     required this.isDefault,
+    this.isActive = true,
   });
 
   final String id;
@@ -24,6 +25,9 @@ class InternalWarehouse {
 
   /// Склад по умолчанию («Основной»): на ТСД товар этого склада идёт без метки.
   final bool isDefault;
+
+  /// В выборе (ADHOC-29): скрытым складом не помечают, но его остаток подписывается.
+  final bool isActive;
 }
 
 /// Справочник внутренних складов на терминале (P6-07-2).
@@ -56,6 +60,7 @@ class InternalWarehouses {
             code: e['code'] as String? ?? '',
             name: e['name'] as String? ?? '',
             isDefault: e['is_default'] as bool? ?? false,
+            isActive: e['is_active'] as bool? ?? true,
           ),
       ];
       await _db.transaction(() async {
@@ -68,6 +73,7 @@ class InternalWarehouses {
                 code: w.code,
                 name: w.name,
                 isDefault: Value(w.isDefault),
+                isActive: Value(w.isActive),
               ),
           ]),
         );
@@ -95,6 +101,7 @@ class InternalWarehouses {
               code: r.code,
               name: r.name,
               isDefault: r.isDefault,
+              isActive: r.isActive,
             ),
         ]..sort(
           (a, b) => a.isDefault != b.isDefault

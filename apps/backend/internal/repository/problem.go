@@ -237,7 +237,20 @@ func guardActiveInternalWarehouse(ctx context.Context, q Querier, id string) err
 	return nil
 }
 
-// InternalWarehouseRepository — справочник внутренних складов для ТСД (P6-07-1).
+// Ошибки справочника внутренних складов (ADHOC-29).
+var (
+	// ErrInternalWarehouseExists — склад с таким кодом уже есть.
+	ErrInternalWarehouseExists = errors.New("internal warehouse code already exists")
+	// ErrDefaultInternalWarehouse — склад по умолчанию нельзя скрыть или удалить: приходовать
+	// было бы некуда.
+	ErrDefaultInternalWarehouse = errors.New("default internal warehouse cannot be hidden or deleted")
+	// ErrInternalWarehouseInUse — на складе есть остаток или история: удалить нельзя, только
+	// скрыть.
+	ErrInternalWarehouseInUse = errors.New("internal warehouse has stock or history")
+)
+
+// InternalWarehouseRepository — справочник внутренних складов (P6-07-1, ADHOC-29): чтение для
+// ТСД и портала, ведение — из портала.
 type InternalWarehouseRepository struct {
 	pool *pgxpool.Pool
 }
@@ -247,23 +260,111 @@ func NewInternalWarehouseRepository(pool *pgxpool.Pool) *InternalWarehouseReposi
 	return &InternalWarehouseRepository{pool: pool}
 }
 
-// Active — внутренние склады для выбора на ТСД: по умолчанию первым, дальше по имени. Скрытые
-// не показываются — на них нельзя пометить, но остаток на них сохраняется.
-func (r *InternalWarehouseRepository) Active(ctx context.Context) ([]model.InternalWarehouse, error) {
-	rows, err := r.pool.Query(ctx, `
-		SELECT id::text, code, name, is_default FROM internal_warehouses
-		WHERE is_active ORDER BY is_default DESC, name`)
+// internalWarehouseSelect — склад с признаком «в деле»: есть строка остатка (даже нулевая —
+// это история), короб этого склада или запись проблемы. Внешние ключи этих таблиц и так не
+// дадут его удалить; признак нужен порталу, чтобы не предлагать удаление заведомо зря.
+const internalWarehouseSelect = `
+	SELECT w.id::text, w.code, w.name, w.is_default, w.is_active,
+	       EXISTS (SELECT 1 FROM stock s WHERE s.internal_warehouse_id = w.id)
+	       OR EXISTS (SELECT 1 FROM load_units lu WHERE lu.internal_warehouse_id = w.id)
+	       OR EXISTS (SELECT 1 FROM warehouse_problems p
+	                  WHERE w.id IN (p.from_internal_warehouse_id, p.to_internal_warehouse_id))
+	       OR EXISTS (SELECT 1 FROM movement_lines l WHERE l.internal_warehouse_id = w.id)
+	FROM internal_warehouses w`
+
+func scanInternalWarehouse(row pgx.Row) (model.InternalWarehouse, error) {
+	var w model.InternalWarehouse
+	err := row.Scan(&w.ID, &w.Code, &w.Name, &w.IsDefault, &w.IsActive, &w.InUse)
+	return w, err
+}
+
+// All — все склады, и скрытые: по умолчанию первым, дальше действующие, по имени. Скрытые
+// нужны и ТСД — их остаток всё ещё лежит в ячейках и должен быть подписан.
+func (r *InternalWarehouseRepository) All(ctx context.Context) ([]model.InternalWarehouse, error) {
+	rows, err := r.pool.Query(ctx, internalWarehouseSelect+`
+		ORDER BY w.is_default DESC, w.is_active DESC, w.name`)
 	if err != nil {
 		return nil, fmt.Errorf("внутренние склады: %w", err)
 	}
 	defer rows.Close()
 	out := []model.InternalWarehouse{}
 	for rows.Next() {
-		var w model.InternalWarehouse
-		if err := rows.Scan(&w.ID, &w.Code, &w.Name, &w.IsDefault); err != nil {
+		w, err := scanInternalWarehouse(rows)
+		if err != nil {
 			return nil, fmt.Errorf("разобрать внутренний склад: %w", err)
 		}
 		out = append(out, w)
 	}
 	return out, rows.Err()
+}
+
+// Create заводит склад. Повтор кода — ErrInternalWarehouseExists.
+func (r *InternalWarehouseRepository) Create(ctx context.Context, code, name string) (model.InternalWarehouse, error) {
+	var id string
+	err := r.pool.QueryRow(ctx, `
+		INSERT INTO internal_warehouses (code, name) VALUES ($1, $2) RETURNING id::text`,
+		code, name).Scan(&id)
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		return model.InternalWarehouse{}, ErrInternalWarehouseExists
+	}
+	if err != nil {
+		return model.InternalWarehouse{}, fmt.Errorf("завести внутренний склад: %w", err)
+	}
+	return r.byID(ctx, id)
+}
+
+// Update переименовывает склад и (или) скрывает его или возвращает в выбор. nil — поле не
+// меняется. Склад по умолчанию не скрывается.
+func (r *InternalWarehouseRepository) Update(ctx context.Context, id string, name *string, active *bool) (model.InternalWarehouse, error) {
+	current, err := r.byID(ctx, id)
+	if err != nil {
+		return model.InternalWarehouse{}, err
+	}
+	if current.IsDefault && active != nil && !*active {
+		return model.InternalWarehouse{}, ErrDefaultInternalWarehouse
+	}
+	if _, err := r.pool.Exec(ctx, `
+		UPDATE internal_warehouses
+		SET name = COALESCE($2, name), is_active = COALESCE($3, is_active)
+		WHERE id = $1::uuid`, id, name, active); err != nil {
+		return model.InternalWarehouse{}, fmt.Errorf("изменить внутренний склад: %w", err)
+	}
+	return r.byID(ctx, id)
+}
+
+// Delete удаляет склад, у которого нет ни остатка, ни истории. Склад по умолчанию не
+// удаляется; склад «в деле» — ErrInternalWarehouseInUse (его скрывают).
+func (r *InternalWarehouseRepository) Delete(ctx context.Context, id string) error {
+	current, err := r.byID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if current.IsDefault {
+		return ErrDefaultInternalWarehouse
+	}
+	if current.InUse {
+		return ErrInternalWarehouseInUse
+	}
+	_, err = r.pool.Exec(ctx, `DELETE FROM internal_warehouses WHERE id = $1::uuid`, id)
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23503" {
+		// Ссылка появилась между проверкой и удалением — тот же отказ.
+		return ErrInternalWarehouseInUse
+	}
+	if err != nil {
+		return fmt.Errorf("удалить внутренний склад: %w", err)
+	}
+	return nil
+}
+
+func (r *InternalWarehouseRepository) byID(ctx context.Context, id string) (model.InternalWarehouse, error) {
+	w, err := scanInternalWarehouse(r.pool.QueryRow(ctx, internalWarehouseSelect+` WHERE w.id = $1::uuid`, id))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return model.InternalWarehouse{}, ErrUnknownInternalWarehouse
+	}
+	if err != nil {
+		return model.InternalWarehouse{}, fmt.Errorf("внутренний склад: %w", err)
+	}
+	return w, nil
 }

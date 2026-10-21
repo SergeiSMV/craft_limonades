@@ -20,10 +20,15 @@ var ProblemReasons = []string{
 	ProblemReasonForeignMark, ProblemReasonOther,
 }
 
-// InternalWarehouse — внутренний склад для выбора на ТСД: куда пометить товар.
+// InternalWarehouse — внутренний склад: «Основной», «Брак», «Изолятор» … (ADR-0016).
+//
+// IsActive — виден в выборе (скрытый остаётся у остатка и в подписях); InUse — на складе
+// есть остаток или история, удалить его нельзя, только скрыть (ADHOC-29).
 type InternalWarehouse struct {
 	ID        string
 	Code      string
 	Name      string
 	IsDefault bool
+	IsActive  bool
+	InUse     bool
 }

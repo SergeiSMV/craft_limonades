@@ -3,6 +3,7 @@ import 'package:craft_wms/core/database/app_database.dart';
 import 'package:craft_wms/core/error/failure.dart';
 import 'package:craft_wms/core/warehouse/internal_warehouses.dart';
 import 'package:dio/dio.dart';
+import 'package:drift/drift.dart' show Migrator;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -81,6 +82,59 @@ void main() {
       expect(res.left, isA<NetworkFailure>());
     },
   );
+
+  test(
+    'скрытый в портале склад остаётся в справочнике с признаком (ADHOC-29)',
+    () async {
+      when(
+        () => dio.get<List<dynamic>>(ApiConst.internalWarehouses),
+      ).thenAnswer(
+        (_) async => ok([
+          {
+            'id': 'm',
+            'code': 'MAIN',
+            'name': 'Основной',
+            'is_default': true,
+            'is_active': true,
+          },
+          {
+            'id': 'o',
+            'code': 'OLD',
+            'name': 'Старый брак',
+            'is_default': false,
+            'is_active': false,
+          },
+        ]),
+      );
+      await InternalWarehouses(dio, db).refresh();
+
+      final all = await InternalWarehouses(dio, db).all();
+      expect(
+        {for (final w in all) w.code: w.isActive},
+        {'MAIN': true, 'OLD': false},
+      );
+    },
+  );
+
+  test('миграция 8 → 9 добавляет признак «в выборе»', () async {
+    await db.customStatement('DROP TABLE cached_internal_warehouses');
+    await db.customStatement(
+      'CREATE TABLE cached_internal_warehouses (id TEXT NOT NULL, code TEXT NOT NULL, '
+      'name TEXT NOT NULL, is_default INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (id))',
+    );
+    await db.customStatement(
+      "INSERT INTO cached_internal_warehouses VALUES ('d', 'DEFECT', 'Брак', 0)",
+    );
+
+    await db.migration.onUpgrade(Migrator(db), 8, 9);
+
+    final all = await InternalWarehouses(dio, db).all();
+    expect(
+      all.single.isActive,
+      isTrue,
+      reason: 'до синхронизации — «в выборе»',
+    );
+  });
 
   test('соглашение терминала: склад по умолчанию и пусто — null', () {
     expect(InternalWarehouses.normalize('m', 'm'), isNull);

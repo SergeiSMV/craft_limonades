@@ -14,6 +14,6 @@ abstract interface class ProblemRepository {
   /// разбора. Любой другой `Left` — связи нет, проблема в очереди и уйдёт сама.
   Future<Either<Failure, void>> submit(Map<String, dynamic> payload);
 
-  /// Склады, которыми можно пометить товар, — все, кроме «Основного».
+  /// Склады, которыми можно пометить товар, — все, кроме «Основного» и скрытых в портале.
   Future<List<InternalWarehouse>> markWarehouses();
 }

@@ -34,6 +34,6 @@ class ProblemRepositoryImpl implements ProblemRepository {
   @override
   Future<List<InternalWarehouse>> markWarehouses() async => [
     for (final w in await _warehouses.all())
-      if (!w.isDefault) w,
+      if (!w.isDefault && w.isActive) w,
   ];
 }
