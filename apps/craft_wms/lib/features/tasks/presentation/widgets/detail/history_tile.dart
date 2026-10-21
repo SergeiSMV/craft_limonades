@@ -11,9 +11,17 @@ import '../common/task_format.dart';
 /// Запись «Истории выполнения»: событие журнала задания — что, кто и когда. У захода под
 /// событием — что и откуда → куда переносили.
 class HistoryTile extends StatelessWidget {
-  const HistoryTile({super.key, required this.event, this.session});
+  const HistoryTile({
+    super.key,
+    required this.event,
+    required this.kind,
+    this.session,
+  });
 
   final TaskEvent event;
+
+  /// Вид задания: заход размещения — «Разместил», заход возврата — «Отгрузил» (ADHOC-31).
+  final String kind;
 
   /// Заход, о котором событие (только у [TaskEventKind.session]).
   final TaskSession? session;
@@ -54,7 +62,10 @@ class HistoryTile extends StatelessWidget {
       user: event.user,
       prev: event.prevUser,
     ),
-    TaskEventKind.session => t.tasks.eventSession(user: event.user),
+    TaskEventKind.session =>
+      kind == TaskKind.supplierReturn
+          ? t.tasks.eventShipped(user: event.user)
+          : t.tasks.eventSession(user: event.user),
     TaskEventKind.completed => t.tasks.eventCompleted,
     _ => event.event,
   };

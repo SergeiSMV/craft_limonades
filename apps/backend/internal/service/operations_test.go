@@ -20,6 +20,7 @@ type fakeOpsRepo struct {
 	putaways []repository.PutawaySubmitInput
 	moves    []repository.MovementSubmitInput
 	problems []repository.ProblemSubmitInput
+	returns  []repository.ReturnSubmitInput
 	bindErr  error // ошибка, которую вернуть на привязку
 	failWith error // временная ошибка (прерывает батч)
 }
@@ -103,6 +104,15 @@ func (f *fakeOpsRepo) MovementSubmit(_ context.Context, operationID string, in r
 	}
 	f.seen[operationID] = true
 	f.moves = append(f.moves, in)
+	return repository.Applied{Result: json.RawMessage(`{}`)}, nil
+}
+
+func (f *fakeOpsRepo) ReturnSubmit(_ context.Context, operationID string, in repository.ReturnSubmitInput) (repository.Applied, error) {
+	if f.seen[operationID] {
+		return repository.Applied{Result: json.RawMessage(`{}`), Duplicate: true}, nil
+	}
+	f.seen[operationID] = true
+	f.returns = append(f.returns, in)
 	return repository.Applied{Result: json.RawMessage(`{}`)}, nil
 }
 

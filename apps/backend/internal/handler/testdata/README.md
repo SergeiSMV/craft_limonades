@@ -10,6 +10,7 @@
 | `putaway_submit.json` | размещение: короб и россыпь (P5-02) | `putaway_scenario_http_test.go` | `test/features/putaway/putaway_cubit_test.dart` |
 | `movement_submit.json` | движение: ГЕ целиком и товар между коробами и россыпью (P6-03); Go-тест гоняет его и пополнением (P6-05) | `movement_http_test.go` | `test/features/movement/movement_cubit_test.dart` |
 | `problem_submit.json` | проблема склада: россыпь в «Брак», короб в «Изолятор» (P6-07-1); вместо id складов — коды | `problem_http_test.go` | `test/features/problems/problem_cubit_test.dart` |
+| `return_submit.json` | отгрузка возврата поставщику: короб и россыпь одним сеансом (ADHOC-31); вместо id задания — `TASK` | `return_http_test.go` | `test/features/supplier_return/supplier_return_cubit_test.dart` |
 | `contents_snapshot.json` | **ответ** `GET /contents/snapshot`: снимок для кэша ТСД (P5-05) | `contents_http_test.go` | `test/features/contents/contents_repository_test.dart` |
 
 Go-тест скармливает файл настоящему роутеру и проверяет, что операции применяются. Эталон

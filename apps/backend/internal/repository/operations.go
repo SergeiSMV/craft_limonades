@@ -35,6 +35,9 @@ const (
 
 	// Проблема склада: пометка короба или товара другим внутренним складом (P6-07-1).
 	KindProblemSubmit = "problem_submit"
+
+	// Отгрузка возврата поставщику: сеанс по заданию supplier_return — одна операция (ADHOC-31).
+	KindReturnSubmit = "return_submit"
 )
 
 // Ошибки применения приёмки из очереди (P4-09).
@@ -241,6 +244,19 @@ func (r *OperationsRepository) ProblemSubmit(ctx context.Context, operationID st
 			return nil, err
 		}
 		return jsonResult(map[string]any{"problem_id": in.ProblemID})
+	})
+	return applied, missingReference(err)
+}
+
+// ReturnSubmit проводит сеанс отгрузки возврата поставщику целиком — в одной транзакции
+// с пометкой операции (ADHOC-31).
+func (r *OperationsRepository) ReturnSubmit(ctx context.Context, operationID string, in ReturnSubmitInput) (Applied, error) {
+	applied, err := r.inTx(ctx, operationID, KindReturnSubmit, func(q Querier) (json.RawMessage, error) {
+		shipped, err := returnSubmit(ctx, q, in)
+		if err != nil {
+			return nil, err
+		}
+		return jsonResult(map[string]any{"shipment_id": in.ShipmentID, "shipped": shipped})
 	})
 	return applied, missingReference(err)
 }

@@ -192,6 +192,7 @@ func TestPlacements_migrationBackfillsPlacedUnits(t *testing.T) {
 	unplaced := newLU(t, fx, model.LoadUnitBox)
 
 	// Более поздние миграции, опирающиеся на журнал, откатываются и накатываются вокруг неё.
+	execMigration(t, fx, "000025_supplier_return_shipments.down.sql")
 	execMigration(t, fx, "000024_problem_decisions.down.sql")
 	execMigration(t, fx, "000022_movements.down.sql")
 	execMigration(t, fx, "000020_task_events.down.sql")
@@ -204,6 +205,7 @@ func TestPlacements_migrationBackfillsPlacedUnits(t *testing.T) {
 	execMigration(t, fx, "000020_task_events.up.sql")
 	execMigration(t, fx, "000022_movements.up.sql")
 	execMigration(t, fx, "000024_problem_decisions.up.sql")
+	execMigration(t, fx, "000025_supplier_return_shipments.up.sql")
 
 	hist, err := repository.NewLoadUnitRepository(fx.pool).Placements(ctx, placed)
 	mustNoErr(t, err)

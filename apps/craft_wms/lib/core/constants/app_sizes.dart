@@ -81,6 +81,8 @@ abstract final class AppSizes {
   static const double kColDocMin = 140;
   static const double kColPartyMin = 180;
   static const double kHeaderHeight = 72; // верхняя панель контента
+  // Неактивная позиция на ТСД — серая, пока не отсканировано её место (ADHOC-31).
+  static const double kInactiveOpacity = 0.45;
   // Календарь портала в диалоге (ADHOC-30): ширина и высота сетки месяца.
   static const double kPortalCalendarWidth = 320;
   static const double kPortalCalendarHeight = 340;

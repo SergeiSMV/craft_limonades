@@ -238,12 +238,14 @@ func TestTasks_migrationBackfillsReceipts(t *testing.T) {
 	lu := newLU(t, pf.stockFixture, model.LoadUnitBox)
 	pf.receive(t, []string{lu}, 5)
 
+	execMigration(t, pf.stockFixture, "000025_supplier_return_shipments.down.sql")
 	execMigration(t, pf.stockFixture, "000024_problem_decisions.down.sql")
 	execMigration(t, pf.stockFixture, "000020_task_events.down.sql")
 	execMigration(t, pf.stockFixture, "000019_warehouse_tasks.down.sql")
 	execMigration(t, pf.stockFixture, "000019_warehouse_tasks.up.sql")
 	execMigration(t, pf.stockFixture, "000020_task_events.up.sql")
 	execMigration(t, pf.stockFixture, "000024_problem_decisions.up.sql")
+	execMigration(t, pf.stockFixture, "000025_supplier_return_shipments.up.sql")
 
 	repo := repository.NewTaskRepository(pf.pool)
 	tasks, err := repo.Current(context.Background(), pf.user, stale)

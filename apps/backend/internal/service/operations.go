@@ -69,6 +69,7 @@ type operationsRepo interface {
 	PutawaySubmit(ctx context.Context, operationID string, in repository.PutawaySubmitInput) (repository.Applied, error)
 	MovementSubmit(ctx context.Context, operationID string, in repository.MovementSubmitInput) (repository.Applied, error)
 	ProblemSubmit(ctx context.Context, operationID string, in repository.ProblemSubmitInput) (repository.Applied, error)
+	ReturnSubmit(ctx context.Context, operationID string, in repository.ReturnSubmitInput) (repository.Applied, error)
 }
 
 // OperationsService — приём батча операций из очереди устройства с дедупом по operation_id.
@@ -287,6 +288,9 @@ func (s *OperationsService) dispatch(ctx context.Context, userID, id string, op 
 	case repository.KindProblemSubmit:
 		return s.problemSubmit(ctx, userID, id, op.Payload)
 
+	case repository.KindReturnSubmit:
+		return s.returnSubmit(ctx, userID, id, op.Payload)
+
 	default:
 		return repository.Applied{}, ErrUnknownKind
 	}
@@ -368,7 +372,13 @@ func isRejection(err error) bool {
 		errors.Is(err, repository.ErrUnknownReason) ||
 		errors.Is(err, repository.ErrUnknownInternalWarehouse) ||
 		errors.Is(err, repository.ErrSameInternalWarehouse) ||
-		errors.Is(err, repository.ErrSystemInternalWarehouse)
+		errors.Is(err, repository.ErrSystemInternalWarehouse) ||
+		// Отгрузка возврата (ADHOC-31): сеанс уже проведён, пуст, позиция не из задания или уже
+		// отгружена, товара позиции нет на складе возврата.
+		errors.Is(err, ErrInvalidShipmentID) ||
+		errors.Is(err, repository.ErrShipmentPosted) ||
+		errors.Is(err, repository.ErrEmptyShipment) ||
+		errors.Is(err, repository.ErrProblemGoodsMissing)
 }
 
 // rejected собирает результат-отказ с причиной, читаемой человеком на экране разбора.

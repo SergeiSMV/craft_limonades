@@ -10,8 +10,11 @@ part 'tasks_models.g.dart';
 abstract final class TaskKind {
   static const putaway = 'putaway';
 
+  /// Отгрузить возврат поставщику (ADHOC-31): позиции — проблемы, решённые офисом возвратом.
+  static const supplierReturn = 'supplier_return';
+
   /// Все виды — варианты фильтра ленты «Завершённые».
-  static const all = [putaway];
+  static const all = [putaway, supplierReturn];
 }
 
 /// Статус задания так, как его видит этот кладовщик: чужое зависшее — «новое».
@@ -48,7 +51,9 @@ abstract class TaskContent with _$TaskContent {
       _$TaskContentFromJson(json);
 }
 
-/// Позиция задания на размещение: короб ([loadUnitId] + [contents]) ЛИБО россыпь ([good] …).
+/// Позиция задания: короб ([loadUnitId] + [contents]) ЛИБО россыпь ([good] …). У возврата
+/// поставщику (ADHOC-31) — ещё проблема-основание [problemId] и ячейка [cell], где позиция
+/// лежит сейчас; [placed] у возврата — «отгружено».
 @freezed
 abstract class TaskItem with _$TaskItem {
   const factory TaskItem({
@@ -60,6 +65,8 @@ abstract class TaskItem with _$TaskItem {
     String? qty,
     String? remaining,
     @Default(false) bool placed,
+    @JsonKey(name: 'problem_id') String? problemId,
+    @Default('') String cell,
   }) = _TaskItem;
 
   const TaskItem._();
