@@ -6,28 +6,29 @@ import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/constants/app_insets.dart';
 import '../../../../../core/constants/app_sizes.dart';
 import '../../../../../core/gen/assets.gen.dart';
-import '../../../../../core/gen/strings.g.dart';
 import '../../../../../core/widgets/appbar_image.dart';
 import '../../../../../core/widgets/page_header.dart';
 import '../../../../../core/widgets/pending_pass_badge.dart';
 
-/// Шапка «Остатков»: картинка, заголовок с переходом во «Ввод остатков» и строка поиска
-/// открытой вкладки.
+/// Шапка «Остатков» и «Номенклатуры» (ADHOC-33): картинка, заголовок (у «Остатков» — с переходом
+/// во «Ввод остатков») и строка поиска открытой вкладки.
 ///
 /// Вынесена из страницы, когда у «Остатков» появились вкладки (P5-05-1): вёрстка шапки
 /// вытесняла из файла логику экрана. Строка поиска приходит готовой — у вкладок она своя.
 class StockHeader extends StatelessWidget {
   const StockHeader({
     super.key,
+    required this.title,
     required this.goBack,
-    required this.openStockEntry,
+    this.openStockEntry,
     required this.search,
   });
 
+  final String title;
   final VoidCallback goBack;
 
-  /// Открыть «Ввод остатков».
-  final VoidCallback openStockEntry;
+  /// Открыть «Ввод остатков»; `null` — кнопки нет.
+  final VoidCallback? openStockEntry;
 
   /// Строка поиска открытой вкладки.
   final Widget search;
@@ -45,18 +46,19 @@ class StockHeader extends StatelessWidget {
                 padding: AppInsets.right8,
                 child: Row(
                   children: [
-                    PageHeader(title: t.stockListScreen.title, goBack: goBack),
+                    PageHeader(title: title, goBack: goBack),
                     const Spacer(),
-                    PendingPassBadge(
-                      child: InkWell(
-                        onTap: openStockEntry,
-                        child: Icon(
-                          MdiIcons.playlistPlus,
-                          size: AppSizes.kIcon30,
-                          color: AppColors.kNeumorphicBg,
+                    if (openStockEntry != null)
+                      PendingPassBadge(
+                        child: InkWell(
+                          onTap: openStockEntry,
+                          child: Icon(
+                            MdiIcons.playlistPlus,
+                            size: AppSizes.kIcon30,
+                            color: AppColors.kNeumorphicBg,
+                          ),
                         ),
                       ),
-                    ),
                   ],
                 ),
               ),

@@ -252,6 +252,17 @@ class CatalogCache {
     return row == null ? null : _toGood(row);
   }
 
+  /// Товары по идентификаторам одним запросом (ADHOC-33: подписи остатков по товарам);
+  /// товаров, которых нет в кэше, в ответе нет.
+  Future<Map<String, Good>> goodsByIds(Iterable<String> ids) async {
+    final wanted = ids.toSet();
+    if (wanted.isEmpty) return {};
+    final rows = await (_db.select(
+      _db.cachedGoods,
+    )..where((t) => t.id.isIn(wanted))).get();
+    return {for (final r in rows) r.id: _toGood(r)};
+  }
+
   /// Товар по штрихкоду; `null` — ШК не привязан ни к одному товару в кэше.
   Future<Good?> goodByBarcode(String barcode) async {
     final link = await (_db.select(

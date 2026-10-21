@@ -1,5 +1,6 @@
 import 'package:craft_wms/core/error/failure.dart';
 import 'package:craft_wms/core/gen/strings.g.dart';
+import 'package:craft_wms/features/contents/domain/stock_entities.dart';
 import 'package:craft_wms/features/stock/data/catalog_models.dart';
 import 'package:craft_wms/features/stock/data/catalog_repository.dart';
 import 'package:craft_wms/features/stock/presentation/bloc/stock_detail_cubit.dart';
@@ -11,6 +12,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
+import '../../support/contents_stubs.dart';
 import '../../support/fake_scanner_service.dart';
 
 class _MockRepo extends Mock implements CatalogRepository {}
@@ -41,25 +43,6 @@ void main() {
     final repo = _MockRepo();
     var current = barcodes;
 
-    when(() => repo.listStock(goodId: 'g1')).thenAnswer(
-      (_) async => Right(
-        Paged<StockItem>(
-          items: const [
-            StockItem(
-              cellId: 'c1',
-              cellAddress: 'M1-2-1-2',
-              goodId: 'g1',
-              batchId: 'b1',
-              productionDate: '2026-08-03',
-              qty: '10.000',
-            ),
-          ],
-          total: 1,
-          limit: 200,
-          offset: 0,
-        ),
-      ),
-    );
     when(() => repo.listGoodBarcodes('g1')).thenAnswer((_) async {
       return Right(current);
     });
@@ -84,7 +67,20 @@ void main() {
 
     await tester.pumpWidget(
       BlocProvider(
-        create: (_) => StockDetailCubit(repo)..load('g1'),
+        create: (_) => StockDetailCubit(
+          repo,
+          FakeContentsRepository()
+            ..places = const [
+              StockPlace(
+                goodId: 'g1',
+                cellId: 'c1',
+                cellAddress: 'M1-2-1-2',
+                productionDate: '03-08-2026',
+                qty: 10,
+              ),
+            ],
+          FakeContentsSnapshotSync(),
+        )..load('g1'),
         child: const MaterialApp(
           home: Scaffold(body: StockDetailBody(good: good)),
         ),

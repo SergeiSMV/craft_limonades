@@ -100,39 +100,6 @@ void main() {
     });
   });
 
-  group('listStock', () {
-    test(
-      'успех → строки остатка, qty сохраняется строкой (точный decimal)',
-      () async {
-        final repo = repoWith({
-          'GET ${ApiConst.stock}': (_) => jsonResponse({
-            'items': [
-              {
-                'cell_id': 'c1',
-                'cell_address': 'M1-1-1-1',
-                'good_id': 'g1',
-                'batch_id': 'b1',
-                'production_date': '2026-01-15',
-                'qty': '10.5',
-              },
-            ],
-            'total': 1,
-            'limit': 200,
-            'offset': 0,
-          }, 200),
-        });
-
-        final result = await repo.listStock(goodId: 'g1');
-
-        expect(result.isRight, isTrue);
-        final item = result.right.items.single;
-        expect(item.cellAddress, 'M1-1-1-1');
-        expect(item.productionDate, '2026-01-15');
-        expect(item.qty, '10.5');
-      },
-    );
-  });
-
   group('listGoodBarcodes / unbindBarcode (P-FS-12)', () {
     test(
       'listGoodBarcodes: массив ШК парсится (symbology может быть null)',

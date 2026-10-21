@@ -328,6 +328,115 @@ void main() {
     });
   });
 
+  group('остатки по товарам из снимка (ADHOC-33)', () {
+    setUp(() => cache.replace(fixture));
+
+    test('товар: короб и россыпь сложены, склад «Основной» — null', () async {
+      final viewed = await repo.goodsStock(
+        refreshFailure: const Failure.network(),
+      );
+      final stock = viewed.value!.single;
+      expect(stock.goodId, good);
+      expect(stock.name, 'Кальмар');
+      expect(stock.byWarehouse, {null: 15});
+      expect(stock.qtyOn(const {}), 15);
+      expect(stock.pending, isFalse);
+      expect((viewed.freshness as FromSnapshot).offline, isTrue);
+    });
+
+    test('снимок обновлён — данные без подписи', () async {
+      final viewed = await repo.goodsStock();
+      expect(viewed.freshness, isA<FreshFromServer>());
+    });
+
+    test('места товара: ячейка, короб, партия; вдоль стеллажа', () async {
+      final places = (await repo.goodPlaces(good)).value!;
+      expect(
+        [for (final p in places) (p.cellAddress, p.loadUnitId, p.qty)],
+        [('A-1-1', box, 12.0), ('С-Н-П', null, 3.0)],
+      );
+      expect(places.first.productionDate, '01-09-2026');
+      expect((await repo.goodPlaces('нет-такого')).value, isEmpty);
+    });
+
+    test(
+      'своя пометка брака — остаток делится по складам, с пометкой',
+      () async {
+        await outbox.enqueue(
+          kind: OutboxKind.problemSubmit,
+          payload: {
+            'problem_id': const Uuid().v4(),
+            'warehouse_id': wh,
+            'to_internal_warehouse_id': defectIwh,
+            'reason': 'breakage',
+            'good_id': good,
+            'production_date': '01-09-2026',
+            'qty': 2,
+            'from_load_unit_id': box,
+          },
+        );
+
+        final stock = (await repo.goodsStock()).value!.single;
+        expect(stock.byWarehouse, {null: 13, defectIwh: 2});
+        expect(stock.qtyOn(const {defectIwh}), 2);
+        expect(stock.qtyOn(const {null}), 13);
+        expect(stock.pending, isTrue);
+
+        final defect = (await repo.goodPlaces(
+          good,
+        )).value!.singleWhere((p) => p.internalWarehouseId == defectIwh);
+        expect((defect.cellAddress, defect.loadUnitId), ('A-1-1', null));
+        expect(defect.internalWarehouseName, 'Брак');
+      },
+    );
+
+    test(
+      'своё перемещение россыпи в другую ячейку — место сменилось',
+      () async {
+        await outbox.enqueue(
+          kind: OutboxKind.movementSubmit,
+          payload: {
+            'warehouse_id': wh,
+            'lines': [
+              {
+                'good_id': good,
+                'production_date': '02-09-2026',
+                'qty': 3,
+                'from_cell_id': looseCell,
+                'to_cell_id': boxCell,
+              },
+            ],
+          },
+        );
+
+        final places = (await repo.goodPlaces(good)).value!;
+        expect(
+          [for (final p in places) (p.cellAddress, p.loadUnitId, p.qty)],
+          [('A-1-1', null, 3.0), ('A-1-1', box, 12.0)],
+        );
+        expect((await repo.goodsStock()).value!.single.qtyOn(const {}), 15);
+      },
+    );
+
+    test(
+      'короб целиком в брак своей очередью — его состав на «Браке»',
+      () async {
+        await outbox.enqueue(
+          kind: OutboxKind.problemSubmit,
+          payload: {
+            'problem_id': const Uuid().v4(),
+            'warehouse_id': wh,
+            'to_internal_warehouse_id': defectIwh,
+            'reason': 'breakage',
+            'load_unit_id': box,
+          },
+        );
+        final stock = (await repo.goodsStock()).value!.single;
+        expect(stock.byWarehouse, {null: 3, defectIwh: 12});
+      },
+    );
+  });
+
   group('вкладка «Короба» (P5-05-1)', () {
     /// Своя неотправленная приёмка: новый короб в ячейку приёмки.
     Future<void> pendingReceipt(String id) => outbox.enqueue(

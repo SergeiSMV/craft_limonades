@@ -228,31 +228,6 @@ class CatalogApi {
     return Right(all);
   }
 
-  /// Остатки товара в разрезе ячеек/партий (карточка «где лежит товар X»).
-  Future<Either<Failure, Paged<StockItem>>> listStock({
-    String? goodId,
-    String? cellId,
-    int limit = 200,
-    int offset = 0,
-  }) async {
-    try {
-      final resp = await _dio.get<Map<String, dynamic>>(
-        ApiConst.stock,
-        queryParameters: _compact({
-          'good_id': goodId,
-          'cell_id': cellId,
-          'limit': limit,
-          'offset': offset,
-        }),
-      );
-      return Right(Paged.fromJson(resp.data!, StockItem.fromJson));
-    } on DioException catch (e) {
-      return Left(_mapError(e));
-    } catch (_) {
-      return const Left(Failure.unknown());
-    }
-  }
-
   /// Выкидывает null-значения из query — чтобы пустые фильтры не уходили в URL.
   Map<String, dynamic> _compact(Map<String, dynamic> params) {
     params.removeWhere((_, v) => v == null || (v is String && v.isEmpty));

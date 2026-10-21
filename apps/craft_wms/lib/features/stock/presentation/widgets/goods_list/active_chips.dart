@@ -8,7 +8,8 @@ import '../../../../../core/constants/app_sizes.dart';
 import '../../../../../core/theme/regular_text.dart';
 import '../../bloc/goods_list_cubit.dart';
 
-/// Активные фильтры чипами (группа/поставщик). «✕» снимает фильтр сразу.
+/// Активные фильтры чипами (группа/поставщик, в «Остатках» — выбранные склады). «✕» снимает
+/// фильтр сразу.
 class ActiveChips extends StatelessWidget {
   const ActiveChips({super.key});
 
@@ -34,6 +35,12 @@ class ActiveChips extends StatelessWidget {
             .map((s) => s.name),
       );
       chips.add(_chip(name, () => cubit.setSupplier(null)));
+    }
+    for (final w in state.warehouses) {
+      final key = w.isDefault ? null : w.id;
+      if (state.warehouseIds.contains(key)) {
+        chips.add(_chip(w.name, () => cubit.toggleWarehouse(key)));
+      }
     }
     if (chips.isEmpty) return const SizedBox.shrink();
 

@@ -6,7 +6,7 @@ import 'package:craft_wms/core/theme/app_theme.dart';
 import 'package:craft_wms/features/stock/data/catalog_models.dart';
 import 'package:craft_wms/features/stock/data/catalog_repository.dart';
 import 'package:craft_wms/features/stock/presentation/bloc/goods_list_cubit.dart';
-import 'package:craft_wms/features/stock/presentation/pages/goods_list_page.dart';
+import 'package:craft_wms/features/stock/presentation/pages/nomenclature_page.dart';
 import 'package:either_dart/either.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -19,7 +19,7 @@ import '../../support/entry_draft_stub.dart';
 
 class _MockRepo extends Mock implements CatalogRepository {}
 
-/// «Остатки»: код с аппаратного сканера идёт тем же путём, что и завершённый ввод в строке поиска.
+/// «Номенклатура» (до ADHOC-33 — «Остатки»): код с аппаратного сканера идёт тем же путём, что и завершённый ввод в строке поиска.
 /// Экран не должен зависеть от того, каким режимом сканера настроено устройство.
 void main() {
   late _MockRepo repo;
@@ -61,7 +61,7 @@ void main() {
   });
 
   Widget wrap() =>
-      MaterialApp(theme: buildAppTheme(), home: const GoodsListPage());
+      MaterialApp(theme: buildAppTheme(), home: const NomenclaturePage());
 
   testWidgets('скан из потока резолвится как штрихкод, а не ищется по имени', (
     tester,

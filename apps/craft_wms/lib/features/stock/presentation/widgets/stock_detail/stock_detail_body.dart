@@ -39,7 +39,7 @@ class StockDetailBody extends StatelessWidget {
                   child: BarcodesSection(goodName: good.name),
                 ),
               ),
-              PlacesSliver(goodId: good.id),
+              const PlacesSliver(),
             ],
           ),
         ),

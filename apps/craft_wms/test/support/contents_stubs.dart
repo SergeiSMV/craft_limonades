@@ -1,11 +1,16 @@
 import 'package:craft_wms/core/error/failure.dart';
 import 'package:craft_wms/core/di/injection.dart';
+import 'package:craft_wms/core/warehouse/internal_warehouses.dart';
 import 'package:craft_wms/features/contents/domain/contents_entities.dart';
 import 'package:craft_wms/features/contents/domain/contents_repository.dart';
 import 'package:craft_wms/features/contents/domain/load_unit_label_printer.dart';
+import 'package:craft_wms/features/contents/domain/stock_entities.dart';
 import 'package:craft_wms/features/contents/presentation/bloc/boxes_cubit.dart';
+import 'package:craft_wms/features/stock/data/catalog_repository.dart';
+import 'package:craft_wms/features/stock/presentation/bloc/stock_goods_cubit.dart';
 import 'package:craft_wms/features/tasks/domain/tasks_snapshot_sync.dart';
 import 'package:either_dart/either.dart';
+import 'package:mocktail/mocktail.dart';
 
 /// Заглушка загрузки снимка содержимого склада (P5-05): ничего не качает, считает просьбы.
 ///
@@ -97,6 +102,28 @@ class FakeContentsRepository implements ContentsRepository {
   @override
   Future<Either<Failure, LoadUnitHistory>> history(String id) async =>
       historyResult;
+
+  /// Остатки по товарам и места товаров (ADHOC-33).
+  List<GoodStock> goods = const [];
+  List<StockPlace> places = const [];
+
+  @override
+  Future<Viewed<List<GoodStock>>> goodsStock({Failure? refreshFailure}) async {
+    lastRefreshFailure = refreshFailure;
+    return Viewed(goods, unitsFreshness);
+  }
+
+  @override
+  Future<Viewed<List<StockPlace>>> goodPlaces(
+    String goodId, {
+    Failure? refreshFailure,
+  }) async {
+    lastRefreshFailure = refreshFailure;
+    return Viewed([
+      for (final p in places)
+        if (p.goodId == goodId) p,
+    ], unitsFreshness);
+  }
 }
 
 /// Заглушка печати ярлыка (P5-05-1): запоминает, что печатали, отвечает [error].
@@ -138,4 +165,34 @@ class FakeTasksSnapshotSync implements TasksSnapshotSync {
 
   @override
   void requestRefresh() => requests++;
+}
+
+/// Справочник внутренних складов без базы и сети: отдаёт [items] (ADHOC-33).
+class FakeInternalWarehouses extends Fake implements InternalWarehouses {
+  FakeInternalWarehouses([this.items = const []]);
+
+  final List<InternalWarehouse> items;
+
+  @override
+  Future<List<InternalWarehouse>> all() async => items;
+}
+
+/// Зарегистрировать кубит вкладки «Товары» «Остатков» (ADHOC-33) поверх [catalog] и [contents]:
+/// страница «Остатков» создаёт его всегда.
+void registerStockGoodsCubit(
+  CatalogRepository catalog,
+  FakeContentsRepository contents, {
+  List<InternalWarehouse> warehouses = const [],
+}) {
+  if (getIt.isRegistered<StockGoodsCubit>()) {
+    getIt.unregister<StockGoodsCubit>();
+  }
+  getIt.registerFactory<StockGoodsCubit>(
+    () => StockGoodsCubit(
+      catalog,
+      contents,
+      FakeContentsSnapshotSync(),
+      FakeInternalWarehouses(warehouses),
+    ),
+  );
 }
