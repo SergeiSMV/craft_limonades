@@ -20,6 +20,9 @@ func (f *fakeProblemRepo) Resolved(_ context.Context, fl model.ResolvedProblemsF
 	f.feed = append(f.feed, fl)
 	return nil, nil
 }
+func (f *fakeProblemRepo) Current(context.Context) ([]model.Problem, error) {
+	return nil, nil
+}
 func (f *fakeProblemRepo) Resolve(_ context.Context, in model.ResolveProblemInput) error {
 	f.resolved = append(f.resolved, in)
 	return nil

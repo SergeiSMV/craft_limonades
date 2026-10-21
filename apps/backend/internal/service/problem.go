@@ -31,6 +31,7 @@ const (
 type problemRepo interface {
 	List(ctx context.Context, f model.ProblemFilter) ([]model.Problem, error)
 	Resolved(ctx context.Context, f model.ResolvedProblemsFilter) ([]model.Problem, error)
+	Current(ctx context.Context) ([]model.Problem, error)
 	Resolve(ctx context.Context, in model.ResolveProblemInput) error
 }
 
@@ -51,6 +52,11 @@ func (s *ProblemService) List(ctx context.Context, status string) ([]model.Probl
 		return nil, ErrInvalidDecision
 	}
 	return s.repo.List(ctx, model.ProblemFilter{Status: status})
+}
+
+// Current — открытые проблемы всего склада для ТСД (ADHOC-35): вкладка «Текущие».
+func (s *ProblemService) Current(ctx context.Context) ([]model.Problem, error) {
+	return s.repo.Current(ctx)
 }
 
 // ResolvedQuery — фильтр ленты решённых проблем в транспортном виде, как его шлёт ТСД: даты

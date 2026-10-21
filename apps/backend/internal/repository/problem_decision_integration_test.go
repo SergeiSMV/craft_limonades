@@ -267,3 +267,27 @@ func TestProblemResolved_returnShipped(t *testing.T) {
 		t.Errorf("после отгрузки: %+v", after)
 	}
 }
+
+// ADHOC-35: «Текущие» на ТСД — только открытые, свежие первыми; у короба — его состав сейчас.
+func TestProblemCurrent_openOnly(t *testing.T) {
+	mf := setupMove(t)
+	defect := mf.iwhByCode(t, "DEFECT")
+	lu := newLU(t, mf.stockFixture, model.LoadUnitBox)
+	mf.receive(t, []string{lu}, 5)
+	loose := mf.openProblem(t, defect, model.ProblemReasonSpoilage, mf.goodsProblem(1, mf.cellA, ""))
+	box := mf.openProblem(t, defect, model.ProblemReasonBreakage, repository.ProblemSubmitInput{LoadUnitID: lu})
+	done := mf.openProblem(t, defect, model.ProblemReasonOther, mf.goodsProblem(1, mf.cellA, ""))
+	mustNoErr(t, mf.resolve(done, model.ResolveProblemInput{Decision: model.ProblemDecisionPlace}))
+	_, err := mf.pool.Exec(context.Background(),
+		`UPDATE warehouse_problems SET created_at = created_at - interval '1 hour' WHERE id = $1::uuid`, loose)
+	mustNoErr(t, err)
+
+	list, err := repository.NewProblemRepository(mf.pool).Current(context.Background())
+	mustNoErr(t, err)
+	if len(list) != 2 || list[0].ID != box || list[1].ID != loose {
+		t.Fatalf("открытые, свежие первыми: %+v", list)
+	}
+	if len(list[0].Items) != 1 || list[0].Items[0].Qty != "12.000" || list[0].Status != model.ProblemStatusOpen {
+		t.Errorf("короб — состав сейчас: %+v", list[0])
+	}
+}

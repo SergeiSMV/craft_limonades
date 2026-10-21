@@ -71,6 +71,16 @@ func (r *ProblemRepository) List(ctx context.Context, f model.ProblemFilter) ([]
 		LIMIT $2`, f.Status, problemListLimit)
 }
 
+// Current — открытые проблемы склада для ТСД (ADHOC-35): вкладка «Текущие», свежие первыми.
+// Товар — как в рабочем списке офиса: у короба — его состав сейчас, у товара — помеченное.
+// Открытых на складе десятки, поэтому без подгрузки — тем же потолком, что у списка офиса.
+func (r *ProblemRepository) Current(ctx context.Context) ([]model.Problem, error) {
+	return r.query(ctx, problemSelect+`
+		WHERE p.status = 'open'
+		ORDER BY p.created_at DESC, p.id DESC
+		LIMIT $1`, problemListLimit)
+}
+
 // Resolved — страница ленты решённых проблем для ТСД (ADHOC-34): свежие решения первыми.
 //
 // Окно — по времени решения (`[From, To)`); курсор — время решения и id последней показанной

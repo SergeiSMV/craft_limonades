@@ -10,15 +10,20 @@ import '../../../../../core/gen/strings.g.dart';
 import '../../../../../core/theme/regular_text.dart';
 import '../../../../../core/theme/semibold_text.dart';
 import '../../../../../core/utils/date_time_format.dart';
-import '../../../domain/resolved_problems.dart';
-import 'resolved_format.dart';
+import '../../../domain/problem_records.dart';
+import 'record_format.dart';
 
-/// Запись ленты «Завершённые» проблем (ADHOC-34): что сделано по решению, что помечали, место
-/// и причина — каждое своей строкой, время решения. Вид — как у записи «Завершённых» заданий и перемещений.
-class ResolvedTile extends StatelessWidget {
-  const ResolvedTile({super.key, required this.problem, required this.onTap});
+/// Запись списка проблем — «Текущие» (ADHOC-35) и «Завершённые» (ADHOC-34): где проблема
+/// сейчас (ожидает отправки, ждёт решения, что сделано), что помечали, место, причина; у
+/// открытой — кто зафиксировал. Каждое своей строкой; справа — время решения или фиксации. Вид — как у записи «Завершённых» заданий и перемещений.
+class ProblemRecordTile extends StatelessWidget {
+  const ProblemRecordTile({
+    super.key,
+    required this.problem,
+    required this.onTap,
+  });
 
-  final ResolvedProblem problem;
+  final ProblemRecord problem;
   final VoidCallback onTap;
 
   @override
@@ -43,10 +48,15 @@ class ResolvedTile extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Решённая — галочка; открытая и своя неотправленная — часы: ещё в работе.
             Icon(
-              MdiIcons.checkCircleOutline,
+              problem.isOpen
+                  ? MdiIcons.clockOutline
+                  : MdiIcons.checkCircleOutline,
               size: AppSizes.kIcon24,
-              color: AppColors.kBadgeSuccessText,
+              color: problem.isOpen
+                  ? AppColors.kBadgeWarningText
+                  : AppColors.kBadgeSuccessText,
             ),
             AppBoxes.kWidth12,
             Expanded(
@@ -77,6 +87,11 @@ class ResolvedTile extends StatelessWidget {
                     ),
                     style: muted,
                   ),
+                  if (problem.isOpen && problem.createdBy.isNotEmpty)
+                    Text(
+                      t.problems.createdByLine(name: problem.createdBy),
+                      style: muted,
+                    ),
                 ],
               ),
             ),

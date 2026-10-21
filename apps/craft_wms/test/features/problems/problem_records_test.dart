@@ -4,12 +4,13 @@ import 'dart:io';
 import 'package:craft_wms/core/error/failure.dart';
 import 'package:craft_wms/core/gen/strings.g.dart';
 import 'package:craft_wms/core/theme/app_theme.dart';
-import 'package:craft_wms/features/problems/data/resolved_problems_repository_impl.dart';
-import 'package:craft_wms/features/problems/domain/resolved_problems.dart';
+import 'package:craft_wms/features/problems/data/problem_records_repository_impl.dart';
+import 'package:craft_wms/features/problems/domain/problem_records.dart';
 import 'package:craft_wms/features/problems/presentation/bloc/resolved_problems_cubit.dart';
-import 'package:craft_wms/features/problems/presentation/pages/resolved_problem_page.dart';
+import 'package:craft_wms/features/problems/presentation/pages/problem_record_page.dart';
 import 'package:craft_wms/features/problems/presentation/widgets/resolved/resolved_feed.dart';
-import 'package:craft_wms/features/problems/presentation/widgets/resolved/resolved_format.dart';
+import 'package:craft_wms/features/problems/presentation/widgets/records/record_days.dart';
+import 'package:craft_wms/features/problems/presentation/widgets/records/record_format.dart';
 import 'package:craft_wms/features/tasks/data/tasks_models.dart';
 import 'package:either_dart/either.dart';
 import 'package:flutter/material.dart';
@@ -17,15 +18,15 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
-class _MockRepo extends Mock implements ResolvedProblemsRepository {}
+class _MockRepo extends Mock implements ProblemRecordsRepository {}
 
 /// Эталон ответа ленты — общий с сервером (`problem_http_test.go`): сервер обязан отдавать
 /// ровно его, терминал — разбирать.
 const _fixturePath =
     '../backend/internal/handler/testdata/problems_resolved.json';
 
-ResolvedProblem problem(String id, String resolvedAt, {String? box}) =>
-    ResolvedProblem(
+ProblemRecord problem(String id, String resolvedAt, {String? box}) =>
+    ProblemRecord(
       id: id,
       createdAt: DateTime.utc(2026, 10, 21, 9),
       createdBy: 'Иванов Иван',
@@ -35,7 +36,7 @@ ResolvedProblem problem(String id, String resolvedAt, {String? box}) =>
       fromWarehouse: 'Основной',
       toWarehouse: 'Брак',
       items: const [
-        ResolvedProblemItem(
+        ProblemRecordItem(
           goodName: 'Кальмар',
           productionDate: '2026-09-01',
           qty: '12.000',
@@ -58,7 +59,7 @@ void main() {
 
   test('эталон ответа разбирается: проблема, товар, решение офиса', () {
     final raw = jsonDecode(File(_fixturePath).readAsStringSync()) as List;
-    final p = resolvedProblemFromJson(raw.single as Map<String, dynamic>);
+    final p = problemRecordFromJson(raw.single as Map<String, dynamic>);
 
     expect(p.id, '7e000000-0000-4000-8000-000000000001');
     expect(
@@ -84,7 +85,7 @@ void main() {
     'подписи решения: документ 1С, возврат с заданием, «разместить» без подробностей',
     () {
       final raw = jsonDecode(File(_fixturePath).readAsStringSync()) as List;
-      final writeOff = resolvedProblemFromJson(
+      final writeOff = problemRecordFromJson(
         raw.single as Map<String, dynamic>,
       );
       expect(decisionLabel(writeOff.decision), t.problems.decisionWriteOff);
@@ -130,7 +131,7 @@ void main() {
   );
 
   group('лента', () {
-    List<ResolvedProblem> page(int n, {int from = 0}) => [
+    List<ProblemRecord> page(int n, {int from = 0}) => [
       for (var i = from; i < from + n; i++)
         problem(
           'p$i',
@@ -142,13 +143,13 @@ void main() {
       final repo = _MockRepo();
       final first = page(ResolvedProblemsCubit.pageSize);
       when(
-        () => repo.page(
+        () => repo.resolved(
           query: any(named: 'query'),
           limit: any(named: 'limit'),
         ),
       ).thenAnswer((_) async => Right(first));
       when(
-        () => repo.page(
+        () => repo.resolved(
           query: any(named: 'query'),
           after: first.last,
           limit: any(named: 'limit'),
@@ -169,7 +170,7 @@ void main() {
       final repo = _MockRepo();
       ResolvedProblemsQuery? asked;
       when(
-        () => repo.page(
+        () => repo.resolved(
           query: any(named: 'query'),
           limit: any(named: 'limit'),
         ),
@@ -197,7 +198,7 @@ void main() {
     test('без связи — ошибка «только при связи»', () async {
       final repo = _MockRepo();
       when(
-        () => repo.page(
+        () => repo.resolved(
           query: any(named: 'query'),
           limit: any(named: 'limit'),
         ),
@@ -209,12 +210,12 @@ void main() {
     });
 
     test('разделители по дням решения', () {
-      final entries = groupResolvedByDay([
+      final entries = groupRecordsByDay([
         problem('a', '2026-10-21T10:00:00'),
         problem('b', '2026-10-21T09:00:00'),
         problem('c', '2026-10-20T18:00:00'),
       ]);
-      expect(entries.whereType<ResolvedDay>().length, 2);
+      expect(entries.whereType<RecordDay>().length, 2);
       expect(entries, hasLength(5));
     });
   });
@@ -225,7 +226,7 @@ void main() {
     final repo = _MockRepo();
     var online = true;
     when(
-      () => repo.page(
+      () => repo.resolved(
         query: any(named: 'query'),
         limit: any(named: 'limit'),
       ),
@@ -258,7 +259,7 @@ void main() {
   });
 
   test('отгрузка возврата из ответа — исполнитель и время', () {
-    final p = resolvedProblemFromJson({
+    final p = problemRecordFromJson({
       'id': 'p1',
       'created_at': '2026-10-21T09:00:00Z',
       'cell_address': 'M1-4-3-2',
@@ -284,7 +285,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: buildAppTheme(),
-          home: ResolvedProblemPage(
+          home: ProblemRecordPage(
             problem: problem('p1', '2026-10-21T10:00:00Z'),
           ),
         ),

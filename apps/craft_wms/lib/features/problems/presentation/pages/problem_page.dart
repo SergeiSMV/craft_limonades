@@ -31,9 +31,11 @@ import '../../../movement/presentation/widgets/move_qty_header.dart';
 import '../../../stock/data/catalog_models.dart';
 import '../../../stock/data/catalog_repository.dart';
 import '../../domain/problem_models.dart';
+import '../bloc/current_problems_cubit.dart';
 import '../bloc/problem_cubit.dart';
 import '../bloc/problem_state.dart';
 import '../bloc/resolved_problems_cubit.dart';
+import '../widgets/current/current_problems_view.dart';
 import '../widgets/problem_choice.dart';
 import '../widgets/problem_form.dart';
 import '../widgets/problem_outcome_view.dart';
@@ -44,8 +46,10 @@ import '../widgets/resolved/resolved_filter_button.dart';
 /// одна операция очереди; работает без связи. Скан короба или ячейки → короб целиком или
 /// товар с количеством → склад → причина → комментарий → «Зафиксировать».
 ///
-/// Вкладки «Зафиксировать» / «Завершённые» (ADHOC-34): во второй — проблемы склада, решённые
-/// офисом в портале, лентой по дням; только онлайн, грузится при первом открытии вкладки.
+/// Вкладки «Текущие» / «Завершённые»: в первой — открытые проблемы всего склада и свои
+/// неотправленные (ADHOC-35), внизу «Добавить» — фиксация новой открывается во весь экран;
+/// во второй — решённые офисом в портале, лентой по дням (ADHOC-34). Скан короба или ячейки
+/// со списка сразу начинает фиксацию.
 @RoutePage()
 class ProblemPage extends StatelessWidget {
   const ProblemPage({super.key});
@@ -54,6 +58,7 @@ class ProblemPage extends StatelessWidget {
   Widget build(BuildContext context) => MultiBlocProvider(
     providers: [
       BlocProvider(create: (_) => getIt<ProblemCubit>()..init()),
+      BlocProvider(create: (_) => getIt<CurrentProblemsCubit>()..load()),
       BlocProvider(create: (_) => getIt<ResolvedProblemsCubit>()),
     ],
     child: const _ProblemView(),
@@ -77,6 +82,9 @@ class _ProblemViewState extends State<_ProblemView> with HardwareScanListener {
   /// Открытая вкладка: 0 — «Зафиксировать», 1 — «Завершённые».
   int _tab = 0;
 
+  /// Идёт фиксация новой проблемы: форма во весь экран, без вкладок.
+  bool _adding = false;
+
   ProblemCubit get cubit => context.read<ProblemCubit>();
   ContentsRepository get contents => getIt<ContentsRepository>();
 
@@ -98,7 +106,7 @@ class _ProblemViewState extends State<_ProblemView> with HardwareScanListener {
 
   /// Вернуть фокус полю скана — иначе сканер в режиме «клавиатуры» печатает в никуда.
   void refocusScan() {
-    if (mounted && _tab == 0 && cubit.state.subject == null) {
+    if (mounted && _adding && cubit.state.subject == null) {
       _scanFocus.requestFocus();
     }
   }
@@ -112,7 +120,25 @@ class _ProblemViewState extends State<_ProblemView> with HardwareScanListener {
     if (index == 1 && resolved.state.status == ResolvedStatus.initial) {
       resolved.load();
     }
-    if (index == 0) refocusScan();
+  }
+
+  /// «Добавить» — к фиксации новой проблемы; поле скана сразу ловит код.
+  void startAdding() {
+    setState(() => _adding = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) => refocusScan());
+  }
+
+  /// Фиксация окончена или отменена — к списку «Текущие», он перечитывается: в нём уже своя
+  /// новая проблема. Форма очищается к следующему разу.
+  void finishAdding() {
+    _comment.clear();
+    _mark.clear();
+    cubit.next();
+    setState(() {
+      _adding = false;
+      _tab = 0;
+    });
+    context.read<CurrentProblemsCubit>().load();
   }
 
   @override
@@ -124,8 +150,8 @@ class _ProblemViewState extends State<_ProblemView> with HardwareScanListener {
   Future<void> onScan(String value) async {
     final code = value.trim();
     _scanController.clear();
-    // Скан на вкладке решённых — кладовщик начал фиксировать: возвращаемся к форме.
-    if (_tab != 0) setState(() => _tab = 0);
+    // Скан со списка — кладовщик начал фиксировать: открываем форму.
+    if (!_adding) setState(() => _adding = true);
     final s = cubit.state;
     if (code.isEmpty || !_deduper.allow(code) || s.outcome != null) return;
     if (s.subject != null) {
@@ -248,17 +274,19 @@ class _ProblemViewState extends State<_ProblemView> with HardwareScanListener {
 
   //* --- навигация и итог --- *//
 
-  /// Назад: шаг формы назад, с пустого экрана и из «Завершённых» — в меню.
+  /// Назад: в форме — шаг назад, с пустой формы — к списку; со списков — в меню.
   void goBack() {
+    if (!_adding) {
+      context.router.maybePop();
+      return;
+    }
     final s = cubit.state;
-    if (_tab == 0 &&
-        s.outcome == null &&
-        (s.source != null || s.subject != null)) {
+    if (s.outcome == null && (s.source != null || s.subject != null)) {
       cubit.back();
       refocusScan();
       return;
     }
-    context.router.maybePop();
+    finishAdding();
   }
 
   /// Следующая проблема — поля формы очищаются.
@@ -311,7 +339,9 @@ class _ProblemViewState extends State<_ProblemView> with HardwareScanListener {
             title: PageHeader(
               title: t.problems.title,
               goBack: goBack,
-              trailing: _tab == 1 ? const ResolvedFilterButton() : null,
+              trailing: !_adding && _tab == 1
+                  ? const ResolvedFilterButton()
+                  : null,
             ),
           ),
           body: SafeArea(top: false, child: _tabs(state)),
@@ -320,16 +350,16 @@ class _ProblemViewState extends State<_ProblemView> with HardwareScanListener {
     );
   }
 
-  /// Вкладки «Зафиксировать» / «Завершённые». Итог фиксации — во весь экран, без вкладок.
+  /// Вкладки «Текущие» / «Завершённые». Фиксация и её итог — во весь экран, без вкладок.
   Widget _tabs(ProblemState state) {
-    if (state.outcome != null) return _body(state);
+    if (_adding) return _body(state);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
           padding: AppInsets.h8 + AppInsets.top16,
           child: TabSwitch(
-            labels: [t.problems.tabNew, t.problems.tabCompleted],
+            labels: [t.problems.tabCurrent, t.problems.tabCompleted],
             selected: _tab,
             onSelected: selectTab,
             activeColor: AppColors.kTileProblems,
@@ -338,7 +368,10 @@ class _ProblemViewState extends State<_ProblemView> with HardwareScanListener {
         Expanded(
           child: IndexedStack(
             index: _tab,
-            children: [_body(state), const ResolvedFeed()],
+            children: [
+              CurrentProblemsView(onAdd: startAdding),
+              const ResolvedFeed(),
+            ],
           ),
         ),
       ],
@@ -352,7 +385,7 @@ class _ProblemViewState extends State<_ProblemView> with HardwareScanListener {
         outcome: outcome,
         reason: state.rejectReason,
         onNext: next,
-        onDone: () => context.router.maybePop(),
+        onDone: finishAdding,
       );
     }
     final subject = state.subject;

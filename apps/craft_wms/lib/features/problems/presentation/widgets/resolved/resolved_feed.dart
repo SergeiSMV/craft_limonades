@@ -8,9 +8,10 @@ import '../../../../../core/gen/strings.g.dart';
 import '../../../../../core/router/app_router.dart';
 import '../../../../tasks/presentation/widgets/common/tasks_message.dart';
 import '../../../../tasks/presentation/widgets/completed/day_separator.dart';
-import '../../../domain/resolved_problems.dart';
+import '../../../domain/problem_records.dart';
 import '../../bloc/resolved_problems_cubit.dart';
-import 'resolved_tile.dart';
+import '../records/record_days.dart';
+import '../records/record_tile.dart';
 
 /// Лента «Завершённые» проблем склада (ADHOC-34): решённые офисом проблемы всего склада по
 /// дням решения, свежие сверху, подгрузка у конца ленты. Только со связью — офлайн лента не
@@ -35,8 +36,8 @@ class _ResolvedFeedState extends State<ResolvedFeed> {
   }
 
   /// Открыть карточку — проблема и решение офиса. Всё уже пришло в ленте, запроса нет.
-  void openProblem(ResolvedProblem problem) {
-    context.router.push(ResolvedProblemRoute(problem: problem));
+  void openProblem(ProblemRecord problem) {
+    context.router.push(ProblemRecordRoute(problem: problem));
   }
 
   @override
@@ -69,7 +70,7 @@ class _ResolvedFeedState extends State<ResolvedFeed> {
       );
     }
 
-    final entries = groupResolvedByDay(state.items);
+    final entries = groupRecordsByDay(state.items);
     return NotificationListener<ScrollNotification>(
       onNotification: onScroll,
       child: RefreshIndicator(
@@ -86,8 +87,8 @@ class _ResolvedFeedState extends State<ResolvedFeed> {
               );
             }
             return switch (entries[i]) {
-              ResolvedDay(:final day) => DaySeparator(day: day),
-              ResolvedRecord(:final problem) => ResolvedTile(
+              RecordDay(:final day) => DaySeparator(day: day),
+              RecordItem(:final problem) => ProblemRecordTile(
                 problem: problem,
                 onTap: () => openProblem(problem),
               ),
