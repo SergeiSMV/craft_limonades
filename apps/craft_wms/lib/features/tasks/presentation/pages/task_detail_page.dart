@@ -226,11 +226,9 @@ class _TaskBody extends StatelessWidget {
             TaskStatusBadge(status: task.status),
           ],
         ),
+        // Номер — в заголовке страницы, здесь не повторяется.
         Text(
-          t.tasks.tileNumber(
-            number: task.number,
-            created: fullDateTime(task.createdAt),
-          ),
+          t.tasks.createdLine(created: fullDateTime(task.createdAt)),
           style: muted,
         ),
         Text(taskAuthor(task), style: muted),

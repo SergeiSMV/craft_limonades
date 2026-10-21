@@ -14,13 +14,15 @@ import 'task_format.dart';
 ///
 /// [kindOnly] — только вид задания: так фильтруются «Текущие» (период и исполнитель им
 /// пока не нужны — задание текущее, пока его не выполнили). [showKind] = false — без вида:
-/// так лист служит истории перемещений (ADHOC-28), где видов заданий нет.
+/// так лист служит истории перемещений (ADHOC-28), где видов заданий нет. [showExecutor] =
+/// false — без исполнителя: так лист служит ленте решённых проблем (ADHOC-34), только период.
 Future<CompletedFilter?> showTasksFilterSheet(
   BuildContext context, {
   required CompletedFilter current,
   List<TaskUser> executors = const [],
   bool kindOnly = false,
   bool showKind = true,
+  bool showExecutor = true,
 }) => showModalBottomSheet<CompletedFilter>(
   backgroundColor: AppColors.kNeumorphicBg,
   context: context,
@@ -30,6 +32,7 @@ Future<CompletedFilter?> showTasksFilterSheet(
     executors: executors,
     kindOnly: kindOnly,
     showKind: showKind,
+    showExecutor: showExecutor,
   ),
 );
 
@@ -42,12 +45,14 @@ class _TasksFilterSheet extends StatefulWidget {
     required this.executors,
     required this.kindOnly,
     required this.showKind,
+    required this.showExecutor,
   });
 
   final CompletedFilter current;
   final List<TaskUser> executors;
   final bool kindOnly;
   final bool showKind;
+  final bool showExecutor;
 
   @override
   State<_TasksFilterSheet> createState() => _TasksFilterSheetState();
@@ -165,18 +170,23 @@ class _TasksFilterSheetState extends State<_TasksFilterSheet> {
                 ],
               ),
               AppBoxes.kHeight8,
-              Text(t.tasks.filterExecutor, style: label),
-              DropdownButton<String?>(
-                isExpanded: true,
-                value: _draft.executor?.id,
-                items: [
-                  DropdownMenuItem(value: null, child: Text(t.tasks.filterAll)),
-                  for (final u in widget.executors)
-                    DropdownMenuItem(value: u.id, child: Text(u.fullName)),
-                ],
-                onChanged: setExecutor,
-              ),
-              AppBoxes.kHeight8,
+              if (widget.showExecutor) ...[
+                Text(t.tasks.filterExecutor, style: label),
+                DropdownButton<String?>(
+                  isExpanded: true,
+                  value: _draft.executor?.id,
+                  items: [
+                    DropdownMenuItem(
+                      value: null,
+                      child: Text(t.tasks.filterAll),
+                    ),
+                    for (final u in widget.executors)
+                      DropdownMenuItem(value: u.id, child: Text(u.fullName)),
+                  ],
+                  onChanged: setExecutor,
+                ),
+                AppBoxes.kHeight8,
+              ],
             ],
             if (widget.showKind) ...[
               Text(t.tasks.filterKind, style: label),

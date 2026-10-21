@@ -8,9 +8,16 @@ import (
 	"craftwms/internal/model"
 )
 
-type fakeProblemRepo struct{ resolved []model.ResolveProblemInput }
+type fakeProblemRepo struct {
+	resolved []model.ResolveProblemInput
+	feed     []model.ResolvedProblemsFilter
+}
 
 func (f *fakeProblemRepo) List(context.Context, model.ProblemFilter) ([]model.Problem, error) {
+	return nil, nil
+}
+func (f *fakeProblemRepo) Resolved(_ context.Context, fl model.ResolvedProblemsFilter) ([]model.Problem, error) {
+	f.feed = append(f.feed, fl)
 	return nil, nil
 }
 func (f *fakeProblemRepo) Resolve(_ context.Context, in model.ResolveProblemInput) error {
@@ -70,6 +77,38 @@ func TestProblemDecisionsFor(t *testing.T) {
 	for reason, n := range cases {
 		if got := model.ProblemDecisionsFor(reason); len(got) != n {
 			t.Errorf("%s: %v", reason, got)
+		}
+	}
+}
+
+// ADHOC-34: лента решённых на ТСД — окно дат по складу (to включительно), курсор только с id,
+// предел страницы.
+func TestProblemService_resolvedFeed(t *testing.T) {
+	repo := &fakeProblemRepo{}
+	svc := NewProblemService(repo)
+	ctx := context.Background()
+
+	if _, err := svc.Resolved(ctx, ResolvedQuery{From: "2026-10-01", To: "2026-10-21", Limit: 1000}); err != nil {
+		t.Fatal(err)
+	}
+	f := repo.feed[0]
+	if f.Limit != resolvedProblemsMaxLimit {
+		t.Errorf("предел страницы: %d", f.Limit)
+	}
+	if f.To == nil || f.To.Format("2006-01-02") != "2026-10-22" {
+		t.Errorf("to включается целиком: %v", f.To)
+	}
+	if _, err := svc.Resolved(ctx, ResolvedQuery{}); err != nil || repo.feed[1].Limit != resolvedProblemsDefaultLimit {
+		t.Errorf("без фильтра: %v, предел %d", err, repo.feed[1].Limit)
+	}
+	bad := []ResolvedQuery{
+		{From: "21.10.2026"},
+		{BeforeResolvedAt: "2026-10-21T10:00:00Z"},
+		{BeforeResolvedAt: "2026-10-21T10:00:00Z", BeforeID: "не-uuid"},
+	}
+	for _, q := range bad {
+		if _, err := svc.Resolved(ctx, q); !errors.Is(err, ErrInvalidProblemFilter) {
+			t.Errorf("%+v: ждали ErrInvalidProblemFilter, получили %v", q, err)
 		}
 	}
 }

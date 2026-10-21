@@ -41,11 +41,18 @@ class HistoryTile extends StatelessWidget {
             style: RegularTextStyles().regularInter12,
           ),
           if (session != null)
-            for (final l in session!.lines)
+            for (final l in session!.lines) ...[
+              Text(_what(l), style: muted),
+              if (l.loadUnitId == null)
+                Text(
+                  t.tasks.qtyLine(qty: qtyText(l.qty), uom: l.good?.uom ?? ''),
+                  style: muted,
+                ),
               Text(
-                '${_what(l)} · ${t.tasks.sessionLine(from: l.from, to: l.to)}',
+                t.tasks.sessionLine(from: l.from, to: l.to),
                 style: muted,
               ),
+            ],
         ],
       ),
     );
@@ -72,5 +79,5 @@ class HistoryTile extends StatelessWidget {
 
   String _what(TaskSessionLine l) => l.loadUnitId != null
       ? t.tasks.box(code: LoadUnitLabel(l.loadUnitId!).shortCodeFormatted)
-      : '${l.good?.name ?? ''} ${qtyText(l.qty)} ${l.good?.uom ?? ''}';
+      : l.good?.name ?? '';
 }

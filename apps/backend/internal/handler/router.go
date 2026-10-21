@@ -237,6 +237,9 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 		// как документы: решение меняет остаток.
 		if svc.Problem != nil {
 			prH := NewProblemHandler(svc.Problem)
+			// Лента решённых (ADHOC-34) — сотруднику: кладовщик на ТСД видит, что офис решил.
+			// Только чтение и только решённые — открытые остаются офису.
+			r.With(appmw.Authenticator(tokens)).Get("/problems/resolved", prH.Resolved)
 			r.Group(func(r chi.Router) {
 				r.Use(appmw.Authenticator(tokens))
 				r.Use(appmw.RequireRole(model.RoleAdmin))

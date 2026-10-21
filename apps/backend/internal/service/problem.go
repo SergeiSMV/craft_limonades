@@ -15,12 +15,22 @@ import (
 // документа списания или поставщика возврата, лишние поля другого решения.
 var ErrInvalidDecision = errors.New("invalid problem decision")
 
+// ErrInvalidProblemFilter — фильтр ленты решённых проблем неверен: дата не ISO, курсор без id.
+var ErrInvalidProblemFilter = errors.New("invalid resolved problems filter")
+
 // problemDocNumberMax — предел номера документа 1С в символах.
 const problemDocNumberMax = 50
+
+// Страница ленты решённых проблем на ТСД (ADHOC-34) — как у «Завершённых» заданий.
+const (
+	resolvedProblemsDefaultLimit = 30
+	resolvedProblemsMaxLimit     = 100
+)
 
 // problemRepo — зависимость сервиса проблем склада.
 type problemRepo interface {
 	List(ctx context.Context, f model.ProblemFilter) ([]model.Problem, error)
+	Resolved(ctx context.Context, f model.ResolvedProblemsFilter) ([]model.Problem, error)
 	Resolve(ctx context.Context, in model.ResolveProblemInput) error
 }
 
@@ -41,6 +51,29 @@ func (s *ProblemService) List(ctx context.Context, status string) ([]model.Probl
 		return nil, ErrInvalidDecision
 	}
 	return s.repo.List(ctx, model.ProblemFilter{Status: status})
+}
+
+// ResolvedQuery — фильтр ленты решённых проблем в транспортном виде, как его шлёт ТСД: даты
+// 'YYYY-MM-DD' по времени склада (`to` включается целиком), курсор — время решения (RFC3339)
+// и id последней показанной записи.
+type ResolvedQuery struct {
+	From, To         string
+	BeforeResolvedAt string
+	BeforeID         string
+	Limit            int
+}
+
+// Resolved — страница ленты «Завершённые» проблем на ТСД (ADHOC-34): только решённые офисом,
+// все по складу, свежие решения первыми.
+func (s *ProblemService) Resolved(ctx context.Context, q ResolvedQuery) ([]model.Problem, error) {
+	w, err := parseFeedWindow(q.From, q.To, q.BeforeResolvedAt, q.BeforeID, q.Limit,
+		resolvedProblemsDefaultLimit, resolvedProblemsMaxLimit)
+	if err != nil {
+		return nil, ErrInvalidProblemFilter
+	}
+	return s.repo.Resolved(ctx, model.ResolvedProblemsFilter{
+		From: w.From, To: w.To, BeforeResolvedAt: w.Before, BeforeID: w.BeforeID, Limit: w.Limit,
+	})
 }
 
 // Resolve проверяет форму решения и проводит его.

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -59,6 +60,9 @@ type problemResponse struct {
 	ReturnTaskNo int64      `json:"return_task_number,omitempty"`
 	ResolvedBy   string     `json:"resolved_by,omitempty"`
 	ResolvedAt   *time.Time `json:"resolved_at,omitempty"`
+	// Исполнение возврата (ADHOC-34): кто и когда отгрузил поставщику; нет — ещё не отгружен.
+	ShippedBy string     `json:"shipped_by,omitempty"`
+	ShippedAt *time.Time `json:"shipped_at,omitempty"`
 }
 
 func toProblemResponse(p model.Problem) problemResponse {
@@ -74,6 +78,7 @@ func toProblemResponse(p model.Problem) problemResponse {
 		Status: p.Status, Decision: p.Decision, DocNumber: p.DocNumber, DocDate: p.DocDate,
 		SupplierID: p.SupplierID, SupplierName: p.SupplierName, ReturnTaskNo: p.ReturnTaskNo,
 		ResolvedBy: p.ResolvedByName, ResolvedAt: p.ResolvedAt,
+		ShippedBy: p.ShippedByName, ShippedAt: p.ShippedAt,
 	}
 }
 
@@ -86,6 +91,31 @@ func (h *ProblemHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 	if err != nil {
 		slog.Error("problems failed", "error", err)
+		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
+		return
+	}
+	out := make([]problemResponse, 0, len(items))
+	for _, p := range items {
+		out = append(out, toProblemResponse(p))
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+// Resolved: GET /api/v1/problems/resolved?from=&to=&before_resolved_at=&before_id=&limit= —
+// лента «Завершённые» проблем на ТСД (ADHOC-34): только решённые офисом, свежие первыми.
+func (h *ProblemHandler) Resolved(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	limit, _ := strconv.Atoi(q.Get("limit"))
+	items, err := h.svc.Resolved(r.Context(), service.ResolvedQuery{
+		From: q.Get("from"), To: q.Get("to"), BeforeResolvedAt: q.Get("before_resolved_at"),
+		BeforeID: q.Get("before_id"), Limit: limit,
+	})
+	if errors.Is(err, service.ErrInvalidProblemFilter) {
+		writeError(w, http.StatusBadRequest, "неверный фильтр")
+		return
+	}
+	if err != nil {
+		slog.Error("resolved problems failed", "error", err)
 		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
 		return
 	}
