@@ -50,6 +50,32 @@ void main() {
   );
 
   test(
+    'системный склад (P6-07-3) подписывается, но в выбор не попадает',
+    () async {
+      when(
+        () => dio.get<List<dynamic>>(ApiConst.internalWarehouses),
+      ).thenAnswer(
+        (_) async => ok([
+          {'id': 'm', 'code': 'MAIN', 'name': 'Основной', 'is_default': true},
+          {
+            'id': 'r',
+            'code': 'RETURN',
+            'name': 'Возврат поставщику',
+            'is_default': false,
+            'is_active': true,
+            'system_role': 'supplier_return',
+          },
+        ]),
+      );
+      final w = InternalWarehouses(dio, db);
+      expect((await w.refresh()).isRight, isTrue);
+      final ret = (await w.all()).singleWhere((x) => x.id == 'r');
+      expect(ret.name, 'Возврат поставщику');
+      expect(ret.isActive, isFalse);
+    },
+  );
+
+  test(
     'сервер без ручки (404) — не сбой: справочник остаётся прежним',
     () async {
       when(() => dio.get<List<dynamic>>(ApiConst.internalWarehouses)).thenThrow(

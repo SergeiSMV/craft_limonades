@@ -68,13 +68,19 @@ class WarehouseRow extends StatelessWidget {
                         bg: AppColors.kBadgeSuccessBg,
                         fg: AppColors.kBadgeSuccessText,
                       ),
+                    if (w.isSystem)
+                      _Mark(
+                        label: t.portal.warehouses.markSystem,
+                        bg: AppColors.kBorder,
+                        fg: AppColors.kTextMuted,
+                      ),
                     if (!w.isActive)
                       _Mark(
                         label: t.portal.warehouses.markHidden,
                         bg: AppColors.kBadgeWarningBg,
                         fg: AppColors.kBadgeWarningText,
                       ),
-                    if (w.inUse && !w.isDefault)
+                    if (w.inUse && !w.isDefault && !w.isSystem)
                       _Mark(
                         label: t.portal.warehouses.markInUse,
                         bg: AppColors.kBorder,
@@ -92,7 +98,7 @@ class WarehouseRow extends StatelessWidget {
             busy: busy,
             onPressed: onRename,
           ),
-          if (!w.isDefault) ...[
+          if (w.canToggle) ...[
             AppBoxes.kWidth12,
             NeumorphicIconButton(
               icon: w.isActive
