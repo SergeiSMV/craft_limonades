@@ -80,12 +80,15 @@ class TaskItemTile extends StatelessWidget {
       t.tasks.box(code: LoadUnitLabel(item.loadUnitId!).shortCodeFormatted),
       style: title,
     ),
-    for (final c in item.contents)
+    // Каждый товар короба — наименование, партия и количество своими строками.
+    for (final c in item.contents) ...[
+      Text(c.good.name, style: muted),
+      Text(t.tasks.batch(date: batchDate(c.productionDate)), style: muted),
       Text(
-        '${c.good.name} · ${t.tasks.batch(date: batchDate(c.productionDate))} · '
-        '${qtyText(c.qty)} ${c.good.uom}',
+        t.tasks.qtyLine(qty: qtyText(c.qty), uom: c.good.uom),
         style: muted,
       ),
+    ],
     ..._cell(muted),
   ];
 
@@ -97,9 +100,18 @@ class TaskItemTile extends StatelessWidget {
   List<Widget> _loose(TextStyle title, TextStyle muted) => [
     Text(item.good?.name ?? '', style: title),
     Text(
-      '${t.tasks.batch(date: batchDate(item.productionDate ?? ''))} · '
-      // У возврата позиция отгружается целиком — «осталось из» там не к чему (ADHOC-31).
-      '${item.problemId != null ? '${qtyText(item.qty)} ${item.good?.uom ?? ''}' : t.tasks.remaining(qty: qtyText(item.remaining), total: qtyText(item.qty), uom: item.good?.uom ?? '')}',
+      t.tasks.batch(date: batchDate(item.productionDate ?? '')),
+      style: muted,
+    ),
+    // У возврата позиция отгружается целиком — «осталось из» там не к чему (ADHOC-31).
+    Text(
+      item.problemId != null
+          ? t.tasks.qtyLine(qty: qtyText(item.qty), uom: item.good?.uom ?? '')
+          : t.tasks.remaining(
+              qty: qtyText(item.remaining),
+              total: qtyText(item.qty),
+              uom: item.good?.uom ?? '',
+            ),
       style: muted,
     ),
     ..._cell(muted),

@@ -53,11 +53,12 @@ class CompletedTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '${t.tasks.number(number: task.number)} · ${taskKindLabel(task.kind)}',
+                    taskKindLabel(task.kind),
                     style: SemiboldTextStyles().semiboldInter14.copyWith(
                       color: AppColors.kSidebarHover,
                     ),
                   ),
+                  Text(t.tasks.number(number: task.number), style: muted),
                   Text(
                     supplierBasis(task.supplier, kind: task.kind),
                     style: muted,

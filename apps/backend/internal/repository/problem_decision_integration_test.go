@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -191,5 +192,78 @@ func TestProblemList_openBox(t *testing.T) {
 	if len(list) != 1 || list[0].LoadUnitID != lu || len(list[0].Items) != 1 ||
 		list[0].Items[0].Qty != "12.000" || list[0].Items[0].CellAddress != "A" || list[0].ToWarehouse != "Брак" {
 		t.Errorf("список: %+v", list)
+	}
+}
+
+// ADHOC-34: лента решённых на ТСД — только решённые, свежие решения первыми, курсор продолжает
+// без повторов, окно — по времени решения.
+func TestProblemResolved_feed(t *testing.T) {
+	mf := setupMove(t)
+	defect := mf.iwhByCode(t, "DEFECT")
+	mf.receive(t, nil, 5)
+	open := mf.openProblem(t, defect, model.ProblemReasonSpoilage, mf.goodsProblem(1, mf.cellA, ""))
+	first := mf.openProblem(t, defect, model.ProblemReasonOther, mf.goodsProblem(1, mf.cellA, ""))
+	second := mf.openProblem(t, defect, model.ProblemReasonOther, mf.goodsProblem(1, mf.cellA, ""))
+	for _, id := range []string{first, second} {
+		if err := mf.resolve(id, model.ResolveProblemInput{Decision: model.ProblemDecisionPlace}); err != nil {
+			t.Fatalf("решение: %v", err)
+		}
+	}
+	// Время решения разводим явно: в одной секунде порядок задавал бы только id.
+	for id, at := range map[string]string{first: "2026-10-20T10:00:00Z", second: "2026-10-21T10:00:00Z"} {
+		_, err := mf.pool.Exec(context.Background(),
+			`UPDATE warehouse_problems SET resolved_at = $2 WHERE id = $1::uuid`, id, at)
+		mustNoErr(t, err)
+	}
+
+	repo := repository.NewProblemRepository(mf.pool)
+	ctx := context.Background()
+	page, err := repo.Resolved(ctx, model.ResolvedProblemsFilter{Limit: 1})
+	mustNoErr(t, err)
+	if len(page) != 1 || page[0].ID != second || page[0].Decision != model.ProblemDecisionPlace ||
+		len(page[0].Items) != 1 || page[0].Items[0].CellAddress != "A" || page[0].ResolvedAt == nil {
+		t.Fatalf("первая страница: %+v", page)
+	}
+	next, err := repo.Resolved(ctx, model.ResolvedProblemsFilter{
+		BeforeResolvedAt: page[0].ResolvedAt, BeforeID: page[0].ID, Limit: 10,
+	})
+	mustNoErr(t, err)
+	if len(next) != 1 || next[0].ID != first {
+		t.Errorf("по курсору — только раньше решённая, без открытой %s: %+v", open, next)
+	}
+
+	from := time.Date(2026, 10, 21, 0, 0, 0, 0, time.UTC)
+	window, err := repo.Resolved(ctx, model.ResolvedProblemsFilter{From: &from, Limit: 10})
+	mustNoErr(t, err)
+	if len(window) != 1 || window[0].ID != second {
+		t.Errorf("окно с 21.10: %+v", window)
+	}
+}
+
+// ADHOC-34: исполнение возврата в ленте — до отгрузки кто и когда отгрузил пусто, после
+// сеанса на ТСД — отгрузивший и время сеанса.
+func TestProblemResolved_returnShipped(t *testing.T) {
+	mf := setupMove(t)
+	defect := mf.iwhByCode(t, "DEFECT")
+	mf.receive(t, nil, 5)
+	id := mf.openProblem(t, defect, model.ProblemReasonSpoilage, mf.goodsProblem(2, mf.cellA, ""))
+	mustNoErr(t, mf.resolve(id, model.ResolveProblemInput{
+		Decision: model.ProblemDecisionSupplierReturn, SupplierID: mf.supplier(t, "ООО МИР"),
+	}))
+	repo := repository.NewProblemRepository(mf.pool)
+	ctx := context.Background()
+
+	before, err := repo.Resolved(ctx, model.ResolvedProblemsFilter{Limit: 10})
+	mustNoErr(t, err)
+	if len(before) != 1 || before[0].ShippedAt != nil || before[0].ShippedByName != "" || before[0].ReturnTaskNo == 0 {
+		t.Fatalf("до отгрузки: %+v", before)
+	}
+	if _, err := mf.ship(mf.returnTask(t, id), id); err != nil {
+		t.Fatalf("отгрузка: %v", err)
+	}
+	after, err := repo.Resolved(ctx, model.ResolvedProblemsFilter{Limit: 10})
+	mustNoErr(t, err)
+	if len(after) != 1 || after[0].ShippedAt == nil || after[0].ShippedByName == "" {
+		t.Errorf("после отгрузки: %+v", after)
 	}
 }

@@ -89,6 +89,15 @@ type ProblemFilter struct {
 	Status string
 }
 
+// ResolvedProblemsFilter — страница ленты решённых проблем на ТСД (ADHOC-34): окно по времени
+// решения `[From, To)` (nil — без границы) и курсор — время решения и id последней записи.
+type ResolvedProblemsFilter struct {
+	From, To         *time.Time
+	BeforeResolvedAt *time.Time
+	BeforeID         string
+	Limit            int
+}
+
 // ProblemItem — товар проблемы: у открытой — что помечено сейчас (состав короба или товар
 // проблемы), у решённой — что решение фактически взяло, с ячейкой.
 type ProblemItem struct {
@@ -127,4 +136,9 @@ type Problem struct {
 	ReturnTaskNo   int64
 	ResolvedByName string
 	ResolvedAt     *time.Time
+
+	// Отгрузка возврата поставщику (ADHOC-31): кто и когда отгрузил на ТСД; пусто — возврат
+	// ещё ждёт отгрузки или решение другое. Исполнение решения для ленты склада (ADHOC-34).
+	ShippedByName string
+	ShippedAt     *time.Time
 }

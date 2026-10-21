@@ -11,7 +11,9 @@ import '../../features/debug/presentation/pages/scanner_probe_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/movement/presentation/pages/movement_page.dart';
 import '../../features/movement/presentation/pages/movement_record_page.dart';
+import '../../features/problems/domain/resolved_problems.dart'; // аргумент ResolvedProblemRoute
 import '../../features/problems/presentation/pages/problem_page.dart';
+import '../../features/problems/presentation/pages/resolved_problem_page.dart';
 import '../../features/putaway/presentation/pages/putaway_page.dart';
 import '../../features/supplier_return/presentation/pages/supplier_return_page.dart';
 import '../../features/receipt/presentation/bloc/receipt_cubit.dart'; // ReceiptCubit — аргумент ReceiptBoxRoute
@@ -66,6 +68,8 @@ class AppRouter extends RootStackRouter {
     AutoRoute(page: MovementRecordRoute.page, guards: [_authGuard]),
     // Проблемы склада (P6-07-2): пометка брака и изолятора, без связи — очередью.
     AutoRoute(page: ProblemRoute.page, guards: [_authGuard]),
+    // Карточка решённой проблемы (ADHOC-34) — из ленты «Завершённые».
+    AutoRoute(page: ResolvedProblemRoute.page, guards: [_authGuard]),
     // Выполнение задания на размещение (P5-03).
     AutoRoute(page: PutawayRoute.page, guards: [_authGuard]),
     AutoRoute(page: SupplierReturnRoute.page, guards: [_authGuard]),

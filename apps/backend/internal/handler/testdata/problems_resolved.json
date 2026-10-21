@@ -1,0 +1,29 @@
+[
+  {
+    "id": "7e000000-0000-4000-8000-000000000001",
+    "created_at": "2026-10-21T09:12:00Z",
+    "created_by": "Иванов Иван",
+    "cell_address": "M1-1-1-1",
+    "reason": "breakage",
+    "comment": "разбита при снятии с полки",
+    "from_warehouse": "Основной",
+    "to_warehouse": "Брак",
+    "items": [
+      {
+        "good_id": "7e000000-0000-4000-8000-0000000000c1",
+        "good_code": "16121",
+        "good_name": "Кальмар",
+        "production_date": "2026-09-01",
+        "qty": "2.000",
+        "cell_address": "M1-1-1-1"
+      }
+    ],
+    "decisions": ["write_off"],
+    "status": "resolved",
+    "decision": "write_off",
+    "doc_number": "СП-17",
+    "doc_date": "2026-10-21",
+    "resolved_by": "Петрова Анна",
+    "resolved_at": "2026-10-21T11:40:00Z"
+  }
+]

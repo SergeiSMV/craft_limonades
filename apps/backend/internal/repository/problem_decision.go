@@ -44,14 +44,14 @@ func NewProblemRepository(pool *pgxpool.Pool) *ProblemRepository {
 	return &ProblemRepository{pool: pool}
 }
 
-// List — рабочий список офиса: открытые сверху, внутри — свежие первыми.
-func (r *ProblemRepository) List(ctx context.Context, f model.ProblemFilter) ([]model.Problem, error) {
-	rows, err := r.pool.Query(ctx, `
+// problemSelect — поля проблемы для списков; порядок совпадает со сканом в [scanProblems].
+const problemSelect = `
 		SELECT p.id::text, p.created_at, COALESCE(cu.full_name, ''), c.address,
 		       COALESCE(p.load_unit_id::text, ''), p.reason, p.comment, COALESCE(p.mark, ''),
 		       fw.name, tw.name, p.status, COALESCE(p.decision, ''), COALESCE(p.doc_number, ''),
 		       COALESCE(to_char(p.doc_date, 'YYYY-MM-DD'), ''), COALESCE(p.supplier_id::text, ''),
-		       COALESCE(s.name, ''), COALESCE(t.number, 0), COALESCE(ru.full_name, ''), p.resolved_at
+		       COALESCE(s.name, ''), COALESCE(t.number, 0), COALESCE(ru.full_name, ''), p.resolved_at,
+		       COALESCE(su.full_name, ''), sh.posted_at
 		FROM warehouse_problems p
 		JOIN cells c                ON c.id = p.cell_id
 		JOIN internal_warehouses fw ON fw.id = p.from_internal_warehouse_id
@@ -60,9 +60,34 @@ func (r *ProblemRepository) List(ctx context.Context, f model.ProblemFilter) ([]
 		LEFT JOIN users ru          ON ru.id = p.resolved_by
 		LEFT JOIN suppliers s       ON s.id = p.supplier_id
 		LEFT JOIN warehouse_tasks t ON t.id = p.return_task_id
+		LEFT JOIN supplier_return_shipments sh ON sh.id = p.shipment_id
+		LEFT JOIN users su          ON su.id = sh.created_by`
+
+// List — рабочий список офиса: открытые сверху, внутри — свежие первыми.
+func (r *ProblemRepository) List(ctx context.Context, f model.ProblemFilter) ([]model.Problem, error) {
+	return r.query(ctx, problemSelect+`
 		WHERE ($1::text = '' OR p.status = $1)
 		ORDER BY p.status = 'open' DESC, p.created_at DESC, p.id
 		LIMIT $2`, f.Status, problemListLimit)
+}
+
+// Resolved — страница ленты решённых проблем для ТСД (ADHOC-34): свежие решения первыми.
+//
+// Окно — по времени решения (`[From, To)`); курсор — время решения и id последней показанной
+// записи, как у ленты «Завершённые» заданий: при равном времени порядок задаёт id.
+func (r *ProblemRepository) Resolved(ctx context.Context, f model.ResolvedProblemsFilter) ([]model.Problem, error) {
+	return r.query(ctx, problemSelect+`
+		WHERE p.status = 'resolved'
+		  AND ($1::timestamptz IS NULL OR p.resolved_at >= $1)
+		  AND ($2::timestamptz IS NULL OR p.resolved_at <  $2)
+		  AND ($3::timestamptz IS NULL OR (p.resolved_at, p.id) < ($3, NULLIF($4, '')::uuid))
+		ORDER BY p.resolved_at DESC, p.id DESC
+		LIMIT $5`, f.From, f.To, f.BeforeResolvedAt, f.BeforeID, f.Limit)
+}
+
+// query читает проблемы по запросу на [problemSelect] и подкладывает им товар.
+func (r *ProblemRepository) query(ctx context.Context, sql string, args ...any) ([]model.Problem, error) {
+	rows, err := r.pool.Query(ctx, sql, args...)
 	if err != nil {
 		return nil, fmt.Errorf("проблемы склада: %w", err)
 	}
@@ -73,7 +98,7 @@ func (r *ProblemRepository) List(ctx context.Context, f model.ProblemFilter) ([]
 		if err := rows.Scan(&p.ID, &p.CreatedAt, &p.CreatedByName, &p.CellAddress, &p.LoadUnitID,
 			&p.Reason, &p.Comment, &p.Mark, &p.FromWarehouse, &p.ToWarehouse, &p.Status, &p.Decision,
 			&p.DocNumber, &p.DocDate, &p.SupplierID, &p.SupplierName, &p.ReturnTaskNo,
-			&p.ResolvedByName, &p.ResolvedAt); err != nil {
+			&p.ResolvedByName, &p.ResolvedAt, &p.ShippedByName, &p.ShippedAt); err != nil {
 			rows.Close()
 			return nil, fmt.Errorf("разобрать проблему: %w", err)
 		}

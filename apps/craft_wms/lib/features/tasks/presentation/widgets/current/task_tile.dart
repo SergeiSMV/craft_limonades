@@ -75,11 +75,9 @@ class TaskTile extends StatelessWidget {
                       TaskStatusBadge(status: task.status),
                     ],
                   ),
+                  Text(t.tasks.number(number: task.number), style: muted),
                   Text(
-                    t.tasks.tileNumber(
-                      number: task.number,
-                      created: fullDateTime(task.createdAt),
-                    ),
+                    t.tasks.createdLine(created: fullDateTime(task.createdAt)),
                     style: muted,
                   ),
                   // Возврат — кому везём (ADHOC-31): без поставщика задания не различить.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -99,5 +100,36 @@ func TestProblemHTTP_clientWireFormat(t *testing.T) {
 	again = strings.Replace(again, "7e000000-0000-4000-8000-0000000000f2", uuid.NewString(), 1)
 	if got := e.operations(t, again); len(got) != 2 || got[0] != service.StatusRejected {
 		t.Fatalf("повтор проблемы: %v", got)
+	}
+
+	// ADHOC-34: офис списывает россыпь — кладовщик видит её в ленте «Завершённые» в формате
+	// эталона testdata/problems_resolved.json; открытая (короб в «Изоляторе») туда не попадает,
+	// рабочий список офиса кладовщику закрыт.
+	if code, body := e.call(t, http.MethodPost, "/api/v1/problems/7e000000-0000-4000-8000-000000000001/resolve",
+		e.adminToken, `{"decision":"write_off","doc_number":"СП-17","doc_date":"2026-10-21"}`); code != http.StatusNoContent {
+		t.Fatalf("решение офиса: %d %s", code, body)
+	}
+	if code, _ := e.call(t, http.MethodGet, "/api/v1/problems", e.workerToken, ""); code != http.StatusForbidden {
+		t.Errorf("рабочий список офиса кладовщику: %d", code)
+	}
+	code, body = e.call(t, http.MethodGet, "/api/v1/problems/resolved", e.workerToken, "")
+	if code != http.StatusOK {
+		t.Fatalf("лента решённых: %d %s", code, body)
+	}
+	var want, got any
+	if err := json.Unmarshal(readFixture(t, "problems_resolved.json"), &want); err != nil {
+		t.Fatalf("эталон ленты не разбирается: %v", err)
+	}
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("ответ ленты не разбирается: %v", err)
+	}
+	// Моменты и ФИО выдаёт сервер — эталон их знать не может.
+	volatile := map[string]bool{"created_at": true, "resolved_at": true, "created_by": true, "resolved_by": true}
+	blank(want, volatile)
+	blank(got, volatile)
+	if !reflect.DeepEqual(got, want) {
+		g, _ := json.MarshalIndent(got, "", "  ")
+		t.Fatalf("лента разошлась с эталоном testdata/problems_resolved.json — сверьте формат "+
+			"с тем, что разбирает клиент.\nПолучено: %s", g)
 	}
 }
