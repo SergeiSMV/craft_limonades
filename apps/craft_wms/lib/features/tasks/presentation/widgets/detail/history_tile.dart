@@ -11,9 +11,17 @@ import '../common/task_format.dart';
 /// Запись «Истории выполнения»: событие журнала задания — что, кто и когда. У захода под
 /// событием — что и откуда → куда переносили.
 class HistoryTile extends StatelessWidget {
-  const HistoryTile({super.key, required this.event, this.session});
+  const HistoryTile({
+    super.key,
+    required this.event,
+    required this.kind,
+    this.session,
+  });
 
   final TaskEvent event;
+
+  /// Вид задания: заход размещения — «Разместил», заход возврата — «Отгрузил» (ADHOC-31).
+  final String kind;
 
   /// Заход, о котором событие (только у [TaskEventKind.session]).
   final TaskSession? session;
@@ -33,11 +41,18 @@ class HistoryTile extends StatelessWidget {
             style: RegularTextStyles().regularInter12,
           ),
           if (session != null)
-            for (final l in session!.lines)
+            for (final l in session!.lines) ...[
+              Text(_what(l), style: muted),
+              if (l.loadUnitId == null)
+                Text(
+                  t.tasks.qtyLine(qty: qtyText(l.qty), uom: l.good?.uom ?? ''),
+                  style: muted,
+                ),
               Text(
-                '${_what(l)} · ${t.tasks.sessionLine(from: l.from, to: l.to)}',
+                t.tasks.sessionLine(from: l.from, to: l.to),
                 style: muted,
               ),
+            ],
         ],
       ),
     );
@@ -54,12 +69,15 @@ class HistoryTile extends StatelessWidget {
       user: event.user,
       prev: event.prevUser,
     ),
-    TaskEventKind.session => t.tasks.eventSession(user: event.user),
+    TaskEventKind.session =>
+      kind == TaskKind.supplierReturn
+          ? t.tasks.eventShipped(user: event.user)
+          : t.tasks.eventSession(user: event.user),
     TaskEventKind.completed => t.tasks.eventCompleted,
     _ => event.event,
   };
 
   String _what(TaskSessionLine l) => l.loadUnitId != null
       ? t.tasks.box(code: LoadUnitLabel(l.loadUnitId!).shortCodeFormatted)
-      : '${l.good?.name ?? ''} ${qtyText(l.qty)} ${l.good?.uom ?? ''}';
+      : l.good?.name ?? '';
 }

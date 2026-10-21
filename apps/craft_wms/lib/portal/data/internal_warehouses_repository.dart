@@ -14,6 +14,7 @@ class PortalWarehouse {
     required this.isDefault,
     required this.isActive,
     required this.inUse,
+    this.systemRole = '',
   });
 
   factory PortalWarehouse.fromJson(Map<String, dynamic> j) => PortalWarehouse(
@@ -23,6 +24,7 @@ class PortalWarehouse {
     isDefault: j['is_default'] as bool? ?? false,
     isActive: j['is_active'] as bool? ?? true,
     inUse: j['in_use'] as bool? ?? false,
+    systemRole: j['system_role'] as String? ?? '',
   );
 
   final String id;
@@ -38,8 +40,18 @@ class PortalWarehouse {
   /// Есть остаток или история — удалить нельзя, только скрыть.
   final bool inUse;
 
-  /// Можно ли удалить: не по умолчанию и без остатка и истории.
-  bool get canDelete => !isDefault && !inUse;
+  /// Роль системного склада (P6-07-3, «Возврат поставщику»); пусто — обычный склад.
+  final String systemRole;
+
+  /// Системный: на него переводит программа (решение офиса), а не кладовщик — его нельзя ни
+  /// скрыть, ни удалить.
+  bool get isSystem => systemRole.isNotEmpty;
+
+  /// Можно ли скрыть или вернуть в выбор: не по умолчанию и не системный.
+  bool get canToggle => !isDefault && !isSystem;
+
+  /// Можно ли удалить: не по умолчанию, не системный, без остатка и истории.
+  bool get canDelete => canToggle && !inUse;
 }
 
 /// Справочник внутренних складов в портале (ADHOC-29): список и ведение — только admin.

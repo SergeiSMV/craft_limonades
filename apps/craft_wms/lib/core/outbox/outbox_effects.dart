@@ -52,6 +52,7 @@ class OutboxEffects {
       case OutboxKind.putawaySubmit:
       case OutboxKind.movementSubmit:
       case OutboxKind.problemSubmit:
+      case OutboxKind.returnSubmit:
         break; // приёмка, размещение и движение справочник не меняют — следствий в кэше нет
       case OutboxKind.unbindBarcode:
         // Отвязка убирает запись сразу: кладовщик отвязал ошибочный код и не должен видеть
@@ -67,8 +68,10 @@ class OutboxEffects {
     // очереди при чтении эту операцию больше не учитывает (она «отправлена»), поэтому без
     // свежего снимка без связи короб оказался бы там, где лежал до неё. Задания — по той же
     // причине: новое задание от приёмки сервер создаёт только при её проведении.
+    // Отгрузка возврата (ADHOC-31) снимает товар со склада и выполняет задание — тоже оба.
     if (operation.kind == OutboxKind.receiptSubmit ||
-        operation.kind == OutboxKind.putawaySubmit) {
+        operation.kind == OutboxKind.putawaySubmit ||
+        operation.kind == OutboxKind.returnSubmit) {
       _contents.requestRefresh();
       _tasks.requestRefresh();
       return;
@@ -91,6 +94,7 @@ class OutboxEffects {
       case OutboxKind.putawaySubmit:
       case OutboxKind.movementSubmit:
       case OutboxKind.problemSubmit:
+      case OutboxKind.returnSubmit:
         break; // приёмка, размещение и движение в кэше справочников следа не оставляют
     }
   }
@@ -109,6 +113,7 @@ class OutboxEffects {
       case OutboxKind.putawaySubmit:
       case OutboxKind.movementSubmit:
       case OutboxKind.problemSubmit:
+      case OutboxKind.returnSubmit:
         break; // откатывать в кэше нечего: документ возвращается человеку на разбор
       case OutboxKind.unbindBarcode:
         // Операция старого формата, без товара в теле, — восстанавливать нечем.

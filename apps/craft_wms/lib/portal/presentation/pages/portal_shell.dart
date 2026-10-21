@@ -12,6 +12,7 @@ import '../widgets/shell/portal_sidebar.dart';
 import '../widgets/tabs/cells_tab.dart';
 import '../widgets/tabs/documents_tab.dart';
 import '../widgets/tabs/nomenclature_tab.dart';
+import '../widgets/tabs/problems_tab.dart';
 import '../widgets/tabs/settings_tab.dart';
 import '../widgets/tabs/stub_tab.dart';
 
@@ -92,6 +93,13 @@ class _PortalShellState extends State<PortalShell> {
             kind: 'movement',
             empty: t.portal.movement.empty,
           ),
+        ),
+        NavItem(
+          icon: Icons.report_problem_outlined,
+          label: t.portal.tabs.problems,
+          // P6-07-3: решение офиса по проблемам, помеченным на ТСД.
+          description: t.portal.problems.description,
+          body: const ProblemsTab(),
         ),
       ],
     ),

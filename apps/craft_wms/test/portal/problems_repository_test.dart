@@ -1,0 +1,91 @@
+import 'package:craft_wms/core/constants/api_constants.dart';
+import 'package:craft_wms/core/error/failure.dart';
+import 'package:craft_wms/portal/data/problems_repository.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+import '../support/fake_dio_adapter.dart';
+
+ResponseBody _json(String body, int status) => ResponseBody.fromString(
+  body,
+  status,
+  headers: {
+    Headers.contentTypeHeader: [Headers.jsonContentType],
+  },
+);
+
+/// P6-07-3: «Проблемы склада» в портале — разбор списка и тело решения.
+void main() {
+  late Dio dio;
+
+  setUp(() => dio = Dio(BaseOptions(baseUrl: 'https://api.test')));
+
+  test('список: короб, товар, допустимые решения, решённая с заданием', () async {
+    dio.httpClientAdapter = RecordingAdapter({
+      'GET ${ApiConst.problems}': (_) => _json(
+        '[{"id":"p1","created_at":"2026-10-21T08:00:00Z","created_by":"Иванов",'
+        '"cell_address":"M1-5-3","load_unit_id":"6f1c2b3a-0d4e-4f5a-8b6c-7d8e9fa0b1c2",'
+        '"reason":"expired","comment":"","from_warehouse":"Основной","to_warehouse":"Брак",'
+        '"items":[{"good_code":"00-1","good_name":"Сыр","production_date":"2026-08-21",'
+        '"qty":"12.000","cell_address":"M1-5-3"}],"decisions":["write_off","supplier_return"],'
+        '"suggested_supplier_id":"s1","status":"open"},'
+        '{"id":"p2","created_at":"2026-10-20T08:00:00Z","cell_address":"A","reason":"other",'
+        '"comment":"развакуум","from_warehouse":"Основной","to_warehouse":"Брак","items":[],'
+        '"decisions":["write_off","place","supplier_return"],"status":"resolved",'
+        '"decision":"supplier_return","supplier_name":"ООО Вкуснярики","return_task_number":57,'
+        '"resolved_by":"Петров","resolved_at":"2026-10-21T09:00:00Z"}]',
+        200,
+      ),
+    });
+    final res = await ProblemsRepository(dio).list();
+    expect(res.isRight, isTrue);
+    final [box, done] = res.right;
+    expect(box.loadUnitCode, '9FA0B1C2');
+    expect(box.items.single.qty, 12);
+    expect(box.decisions, [
+      ProblemDecision.writeOff,
+      ProblemDecision.supplierReturn,
+    ]);
+    expect(box.suggestedSupplierId, 's1');
+    expect(box.resolved, isFalse);
+    expect(done.resolved, isTrue);
+    expect(done.returnTaskNumber, 57);
+    expect(done.resolvedAt, isNotNull);
+  });
+
+  test('решение: поля только своего вида; отказ — текст сервера', () async {
+    final adapter = RecordingAdapter({
+      'POST ${ApiConst.problemResolve('p1')}': (_) =>
+          ResponseBody.fromString('', 204),
+      'POST ${ApiConst.problemResolve('p2')}': (_) =>
+          _json('{"error":"по проблеме уже принято решение"}', 409),
+    });
+    dio.httpClientAdapter = adapter;
+    final repo = ProblemsRepository(dio);
+
+    final ok = await repo.resolve('p1', (
+      decision: ProblemDecision.writeOff,
+      docNumber: 'СП-1',
+      docDate: '2026-10-21',
+      supplierId: 's1',
+    ));
+    expect(ok.isRight, isTrue);
+    expect(adapter.requests.single.data, {
+      'decision': 'write_off',
+      'doc_number': 'СП-1',
+      'doc_date': '2026-10-21',
+    });
+
+    final refused = await repo.resolve('p2', (
+      decision: ProblemDecision.place,
+      docNumber: '',
+      docDate: '',
+      supplierId: '',
+    ));
+    expect(
+      refused.left,
+      const Failure.server(409, 'по проблеме уже принято решение'),
+    );
+    expect(adapter.requests.last.data, {'decision': 'place'});
+  });
+}

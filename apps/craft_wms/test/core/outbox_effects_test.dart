@@ -220,11 +220,13 @@ void main() {
     await e.confirm(op(OutboxKind.bindBarcode));
     // P6-04: движение двигает содержимое, но заданий не касается.
     await e.confirm(op(OutboxKind.movementSubmit));
+    // ADHOC-31: отгрузка возврата снимает товар и выполняет задание — оба снимка.
+    await e.confirm(op(OutboxKind.returnSubmit));
 
-    expect(contents.requests, 3);
+    expect(contents.requests, 4);
     expect(
       tasks.requests,
-      2,
+      3,
       reason: 'привязка ШК и движение задания не трогают',
     );
   });

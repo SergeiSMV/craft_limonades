@@ -81,6 +81,13 @@ abstract final class AppSizes {
   static const double kColDocMin = 140;
   static const double kColPartyMin = 180;
   static const double kHeaderHeight = 72; // верхняя панель контента
+  // Неактивная позиция на ТСД — серая, пока не отсканировано её место (ADHOC-31).
+  static const double kInactiveOpacity = 0.45;
+  // Календарь портала в диалоге (ADHOC-30): ширина и высота сетки месяца.
+  static const double kPortalCalendarWidth = 320;
+  static const double kPortalCalendarHeight = 340;
+  // Список выбора из справочника в диалоге портала (ADHOC-30), не выше.
+  static const double kPortalPickListMaxHeight = 220;
   static const double kContentMaxWidth =
       900; // предел ширины карточки (по макету)
   static const double kFormWidth = 480; // правая панель формы входа

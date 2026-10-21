@@ -285,21 +285,4 @@ class CatalogRepository {
     }
     return Right(await _cache.cells(warehouseId: warehouseId));
   }
-
-  /// Остатки товара по ячейкам и партиям — **всегда сеть**.
-  ///
-  /// Остаток меняется от каждой операции любого терминала. Показать кладовщику число, которое
-  /// уже неверно, хуже честного «нет связи»: по неверному он примет решение (решение
-  /// пользователя, P2-02).
-  Future<Either<Failure, Paged<StockItem>>> listStock({
-    String? goodId,
-    String? cellId,
-    int limit = 200,
-    int offset = 0,
-  }) => _api.listStock(
-    goodId: goodId,
-    cellId: cellId,
-    limit: limit,
-    offset: offset,
-  );
 }

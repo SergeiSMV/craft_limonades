@@ -31,6 +31,8 @@ type internalWarehouseResponse struct {
 	IsDefault bool   `json:"is_default"`
 	IsActive  bool   `json:"is_active"` // скрытый не предлагается для пометки, но подписывается
 	InUse     bool   `json:"in_use"`    // есть остаток или история — удалить нельзя, только скрыть
+	// Роль системного склада (P6-07-3): не скрыть, не удалить, при пометке не выбрать.
+	SystemRole string `json:"system_role,omitempty"`
 }
 
 func toInternalWarehouseResponse(w model.InternalWarehouse) internalWarehouseResponse {
@@ -110,6 +112,8 @@ func internalWarehouseError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusConflict, "склад с таким кодом уже есть")
 	case errors.Is(err, repository.ErrDefaultInternalWarehouse):
 		writeError(w, http.StatusConflict, "склад по умолчанию нельзя скрыть или удалить")
+	case errors.Is(err, repository.ErrSystemInternalWarehouse):
+		writeError(w, http.StatusConflict, "системный склад нельзя скрыть или удалить")
 	case errors.Is(err, repository.ErrInternalWarehouseInUse):
 		writeError(w, http.StatusConflict, "на складе есть остаток или история — его можно только скрыть")
 	default:

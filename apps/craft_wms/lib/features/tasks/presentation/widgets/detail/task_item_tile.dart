@@ -65,7 +65,10 @@ class TaskItemTile extends StatelessWidget {
           ),
           if (item.placed) ...[
             AppBoxes.kWidth8,
-            Text(t.tasks.placed, style: muted),
+            Text(
+              item.problemId != null ? t.tasks.shipped : t.tasks.placed,
+              style: muted,
+            ),
           ],
         ],
       ),
@@ -77,20 +80,40 @@ class TaskItemTile extends StatelessWidget {
       t.tasks.box(code: LoadUnitLabel(item.loadUnitId!).shortCodeFormatted),
       style: title,
     ),
-    for (final c in item.contents)
+    // Каждый товар короба — наименование, партия и количество своими строками.
+    for (final c in item.contents) ...[
+      Text(c.good.name, style: muted),
+      Text(t.tasks.batch(date: batchDate(c.productionDate)), style: muted),
       Text(
-        '${c.good.name} · ${t.tasks.batch(date: batchDate(c.productionDate))} · '
-        '${qtyText(c.qty)} ${c.good.uom}',
+        t.tasks.qtyLine(qty: qtyText(c.qty), uom: c.good.uom),
         style: muted,
       ),
+    ],
+    ..._cell(muted),
+  ];
+
+  /// Где позиция возврата лежит сейчас (ADHOC-31); у размещения ячейки нет.
+  List<Widget> _cell(TextStyle muted) => [
+    if (item.cell.isNotEmpty) Text(t.tasks.cell(cell: item.cell), style: muted),
   ];
 
   List<Widget> _loose(TextStyle title, TextStyle muted) => [
     Text(item.good?.name ?? '', style: title),
     Text(
-      '${t.tasks.batch(date: batchDate(item.productionDate ?? ''))} · '
-      '${t.tasks.remaining(qty: qtyText(item.remaining), total: qtyText(item.qty), uom: item.good?.uom ?? '')}',
+      t.tasks.batch(date: batchDate(item.productionDate ?? '')),
       style: muted,
     ),
+    // У возврата позиция отгружается целиком — «осталось из» там не к чему (ADHOC-31).
+    Text(
+      item.problemId != null
+          ? t.tasks.qtyLine(qty: qtyText(item.qty), uom: item.good?.uom ?? '')
+          : t.tasks.remaining(
+              qty: qtyText(item.remaining),
+              total: qtyText(item.qty),
+              uom: item.good?.uom ?? '',
+            ),
+      style: muted,
+    ),
+    ..._cell(muted),
   ];
 }

@@ -250,11 +250,13 @@ const taskHeaderSQL = `
 	       t.created_at
 	FROM warehouse_tasks t
 	LEFT JOIN receipts r  ON r.id = t.receipt_id
-	LEFT JOIN suppliers s ON s.id = r.supplier_id
+	-- Поставщик: у размещения — поставщик приёмки, у возврата — кому везём (ADHOC-31).
+	LEFT JOIN suppliers s ON s.id = COALESCE(r.supplier_id, t.supplier_id)
 	LEFT JOIN users u     ON u.id = t.assignee_id`
 
 // Current возвращает текущие задания, видимые пользователю, — пул и свои взятые, с позициями.
 // Старые сверху: задание, ждущее дольше, важнее разобрать раньше.
+// Размещение и возврат поставщику (ADHOC-31) — оба вида ТСД выполняет.
 func (r *TaskRepository) Current(ctx context.Context, userID string, staleAfter time.Duration) ([]model.Task, error) {
 	rows, err := r.pool.Query(ctx, taskHeaderSQL+`
 		WHERE `+visibleSQL+`
@@ -317,6 +319,9 @@ func (r *TaskRepository) attachItems(ctx context.Context, tasks []model.Task) er
 		ids[i] = t.ID
 		index[t.ID] = i
 	}
+	if err := r.attachReturnItems(ctx, tasks, ids, index); err != nil {
+		return err
+	}
 	rows, err := r.pool.Query(ctx, `
 		SELECT i.task_id::text, i.line_no, i.load_unit_id::text,
 		       NOT EXISTS (
@@ -362,6 +367,13 @@ func (r *TaskRepository) attachItems(ctx context.Context, tasks []model.Task) er
 	if err := rows.Err(); err != nil {
 		return fmt.Errorf("позиции заданий: %w", err)
 	}
+	for _, t := range tasks {
+		for _, it := range t.Items {
+			if it.LoadUnitID != nil && it.ProblemID != nil {
+				boxIDs = append(boxIDs, *it.LoadUnitID)
+			}
+		}
+	}
 	if len(boxIDs) == 0 {
 		return nil
 	}
@@ -378,6 +390,63 @@ func (r *TaskRepository) attachItems(ctx context.Context, tasks []model.Task) er
 		}
 	}
 	return nil
+}
+
+// attachReturnItems дочитывает позиции заданий возврата (ADHOC-31): проблемы, решённые
+// возвратом в задание, — короб целиком или товар партии с количеством.
+//
+// Ячейка — где позиция лежит СЕЙЧАС: короб — его место, россыпь — первая ячейка склада
+// возврата с этим товаром (сначала та, куда его положило решение). Товар склада возврата
+// перемещается, и место из строки решения могло устареть. Отгруженная позиция — Placed.
+func (r *TaskRepository) attachReturnItems(ctx context.Context, tasks []model.Task, ids []string, index map[string]int) error {
+	rows, err := r.pool.Query(ctx, `
+		SELECT p.return_task_id::text, p.id::text, p.load_unit_id::text, p.shipment_id IS NOT NULL,
+		       g.id::text, g.code, g.name, g.uom, p.batch_id::text, b.production_date,
+		       COALESCE(p.qty, 0)::text,
+		       COALESCE(
+		           (SELECT c.address FROM load_units lu JOIN cells c ON c.id = lu.cell_id
+		            WHERE lu.id = p.load_unit_id),
+		           (SELECT c.address FROM stock st JOIN cells c ON c.id = st.cell_id
+		            JOIN internal_warehouses w ON w.id = st.internal_warehouse_id AND w.system_role = $2
+		            WHERE st.good_id = p.good_id AND st.batch_id = p.batch_id AND st.qty > 0
+		              AND c.warehouse_id = p.warehouse_id
+		            ORDER BY st.cell_id = (SELECT l.cell_id FROM warehouse_problem_lines l
+		                                   WHERE l.problem_id = p.id ORDER BY l.line_no LIMIT 1) DESC,
+		                     c.address
+		            LIMIT 1),
+		           '')
+		FROM warehouse_problems p
+		LEFT JOIN goods g   ON g.id = p.good_id
+		LEFT JOIN batches b ON b.id = p.batch_id
+		WHERE p.return_task_id = ANY($1::uuid[])
+		ORDER BY p.return_task_id, p.resolved_at, p.id`, ids, model.InternalWarehouseRoleSupplierReturn)
+	if err != nil {
+		return fmt.Errorf("позиции заданий возврата: %w", err)
+	}
+	defer rows.Close()
+	lineNo := map[string]int{}
+	for rows.Next() {
+		var taskID, problemID, qty string
+		var it model.PutawayTaskItem
+		var gid, gcode, gname, guom *string
+		if err := rows.Scan(&taskID, &problemID, &it.LoadUnitID, &it.Placed, &gid, &gcode, &gname,
+			&guom, &it.BatchID, &it.ProductionDate, &qty, &it.CellAddress); err != nil {
+			return fmt.Errorf("разобрать позицию возврата: %w", err)
+		}
+		lineNo[taskID]++
+		it.LineNo = lineNo[taskID]
+		it.ProblemID = &problemID
+		if it.LoadUnitID == nil {
+			it.Good = &model.TaskGood{ID: *gid, Code: deref(gcode), Name: deref(gname), Uom: deref(guom)}
+			it.Qty, _ = decimal.NewFromString(qty)
+			if !it.Placed {
+				it.Remaining = it.Qty
+			}
+		}
+		t := &tasks[index[taskID]]
+		t.Items = append(t.Items, it)
+	}
+	return rows.Err()
 }
 
 // boxContents — состав коробов с товаром и датой партии.
@@ -526,20 +595,27 @@ func (r *TaskRepository) Events(ctx context.Context, taskID string) ([]model.Tas
 	return out, rows.Err()
 }
 
+// taskSessionsSQL — заходы по заданиям всех видов: сеансы размещения и отгрузки возврата
+// (ADHOC-31). Лента «Завершённые» считает по ним заходы и исполнителей.
+const taskSessionsSQL = `(
+	SELECT task_id, created_by, posted_at FROM putaways
+	UNION ALL
+	SELECT task_id, created_by, posted_at FROM supplier_return_shipments)`
+
 // Completed — страница ленты «Завершённые»: свежие сверху, подгрузка курсором.
 func (r *TaskRepository) Completed(ctx context.Context, f model.CompletedTasksFilter) ([]model.CompletedTask, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT t.id::text, t.number, t.kind, COALESCE(s.name, ''), r.doc_number, r.doc_date, t.completed_at,
-		       (SELECT count(*) FROM putaways p WHERE p.task_id = t.id)
+		       (SELECT count(*) FROM `+taskSessionsSQL+` x WHERE x.task_id = t.id)
 		FROM warehouse_tasks t
 		LEFT JOIN receipts r  ON r.id = t.receipt_id
-		LEFT JOIN suppliers s ON s.id = r.supplier_id
+		LEFT JOIN suppliers s ON s.id = COALESCE(r.supplier_id, t.supplier_id)
 		WHERE t.status = 'done'
 		  AND ($1::timestamptz IS NULL OR t.completed_at >= $1)
 		  AND ($2::timestamptz IS NULL OR t.completed_at <  $2)
 		  AND ($3::text = '' OR t.kind = $3)
 		  AND ($4::text = '' OR EXISTS (
-		      SELECT 1 FROM putaways p WHERE p.task_id = t.id AND p.created_by = NULLIF($4, '')::uuid))
+		      SELECT 1 FROM `+taskSessionsSQL+` x WHERE x.task_id = t.id AND x.created_by = NULLIF($4, '')::uuid))
 		  AND ($5::timestamptz IS NULL OR (t.completed_at, t.id) < ($5, NULLIF($6, '')::uuid))
 		ORDER BY t.completed_at DESC, t.id DESC
 		LIMIT $7`,
@@ -568,11 +644,11 @@ func (r *TaskRepository) Completed(ctx context.Context, f model.CompletedTasksFi
 		ids[i] = c.ID
 	}
 	ex, err := r.pool.Query(ctx, `
-		SELECT p.task_id::text, u.id::text, u.full_name
-		FROM putaways p JOIN users u ON u.id = p.created_by
-		WHERE p.task_id = ANY($1::uuid[])
-		GROUP BY p.task_id, u.id, u.full_name
-		ORDER BY p.task_id, min(p.posted_at)`, ids)
+		SELECT x.task_id::text, u.id::text, u.full_name
+		FROM `+taskSessionsSQL+` x JOIN users u ON u.id = x.created_by
+		WHERE x.task_id = ANY($1::uuid[])
+		GROUP BY x.task_id, u.id, u.full_name
+		ORDER BY x.task_id, min(x.posted_at)`, ids)
 	if err != nil {
 		return nil, fmt.Errorf("исполнители заданий: %w", err)
 	}
@@ -593,7 +669,7 @@ func (r *TaskRepository) Completed(ctx context.Context, f model.CompletedTasksFi
 func (r *TaskRepository) Executors(ctx context.Context) ([]model.TaskUser, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT DISTINCT u.id::text, u.full_name
-		FROM putaways p JOIN users u ON u.id = p.created_by
+		FROM `+taskSessionsSQL+` x JOIN users u ON u.id = x.created_by
 		ORDER BY u.full_name`)
 	if err != nil {
 		return nil, fmt.Errorf("исполнители заданий: %w", err)

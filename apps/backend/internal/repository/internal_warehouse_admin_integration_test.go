@@ -19,12 +19,12 @@ func TestInternalWarehouses_createUpdate(t *testing.T) {
 	ctx := context.Background()
 	repo := repository.NewInternalWarehouseRepository(mf.pool)
 
-	created, err := repo.Create(ctx, "RETURN", "Возврат")
+	created, err := repo.Create(ctx, "RECALL", "Возврат")
 	mustNoErr(t, err)
-	if created.Code != "RETURN" || !created.IsActive || created.IsDefault || created.InUse {
+	if created.Code != "RECALL" || !created.IsActive || created.IsDefault || created.InUse {
 		t.Fatalf("заведённый склад: %+v", created)
 	}
-	if _, err := repo.Create(ctx, "RETURN", "Ещё возврат"); !errors.Is(err, repository.ErrInternalWarehouseExists) {
+	if _, err := repo.Create(ctx, "RECALL", "Ещё возврат"); !errors.Is(err, repository.ErrInternalWarehouseExists) {
 		t.Errorf("повтор кода: %v", err)
 	}
 

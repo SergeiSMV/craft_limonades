@@ -1,0 +1,190 @@
+package handler
+
+import (
+	"encoding/json"
+	"errors"
+	"log/slog"
+	"net/http"
+	"strconv"
+	"time"
+
+	"github.com/go-chi/chi/v5"
+
+	appmw "craftwms/internal/middleware"
+	"craftwms/internal/model"
+	"craftwms/internal/repository"
+	"craftwms/internal/service"
+)
+
+// ProblemHandler — «Проблемы склада» в портале (P6-07-3): список и решение офиса.
+type ProblemHandler struct {
+	svc *service.ProblemService
+}
+
+// NewProblemHandler создаёт обработчик проблем склада.
+func NewProblemHandler(svc *service.ProblemService) *ProblemHandler {
+	return &ProblemHandler{svc: svc}
+}
+
+type problemItemResponse struct {
+	GoodID         string `json:"good_id"`
+	GoodCode       string `json:"good_code"`
+	GoodName       string `json:"good_name"`
+	ProductionDate string `json:"production_date"`
+	Qty            string `json:"qty"`
+	CellAddress    string `json:"cell_address"`
+}
+
+type problemResponse struct {
+	ID            string                `json:"id"`
+	CreatedAt     time.Time             `json:"created_at"`
+	CreatedBy     string                `json:"created_by"`
+	CellAddress   string                `json:"cell_address"`
+	LoadUnitID    string                `json:"load_unit_id,omitempty"`
+	Reason        string                `json:"reason"`
+	Comment       string                `json:"comment"`
+	Mark          string                `json:"mark,omitempty"`
+	FromWarehouse string                `json:"from_warehouse"`
+	ToWarehouse   string                `json:"to_warehouse"`
+	Items         []problemItemResponse `json:"items"`
+	// Решения, допустимые при причине, в порядке показа: портал не держит свою копию таблицы.
+	Decisions           []string `json:"decisions"`
+	SuggestedSupplierID string   `json:"suggested_supplier_id,omitempty"`
+
+	Status       string     `json:"status"`
+	Decision     string     `json:"decision,omitempty"`
+	DocNumber    string     `json:"doc_number,omitempty"`
+	DocDate      string     `json:"doc_date,omitempty"`
+	SupplierID   string     `json:"supplier_id,omitempty"`
+	SupplierName string     `json:"supplier_name,omitempty"`
+	ReturnTaskNo int64      `json:"return_task_number,omitempty"`
+	ResolvedBy   string     `json:"resolved_by,omitempty"`
+	ResolvedAt   *time.Time `json:"resolved_at,omitempty"`
+	// Исполнение возврата (ADHOC-34): кто и когда отгрузил поставщику; нет — ещё не отгружен.
+	ShippedBy string     `json:"shipped_by,omitempty"`
+	ShippedAt *time.Time `json:"shipped_at,omitempty"`
+}
+
+func toProblemResponse(p model.Problem) problemResponse {
+	items := make([]problemItemResponse, 0, len(p.Items))
+	for _, it := range p.Items {
+		items = append(items, problemItemResponse(it))
+	}
+	return problemResponse{
+		ID: p.ID, CreatedAt: p.CreatedAt, CreatedBy: p.CreatedByName, CellAddress: p.CellAddress,
+		LoadUnitID: p.LoadUnitID, Reason: p.Reason, Comment: p.Comment, Mark: p.Mark,
+		FromWarehouse: p.FromWarehouse, ToWarehouse: p.ToWarehouse, Items: items,
+		Decisions: model.ProblemDecisionsFor(p.Reason), SuggestedSupplierID: p.SuggestedSupplierID,
+		Status: p.Status, Decision: p.Decision, DocNumber: p.DocNumber, DocDate: p.DocDate,
+		SupplierID: p.SupplierID, SupplierName: p.SupplierName, ReturnTaskNo: p.ReturnTaskNo,
+		ResolvedBy: p.ResolvedByName, ResolvedAt: p.ResolvedAt,
+		ShippedBy: p.ShippedByName, ShippedAt: p.ShippedAt,
+	}
+}
+
+// List: GET /api/v1/problems?status=open|resolved — рабочий список: открытые сверху.
+func (h *ProblemHandler) List(w http.ResponseWriter, r *http.Request) {
+	items, err := h.svc.List(r.Context(), r.URL.Query().Get("status"))
+	if errors.Is(err, service.ErrInvalidDecision) {
+		writeError(w, http.StatusBadRequest, "статус — open или resolved")
+		return
+	}
+	if err != nil {
+		slog.Error("problems failed", "error", err)
+		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
+		return
+	}
+	out := make([]problemResponse, 0, len(items))
+	for _, p := range items {
+		out = append(out, toProblemResponse(p))
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+// Current: GET /api/v1/problems/current — открытые проблемы склада на ТСД (ADHOC-35), свежие
+// первыми: вкладка «Текущие». Форма — та же, что у ленты решённых.
+func (h *ProblemHandler) Current(w http.ResponseWriter, r *http.Request) {
+	items, err := h.svc.Current(r.Context())
+	if err != nil {
+		slog.Error("current problems failed", "error", err)
+		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
+		return
+	}
+	out := make([]problemResponse, 0, len(items))
+	for _, p := range items {
+		out = append(out, toProblemResponse(p))
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+// Resolved: GET /api/v1/problems/resolved?from=&to=&before_resolved_at=&before_id=&limit= —
+// лента «Завершённые» проблем на ТСД (ADHOC-34): только решённые офисом, свежие первыми.
+func (h *ProblemHandler) Resolved(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	limit, _ := strconv.Atoi(q.Get("limit"))
+	items, err := h.svc.Resolved(r.Context(), service.ResolvedQuery{
+		From: q.Get("from"), To: q.Get("to"), BeforeResolvedAt: q.Get("before_resolved_at"),
+		BeforeID: q.Get("before_id"), Limit: limit,
+	})
+	if errors.Is(err, service.ErrInvalidProblemFilter) {
+		writeError(w, http.StatusBadRequest, "неверный фильтр")
+		return
+	}
+	if err != nil {
+		slog.Error("resolved problems failed", "error", err)
+		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
+		return
+	}
+	out := make([]problemResponse, 0, len(items))
+	for _, p := range items {
+		out = append(out, toProblemResponse(p))
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+// Resolve: POST /api/v1/problems/{id}/resolve {decision, doc_number?, doc_date?, supplier_id?} —
+// «Провести» решение офиса. 204 / 400 / 404 / 409.
+func (h *ProblemHandler) Resolve(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Decision   string `json:"decision"`
+		DocNumber  string `json:"doc_number"`
+		DocDate    string `json:"doc_date"`
+		SupplierID string `json:"supplier_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "неверное тело запроса")
+		return
+	}
+	userID, _ := appmw.UserIDFromContext(r.Context())
+	err := h.svc.Resolve(r.Context(), model.ResolveProblemInput{
+		ProblemID: chi.URLParam(r, "id"), Decision: req.Decision, DocNumber: req.DocNumber,
+		DocDate: req.DocDate, SupplierID: req.SupplierID, ResolvedBy: userID,
+	})
+	if err != nil {
+		problemError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// problemError — ответ на ошибку решения; текст — для оператора портала.
+func problemError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, service.ErrInvalidProblemID), errors.Is(err, repository.ErrProblemNotFound):
+		writeError(w, http.StatusNotFound, "проблема не найдена")
+	case errors.Is(err, service.ErrInvalidDecision):
+		writeError(w, http.StatusBadRequest, "для списания нужны номер и дата документа 1С, для возврата — поставщик")
+	case errors.Is(err, repository.ErrDecisionNotAllowed):
+		writeError(w, http.StatusBadRequest, "это решение недоступно при такой причине")
+	case errors.Is(err, repository.ErrUnknownSupplier):
+		writeError(w, http.StatusBadRequest, "поставщик не найден")
+	case errors.Is(err, repository.ErrProblemResolved):
+		writeError(w, http.StatusConflict, "по проблеме уже принято решение")
+	case errors.Is(err, repository.ErrProblemGoodsMissing):
+		writeError(w, http.StatusConflict,
+			"товара проблемы нет на складе-метке: короб перевели или опустошили, россыпь разобрали или убрали в короб")
+	default:
+		slog.Error("problem resolve failed", "error", err)
+		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
+	}
+}

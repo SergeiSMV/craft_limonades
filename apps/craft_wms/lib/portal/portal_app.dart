@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import '../core/auth/auth_cubit.dart';
 import '../core/constants/app_boxes.dart';
@@ -28,6 +29,10 @@ class PortalApp extends StatelessWidget {
         title: t.portal.appTitle,
         debugShowCheckedModeBanner: false,
         theme: buildPortalTheme(),
+        // Русские системные виджеты портала: календарь, подсказки, меню выделения (ADHOC-30).
+        locale: const Locale('ru'),
+        supportedLocales: const [Locale('ru')],
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
         home: BlocBuilder<AuthCubit, AuthState>(
           builder: (context, state) => switch (state) {
             AuthAuthenticated(:final profile) =>

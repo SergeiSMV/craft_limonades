@@ -37,9 +37,6 @@ abstract final class ApiConst {
   ///**GET** - поставщики (опциональный q)
   static const String suppliers = 'suppliers';
 
-  ///**GET** - остатки (good_id — где лежит товар; cell_id — что в ячейке)
-  static const String stock = 'stock';
-
   ///**GET** - список/поиск ячеек (q по адресу, warehouse_id, is_floor)
   static const String cells = 'cells';
 
@@ -95,6 +92,13 @@ abstract final class ApiConst {
   ///**GET** - карточка задания с заходами: `tasks/{id}`.
   static String taskById(String id) => 'tasks/$id';
 
+  ///**GET** - открытые проблемы склада на ТСД (ADHOC-35), свежие первыми
+  static const String problemsCurrent = 'problems/current';
+
+  ///**GET** - лента решённых проблем склада на ТСД (ADHOC-34): from, to, курсор
+  ///before_resolved_at + before_id, limit
+  static const String problemsResolved = 'problems/resolved';
+
   /// История перемещений всего склада (ADHOC-28): лента, курсор и фильтр — query.
   static const String movements = 'movements';
 
@@ -109,6 +113,12 @@ abstract final class ApiConst {
 
   /// Внутренний склад — переименовать, скрыть, удалить (ADHOC-29, admin).
   static String internalWarehouseById(String id) => 'internal-warehouses/$id';
+
+  ///**GET** - «Проблемы склада» для офиса (P6-07-3, admin): открытые сверху.
+  static const String problems = 'problems';
+
+  ///**POST** - «Провести» решение по проблеме (204): `problems/{id}/resolve`.
+  static String problemResolve(String id) => 'problems/$id/resolve';
 
   ///**POST** - взять задание (204; 409 — у другого или выполнено): `tasks/{id}/take`.
   static String taskTake(String id) => 'tasks/$id/take';

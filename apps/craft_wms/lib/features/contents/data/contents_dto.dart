@@ -189,5 +189,27 @@ LoadUnitHistory historyFromJson(Map<String, dynamic> j) {
           at: at(m['at']) ?? DateTime.fromMillisecondsSinceEpoch(0),
         ),
     ],
+    // Сервер до ADHOC-32 состава в истории не отдаёт — пусто, а не ошибка.
+    contents: [
+      for (final c in j['contents'] as List? ?? const [])
+        LoadUnitContentChange(
+          kind: switch ((c as Map<String, dynamic>)['kind']) {
+            'in' => LoadUnitContentKind.added,
+            'out' => LoadUnitContentKind.removed,
+            'problem' => LoadUnitContentKind.problem,
+            'write_off' => LoadUnitContentKind.writtenOff,
+            'return' => LoadUnitContentKind.returned,
+            _ => LoadUnitContentKind.other,
+          },
+          goodName: c['good_name'] as String? ?? '',
+          uom: c['uom'] as String? ?? '',
+          productionDate: c['production_date'] as String? ?? '',
+          qty: double.tryParse('${c['qty']}') ?? 0,
+          peer: c['peer'] as String?,
+          peerLoadUnitId: c['peer_load_unit_id'] as String?,
+          userName: c['user_name'] as String?,
+          at: at(c['at']) ?? DateTime.fromMillisecondsSinceEpoch(0),
+        ),
+    ],
   );
 }

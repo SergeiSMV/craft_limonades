@@ -265,12 +265,66 @@ class LoadUnitMove {
   final DateTime at;
 }
 
-/// История короба: создание и переносы по порядку (P5-05-1). Только со связью.
+/// Как изменился состав короба (ADHOC-32) — только физически: товар лёг в короб или ушёл.
+enum LoadUnitContentKind {
+  /// Доложили перемещением.
+  added,
+
+  /// Вынули перемещением.
+  removed,
+
+  /// Вынули в россыпь ячейки при пометке части короба браком.
+  problem,
+
+  /// Списали по решению офиса.
+  writtenOff,
+
+  /// Отгрузили поставщику.
+  returned,
+
+  /// Вид, которого эта версия терминала не знает, — подписывается нейтрально.
+  other,
+}
+
+/// Изменение состава короба: какой товар, сколько, откуда или куда, кто и когда (ADHOC-32).
+class LoadUnitContentChange {
+  const LoadUnitContentChange({
+    required this.kind,
+    required this.goodName,
+    required this.uom,
+    required this.productionDate,
+    required this.qty,
+    this.peer,
+    this.peerLoadUnitId,
+    this.userName,
+    required this.at,
+  });
+
+  final LoadUnitContentKind kind;
+  final String goodName;
+  final String uom;
+
+  /// Дата партии, транспорт DD-MM-YYYY.
+  final String productionDate;
+  final double qty;
+
+  /// Ячейка на той стороне: откуда доложили, куда вынули; `null` у списания и отгрузки.
+  final String? peer;
+
+  /// Короб на той стороне, если товар переложили из короба в короб.
+  final String? peerLoadUnitId;
+  final String? userName;
+  final DateTime at;
+}
+
+/// История короба по порядку: создание, переносы и изменения состава (P5-05-1, ADHOC-32).
+/// Только со связью.
 class LoadUnitHistory {
   const LoadUnitHistory({
     required this.createdAt,
     this.receipt,
     this.moves = const [],
+    this.contents = const [],
   });
 
   final DateTime createdAt;
@@ -278,6 +332,7 @@ class LoadUnitHistory {
   /// `null` — короб не попал ни в одну приёмку.
   final LoadUnitReceiptInfo? receipt;
   final List<LoadUnitMove> moves;
+  final List<LoadUnitContentChange> contents;
 }
 
 /// Короткий код с ярлыка для поиска: без пробелов и дефисов, заглавными; `null` — не код

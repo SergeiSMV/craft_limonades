@@ -42,6 +42,8 @@ type Services struct {
 	// InternalWarehouse — справочник внутренних складов для ТСД (P6-07-1).
 	InternalWarehouse *service.InternalWarehouseService
 	Contents          *service.ContentsService
+	// Problem — «Проблемы склада» в портале: список и решение офиса (P6-07-3).
+	Problem *service.ProblemService
 }
 
 // NewRouter собирает HTTP-роутер сервиса: общие middleware + маршруты.
@@ -227,6 +229,23 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 				r.Post("/internal-warehouses", iwH.Create)
 				r.Patch("/internal-warehouses/{id}", iwH.Update)
 				r.Delete("/internal-warehouses/{id}", iwH.Delete)
+			})
+		}
+
+		// «Проблемы склада» (P6-07-3) — офис из портала: рабочий список и решение по проблеме
+		// («Провести»: списать по документу 1С, разместить, вернуть поставщику). Только admin,
+		// как документы: решение меняет остаток.
+		if svc.Problem != nil {
+			prH := NewProblemHandler(svc.Problem)
+			// Склад видит проблемы на ТСД — сотруднику, только чтение: открытые на вкладке
+			// «Текущие» (ADHOC-35) и ленту решённых офисом (ADHOC-34). Решение — только офису.
+			r.With(appmw.Authenticator(tokens)).Get("/problems/current", prH.Current)
+			r.With(appmw.Authenticator(tokens)).Get("/problems/resolved", prH.Resolved)
+			r.Group(func(r chi.Router) {
+				r.Use(appmw.Authenticator(tokens))
+				r.Use(appmw.RequireRole(model.RoleAdmin))
+				r.Get("/problems", prH.List)                  // открытые сверху
+				r.Post("/problems/{id}/resolve", prH.Resolve) // «Провести» решение
 			})
 		}
 

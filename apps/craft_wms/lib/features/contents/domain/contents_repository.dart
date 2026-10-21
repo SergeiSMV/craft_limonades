@@ -2,6 +2,7 @@ import 'package:either_dart/either.dart';
 
 import '../../../core/error/failure.dart';
 import 'contents_entities.dart';
+import 'stock_entities.dart';
 
 /// Содержимое ячеек и коробов для экранов (P5-05).
 ///
@@ -39,6 +40,17 @@ abstract interface class ContentsRepository {
 
   /// История короба — только со связью.
   Future<Either<Failure, LoadUnitHistory>> history(String id);
+
+  /// Остатки по товарам на всём складе из снимка, со своей очередью поверх (ADHOC-33): только
+  /// товары, которых больше нуля. [refreshFailure] — как у [loadUnits].
+  Future<Viewed<List<GoodStock>>> goodsStock({Failure? refreshFailure});
+
+  /// Где лежит товар [goodId]: россыпь и короба по ячейкам, из снимка со своей очередью поверх
+  /// (ADHOC-33). [refreshFailure] — как у [loadUnits].
+  Future<Viewed<List<StockPlace>>> goodPlaces(
+    String goodId, {
+    Failure? refreshFailure,
+  });
 }
 
 /// Загрузка снимка содержимого склада в кэш терминала.

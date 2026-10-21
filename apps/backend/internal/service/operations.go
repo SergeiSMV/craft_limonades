@@ -69,6 +69,7 @@ type operationsRepo interface {
 	PutawaySubmit(ctx context.Context, operationID string, in repository.PutawaySubmitInput) (repository.Applied, error)
 	MovementSubmit(ctx context.Context, operationID string, in repository.MovementSubmitInput) (repository.Applied, error)
 	ProblemSubmit(ctx context.Context, operationID string, in repository.ProblemSubmitInput) (repository.Applied, error)
+	ReturnSubmit(ctx context.Context, operationID string, in repository.ReturnSubmitInput) (repository.Applied, error)
 }
 
 // OperationsService — приём батча операций из очереди устройства с дедупом по operation_id.
@@ -287,6 +288,9 @@ func (s *OperationsService) dispatch(ctx context.Context, userID, id string, op 
 	case repository.KindProblemSubmit:
 		return s.problemSubmit(ctx, userID, id, op.Payload)
 
+	case repository.KindReturnSubmit:
+		return s.returnSubmit(ctx, userID, id, op.Payload)
+
 	default:
 		return repository.Applied{}, ErrUnknownKind
 	}
@@ -360,14 +364,21 @@ func isRejection(err error) bool {
 		errors.Is(err, repository.ErrGoodsShort) ||
 		errors.Is(err, repository.ErrMovementQty) ||
 		// Проблемы склада (P6-07-1): уже зафиксирована, пуста, причина или склад не те, товар
-		// уже на складе назначения. Повтор этого не исправит.
+		// уже на складе назначения или склад системный (P6-07-3). Повтор этого не исправит.
 		errors.Is(err, ErrInvalidProblemID) ||
 		errors.Is(err, ErrProblemCommentRequired) ||
 		errors.Is(err, repository.ErrProblemPosted) ||
 		errors.Is(err, repository.ErrEmptyProblem) ||
 		errors.Is(err, repository.ErrUnknownReason) ||
 		errors.Is(err, repository.ErrUnknownInternalWarehouse) ||
-		errors.Is(err, repository.ErrSameInternalWarehouse)
+		errors.Is(err, repository.ErrSameInternalWarehouse) ||
+		errors.Is(err, repository.ErrSystemInternalWarehouse) ||
+		// Отгрузка возврата (ADHOC-31): сеанс уже проведён, пуст, позиция не из задания или уже
+		// отгружена, товара позиции нет на складе возврата.
+		errors.Is(err, ErrInvalidShipmentID) ||
+		errors.Is(err, repository.ErrShipmentPosted) ||
+		errors.Is(err, repository.ErrEmptyShipment) ||
+		errors.Is(err, repository.ErrProblemGoodsMissing)
 }
 
 // rejected собирает результат-отказ с причиной, читаемой человеком на экране разбора.

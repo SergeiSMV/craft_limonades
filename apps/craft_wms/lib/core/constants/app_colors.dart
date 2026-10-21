@@ -71,7 +71,7 @@ abstract final class AppColors {
   static const Color kTileFind = Color(0xFF6C757D); // НАЙТИ — серый
   static const Color kTileHistory = Color(0xFF5A6268); // ИСТОРИЯ — тёмно-серый
   static const Color kTileStock = Color(0xFF16A085); // ОСТАТКИ — бирюзовый
-  static const Color kTileProblems = Color(0xFFC0392B); // ПРОБЛЕМЫ СКЛАДА — красный
+  static const Color kTileProblems = Color(0xFFC0392B); // ПРОБЛЕМЫ — красный
   static const Color kTileText = Color(0xFFFFFFFF); // текст/иконка на плитке
 
   //* --- Остатки ------------------------------------------------------------ *//

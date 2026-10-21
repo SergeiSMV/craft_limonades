@@ -11,12 +11,18 @@ export '../../../../../core/utils/date_time_format.dart'
 /// Название вида задания.
 String taskKindLabel(String kind) => switch (kind) {
   TaskKind.putaway => t.tasks.kindPutaway,
+  TaskKind.supplierReturn => t.tasks.kindSupplierReturn,
   _ => kind,
 };
 
 /// Основание задания: «Основание: документ № ТН-1042 от 01.10.2026 ИП Березин …» (ADHOC-23);
 /// у задания от приёмки до ADHOC-23 документа нет — «Основание: приёмка от 05.10.2026 …».
+///
+/// У возврата поставщику основание — кому везём (ADHOC-31).
 String taskBasis(WarehouseTask task) {
+  if (task.kind == TaskKind.supplierReturn) {
+    return t.tasks.basisReturn(supplier: task.supplier);
+  }
   final number = task.docNumber;
   final docDate = task.docDate;
   if (number != null && docDate != null) {
@@ -39,8 +45,12 @@ String taskBasis(WarehouseTask task) {
 String taskAuthor(WarehouseTask task) =>
     t.tasks.author(name: t.tasks.authorAuto);
 
-/// Поставщик-основание для ленты, где приёмки как объекта нет — только имя.
-String supplierBasis(String supplier) => supplier.isEmpty
+/// Поставщик-основание для ленты, где приёмки как объекта нет — только имя. У возврата —
+/// кому везли (ADHOC-31).
+String supplierBasis(String supplier, {String kind = TaskKind.putaway}) =>
+    kind == TaskKind.supplierReturn
+    ? t.tasks.returnSupplier(supplier: supplier)
+    : supplier.isEmpty
     ? t.tasks.fromReceiptNoSupplier
     : t.tasks.fromReceipt(supplier: supplier);
 
