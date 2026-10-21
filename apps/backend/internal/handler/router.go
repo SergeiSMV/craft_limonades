@@ -212,13 +212,21 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 			})
 		}
 
-		// Внутренние склады (P6-07-1) — сотруднику: ТСД выбирает, каким складом пометить короб
-		// или товар («Брак», «Изолятор» …). Пометка — операция очереди problem_submit.
+		// Внутренние склады (P6-07-1, ADHOC-29). Читает сотрудник: ТСД выбирает, каким складом
+		// пометить короб или товар, и подписывает помеченное. Ведёт справочник только admin из
+		// портала: завести, переименовать, скрыть, удалить без остатка и истории.
 		if svc.InternalWarehouse != nil {
 			iwH := NewInternalWarehouseHandler(svc.InternalWarehouse)
 			r.Group(func(r chi.Router) {
 				r.Use(appmw.Authenticator(tokens))
-				r.Get("/internal-warehouses", iwH.List) // действующие, по умолчанию первым
+				r.Get("/internal-warehouses", iwH.List) // все, и скрытые; по умолчанию первым
+			})
+			r.Group(func(r chi.Router) {
+				r.Use(appmw.Authenticator(tokens))
+				r.Use(appmw.RequireRole(model.RoleAdmin))
+				r.Post("/internal-warehouses", iwH.Create)
+				r.Patch("/internal-warehouses/{id}", iwH.Update)
+				r.Delete("/internal-warehouses/{id}", iwH.Delete)
 			})
 		}
 

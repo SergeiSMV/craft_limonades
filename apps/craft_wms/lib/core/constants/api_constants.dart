@@ -107,6 +107,9 @@ abstract final class ApiConst {
   /// Справочник внутренних складов (P6-07-1): «Основной», «Брак», «Изолятор» …
   static const String internalWarehouses = 'internal-warehouses';
 
+  /// Внутренний склад — переименовать, скрыть, удалить (ADHOC-29, admin).
+  static String internalWarehouseById(String id) => 'internal-warehouses/$id';
+
   ///**POST** - взять задание (204; 409 — у другого или выполнено): `tasks/{id}/take`.
   static String taskTake(String id) => 'tasks/$id/take';
 

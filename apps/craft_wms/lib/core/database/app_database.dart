@@ -300,6 +300,9 @@ class CachedInternalWarehouses extends Table {
   TextColumn get name => text()();
   BoolColumn get isDefault => boolean().withDefault(const Constant(false))();
 
+  /// Склад в выборе (ADHOC-29): скрытым не помечают, но его остаток подписывается.
+  BoolColumn get isActive => boolean().withDefault(const Constant(true))();
+
   @override
   Set<Column<Object>> get primaryKey => {id};
 }
@@ -335,7 +338,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   /// Миграции схемы.
   ///
@@ -359,6 +362,9 @@ class AppDatabase extends _$AppDatabase {
   ///
   /// 7 → 8: у коробов снимка — внутренний склад, добавлен справочник внутренних складов
   /// [cachedInternalWarehouses] (P6-07-2).
+  ///
+  /// 8 → 9: у внутренних складов — признак «в выборе» (ADHOC-29): скрытые портал оставляет
+  /// в справочнике ради подписи их остатка.
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) => m.createAll(),
@@ -410,6 +416,15 @@ class AppDatabase extends _$AppDatabase {
         await (delete(
           catalogSyncMarks,
         )..where((t) => t.catalog.equals('contents'))).go();
+      }
+      if (from == 8) {
+        // Только базе версии 8: с более ранних справочник складов только что создан шагом
+        // «< 8» по текущей схеме — уже с колонкой. Встаёт «в выборе» у всех: следующая
+        // синхронизация принесёт настоящие признаки.
+        await m.addColumn(
+          cachedInternalWarehouses,
+          cachedInternalWarehouses.isActive,
+        );
       }
     },
   );
