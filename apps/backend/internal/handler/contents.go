@@ -207,14 +207,30 @@ type loadUnitMoveResponse struct {
 	At       string  `json:"at"` // RFC3339
 }
 
-type loadUnitHistoryResponse struct {
-	LoadUnitID string                   `json:"load_unit_id"`
-	CreatedAt  string                   `json:"created_at"` // RFC3339
-	Receipt    *loadUnitReceiptResponse `json:"receipt"`
-	Moves      []loadUnitMoveResponse   `json:"moves"`
+// loadUnitContentEventResponse — изменение состава короба (ADHOC-32): kind — in | out | problem
+// | write_off | return; peer — ячейка на той стороне (null у списания и отгрузки).
+type loadUnitContentEventResponse struct {
+	Kind           string          `json:"kind"`
+	GoodName       string          `json:"good_name"`
+	Uom            string          `json:"uom"`
+	ProductionDate string          `json:"production_date"` // DD-MM-YYYY
+	Qty            decimal.Decimal `json:"qty"`
+	Peer           *string         `json:"peer"`
+	PeerLoadUnitID *string         `json:"peer_load_unit_id"`
+	UserName       *string         `json:"user_name"`
+	At             string          `json:"at"` // RFC3339
 }
 
-// LoadUnitHistory: GET /api/v1/load-units/{id}/history — приёмка и переносы короба (P5-05-1).
+type loadUnitHistoryResponse struct {
+	LoadUnitID string                         `json:"load_unit_id"`
+	CreatedAt  string                         `json:"created_at"` // RFC3339
+	Receipt    *loadUnitReceiptResponse       `json:"receipt"`
+	Moves      []loadUnitMoveResponse         `json:"moves"`
+	Contents   []loadUnitContentEventResponse `json:"contents"`
+}
+
+// LoadUnitHistory: GET /api/v1/load-units/{id}/history — приёмка, переносы короба и изменения
+// его состава (P5-05-1, ADHOC-32).
 // 200 / 400 / 404.
 func (h *ContentsHandler) LoadUnitHistory(w http.ResponseWriter, r *http.Request) {
 	hist, err := h.svc.LoadUnitHistory(r.Context(), chi.URLParam(r, "id"))
@@ -226,6 +242,15 @@ func (h *ContentsHandler) LoadUnitHistory(w http.ResponseWriter, r *http.Request
 		LoadUnitID: hist.LoadUnitID,
 		CreatedAt:  hist.CreatedAt.UTC().Format(time.RFC3339),
 		Moves:      make([]loadUnitMoveResponse, 0, len(hist.Moves)),
+		Contents:   make([]loadUnitContentEventResponse, 0, len(hist.Contents)),
+	}
+	for _, c := range hist.Contents {
+		out.Contents = append(out.Contents, loadUnitContentEventResponse{
+			Kind: c.Kind, GoodName: c.GoodName, Uom: c.Uom,
+			ProductionDate: c.ProductionDate.Format(productionDateLayout), Qty: c.Qty,
+			Peer: c.PeerAddress, PeerLoadUnitID: c.PeerLoadUnitID, UserName: c.UserName,
+			At: c.At.UTC().Format(time.RFC3339),
+		})
 	}
 	if rc := hist.Receipt; rc != nil {
 		out.Receipt = &loadUnitReceiptResponse{

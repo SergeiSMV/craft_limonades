@@ -101,10 +101,40 @@ type LoadUnitMove struct {
 	At          time.Time
 }
 
-// LoadUnitHistory — история короба: создание и переносы по порядку (P5-05-1).
+// LoadUnitHistory — история короба: создание, переносы и изменения состава по порядку
+// (P5-05-1, ADHOC-32).
 type LoadUnitHistory struct {
 	LoadUnitID string
 	CreatedAt  time.Time
 	Receipt    *LoadUnitReceipt // nil — короб не попал ни в одну приёмку
 	Moves      []LoadUnitMove
+	Contents   []LoadUnitContentEvent
+}
+
+// Изменения состава короба (ADHOC-32) — только физические: товар лёг в короб или ушёл из него.
+// Пометка браком и решения офиса сами по себе в историю не идут — только то, что они сделали
+// с товаром.
+const (
+	BoxContentIn       = "in"        // доложили перемещением
+	BoxContentOut      = "out"       // вынули перемещением
+	BoxContentProblem  = "problem"   // вынули в россыпь ячейки при пометке части короба
+	BoxContentWriteOff = "write_off" // списали по решению офиса
+	BoxContentReturn   = "return"    // отгрузили поставщику
+)
+
+// LoadUnitContentEvent — изменение состава короба: какой товар, сколько, откуда или куда,
+// кто и когда (ADHOC-32).
+type LoadUnitContentEvent struct {
+	Kind           string
+	GoodName       string
+	Uom            string
+	ProductionDate time.Time
+	Qty            decimal.Decimal
+	// Место на той стороне: ячейка, откуда доложили или куда вынули; у пометки — ячейка короба;
+	// у списания и отгрузки — пусто. PeerLoadUnitID — короб на той стороне, если товар
+	// переложили из короба в короб.
+	PeerAddress    *string
+	PeerLoadUnitID *string
+	UserName       *string
+	At             time.Time
 }
