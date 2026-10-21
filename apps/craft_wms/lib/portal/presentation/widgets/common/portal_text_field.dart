@@ -48,7 +48,7 @@ class PortalTextField extends StatelessWidget {
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
           focusedBorder: InputBorder.none,
-          contentPadding: AppInsets.searchBox,
+          contentPadding: AppInsets.textField,
           hintText: hint,
           hintStyle: RegularTextStyles().regularInter14.copyWith(
             color: AppColors.kSidebarMuted,

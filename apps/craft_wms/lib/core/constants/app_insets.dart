@@ -71,6 +71,11 @@ abstract final class AppInsets {
     vertical: 4,
   );
   static const EdgeInsets searchBox = EdgeInsets.symmetric(vertical: 12);
+  // Поле ввода портала без иконки: текст и курсор не прижаты к краю плашки (ADHOC-30).
+  static const EdgeInsets textField = EdgeInsets.symmetric(
+    horizontal: 12,
+    vertical: 12,
+  );
   static const EdgeInsets tablePlate = EdgeInsets.fromLTRB(20, 4, 20, 8);
   // Неоморфная кнопка с подписью (ADHOC-25/26).
   static const EdgeInsets h16v10 = EdgeInsets.symmetric(
