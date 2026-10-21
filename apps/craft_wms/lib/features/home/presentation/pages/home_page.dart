@@ -89,9 +89,13 @@ class HomePage extends StatelessWidget {
   /// Выход из приложения.
   void logout(BuildContext context) => context.read<AuthCubit>().logout();
 
-  /// Открыть рабочий раздел «Остатки» (список товаров).
+  /// Открыть рабочий раздел «Остатки»: товары на складе и короба.
   void openStock(BuildContext context) =>
       context.router.push(const GoodsListRoute());
+
+  /// Открыть «Номенклатуру» (ADHOC-33): весь справочник товаров, карточка, ШК.
+  void goToNomenclature(BuildContext context) =>
+      context.router.push(const NomenclatureRoute());
 
   /// Открыть приёмку (P4-09).
   void openReceipt(BuildContext context) =>
@@ -180,6 +184,15 @@ class HomePage extends StatelessWidget {
                         color: AppColors.kTileText,
                       ),
                       itemBuilder: (context) => [
+                        PopupMenuItem<void>(
+                          onTap: () => goToNomenclature(context),
+                          child: Text(
+                            t.homeScreen.nomenclatureMenu,
+                            style: RegularTextStyles().regularInter14.copyWith(
+                              color: AppColors.kTileText,
+                            ),
+                          ),
+                        ),
                         PopupMenuItem<void>(
                           onTap: () => goToLogs(context),
                           child: Text(

@@ -100,29 +100,6 @@ abstract class BarcodeLink with _$BarcodeLink {
       _$BarcodeLinkFromJson(json);
 }
 
-/// Строка остатка в товарном разрезе (ответ `GET /stock`). qty — строка (decimal с бэкенда,
-/// точное дробное; храним как есть, не теряя знаков).
-@freezed
-abstract class StockItem with _$StockItem {
-  const factory StockItem({
-    @JsonKey(name: 'cell_id') required String cellId,
-    @JsonKey(name: 'cell_address') required String cellAddress,
-    @JsonKey(name: 'good_id') required String goodId,
-    @JsonKey(name: 'batch_id') required String batchId,
-    @JsonKey(name: 'production_date') required String productionDate,
-    required String qty,
-    // Учётная принадлежность остатка (ADR-0016): «основной», «брак» и т.д. Значения
-    // необязательные — старый бэкенд их не отдаёт, и приложение не должно из-за этого падать.
-    @JsonKey(name: 'internal_warehouse_name') String? internalWarehouseName,
-    // «Основной» приходит флагом, а не сравнением кода: справочник пополняется и
-    // переименовывается из интерфейса, зашитый 'MAIN' сломался бы при первом переименовании.
-    @JsonKey(name: 'internal_warehouse_is_default') @Default(true) bool internalWarehouseIsDefault,
-  }) = _StockItem;
-
-  factory StockItem.fromJson(Map<String, dynamic> json) =>
-      _$StockItemFromJson(json);
-}
-
 /// Страница списка (ответ-обёртка `{items, total, limit, offset}` API P1-06).
 /// Обобщённая, поэтому парсинг элементов передаётся функцией [fromItem] — freezed/json
 /// с дженериком не дружит, а ручной разбор проще и без кодогенерации на generic.

@@ -9,18 +9,21 @@ import '../../../../../core/constants/app_sizes.dart';
 import '../../../../../core/gen/strings.g.dart';
 import '../../../../../core/theme/bold_text.dart';
 import '../../../../../core/theme/regular_text.dart';
-import '../../../../../core/utils/date_input.dart';
+import '../../../../../core/printer/load_unit_label.dart';
+import '../../../../../core/utils/date_time_format.dart';
 import '../../../../../core/utils/qty_format.dart';
-import '../../../data/catalog_models.dart';
 import '../../../../../core/widgets/detail_card.dart';
+import '../../../../contents/domain/stock_entities.dart';
+import '../../../../contents/presentation/widgets/common/pending_mark.dart';
 
-/// Строка остатка: булавка места хранения, адрес ячейки с датой партии и количество.
-/// Строк по одной ячейке может быть несколько — по одной на каждую партию.
+/// Строка остатка: булавка места хранения, адрес ячейки, короб (если товар в коробе), дата
+/// партии и количество. Строк по одной ячейке может быть несколько — по одной на каждую партию
+/// россыпью и в каждом коробе.
 class PlaceTile extends StatelessWidget {
   const PlaceTile({super.key, required this.item});
 
-  /// Строка остатка (ячейка · партия · количество).
-  final StockItem item;
+  /// Место товара (ячейка · короб · партия · количество).
+  final StockPlace item;
 
   @override
   Widget build(BuildContext context) {
@@ -39,15 +42,24 @@ class PlaceTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  item.cellAddress,
+                  item.cellAddress ?? t.contents.unknownCell,
                   style: BoldTextStyles().boldInter16.copyWith(
                     color: AppColors.kSidebarHover,
                     height: 1.2,
                   ),
                 ),
+                if (item.loadUnitId case final box?)
+                  Text(
+                    t.contents.boxCode(
+                      code: LoadUnitLabel(box).shortCodeFormatted,
+                    ),
+                    style: RegularTextStyles().regularInter12.copyWith(
+                      color: AppColors.kTextMuted,
+                    ),
+                  ),
                 Text(
                   t.stockDetailScreen.batch(
-                    date: isoToDisplayDate(item.productionDate),
+                    date: batchDate(item.productionDate),
                   ),
                   style: RegularTextStyles().regularInter12.copyWith(
                     color: AppColors.kTextMuted,
@@ -57,8 +69,7 @@ class PlaceTile extends StatelessWidget {
                 // строку «Основной» — шум, а вот брак в общей ячейке должен бросаться в глаза.
                 // Итог внизу экрана при этом суммирует всё: кладовщику нужно фактическое
                 // количество на складе независимо от учётной принадлежности.
-                if (!item.internalWarehouseIsDefault &&
-                    (item.internalWarehouseName ?? '').isNotEmpty)
+                if ((item.internalWarehouseName ?? '').isNotEmpty)
                   Container(
                     margin: AppInsets.top4,
                     padding: AppInsets.badge,
@@ -73,6 +84,7 @@ class PlaceTile extends StatelessWidget {
                       ),
                     ),
                   ),
+                if (item.pending) const PendingMark(),
               ],
             ),
           ),
@@ -80,7 +92,7 @@ class PlaceTile extends StatelessWidget {
           Padding(
             padding: AppInsets.right8,
             child: Text(
-              fmtQty(double.tryParse(item.qty) ?? 0),
+              fmtQty(item.qty),
               style: SemiboldTextStyles().semiboldInter18.copyWith(
                 color: AppColors.kSidebarHover,
               ),

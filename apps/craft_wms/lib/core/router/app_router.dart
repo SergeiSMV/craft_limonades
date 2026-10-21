@@ -20,6 +20,7 @@ import '../../features/receipt/presentation/pages/receipt_page.dart';
 import '../../features/splash/presentation/pages/splash_page.dart';
 import '../../features/stock/data/catalog_models.dart'; // Good — аргумент StockDetailRoute
 import '../../features/stock/presentation/pages/goods_list_page.dart';
+import '../../features/stock/presentation/pages/nomenclature_page.dart';
 import '../../features/stock/presentation/pages/stock_detail_page.dart';
 import '../../features/stock_entry/presentation/pages/stock_entry_page.dart';
 import '../../features/sync/presentation/pages/sync_queue_page.dart';
@@ -48,6 +49,8 @@ class AppRouter extends RootStackRouter {
     // Справочники/остатки — под авторизацией (кормят экраны ТСД).
     AutoRoute(page: GoodsListRoute.page, guards: [_authGuard]),
     AutoRoute(page: StockDetailRoute.page, guards: [_authGuard]),
+    // Весь справочник товаров (ADHOC-33) — из меню «⋮» главного экрана.
+    AutoRoute(page: NomenclatureRoute.page, guards: [_authGuard]),
     // Ввод стартовых остатков (P-FastStart) — под авторизацией (кладовщик).
     AutoRoute(page: StockEntryRoute.page, guards: [_authGuard]),
     // Приёмка (P4-09) — под авторизацией: автор документа берётся из токена.

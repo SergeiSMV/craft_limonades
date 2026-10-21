@@ -37,9 +37,6 @@ abstract final class ApiConst {
   ///**GET** - поставщики (опциональный q)
   static const String suppliers = 'suppliers';
 
-  ///**GET** - остатки (good_id — где лежит товар; cell_id — что в ячейке)
-  static const String stock = 'stock';
-
   ///**GET** - список/поиск ячеек (q по адресу, warehouse_id, is_floor)
   static const String cells = 'cells';
 

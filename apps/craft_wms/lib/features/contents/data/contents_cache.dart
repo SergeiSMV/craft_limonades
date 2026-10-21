@@ -130,6 +130,27 @@ class ContentsCache {
     return out;
   }
 
+  /// Россыпь снимка по всем ячейкам (ADHOC-33) — для остатков по товарам.
+  Future<Map<String, List<ContentLine>>> allLoose() async {
+    final out = <String, List<ContentLine>>{};
+    for (final r in await _db.select(_db.cachedLooseStock).get()) {
+      final lines = out.putIfAbsent(r.cellId, () => []);
+      final line = ContentLine(
+        goodId: r.goodId,
+        productionDate: r.productionDate,
+        qty: r.qty,
+        internalWarehouseId: r.internalWarehouseId,
+      );
+      final i = lines.indexWhere(line.sameBatch);
+      if (i < 0) {
+        lines.add(line);
+      } else {
+        lines[i] = lines[i].copyWith(qty: lines[i].qty + line.qty);
+      }
+    }
+    return out;
+  }
+
   /// Короба со строками содержимого; порядок — как у [rows].
   Future<Map<String, LoadUnitView>> _withLines(
     List<CachedLoadUnit> rows,

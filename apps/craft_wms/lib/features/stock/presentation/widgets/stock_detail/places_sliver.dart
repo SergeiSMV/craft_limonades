@@ -8,28 +8,20 @@ import '../../../../../core/constants/app_sizes.dart';
 import '../../../../../core/gen/assets.gen.dart';
 import '../../../../../core/gen/strings.g.dart';
 import '../../../../../core/theme/regular_text.dart';
+import '../../../../contents/presentation/widgets/common/freshness_note.dart';
 import '../../bloc/stock_detail_cubit.dart';
-import '../../../../../core/widgets/error_retry.dart';
 import 'place_tile.dart';
 import '../../../../../core/widgets/section_title.dart';
 
-/// Секция «Наличие по местам хранения»: строки «ячейка · партия · количество»,
-/// а также индикатор загрузки, ошибка с повтором и «пусто».
-/// Всё показывается россыпью — разбивка по грузовым единицам (ГЕ) появится в P4/P5.
+/// Секция «Наличие по местам хранения»: строки «ячейка · короб · партия · количество»,
+/// подпись «данные на», если места из прежнего снимка (ADHOC-33), индикатор загрузки и «пусто».
 ///
-/// **Возвращает sliver, а не обычный виджет.** Так индикатор и блок ошибки получают
+/// **Возвращает sliver, а не обычный виджет.** Так индикатор и «пусто» получают
 /// `SliverFillRemaining` — высоту незанятого остатка вьюпорта — и центрируются в нём.
 /// Ребёнок обычного `ListView` этого не может: вьюпорт даёт детям неограниченную высоту
 /// по оси прокрутки, и `Center` в такой ситуации сжимается по своему содержимому.
 class PlacesSliver extends StatelessWidget {
-  const PlacesSliver({super.key, required this.goodId});
-
-  /// Товар, чьи остатки грузим (нужен для повтора после ошибки).
-  final String goodId;
-
-  /// Повторить загрузку карточки после ошибки.
-  void retryLoad(BuildContext context) =>
-      context.read<StockDetailCubit>().load(goodId);
+  const PlacesSliver({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -47,12 +39,6 @@ class PlacesSliver extends StatelessWidget {
             ),
           ),
         );
-      case StockDetailStatus.error:
-        // ErrorRetry сам центрирует содержимое, второй Center не нужен.
-        return SliverFillRemaining(
-          hasScrollBody: false,
-          child: ErrorRetry(onRetry: () => retryLoad(context)),
-        );
       case StockDetailStatus.loaded:
         // Пустой остаток — состояние на весь остаток экрана, как загрузка и ошибка:
         // элементом SliverList его отцентрировать нельзя (высота там неограниченная).
@@ -63,6 +49,8 @@ class PlacesSliver extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                  if (state.freshness case final f?)
+                    FreshnessNote(freshness: f),
                   Assets.icons.goodsNotFound.image(width: AppSizes.kIcon90),
                   AppBoxes.kHeight12,
                   Text(
@@ -89,9 +77,17 @@ class PlacesSliver extends StatelessWidget {
     }
   }
 
-  /// Элемент списка секции: заголовок или строка остатка.
+  /// Элемент списка секции: заголовок (с подписью свежести) или строка остатка.
   Widget _row(StockDetailState state, int i) {
-    if (i == 0) return SectionTitle(title: t.stockDetailScreen.placesTitle);
+    if (i == 0) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SectionTitle(title: t.stockDetailScreen.placesTitle),
+          if (state.freshness case final f?) FreshnessNote(freshness: f),
+        ],
+      );
+    }
     return Padding(
       padding: AppInsets.bottom8,
       child: PlaceTile(item: state.items[i - 1]),

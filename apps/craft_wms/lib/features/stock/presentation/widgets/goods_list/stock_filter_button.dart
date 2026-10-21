@@ -11,6 +11,7 @@ import '../../../../../core/gen/strings.g.dart';
 import '../../../../../core/theme/regular_text.dart';
 import '../../../../../core/theme/semibold_text.dart';
 import '../../bloc/goods_list_cubit.dart';
+import 'warehouse_filter.dart';
 
 /// Виджет кнопка открытия листа фильтров с бейджем числа активных фильтров.
 class FilterButton extends StatelessWidget {
@@ -32,9 +33,10 @@ class FilterButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<GoodsListCubit>().state;
-    // Склад пока не учитываем (ADR-0016) — только группа + поставщик.
     final count =
-        (state.groupId != null ? 1 : 0) + (state.supplierId != null ? 1 : 0);
+        (state.groupId != null ? 1 : 0) +
+        (state.supplierId != null ? 1 : 0) +
+        (state.warehouseIds.isNotEmpty ? 1 : 0);
 
     return Badge.count(
       count: count,
@@ -57,7 +59,8 @@ class FilterButton extends StatelessWidget {
   }
 }
 
-/// Нижний лист фильтров: группа + поставщик (применяются сразу) + «Сбросить».
+/// Нижний лист фильтров: группа + поставщик, в «Остатках» ещё склады (ADHOC-33); применяются
+/// сразу; «Сбросить».
 class _FilterSheet extends StatelessWidget {
   const _FilterSheet();
 
@@ -96,6 +99,10 @@ class _FilterSheet extends StatelessWidget {
               ],
               onSelected: cubit.setSupplier,
             ),
+            if (state.warehouses.isNotEmpty) ...[
+              AppBoxes.kHeight12,
+              const WarehouseFilter(),
+            ],
             AppBoxes.kHeight16,
             Row(
               children: [

@@ -21,6 +21,9 @@ class OverlayCells {
   final Map<String, String> defaultCellByWarehouse;
 }
 
+/// Россыпь ячейки, которую ведёт наложение; `null` — ячейка не нужна.
+typedef _LooseOf = List<ContentLine>? Function(String cellId);
+
 /// Свои неотправленные приёмки, размещения, движения и пометки брака поверх данных сервера
 /// или снимка (P5-05, P6-04, P6-07-2).
 ///
@@ -98,7 +101,7 @@ class PendingOverlay {
       for (final lu in base.loadUnits) lu.id: lu,
     };
     final loose = [...base.loose];
-    _run(boxes, cellId: base.cellId, loose: loose);
+    _run(boxes, looseOf: (cell) => cell == base.cellId ? loose : null);
     return CellView(
       cellId: base.cellId,
       address: base.address,
@@ -110,14 +113,27 @@ class PendingOverlay {
     );
   }
 
-  /// Прогнать операции по коробам и россыпи ячейки [cellId].
+  /// Весь склад с наложенными операциями (ADHOC-33): короба и россыпь всех ячеек — для
+  /// остатков по товарам. [loose] — россыпь снимка по ячейкам; меняется на месте, ячейки,
+  /// где россыпь появилась только из очереди, добавляются.
+  Map<String, LoadUnitView> applyToWarehouse(
+    Map<String, LoadUnitView> base,
+    Map<String, List<ContentLine>> loose,
+  ) {
+    final boxes = {...base};
+    _run(boxes, looseOf: (cell) => loose.putIfAbsent(cell, () => []));
+    return boxes.map((id, lu) => MapEntry(id, _addressed(lu)!));
+  }
+
+  /// Прогнать операции по коробам и россыпи.
   ///
   /// [only] — следить только за этим коробом (карточка короба): остальное не нужно.
+  /// [looseOf] — россыпь ячейки, которую надо вести, или `null`, если ячейка не нужна:
+  /// карточке ячейки — одна ячейка, остаткам по товарам — все (ADHOC-33).
   void _run(
     Map<String, LoadUnitView> boxes, {
     String? only,
-    String? cellId,
-    List<ContentLine>? loose,
+    _LooseOf? looseOf,
   }) {
     // Короба, которые знает сервер (ответ или снимок), до наложения. Короб заводит только
     // его приёмка, поэтому известный серверу короб значит «эта приёмка уже проведена» —
@@ -127,7 +143,7 @@ class PendingOverlay {
     final known = boxes.keys.toSet();
     for (final op in ops) {
       if (op.kind == OutboxKind.problemSubmit) {
-        _problem(op.payload, boxes, only: only, cellId: cellId, loose: loose);
+        _problem(op.payload, boxes, only: only, looseOf: looseOf);
         continue;
       }
       final warehouse = op.payload['warehouse_id'] as String?;
@@ -136,7 +152,7 @@ class PendingOverlay {
       for (final l in _lines(op)) {
         final box = l['load_unit_id'] as String?;
         if (op.kind == OutboxKind.movementSubmit && box == null) {
-          _moveGoods(l, boxes, only: only, cellId: cellId, loose: loose);
+          _moveGoods(l, boxes, only: only, looseOf: looseOf);
           continue;
         }
         if (only != null && box != only) continue;
@@ -154,7 +170,7 @@ class PendingOverlay {
               pending: true,
               lines: _add(lu.lines, line),
             );
-          } else if (loose != null && cell == cellId) {
+          } else if (_loose(looseOf, cell) case final loose?) {
             _replace(loose, _add(loose, line));
           }
           continue;
@@ -164,10 +180,14 @@ class PendingOverlay {
           // Короба нет ни на сервере, ни в снимке — переносим что знаем: его самого.
           final lu = boxes[box] ?? LoadUnitView(id: box, live: true);
           boxes[box] = lu.copyWith(cellId: to, pending: true);
-        } else if (loose != null) {
+        } else {
           final line = _line(l);
-          if (receivingCell == cellId) _replace(loose, _sub(loose, line));
-          if (to == cellId) _replace(loose, _add(loose, line));
+          if (_loose(looseOf, receivingCell) case final from?) {
+            _replace(from, _sub(from, line));
+          }
+          if (_loose(looseOf, to) case final into?) {
+            _replace(into, _add(into, line));
+          }
         }
         // Склада у строк приёмки и размещения нет: всё приходует и разносит «Основной».
       }
@@ -182,8 +202,7 @@ class PendingOverlay {
     Map<String, dynamic> l,
     Map<String, LoadUnitView> boxes, {
     String? only,
-    String? cellId,
-    List<ContentLine>? loose,
+    _LooseOf? looseOf,
   }) {
     final fromBox = l['from_load_unit_id'] as String?;
     final toBox = l['to_load_unit_id'] as String?;
@@ -200,12 +219,15 @@ class PendingOverlay {
         lines: add ? _add(lu.lines, line) : _sub(lu.lines, line),
       );
     }
-    if (loose == null) return;
-    if (fromBox == null && l['from_cell_id'] == cellId) {
-      _replace(loose, _sub(loose, line));
+    if (fromBox == null) {
+      if (_loose(looseOf, l['from_cell_id']) case final from?) {
+        _replace(from, _sub(from, line));
+      }
     }
-    if (toBox == null && l['to_cell_id'] == cellId) {
-      _replace(loose, _add(loose, line));
+    if (toBox == null) {
+      if (_loose(looseOf, l['to_cell_id']) case final into?) {
+        _replace(into, _add(into, line));
+      }
     }
   }
 
@@ -215,8 +237,7 @@ class PendingOverlay {
     Map<String, dynamic> p,
     Map<String, LoadUnitView> boxes, {
     String? only,
-    String? cellId,
-    List<ContentLine>? loose,
+    _LooseOf? looseOf,
   }) {
     final to = _warehouse(p['to_internal_warehouse_id']);
     final box = p['load_unit_id'] as String?;
@@ -239,16 +260,21 @@ class PendingOverlay {
           lines: _sub(lu.lines, line),
         );
       }
-      if (loose != null && lu.cellId == cellId) {
+      if (_loose(looseOf, lu.cellId) case final loose?) {
         _replace(loose, _add(loose, line.onWarehouse(to)));
       }
       return;
     }
-    if (loose == null || p['cell_id'] != cellId) return;
+    final loose = _loose(looseOf, p['cell_id']);
+    if (loose == null) return;
     final line = _line(p);
     _replace(loose, _sub(loose, line));
     _replace(loose, _add(loose, line.onWarehouse(to)));
   }
+
+  /// Россыпь ячейки [cell], если её надо вести; ячейки нет (`null`) — вести нечего.
+  static List<ContentLine>? _loose(_LooseOf? looseOf, Object? cell) =>
+      looseOf != null && cell is String ? looseOf(cell) : null;
 
   LoadUnitView? _addressed(LoadUnitView? lu) {
     if (lu == null || !lu.pending || lu.cellId == null) return lu;

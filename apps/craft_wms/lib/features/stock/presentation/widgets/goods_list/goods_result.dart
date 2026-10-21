@@ -2,17 +2,25 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_neumorphic_plus/flutter_neumorphic.dart';
 
+import '../../../../../core/constants/app_boxes.dart';
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/constants/app_insets.dart';
 import '../../../../../core/gen/strings.g.dart';
 import '../../../../../core/router/app_router.dart';
 import '../../../../../core/theme/regular_text.dart';
+import '../../../../../core/theme/semibold_text.dart';
 import '../../../../../core/utils/keyboard.dart';
+import '../../../../../core/utils/qty_format.dart';
+import '../../../../../core/widgets/error_retry.dart';
+import '../../../../contents/presentation/widgets/common/freshness_note.dart';
+import '../../../../contents/presentation/widgets/common/pending_mark.dart';
 import '../../../data/catalog_models.dart';
 import '../../bloc/goods_list_cubit.dart';
-import '../../../../../core/widgets/error_retry.dart';
 
 /// Виджет результат: список товаров / индикатор / ошибка / пусто.
+///
+/// В «Остатках» (ADHOC-33) у строки — количество на выбранных складах и пометка «ожидает
+/// отправки», над списком — подпись, на когда снимок; «потянуть вниз» обновляет снимок.
 class GoodsResult extends StatelessWidget {
   const GoodsResult({super.key});
 
@@ -23,18 +31,21 @@ class GoodsResult extends StatelessWidget {
   /// заведённый последней набранной буквой, доработал бы уже из-под карточки. При просадке
   /// связи его ошибка подменила бы список, и кладовщик вернулся бы на экран ошибки,
   /// хотя поиск не трогал.
+  ///
+  /// По возврату список перечитывается ([GoodsListCubit.returnedFromCard]): карточка обновила
+  /// снимок, и количество в строке не должно расходиться с увиденным в карточке.
   void openDetail(BuildContext context, Good good) {
-    context.read<GoodsListCubit>().cancelPendingSearch();
+    final cubit = context.read<GoodsListCubit>()..cancelPendingSearch();
     dismissKeyboard();
-    context.router.push(StockDetailRoute(good: good));
+    context.router
+        .push(StockDetailRoute(good: good))
+        .then((_) => cubit.returnedFromCard());
   }
 
-  /// Повторить загрузку товаров (например, после ошибки). Вызывается из колбэка (тап), поэтому
-  /// только `read` — `watch` допустим лишь внутри build.
-  void retryLoad(BuildContext context) {
-    final cubit = context.read<GoodsListCubit>();
-    cubit.setQuery(cubit.state.query);
-  }
+  /// Повторить загрузку товаров (после ошибки или «потянуть вниз»). Вызывается из колбэка,
+  /// поэтому только `read` — `watch` допустим лишь внутри build.
+  Future<void> retryLoad(BuildContext context) =>
+      context.read<GoodsListCubit>().refresh();
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +58,17 @@ class GoodsResult extends StatelessWidget {
       return ErrorRetry(onRetry: () => retryLoad(context));
     }
     if (state.goods.isEmpty) {
-      return Center(child: Text(t.stockListScreen.empty));
+      return RefreshIndicator(
+        onRefresh: () => retryLoad(context),
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: AppInsets.h8 + AppInsets.v8,
+          children: [
+            if (state.freshness case final f?) FreshnessNote(freshness: f),
+            Center(child: Text(t.stockListScreen.empty)),
+          ],
+        ),
+      );
     }
 
     return Column(
@@ -55,11 +76,17 @@ class GoodsResult extends StatelessWidget {
       children: [
         Padding(
           padding: AppInsets.h16 + AppInsets.v8,
-          child: Text(
-            t.stockListScreen.found(total: state.total),
-            style: RegularTextStyles().regularInter14.copyWith(
-              color: AppColors.kTextMuted,
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (state.freshness case final f?) FreshnessNote(freshness: f),
+              Text(
+                t.stockListScreen.found(total: state.total),
+                style: RegularTextStyles().regularInter14.copyWith(
+                  color: AppColors.kTextMuted,
+                ),
+              ),
+            ],
           ),
         ),
         Expanded(
@@ -71,58 +98,82 @@ class GoodsResult extends StatelessWidget {
               }
               return false;
             },
-            child: ListView.builder(
-              padding: EdgeInsets.zero,
-              physics: const BouncingScrollPhysics(),
-              // +1 на футер-индикатор, пока есть непогруженные товары.
-              itemCount: state.goods.length + (state.hasMore ? 1 : 0),
-              itemBuilder: (context, i) {
-                if (i >= state.goods.length) {
-                  return const Padding(
-                    padding: AppInsets.v16,
-                    child: Center(child: CircularProgressIndicator()),
-                  );
-                }
-                final good = state.goods[i];
-                return Padding(
-                  padding: AppInsets.all8,
-                  child: NeumorphicButton(
-                    onPressed: () => openDetail(context, good),
-                    style: NeumorphicStyle(
-                      shadowLightColor: AppColors.kNeumorphicLight,
-                      shadowDarkColor: AppColors.kNeumorphicDark,
-                      intensity: 1,
-                      color: AppColors.kNeumorphicBg,
-                      depth: 3,
-                      shape: NeumorphicShape.flat,
-                      boxShape: NeumorphicBoxShape.roundRect(
-                        BorderRadius.circular(8),
+            child: RefreshIndicator(
+              onRefresh: () => retryLoad(context),
+              child: ListView.builder(
+                padding: EdgeInsets.zero,
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
+                ),
+                // +1 на футер-индикатор, пока есть непогруженные товары.
+                itemCount: state.goods.length + (state.hasMore ? 1 : 0),
+                itemBuilder: (context, i) {
+                  if (i >= state.goods.length) {
+                    return const Padding(
+                      padding: AppInsets.v16,
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+                  final good = state.goods[i];
+                  final qty = state.stockQty[good.id];
+                  return Padding(
+                    padding: AppInsets.all8,
+                    child: NeumorphicButton(
+                      onPressed: () => openDetail(context, good),
+                      style: NeumorphicStyle(
+                        shadowLightColor: AppColors.kNeumorphicLight,
+                        shadowDarkColor: AppColors.kNeumorphicDark,
+                        intensity: 1,
+                        color: AppColors.kNeumorphicBg,
+                        depth: 3,
+                        shape: NeumorphicShape.flat,
+                        boxShape: NeumorphicBoxShape.roundRect(
+                          BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  good.name.isEmpty
+                                      ? t.contents.unknownGood
+                                      : good.name,
+                                  style: RegularTextStyles().regularInter14
+                                      .copyWith(
+                                        height: 1.2,
+                                        color: AppColors.kTextMain,
+                                      ),
+                                ),
+                                Text(
+                                  [
+                                    if (good.code != null) good.code!,
+                                    if (good.groupName != null) good.groupName!,
+                                  ].join(' · '),
+                                  style: RegularTextStyles().regularInter10
+                                      .copyWith(color: AppColors.kTextMuted),
+                                ),
+                                if (state.pendingGoods.contains(good.id))
+                                  const PendingMark(),
+                              ],
+                            ),
+                          ),
+                          if (qty != null) ...[
+                            AppBoxes.kWidth12,
+                            Text(
+                              fmtQty(qty),
+                              style: SemiboldTextStyles().semiboldInter16
+                                  .copyWith(color: AppColors.kTextMain),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          good.name,
-                          style: RegularTextStyles().regularInter14.copyWith(
-                            height: 1.2,
-                            color: AppColors.kTextMain,
-                          ),
-                        ),
-                        Text(
-                          [
-                            if (good.code != null) good.code!,
-                            if (good.groupName != null) good.groupName!,
-                          ].join(' · '),
-                          style: RegularTextStyles().regularInter10.copyWith(
-                            color: AppColors.kTextMuted,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
           ),
         ),

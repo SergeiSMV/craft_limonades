@@ -4,7 +4,7 @@ import 'package:craft_wms/core/theme/app_theme.dart';
 import 'package:craft_wms/features/stock/data/catalog_models.dart';
 import 'package:craft_wms/features/stock/data/catalog_repository.dart';
 import 'package:craft_wms/features/stock/presentation/bloc/goods_list_cubit.dart';
-import 'package:craft_wms/features/stock/presentation/pages/goods_list_page.dart';
+import 'package:craft_wms/features/stock/presentation/pages/nomenclature_page.dart';
 import 'package:either_dart/either.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,7 +17,7 @@ import '../../support/entry_draft_stub.dart';
 
 class _MockRepo extends Mock implements CatalogRepository {}
 
-/// Строка поиска на экране «Остатки»: крестик очистки виден только при непустом вводе
+/// Строка поиска на экране «Номенклатура» (до ADHOC-33 — «Остатки»): крестик очистки виден только при непустом вводе
 /// и по тапу чистит и поле, и запрос.
 void main() {
   late _MockRepo repo;
@@ -82,7 +82,7 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      MaterialApp(theme: buildAppTheme(), home: const GoodsListPage()),
+      MaterialApp(theme: buildAppTheme(), home: const NomenclaturePage()),
     );
     await tester.pumpAndSettle();
     expect(
@@ -124,7 +124,7 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      MaterialApp(theme: buildAppTheme(), home: const GoodsListPage()),
+      MaterialApp(theme: buildAppTheme(), home: const NomenclaturePage()),
     );
     await tester.pumpAndSettle();
     queries.clear();
@@ -152,7 +152,7 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      MaterialApp(theme: buildAppTheme(), home: const GoodsListPage()),
+      MaterialApp(theme: buildAppTheme(), home: const NomenclaturePage()),
     );
     await tester.pumpAndSettle();
     queries.clear();
@@ -173,7 +173,7 @@ void main() {
     // При просадке связи его ошибка подменяла список, и кладовщик возвращался
     // на экран ошибки, хотя поиска не касался.
     await tester.pumpWidget(
-      MaterialApp(theme: buildAppTheme(), home: const GoodsListPage()),
+      MaterialApp(theme: buildAppTheme(), home: const NomenclaturePage()),
     );
     await tester.pumpAndSettle();
     queries.clear();

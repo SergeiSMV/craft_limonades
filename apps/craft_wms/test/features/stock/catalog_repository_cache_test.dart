@@ -133,32 +133,6 @@ void main() {
         );
       },
     );
-
-    test('остатки идут в сеть ВСЕГДА, даже при полном кэше', () async {
-      // Остаток меняется от каждой операции любого терминала: кэшировать его нельзя.
-      when(
-        () => api.listStock(
-          goodId: any(named: 'goodId'),
-          cellId: any(named: 'cellId'),
-          limit: any(named: 'limit'),
-          offset: any(named: 'offset'),
-        ),
-      ).thenAnswer(
-        (_) async => const Right(
-          Paged<StockItem>(items: [], total: 0, limit: 200, offset: 0),
-        ),
-      );
-
-      await repo.listStock(goodId: 'g1');
-      verify(
-        () => api.listStock(
-          goodId: any(named: 'goodId'),
-          cellId: any(named: 'cellId'),
-          limit: any(named: 'limit'),
-          offset: any(named: 'offset'),
-        ),
-      ).called(1);
-    });
   });
 
   group('готовность считается по каждому справочнику', () {

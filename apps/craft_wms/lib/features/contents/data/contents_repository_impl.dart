@@ -7,6 +7,7 @@ import '../../../core/warehouse/internal_warehouses.dart';
 import '../../stock/data/catalog_cache.dart';
 import '../domain/contents_entities.dart';
 import '../domain/contents_repository.dart';
+import '../domain/stock_entities.dart';
 import 'contents_api.dart';
 import 'contents_cache.dart';
 import 'pending_overlay.dart';
@@ -155,13 +156,10 @@ class ContentsRepositoryImpl implements ContentsRepository {
     final all = overlay.applyToAll(
       _units(await _cache.allLoadUnits(), overlay.cells),
     );
-    final freshness = refreshFailure == null
-        ? const FreshFromServer()
-        : FromSnapshot(
-            await _cache.asOf(),
-            offline: refreshFailure is NetworkFailure,
-          );
-    return Viewed(await _sorted(all.values, overlay.cells), freshness);
+    return Viewed(
+      await _sorted(all.values, overlay.cells),
+      await _freshness(refreshFailure),
+    );
   }
 
   @override
@@ -202,6 +200,111 @@ class ContentsRepositoryImpl implements ContentsRepository {
   @override
   Future<Either<Failure, LoadUnitHistory>> history(String id) =>
       _api.history(id);
+
+  @override
+  Future<Viewed<List<GoodStock>>> goodsStock({Failure? refreshFailure}) async {
+    final qty = <String, Map<String?, double>>{};
+    final pending = <String>{};
+    for (final p in await _places()) {
+      final byWarehouse = qty.putIfAbsent(p.goodId, () => {});
+      byWarehouse[p.internalWarehouseId] =
+          (byWarehouse[p.internalWarehouseId] ?? 0) + p.qty;
+      if (p.pending) pending.add(p.goodId);
+    }
+    final goods = await _catalog.goodsByIds(qty.keys);
+    final out = [
+      for (final e in qty.entries)
+        GoodStock(
+          goodId: e.key,
+          name: goods[e.key]?.name,
+          code: goods[e.key]?.code,
+          uom: goods[e.key]?.uom,
+          groupId: goods[e.key]?.groupId,
+          groupName: goods[e.key]?.groupName,
+          supplierId: goods[e.key]?.supplierId,
+          byWarehouse: e.value,
+          pending: pending.contains(e.key),
+        ),
+    ]..sort((a, b) => (a.name ?? '\uffff').compareTo(b.name ?? '\uffff'));
+    return Viewed(out, await _freshness(refreshFailure));
+  }
+
+  @override
+  Future<Viewed<List<StockPlace>>> goodPlaces(
+    String goodId, {
+    Failure? refreshFailure,
+  }) async {
+    final places = await _places(goodId: goodId);
+    // Вдоль стеллажа: по адресу ячейки, в ячейке — россыпь, затем короба; внутри — по партии.
+    places.sort((a, b) {
+      final byCell = (a.cellAddress ?? '\uffff').compareTo(
+        b.cellAddress ?? '\uffff',
+      );
+      if (byCell != 0) return byCell;
+      final byBox = (a.loadUnitId ?? '').compareTo(b.loadUnitId ?? '');
+      if (byBox != 0) return byBox;
+      return _batchKey(a.productionDate).compareTo(_batchKey(b.productionDate));
+    });
+    return Viewed(places, await _freshness(refreshFailure));
+  }
+
+  /// Все места товара на складе (ADHOC-33): россыпь всех ячеек и содержимое живых коробов из
+  /// снимка, своя очередь поверх; [goodId] — только этого товара. Нулевых строк нет.
+  Future<List<StockPlace>> _places({String? goodId}) async {
+    final overlay = await _overlay();
+    final def = overlay.cells.defaultInternalWarehouse;
+    final loose = {
+      for (final e in (await _cache.allLoose()).entries)
+        e.key: [
+          for (final l in e.value)
+            l.onWarehouse(
+              InternalWarehouses.normalize(l.internalWarehouseId, def),
+            ),
+        ],
+    };
+    final boxes = overlay.applyToWarehouse(
+      _units(await _cache.allLoadUnits(), overlay.cells),
+      loose,
+    );
+    final names = await _warehouseNames();
+    StockPlace place(String cell, ContentLine l, {String? box}) => StockPlace(
+      goodId: l.goodId,
+      cellId: cell,
+      cellAddress: overlay.cells.addressById[cell],
+      loadUnitId: box,
+      productionDate: l.productionDate,
+      qty: l.qty,
+      internalWarehouseId: l.internalWarehouseId,
+      internalWarehouseName: names[l.internalWarehouseId],
+      pending: l.pending,
+    );
+    bool wanted(ContentLine l) =>
+        l.qty > 0 && (goodId == null || l.goodId == goodId);
+    return [
+      for (final lu in boxes.values)
+        if (lu.live && lu.cellId != null)
+          for (final l in lu.lines)
+            if (wanted(l)) place(lu.cellId!, l, box: lu.id),
+      for (final e in loose.entries)
+        for (final l in e.value)
+          if (wanted(l)) place(e.key, l),
+    ];
+  }
+
+  /// Откуда данные списка из снимка: [refreshFailure] `null` — снимок только что обновлён.
+  Future<DataFreshness> _freshness(Failure? refreshFailure) async =>
+      refreshFailure == null
+      ? const FreshFromServer()
+      : FromSnapshot(
+          await _cache.asOf(),
+          offline: refreshFailure is NetworkFailure,
+        );
+
+  /// Дата партии DD-MM-YYYY как ключ сортировки YYYYMMDD.
+  static String _batchKey(String date) {
+    final p = date.split('-');
+    return p.length == 3 ? '${p[2]}${p[1]}${p[0]}' : date;
+  }
 
   /// Короба с наименованиями и адресами — живые первыми, затем по адресу ячейки и времени
   /// создания: так кладовщик идёт вдоль стеллажа.
