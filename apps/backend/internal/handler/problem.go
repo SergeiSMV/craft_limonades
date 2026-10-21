@@ -101,6 +101,22 @@ func (h *ProblemHandler) List(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
+// Current: GET /api/v1/problems/current — открытые проблемы склада на ТСД (ADHOC-35), свежие
+// первыми: вкладка «Текущие». Форма — та же, что у ленты решённых.
+func (h *ProblemHandler) Current(w http.ResponseWriter, r *http.Request) {
+	items, err := h.svc.Current(r.Context())
+	if err != nil {
+		slog.Error("current problems failed", "error", err)
+		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
+		return
+	}
+	out := make([]problemResponse, 0, len(items))
+	for _, p := range items {
+		out = append(out, toProblemResponse(p))
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
 // Resolved: GET /api/v1/problems/resolved?from=&to=&before_resolved_at=&before_id=&limit= —
 // лента «Завершённые» проблем на ТСД (ADHOC-34): только решённые офисом, свежие первыми.
 func (h *ProblemHandler) Resolved(w http.ResponseWriter, r *http.Request) {

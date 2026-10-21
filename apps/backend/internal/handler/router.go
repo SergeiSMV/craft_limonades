@@ -237,8 +237,9 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 		// как документы: решение меняет остаток.
 		if svc.Problem != nil {
 			prH := NewProblemHandler(svc.Problem)
-			// Лента решённых (ADHOC-34) — сотруднику: кладовщик на ТСД видит, что офис решил.
-			// Только чтение и только решённые — открытые остаются офису.
+			// Склад видит проблемы на ТСД — сотруднику, только чтение: открытые на вкладке
+			// «Текущие» (ADHOC-35) и ленту решённых офисом (ADHOC-34). Решение — только офису.
+			r.With(appmw.Authenticator(tokens)).Get("/problems/current", prH.Current)
 			r.With(appmw.Authenticator(tokens)).Get("/problems/resolved", prH.Resolved)
 			r.Group(func(r chi.Router) {
 				r.Use(appmw.Authenticator(tokens))

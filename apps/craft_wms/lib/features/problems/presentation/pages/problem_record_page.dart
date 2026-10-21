@@ -15,18 +15,19 @@ import '../../../../core/widgets/detail_card.dart';
 import '../../../../core/widgets/page_header.dart';
 import '../../../../core/widgets/section_title.dart';
 import '../../../../core/widgets/system_ui_wrapper.dart';
-import '../../domain/resolved_problems.dart';
-import '../widgets/resolved/resolved_format.dart';
+import '../../domain/problem_records.dart';
+import '../widgets/records/record_format.dart';
 
-/// Карточка решённой проблемы (ADHOC-34) — тремя разделами по порядку событий: проблема (что,
+/// Карточка проблемы (ADHOC-34, ADHOC-35) — тремя разделами по порядку событий: проблема (что,
 /// где, склад WMS, причина, кто зафиксировал), решение офиса (что решили, кому вернуть, кто
 /// решил) и исполнение (списано по документу 1С, размещено, отгружено — кто и когда). Всё
-/// пришло в ленте, поэтому карточка открывается без запроса и без связи.
+/// пришло в списке, поэтому карточка открывается без запроса и без связи. У открытой —
+/// проблема и «Ждёт решения офиса» (или «Ожидает отправки» у своей неотправленной).
 @RoutePage()
-class ResolvedProblemPage extends StatelessWidget {
-  const ResolvedProblemPage({super.key, required this.problem});
+class ProblemRecordPage extends StatelessWidget {
+  const ProblemRecordPage({super.key, required this.problem});
 
-  final ResolvedProblem problem;
+  final ProblemRecord problem;
 
   /// Вернуться к ленте.
   void goBack(BuildContext context) => context.router.maybePop();
@@ -73,32 +74,32 @@ class ResolvedProblemPage extends StatelessWidget {
                 if (p.comment.isNotEmpty)
                   _text(t.problems.commentLine(comment: p.comment)),
                 if (p.mark != null) _text(t.problems.markLine(mark: p.mark!)),
-                _muted(
-                  t.problems.createdMeta(
-                    name: p.createdBy,
-                    time: fullDateTime(p.createdAt),
-                  ),
-                ),
+                _muted(createdMeta(p)),
               ]),
               AppBoxes.kHeight8,
               SectionTitle(title: t.problems.sectionDecision),
-              _card([
-                _strong(decisionLabel(p.decision)),
-                for (final line in decisionLines(p)) _text(line),
-                _muted(
-                  t.problems.resolvedMeta(
-                    name: p.resolvedBy,
-                    time: fullDateTime(p.resolvedAtTime),
+              // Открытая — решения ещё нет, и исполнять нечего: раздел исполнения не нужен.
+              if (p.isOpen)
+                _card([_strong(outcomeLabel(p))])
+              else ...[
+                _card([
+                  _strong(decisionLabel(p.decision)),
+                  for (final line in decisionLines(p)) _text(line),
+                  _muted(
+                    t.problems.resolvedMeta(
+                      name: p.resolvedBy,
+                      time: fullDateTime(p.resolvedAtTime),
+                    ),
                   ),
-                ),
-              ]),
-              AppBoxes.kHeight8,
-              SectionTitle(title: t.problems.sectionExecution),
-              _card([
-                _strong(outcomeLabel(p)),
-                for (final line in executionLines(p)) _text(line),
-                if (executed != null) _muted(executed),
-              ]),
+                ]),
+                AppBoxes.kHeight8,
+                SectionTitle(title: t.problems.sectionExecution),
+                _card([
+                  _strong(outcomeLabel(p)),
+                  for (final line in executionLines(p)) _text(line),
+                  if (executed != null) _muted(executed),
+                ]),
+              ],
             ],
           ),
         ),

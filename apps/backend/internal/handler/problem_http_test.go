@@ -102,12 +102,28 @@ func TestProblemHTTP_clientWireFormat(t *testing.T) {
 		t.Fatalf("повтор проблемы: %v", got)
 	}
 
+	// ADHOC-35: «Текущие» — кладовщик видит обе открытые проблемы.
+	code, body = e.call(t, http.MethodGet, "/api/v1/problems/current", e.workerToken, "")
+	var current []struct {
+		ID     string `json:"id"`
+		Status string `json:"status"`
+	}
+	if code != http.StatusOK || json.Unmarshal(body, &current) != nil || len(current) != 2 ||
+		current[0].Status != "open" {
+		t.Fatalf("текущие: %d %s", code, body)
+	}
+
 	// ADHOC-34: офис списывает россыпь — кладовщик видит её в ленте «Завершённые» в формате
 	// эталона testdata/problems_resolved.json; открытая (короб в «Изоляторе») туда не попадает,
 	// рабочий список офиса кладовщику закрыт.
 	if code, body := e.call(t, http.MethodPost, "/api/v1/problems/7e000000-0000-4000-8000-000000000001/resolve",
 		e.adminToken, `{"decision":"write_off","doc_number":"СП-17","doc_date":"2026-10-21"}`); code != http.StatusNoContent {
 		t.Fatalf("решение офиса: %d %s", code, body)
+	}
+	code, body = e.call(t, http.MethodGet, "/api/v1/problems/current", e.workerToken, "")
+	if code != http.StatusOK || json.Unmarshal(body, &current) != nil || len(current) != 1 ||
+		current[0].ID != "7e000000-0000-4000-8000-000000000002" {
+		t.Fatalf("решённая ушла из текущих: %d %s", code, body)
 	}
 	if code, _ := e.call(t, http.MethodGet, "/api/v1/problems", e.workerToken, ""); code != http.StatusForbidden {
 		t.Errorf("рабочий список офиса кладовщику: %d", code)
