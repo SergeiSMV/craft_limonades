@@ -41,3 +41,20 @@ func ReturnSubmitForTest(ctx context.Context, pool *pgxpool.Pool, in ReturnSubmi
 	})
 	return n, err
 }
+
+// TryLineAfterSQLErrorForTest проверяет точку отката строки документа (ADHOC-40): строка падает
+// на ошибке SQL (ссылка на несуществующее), а транзакция после отката к точке живёт дальше.
+// Возвращает отказ строки, оборвавшую ошибку и ошибку запроса, выполненного после строки.
+func TryLineAfterSQLErrorForTest(ctx context.Context, pool *pgxpool.Pool) (rejected, fatal, after error) {
+	_ = WithinTx(ctx, pool, func(q Querier) error {
+		rejected, fatal = tryLine(ctx, q, func() error {
+			_, err := q.Exec(ctx, `
+				INSERT INTO lu_content (load_unit_id, good_id, batch_id, qty)
+				VALUES (gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), 1)`)
+			return err
+		})
+		_, after = q.Exec(ctx, `SELECT 1`)
+		return nil
+	})
+	return rejected, fatal, after
+}
