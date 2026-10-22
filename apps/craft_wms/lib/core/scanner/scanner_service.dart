@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 import 'package:injectable/injectable.dart';
 import 'package:talker_flutter/talker_flutter.dart';
 
@@ -59,6 +60,7 @@ class HardwareScannerService implements ScannerService {
     // на котором кладовщик стоит с непросчитанной ячейкой.
     return _rawEvents ??= _events
         .receiveBroadcastStream()
+        .where((_) => _onScreen)
         .map(
           (event) => RawScanEvent.fromChannel(event as Map<Object?, Object?>),
         )
@@ -66,6 +68,18 @@ class HardwareScannerService implements ScannerService {
           (Object error, StackTrace stack) =>
               _talker.handle(error, stack, 'Поток сканера'),
         );
+  }
+
+  /// Приложение на экране (ADHOC-39).
+  ///
+  /// Сканер Urovo рассылает код всем приложениям, а приёмник канала живёт, пока жив движок, —
+  /// и в фоне тоже. Пока приложение было одно, это не мешало; с приложением стенда рядом скан
+  /// в одном доставался бы и другому, висящему в фоне на экране, который ждёт скан. Поэтому
+  /// код принимает только приложение на экране. `null` — состояние ещё не пришло (старт,
+  /// тесты без привязки): не отсекаем.
+  bool get _onScreen {
+    final state = WidgetsBinding.instance.lifecycleState;
+    return state == null || state == AppLifecycleState.resumed;
   }
 
   @override

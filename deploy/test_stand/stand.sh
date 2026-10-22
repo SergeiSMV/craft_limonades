@@ -237,17 +237,18 @@ cmd_portal() {
   log "Портал собран: http://localhost:$STAND_HTTP_PORT (nginx отдаёт бандл без перезапуска)."
 }
 
-# apk — релизная сборка ТСД против стенда (адрес этой машины в LAN). Не ставит её на устройство:
-# переключение терминала между продом и стендом — только с пустой очередью (см. инструкцию).
+# apk — релизная сборка ТСД против стенда (адрес этой машины в LAN). Не ставит её на устройство.
+# STAND=true даёт отдельное приложение «КЛ: Склад · СТЕНД» (com.craftlimonades.sklad.stand,
+# ADHOC-39): оно ставится рядом с боевым, у каждого своя база и очередь.
 cmd_apk() {
   local ip
   ip="$(lan_ip)"
   [[ -n "$ip" ]] || die "не удалось определить адрес этой машины в LAN."
   log "Собираю APK против стенда: http://$ip:$STAND_HTTP_PORT/api/v1/"
   (cd "$APP_DIR" && flutter build apk --release -t lib/main.dart \
-    --dart-define=BASE_URL="http://$ip:$STAND_HTTP_PORT/api/v1/")
+    --dart-define=BASE_URL="http://$ip:$STAND_HTTP_PORT/api/v1/" --dart-define=STAND=true)
   log "APK: $APP_DIR/build/app/outputs/flutter-apk/app-release.apk"
-  warn "перед установкой на ТСД очередь операций на нём должна быть пуста (экран «Несинхронизированное»)."
+  log "Приложение «КЛ: Склад · СТЕНД» ставится рядом с боевым, боевое не трогает."
 }
 
 # down — остановить стенд, база сохраняется.
