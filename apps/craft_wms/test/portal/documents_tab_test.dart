@@ -1,8 +1,3 @@
-// Вкладка тянет web_download (только браузер), поэтому тест — только в браузере:
-// flutter test --platform chrome test/portal/documents_tab_test.dart
-@TestOn('browser')
-library;
-
 import 'dart:convert';
 
 import 'package:craft_wms/core/constants/api_constants.dart';
