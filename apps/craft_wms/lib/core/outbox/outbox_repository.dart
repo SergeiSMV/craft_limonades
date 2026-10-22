@@ -101,7 +101,10 @@ class OutboxRepository {
   /// умер», и судьба операции на сервере неизвестна. Оставить такую строку вне очереди —
   /// значит потерять операцию, которая, возможно, не дошла; повторить — безопасно, потому
   /// что дедуп по `operation_id` отбросит её, если она всё-таки дошла.
-  Future<List<OutboxOperation>> pending({int limit = 100}) async {
+  ///
+  /// [limit] `null` — вся очередь: наложению на свежий справочник (ADHOC-36) нужна каждая
+  /// неотправленная операция, а не первая сотня, которую движок берёт за проход.
+  Future<List<OutboxOperation>> pending({int? limit = 100}) async {
     final query = _db.select(_db.outboxOperations)
       ..where(
         (t) => t.status.isIn([
@@ -109,8 +112,8 @@ class OutboxRepository {
           OutboxStatus.sending.wire,
         ]),
       )
-      ..orderBy([(t) => OrderingTerm.asc(t.seq)])
-      ..limit(limit);
+      ..orderBy([(t) => OrderingTerm.asc(t.seq)]);
+    if (limit != null) query.limit(limit);
     final rows = await query.get();
     // Строки с неизвестным типом или статусом пропускаем: их писала более новая версия
     // приложения, и отправлять их вслепую нельзя. В базе они остаются — после обновления
