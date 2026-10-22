@@ -27,5 +27,6 @@
 | [0014](0014-transport-http-outbox-polling.md)         | Транспорт: HTTP + Outbox + polling (без брокера и WebSocket)             | Принято                                    |
 | [0015](0015-url-scheme-api-v1-portal-root.md)         | Схема URL: портал на корне, API под `/api/v1`                            | Планируется (P1-09-0)                      |
 | [0016](0016-internal-warehouse-as-stock-dimension.md) | Внутренний склад (основной/брак) — измерение остатка, не свойство ячейки | Принято (P1-05 · реализация P1-06/P4)      |
+| [0017](0017-chestny-znak-true-api-read.md)            | Честный знак: чтение через True API по МЧД, марка — по КИ                | Принято (CZ-01)                            |
 
 Новый ADR — следующий свободный номер, добавить строку в реестр.
