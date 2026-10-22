@@ -1,9 +1,28 @@
+import java.util.Base64
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
+
+// Сборка для тестового стенда (ADHOC-39, долг 28): `flutter build apk --dart-define=STAND=true`.
+// Что: отдельный идентификатор приложения и своя подпись на рабочем столе.
+// Зачем: под одним идентификатором APK стенда вставала поверх боевой, а очередь операций
+//        переживает переустановку — неотправленное против стенда уходило на прод и наоборот.
+// Как: Flutter передаёт dart-define в Gradle свойством `dart-defines` (пары KEY=VALUE в base64
+//      через запятую); flavor не заводим, чтобы боевой сборке не понадобился `--flavor`.
+val dartDefines: Map<String, String> =
+    (project.findProperty("dart-defines") as String?)
+        ?.split(",")
+        ?.map { String(Base64.getDecoder().decode(it), Charsets.UTF_8) }
+        ?.mapNotNull { pair ->
+            pair.split("=", limit = 2).takeIf { it.size == 2 }?.let { it[0] to it[1] }
+        }
+        ?.toMap()
+        ?: emptyMap()
+val isStand = dartDefines["STAND"] == "true"
 
 android {
     namespace = "com.craftlimonades.sklad"
@@ -20,7 +39,9 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.craftlimonades.sklad"
+        // namespace (пакет Kotlin-кода) не меняется — только идентификатор установленного приложения.
+        applicationId = if (isStand) "com.craftlimonades.sklad.stand" else "com.craftlimonades.sklad"
+        manifestPlaceholders["appLabel"] = if (isStand) "КЛ: Склад · СТЕНД" else "КЛ: Склад"
         // ТСД-цель: Android 11+ → minSdk 30 (по плану P0-05).
         minSdk = 30
         targetSdk = flutter.targetSdkVersion
