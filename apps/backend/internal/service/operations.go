@@ -303,6 +303,12 @@ func (s *OperationsService) dispatch(ctx context.Context, userID, id string, op 
 // навсегда на неисполнимой операции; ошибись в другую — работа кладовщика молча пропадёт.
 // Поэтому список закрытый: всё неопознанное считается временным.
 func isRejection(err error) bool {
+	// Документ со списком отклонённых строк (ADHOC-40) — отказ по существу целиком, какими бы
+	// ни были причины строк.
+	var lines *repository.DocumentLinesError
+	if errors.As(err, &lines) {
+		return true
+	}
 	return errors.Is(err, repository.ErrBarcodeConflict) ||
 		errors.Is(err, repository.ErrGoodNotFound) ||
 		errors.Is(err, repository.ErrSessionNotFound) ||

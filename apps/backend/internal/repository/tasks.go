@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -109,6 +110,18 @@ func createPutawayTaskForReceipt(ctx context.Context, q Querier, receiptID strin
 type taskRemainder struct {
 	boxes map[string]bool               // короб задания → ещё не размещён
 	loose map[[2]string]decimal.Decimal // (товар, партия) → сколько ещё разместить
+}
+
+// snapshot запоминает остаток задания и возвращает функцию, которая его восстановит
+// (ADHOC-40): отклонённая строка размещения не должна уменьшать остаток для следующих.
+// Копия целиком — позиций в задании единицы, а строка может задеть и короб, и партию.
+func (r taskRemainder) snapshot() (restore func()) {
+	boxes := maps.Clone(r.boxes)
+	loose := maps.Clone(r.loose)
+	return func() {
+		maps.Copy(r.boxes, boxes)
+		maps.Copy(r.loose, loose)
+	}
 }
 
 // done — по заданию всё размещено.

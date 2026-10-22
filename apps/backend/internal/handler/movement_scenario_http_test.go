@@ -352,3 +352,45 @@ func TestMovementHTTP_markedGoodsTravelWithMark(t *testing.T) {
 		t.Errorf("строки «Движения»: %v", got)
 	}
 }
+
+// ADHOC-40 (долг 26). Два терминала по устаревшему снимку: сеанс, в котором две строки уже
+// неисполнимы, отклоняется одним ответом со списком обеих — по-русски и с товаром и местами,
+// как их видит кладовщик. Терминал показывает этот текст на экране «Несинхронизированное».
+func TestMovementHTTP_rejectionNamesAllBadLines(t *testing.T) {
+	e := newMoveE2E(t)
+	batch := e.move(uuid.NewString(),
+		e.goodsLine(50, e.cell1, "", e.cellB, "", ""), // россыпи в M1-1-1-1 только 5
+		boxMove(e.box1, e.cellB),                      // исполнима
+		e.goodsLine(20, "", e.box2, e.cellC, "", ""),  // в коробе только 12
+	)
+	code, raw := e.call(t, http.MethodPost, "/api/v1/operations", e.workerToken, batch)
+	if code != http.StatusOK {
+		t.Fatalf("батч: код %d, %s", code, raw)
+	}
+	var body struct {
+		Results []struct {
+			Status string `json:"status"`
+			Error  string `json:"error"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal(raw, &body); err != nil || len(body.Results) != 1 {
+		t.Fatalf("ответ батча: %s (%v)", raw, err)
+	}
+	res := body.Results[0]
+	if res.Status != service.StatusRejected {
+		t.Fatalf("статус %s, ожидался отказ", res.Status)
+	}
+	for _, want := range []string{
+		"Отклонено строк: 2 из 3",
+		"Кальмар · партия 01.09.2026 · 50 шт: M1-1-1-1 → M1-1-1-2: в источнике не хватает товара этой партии",
+		"Кальмар · партия 01.09.2026 · 20 шт: короб ",
+		"→ M1-1-1-3: в источнике не хватает товара этой партии",
+	} {
+		if !strings.Contains(res.Error, want) {
+			t.Errorf("в отказе нет %q:\n%s", want, res.Error)
+		}
+	}
+	if strings.Contains(res.Error, "→ M1-1-1-2: короб") || strings.Count(res.Error, "\n•") != 2 {
+		t.Errorf("исполнимая строка попала в отказ:\n%s", res.Error)
+	}
+}
