@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:craft_wms/core/error/failure.dart';
 import 'package:craft_wms/core/load_unit/load_unit_id_generator.dart';
+import 'package:craft_wms/core/outbox/sent_sessions.dart';
 import 'package:craft_wms/features/contents/domain/contents_entities.dart';
 import 'package:craft_wms/features/movement/domain/movement_repository.dart';
 import 'package:craft_wms/features/movement/presentation/bloc/movement_cubit.dart';
@@ -12,16 +13,40 @@ import 'package:either_dart/either.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
-/// Репозиторий в памяти: черновик (через JSON, как в базе) и отправка с заданным исходом.
+/// Репозиторий в памяти: черновик (через JSON, как в базе), отправка с заданным исходом и
+/// слепки отправленных сеансов (ADHOC-41) — с той же логикой «Исправить», что у настоящего.
 class _FakeRepo implements MovementRepository {
   Map<String, dynamic>? draft;
   final sent = <Map<String, dynamic>>[];
+  final sessions = <String, Map<String, dynamic>>{};
   Either<Failure, void> result = const Right(null);
 
   @override
-  Future<Either<Failure, void>> submit(Map<String, dynamic> payload) async {
+  Future<({String operationId, Either<Failure, void> result})> submit(
+    Map<String, dynamic> payload, {
+    required Map<String, dynamic> session,
+  }) async {
     sent.add(payload);
-    return result;
+    final id = 'op-${sent.length}';
+    sessions[id] = jsonDecode(jsonEncode(session)) as Map<String, dynamic>;
+    return (operationId: id, result: result);
+  }
+
+  @override
+  Future<ReopenOutcome> reopenRejected(String operationId) async {
+    if (draft != null) return ReopenOutcome.draftBusy;
+    final session = sessions.remove(operationId);
+    if (session == null) return ReopenOutcome.lost;
+    final reason = switch (result) {
+      Left(value: RejectedFailure(:final reason)) => reason,
+      _ => null,
+    };
+    await saveDraft({
+      ...session,
+      'movement_id': 'fixed-movement-id',
+      'fix_reason': reason,
+    });
+    return ReopenOutcome.reopened;
   }
 
   @override
@@ -271,6 +296,37 @@ void main() {
     expect(r.state.rejectReason, 'not enough goods at the source');
     await r.close();
   });
+
+  // ADHOC-41 (долг 26): отклонённый сеанс возвращается в правку теми же строками, с новым
+  // документом и причиной отказа на экране; повторная отправка идёт уже новым документом.
+  test(
+    '«Исправить»: отказ снова черновик с причиной, отправка — новым документом',
+    () async {
+      final c = await started();
+      c.onBox(box(box1), cell3);
+      c.onCell(cell2);
+      final firstId = c.state.movementId;
+      repo.result = const Left(RejectedFailure('Отклонено строк: 1 из 1'));
+      await c.submit();
+      expect(c.state.outcome, MoveOutcome.rejected);
+      expect(c.state.rejectedOperationId, 'op-1');
+
+      await c.fixRejected();
+      expect(c.state.outcome, isNull);
+      expect(c.state.lines.length, 1, reason: 'строки сеанса вернулись');
+      expect(c.state.movementId, 'fixed-movement-id');
+      expect(c.state.movementId, isNot(firstId));
+      expect(c.state.fixReason, 'Отклонено строк: 1 из 1');
+      await c.draftWrites;
+      expect(repo.draft?['fix_reason'], 'Отклонено строк: 1 из 1');
+
+      repo.result = const Right(null);
+      await c.submit();
+      expect(c.state.outcome, MoveOutcome.posted);
+      expect(repo.sent.last['movement_id'], 'fixed-movement-id');
+      await c.close();
+    },
+  );
 
   test(
     'ярлык, которого нет: со связью — недействителен, без связи — не проверить',

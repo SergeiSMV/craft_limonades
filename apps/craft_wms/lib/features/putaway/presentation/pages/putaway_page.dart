@@ -19,6 +19,7 @@ import '../../../../core/utils/keyboard.dart';
 import '../../../../core/widgets/cell_change_sheet.dart';
 import '../../../../core/widgets/page_header.dart';
 import '../../../../core/widgets/qty_dialog.dart';
+import '../../../../core/widgets/rejected_session_banner.dart';
 import '../../../../core/widgets/scan_field.dart';
 import '../../../../core/widgets/system_ui_wrapper.dart';
 import '../../../stock/data/catalog_models.dart';
@@ -325,6 +326,7 @@ class _PutawayViewState extends State<_PutawayView> with HardwareScanListener {
         outcome: outcome,
         reason: state.rejectReason,
         onDone: goBack,
+        onFix: state.rejectedOperationId == null ? null : cubit.fixRejected,
       );
     }
     return Column(
@@ -335,6 +337,12 @@ class _PutawayViewState extends State<_PutawayView> with HardwareScanListener {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (state.fixReason case final reason?) ...[
+                RejectedSessionBanner(
+                  text: t.putaway.fixReason(reason: reason),
+                ),
+                AppBoxes.kHeight8,
+              ],
               ScanField(
                 controller: _scanController,
                 focusNode: _scanFocus,

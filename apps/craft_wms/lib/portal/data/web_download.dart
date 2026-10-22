@@ -1,28 +1,11 @@
-import 'dart:js_interop';
-import 'dart:typed_data';
-
-import 'package:web/web.dart' as web;
-
-/// Скачивает байты как файл в браузере (портал — Flutter Web, файловой системы нет).
+/// Скачивание файла в портале — развилка по платформе (ADHOC-38).
 ///
-/// Что: сохраняет [bytes] под именем [filename] через диалог загрузки браузера.
-/// Зачем: PDF-этикетки приходят с бэкенда бинарём — их надо отдать пользователю файлом.
-/// Как: Blob из байтов → временный object URL → скрытый `<a download>` → click → revoke URL.
-void downloadBytes({
-  required Uint8List bytes,
-  required String filename,
-  String mime = 'application/octet-stream',
-}) {
-  // Blob принимает JSArray частей; часть — типизированный массив байтов.
-  final blob = web.Blob(
-    [bytes.toJS].toJS,
-    web.BlobPropertyBag(type: mime),
-  );
-  final url = web.URL.createObjectURL(blob);
-  (web.document.createElement('a') as web.HTMLAnchorElement)
-    ..href = url
-    ..download = filename
-    ..click();
-  // Ссылку сразу освобождаем — файл к этому моменту уже сохранён/начал сохраняться.
-  web.URL.revokeObjectURL(url);
-}
+/// Что: в браузере — настоящая загрузка ([web_download_web.dart]), на VM — заглушка.
+/// Зачем: реализация тянет `dart:js_interop` и `package:web`, которые на VM не собираются, а
+///        вкладки портала импортируют её напрямую — из-за этого их тесты шли только в Chrome,
+///        и CI их пропускал (долг 25).
+/// Как: условный экспорт; вызывающий код импортирует только этот файл.
+library;
+
+export 'web_download_stub.dart'
+    if (dart.library.js_interop) 'web_download_web.dart';

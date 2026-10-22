@@ -7,6 +7,8 @@ import '../../features/stock/data/catalog_api.dart';
 import '../../features/contents/domain/contents_repository.dart';
 import '../../features/stock/data/catalog_cache.dart';
 import '../error/failure.dart';
+import '../outbox/outbox_effects.dart';
+import '../outbox/outbox_repository.dart';
 import '../warehouse/internal_warehouses.dart';
 
 /// Чем закончилась попытка обновить справочники (ADHOC-10).
@@ -37,6 +39,8 @@ class CatalogSyncService {
     this._cache,
     this._contents,
     this._warehouses,
+    this._outbox,
+    this._effects,
     this._talker,
   );
 
@@ -49,6 +53,11 @@ class CatalogSyncService {
 
   /// Внутренние склады (P6-07-2) — до снимка: им подписывается помеченный товар.
   final InternalWarehouses _warehouses;
+
+  /// Очередь и её следствия — чтобы свежий справочник привязок не стёр то, что ещё не
+  /// отправлено (ADHOC-36).
+  final OutboxRepository _outbox;
+  final OutboxEffects _effects;
   final Talker _talker;
 
   /// Идёт синхронизация. Защищает от параллельных запусков: вход и ручное обновление могут
@@ -108,6 +117,10 @@ class CatalogSyncService {
             )
             .toList(),
       );
+      // Сервер не знает о привязках и отвязках из очереди, а замена таблицы стёрла их след.
+      // Окно гонки остаётся узким: операция, подтверждённая между выгрузкой списка и чтением
+      // очереди, не попадёт ни туда, ни сюда и появится со следующей загрузкой.
+      await _effects.reapplyBarcodes(await _outbox.pending(limit: null));
 
       // Не останавливает синхронизацию: без справочника складов терминал работает как до
       // P6-07-1 (брак не подписан и не помечается), а без снимка — нет.

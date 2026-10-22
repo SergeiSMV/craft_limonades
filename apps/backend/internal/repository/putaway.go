@@ -100,42 +100,58 @@ func putawaySubmit(ctx context.Context, q Querier, in PutawaySubmitInput) (int, 
 	// зависеть от её наличия.
 	var receivingCell string
 
+	// Строки проверяются все, а не до первой плохой (ADHOC-40): каждая — под своей точкой
+	// отката. Остаток задания в памяти отклонённая строка не трогает — он восстанавливается,
+	// иначе следующая строка упёрлась бы в «больше, чем осталось» из-за строки, которой нет.
+	var bad []LineRejection
 	for i, ln := range in.Lines {
-		if err := guardCellOfWarehouse(ctx, q, ln.ToCellID, in.WarehouseID); err != nil {
-			return 0, err
-		}
-		var row putawayLineRow
-		if ln.LoadUnitID != "" {
-			// Короб задания, ещё не размещённый им. Отметка сразу: второй раз в том же сеансе
-			// тот же короб — уже не позиция задания.
-			if !rem.boxes[ln.LoadUnitID] {
-				return 0, ErrNotInTask
+		undo := rem.snapshot()
+		rejected, err := tryLine(ctx, q, func() error {
+			if err := guardCellOfWarehouse(ctx, q, ln.ToCellID, in.WarehouseID); err != nil {
+				return err
 			}
-			rem.boxes[ln.LoadUnitID] = false
-			row, err = putawayLoadUnit(ctx, q, in, ln)
-		} else {
-			if receivingCell == "" {
-				receivingCell, err = defaultCellID(ctx, q, in.WarehouseID)
-				if errors.Is(err, ErrNotFound) {
-					return 0, ErrNoDefaultCell
+			var row putawayLineRow
+			var err error
+			if ln.LoadUnitID != "" {
+				// Короб задания, ещё не размещённый им. Отметка сразу: второй раз в том же
+				// сеансе тот же короб — уже не позиция задания.
+				if !rem.boxes[ln.LoadUnitID] {
+					return ErrNotInTask
 				}
+				rem.boxes[ln.LoadUnitID] = false
+				row, err = putawayLoadUnit(ctx, q, in, ln)
+			} else {
+				if receivingCell == "" {
+					receivingCell, err = defaultCellID(ctx, q, in.WarehouseID)
+					if errors.Is(err, ErrNotFound) {
+						return ErrNoDefaultCell
+					}
+					if err != nil {
+						return err
+					}
+				}
+				var batchID string
+				batchID, err = taskBatch(ctx, q, ln, rem)
 				if err != nil {
-					return 0, err
+					return err
 				}
+				row, err = putawayLoose(ctx, q, ln, batchID, receivingCell, iwh)
 			}
-			var batchID string
-			batchID, err = taskBatch(ctx, q, ln, rem)
 			if err != nil {
-				return 0, err
+				return err
 			}
-			row, err = putawayLoose(ctx, q, ln, batchID, receivingCell, iwh)
-		}
+			return insertPutawayLine(ctx, q, in.PutawayID, i+1, row)
+		})
 		if err != nil {
 			return 0, err
 		}
-		if err := insertPutawayLine(ctx, q, in.PutawayID, i+1, row); err != nil {
-			return 0, err
+		if rejected != nil {
+			undo()
+			bad = append(bad, LineRejection{Line: i + 1, Label: putawayLineText(ctx, q, ln), Err: rejected})
 		}
+	}
+	if len(bad) > 0 {
+		return 0, &DocumentLinesError{Total: len(in.Lines), Lines: bad}
 	}
 	// «Движение» для 1С — в этой же транзакции: проведённого сеанса без документа не бывает,
 	// как и документа без сеанса (P5-04).
@@ -274,4 +290,14 @@ func insertPutawayLine(ctx context.Context, q Querier, putawayID string, lineNo 
 		return fmt.Errorf("записать строку размещения: %w", err)
 	}
 	return nil
+}
+
+// putawayLineText — строка размещения для человека (ADHOC-40): «короб → ячейка» или
+// «товар · партия · количество → ячейка» (россыпь всегда из ячейки приёмки).
+func putawayLineText(ctx context.Context, q Querier, ln PutawayLineInput) string {
+	to := cellText(ctx, q, ln.ToCellID)
+	if ln.LoadUnitID != "" {
+		return boxText(ln.LoadUnitID) + " → " + to
+	}
+	return goodText(ctx, q, ln.GoodID, ln.ProductionDate, ln.Qty) + " → " + to
 }

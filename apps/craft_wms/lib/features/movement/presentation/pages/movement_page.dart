@@ -19,6 +19,7 @@ import '../../../../core/utils/keyboard.dart';
 import '../../../../core/widgets/cell_change_sheet.dart';
 import '../../../../core/widgets/page_header.dart';
 import '../../../../core/widgets/qty_dialog.dart';
+import '../../../../core/widgets/rejected_session_banner.dart';
 import '../../../../core/widgets/scan_field.dart';
 import '../../../../core/widgets/system_ui_wrapper.dart';
 import '../../../../core/widgets/tab_switch.dart';
@@ -419,6 +420,7 @@ class _MovementViewState extends State<_MovementView>
         outcome: outcome,
         reason: state.rejectReason,
         onDone: goBack,
+        onFix: state.rejectedOperationId == null ? null : cubit.fixRejected,
       );
     }
     final hold = state.hold;
@@ -430,6 +432,12 @@ class _MovementViewState extends State<_MovementView>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (state.fixReason case final reason?) ...[
+                RejectedSessionBanner(
+                  text: t.movement.fixReason(reason: reason),
+                ),
+                AppBoxes.kHeight8,
+              ],
               ScanField(
                 controller: _scanController,
                 focusNode: _scanFocus,

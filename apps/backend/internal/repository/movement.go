@@ -239,19 +239,33 @@ func movementSubmit(ctx context.Context, q Querier, in MovementSubmitInput) (int
 	if err != nil {
 		return 0, err
 	}
+	// Строки проверяются все, а не до первой плохой (ADHOC-40): каждая — под своей точкой
+	// отката, отказ строки откатывает только её. Нашлись плохие — отказ документа целиком
+	// со списком всех; транзакция откатывается, как и раньше.
 	var moves []movement.Move
+	var bad []LineRejection
 	for i, ln := range in.Lines {
 		var step []movement.Move
-		var err error
-		if ln.LoadUnitID != "" {
-			step, err = movementLoadUnit(ctx, q, in, i+1, ln)
-		} else {
-			step, err = movementGoods(ctx, q, in, i+1, ln, iwh)
-		}
+		rejected, err := tryLine(ctx, q, func() error {
+			var err error
+			if ln.LoadUnitID != "" {
+				step, err = movementLoadUnit(ctx, q, in, i+1, ln)
+			} else {
+				step, err = movementGoods(ctx, q, in, i+1, ln, iwh)
+			}
+			return err
+		})
 		if err != nil {
 			return 0, err
 		}
+		if rejected != nil {
+			bad = append(bad, LineRejection{Line: i + 1, Label: movementLineText(ctx, q, ln), Err: rejected})
+			continue
+		}
 		moves = append(moves, step...)
+	}
+	if len(bad) > 0 {
+		return 0, &DocumentLinesError{Total: len(in.Lines), Lines: bad}
 	}
 	if err := saveMovementDocument(ctx, q, in.MovementID, moves); err != nil {
 		return 0, err
@@ -545,4 +559,20 @@ func looseQty(ctx context.Context, q Querier, cellID, goodID, batchID, iwh strin
 		return decimal.Zero, fmt.Errorf("посчитать россыпь: %w", err)
 	}
 	return loose, nil
+}
+
+// movementLineText — строка движения для человека (ADHOC-40): короб целиком «короб → ячейка»,
+// товар — «товар · партия · количество: откуда → куда», где место — ячейка или короб.
+func movementLineText(ctx context.Context, q Querier, ln MovementLineInput) string {
+	if ln.LoadUnitID != "" {
+		return boxText(ln.LoadUnitID) + " → " + cellText(ctx, q, ln.ToCellID)
+	}
+	place := func(cellID, loadUnitID string) string {
+		if loadUnitID != "" {
+			return boxText(loadUnitID)
+		}
+		return cellText(ctx, q, cellID)
+	}
+	return goodText(ctx, q, ln.GoodID, ln.ProductionDate, ln.Qty) + ": " +
+		place(ln.FromCellID, ln.FromLoadUnitID) + " → " + place(ln.ToCellID, ln.ToLoadUnitID)
 }

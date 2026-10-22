@@ -26,7 +26,7 @@
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
 
     <application
-        android:label="КЛ: Склад"
+        android:label="${appLabel}"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <!-- Портрет закреплён здесь, а не только в main.dart (ADHOC-19, долг 5): вызов

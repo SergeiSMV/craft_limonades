@@ -4,6 +4,7 @@ import 'package:injectable/injectable.dart';
 
 import '../../../../core/error/failure.dart';
 import '../../../../core/load_unit/load_unit_id_generator.dart';
+import '../../../../core/outbox/sent_sessions.dart';
 import '../../../stock/data/catalog_models.dart';
 import '../../../tasks/data/tasks_models.dart';
 import '../../data/putaway_draft_store.dart';
@@ -31,6 +32,12 @@ abstract class PutawayState with _$PutawayState {
     @Default(false) bool busy,
     PutawayOutcome? outcome,
     String? rejectReason,
+
+    /// Операция отклонённого сеанса — по ней «Исправить» вернёт сеанс в черновик (ADHOC-41).
+    String? rejectedOperationId,
+
+    /// Сеанс вернулся из отказа: причина отказа сервера видна, пока сеанс не завершён снова.
+    String? fixReason,
     PutawayNotice? notice,
 
     /// На терминале лежит незавершённый сеанс ДРУГОГО задания — его номер. Пока он не решён,
@@ -112,6 +119,7 @@ class PutawayCubit extends Cubit<PutawayState> {
       emit(
         state.copyWith(
           putawayId: draft['putaway_id'] as String?,
+          fixReason: draft['fix_reason'] as String?,
           lines: [
             for (final e in draft['lines'] as List<dynamic>? ?? const [])
               PutawayLine.fromJson(e as Map<String, dynamic>),
@@ -156,21 +164,24 @@ class PutawayCubit extends Cubit<PutawayState> {
     // Пока не решён чужой черновик, свой не пишем — иначе затрём чужую работу.
     if (state.foreignDraftNumber != null || state.putawayId == null) return;
     final done = state.outcome != null;
-    final snapshot = done
-        ? null
-        : {
-            'task_id': state.task.id,
-            'task_number': state.task.number,
-            'putaway_id': state.putawayId,
-            'lines': state.lines.map((l) => l.toJson()).toList(),
-            'pick': state.pick?.toJson(),
-          };
+    final snapshot = done ? null : session(state);
     _writes = _writes
         .then(
           (_) => snapshot == null ? _drafts.clear() : _drafts.save(snapshot),
         )
         .catchError((_) {});
   }
+
+  /// Слепок сеанса — черновик и копия отправленного документа (ADHOC-41) в одном виде.
+  @visibleForTesting
+  static Map<String, dynamic> session(PutawayState s) => {
+    'task_id': s.task.id,
+    'task_number': s.task.number,
+    'putaway_id': s.putawayId,
+    'lines': s.lines.map((l) => l.toJson()).toList(),
+    'pick': s.pick?.toJson(),
+    if (s.fixReason != null) 'fix_reason': s.fixReason,
+  };
 
   /// Дождаться записи черновика — нужно только тестам.
   @visibleForTesting
@@ -295,8 +306,9 @@ class PutawayCubit extends Cubit<PutawayState> {
   Future<void> submit() async {
     if (!state.canSubmit) return;
     emit(state.copyWith(busy: true, notice: null));
-    final res = await _repo.submit(
+    final (:operationId, :result) = await _repo.submit(
       payload: payload(state),
+      session: session(state),
       taskId: state.task.id,
       boxes: {
         for (final l in state.lines)
@@ -317,16 +329,31 @@ class PutawayCubit extends Cubit<PutawayState> {
     );
     final s = state.copyWith(busy: false);
     emit(
-      res.fold(
+      result.fold(
         (f) => f is RejectedFailure
             ? s.copyWith(
                 outcome: PutawayOutcome.rejected,
                 rejectReason: f.reason,
+                rejectedOperationId: operationId,
               )
             : s.copyWith(outcome: PutawayOutcome.queued),
         (_) => s.copyWith(outcome: PutawayOutcome.posted),
       ),
     );
+  }
+
+  /// «Исправить» с экрана отказа: сеанс снова черновик с причиной отказа (ADHOC-41, долг 26).
+  ///
+  /// Черновик к этому моменту стёрт итогом, поэтому занятым он не бывает; сеанс открывается
+  /// заново тем же путём, что после перезапуска, — из черновика этого задания.
+  Future<void> fixRejected() async {
+    final id = state.rejectedOperationId;
+    if (id == null) return;
+    await _writes; // стирание черновика итогом должно лечь раньше нового черновика
+    final (outcome, _) = await _repo.reopenRejected(id);
+    if (outcome != ReopenOutcome.reopened) return;
+    emit(PutawayState(task: state.task));
+    await init();
   }
 
   /// Тело операции `putaway_submit` — формат эталона `testdata/putaway_submit.json`.

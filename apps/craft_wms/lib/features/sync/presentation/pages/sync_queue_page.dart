@@ -8,6 +8,10 @@ import '../../../../core/di/injection.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/outbox/outbox_operation.dart';
 import '../../../../core/outbox/outbox_repository.dart';
+import '../../../../core/outbox/sent_sessions.dart';
+import '../../../../core/router/app_router.dart';
+import '../../../movement/domain/movement_repository.dart';
+import '../../../putaway/data/putaway_repository.dart';
 import '../bloc/sync_status_cubit.dart';
 import '../widgets/operation_tile.dart';
 import '../widgets/sync_now_button.dart';
@@ -87,6 +91,9 @@ class _SyncQueuePageState extends State<SyncQueuePage> {
                         onRetry: () => outbox.retry(operation.operationId),
                         onDiscard: () =>
                             _confirmDiscard(context, outbox, operation),
+                        onFix: _fixable(operation)
+                            ? () => _fix(context, operation)
+                            : null,
                       ),
                     AppBoxes.kHeight16,
                   ],
@@ -104,6 +111,45 @@ class _SyncQueuePageState extends State<SyncQueuePage> {
         },
       ),
     );
+  }
+
+  /// У операции есть сеанс, который можно вернуть в правку (ADHOC-41).
+  bool _fixable(OutboxOperation operation) =>
+      operation.kind == OutboxKind.movementSubmit ||
+      operation.kind == OutboxKind.putawaySubmit;
+
+  /// «Исправить»: отклонённый сеанс снова черновик своего раздела (ADHOC-41, долг 26).
+  ///
+  /// Перемещение открывается сразу. Размещение живёт внутри задания, а задание экран берёт
+  /// свежим из списка — поэтому кладовщик получает номер задания и открывает его сам.
+  Future<void> _fix(BuildContext context, OutboxOperation operation) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final router = context.router;
+    void say(String text) =>
+        messenger.showSnackBar(SnackBar(content: Text(text)));
+
+    if (operation.kind == OutboxKind.movementSubmit) {
+      final outcome = await getIt<MovementRepository>().reopenRejected(
+        operation.operationId,
+      );
+      switch (outcome) {
+        case ReopenOutcome.reopened:
+          await router.push(const MovementRoute());
+        case ReopenOutcome.draftBusy:
+          say(t.syncQueue.fixBusyMovement);
+        case ReopenOutcome.lost:
+          say(t.syncQueue.fixLost);
+      }
+      return;
+    }
+    final (outcome, number) = await getIt<PutawayRepository>().reopenRejected(
+      operation.operationId,
+    );
+    say(switch (outcome) {
+      ReopenOutcome.reopened => t.syncQueue.fixPutaway(number: number),
+      ReopenOutcome.draftBusy => t.syncQueue.fixBusyPutaway,
+      ReopenOutcome.lost => t.syncQueue.fixLost,
+    });
   }
 
   /// Отбросить операцию, спросив подтверждение: она исчезнет насовсем, а восстановить её
