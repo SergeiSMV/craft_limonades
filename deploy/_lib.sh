@@ -148,6 +148,49 @@ health_check() {
 # окружение (-pass env:), а не аргументом: в -pass pass:… он был бы виден в списке процессов.
 BACKUP_CIPHER_ARGS=(-aes-256-cbc -pbkdf2 -iter 600000)
 
+# dump_db ЦЕЛЬ — pg_dump прод-базы в сжатый файл.
+# Общая часть ночного бэкапа и дампа перед миграциями (ADHOC-37). Отказ pg_dump проверяется
+# явно, а не через set -e: вызывающий может звать функцию в `||`, где errexit выключен, а
+# gzip от пустого входа даёт непустой файл — проверка размера такой отказ не заметит.
+dump_db() {
+  local out="$1" pg_user pg_db cid
+  pg_user="$(get_env POSTGRES_USER)"; pg_db="$(get_env POSTGRES_DB)"
+  [[ -n "$pg_user" && -n "$pg_db" ]] || die "POSTGRES_USER/POSTGRES_DB не заданы в $ENV_FILE."
+  cid="$(compose ps -q db)"
+  [[ -n "$cid" ]] || die "контейнер БД не запущен (сначала deploy/install.sh)."
+  if ! docker exec "$cid" pg_dump -U "$pg_user" -d "$pg_db" | gzip -c > "$out"; then
+    die "pg_dump не прошёл ($pg_db)."
+  fi
+  [[ -s "$out" ]] || die "дамп пустой — проверьте доступ к БД."
+}
+
+# premigrate_dump — дамп прод-базы перед миграциями (ADHOC-37, долг 27).
+#
+# Зачем: откат схемы на проде запрещён, а ночной бэкап (06:30 МСК) — слишком далёкая точка:
+# всё внесённое с утра до обновления потерялось бы вместе с испорченными миграцией данными.
+# Как: отдельный каталог PREMIGRATE_DIR (по умолчанию рядом с backups) — ночная ротация и
+# внешняя копия его не видят. Хранятся последние PREMIGRATE_KEEP (5). Не шифруется и наружу не
+# уходит: на сервере ночной .sql.gz тоже лежит открытым, шифрование на том же диске ничего не
+# защищает, а восстанавливать его можно сразу: `deploy/pg-restore.sh <файл>`.
+# Не снялся дамп — обновление останавливается ДО миграций: работает прежняя версия.
+premigrate_dump() {
+  local dir keep out
+  dir="$(get_env PREMIGRATE_DIR)"; dir="${dir:-$(cd "$REPO_ROOT/.." && pwd)/premigrate}"
+  keep="$(get_env PREMIGRATE_KEEP)"; keep="${keep:-5}"
+  mkdir -p "$dir" && chmod 700 "$dir"
+  out="$dir/craft_wms-premigrate-$(date +%Y%m%d-%H%M%S).sql.gz"
+  log "Дамп перед миграциями → $out"
+  if ! ( dump_db "$out" ); then
+    rm -f "$out"
+    journal_err "дамп перед миграциями не снят — обновление остановлено до миграций, работает прежняя версия."
+    die "без дампа миграции не применяю."
+  fi
+  log "Дамп готов: $(du -h "$out" | cut -f1)"
+  # Имена несут время с точностью до секунды — обратная сортировка ставит свежие первыми.
+  find "$dir" -maxdepth 1 -type f -name 'craft_wms-premigrate-*.sql.gz' | sort -r \
+    | tail -n "+$((keep + 1))" | xargs -r rm -f --
+}
+
 # backup_passphrase — пароль из .env.prod или пусто, если шифрование не настроено.
 backup_passphrase() { get_env BACKUP_PASSPHRASE; }
 

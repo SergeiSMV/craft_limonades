@@ -22,20 +22,13 @@ BACKUP_DIR="${BACKUP_DIR:-$(cd "$REPO_ROOT/.." && pwd)/backups}"
 KEEP_DAYS="${KEEP_DAYS:-$(get_env KEEP_DAYS)}"
 KEEP_DAYS="${KEEP_DAYS:-14}"
 
-PG_USER="$(get_env POSTGRES_USER)"; PG_DB="$(get_env POSTGRES_DB)"
-[[ -n "$PG_USER" && -n "$PG_DB" ]] || die "POSTGRES_USER/POSTGRES_DB не заданы в $ENV_FILE."
-
 # Пароль шифрования читаем ДО дампа: настроен он или нет, надо знать заранее.
 PASS="$(backup_passphrase)"
 
-cid="$(compose ps -q db)"
-[[ -n "$cid" ]] || die "контейнер БД не запущен (сначала deploy/install.sh)."
-
 mkdir -p "$BACKUP_DIR"
 out="$BACKUP_DIR/craft_wms-$(date +%Y%m%d-%H%M%S).sql.gz"
-log "Дамп $PG_DB → $out"
-docker exec "$cid" pg_dump -U "$PG_USER" -d "$PG_DB" | gzip -c > "$out"
-[[ -s "$out" ]] || die "дамп пустой — проверьте доступ к БД."
+log "Дамп $(get_env POSTGRES_DB) → $out"
+dump_db "$out"
 log "Готово: $(du -h "$out" | cut -f1)"
 
 # --- Шифрование ---
