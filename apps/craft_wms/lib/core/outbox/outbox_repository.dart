@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 
 import '../database/app_database.dart';
 import 'outbox_operation.dart';
+import 'sent_sessions.dart';
 
 /// Очередь исходящих операций устройства (Outbox, P2-03).
 ///
@@ -183,8 +184,12 @@ class OutboxRepository {
   }
 
   /// Сервер принял операцию.
-  Future<void> markSent(String operationId) =>
-      _update(operationId, status: OutboxStatus.sent, clearError: true);
+  ///
+  /// Слепок сеанса этой операции (ADHOC-41) больше не нужен: исправлять принятое нечего.
+  Future<void> markSent(String operationId) async {
+    await _update(operationId, status: OutboxStatus.sent, clearError: true);
+    await _dropSentSession(operationId);
+  }
 
   /// Попытка не удалась — операция возвращается в очередь и будет повторена (P2-04).
   /// Счётчик попыток увеличивается: по нему P2-04 считает паузу backoff.
@@ -248,9 +253,19 @@ class OutboxRepository {
   ///
   /// Единственный способ избавиться от неисполнимой операции: 409 «ШК уже за другим товаром»
   /// повтором не лечится, и без этого она осталась бы в списке навсегда.
-  Future<void> discard(String operationId) => (_db.delete(
-    _db.outboxOperations,
-  )..where((t) => t.operationId.equals(operationId))).go();
+  ///
+  /// Вместе с операцией уходит слепок её сеанса (ADHOC-41): исправлять больше нечего.
+  Future<void> discard(String operationId) async {
+    await (_db.delete(
+      _db.outboxOperations,
+    )..where((t) => t.operationId.equals(operationId))).go();
+    await _dropSentSession(operationId);
+  }
+
+  /// Убрать слепок сеанса операции, если он был (ADHOC-41).
+  Future<void> _dropSentSession(String operationId) => (_db.delete(
+    _db.entryDrafts,
+  )..where((t) => t.id.equals(SentSessionStore.keyFor(operationId)))).go();
 
   /// Снять операцию, только если она ещё ждёт отправки (`pending`).
   ///

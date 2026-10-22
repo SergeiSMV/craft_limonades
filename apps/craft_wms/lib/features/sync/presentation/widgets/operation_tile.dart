@@ -20,6 +20,7 @@ class OperationTile extends StatefulWidget {
     required this.operation,
     this.onRetry,
     this.onDiscard,
+    this.onFix,
   });
 
   final OutboxOperation operation;
@@ -29,6 +30,9 @@ class OperationTile extends StatefulWidget {
 
   /// Убрать операцию совсем. `null` по той же причине.
   final VoidCallback? onDiscard;
+
+  /// Вернуть отклонённый сеанс в правку (ADHOC-41); `null` — у операции нет сеанса.
+  final VoidCallback? onFix;
 
   @override
   State<OperationTile> createState() => _OperationTileState();
@@ -125,6 +129,13 @@ class _OperationTileState extends State<OperationTile> {
                       onPressed: widget.onDiscard,
                       child: Text(t.syncQueue.discard),
                     ),
+                  if (widget.onFix != null) ...[
+                    OutlinedButton(
+                      onPressed: widget.onFix,
+                      child: Text(t.syncQueue.fix),
+                    ),
+                    AppBoxes.kWidth8,
+                  ],
                   if (widget.onRetry != null)
                     FilledButton(
                       onPressed: widget.onRetry,

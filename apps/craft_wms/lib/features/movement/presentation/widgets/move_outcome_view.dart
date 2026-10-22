@@ -14,11 +14,15 @@ class MoveOutcomeView extends StatelessWidget {
     required this.outcome,
     required this.reason,
     required this.onDone,
+    this.onFix,
   });
 
   final MoveOutcome outcome;
   final String? reason;
   final VoidCallback onDone;
+
+  /// Вернуть отклонённый сеанс в правку (ADHOC-41); `null` — исправлять нечего.
+  final VoidCallback? onFix;
 
   @override
   Widget build(BuildContext context) {
@@ -50,10 +54,21 @@ class MoveOutcomeView extends StatelessWidget {
               ),
             ),
             AppBoxes.kHeight24,
-            FilledButton(
-              onPressed: onDone,
-              child: Text(t.movement.outcomeDone),
-            ),
+            if (outcome == MoveOutcome.rejected && onFix != null) ...[
+              FilledButton(
+                onPressed: onFix,
+                child: Text(t.movement.outcomeFix),
+              ),
+              AppBoxes.kHeight12,
+              OutlinedButton(
+                onPressed: onDone,
+                child: Text(t.movement.outcomeDone),
+              ),
+            ] else
+              FilledButton(
+                onPressed: onDone,
+                child: Text(t.movement.outcomeDone),
+              ),
           ],
         ),
       ),

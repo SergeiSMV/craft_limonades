@@ -4,6 +4,7 @@ import 'package:injectable/injectable.dart';
 
 import '../../../../core/error/failure.dart';
 import '../../../../core/load_unit/load_unit_id_generator.dart';
+import '../../../../core/outbox/sent_sessions.dart';
 import '../../../contents/domain/contents_entities.dart';
 import '../../../stock/data/catalog_models.dart';
 import '../../domain/movement_models.dart';
@@ -43,6 +44,7 @@ class MovementCubit extends Cubit<MovementState> {
       state.copyWith(
         movementId: draft['movement_id'] as String? ?? _ids.newId(),
         warehouseId: draft['warehouse_id'] as String?,
+        fixReason: draft['fix_reason'] as String?,
         lines: [
           for (final e in draft['lines'] as List<dynamic>? ?? const [])
             MoveLine.fromJson(e as Map<String, dynamic>),
@@ -59,13 +61,7 @@ class MovementCubit extends Cubit<MovementState> {
     super.emit(state);
     if (state.movementId == null) return;
     final keep = state.outcome == null && state.lines.isNotEmpty;
-    final snapshot = keep
-        ? {
-            'movement_id': state.movementId,
-            'warehouse_id': state.warehouseId,
-            'lines': state.lines.map((l) => l.toJson()).toList(),
-          }
-        : null;
+    final snapshot = keep ? session(state) : null;
     _writes = _writes
         .then(
           (_) =>
@@ -73,6 +69,15 @@ class MovementCubit extends Cubit<MovementState> {
         )
         .catchError((_) {});
   }
+
+  /// Слепок сеанса — черновик и копия отправленного документа (ADHOC-41) в одном виде.
+  @visibleForTesting
+  static Map<String, dynamic> session(MovementState s) => {
+    'movement_id': s.movementId,
+    'warehouse_id': s.warehouseId,
+    'lines': s.lines.map((l) => l.toJson()).toList(),
+    if (s.fixReason != null) 'fix_reason': s.fixReason,
+  };
 
   /// Дождаться записи черновика — нужно только тестам.
   @visibleForTesting
@@ -312,16 +317,36 @@ class MovementCubit extends Cubit<MovementState> {
   Future<void> submit() async {
     if (!state.canSubmit) return;
     emit(state.copyWith(busy: true, notice: null));
-    final res = await _repo.submit(payload(state));
+    final (:operationId, :result) = await _repo.submit(
+      payload(state),
+      session: session(state),
+    );
     final s = state.copyWith(busy: false);
     emit(
-      res.fold(
+      result.fold(
         (f) => f is RejectedFailure
-            ? s.copyWith(outcome: MoveOutcome.rejected, rejectReason: f.reason)
+            ? s.copyWith(
+                outcome: MoveOutcome.rejected,
+                rejectReason: f.reason,
+                rejectedOperationId: operationId,
+              )
             : s.copyWith(outcome: MoveOutcome.queued),
         (_) => s.copyWith(outcome: MoveOutcome.posted),
       ),
     );
+  }
+
+  /// «Исправить» с экрана отказа: сеанс снова черновик с причиной отказа (ADHOC-41, долг 26).
+  ///
+  /// Черновик к этому моменту стёрт итогом, поэтому занятым он не бывает; сеанс открывается
+  /// заново тем же путём, что после перезапуска, — из черновика.
+  Future<void> fixRejected() async {
+    final id = state.rejectedOperationId;
+    if (id == null) return;
+    await _writes; // стирание черновика итогом должно лечь раньше нового черновика
+    if (await _repo.reopenRejected(id) != ReopenOutcome.reopened) return;
+    emit(const MovementState());
+    await init();
   }
 
   /// Тело операции `movement_submit` — формат эталона `testdata/movement_submit.json`.

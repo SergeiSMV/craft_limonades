@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:craft_wms/core/database/app_database.dart';
 import 'package:craft_wms/core/error/failure.dart';
 import 'package:craft_wms/core/load_unit/load_unit_id_generator.dart';
+import 'package:craft_wms/core/outbox/sent_sessions.dart';
 import 'package:craft_wms/features/putaway/data/putaway_draft_store.dart';
 import 'package:craft_wms/features/putaway/data/putaway_repository.dart';
 import 'package:craft_wms/features/putaway/presentation/bloc/putaway_cubit.dart';
@@ -215,4 +216,58 @@ void main() {
       await other.close();
     },
   );
+
+  // ADHOC-41 (долг 26): отказ с экрана итога возвращает сеанс в правку в том же задании —
+  // с теми же строками, новым документом и причиной отказа.
+  test('«Исправить»: сеанс снова черновик задания с причиной отказа', () async {
+    final repo = _MockRepo();
+    final cubit = PutawayCubit(repo, drafts, ids, task());
+    await cubit.init();
+    cubit.pickBox(box);
+    cubit.placeIn(cell('4d000000-0000-4000-8000-0000000000a4', 'M1-1-1-2'));
+
+    Map<String, dynamic>? sentSession;
+    when(
+      () => repo.submit(
+        payload: any(named: 'payload'),
+        session: any(named: 'session'),
+        taskId: any(named: 'taskId'),
+        boxes: any(named: 'boxes'),
+        loose: any(named: 'loose'),
+      ),
+    ).thenAnswer((inv) async {
+      sentSession = inv.namedArguments[#session] as Map<String, dynamic>;
+      return (
+        operationId: 'op-1',
+        result: const Left<Failure, void>(
+          RejectedFailure('Отклонено строк: 1 из 1'),
+        ),
+      );
+    });
+    // Как настоящий репозиторий: слепок — в черновик с новым документом и причиной.
+    when(() => repo.reopenRejected('op-1')).thenAnswer((_) async {
+      await drafts.save({
+        ...jsonDecode(jsonEncode(sentSession)) as Map<String, dynamic>,
+        'putaway_id': 'new-putaway-id',
+        'fix_reason': 'Отклонено строк: 1 из 1',
+      });
+      return (ReopenOutcome.reopened, 7);
+    });
+
+    await cubit.submit();
+    expect(cubit.state.outcome, PutawayOutcome.rejected);
+    expect(cubit.state.rejectedOperationId, 'op-1');
+
+    await cubit.fixRejected();
+    expect(cubit.state.outcome, isNull);
+    expect(cubit.state.lines.length, 1);
+    expect(cubit.state.putawayId, 'new-putaway-id');
+    expect(cubit.state.fixReason, 'Отклонено строк: 1 из 1');
+    expect(
+      cubit.state.foreignDraftNumber,
+      isNull,
+      reason: 'черновик своего задания',
+    );
+    await cubit.close();
+  });
 }
