@@ -4,8 +4,10 @@ import 'package:injectable/injectable.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/database/draft_slot.dart';
 import '../../../core/error/failure.dart';
+import '../../../core/load_unit/load_unit_id_generator.dart';
 import '../../../core/outbox/outbox_operation.dart';
 import '../../../core/outbox/outbox_repository.dart';
+import '../../../core/outbox/sent_sessions.dart';
 import '../../../core/sync/sync_engine.dart';
 import '../domain/movement_repository.dart';
 
@@ -26,21 +28,56 @@ class MovementDraftStore extends DraftSlot {
 /// накладывает чтение содержимого — короб без связи уже «лежит» там, куда его перенесли.
 @LazySingleton(as: MovementRepository)
 class MovementRepositoryImpl implements MovementRepository {
-  MovementRepositoryImpl(this._outbox, this._sync, this._drafts);
+  MovementRepositoryImpl(
+    this._outbox,
+    this._sync,
+    this._drafts,
+    this._sent,
+    this._ids,
+  );
 
   final OutboxRepository _outbox;
   final SyncEngine _sync;
   final MovementDraftStore _drafts;
+  final SentSessionStore _sent;
+  final LoadUnitIdGenerator _ids;
 
   @override
-  Future<Either<Failure, void>> submit(Map<String, dynamic> payload) async {
+  Future<({String operationId, Either<Failure, void> result})> submit(
+    Map<String, dynamic> payload, {
+    required Map<String, dynamic> session,
+  }) async {
     final operationId = await _outbox.enqueue(
       kind: OutboxKind.movementSubmit,
       payload: payload,
     );
+    // Слепок — до отправки: отказ может прийти и сразу, и позже, из движка синхронизации.
+    await _sent.save(operationId, session);
     final operation = await _outbox.byOperationId(operationId);
-    if (operation == null) return const Right(null);
-    return _sync.sendOne(operation);
+    if (operation == null) {
+      return (
+        operationId: operationId,
+        result: const Right<Failure, void>(null),
+      );
+    }
+    return (operationId: operationId, result: await _sync.sendOne(operation));
+  }
+
+  @override
+  Future<ReopenOutcome> reopenRejected(String operationId) async {
+    if (await _drafts.load() != null) return ReopenOutcome.draftBusy;
+    final session = await _sent.load(operationId);
+    if (session == null) return ReopenOutcome.lost;
+    final operation = await _outbox.byOperationId(operationId);
+    // Новый документ: тот же идентификатор сервер мог бы счесть уже проведённым другим путём,
+    // а исправленный сеанс — это новая отправка.
+    await _drafts.save({
+      ...session,
+      'movement_id': _ids.newId(),
+      'fix_reason': operation?.lastError,
+    });
+    await _outbox.discard(operationId);
+    return ReopenOutcome.reopened;
   }
 
   @override

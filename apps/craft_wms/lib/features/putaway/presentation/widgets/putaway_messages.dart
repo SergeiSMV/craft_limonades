@@ -15,11 +15,15 @@ class PutawayOutcomeView extends StatelessWidget {
     required this.outcome,
     required this.reason,
     required this.onDone,
+    this.onFix,
   });
 
   final PutawayOutcome outcome;
   final String? reason;
   final VoidCallback onDone;
+
+  /// Вернуть отклонённый сеанс в правку (ADHOC-41); `null` — исправлять нечего.
+  final VoidCallback? onFix;
 
   @override
   Widget build(BuildContext context) {
@@ -51,7 +55,18 @@ class PutawayOutcomeView extends StatelessWidget {
               ),
             ),
             AppBoxes.kHeight24,
-            FilledButton(onPressed: onDone, child: Text(t.putaway.outcomeDone)),
+            if (outcome == PutawayOutcome.rejected && onFix != null) ...[
+              FilledButton(onPressed: onFix, child: Text(t.putaway.outcomeFix)),
+              AppBoxes.kHeight12,
+              OutlinedButton(
+                onPressed: onDone,
+                child: Text(t.putaway.outcomeDone),
+              ),
+            ] else
+              FilledButton(
+                onPressed: onDone,
+                child: Text(t.putaway.outcomeDone),
+              ),
           ],
         ),
       ),

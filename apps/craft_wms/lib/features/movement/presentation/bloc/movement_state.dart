@@ -110,6 +110,12 @@ abstract class MovementState with _$MovementState {
     @Default(false) bool busy,
     MoveOutcome? outcome,
     String? rejectReason,
+
+    /// Операция отклонённого сеанса — по ней «Исправить» вернёт сеанс в черновик (ADHOC-41).
+    String? rejectedOperationId,
+
+    /// Сеанс вернулся из отказа: причина отказа сервера видна, пока сеанс не завершён снова.
+    String? fixReason,
     MoveNotice? notice,
   }) = _MovementState;
 
