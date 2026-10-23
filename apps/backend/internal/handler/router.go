@@ -45,6 +45,8 @@ type Services struct {
 	Contents          *service.ContentsService
 	// Problem — «Проблемы склада» в портале: список и решение офиса (P6-07-3).
 	Problem *service.ProblemService
+	// CZ — чтение Честного знака (CZ-02); БД не нужна, без подписанта отвечает «не настроен».
+	CZ *service.CZService
 }
 
 // NewRouter собирает HTTP-роутер сервиса: общие middleware + маршруты.
@@ -137,6 +139,18 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 			r.Use(appmw.RequireRole(model.RoleAdmin))
 			r.Post("/admin/monitoring/test", MonitoringTest)
 		})
+
+		// Честный знак (CZ-02) — только admin: проверка подписанта и токена, чтение марок
+		// по кодам. Каждый вызов info — запрос в True API от имени организации.
+		if svc.CZ != nil {
+			czH := NewCZHandler(svc.CZ)
+			r.Group(func(r chi.Router) {
+				r.Use(appmw.Authenticator(tokens))
+				r.Use(appmw.RequireRole(model.RoleAdmin))
+				r.Get("/admin/cz/status", czH.Status)
+				r.Post("/admin/cz/info", czH.Info)
+			})
+		}
 
 		// Чтение справочников (товары/группы/поставщики/ячейки/остатки) — любому аутентифицированному
 		// сотруднику (это кормит экраны ТСД, не только админку). Только GET, без изменений данных.

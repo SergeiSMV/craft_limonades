@@ -74,7 +74,8 @@ jobs:
         run: |
           status=0
           # awk '{print $2}': ExecStart=/bin/bash __REPO_ROOT__/deploy/x.sh --check —
-          # второй токен это путь, аргументы после него отбрасываем.
+          # второй токен это путь, аргументы после него отбрасываем. Проверяются только пути
+          # в репозитории: у подписанта ЧЗ (CZ-02) ExecStart — бинарь вне клона, по плейсхолдеру.
           while read -r script; do
             path="${script#__REPO_ROOT__/}"
             if [ -f "$path" ]; then
@@ -83,7 +84,7 @@ jobs:
               echo "✗ ExecStart ссылается на несуществующий $path"
               status=1
             fi
-          done < <(grep -h '^ExecStart=' deploy/systemd/*.service | awk '{print $2}')
+          done < <(grep -h '^ExecStart=' deploy/systemd/*.service | awk '{print $2}' | grep '^__REPO_ROOT__/')
           exit $status
 
       # Юниты должны быть разбираемыми systemd: обязательные секции и ключи на месте.
