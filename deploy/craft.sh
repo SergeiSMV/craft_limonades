@@ -574,7 +574,8 @@ act_show_config() {
   printf '%s— %s (значения секретов скрыты) —%s\n' "$C_HEAD" "$ENV_FILE" "$C_OFF"
   # Маскируем всё, что похоже на секрет: показать конфиг на общем экране — обычное дело,
   # а пароль БД и BACKUP_PASSPHRASE при этом светить незачем.
-  sed -E 's/^([A-Z_]*(PASSWORD|SECRET|TOKEN|PASSPHRASE)[A-Z_]*)=.+$/\1=********/' "$ENV_FILE" \
+  # BUGSINK_ADMIN — «почта:пароль», SENTRY_DSN — ключ приёма ошибок (ADHOC-43).
+  sed -E 's/^([A-Z_]*(PASSWORD|SECRET|TOKEN|PASSPHRASE|DSN)[A-Z_]*|BUGSINK_ADMIN)=.+$/\1=********/' "$ENV_FILE" \
     | sed 's/^/  /'
 }
 
@@ -630,6 +631,10 @@ show_menu() {
   item 14 "Показать настройки" "секреты скрыты"
   item 15 "Редактировать настройки"
 
+  section "Мониторинг"
+  item 16 "Настроить мониторинг" "Bugsink, письма, таймеры — пошагово"
+  item 17 "Проверить мониторинг" "проверочная ошибка → Bugsink → письмо"
+
   printf '\n'
   item 0 "Выйти"
   rule
@@ -661,6 +666,8 @@ main() {
       13) act_restore;        pause ;;
       14) act_show_config;    pause ;;
       15) act_edit_config ;;
+      16) need_root "$DEPLOY_DIR/monitoring-setup.sh"; pause ;;
+      17) need_root "$DEPLOY_DIR/monitoring-setup.sh" --test; pause ;;
       0|q|Q) printf 'Пока.\n'; exit 0 ;;
       "") ;;
       *)  printf '  %sНет такого пункта: %s%s\n' "$C_BAD" "$choice" "$C_OFF"; pause ;;
