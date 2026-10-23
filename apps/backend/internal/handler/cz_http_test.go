@@ -64,7 +64,7 @@ func czCall(router http.Handler, token, method, path, body string) *httptest.Res
 }
 
 func TestCZ_adminOnly(t *testing.T) {
-	router, _, worker := czRouter(t, service.NewCZService(nil))
+	router, _, worker := czRouter(t, service.NewCZService(nil, nil))
 	if rec := czCall(router, worker, http.MethodGet, "/api/v1/admin/cz/status", ""); rec.Code != http.StatusForbidden {
 		t.Errorf("кладовщик, status: %d, ожидался 403", rec.Code)
 	}
@@ -80,11 +80,11 @@ func TestCZStatus(t *testing.T) {
 		svc  *service.CZService
 		want string
 	}{
-		{"not configured", service.NewCZService(nil),
+		{"not configured", service.NewCZService(nil, nil),
 			`{"configured":false,"signer_ok":false,"token_valid":false}`},
-		{"ready", service.NewCZService(czClientStub{expiry: exp}),
+		{"ready", service.NewCZService(czClientStub{expiry: exp}, nil),
 			`{"configured":true,"signer_ok":true,"token_valid":true,"token_expires_at":"2026-10-23T19:00:00Z"}`},
-		{"signer down", service.NewCZService(czClientStub{signerErr: model.ErrCZSignerUnavailable}),
+		{"signer down", service.NewCZService(czClientStub{signerErr: model.ErrCZSignerUnavailable}, nil),
 			`{"configured":true,"signer_ok":false,"signer_error":"chestny znak signer unavailable","token_valid":false}`},
 	}
 	for _, tc := range cases {
@@ -99,7 +99,7 @@ func TestCZStatus(t *testing.T) {
 }
 
 func TestCZInfo(t *testing.T) {
-	router, admin, _ := czRouter(t, service.NewCZService(czClientStub{}))
+	router, admin, _ := czRouter(t, service.NewCZService(czClientStub{}, nil))
 	rec := czCall(router, admin, http.MethodPost, "/api/v1/admin/cz/info", `{"codes":["0104600000000017215abc\u001d93tail"]}`)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("got %d %s", rec.Code, rec.Body)
@@ -125,14 +125,14 @@ func TestCZInfoErrors(t *testing.T) {
 		code int
 		msg  string
 	}{
-		{"bad json", service.NewCZService(czClientStub{}), `codes`, 400, "ожидается"},
-		{"no codes", service.NewCZService(czClientStub{}), `{"codes":[" "]}`, 400, "ни одного кода"},
-		{"not configured", service.NewCZService(nil), `{"codes":["x"]}`, 503, "не настроен"},
-		{"signer down", service.NewCZService(czClientStub{infoErr: model.ErrCZSignerUnavailable}), `{"codes":["x"]}`, 503, "подписант"},
-		{"sign-in rejected", service.NewCZService(czClientStub{infoErr: fmt.Errorf("%w: МЧД отозвана", model.ErrCZAuthFailed)}), `{"codes":["x"]}`, 502, "МЧД отозвана"},
-		{"api down", service.NewCZService(czClientStub{infoErr: model.ErrCZUnavailable}), `{"codes":["x"]}`, 502, "True API"},
-		{"no contract", service.NewCZService(czClientStub{infoErr: fmt.Errorf("%w: water", model.ErrCZNoContract)}), `{"codes":["x"]}`, 422, "договора"},
-		{"not found", service.NewCZService(czClientStub{infoErr: model.ErrCZNotFound}), `{"codes":["x"]}`, 404, "не найден"},
+		{"bad json", service.NewCZService(czClientStub{}, nil), `codes`, 400, "ожидается"},
+		{"no codes", service.NewCZService(czClientStub{}, nil), `{"codes":[" "]}`, 400, "ни одного кода"},
+		{"not configured", service.NewCZService(nil, nil), `{"codes":["x"]}`, 503, "не настроен"},
+		{"signer down", service.NewCZService(czClientStub{infoErr: model.ErrCZSignerUnavailable}, nil), `{"codes":["x"]}`, 503, "подписант"},
+		{"sign-in rejected", service.NewCZService(czClientStub{infoErr: fmt.Errorf("%w: МЧД отозвана", model.ErrCZAuthFailed)}, nil), `{"codes":["x"]}`, 502, "МЧД отозвана"},
+		{"api down", service.NewCZService(czClientStub{infoErr: model.ErrCZUnavailable}, nil), `{"codes":["x"]}`, 502, "True API"},
+		{"no contract", service.NewCZService(czClientStub{infoErr: fmt.Errorf("%w: water", model.ErrCZNoContract)}, nil), `{"codes":["x"]}`, 422, "договора"},
+		{"not found", service.NewCZService(czClientStub{infoErr: model.ErrCZNotFound}, nil), `{"codes":["x"]}`, 404, "не найден"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

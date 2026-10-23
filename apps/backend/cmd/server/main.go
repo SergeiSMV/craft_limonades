@@ -142,6 +142,11 @@ func main() {
 	// Честный знак (CZ-02): БД не нужна, только подписант на хосте. Без CZ_SIGNER_SOCKET
 	// клиента нет, и ручки ЧЗ отвечают «не настроен» — локальный стек и стенд как раньше.
 	var czClient *trueapi.Client
+	// Хранилище марок (CZ-03) — только с БД; явный nil интерфейса, если пула нет.
+	var czMarks service.CZMarks
+	if pool != nil {
+		czMarks = repository.NewCZMarkRepository(pool)
+	}
 	if cfg.CZSignerSocket != "" {
 		czClient = trueapi.New(trueapi.Options{
 			BaseURL:       cfg.CZAPIURL,
@@ -149,11 +154,11 @@ func main() {
 			RefreshBefore: cfg.CZRefreshBefore,
 			Log:           log,
 		})
-		svc.CZ = service.NewCZService(czClient)
+		svc.CZ = service.NewCZService(czClient, czMarks)
 		log.Info("chestny znak enabled", "api", cfg.CZAPIURL, "signer", cfg.CZSignerSocket)
 	} else {
 		// Явный nil интерфейса: *trueapi.Client(nil) внутри интерфейса не был бы nil.
-		svc.CZ = service.NewCZService(nil)
+		svc.CZ = service.NewCZService(nil, nil)
 	}
 
 	// 5. HTTP-сервер с собранным роутером транспортного слоя.

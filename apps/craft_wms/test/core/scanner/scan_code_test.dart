@@ -1,4 +1,5 @@
 import 'package:craft_wms/core/scanner/scan_code.dart';
+import 'package:craft_wms/core/scanner/cz_code.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Классификация скана: по ней экраны понимают, товар им отсканировали, ячейку или ГЕ.
@@ -51,12 +52,15 @@ void main() {
       expect(classifyScan('CWLU2:$id'), isNot(ScanKind.cargoUnit));
     });
 
-    test('DataMatrix («Честный знак») за грузовую единицу не принимаем', () {
-      // Код маркировки: GTIN + серийный, есть буквы — по форме ни на что не похож, и это
-      // правильный исход. Существенно, что он НЕ уходит в грузовую единицу.
-      expect(classifyScan('0104607044660205215Ab7'), ScanKind.unknown);
-      expect(classifyScan('01046070446602052'), isNot(ScanKind.cargoUnit));
-    });
+    test(
+      'DataMatrix («Честный знак») — марка, а не грузовая единица и не товар',
+      () {
+        // CZ-04: КИ = `01` + GTIN (14 цифр) + `21` + серийный. Раньше уходил в «не распознан».
+        expect(classifyScan('0104607044660205215Ab7'), ScanKind.czMark);
+        // Без `21` после GTIN — не марка: обычные сплошные цифры остаются товаром.
+        expect(classifyScan('01046070446602052'), ScanKind.good);
+      },
+    );
 
     test('короткие цифры и произвольный текст — не распознаны', () {
       expect(classifyScan('1234567'), ScanKind.unknown);
@@ -106,6 +110,44 @@ void main() {
       expect(aimScheme(']C0'), 'C');
       expect(aimScheme('Q0'), isNull);
       expect(aimScheme(null), isNull);
+    });
+  });
+
+  // CZ-04: коды «Честного знака» — по образцу живого короба пива, прочитанного на проде.
+  group('коды «Честного знака»', () {
+    const mark = '0104612728200172215AmxPmd';
+    const box = '00146801691100407293';
+    const gs = '\u001d';
+
+    test('марка со сканера: префикс AIM, FNC1, криптохвост после GS', () {
+      const raw = ']d2${gs}0104612728200172215AmxPmd${gs}93dGVz';
+      expect(classifyScan(raw), ScanKind.czMark);
+      expect(czMarkFrom(raw), mark);
+    });
+
+    test('марка без букв в серийном — всё равно марка, а не ШК товара', () {
+      expect(classifyScan('0104612728200172211234567'), ScanKind.czMark);
+    });
+
+    test('код короба `00`+SSCC — короб ЧЗ, а не ШК товара', () {
+      // 20 сплошных цифр: без отдельного вида ТСД предлагал привязать его к товару.
+      expect(classifyScan(box), ScanKind.czBox);
+      expect(classifyScan(']C1$box'), ScanKind.czBox);
+      expect(czBoxFrom(']C1$box'), box);
+      expect(czMarkFrom(box), isNull);
+    });
+
+    test('не коды ЧЗ', () {
+      expect(czMarkFrom('4612728200172'), isNull); // EAN-13
+      expect(czBoxFrom('0014680169110040729'), isNull); // 19 цифр
+      expect(czBoxFrom('10146801691100407293'), isNull); // не `00`
+      expect(classifyScan('4612728200172'), ScanKind.good);
+      expect(classifyScan('M1-1-10-1'), ScanKind.cell);
+    });
+
+    test('ScanCode отдаёт вид по тому же разбору', () {
+      const code = ScanCode(raw: '0104612728200172215AmxPmd', aim: ']d2');
+      expect(code.kind, ScanKind.czMark);
     });
   });
 }

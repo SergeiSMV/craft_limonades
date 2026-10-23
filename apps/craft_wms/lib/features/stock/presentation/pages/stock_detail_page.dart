@@ -7,6 +7,7 @@ import '../../../../core/di/injection.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/widgets/page_header.dart';
 import '../../../../core/widgets/system_ui_wrapper.dart';
+import '../../../cz/domain/cz_scan.dart';
 import '../../data/catalog_models.dart';
 import '../bloc/stock_detail_cubit.dart';
 import '../widgets/stock_detail/stock_detail_body.dart';
@@ -16,9 +17,13 @@ import '../widgets/stock_detail/stock_detail_body.dart';
 /// Всё показывается «россыпью» — разбивка по грузовым единицам (ГЕ) появится в P4/P5.
 @RoutePage()
 class StockDetailPage extends StatelessWidget {
-  const StockDetailPage({super.key, required this.good});
+  const StockDetailPage({super.key, required this.good, this.czMark});
 
   final Good good;
+
+  /// Ответ на скан марки «Честного знака», если карточка открыта сканом марки (CZ-04): тогда
+  /// под шапкой товара — блок марки. `null` — обычная карточка.
+  final CzScanResult? czMark;
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +42,7 @@ class StockDetailPage extends StatelessWidget {
               goBack: () => Navigator.of(context).pop(),
             ),
           ),
-          body: StockDetailBody(good: good),
+          body: StockDetailBody(good: good, czMark: czMark),
         ),
       ),
     );

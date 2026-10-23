@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../../../../core/constants/app_boxes.dart';
 import '../../../../../core/constants/app_insets.dart';
+import '../../../../cz/domain/cz_scan.dart';
+import '../../../../cz/presentation/widgets/cz_mark_section.dart';
 import '../../../data/catalog_models.dart';
 import 'barcodes_section.dart';
 import 'good_info_card.dart';
@@ -15,10 +17,13 @@ import 'total_bar.dart';
 /// знает незанятый остаток вьюпорта, поэтому индикатор загрузки и блок ошибки могут
 /// центрироваться в нём (см. [PlacesSliver]).
 class StockDetailBody extends StatelessWidget {
-  const StockDetailBody({super.key, required this.good});
+  const StockDetailBody({super.key, required this.good, this.czMark});
 
   /// Товар, чьи остатки открыты.
   final Good good;
+
+  /// Скан марки «Честного знака», которым открыта карточка (CZ-04); `null` — обычная карточка.
+  final CzScanResult? czMark;
 
   @override
   Widget build(BuildContext context) {
@@ -32,6 +37,14 @@ class StockDetailBody extends StatelessWidget {
                 padding: AppInsets.h8,
                 sliver: SliverToBoxAdapter(child: GoodInfoCard(good: good)),
               ),
+              // Марка — сразу под шапкой: ради неё карточку и открыли.
+              if (czMark != null)
+                SliverPadding(
+                  padding: AppInsets.h8,
+                  sliver: SliverToBoxAdapter(
+                    child: CzMarkSection(scan: czMark!),
+                  ),
+                ),
               const SliverToBoxAdapter(child: AppBoxes.kHeight8),
               SliverPadding(
                 padding: AppInsets.h8,

@@ -5,6 +5,8 @@ import 'package:injectable/injectable.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/contents/presentation/pages/cell_contents_page.dart';
 import '../../features/contents/presentation/pages/load_unit_page.dart';
+import '../../features/cz/domain/cz_scan.dart'; // CzScanResult — аргумент StockDetailRoute и CzCompositionRoute
+import '../../features/cz/presentation/pages/cz_composition_page.dart';
 import '../../features/debug/presentation/pages/debug_log_page.dart';
 import '../../features/debug/presentation/pages/printer_probe_page.dart';
 import '../../features/debug/presentation/pages/scanner_probe_page.dart';
@@ -76,6 +78,8 @@ class AppRouter extends RootStackRouter {
     // Содержимое ячейки и короба по скану (P5-05).
     AutoRoute(page: CellContentsRoute.page, guards: [_authGuard]),
     AutoRoute(page: LoadUnitRoute.page, guards: [_authGuard]),
+    // Состав упаковки «Честного знака» по скану (CZ-04).
+    AutoRoute(page: CzCompositionRoute.page, guards: [_authGuard]),
     AutoRoute(page: DebugLogRoute.page),
     // Диагностика сканера — служебный экран наладки (P2-01).
     AutoRoute(page: ScannerProbeRoute.page),
