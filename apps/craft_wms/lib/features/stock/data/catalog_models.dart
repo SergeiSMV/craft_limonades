@@ -19,6 +19,10 @@ abstract class Good with _$Good {
     @JsonKey(name: 'supplier_id') String? supplierId,
     @JsonKey(name: 'supplier_name') String? supplierName,
     @JsonKey(name: 'is_active') @Default(true) bool isActive,
+
+    /// Маркируемый товар (CZ-05): на приёмке и отгрузке — скан марки ЧЗ, а не ШК. Ставится
+    /// сам по факту (ШК из марки, принятая марка), правит admin.
+    @JsonKey(name: 'cz_marked') @Default(false) bool czMarked,
   }) = _Good;
 
   factory Good.fromJson(Map<String, dynamic> json) => _$GoodFromJson(json);

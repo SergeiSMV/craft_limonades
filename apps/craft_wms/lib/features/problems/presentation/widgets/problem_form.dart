@@ -68,7 +68,7 @@ class ProblemForm extends StatelessWidget {
         Text(t.problems.reason, style: label),
         AppBoxes.kHeight8,
         _choices([
-          for (final r in ProblemReason.values)
+          for (final r in ProblemReason.values.where((r) => r.selectable))
             NeumorphicChoice(
               label: reasonLabel(r),
               selected: state.reason == r,

@@ -51,6 +51,9 @@ type ReceiptLineInput struct {
 	CellID         string
 	LoadUnitID     string // пусто — россыпь
 	Qty            decimal.Decimal
+	// Marks — марки ЧЗ строки (CZ-05): единицы, принятые сканом марки или в составе короба ЧЗ.
+	// Число марок не больше количества строки; пусто — строка без марок, как раньше.
+	Marks []ReceiptMark
 }
 
 // SupplierDoc — документ поставщика, по которому пришёл товар (ADHOC-23): номер и дата

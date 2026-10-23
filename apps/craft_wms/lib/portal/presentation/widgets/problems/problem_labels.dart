@@ -9,6 +9,7 @@ String reasonLabel(String reason) => switch (reason) {
   'spoilage' => t.portal.problems.reasonSpoilage,
   'expired' => t.portal.problems.reasonExpired,
   'foreign_mark' => t.portal.problems.reasonForeignMark,
+  'retired' => t.portal.problems.reasonRetired,
   'other' => t.portal.problems.reasonOther,
   _ => reason,
 };

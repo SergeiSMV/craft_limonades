@@ -20,6 +20,7 @@ type czReader interface {
 	Status(ctx context.Context) model.CZStatus
 	CisesInfo(ctx context.Context, codes []string) ([]model.CisInfo, error)
 	Scan(ctx context.Context, code string) (model.CZScan, error)
+	SetGoodCZMarked(ctx context.Context, goodID string, marked bool) error
 }
 
 // CZHandler — Честный знак: проверка подписанта и чтение марок администратором (CZ-02),
@@ -107,6 +108,8 @@ func czErrorResponse(err error) (int, string) {
 		return http.StatusBadRequest, "не передано ни одного кода"
 	case errors.Is(err, service.ErrCZTooManyCodes):
 		return http.StatusBadRequest, "слишком много кодов за раз: " + err.Error()
+	case errors.Is(err, model.ErrCZGoodNotFound):
+		return http.StatusNotFound, "товар не найден"
 	case errors.Is(err, model.ErrCZNotConfigured):
 		return http.StatusServiceUnavailable, "Честный знак на этом сервере не настроен"
 	case errors.Is(err, model.ErrCZSignerUnavailable):

@@ -51,9 +51,11 @@ var (
 )
 
 // LoadUnitInput — грузовая единица, собранная на приёмке: идентификатор из QR ярлыка и вид.
+// CZCode — короб ЧЗ (`00`+SSCC), которым является ГЕ (CZ-05): id ей выдало устройство, ярлыка нет.
 type LoadUnitInput struct {
-	ID   string
-	Kind string
+	ID     string
+	Kind   string
+	CZCode string
 }
 
 // ReceiptSubmitInput — приёмка, собранная устройством целиком.
@@ -67,6 +69,7 @@ type ReceiptSubmitInput struct {
 	Doc         model.SupplierDoc // накладная поставщика (ADHOC-23)
 	LoadUnits   []LoadUnitInput
 	Lines       []model.ReceiptLineInput
+	CZGroups    []model.CZAggregate // групповые упаковки ЧЗ приёмки (CZ-05)
 }
 
 // OperationsRepository — применение операций очереди устройства под ключом идемпотентности.
@@ -92,7 +95,14 @@ func NewOperationsRepository(pool *pgxpool.Pool) *OperationsRepository {
 // BindBarcode применяет привязку ШК под ключом идемпотентности.
 func (r *OperationsRepository) BindBarcode(ctx context.Context, operationID string, in BarcodeBindInput) (Applied, error) {
 	return r.inTx(ctx, operationID, KindBindBarcode, func(q Querier) (json.RawMessage, error) {
-		return nil, bindBarcode(ctx, q, in.GoodID, in.Barcode, in.Symbology)
+		if err := bindBarcode(ctx, q, in.GoodID, in.Barcode, in.Symbology); err != nil {
+			return nil, err
+		}
+		// ШК из марки ЧЗ — товар маркируемый (CZ-05): в той же транзакции, что и привязка.
+		if in.FromCZMark {
+			return nil, markGoodsCZ(ctx, q, []string{in.GoodID})
+		}
+		return nil, nil
 	})
 }
 
@@ -178,7 +188,8 @@ func (r *OperationsRepository) ReceiptSubmit(ctx context.Context, operationID st
 		// Дефолтную ячейку ищем один раз и только если она нужна: документ, где кладовщик
 		// указал ячейку каждой строке, не должен зависеть от её наличия.
 		var defaultCell string
-		for _, ln := range in.Lines {
+		cells := make([]string, len(in.Lines)) // ячейка каждой строки после подстановки — для марок
+		for i, ln := range in.Lines {
 			if ln.CellID == "" {
 				if defaultCell == "" {
 					id, err := defaultCellID(ctx, q, in.WarehouseID)
@@ -192,12 +203,18 @@ func (r *OperationsRepository) ReceiptSubmit(ctx context.Context, operationID st
 				}
 				ln.CellID = defaultCell
 			}
+			cells[i] = ln.CellID
 			if err := insertReceiptLine(ctx, q, in.ReceiptID, ln); err != nil {
 				return nil, err
 			}
 		}
 		posted, err := postReceipt(ctx, q, in.ReceiptID)
 		if err != nil {
+			return nil, err
+		}
+		// Марки ЧЗ — после проводки (CZ-05): месту марки нужен размещённый короб, а проблеме
+		// с расхождением — остаток, который она переводит в «Изолятор».
+		if err := receiveCZ(ctx, q, in, cells); err != nil {
 			return nil, err
 		}
 		return jsonResult(map[string]any{"receipt_id": in.ReceiptID, "posted": posted})

@@ -130,12 +130,20 @@ class CatalogRepository {
   /// Порядок: операция в очередь → локальное следствие с пометкой «ожидает» → попытка
   /// отправить прямо сейчас. Кладовщик видит результат немедленно, даже без связи, а пометка
   /// не даёт принять неподтверждённую привязку за факт справочника (P2-06).
+  ///
+  /// [fromCzMark] — ШК взят из марки ЧЗ (CZ-05): сервер заодно помечает товар маркируемым,
+  /// кэш — сразу, следствием операции.
   Future<Either<Failure, void>> bindBarcode({
     required String goodId,
     required String barcode,
+    bool fromCzMark = false,
   }) => _enqueueAndSend(
     kind: OutboxKind.bindBarcode,
-    payload: {'good_id': goodId, 'barcode': barcode},
+    payload: {
+      'good_id': goodId,
+      'barcode': barcode,
+      if (fromCzMark) 'from_cz_mark': true,
+    },
   );
 
   /// Выдать товару внутренний штрихкод (P4-07) — **только по сети**.

@@ -1,6 +1,9 @@
+import 'package:craft_wms/core/di/injection.dart';
 import 'package:craft_wms/core/error/failure.dart';
 import 'package:craft_wms/core/gen/strings.g.dart';
 import 'package:craft_wms/features/contents/domain/stock_entities.dart';
+import 'package:craft_wms/features/cz/domain/cz_good_repository.dart';
+import 'package:craft_wms/features/cz/presentation/bloc/cz_marked_cubit.dart';
 import 'package:craft_wms/features/stock/data/catalog_models.dart';
 import 'package:craft_wms/features/stock/data/catalog_repository.dart';
 import 'package:craft_wms/features/stock/presentation/bloc/stock_detail_cubit.dart';
@@ -17,6 +20,8 @@ import '../../support/fake_scanner_service.dart';
 
 class _MockRepo extends Mock implements CatalogRepository {}
 
+class _MockCzGoods extends Mock implements CzGoodRepository {}
+
 /// Привязка ШК из карточки товара (P-FS-17): кнопка вместо пустой секции, диалог со сканом,
 /// обновление карточки после привязки и конфликт 409.
 void main() {
@@ -25,7 +30,12 @@ void main() {
   // Диалог привязки подписан на поток сканера (ADHOC-07), поэтому без зарегистрированного
   // ScannerService он не собирается вовсе.
   late FakeScannerService scanner;
-  setUp(() => scanner = registerFakeScanner());
+  setUp(() {
+    scanner = registerFakeScanner();
+    // Карточка показывает признак «маркируемый» (CZ-05) — его cubit берётся из getIt.
+    if (getIt.isRegistered<CzMarkedCubit>()) getIt.unregister<CzMarkedCubit>();
+    getIt.registerFactory<CzMarkedCubit>(() => CzMarkedCubit(_MockCzGoods()));
+  });
   tearDown(() => scanner.dispose());
 
   /// ШК, который «занят» другим товаром — на него мок отдаёт 409.

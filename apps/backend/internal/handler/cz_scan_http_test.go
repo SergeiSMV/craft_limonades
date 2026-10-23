@@ -71,6 +71,12 @@ func (scanCZMarks) MarkByCIS(_ context.Context, cis string) (model.CZMark, error
 		AggregateCode: scanBox, CellAddress: "M1-1-10-1", ReceivedAt: time.Date(2026, 10, 23, 12, 0, 0, 0, time.FixedZone("MSK", 3*3600))}, nil
 }
 func (scanCZMarks) LoadUnitByCZCode(context.Context, string) (string, error) { return scanLU, nil }
+func (scanCZMarks) SetGoodCZMarked(_ context.Context, id string, _ bool) error {
+	if id != scanGood {
+		return model.ErrCZGoodNotFound
+	}
+	return nil
+}
 
 func scanBody(code string) string {
 	b, _ := json.Marshal(map[string]string{"code": code})
@@ -134,5 +140,38 @@ func TestCZScan_errors(t *testing.T) {
 				t.Fatalf("got %d %s, want %d with %q", rec.Code, rec.Body, tc.code, tc.msg)
 			}
 		})
+	}
+}
+
+// CZ-05: признак «маркируемый» правит только admin.
+func TestCZSetGoodMarked(t *testing.T) {
+	router, admin, worker := czRouter(t, service.NewCZService(nil, scanCZMarks{}))
+	path := "/api/v1/goods/" + scanGood + "/cz-marked"
+	cases := []struct {
+		name, token, path, body string
+		code                    int
+	}{
+		{"admin ставит", admin, path, `{"cz_marked":true}`, 200},
+		{"кладовщику нельзя", worker, path, `{"cz_marked":true}`, 403},
+		{"нет товара", admin, "/api/v1/goods/00000000-0000-4000-8000-000000000999/cz-marked", `{"cz_marked":false}`, 404},
+		{"нет значения", admin, path, `{}`, 400},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			rec := czCall(router, tc.token, http.MethodPatch, tc.path, tc.body)
+			if rec.Code != tc.code {
+				t.Fatalf("got %d %s, want %d", rec.Code, rec.Body, tc.code)
+			}
+		})
+	}
+}
+
+// Расхождение уходит клиенту полем discrepancy; без расхождения поля нет (эталоны выше).
+func TestCZScan_discrepancy(t *testing.T) {
+	svc := service.NewCZService(scanCZClient{}, scanCZMarks{}).WithOwnerINN("7700000000")
+	router, _, worker := czRouter(t, svc)
+	rec := czCall(router, worker, http.MethodPost, "/api/v1/cz/scan", scanBody(scanMark))
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"discrepancy":"foreign_mark"`) {
+		t.Fatalf("got %d %s", rec.Code, rec.Body)
 	}
 }

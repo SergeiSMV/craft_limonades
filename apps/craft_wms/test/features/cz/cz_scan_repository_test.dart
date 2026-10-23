@@ -57,6 +57,13 @@ void main() {
       expect(r.loadUnitId, '22222222-0000-4000-8000-000000000001');
       expect(r.units, 2);
       expect(r.unreadable, ['0104612728200172215broken']);
+      // Упаковка каждой единицы — для aggregate_code марок на приёмке (CZ-05).
+      expect(r.groups, isEmpty);
+      expect(r.parents, {
+        '0104612728200172215:Tf(gc': '00146801691100407293',
+        '0104612728200172215AmxPmd': '00146801691100407293',
+      });
+      expect(r.discrepancy, isNull);
       final line = r.composition.single;
       expect(line.count, 2);
       expect(line.producedDate, DateTime(2026, 10, 12));

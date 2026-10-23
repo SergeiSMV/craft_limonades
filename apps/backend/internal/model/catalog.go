@@ -18,6 +18,8 @@ type Good struct {
 	SupplierID   *string `json:"supplier_id"`
 	SupplierName *string `json:"supplier_name"`
 	IsActive     bool    `json:"is_active"`
+	// CZMarked — товар маркируемый (CZ-05): на приёмке и отгрузке требует скан марки ЧЗ, а не ШК.
+	CZMarked bool `json:"cz_marked"`
 }
 
 // Barcode — привязка ШК к товару для выдачи клиенту (секция «Штрихкоды» в карточке товара, P-FS-12).

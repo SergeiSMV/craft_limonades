@@ -144,4 +144,7 @@ abstract final class ApiConst {
   ///**POST** - скан марки «Честного знака» или кода короба: данные ЧЗ, товар, место в WMS,
   /// состав (CZ-04): `cz/scan`. Код — в теле: в КИ бывают `/`, `%`, `"`.
   static const String czScan = 'cz/scan';
+
+  ///**PATCH** - признак «маркируемый» у товара, только admin (CZ-05): `goods/{id}/cz-marked`.
+  static String goodCzMarked(String id) => 'goods/$id/cz-marked';
 }
