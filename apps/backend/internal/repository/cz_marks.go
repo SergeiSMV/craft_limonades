@@ -223,6 +223,34 @@ func scanCZAggregate(row pgx.Row) (model.CZAggregate, error) {
 	return a, nil
 }
 
+// SetGoodCZMarked — признак «маркируемый» у товара (CZ-05, правка admin).
+// ErrCZGoodNotFound — товара нет (или id не UUID: такого товара тоже нет).
+func (r *CZMarkRepository) SetGoodCZMarked(ctx context.Context, goodID string, marked bool) error {
+	tag, err := r.pool.Exec(ctx, `
+		UPDATE goods SET cz_marked = $2 WHERE id::text = $1`, goodID, marked)
+	if err != nil {
+		return fmt.Errorf("признак маркируемого товара: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("%w: %s", model.ErrCZGoodNotFound, goodID)
+	}
+	return nil
+}
+
+// markGoodsCZ ставит признак «маркируемый» товарам, у которых приняли марку или привязали ШК
+// из марки (CZ-05, долг 16: признак по факту). Снимает его только admin — здесь только ставим.
+func markGoodsCZ(ctx context.Context, q Querier, goodIDs []string) error {
+	if len(goodIDs) == 0 {
+		return nil
+	}
+	if _, err := q.Exec(ctx, `
+		UPDATE goods SET cz_marked = true
+		WHERE id::text = ANY($1::text[]) AND NOT cz_marked`, goodIDs); err != nil {
+		return fmt.Errorf("пометить товары маркируемыми: %w", err)
+	}
+	return nil
+}
+
 // GoodByGTIN — товар справочника по GTIN марки.
 //
 // Как: GTIN-14 единицы — это её EAN-13 с ведущим нулём (марка пива 04612728200172 ↔ ШК

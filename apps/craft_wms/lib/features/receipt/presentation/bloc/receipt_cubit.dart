@@ -11,6 +11,7 @@ import '../../../stock/data/catalog_models.dart';
 import '../../../stock/data/catalog_repository.dart';
 import '../../data/receipt_draft_store.dart';
 import '../../data/receipt_repository.dart';
+import 'receipt_cz.dart';
 import 'receipt_models.dart';
 
 part 'receipt_cubit.freezed.dart';
@@ -44,6 +45,9 @@ abstract class ReceiptState with _$ReceiptState {
     @Default(<ReceiptBox>[]) List<ReceiptBox> boxes,
     @Default(<ReceiptLineDraft>[]) List<ReceiptLineDraft> lines,
 
+    /// Групповые упаковки ЧЗ приёмки (CZ-05).
+    @Default(<ReceiptCzGroup>[]) List<ReceiptCzGroup> czGroups,
+
     /// Идёт отправка.
     @Default(false) bool busy,
 
@@ -67,6 +71,14 @@ abstract class ReceiptState with _$ReceiptState {
 
   /// Сколько строк лежит в коробе.
   int linesInBox(String boxId) => lines.where((l) => l.boxId == boxId).length;
+
+  /// Короб ЧЗ приёмки по его коду (`00`+SSCC); `null` — такого нет.
+  ReceiptBox? czBoxByCode(String code) =>
+      boxes.where((b) => b.czCode == code).firstOrNull;
+
+  /// Марка уже есть в приёмке.
+  bool hasMark(String cis) =>
+      lines.any((l) => l.marks.any((m) => m.cis == cis));
 
   /// Штучные строки — те, что в общем списке идут отдельно от коробов.
   List<ReceiptLineDraft> get looseLines =>
@@ -116,6 +128,7 @@ class ReceiptCubit extends Cubit<ReceiptState> {
     'target_cell': s.targetCell?.toJson(),
     'boxes': s.boxes.map((b) => b.toJson()).toList(),
     'lines': s.lines.map((l) => l.toJson()).toList(),
+    'cz_groups': s.czGroups.map((g) => g.toJson()).toList(),
   };
 
   /// Состояние из слепка.
@@ -139,6 +152,9 @@ class ReceiptCubit extends Cubit<ReceiptState> {
       lines: list('lines')
           .map((e) => ReceiptLineDraft.fromJson(e as Map<String, dynamic>))
           .toList(),
+      czGroups: list(
+        'cz_groups',
+      ).map((e) => ReceiptCzGroup.fromJson(e as Map<String, dynamic>)).toList(),
     );
   }
 
@@ -261,10 +277,15 @@ class ReceiptCubit extends Cubit<ReceiptState> {
   /// Напечатанный ярлык при этом остаётся на коробе, а ГЕ на сервере не появится — поэтому
   /// экран спрашивает подтверждение.
   void removeBox(String boxId) {
+    final cz = state.boxById(boxId)?.czCode;
     emit(
       state.copyWith(
         boxes: state.boxes.where((b) => b.id != boxId).toList(),
         lines: state.lines.where((l) => l.boxId != boxId).toList(),
+        // Упаковки удалённого короба ЧЗ уходят вместе с ним (CZ-05).
+        czGroups: cz == null
+            ? state.czGroups
+            : groupsOutsideBox(state.czGroups, cz),
         failure: null,
       ),
     );
@@ -292,6 +313,8 @@ class ReceiptCubit extends Cubit<ReceiptState> {
     String? boxId,
   }) async {
     final box = boxId == null ? null : state.boxById(boxId);
+    // Короб ЧЗ закрыт: состав у него из ЧЗ (CZ-05). Экран сюда не пускает — страховка.
+    if (box?.isCz ?? false) return;
     final cell = box == null ? state.targetCell : box.cell;
     final lines = List<ReceiptLineDraft>.from(state.lines);
     final idx = lines.indexWhere(
@@ -322,6 +345,88 @@ class ReceiptCubit extends Cubit<ReceiptState> {
       // покажет экран разбора. Строка от этого не зависит — товар выбран руками.
       await _catalog.bindBarcode(goodId: good.id, barcode: newBarcode);
     }
+  }
+
+  //* --- марки «Честного знака» (CZ-05) --- *//
+
+  /// Привязать ШК из марки ЧЗ к выбранному товару: сервер заодно помечает товар маркируемым.
+  /// Исход не разбираем — как у привязки при скане ШК: очередь примет операцию в любом случае.
+  Future<void> bindCzBarcode({
+    required String goodId,
+    required String barcode,
+  }) async {
+    await _catalog.bindBarcode(
+      goodId: goodId,
+      barcode: barcode,
+      fromCzMark: true,
+    );
+  }
+
+  /// Короб ЧЗ целиком: новая ГЕ в текущей ячейке со своим кодом, строки — состав по ЧЗ, по
+  /// товару и партии. Кладовщику остаётся только ячейка. Возвращает исход и, если короб лёг,
+  /// его идентификатор — по нему экран открывает страницу короба.
+  ({ReceiptCzAdd result, String? boxId}) addCzBox({
+    required String code,
+    required List<ReceiptCzLine> lines,
+    List<ReceiptCzGroup> groups = const [],
+  }) {
+    if (state.czBoxByCode(code) != null || _marksTaken(lines)) {
+      return (result: ReceiptCzAdd.duplicate, boxId: null);
+    }
+    final box = ReceiptBox(
+      id: _ids.newId(),
+      cell: state.targetCell,
+      czCode: code,
+    );
+    emit(
+      state.copyWith(
+        boxes: [...state.boxes, box],
+        lines: mergeCzMarks(state.lines, lines, box: box, cell: box.cell),
+        czGroups: [...state.czGroups, ...groups],
+        failure: null,
+      ),
+    );
+    return (result: ReceiptCzAdd.added, boxId: box.id);
+  }
+
+  /// Марки россыпью — одна марка или групповая упаковка набором своих марок: в короб [boxId]
+  /// (свой, с ярлыком) или штучно в текущую ячейку. Товар и партия — из ЧЗ, без диалога даты
+  /// и количества: каждая марка — единица.
+  ReceiptCzAdd addCzMarks({
+    required List<ReceiptCzLine> lines,
+    List<ReceiptCzGroup> groups = const [],
+    String? boxId,
+  }) {
+    final box = boxId == null ? null : state.boxById(boxId);
+    if (box?.isCz ?? false) return ReceiptCzAdd.czBoxClosed;
+    if (_marksTaken(lines) ||
+        groups.any((g) => state.czGroups.any((e) => e.code == g.code))) {
+      return ReceiptCzAdd.duplicate;
+    }
+    emit(
+      state.copyWith(
+        lines: mergeCzMarks(
+          state.lines,
+          lines,
+          box: box,
+          cell: box == null ? state.targetCell : box.cell,
+        ),
+        czGroups: [...state.czGroups, ...groups],
+        failure: null,
+      ),
+    );
+    return ReceiptCzAdd.added;
+  }
+
+  /// Есть ли среди марок уже принятые в этой приёмке (или повтор внутри самих [lines]).
+  bool _marksTaken(List<ReceiptCzLine> lines) {
+    final seen = <String>{};
+    for (final l in lines) {
+      for (final m in l.marks) {
+        if (!seen.add(m.cis) || state.hasMark(m.cis)) return true;
+      }
+    }
+    return false;
   }
 
   /// Изменить дату и количество строки (замена, не приращение). Совпала новая грань с другой
@@ -434,6 +539,9 @@ class ReceiptCubit extends Cubit<ReceiptState> {
   /// Короба едут только те, в которых есть строки: пустой короб на сервере был бы ГЕ без
   /// состава, место хранения которой ничем не подтверждено. Ячейка строки пуста — сервер
   /// подставит ячейку по умолчанию; решает он, а не терминал, чтобы умолчание жило в одном месте.
+  ///
+  /// Данные ЧЗ (CZ-05) — только когда они есть: код у короба ЧЗ, список упаковок, марки строки.
+  /// Приёмка без марок уходит в прежнем виде.
   Map<String, dynamic> _payload(ReceiptState s) {
     final usedBoxes = s.lines.map((l) => l.boxId).nonNulls.toSet();
     return {
@@ -444,8 +552,18 @@ class ReceiptCubit extends Cubit<ReceiptState> {
       'doc_date': s.doc!.transportDate,
       'load_units': [
         for (final b in s.boxes)
-          if (usedBoxes.contains(b.id)) {'id': b.id, 'kind': 'box'},
+          if (usedBoxes.contains(b.id))
+            {
+              'id': b.id,
+              'kind': 'box',
+              if (b.czCode != null) 'cz_code': b.czCode,
+            },
       ],
+      if (s.czGroups.isNotEmpty)
+        'cz_groups': [
+          for (final g in s.czGroups)
+            {'code': g.code, 'parent_code': g.parentCode ?? ''},
+        ],
       'lines': [
         for (final l in s.lines)
           {
@@ -455,6 +573,15 @@ class ReceiptCubit extends Cubit<ReceiptState> {
             'qty': l.qty,
             if (l.cell != null) 'cell_id': l.cell!.id,
             if (l.boxId != null) 'load_unit_id': l.boxId,
+            if (l.marks.isNotEmpty)
+              'marks': [
+                for (final m in l.marks)
+                  {
+                    'cis': m.cis,
+                    'aggregate_code': m.aggregateCode ?? '',
+                    'discrepancy': m.discrepancy ?? '',
+                  },
+              ],
           },
       ],
     };

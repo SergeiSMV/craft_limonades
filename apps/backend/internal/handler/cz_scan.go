@@ -22,11 +22,17 @@ type czScanResponse struct {
 	Good        *czGoodResponse `json:"good"`
 	BindBarcode string          `json:"bind_barcode,omitempty"`
 	// Mark — марка в WMS; null — не числится. LoadUnitID — принятый короб ЧЗ (ГЕ).
-	Mark        *czMarkResponse             `json:"mark"`
-	LoadUnitID  string                      `json:"load_unit_id,omitempty"`
+	Mark       *czMarkResponse `json:"mark"`
+	LoadUnitID string          `json:"load_unit_id,omitempty"`
+	// Discrepancy — расхождение с ЧЗ (CZ-05): foreign_mark / retired; нет — поля нет.
+	Discrepancy string                      `json:"discrepancy,omitempty"`
 	Composition []czCompositionLineResponse `json:"composition"`
 	Units       int                         `json:"units"`
 	Unreadable  []string                    `json:"unreadable"`
+	// Groups — групповые упаковки внутри (CZ-05), Parents — КИ единицы → её упаковка:
+	// приёмка заводит из них агрегаты и aggregate_code марок.
+	Groups  []czGroupResponse `json:"groups"`
+	Parents map[string]string `json:"parents"`
 }
 
 // czScanInfo — данные ЧЗ по коду; даты — днём (YYYY-MM-DD), время ЧЗ складу не нужно.
@@ -67,6 +73,7 @@ type czCompositionLineResponse struct {
 	ProducedDate string          `json:"produced_date"`
 	Count        int             `json:"count"`
 	CIS          []string        `json:"cis"`
+	Discrepancy  string          `json:"discrepancy,omitempty"`
 }
 
 // Scan: POST /api/v1/cz/scan {code} — скан марки или кода короба (CZ-04).
@@ -115,6 +122,7 @@ func toCZScanResponse(s model.CZScan) czScanResponse {
 		},
 		Good:        toCZGood(s.Good),
 		BindBarcode: s.BindBarcode,
+		Discrepancy: s.Discrepancy,
 		LoadUnitID:  s.LoadUnitID,
 		Composition: make([]czCompositionLineResponse, 0, len(s.Composition)),
 		Units:       s.Units,
@@ -122,6 +130,14 @@ func toCZScanResponse(s model.CZScan) czScanResponse {
 	}
 	if out.Unreadable == nil {
 		out.Unreadable = []string{}
+	}
+	out.Groups = make([]czGroupResponse, 0, len(s.Groups))
+	for _, g := range s.Groups {
+		out.Groups = append(out.Groups, czGroupResponse{Code: g.Code, ParentCode: g.ParentCode})
+	}
+	out.Parents = s.Parents
+	if out.Parents == nil {
+		out.Parents = map[string]string{}
 	}
 	if m := s.Mark; m != nil {
 		out.Mark = &czMarkResponse{
@@ -133,10 +149,16 @@ func toCZScanResponse(s model.CZScan) czScanResponse {
 	for _, ln := range s.Composition {
 		out.Composition = append(out.Composition, czCompositionLineResponse{
 			Gtin: ln.GTIN, ProductName: ln.ProductName, Good: toCZGood(ln.Good),
-			ProducedDate: ln.ProducedDate, Count: ln.Count, CIS: ln.CIS,
+			ProducedDate: ln.ProducedDate, Count: ln.Count, CIS: ln.CIS, Discrepancy: ln.Discrepancy,
 		})
 	}
 	return out
+}
+
+// czGroupResponse — групповая упаковка внутри сканированной (CZ-05).
+type czGroupResponse struct {
+	Code       string `json:"code"`
+	ParentCode string `json:"parent_code"`
 }
 
 func toCZGood(g *model.CZGoodRef) *czGoodResponse {

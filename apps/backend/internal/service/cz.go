@@ -39,6 +39,7 @@ type CZMarks interface {
 	GoodByGTIN(ctx context.Context, gtin string) (model.CZGoodRef, error)
 	MarkByCIS(ctx context.Context, cis string) (model.CZMark, error)
 	LoadUnitByCZCode(ctx context.Context, code string) (string, error)
+	SetGoodCZMarked(ctx context.Context, goodID string, marked bool) error
 }
 
 // CZService — чтение Честного знака: состояние подписанта и токена (CZ-02), данные по скану
@@ -50,12 +51,33 @@ type CZMarks interface {
 type CZService struct {
 	client czClient
 	marks  CZMarks
+	// ownerINN — ИНН нашей организации в ЧЗ: марка с другим владельцем — расхождение (CZ-05).
+	ownerINN string
 }
 
 // NewCZService — сервис поверх клиента True API и хранилища марок; client == nil — ЧЗ не
 // настроен, marks == nil — без сведений WMS.
 func NewCZService(client czClient, marks CZMarks) *CZService {
 	return &CZService{client: client, marks: marks}
+}
+
+// WithOwnerINN задаёт ИНН нашей организации для сверки владельца марки (CZ-05). Пустой ИНН —
+// владелец не сверяется: лучше пропустить проверку, чем объявить чужими все марки склада.
+func (s *CZService) WithOwnerINN(inn string) *CZService {
+	s.ownerINN = inn
+	return s
+}
+
+// SetGoodCZMarked — правка признака «маркируемый» у товара (CZ-05, только admin).
+//
+// Обычно признак ставится сам — по привязке ШК из марки и по принятой марке (долг 16); правка
+// нужна, когда товар пометили ошибочно или маркировку с него сняли. Связь с ЧЗ не нужна —
+// только хранилище.
+func (s *CZService) SetGoodCZMarked(ctx context.Context, goodID string, marked bool) error {
+	if s.marks == nil {
+		return model.ErrCZNotConfigured
+	}
+	return s.marks.SetGoodCZMarked(ctx, goodID, marked)
 }
 
 // Status — готов ли ЧЗ: подписант подписывает, токен есть и когда истекает.

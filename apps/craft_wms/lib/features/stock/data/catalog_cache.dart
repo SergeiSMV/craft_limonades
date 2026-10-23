@@ -77,6 +77,7 @@ class CatalogCache {
             supplierId: Value(g.supplierId),
             supplierName: Value(g.supplierName),
             isActive: Value(g.isActive),
+            czMarked: Value(g.czMarked),
             searchText: normalizeSearchText(
               [g.name, g.code ?? '', g.fullName ?? ''].join(' '),
             ),
@@ -144,6 +145,13 @@ class CatalogCache {
         .toList(),
   );
 
+  /// Признак «маркируемый» у товара в кэше (CZ-05): после правки admin и после привязки ШК
+  /// из марки — карточка и приёмка видят его сразу, не дожидаясь загрузки справочника.
+  Future<void> setGoodCzMarked(String goodId, bool marked) =>
+      (_db.update(_db.cachedGoods)..where((g) => g.id.equals(goodId))).write(
+        CachedGoodsCompanion(czMarked: Value(marked)),
+      );
+
   /// Точечно добавить привязку, чтобы кэш не отстал до следующей синхронизации. Полной
   /// заменой тут пользоваться нельзя: остальные привязки никуда не делись.
   ///
@@ -166,8 +174,7 @@ class CatalogCache {
 
   /// Снять пометку «ожидает» — сервер подтвердил привязку (P2-06).
   Future<void> confirmBarcode(String barcode) =>
-      (_db.update(_db.cachedBarcodes)
-            ..where((t) => t.barcode.equals(barcode)))
+      (_db.update(_db.cachedBarcodes)..where((t) => t.barcode.equals(barcode)))
           .write(const CachedBarcodesCompanion(pending: Value(false)));
 
   /// Точечно снять привязку — после успешной отвязки на сервере.
@@ -380,6 +387,7 @@ class CatalogCache {
     supplierId: r.supplierId,
     supplierName: r.supplierName,
     isActive: r.isActive,
+    czMarked: r.czMarked,
   );
 
   Cell _toCell(CachedCell r) => Cell(

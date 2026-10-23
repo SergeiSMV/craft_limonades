@@ -12,6 +12,7 @@ import 'receipt_box_tile.dart';
 import 'receipt_context_bar.dart';
 import 'receipt_label_actions.dart';
 import 'receipt_line_tile.dart';
+import 'receipt_cz_scan_actions.dart';
 import 'receipt_scan_actions.dart';
 import 'receipt_scan_field.dart';
 import 'supplier_doc_dialog.dart';
@@ -34,6 +35,7 @@ class _ReceiptWorkViewState extends State<ReceiptWorkView>
     with
         HardwareScanListener,
         ReceiptLabelActions,
+        ReceiptCzScanActions,
         ReceiptScanActions<ReceiptWorkView> {
   /// В общем списке строки ложатся штучно.
   @override

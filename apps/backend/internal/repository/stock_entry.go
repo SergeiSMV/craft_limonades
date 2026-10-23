@@ -35,6 +35,8 @@ type BarcodeBindInput struct {
 	GoodID    string
 	Barcode   string
 	Symbology string
+	// FromCZMark — ШК пришёл из марки ЧЗ: привязка помечает товар маркируемым (CZ-05).
+	FromCZMark bool
 }
 
 // StockEntryRepository — сессия ввода остатков (документ P-FS-01): создание, checkpoint ячейки,

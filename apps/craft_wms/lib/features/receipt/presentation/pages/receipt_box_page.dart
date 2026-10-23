@@ -20,6 +20,7 @@ import '../bloc/receipt_cubit.dart';
 import '../widgets/receipt_context_bar.dart';
 import '../widgets/receipt_label_actions.dart';
 import '../widgets/receipt_line_tile.dart';
+import '../widgets/receipt_cz_scan_actions.dart';
 import '../widgets/receipt_scan_actions.dart';
 import '../widgets/receipt_scan_field.dart';
 
@@ -60,6 +61,7 @@ class _ReceiptBoxViewState extends State<_ReceiptBoxView>
     with
         HardwareScanListener,
         ReceiptLabelActions,
+        ReceiptCzScanActions,
         ReceiptScanActions<_ReceiptBoxView> {
   /// Строки этой страницы ложатся в короб.
   @override
@@ -123,7 +125,9 @@ class _ReceiptBoxViewState extends State<_ReceiptBoxView>
             child: Assets.images.featuredSnacks.image(fit: BoxFit.cover),
           ),
           title: PageHeader(
-            title: t.receipt.box(code: box.shortCode),
+            title: box.isCz
+                ? t.receipt.czBox(code: box.shortCode)
+                : t.receipt.box(code: box.shortCode),
             goBack: () => context.router.maybePop(),
           ),
         ),
@@ -141,11 +145,14 @@ class _ReceiptBoxViewState extends State<_ReceiptBoxView>
                       icon: MdiIcons.cogTransfer,
                     ),
                   ),
-                  AppBoxes.kWidth8,
-                  ReceiptIconButton(
-                    onPressed: () => printBoxLabel(box.id),
-                    icon: MdiIcons.printer,
-                  ),
+                  // У короба ЧЗ своя этикетка поставщика с SSCC — ярлык не нужен (CZ-05).
+                  if (!box.isCz) ...[
+                    AppBoxes.kWidth8,
+                    ReceiptIconButton(
+                      onPressed: () => printBoxLabel(box.id),
+                      icon: MdiIcons.printer,
+                    ),
+                  ],
                   AppBoxes.kWidth8,
                   ReceiptIconButton(
                     onPressed: _deleteBox,

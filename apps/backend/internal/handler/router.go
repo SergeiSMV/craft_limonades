@@ -149,6 +149,8 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 				r.Use(appmw.RequireRole(model.RoleAdmin))
 				r.Get("/admin/cz/status", czH.Status)
 				r.Post("/admin/cz/info", czH.Info)
+				// Признак «маркируемый» у товара (CZ-05): правит только admin.
+				r.Patch("/goods/{id}/cz-marked", czH.SetGoodCZMarked)
 			})
 			// Скан марки или кода короба на ТСД (CZ-04) — сотруднику: кладовщик сканирует марку
 			// в «Остатках» и «Номенклатуре». Только онлайн: каждый скан — запрос в True API.

@@ -49,7 +49,7 @@ func (r *GoodsRepository) List(ctx context.Context, f GoodsFilter) ([]model.Good
 			JOIN group_subtree gs ON ng.parent_id = gs.id
 		)
 		SELECT g.id::text, g.code, g.name, g.full_name, g.uom,
-		       g.group_id::text, ng.name, g.supplier_id::text, s.name, g.is_active,
+		       g.group_id::text, ng.name, g.supplier_id::text, s.name, g.is_active, g.cz_marked,
 		       COUNT(*) OVER() AS total
 		FROM goods g
 		LEFT JOIN nomenclature_groups ng ON ng.id = g.group_id
@@ -74,7 +74,7 @@ func (r *GoodsRepository) List(ctx context.Context, f GoodsFilter) ([]model.Good
 	for rows.Next() {
 		var g model.Good
 		if err := rows.Scan(&g.ID, &g.Code, &g.Name, &g.FullName, &g.UOM,
-			&g.GroupID, &g.GroupName, &g.SupplierID, &g.SupplierName, &g.IsActive, &total); err != nil {
+			&g.GroupID, &g.GroupName, &g.SupplierID, &g.SupplierName, &g.IsActive, &g.CZMarked, &total); err != nil {
 			return nil, 0, fmt.Errorf("scan good: %w", err)
 		}
 		items = append(items, g)
@@ -87,13 +87,13 @@ func (r *GoodsRepository) GetByID(ctx context.Context, id string) (model.Good, e
 	var g model.Good
 	err := r.pool.QueryRow(ctx, `
 		SELECT g.id::text, g.code, g.name, g.full_name, g.uom,
-		       g.group_id::text, ng.name, g.supplier_id::text, s.name, g.is_active
+		       g.group_id::text, ng.name, g.supplier_id::text, s.name, g.is_active, g.cz_marked
 		FROM goods g
 		LEFT JOIN nomenclature_groups ng ON ng.id = g.group_id
 		LEFT JOIN suppliers s           ON s.id = g.supplier_id
 		WHERE g.id = $1::uuid`, id).
 		Scan(&g.ID, &g.Code, &g.Name, &g.FullName, &g.UOM,
-			&g.GroupID, &g.GroupName, &g.SupplierID, &g.SupplierName, &g.IsActive)
+			&g.GroupID, &g.GroupName, &g.SupplierID, &g.SupplierName, &g.IsActive, &g.CZMarked)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return model.Good{}, ErrNotFound
 	}

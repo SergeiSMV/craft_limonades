@@ -5,6 +5,8 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/google/uuid"
+
 	"craftwms/internal/model"
 	"craftwms/internal/repository"
 )
@@ -157,4 +159,50 @@ func TestCZMarks(t *testing.T) {
 			t.Fatalf("чужой GTIN: %v", err)
 		}
 	})
+}
+
+// CZ-05: признак «маркируемый» — в справочнике и поиске по ШК, правка admin, привязка ШК из
+// марки ставит его сама (долг 16, признак по факту).
+func TestCZGoodMarked(t *testing.T) {
+	fx := setupStock(t)
+	ctx := context.Background()
+	repo := repository.NewCZMarkRepository(fx.pool)
+	goods := repository.NewGoodsRepository(fx.pool)
+	marked := func() bool {
+		t.Helper()
+		g, err := goods.GetByID(ctx, fx.good)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return g.CZMarked
+	}
+
+	if marked() {
+		t.Fatal("новый товар уже маркируемый")
+	}
+	if err := repo.SetGoodCZMarked(ctx, fx.good, true); err != nil || !marked() {
+		t.Fatalf("правка: %v", err)
+	}
+	if err := repo.SetGoodCZMarked(ctx, fx.good, false); err != nil || marked() {
+		t.Fatalf("снятие: %v", err)
+	}
+	if err := repo.SetGoodCZMarked(ctx, "00000000-0000-4000-8000-000000000999", true); !errors.Is(err, model.ErrCZGoodNotFound) {
+		t.Fatalf("нет товара: %v", err)
+	}
+
+	// Обычная привязка ШК признак не ставит, привязка из марки — ставит.
+	ops := repository.NewOperationsRepository(fx.pool)
+	if _, err := ops.BindBarcode(ctx, uuid.NewString(), repository.BarcodeBindInput{
+		GoodID: fx.good, Barcode: "4600000000017"}); err != nil || marked() {
+		t.Fatalf("обычная привязка: %v, marked=%v", err, marked())
+	}
+	if _, err := ops.BindBarcode(ctx, uuid.NewString(), repository.BarcodeBindInput{
+		GoodID: fx.good, Barcode: "4612728200172", FromCZMark: true}); err != nil || !marked() {
+		t.Fatalf("привязка из марки: %v, marked=%v", err, marked())
+	}
+	// Поиск по ШК отдаёт признак: по нему приёмка просит скан марки.
+	g, err := repository.NewBarcodeRepository(fx.pool).GetGoodByBarcode(ctx, "4612728200172")
+	if err != nil || !g.CZMarked {
+		t.Fatalf("товар по ШК: %+v, %v", g, err)
+	}
 }

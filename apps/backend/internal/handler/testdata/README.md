@@ -7,6 +7,7 @@
 |-----------------------|-----------------------------------|-----------------------------------|---------------------------------------------------------|
 | `outbox_batch.json`   | привязка и отвязка ШК (P2-08)     | `operations_http_test.go`         | `test/core/wire_contract_test.dart`                     |
 | `receipt_submit.json` | приёмка: короб и россыпь (P4-11D) | `receiving_scenario_http_test.go` | `test/features/receipt/receipt_wire_contract_test.dart` |
+| `receipt_submit_cz.json` | приёмка с марками ЧЗ: короб ЧЗ с упаковкой и марки россыпью, одна с расхождением (CZ-05) | `receiving_cz_http_test.go` | `test/features/receipt/receipt_cz_wire_contract_test.dart` |
 | `putaway_submit.json` | размещение: короб и россыпь (P5-02) | `putaway_scenario_http_test.go` | `test/features/putaway/putaway_cubit_test.dart` |
 | `movement_submit.json` | движение: ГЕ целиком и товар между коробами и россыпью (P6-03); Go-тест гоняет его и пополнением (P6-05) | `movement_http_test.go` | `test/features/movement/movement_cubit_test.dart` |
 | `problem_submit.json` | проблема склада: россыпь в «Брак», короб в «Изолятор» (P6-07-1); вместо id складов — коды | `problem_http_test.go` | `test/features/problems/problem_cubit_test.dart` |
@@ -14,7 +15,7 @@
 | `contents_snapshot.json` | **ответ** `GET /contents/snapshot`: снимок для кэша ТСД (P5-05) | `contents_http_test.go` | `test/features/contents/contents_repository_test.dart` |
 | `problems_resolved.json` | **ответ** `GET /problems/resolved`: лента решённых проблем на ТСД (ADHOC-34) | `problem_http_test.go` | `test/features/problems/resolved_problems_test.dart` |
 | `cz_scan_mark.json` | **ответ** `POST /cz/scan` по марке: данные ЧЗ, товар, место в WMS (CZ-04) | `cz_scan_http_test.go` | `test/features/cz/cz_scan_repository_test.dart` |
-| `cz_scan_box.json` | **ответ** `POST /cz/scan` по коробу: ГЕ и состав по товару и партии (CZ-04) | `cz_scan_http_test.go` | `test/features/cz/cz_scan_repository_test.dart` |
+| `cz_scan_box.json` | **ответ** `POST /cz/scan` по коробу: ГЕ и состав по товару и партии (CZ-04), упаковка каждой единицы (CZ-05) | `cz_scan_http_test.go` | `test/features/cz/cz_scan_repository_test.dart` |
 
 Go-тест скармливает файл настоящему роутеру и проверяет, что операции применяются. Эталоны
 ответа (`contents_snapshot.json`, `problems_resolved.json`, `cz_scan_*.json`) работают наоборот: Go-тест требует, чтобы настоящий роутер

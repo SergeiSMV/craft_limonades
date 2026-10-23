@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"testing"
 	"time"
 
@@ -67,6 +68,7 @@ func (m *scanMarks) MarkByCIS(_ context.Context, cis string) (model.CZMark, erro
 	}
 	return model.CZMark{}, model.ErrCZMarkNotFound
 }
+func (m *scanMarks) SetGoodCZMarked(context.Context, string, bool) error { return nil }
 func (m *scanMarks) LoadUnitByCZCode(_ context.Context, code string) (string, error) {
 	if id, ok := m.boxes[code]; ok {
 		return id, nil
@@ -160,6 +162,16 @@ func TestScanBox(t *testing.T) {
 		second.ProducedDate != "2026-10-13" || second.Count != 1 {
 		t.Fatalf("состав = %+v", got.Composition)
 	}
+	// Упаковка и место каждой единицы — для агрегатов и aggregate_code приёмки (CZ-05).
+	if len(got.Groups) != 1 || got.Groups[0].Code != group || got.Groups[0].ParentCode != beerBox {
+		t.Fatalf("упаковки = %+v", got.Groups)
+	}
+	wantParents := map[string]string{
+		"0104612728200172215u1": beerBox, "0104612728200172215u2": group, "0104612728200172215u3": group,
+	}
+	if !maps.Equal(got.Parents, wantParents) {
+		t.Fatalf("упаковки единиц = %v", got.Parents)
+	}
 	// Товар по GTIN ищется один раз на GTIN, а не на каждую единицу.
 	if marks.goodCalls != 1 {
 		t.Fatalf("поиск товара по GTIN: %d раз", marks.goodCalls)
@@ -214,5 +226,56 @@ func TestScanErrors(t *testing.T) {
 	got, err := NewCZService(client, nil).Scan(context.Background(), beerMark)
 	if err != nil || got.Good != nil || got.Mark != nil || got.BindBarcode != "" {
 		t.Fatalf("без БД: %+v, %v", got, err)
+	}
+}
+
+// CZ-05: расхождение с ЧЗ на приёмке — чужой владелец или марка не в обороте.
+func TestScanDiscrepancy(t *testing.T) {
+	const ours = "6234203222"
+	mark := func(owner, status string) model.CisInfo {
+		it := unit(beerMark, beerGTIN, "Пиво", "2026-10-12")
+		it.OwnerInn, it.Status = owner, status
+		return it
+	}
+	cases := []struct {
+		name, owner, status, ownerINN, want string
+	}{
+		{"наша, в обороте", ours, "INTRODUCED", ours, ""},
+		{"чужой владелец", "7700000000", "INTRODUCED", ours, model.CZDiscrepancyForeignMark},
+		{"выбыла", ours, "RETIRED", ours, model.CZDiscrepancyRetired},
+		{"наш ИНН не задан — владелец не сверяется", "7700000000", "INTRODUCED", "", ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			client := &scanClient{infos: map[string]model.CisInfo{beerMark: mark(tc.owner, tc.status)}}
+			got, err := NewCZService(client, &scanMarks{}).WithOwnerINN(tc.ownerINN).Scan(context.Background(), beerMark)
+			if err != nil || got.Discrepancy != tc.want {
+				t.Fatalf("расхождение = %q, %v; want %q", got.Discrepancy, err, tc.want)
+			}
+		})
+	}
+}
+
+// В составе короба выбывшие единицы — отдельной строкой, а не вместе со своими той же партии.
+func TestScanBoxDiscrepancyLines(t *testing.T) {
+	ok1 := unit("0104612728200172215ok1", beerGTIN, "Пиво", "2026-10-12")
+	ok2 := unit("0104612728200172215ok2", beerGTIN, "Пиво", "2026-10-12")
+	gone := unit("0104612728200172215gone", beerGTIN, "Пиво", "2026-10-12")
+	gone.Status = "RETIRED"
+	infos := map[string]model.CisInfo{
+		beerBox: {RequestedCis: beerBox, Cis: beerBox, PackageType: "BOX", Status: "INTRODUCED",
+			Child: []string{ok1.Cis, ok2.Cis, gone.Cis}},
+		ok1.Cis: ok1, ok2.Cis: ok2, gone.Cis: gone,
+	}
+	got, err := NewCZService(&scanClient{infos: infos}, &scanMarks{}).Scan(context.Background(), beerBox)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Discrepancy != "" || len(got.Composition) != 2 {
+		t.Fatalf("скан = %+v", got)
+	}
+	if got.Composition[0].Discrepancy != "" || got.Composition[0].Count != 2 ||
+		got.Composition[1].Discrepancy != model.CZDiscrepancyRetired || got.Composition[1].Count != 1 {
+		t.Fatalf("состав = %+v", got.Composition)
 	}
 }

@@ -62,6 +62,8 @@ services:
       CZ_SIGNER_SOCKET: ${CZ_SIGNER_SOCKET:-}
       CZ_API_URL: ${CZ_API_URL:-https://markirovka.crpt.ru/api/v3/true-api}
       CZ_TOKEN_REFRESH_BEFORE: ${CZ_TOKEN_REFRESH_BEFORE:-1h}
+      # ИНН нашей организации в ЧЗ (CZ-05): марка другого владельца на приёмке — расхождение.
+      CZ_OWNER_INN: ${CZ_OWNER_INN:-}
     # Группа сокета подписанта: GID группы cz-signer хоста (пишет deploy/_lib.sh). Без
     # подписанта — nogroup (65534), не дающая ничего.
     group_add:

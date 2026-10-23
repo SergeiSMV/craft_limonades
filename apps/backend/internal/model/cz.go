@@ -74,6 +74,12 @@ var (
 	ErrCZAggregateExists = errors.New("chestny znak aggregate already exists")
 	// ErrCZUnknownGTIN — GTIN марки не найден среди ШК справочника: товар неизвестен.
 	ErrCZUnknownGTIN = errors.New("gtin not found in goods barcodes")
+	// ErrCZGoodNotFound — товара, которому правят признак «маркируемый», нет (CZ-05).
+	ErrCZGoodNotFound = errors.New("good not found")
+	// ErrCZMarkGoodMismatch — GTIN марки — ШК другого товара, не товара строки приёмки (CZ-05).
+	ErrCZMarkGoodMismatch = errors.New("chestny znak mark belongs to another good")
+	// ErrCZMarksExceedQty — марок в строке приёмки больше, чем её количество (CZ-05).
+	ErrCZMarksExceedQty = errors.New("more chestny znak marks than line quantity")
 )
 
 // Вид агрегата ЧЗ — generalPackageType ответа ЧЗ.
@@ -119,6 +125,17 @@ type CZMark struct {
 	CellAddress         string    // чтение: адрес ячейки, где марка лежит (короба или своей)
 }
 
+// ReceiptMark — марка ЧЗ в строке приёмки (CZ-05), как её прочитал скан на ТСД.
+//
+// AggregateCode — короб ЧЗ или групповая упаковка той же приёмки, в которой марка пришла;
+// пусто — марка россыпью. Discrepancy — расхождение, которое отметил скан (CZDiscrepancy*):
+// такая марка принимается и при проводке уходит проблемой склада в «Изолятор».
+type ReceiptMark struct {
+	CIS           string
+	AggregateCode string
+	Discrepancy   string
+}
+
 // CZAggregateContents — состав агрегата ЧЗ: вложенные упаковки и марки, числящиеся в нём.
 type CZAggregateContents struct {
 	Aggregate CZAggregate
@@ -152,9 +169,20 @@ type CZScan struct {
 	Mark       *CZMark // марка в WMS: место, статус, приход; nil — не числится
 	LoadUnitID string  // короб в WMS — это ГЕ; пусто — короб не принят
 
+	// Discrepancy — расхождение кода с ЧЗ (CZ-05): CZDiscrepancyForeignMark — владелец не наша
+	// организация, CZDiscrepancyRetired — не в обороте; пусто — расхождения нет.
+	Discrepancy string
+
 	Composition []CZCompositionLine // состав упаковки до единиц, по товару и партии
 	Units       int                 // всего единиц в составе
 	Unreadable  []string            // вложенные коды, по которым ЧЗ отказал
+
+	// Groups — групповые упаковки внутри упаковки, с вложенностью (CZ-05): приёмка заводит их
+	// агрегатами. ParentCode — сканированный код или другая упаковка из Groups.
+	Groups []CZAggregate
+	// Parents — КИ единицы → упаковка, в которой она лежит: сканированный код или упаковка
+	// из Groups (CZ-05). Приёмка пишет его марке как aggregate_code.
+	Parents map[string]string
 }
 
 // CZCompositionLine — строка состава: единицы одного GTIN и одной даты производства (партии).
@@ -165,4 +193,12 @@ type CZCompositionLine struct {
 	ProducedDate string     // дата производства единицы, YYYY-MM-DD — партия (ADR-0017)
 	Count        int
 	CIS          []string // КИ единиц строки
+	Discrepancy  string   // расхождение единиц строки с ЧЗ; пусто — нет
 }
+
+// Расхождения марки с ЧЗ на приёмке (CZ-05) — совпадают с причинами проблемы склада, в которую
+// такая марка уходит при проводке.
+const (
+	CZDiscrepancyForeignMark = ProblemReasonForeignMark // владелец марки — не наша организация
+	CZDiscrepancyRetired     = ProblemReasonRetired     // марка не в обороте
+)

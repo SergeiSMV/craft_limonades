@@ -4,6 +4,7 @@ import '../../../../../core/constants/app_boxes.dart';
 import '../../../../../core/constants/app_insets.dart';
 import '../../../../cz/domain/cz_scan.dart';
 import '../../../../cz/presentation/widgets/cz_mark_section.dart';
+import '../../../../cz/presentation/widgets/cz_marked_section.dart';
 import '../../../data/catalog_models.dart';
 import 'barcodes_section.dart';
 import 'good_info_card.dart';
@@ -36,6 +37,17 @@ class StockDetailBody extends StatelessWidget {
               SliverPadding(
                 padding: AppInsets.h8,
                 sliver: SliverToBoxAdapter(child: GoodInfoCard(good: good)),
+              ),
+              const SliverToBoxAdapter(child: AppBoxes.kHeight8),
+              // Маркируемый ли товар (CZ-05): видят все, правит admin.
+              SliverPadding(
+                padding: AppInsets.h8,
+                sliver: SliverToBoxAdapter(
+                  child: CzMarkedSection(
+                    goodId: good.id,
+                    marked: good.czMarked,
+                  ),
+                ),
               ),
               // Марка — сразу под шапкой: ради неё карточку и открыли.
               if (czMark != null)

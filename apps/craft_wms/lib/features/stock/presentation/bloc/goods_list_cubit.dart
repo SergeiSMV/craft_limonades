@@ -141,8 +141,13 @@ class GoodsListCubit extends Cubit<GoodsListState> {
   Future<Failure?> bindBarcode({
     required String goodId,
     required String barcode,
+    bool fromCzMark = false,
   }) async {
-    final res = await catalog.bindBarcode(goodId: goodId, barcode: barcode);
+    final res = await catalog.bindBarcode(
+      goodId: goodId,
+      barcode: barcode,
+      fromCzMark: fromCzMark,
+    );
     return res.fold((failure) => failure, (_) => null);
   }
 
