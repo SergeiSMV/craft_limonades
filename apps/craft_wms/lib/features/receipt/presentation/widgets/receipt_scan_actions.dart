@@ -84,6 +84,10 @@ mixin ReceiptScanActions<T extends StatefulWidget>
         await _onCellScan(code);
       case ScanKind.good:
         await _onGoodScan(code);
+      // Марки и короба «Честного знака» здесь пока не ждут (приёмка марок — CZ-05):
+      // как незнакомый код. Раньше код короба (20 цифр) уходил сюда же через «товар».
+      case ScanKind.czMark:
+      case ScanKind.czBox:
       case ScanKind.unknown:
         // Ярлык ГЕ новой версии — исправная этикетка, а не чужой код: «не распознан»
         // отправил бы кладовщика искать поломку, которой нет (P4-04).

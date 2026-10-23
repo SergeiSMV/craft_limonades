@@ -16,6 +16,9 @@ import '../../../core/widgets/bind_prompt_dialog.dart';
 import '../../../core/widgets/good_picker_sheet.dart';
 import '../../../core/widgets/search_field.dart';
 import '../../contents/presentation/contents_navigation.dart';
+import '../../cz/domain/cz_scan.dart';
+import '../../cz/presentation/bloc/cz_scan_cubit.dart';
+import '../../cz/presentation/cz_scan_target.dart';
 import '../data/catalog_models.dart';
 import '../data/catalog_repository.dart';
 import 'bloc/goods_list_cubit.dart';
@@ -26,7 +29,7 @@ import 'widgets/goods_list/stock_filter_button.dart';
 ///
 /// Что: строка поиска с фильтрами и разбор завершённого ввода — скан ячейки или короба
 ///      открывает их содержимое, ШК — карточку товара (не привязан — предложение привязать),
-///      прочее ищется подстрокой.
+///      марка или короб «Честного знака» — по ответу ЧЗ (CZ-04), прочее ищется подстрокой.
 /// Зачем: до ADHOC-33 всё это жило в «Остатках»; «Номенклатура» повторяет поведение их
 ///        вкладки «Товары», и копия разошлась бы с оригиналом при первой правке.
 /// Как: подмешивается в стейт страницы, которая держит над собой [GoodsListCubit].
@@ -41,6 +44,12 @@ mixin GoodsSearchHandlers<T extends StatefulWidget> on State<T> {
 
   /// Отсекает дубль, если устройство отдаёт код и в поле, и интентом.
   final deduper = ScanDeduper();
+
+  /// Чтение марок и коробов «Честного знака» (CZ-04). Свой на экран: страницы поиска не
+  /// держат его в дереве, а ответ нужен только здесь, чтобы решить, куда вести кладовщика.
+  /// Заводится первым сканом марки: большинство заходов в поиск марок не сканирует.
+  CzScanCubit? _czScan;
+  CzScanCubit get czScan => _czScan ??= getIt<CzScanCubit>();
 
   /// Поиск с дебаунсом: не дёргаем API на каждый символ.
   void onSearchChanged(String value) =>
@@ -58,6 +67,13 @@ mixin GoodsSearchHandlers<T extends StatefulWidget> on State<T> {
     final cubit = context.read<GoodsListCubit>();
     cubit
         .cancelPendingSearch(); // ввод завершён — отложенный поиск уже не нужен
+    // Марка или короб «Честного знака» (CZ-04) — раньше ячеек и ШК: код короба — сплошные
+    // цифры и иначе ушёл бы в «ШК товара» с предложением привязать его к товару.
+    final kind = classifyScan(input);
+    if (kind == ScanKind.czMark || kind == ScanKind.czBox) {
+      await openCzCode(input);
+      return;
+    }
     // Ячейка и короб открывают своё содержимое (P5-05). Адрес, которого нет в справочнике
     // ячеек, остаётся текстом поиска — так ищут товар по фрагменту с дефисом.
     final opened = await openScannedContents(
@@ -107,16 +123,82 @@ mixin GoodsSearchHandlers<T extends StatefulWidget> on State<T> {
     );
   }
 
+  /// Скан марки или кода короба «Честного знака» (CZ-04): сервер читает ЧЗ, по ответу —
+  /// марка товара → его карточка с блоком марки; марка незнакомого товара → привязка ШК, как у
+  /// любого незнакомого ШК; принятый короб → карточка ГЕ; прочая упаковка → состав по ЧЗ.
+  ///
+  /// Только со связью: ЧЗ без неё не читается — так кладовщику и говорим.
+  Future<void> openCzCode(String code) async {
+    if (czScan.state.status == CzScanStatus.loading) return;
+    snack(t.czScan.reading);
+    await czScan.scan(code);
+    if (!mounted) return;
+    final state = czScan.state;
+    czScan.reset();
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    final r = state.result;
+    if (r == null) {
+      snack(czFailureText(state.failure));
+      return;
+    }
+    switch (czScanTarget(r)) {
+      case CzScanTarget.goodCard:
+        await openCzMarkGood(r);
+      case CzScanTarget.bindBarcode:
+        // Незнакомый GTIN — тот же путь, что незнакомый ШК: наименование на марке может не
+        // совпадать с номенклатурой, товар определяет привязка ШК (EAN-13 из GTIN).
+        await offerBinding(r.bindBarcode!, czMark: r);
+      case CzScanTarget.noGtin:
+        snack(t.czScan.noGtin);
+      case CzScanTarget.loadUnit:
+        clearSearch();
+        dismissKeyboard();
+        await context.router.push(LoadUnitRoute(loadUnitId: r.loadUnitId!));
+      case CzScanTarget.composition:
+        clearSearch();
+        dismissKeyboard();
+        await context.router.push(CzCompositionRoute(scan: r));
+    }
+  }
+
+  /// Марка известного товара — его карточка с блоком марки. Товар берётся из справочника
+  /// терминала: карточке нужен он целиком, сервер его только называет.
+  Future<void> openCzMarkGood(CzScanResult r) async {
+    final found = await context.read<GoodsListCubit>().goodById(r.good!.id);
+    if (!mounted) return;
+    if (found == null) {
+      snack(t.czScan.goodNotLoaded);
+      return;
+    }
+    openGoodDetail(found, czMark: r);
+  }
+
+  /// Текст отказа чтения ЧЗ: без связи — отдельно, отказ сервера — его словами.
+  String czFailureText(Failure? f) => switch (f) {
+    NetworkFailure() => t.czScan.offline,
+    ServerFailure(:final message?) => t.czScan.failed(reason: message),
+    _ => t.czScan.failedGeneric,
+  };
+
   /// ШК не привязан ни к одному товару: спрашиваем → выбор товара → привязка → его карточка.
+  /// [czMark] — ШК пришёл из марки «Честного знака» (CZ-04): вопрос называет марку, а карточка
+  /// откроется с её блоком.
   ///
   /// Сюда попадаем только когда связь есть: привязка пишется на сервер (очереди операций ещё
   /// нет, это P2-03), а офлайн-резолв заканчивается сообщением «нет связи» и до этого шага
   /// не доходит.
-  Future<void> offerBinding(String barcode) async {
+  Future<void> offerBinding(String barcode, {CzScanResult? czMark}) async {
     final confirmed = await showBindPromptDialog(
       context,
-      title: t.stockListScreen.bindPromptTitle,
-      body: t.stockListScreen.bindPromptBody(barcode: barcode),
+      title: czMark != null
+          ? t.czScan.bindPromptTitle
+          : t.stockListScreen.bindPromptTitle,
+      body: czMark != null
+          ? t.czScan.bindPromptBody(
+              name: czMark.productName ?? czMark.code,
+              barcode: barcode,
+            )
+          : t.stockListScreen.bindPromptBody(barcode: barcode),
       confirmLabel: t.stockListScreen.bindConfirm,
       cancelLabel: t.stockListScreen.bindCancel,
     );
@@ -132,7 +214,7 @@ mixin GoodsSearchHandlers<T extends StatefulWidget> on State<T> {
       snack(t.stockListScreen.bindFailed);
       return;
     }
-    openGoodDetail(good);
+    openGoodDetail(good, czMark: czMark);
   }
 
   /// Нижний лист выбора товара из номенклатуры; null — лист закрыли, ничего не выбрав.
@@ -157,13 +239,14 @@ mixin GoodsSearchHandlers<T extends StatefulWidget> on State<T> {
 
   /// Открыть карточку товара, найденного по скану. Строку поиска чистим: иначе следующий
   /// скан допишется к предыдущему коду, а список остался бы несогласован с полем.
-  void openGoodDetail(Good good) {
+  /// [czMark] — карточка открыта сканом марки «Честного знака»: с блоком марки (CZ-04).
+  void openGoodDetail(Good good, {CzScanResult? czMark}) {
     final cubit = context.read<GoodsListCubit>();
     clearSearch();
     dismissKeyboard();
     // По возврату «Остатки» перечитывают снимок, обновлённый карточкой (ADHOC-33).
     context.router
-        .push(StockDetailRoute(good: good))
+        .push(StockDetailRoute(good: good, czMark: czMark))
         .then((_) => cubit.returnedFromCard());
   }
 
@@ -201,6 +284,7 @@ mixin GoodsSearchHandlers<T extends StatefulWidget> on State<T> {
   @override
   void dispose() {
     searchController.dispose();
+    _czScan?.close();
     super.dispose();
   }
 }

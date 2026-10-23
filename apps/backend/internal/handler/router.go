@@ -150,6 +150,9 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 				r.Get("/admin/cz/status", czH.Status)
 				r.Post("/admin/cz/info", czH.Info)
 			})
+			// Скан марки или кода короба на ТСД (CZ-04) — сотруднику: кладовщик сканирует марку
+			// в «Остатках» и «Номенклатуре». Только онлайн: каждый скан — запрос в True API.
+			r.With(appmw.Authenticator(tokens)).Post("/cz/scan", czH.Scan)
 		}
 
 		// Чтение справочников (товары/группы/поставщики/ячейки/остатки) — любому аутентифицированному

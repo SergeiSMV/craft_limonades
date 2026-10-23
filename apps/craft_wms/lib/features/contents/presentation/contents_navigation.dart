@@ -54,6 +54,10 @@ Future<bool> openScannedContents(
       unawaited(replace ? router.replace(route) : router.push(route));
       return true;
     case ScanKind.good:
+    // Марки и короба «Честного знака» здесь пока не ждут (приёмка марок — CZ-05):
+    // как незнакомый код. Раньше код короба (20 цифр) уходил сюда же через «товар».
+    case ScanKind.czMark:
+    case ScanKind.czBox:
     case ScanKind.unknown:
       return false;
   }

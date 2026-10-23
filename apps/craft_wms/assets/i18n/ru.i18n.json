@@ -81,6 +81,8 @@
       "good": "товар",
       "cell": "ячейка",
       "cargo_unit": "грузовая единица",
+      "cz_mark": "марка Честного знака",
+      "cz_box": "короб Честного знака",
       "unknown": "не распознан"
     }
   },
@@ -952,5 +954,51 @@
     "content_returned": "Отгружено поставщику ${qty} ${uom}",
     "content_other": "Изменение состава: ${qty} ${uom}",
     "content_good": "${name}, партия ${date}"
+  },
+  "cz_scan": {
+    "reading": "Читаю код Честного знака…",
+    "offline": "Нет связи — Честный знак без связи не прочитать",
+    "failed": "Не удалось прочитать код: ${reason}",
+    "failed_generic": "Не удалось прочитать код Честного знака",
+    "good_not_loaded": "Товар марки не найден на терминале — обновите справочники",
+    "no_gtin": "В ответе Честного знака нет GTIN — товар не определить",
+    "bind_prompt_title": "Товар марки не найден",
+    "bind_prompt_body": "Марка «${name}», ШК ${barcode}, не привязана к товару. Привязать ШК к товару?",
+    "section_mark": "Марка Честного знака",
+    "cz_name_line": "По Честному знаку: ${name}",
+    "cz_status_line": "Статус в ЧЗ: ${status}",
+    "produced_line": "Произведён: ${date}",
+    "expires_line": "Годен до: ${date}",
+    "owner_line": "Владелец: ${owner}",
+    "not_in_wms": "На складе не числится",
+    "wms_status_line": "Статус на складе: ${status}",
+    "box_line": "Короб: ${code}",
+    "cell_line": "Ячейка: ${address}",
+    "not_placed": "Ячейка: короб не размещён",
+    "received_meta": "Принята на склад ${time}",
+    "box_title": "Короб Честного знака",
+    "group_title": "Упаковка Честного знака",
+    "code_line": "Код: ${code}",
+    "units_line": "Единиц: ${count}",
+    "not_accepted": "Короб не принят на склад",
+    "section_composition": "Состав",
+    "good_line": "Товар: ${name}",
+    "good_unknown": "Товар: не привязан, GTIN ${gtin}",
+    "batch_line": "Партия: ${date}",
+    "qty_line": "Количество: ${count}",
+    "unreadable_line": "Не прочитаны в ЧЗ: ${count}",
+    "wms_statuses": {
+      "in_stock": "на складе",
+      "shipped": "отгружена",
+      "written_off": "списана",
+      "returned": "возвращена поставщику"
+    },
+    "cz_statuses": {
+      "introduced": "в обороте",
+      "applied": "нанесена",
+      "emitted": "эмитирована",
+      "retired": "выбыла из оборота",
+      "written_off": "списана"
+    }
   }
 }

@@ -112,21 +112,23 @@ func (r *CZMarkRepository) LoadUnitByCZCode(ctx context.Context, code string) (s
 	return id, nil
 }
 
-// czMarkSelect — чтение марки с местом её короба. Место короба берётся из load_units: у марки
-// оно не хранится (место ГЕ — только load_units.cell_id).
+// czMarkSelect — чтение марки с местом её короба и адресом ячейки. Место короба берётся из
+// load_units: у марки оно не хранится (место ГЕ — только load_units.cell_id). Адрес — ячейки
+// короба или своей ячейки россыпи: ТСД показывает место адресом, а не идентификатором.
 const czMarkSelect = `
 	SELECT m.cis, m.gtin, m.good_id::text, m.batch_id::text, m.status,
 	       COALESCE(m.load_unit_id::text, ''), COALESCE(m.cell_id::text, ''),
 	       COALESCE(m.internal_warehouse_id::text, ''), COALESCE(m.aggregate_code, ''),
-	       COALESCE(lu.cell_id::text, '')
+	       COALESCE(lu.cell_id::text, ''), m.created_at, COALESCE(c.address, '')
 	FROM cz_marks m
-	LEFT JOIN load_units lu ON lu.id = m.load_unit_id`
+	LEFT JOIN load_units lu ON lu.id = m.load_unit_id
+	LEFT JOIN cells c ON c.id = COALESCE(lu.cell_id, m.cell_id)`
 
 // scanCZMark читает строку czMarkSelect.
 func scanCZMark(row pgx.Row) (model.CZMark, error) {
 	var m model.CZMark
 	err := row.Scan(&m.CIS, &m.GTIN, &m.GoodID, &m.BatchID, &m.Status,
-		&m.LoadUnitID, &m.CellID, &m.InternalWarehouseID, &m.AggregateCode, &m.LoadUnitCellID)
+		&m.LoadUnitID, &m.CellID, &m.InternalWarehouseID, &m.AggregateCode, &m.LoadUnitCellID, &m.ReceivedAt, &m.CellAddress)
 	return m, err
 }
 
@@ -226,27 +228,28 @@ func scanCZAggregate(row pgx.Row) (model.CZAggregate, error) {
 // Как: GTIN-14 единицы — это её EAN-13 с ведущим нулём (марка пива 04612728200172 ↔ ШК
 // 4612728200172), поэтому ищем в barcodes и полный GTIN, и его же без нуля. Совпадение по
 // полному GTIN — первым. ErrCZUnknownGTIN — товара с таким ШК нет: марка «не того товара».
-func (r *CZMarkRepository) GoodByGTIN(ctx context.Context, gtin string) (string, error) {
+func (r *CZMarkRepository) GoodByGTIN(ctx context.Context, gtin string) (model.CZGoodRef, error) {
 	return goodByGTIN(ctx, r.pool, gtin)
 }
 
 // goodByGTIN — GoodByGTIN на Querier, для приёмки внутри транзакции (CZ-05).
-func goodByGTIN(ctx context.Context, q Querier, gtin string) (string, error) {
+func goodByGTIN(ctx context.Context, q Querier, gtin string) (model.CZGoodRef, error) {
 	short := gtin
 	if len(gtin) == 14 && gtin[0] == '0' {
 		short = gtin[1:]
 	}
-	var id string
+	var g model.CZGoodRef
 	err := q.QueryRow(ctx, `
-		SELECT good_id::text FROM barcodes
-		WHERE barcode IN ($1, $2)
-		ORDER BY barcode = $1 DESC
-		LIMIT 1`, gtin, short).Scan(&id)
+		SELECT g.id::text, g.name FROM barcodes b
+		JOIN goods g ON g.id = b.good_id
+		WHERE b.barcode IN ($1, $2)
+		ORDER BY b.barcode = $1 DESC
+		LIMIT 1`, gtin, short).Scan(&g.ID, &g.Name)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", fmt.Errorf("%w: %s", model.ErrCZUnknownGTIN, gtin)
+		return g, fmt.Errorf("%w: %s", model.ErrCZUnknownGTIN, gtin)
 	}
 	if err != nil {
-		return "", fmt.Errorf("товар по GTIN: %w", err)
+		return g, fmt.Errorf("товар по GTIN: %w", err)
 	}
-	return id, nil
+	return g, nil
 }

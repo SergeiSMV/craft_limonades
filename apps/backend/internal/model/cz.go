@@ -113,8 +113,10 @@ type CZMark struct {
 	LoadUnitID          string
 	CellID              string
 	InternalWarehouseID string
-	AggregateCode       string // упаковка ЧЗ, в которой марка пришла
-	LoadUnitCellID      string // чтение: ячейка короба марки; пусто — россыпь или короб не размещён
+	AggregateCode       string    // упаковка ЧЗ, в которой марка пришла
+	LoadUnitCellID      string    // чтение: ячейка короба марки; пусто — россыпь или короб не размещён
+	ReceivedAt          time.Time // чтение: когда марка появилась в WMS
+	CellAddress         string    // чтение: адрес ячейки, где марка лежит (короба или своей)
 }
 
 // CZAggregateContents — состав агрегата ЧЗ: вложенные упаковки и марки, числящиеся в нём.
@@ -122,4 +124,45 @@ type CZAggregateContents struct {
 	Aggregate CZAggregate
 	Groups    []CZAggregate
 	Marks     []CZMark
+}
+
+// ErrCZBadCode — код не похож ни на марку (`01`+GTIN+`21`…), ни на код короба (`00`+SSCC).
+var ErrCZBadCode = errors.New("not a chestny znak code")
+
+// CZGoodRef — товар справочника, найденный по GTIN марки.
+type CZGoodRef struct {
+	ID   string
+	Name string
+}
+
+// CZScan — что ТСД узнаёт по скану марки или кода агрегата (CZ-04).
+//
+// Что: данные ЧЗ по коду, товар справочника, что о коде знает WMS и, для упаковки, её состав
+// до единиц. Наименование ЧЗ и товар справочника — разные поля: на марке название может не
+// совпадать с номенклатурой 1С, товар определяет привязка ШК.
+type CZScan struct {
+	Code string  // код, приведённый к ключу ЧЗ
+	Info CisInfo // ответ ЧЗ по коду
+
+	Good *CZGoodRef // товар по GTIN; nil — GTIN незнаком (или у упаковки нет GTIN)
+	// BindBarcode — какой ШК привязать к товару, если GTIN незнаком: EAN-13 — GTIN-14 без
+	// ведущего нуля, чтобы и обычный скан ШК той же бутылки находил товар.
+	BindBarcode string
+
+	Mark       *CZMark // марка в WMS: место, статус, приход; nil — не числится
+	LoadUnitID string  // короб в WMS — это ГЕ; пусто — короб не принят
+
+	Composition []CZCompositionLine // состав упаковки до единиц, по товару и партии
+	Units       int                 // всего единиц в составе
+	Unreadable  []string            // вложенные коды, по которым ЧЗ отказал
+}
+
+// CZCompositionLine — строка состава: единицы одного GTIN и одной даты производства (партии).
+type CZCompositionLine struct {
+	GTIN         string
+	ProductName  string     // наименование по ЧЗ
+	Good         *CZGoodRef // товар справочника; nil — GTIN незнаком
+	ProducedDate string     // дата производства единицы, YYYY-MM-DD — партия (ADR-0017)
+	Count        int
+	CIS          []string // КИ единиц строки
 }

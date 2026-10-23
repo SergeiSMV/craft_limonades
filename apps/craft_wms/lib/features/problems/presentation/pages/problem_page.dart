@@ -164,6 +164,10 @@ class _ProblemViewState extends State<_ProblemView> with HardwareScanListener {
       case ScanKind.cell:
         await onCellScan(code);
       case ScanKind.good:
+      // Марки и короба «Честного знака» здесь пока не ждут (приёмка марок — CZ-05):
+      // как незнакомый код. Раньше код короба (20 цифр) уходил сюда же через «товар».
+      case ScanKind.czMark:
+      case ScanKind.czBox:
       case ScanKind.unknown:
         snack(t.problems.scanBoxOrCell);
     }

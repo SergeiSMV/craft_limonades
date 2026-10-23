@@ -19,6 +19,8 @@ class ScanEventTile extends StatelessWidget {
     ScanKind.good => t.scannerProbe.kinds.good,
     ScanKind.cell => t.scannerProbe.kinds.cell,
     ScanKind.cargoUnit => t.scannerProbe.kinds.cargoUnit,
+    ScanKind.czMark => t.scannerProbe.kinds.czMark,
+    ScanKind.czBox => t.scannerProbe.kinds.czBox,
     ScanKind.unknown => t.scannerProbe.kinds.unknown,
   };
 
