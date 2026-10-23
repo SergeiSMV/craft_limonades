@@ -27,6 +27,7 @@ import (
 	"craftwms/internal/observability"
 	"craftwms/internal/repository"
 	"craftwms/internal/service"
+	"craftwms/internal/trueapi"
 )
 
 // shutdownTimeout — сколько ждём завершения текущих запросов при мягкой остановке.
@@ -138,6 +139,23 @@ func main() {
 		log.Warn("no database — auth, import and catalog endpoints disabled")
 	}
 
+	// Честный знак (CZ-02): БД не нужна, только подписант на хосте. Без CZ_SIGNER_SOCKET
+	// клиента нет, и ручки ЧЗ отвечают «не настроен» — локальный стек и стенд как раньше.
+	var czClient *trueapi.Client
+	if cfg.CZSignerSocket != "" {
+		czClient = trueapi.New(trueapi.Options{
+			BaseURL:       cfg.CZAPIURL,
+			Signer:        trueapi.NewSocketSigner(cfg.CZSignerSocket),
+			RefreshBefore: cfg.CZRefreshBefore,
+			Log:           log,
+		})
+		svc.CZ = service.NewCZService(czClient)
+		log.Info("chestny znak enabled", "api", cfg.CZAPIURL, "signer", cfg.CZSignerSocket)
+	} else {
+		// Явный nil интерфейса: *trueapi.Client(nil) внутри интерфейса не был бы nil.
+		svc.CZ = service.NewCZService(nil)
+	}
+
 	// 5. HTTP-сервер с собранным роутером транспортного слоя.
 	srv := &http.Server{
 		Addr:              ":" + cfg.AppPort,
@@ -149,6 +167,11 @@ func main() {
 	//    (SIGTERM прилетает при `docker compose down` / редеплое).
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+
+	// Фоновое обновление токена ЧЗ: первый токен — сразу при старте, дальше до истечения.
+	if czClient != nil {
+		go czClient.Run(ctx)
+	}
 
 	// 7. Запускаем приём соединений в отдельной горутине, чтобы main мог ждать сигнал.
 	go func() {

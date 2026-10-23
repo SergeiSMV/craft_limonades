@@ -57,6 +57,19 @@ services:
       SENTRY_DSN: ${SENTRY_DSN:-}
       SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-prod}
       SENTRY_RELEASE: ${SENTRY_RELEASE:-}
+      # Честный знак (CZ-02). CZ_SIGNER_SOCKET пуст — чтение ЧЗ выключено. Сокет подписанта
+      # (служба на хосте) — в каталоге /run/cz-signer, смонтированном ниже.
+      CZ_SIGNER_SOCKET: ${CZ_SIGNER_SOCKET:-}
+      CZ_API_URL: ${CZ_API_URL:-https://markirovka.crpt.ru/api/v3/true-api}
+      CZ_TOKEN_REFRESH_BEFORE: ${CZ_TOKEN_REFRESH_BEFORE:-1h}
+    # Группа сокета подписанта: GID группы cz-signer хоста (пишет deploy/_lib.sh). Без
+    # подписанта — nogroup (65534), не дающая ничего.
+    group_add:
+      - "${CZ_SIGNER_GID:-65534}"
+    volumes:
+      # Только каталог сокета подписанта ЧЗ, на чтение: ключ и КриптоПро в контейнер не попадают.
+      # Писать в сокет можно и при :ro — запись в сокет не меняет файловую систему.
+      - /run/cz-signer:/run/cz-signer:ro
     depends_on:
       db:
         condition: service_healthy   # стартуем только после «живой» БД

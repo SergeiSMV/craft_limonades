@@ -494,6 +494,17 @@ act_check() {
                    || ck_warn "последний бэкап $age дн. назад" "проверьте таймер: «Статус: контейнеры и таймеры»"
   fi
 
+  # 8. Честный знак (CZ-02) — только где он включён (CZ_SIGNER_USER).
+  if [[ -n "$(get_env CZ_SIGNER_USER)" ]]; then
+    systemctl is-active --quiet "$CZ_SIGNER_UNIT" 2>/dev/null \
+      && ck_ok "подписант ЧЗ работает" \
+      || ck_bad "подписант ЧЗ не работает" "пункт «Настроить подписант», журнал: journalctl -u $CZ_SIGNER_UNIT"
+    # Лицензия КриптоПро сейчас пробная: истечёт — подписант перестанет подписывать.
+    local lic
+    lic="$(/opt/cprocsp/sbin/amd64/cpconfig -license -view 2>/dev/null | grep -iE 'expire|истека' | head -1 | sed -E 's/^[[:space:]]+//')"
+    [[ -n "$lic" ]] && ck_warn "лицензия КриптоПро: $lic" "постоянную — купить до истечения"
+  fi
+
   printf '\n  %sОтдельно, автоматом не проверяется:%s парольная фраза должна быть\n' "$C_WARN" "$C_OFF"
   printf '  сохранена ВНЕ сервера. Иначе внешняя копия нечитаема и смысла в ней нет.\n'
 }
@@ -635,6 +646,10 @@ show_menu() {
   item 16 "Настроить мониторинг" "Bugsink, письма, таймеры — пошагово"
   item 17 "Проверить мониторинг" "проверочная ошибка → Bugsink → письмо"
 
+  section "Честный знак"
+  item 18 "Настроить подписант" "ключ, пароль, служба — пошагово"
+  item 19 "Проверить ЧЗ" "подпись → токен → чтение марки"
+
   printf '\n'
   item 0 "Выйти"
   rule
@@ -668,6 +683,8 @@ main() {
       15) act_edit_config ;;
       16) need_root "$DEPLOY_DIR/monitoring-setup.sh"; pause ;;
       17) need_root "$DEPLOY_DIR/monitoring-setup.sh" --test; pause ;;
+      18) need_root "$DEPLOY_DIR/cz-setup.sh"; pause ;;
+      19) need_root "$DEPLOY_DIR/cz-setup.sh" --test; pause ;;
       0|q|Q) printf 'Пока.\n'; exit 0 ;;
       "") ;;
       *)  printf '  %sНет такого пункта: %s%s\n' "$C_BAD" "$choice" "$C_OFF"; pause ;;

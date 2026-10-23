@@ -11,7 +11,7 @@
 
 ```
 apps/craft_wms/     # Flutter-приложение для ТСД
-apps/backend/       # Go-сервис (cmd/server, cmd/migrate, cmd/seed, internal/*, migrations)
+apps/backend/       # Go-сервис (cmd/server, cmd/migrate, cmd/seed, cmd/cz-signer, internal/*, migrations)
 infra/              # docker-compose, nginx
 docs/               # документация
 ```

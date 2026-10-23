@@ -73,18 +73,6 @@ wait_bugsink() {
   die "Bugsink не поднялся за 3 минуты — логи: docker compose … logs bugsink"
 }
 
-# admin_token — access-токен админа портала (ADMIN_USERNAME/ADMIN_PASSWORD) для вызова
-# проверочной ошибки. Пароль идёт в теле запроса через stdin — в списке процессов его нет.
-admin_token() {
-  local bind user pass body
-  bind="$(get_env BACKEND_BIND)"; bind="${bind:-127.0.0.1:8080}"
-  user="$(get_env ADMIN_USERNAME)"; pass="$(get_env ADMIN_PASSWORD)"
-  [[ -n "$user" && -n "$pass" ]] || die "ADMIN_USERNAME/ADMIN_PASSWORD не заданы — проверочную ошибку не вызвать."
-  body="$(jq -n --arg u "$user" --arg p "$pass" '{username:$u,password:$p}')"
-  printf '%s' "$body" | curl -fsS -m 10 -H 'Content-Type: application/json' --data-binary @- \
-    "http://$bind/api/v1/auth/login/password" | jq -r '.access // empty'
-}
-
 # send_test_error — проверочная ошибка из backend и ожидание её в Bugsink.
 send_test_error() {
   local bind token resp since found
