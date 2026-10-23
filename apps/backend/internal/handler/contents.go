@@ -106,7 +106,7 @@ type snapshotResponse struct {
 func (h *ContentsHandler) Snapshot(w http.ResponseWriter, r *http.Request) {
 	snap, err := h.svc.Snapshot(r.Context())
 	if err != nil {
-		contentsError(w, err)
+		contentsError(w, r, err)
 		return
 	}
 	out := snapshotResponse{
@@ -144,7 +144,7 @@ func (h *ContentsHandler) Snapshot(w http.ResponseWriter, r *http.Request) {
 func (h *ContentsHandler) CellContents(w http.ResponseWriter, r *http.Request) {
 	cell, err := h.svc.CellContents(r.Context(), chi.URLParam(r, "id"))
 	if err != nil {
-		contentsError(w, err)
+		contentsError(w, r, err)
 		return
 	}
 	out := cellContentsResponse{
@@ -169,7 +169,7 @@ func (h *ContentsHandler) CellContents(w http.ResponseWriter, r *http.Request) {
 func (h *ContentsHandler) LoadUnitCard(w http.ResponseWriter, r *http.Request) {
 	card, err := h.svc.LoadUnitCard(r.Context(), chi.URLParam(r, "id"))
 	if err != nil {
-		contentsError(w, err)
+		contentsError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, toLoadUnitCard(card))
@@ -180,7 +180,7 @@ func (h *ContentsHandler) LoadUnitCard(w http.ResponseWriter, r *http.Request) {
 func (h *ContentsHandler) SearchLoadUnits(w http.ResponseWriter, r *http.Request) {
 	found, err := h.svc.SearchLoadUnits(r.Context(), r.URL.Query().Get("code"))
 	if err != nil {
-		contentsError(w, err)
+		contentsError(w, r, err)
 		return
 	}
 	out := make([]loadUnitCardResponse, 0, len(found))
@@ -235,7 +235,7 @@ type loadUnitHistoryResponse struct {
 func (h *ContentsHandler) LoadUnitHistory(w http.ResponseWriter, r *http.Request) {
 	hist, err := h.svc.LoadUnitHistory(r.Context(), chi.URLParam(r, "id"))
 	if err != nil {
-		contentsError(w, err)
+		contentsError(w, r, err)
 		return
 	}
 	out := loadUnitHistoryResponse{
@@ -303,7 +303,7 @@ func toSnapshotLine(c model.ContentLine) snapshotLineResponse {
 
 // contentsError маппит ошибки просмотра в HTTP-коды: 400 — кривой идентификатор,
 // 404 — отсканированного нет, остальное — 500.
-func contentsError(w http.ResponseWriter, err error) {
+func contentsError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
 	case errors.Is(err, service.ErrInvalidCellID), errors.Is(err, service.ErrInvalidLoadUnitID),
 		errors.Is(err, service.ErrInvalidShortCode):
@@ -311,7 +311,7 @@ func contentsError(w http.ResponseWriter, err error) {
 	case errors.Is(err, model.ErrCellNotFound), errors.Is(err, model.ErrLoadUnitNotFound):
 		writeError(w, http.StatusNotFound, err.Error())
 	default:
-		slog.Error("contents failed", "error", err)
+		slog.ErrorContext(r.Context(), "contents failed", "error", err)
 		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
 	}
 }

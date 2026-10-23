@@ -36,7 +36,7 @@ func (h *BarcodeHandler) GetByCode(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "штрихкод не привязан")
 		return
 	case err != nil:
-		slog.Error("resolve good by barcode failed", "error", err)
+		slog.ErrorContext(r.Context(), "resolve good by barcode failed", "error", err)
 		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
 		return
 	}
@@ -53,7 +53,7 @@ func (h *BarcodeHandler) ListByGood(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "пустой идентификатор товара")
 		return
 	case err != nil:
-		slog.Error("list barcodes by good failed", "error", err)
+		slog.ErrorContext(r.Context(), "list barcodes by good failed", "error", err)
 		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
 		return
 	}
@@ -79,7 +79,7 @@ func (h *BarcodeHandler) GenerateInternal(w http.ResponseWriter, r *http.Request
 		writeError(w, http.StatusNotFound, "товар не найден")
 		return
 	case err != nil:
-		slog.Error("generate internal barcode failed", "error", err)
+		slog.ErrorContext(r.Context(), "generate internal barcode failed", "error", err)
 		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
 		return
 	}
@@ -94,7 +94,7 @@ func (h *BarcodeHandler) List(w http.ResponseWriter, r *http.Request) {
 	limit, offset := paging(r)
 	page, err := h.svc.List(r.Context(), limit, offset)
 	if err != nil {
-		catalogError(w, "list barcodes", err)
+		catalogError(w, r, "list barcodes", err)
 		return
 	}
 	writeJSON(w, http.StatusOK, page)
@@ -110,7 +110,7 @@ func (h *BarcodeHandler) Unbind(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "пустой штрихкод")
 		return
 	case err != nil:
-		slog.Error("unbind barcode failed", "error", err)
+		slog.ErrorContext(r.Context(), "unbind barcode failed", "error", err)
 		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
 		return
 	}
@@ -145,7 +145,7 @@ func (h *BarcodeHandler) Bind(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusConflict, "штрихкод уже привязан к другому товару")
 		return
 	case err != nil:
-		slog.Error("bind barcode failed", "error", err)
+		slog.ErrorContext(r.Context(), "bind barcode failed", "error", err)
 		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
 		return
 	}

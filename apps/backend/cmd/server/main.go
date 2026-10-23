@@ -23,6 +23,8 @@ import (
 	"craftwms/internal/auth"
 	"craftwms/internal/config"
 	"craftwms/internal/handler"
+	appmw "craftwms/internal/middleware"
+	"craftwms/internal/observability"
 	"craftwms/internal/repository"
 	"craftwms/internal/service"
 )
@@ -34,9 +36,25 @@ func main() {
 	// 1. Конфиг из окружения — один бинарь для dev/prod, меняется только окружение.
 	cfg := config.Load()
 
-	// 2. Общий структурированный JSON-логгер (пишет в stdout — стандарт для контейнеров).
+	// 2. Отправка ошибок в Bugsink (ADHOC-42): без SENTRY_DSN выключена. Включается до
+	//    логгера — тот на каждой ошибке спрашивает, есть ли куда отправлять.
+	monitored, monErr := observability.Init(observability.Options{
+		DSN:         cfg.SentryDSN,
+		Environment: cfg.SentryEnvironment,
+		Release:     cfg.SentryRelease,
+	})
+
+	// 3. Общий структурированный JSON-логгер (пишет в stdout — стандарт для контейнеров).
+	//    Ошибки журнала он же отправляет в Bugsink — с пользователем запроса из контекста.
 	log := newLogger(cfg.LogLevel)
 	slog.SetDefault(log)
+	if monErr != nil {
+		// Неверный DSN не повод не работать: склад важнее уведомлений.
+		log.Warn("error reporting disabled: bad SENTRY_DSN", "error", monErr)
+	} else if monitored {
+		log.Info("error reporting enabled", "environment", cfg.SentryEnvironment)
+	}
+	defer observability.Flush(2 * time.Second)
 
 	// 3. Пул соединений к БД. Если DATABASE_URL пуст — стартуем без БД (удобно для локальной
 	//    отладки каркаса); /ready в этом случае вернёт 503.
@@ -159,8 +177,18 @@ func main() {
 }
 
 // newLogger собирает JSON-логгер slog с заданным уровнем.
+//
+// Поверх JSON — обработчик Bugsink (ADHOC-42): записи уровня error уходят и событием.
 func newLogger(level slog.Level) *slog.Logger {
-	return slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level}))
+	json := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level})
+	return slog.New(observability.NewHandler(json, requestUser))
+}
+
+// requestUser — пользователь запроса для события Bugsink: его кладёт в контекст middleware
+// аутентификации.
+func requestUser(ctx context.Context) (id, role string, ok bool) {
+	id, ok = appmw.UserIDFromContext(ctx)
+	return id, appmw.RoleFromContext(ctx), ok
 }
 
 // randomSecret генерирует случайный секрет подписи JWT (fallback, если JWT_SECRET не задан).

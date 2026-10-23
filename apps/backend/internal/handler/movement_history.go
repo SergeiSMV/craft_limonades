@@ -82,7 +82,7 @@ func (h *MovementHistoryHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		slog.Error("movement history failed", "error", err)
+		slog.ErrorContext(r.Context(), "movement history failed", "error", err)
 		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
 		return
 	}
@@ -97,7 +97,7 @@ func (h *MovementHistoryHandler) List(w http.ResponseWriter, r *http.Request) {
 func (h *MovementHistoryHandler) Executors(w http.ResponseWriter, r *http.Request) {
 	users, err := h.svc.Executors(r.Context())
 	if err != nil {
-		slog.Error("movement executors failed", "error", err)
+		slog.ErrorContext(r.Context(), "movement executors failed", "error", err)
 		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
 		return
 	}
@@ -116,7 +116,7 @@ func (h *MovementHistoryHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		slog.Error("movement get failed", "error", err)
+		slog.ErrorContext(r.Context(), "movement get failed", "error", err)
 		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
 		return
 	}
