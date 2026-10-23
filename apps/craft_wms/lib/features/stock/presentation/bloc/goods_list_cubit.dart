@@ -131,6 +131,11 @@ class GoodsListCubit extends Cubit<GoodsListState> {
   Future<Either<Failure, Good?>> resolveBarcode(String code) =>
       catalog.resolveGoodByBarcode(code);
 
+  /// Товар справочника терминала по идентификатору — для карточки по скану марки «Честного
+  /// знака» (CZ-04): сервер называет товар марки, карточке нужен он целиком. `null` — товара
+  /// на терминале нет (справочник не загружен или старше товара).
+  Future<Good?> goodById(String id) => catalog.goodById(id);
+
   /// Привязать отсканированный ШК к выбранному товару (ADHOC-06). Возвращает ошибку вызывающему
   /// и, как и [resolveBarcode], не кладёт её в state: список остался валидным.
   Future<Failure?> bindBarcode({

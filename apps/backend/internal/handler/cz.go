@@ -19,10 +19,11 @@ const czMaxBody = 64 << 10
 type czReader interface {
 	Status(ctx context.Context) model.CZStatus
 	CisesInfo(ctx context.Context, codes []string) ([]model.CisInfo, error)
+	Scan(ctx context.Context, code string) (model.CZScan, error)
 }
 
-// CZHandler — проверка чтения Честного знака администратором (CZ-02): состояние подписанта
-// и токена, данные марок по кодам. Складские сценарии с марками придут в CZ-03…CZ-05.
+// CZHandler — Честный знак: проверка подписанта и чтение марок администратором (CZ-02),
+// скан марки или короба кладовщиком на ТСД (CZ-04).
 type CZHandler struct {
 	svc czReader
 }
@@ -100,6 +101,8 @@ func (h *CZHandler) Info(w http.ResponseWriter, r *http.Request) {
 // Сбой на нашей стороне или в ЧЗ — 5xx (и в Bugsink), отказ по самим кодам — 4xx.
 func czErrorResponse(err error) (int, string) {
 	switch {
+	case errors.Is(err, model.ErrCZBadCode):
+		return http.StatusBadRequest, "это не марка Честного знака и не код короба"
 	case errors.Is(err, service.ErrCZNoCodes):
 		return http.StatusBadRequest, "не передано ни одного кода"
 	case errors.Is(err, service.ErrCZTooManyCodes):

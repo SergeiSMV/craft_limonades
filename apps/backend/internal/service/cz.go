@@ -32,19 +32,30 @@ type czClient interface {
 	SignerHealth(ctx context.Context) error
 }
 
-// CZService — чтение Честного знака (CZ-02): состояние подписанта и токена, данные марок.
-//
-// Что: сейчас — только для администратора (проверка настройки); складские сценарии с марками
-// придут в CZ-03…CZ-05 и будут ходить сюда же.
-// Как: без клиента (сокет подписанта не задан — локальный стек, тестовый стенд) сервис
-// отвечает ErrCZNotConfigured, а не падает.
-type CZService struct {
-	client czClient
+// CZMarks — что сервису нужно от хранилища марок (internal/repository.CZMarkRepository).
+// Экспортирован, чтобы сборка в main держала переменную этого типа: без БД она остаётся
+// настоящим nil, а не nil-указателем внутри интерфейса.
+type CZMarks interface {
+	GoodByGTIN(ctx context.Context, gtin string) (model.CZGoodRef, error)
+	MarkByCIS(ctx context.Context, cis string) (model.CZMark, error)
+	LoadUnitByCZCode(ctx context.Context, code string) (string, error)
 }
 
-// NewCZService — сервис поверх клиента True API; client == nil — ЧЗ не настроен.
-func NewCZService(client czClient) *CZService {
-	return &CZService{client: client}
+// CZService — чтение Честного знака: состояние подписанта и токена (CZ-02), данные по скану
+// марки или короба для ТСД (CZ-04).
+//
+// Как: без клиента (сокет подписанта не задан — локальный стек, тестовый стенд) сервис
+// отвечает ErrCZNotConfigured, а не падает. Без хранилища марок (нет БД) скан отдаёт только
+// данные ЧЗ — без товара справочника и места в WMS.
+type CZService struct {
+	client czClient
+	marks  CZMarks
+}
+
+// NewCZService — сервис поверх клиента True API и хранилища марок; client == nil — ЧЗ не
+// настроен, marks == nil — без сведений WMS.
+func NewCZService(client czClient, marks CZMarks) *CZService {
+	return &CZService{client: client, marks: marks}
 }
 
 // Status — готов ли ЧЗ: подписант подписывает, токен есть и когда истекает.

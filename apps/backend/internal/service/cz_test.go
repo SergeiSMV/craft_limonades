@@ -35,7 +35,7 @@ func (f *fakeCZClient) TokenExpiry() (time.Time, bool)     { return f.expiry, f.
 func (f *fakeCZClient) SignerHealth(context.Context) error { return f.signerErr }
 
 func TestCZServiceNotConfigured(t *testing.T) {
-	s := NewCZService(nil)
+	s := NewCZService(nil, nil)
 	if st := s.Status(context.Background()); st.Configured || st.SignerOK || st.TokenValid {
 		t.Fatalf("status = %+v", st)
 	}
@@ -46,13 +46,13 @@ func TestCZServiceNotConfigured(t *testing.T) {
 
 func TestCZServiceStatus(t *testing.T) {
 	exp := time.Date(2026, 10, 23, 19, 0, 0, 0, time.UTC)
-	ok := NewCZService(&fakeCZClient{expiry: exp, hasToken: true})
+	ok := NewCZService(&fakeCZClient{expiry: exp, hasToken: true}, nil)
 	st := ok.Status(context.Background())
 	if !st.Configured || !st.SignerOK || st.SignerError != "" || !st.TokenValid || !st.TokenExpiresAt.Equal(exp) {
 		t.Fatalf("status = %+v", st)
 	}
 
-	down := NewCZService(&fakeCZClient{signerErr: model.ErrCZSignerUnavailable})
+	down := NewCZService(&fakeCZClient{signerErr: model.ErrCZSignerUnavailable}, nil)
 	st = down.Status(context.Background())
 	if !st.Configured || st.SignerOK || st.SignerError == "" || st.TokenValid || st.TokenExpiresAt != nil {
 		t.Fatalf("status = %+v", st)
@@ -61,7 +61,7 @@ func TestCZServiceStatus(t *testing.T) {
 
 func TestCZServiceCisesInfoNormalizesCodes(t *testing.T) {
 	f := &fakeCZClient{}
-	s := NewCZService(f)
+	s := NewCZService(f, nil)
 	// Марка со сканера — с GS и криптохвостом; пустые строки и пробелы — мусор ввода.
 	in := []string{" 0104600000000017215abc\x1d93dGVz ", "", "   ", "00146000000000000017"}
 	got, err := s.CisesInfo(context.Background(), in)
@@ -75,7 +75,7 @@ func TestCZServiceCisesInfoNormalizesCodes(t *testing.T) {
 }
 
 func TestCZServiceCisesInfoValidation(t *testing.T) {
-	s := NewCZService(&fakeCZClient{})
+	s := NewCZService(&fakeCZClient{}, nil)
 	if _, err := s.CisesInfo(context.Background(), []string{" ", ""}); !errors.Is(err, ErrCZNoCodes) {
 		t.Fatalf("err = %v", err)
 	}

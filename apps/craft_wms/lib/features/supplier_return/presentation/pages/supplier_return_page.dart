@@ -91,6 +91,10 @@ class _SupplierReturnViewState extends State<_SupplierReturnView>
         cubit.scanCell(code);
       case ScanKind.good:
         await onGoodScan(code);
+      // Марки и короба «Честного знака» здесь пока не ждут (приёмка марок — CZ-05):
+      // как незнакомый код. Раньше код короба (20 цифр) уходил сюда же через «товар».
+      case ScanKind.czMark:
+      case ScanKind.czBox:
       case ScanKind.unknown:
         if (readLoadUnitPayload(code) is LoadUnitPayloadUnsupported) {
           snack(t.supplierReturn.boxLabelUnsupported);

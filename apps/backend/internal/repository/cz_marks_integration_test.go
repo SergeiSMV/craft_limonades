@@ -54,8 +54,8 @@ func TestCZMarks(t *testing.T) {
 			t.Fatal(err)
 		}
 		if m.GTIN != "04612728200172" || m.Status != model.CZMarkInStock || m.LoadUnitID != lu ||
-			m.LoadUnitCellID != fx.cellA || m.CellID != "" || m.AggregateCode != group.Code ||
-			m.GoodID != fx.good || m.BatchID != fx.batch {
+			m.LoadUnitCellID != fx.cellA || m.CellAddress == "" || m.CellID != "" || m.AggregateCode != group.Code ||
+			m.GoodID != fx.good || m.BatchID != fx.batch || m.ReceivedAt.IsZero() {
 			t.Fatalf("марка = %+v", m)
 		}
 		if got, err := repo.MarksOfLoadUnit(ctx, lu); err != nil || len(got) != 3 {
@@ -150,8 +150,8 @@ func TestCZMarks(t *testing.T) {
 			`INSERT INTO barcodes (good_id, barcode) VALUES ($1::uuid, '4612728200172')`, fx.good); err != nil {
 			t.Fatalf("ШК: %v", err)
 		}
-		if got, err := repo.GoodByGTIN(ctx, "04612728200172"); err != nil || got != fx.good {
-			t.Fatalf("товар по GTIN = %q, %v", got, err)
+		if got, err := repo.GoodByGTIN(ctx, "04612728200172"); err != nil || got.ID != fx.good || got.Name == "" {
+			t.Fatalf("товар по GTIN = %+v, %v", got, err)
 		}
 		if _, err := repo.GoodByGTIN(ctx, "04600000000000"); !errors.Is(err, model.ErrCZUnknownGTIN) {
 			t.Fatalf("чужой GTIN: %v", err)
