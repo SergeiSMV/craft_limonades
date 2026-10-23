@@ -49,7 +49,7 @@ func (h *StockEntryHandler) Start(w http.ResponseWriter, r *http.Request) {
 	}
 	id, err := h.svc.Start(r.Context(), req.SessionID, req.WarehouseID, userID)
 	if err != nil {
-		stockEntryError(w, err)
+		stockEntryError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, map[string]string{"session_id": id})
@@ -94,7 +94,7 @@ func (h *StockEntryHandler) Checkpoint(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.svc.Checkpoint(r.Context(), sessionID, req.CellID, lines, barcodes); err != nil {
-		stockEntryError(w, err)
+		stockEntryError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]int{"accepted": len(lines)})
@@ -106,14 +106,14 @@ func (h *StockEntryHandler) Finalize(w http.ResponseWriter, r *http.Request) {
 	sessionID := chi.URLParam(r, "id")
 	written, err := h.svc.Finalize(r.Context(), sessionID)
 	if err != nil {
-		stockEntryError(w, err)
+		stockEntryError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"written": written, "status": "closed"})
 }
 
 // stockEntryError маппит ошибки сервиса/репозитория в HTTP-коды.
-func stockEntryError(w http.ResponseWriter, err error) {
+func stockEntryError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
 	case errors.Is(err, service.ErrEmptyWarehouse),
 		errors.Is(err, service.ErrEmptyCell),
@@ -130,7 +130,7 @@ func stockEntryError(w http.ResponseWriter, err error) {
 		errors.Is(err, repository.ErrBarcodeConflict):
 		writeError(w, http.StatusConflict, err.Error())
 	default:
-		slog.Error("stock entry failed", "error", err)
+		slog.ErrorContext(r.Context(), "stock entry failed", "error", err)
 		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
 	}
 }

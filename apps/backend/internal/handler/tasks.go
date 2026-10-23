@@ -129,7 +129,7 @@ func (h *TaskHandler) Current(w http.ResponseWriter, r *http.Request) {
 	userID, _ := appmw.UserIDFromContext(r.Context())
 	tasks, err := h.svc.Current(r.Context(), userID)
 	if err != nil {
-		slog.Error("tasks current failed", "error", err)
+		slog.ErrorContext(r.Context(), "tasks current failed", "error", err)
 		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
 		return
 	}
@@ -149,7 +149,7 @@ func (h *TaskHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		slog.Error("task detail failed", "error", err)
+		slog.ErrorContext(r.Context(), "task detail failed", "error", err)
 		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
 		return
 	}
@@ -189,16 +189,16 @@ func (h *TaskHandler) Get(w http.ResponseWriter, r *http.Request) {
 // Повтор своим исполнителем — тоже 204.
 func (h *TaskHandler) Take(w http.ResponseWriter, r *http.Request) {
 	userID, _ := appmw.UserIDFromContext(r.Context())
-	h.writeTaskResult(w, h.svc.Take(r.Context(), chi.URLParam(r, "id"), userID), "take")
+	h.writeTaskResult(w, r, h.svc.Take(r.Context(), chi.URLParam(r, "id"), userID), "take")
 }
 
 // Release: POST /api/v1/tasks/{id}/release — отказаться: задание уходит в пул. 204 / 404 / 409.
 func (h *TaskHandler) Release(w http.ResponseWriter, r *http.Request) {
 	userID, _ := appmw.UserIDFromContext(r.Context())
-	h.writeTaskResult(w, h.svc.Release(r.Context(), chi.URLParam(r, "id"), userID), "release")
+	h.writeTaskResult(w, r, h.svc.Release(r.Context(), chi.URLParam(r, "id"), userID), "release")
 }
 
-func (h *TaskHandler) writeTaskResult(w http.ResponseWriter, err error, action string) {
+func (h *TaskHandler) writeTaskResult(w http.ResponseWriter, r *http.Request, err error, action string) {
 	switch {
 	case err == nil:
 		w.WriteHeader(http.StatusNoContent)
@@ -209,7 +209,7 @@ func (h *TaskHandler) writeTaskResult(w http.ResponseWriter, err error, action s
 	case errors.Is(err, repository.ErrTaskDone):
 		writeError(w, http.StatusConflict, "задание уже выполнено")
 	default:
-		slog.Error("task action failed", "action", action, "error", err)
+		slog.ErrorContext(r.Context(), "task action failed", "action", action, "error", err)
 		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
 	}
 }
@@ -230,7 +230,7 @@ func (h *TaskHandler) Completed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		slog.Error("tasks completed failed", "error", err)
+		slog.ErrorContext(r.Context(), "tasks completed failed", "error", err)
 		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
 		return
 	}
@@ -253,7 +253,7 @@ func (h *TaskHandler) Completed(w http.ResponseWriter, r *http.Request) {
 func (h *TaskHandler) Executors(w http.ResponseWriter, r *http.Request) {
 	users, err := h.svc.Executors(r.Context())
 	if err != nil {
-		slog.Error("tasks executors failed", "error", err)
+		slog.ErrorContext(r.Context(), "tasks executors failed", "error", err)
 		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
 		return
 	}

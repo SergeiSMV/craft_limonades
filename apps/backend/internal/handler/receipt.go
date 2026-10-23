@@ -56,7 +56,7 @@ func (h *ReceiptHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.svc.Start(r.Context(), req.ReceiptID, req.WarehouseID, req.SupplierID, userID, req.DocNumber, req.DocDate); err != nil {
-		receiptError(w, err)
+		receiptError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, map[string]string{"receipt_id": req.ReceiptID})
@@ -89,7 +89,7 @@ func (h *ReceiptHandler) AddLine(w http.ResponseWriter, r *http.Request) {
 	cellID, err := h.svc.AddLine(r.Context(), receiptID, req.GoodID, req.ProductionDate,
 		req.CellID, req.LoadUnitID, req.Qty)
 	if err != nil {
-		receiptError(w, err)
+		receiptError(w, r, err)
 		return
 	}
 	// Отдаём ячейку: если кладовщик её не указывал, это та самая дефолтная, и он должен
@@ -106,7 +106,7 @@ func (h *ReceiptHandler) Post(w http.ResponseWriter, r *http.Request) {
 	receiptID := chi.URLParam(r, "id")
 	posted, err := h.svc.Post(r.Context(), receiptID)
 	if err != nil {
-		receiptError(w, err)
+		receiptError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"posted": posted, "status": model.ReceiptPosted})
@@ -139,7 +139,7 @@ func (h *ReceiptHandler) Get(w http.ResponseWriter, r *http.Request) {
 	receiptID := chi.URLParam(r, "id")
 	rc, lines, err := h.svc.Get(r.Context(), receiptID)
 	if err != nil {
-		receiptError(w, err)
+		receiptError(w, r, err)
 		return
 	}
 	out := receiptResponse{
@@ -176,7 +176,7 @@ func (h *ReceiptHandler) CreateLoadUnit(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	if err := h.lu.Create(r.Context(), req.LoadUnitID, req.Kind); err != nil {
-		receiptError(w, err)
+		receiptError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, map[string]string{"load_unit_id": req.LoadUnitID})
@@ -195,7 +195,7 @@ type loadUnitResponse struct {
 func (h *ReceiptHandler) GetLoadUnit(w http.ResponseWriter, r *http.Request) {
 	lu, err := h.lu.Get(r.Context(), chi.URLParam(r, "id"))
 	if err != nil {
-		receiptError(w, err)
+		receiptError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, loadUnitResponse{
@@ -210,7 +210,7 @@ func (h *ReceiptHandler) GetLoadUnit(w http.ResponseWriter, r *http.Request) {
 // (документ, товар, короб), 409 — «оно есть, но в таком состоянии этого делать нельзя»
 // (документ проведён, пуст, короб числится в двух ячейках). Отсутствие дефолтной ячейки —
 // 500: это незавершённое развёртывание, а не ошибка человека, и чинится не на терминале.
-func receiptError(w http.ResponseWriter, err error) {
+func receiptError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
 	case errors.Is(err, service.ErrEmptyReceiptID),
 		errors.Is(err, service.ErrEmptyWarehouse),
@@ -232,10 +232,10 @@ func receiptError(w http.ResponseWriter, err error) {
 		errors.Is(err, repository.ErrLoadUnitCellConflict):
 		writeError(w, http.StatusConflict, err.Error())
 	case errors.Is(err, service.ErrNoDefaultCell):
-		slog.Error("receiving without default cell", "error", err)
+		slog.ErrorContext(r.Context(), "receiving without default cell", "error", err)
 		writeError(w, http.StatusInternalServerError, err.Error())
 	default:
-		slog.Error("receipt failed", "error", err)
+		slog.ErrorContext(r.Context(), "receipt failed", "error", err)
 		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
 	}
 }

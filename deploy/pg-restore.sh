@@ -54,6 +54,10 @@ psql_db() { local db="$1"; shift; docker exec -i "$cid" psql -U "$PG_USER" -d "$
 TMP_PLAIN=""
 CHECK_DB=""
 cleanup() {
+  local rc=$?
+  # Исход еженедельной проверки восстановимости — сигналом мониторингу таймеров (ADHOC-42).
+  # Только режим проверки: боевое восстановление — ручная операция, не по расписанию.
+  [[ "$MODE" == check ]] && job_exit RESTORE_CHECK "$rc"
   # Расшифрованный дамп — это открытые ФИО и хеши паролей: убираем при любом исходе.
   [[ -n "$TMP_PLAIN" && -f "$TMP_PLAIN" ]] && rm -f "$TMP_PLAIN"
   [[ -n "$CHECK_DB" ]] && psql_admin -c "DROP DATABASE IF EXISTS \"$CHECK_DB\"" >/dev/null 2>&1

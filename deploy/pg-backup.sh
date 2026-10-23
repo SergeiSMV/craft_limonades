@@ -18,6 +18,8 @@ SCRIPT_NAME=backup
 source "$(dirname "${BASH_SOURCE[0]}")/_lib.sh"
 
 require_env_file
+# Исход ночного бэкапа — сигналом мониторингу таймеров (ADHOC-42): не пришёл к сроку или упал — письмо.
+job_watch BACKUP
 BACKUP_DIR="${BACKUP_DIR:-$(cd "$REPO_ROOT/.." && pwd)/backups}"
 KEEP_DAYS="${KEEP_DAYS:-$(get_env KEEP_DAYS)}"
 KEEP_DAYS="${KEEP_DAYS:-14}"

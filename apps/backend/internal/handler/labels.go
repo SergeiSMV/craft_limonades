@@ -38,7 +38,7 @@ func (h *LabelHandler) CellLabelsPDF(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		slog.Error("cell labels pdf failed", "warehouse", code, "error", err)
+		slog.ErrorContext(r.Context(), "cell labels pdf failed", "warehouse", code, "error", err)
 		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
 		return
 	}
