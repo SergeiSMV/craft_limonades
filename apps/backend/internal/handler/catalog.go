@@ -33,7 +33,7 @@ func (h *CatalogHandler) ListGoods(w http.ResponseWriter, r *http.Request) {
 		Limit:      limit, Offset: offset,
 	})
 	if err != nil {
-		catalogError(w, "list goods", err)
+		catalogError(w, r, "list goods", err)
 		return
 	}
 	writeJSON(w, http.StatusOK, page)
@@ -47,7 +47,7 @@ func (h *CatalogHandler) GetGood(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		catalogError(w, "get good", err)
+		catalogError(w, r, "get good", err)
 		return
 	}
 	writeJSON(w, http.StatusOK, good)
@@ -57,7 +57,7 @@ func (h *CatalogHandler) GetGood(w http.ResponseWriter, r *http.Request) {
 func (h *CatalogHandler) ListGroups(w http.ResponseWriter, r *http.Request) {
 	groups, err := h.svc.ListGroups(r.Context())
 	if err != nil {
-		catalogError(w, "list groups", err)
+		catalogError(w, r, "list groups", err)
 		return
 	}
 	writeJSON(w, http.StatusOK, groups)
@@ -67,7 +67,7 @@ func (h *CatalogHandler) ListGroups(w http.ResponseWriter, r *http.Request) {
 func (h *CatalogHandler) ListSuppliers(w http.ResponseWriter, r *http.Request) {
 	suppliers, err := h.svc.ListSuppliers(r.Context(), queryStr(r, "q"))
 	if err != nil {
-		catalogError(w, "list suppliers", err)
+		catalogError(w, r, "list suppliers", err)
 		return
 	}
 	writeJSON(w, http.StatusOK, suppliers)
@@ -83,7 +83,7 @@ func (h *CatalogHandler) ListCells(w http.ResponseWriter, r *http.Request) {
 		Limit:       limit, Offset: offset,
 	})
 	if err != nil {
-		catalogError(w, "list cells", err)
+		catalogError(w, r, "list cells", err)
 		return
 	}
 	writeJSON(w, http.StatusOK, page)
@@ -98,15 +98,15 @@ func (h *CatalogHandler) ListStock(w http.ResponseWriter, r *http.Request) {
 		Limit:  limit, Offset: offset,
 	})
 	if err != nil {
-		catalogError(w, "list stock", err)
+		catalogError(w, r, "list stock", err)
 		return
 	}
 	writeJSON(w, http.StatusOK, page)
 }
 
 // catalogError логирует и отдаёт 500 (внутренние ошибки чтения не про ввод клиента).
-func catalogError(w http.ResponseWriter, op string, err error) {
-	slog.Error("catalog read failed", "op", op, "error", err)
+func catalogError(w http.ResponseWriter, r *http.Request, op string, err error) {
+	slog.ErrorContext(r.Context(), "catalog read failed", "op", op, "error", err)
 	writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
 }
 

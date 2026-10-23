@@ -1,0 +1,28 @@
+# Шаблон vhost хостового nginx для Bugsink — сбора ошибок (ADHOC-42). deploy/_lib.sh
+# (setup_bugsink_vhost) подставляет поддомен и адрес контейнера через envsubst и кладёт
+# результат в /etc/nginx/sites-available/<поддомен>. TLS и редирект http->https добавит
+# `certbot --nginx`, как и у основного домена.
+#
+# Отдельный поддомен, а не путь под основным: Bugsink — самостоятельное приложение со своими
+# адресами и cookie, под чужим префиксом его ссылки и вход ломаются.
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${BUGSINK_DOMAIN};
+
+    # События с исходными картами и вложениями бывают крупными.
+    client_max_body_size 20m;
+
+    location / {
+        proxy_pass http://${BUGSINK_BIND};
+
+        # Bugsink за прокси (BEHIND_HTTPS_PROXY) строит ссылки и проверяет CSRF по этим
+        # заголовкам: без них вход в интерфейс по HTTPS отклоняется.
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host  $host;
+    }
+}

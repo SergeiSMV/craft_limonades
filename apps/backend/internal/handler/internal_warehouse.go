@@ -43,7 +43,7 @@ func toInternalWarehouseResponse(w model.InternalWarehouse) internalWarehouseRes
 func (h *InternalWarehouseHandler) List(w http.ResponseWriter, r *http.Request) {
 	items, err := h.svc.List(r.Context())
 	if err != nil {
-		slog.Error("internal warehouses failed", "error", err)
+		slog.ErrorContext(r.Context(), "internal warehouses failed", "error", err)
 		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
 		return
 	}
@@ -66,7 +66,7 @@ func (h *InternalWarehouseHandler) Create(w http.ResponseWriter, r *http.Request
 	}
 	created, err := h.svc.Create(r.Context(), req.Code, req.Name)
 	if err != nil {
-		internalWarehouseError(w, err)
+		internalWarehouseError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, toInternalWarehouseResponse(created))
@@ -85,7 +85,7 @@ func (h *InternalWarehouseHandler) Update(w http.ResponseWriter, r *http.Request
 	}
 	updated, err := h.svc.Update(r.Context(), chi.URLParam(r, "id"), req.Name, req.IsActive)
 	if err != nil {
-		internalWarehouseError(w, err)
+		internalWarehouseError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, toInternalWarehouseResponse(updated))
@@ -95,14 +95,14 @@ func (h *InternalWarehouseHandler) Update(w http.ResponseWriter, r *http.Request
 // 204 / 400 / 404 / 409.
 func (h *InternalWarehouseHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	if err := h.svc.Delete(r.Context(), chi.URLParam(r, "id")); err != nil {
-		internalWarehouseError(w, err)
+		internalWarehouseError(w, r, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
 // internalWarehouseError — ответ на ошибку ведения справочника; текст — для оператора портала.
-func internalWarehouseError(w http.ResponseWriter, err error) {
+func internalWarehouseError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
 	case errors.Is(err, service.ErrInvalidInternalWarehouse):
 		writeError(w, http.StatusBadRequest, "код — латиница, цифры и «_» до 20 знаков; имя — до 100 символов")
@@ -117,7 +117,7 @@ func internalWarehouseError(w http.ResponseWriter, err error) {
 	case errors.Is(err, repository.ErrInternalWarehouseInUse):
 		writeError(w, http.StatusConflict, "на складе есть остаток или история — его можно только скрыть")
 	default:
-		slog.Error("internal warehouse change failed", "error", err)
+		slog.ErrorContext(r.Context(), "internal warehouse change failed", "error", err)
 		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
 	}
 }

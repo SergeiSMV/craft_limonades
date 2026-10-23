@@ -13,6 +13,7 @@ import (
 	"craftwms/internal/auth"
 	appmw "craftwms/internal/middleware"
 	"craftwms/internal/model"
+	"craftwms/internal/observability"
 	"craftwms/internal/service"
 )
 
@@ -58,6 +59,7 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 	// Общие middleware для всех маршрутов:
 	r.Use(chimw.RequestID)          // уникальный ID запроса — для трассировки в логах
 	r.Use(chimw.Recoverer)          // перехват паник → 500 вместо падения процесса
+	r.Use(observability.Middleware) // запрос и паника — в Bugsink (ADHOC-42); внутри Recoverer
 	r.Use(appmw.RequestLogger(log)) // структурированное логирование каждого запроса
 
 	// Пробы состояния — на КОРНЕ, вне /api/v1: это инфра-эндпоинты, а не публичный API.

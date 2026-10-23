@@ -194,6 +194,8 @@ handler  →  service  →  repository  →  PostgreSQL
 - **repository** — SQL-доступ к Postgres, изоляция БД от домена.
 - **model** — сущности предметной области (товар, ячейка, партия, остаток, грузовая единица).
 - **middleware** — auth по бейджу (JWT), логирование, rate limiting на `/auth/login`.
+- **observability** — ошибки журнала (slog, уровень error) и паники запросов уходят в Bugsink
+  (совместим с Sentry, клиент `sentry-go`); без `SENTRY_DSN` выключено (ADHOC-42).
 
 ## Слои клиента (Flutter)
 

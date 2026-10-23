@@ -59,7 +59,7 @@ func (h *OperationsHandler) Apply(w http.ResponseWriter, r *http.Request) {
 		default:
 			// Временная неудача на ПЕРВОЙ же операции: применить не удалось ничего, и честнее
 			// отдать 5xx — устройство повторит весь батч целиком.
-			slog.Error("operations batch failed", "error", err)
+			slog.ErrorContext(r.Context(), "operations batch failed", "error", err)
 			writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
 		}
 		return

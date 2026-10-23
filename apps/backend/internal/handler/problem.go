@@ -90,7 +90,7 @@ func (h *ProblemHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		slog.Error("problems failed", "error", err)
+		slog.ErrorContext(r.Context(), "problems failed", "error", err)
 		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
 		return
 	}
@@ -106,7 +106,7 @@ func (h *ProblemHandler) List(w http.ResponseWriter, r *http.Request) {
 func (h *ProblemHandler) Current(w http.ResponseWriter, r *http.Request) {
 	items, err := h.svc.Current(r.Context())
 	if err != nil {
-		slog.Error("current problems failed", "error", err)
+		slog.ErrorContext(r.Context(), "current problems failed", "error", err)
 		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
 		return
 	}
@@ -131,7 +131,7 @@ func (h *ProblemHandler) Resolved(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		slog.Error("resolved problems failed", "error", err)
+		slog.ErrorContext(r.Context(), "resolved problems failed", "error", err)
 		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
 		return
 	}
@@ -161,14 +161,14 @@ func (h *ProblemHandler) Resolve(w http.ResponseWriter, r *http.Request) {
 		DocDate: req.DocDate, SupplierID: req.SupplierID, ResolvedBy: userID,
 	})
 	if err != nil {
-		problemError(w, err)
+		problemError(w, r, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
 // problemError — ответ на ошибку решения; текст — для оператора портала.
-func problemError(w http.ResponseWriter, err error) {
+func problemError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
 	case errors.Is(err, service.ErrInvalidProblemID), errors.Is(err, repository.ErrProblemNotFound):
 		writeError(w, http.StatusNotFound, "проблема не найдена")
@@ -184,7 +184,7 @@ func problemError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusConflict,
 			"товара проблемы нет на складе-метке: короб перевели или опустошили, россыпь разобрали или убрали в короб")
 	default:
-		slog.Error("problem resolve failed", "error", err)
+		slog.ErrorContext(r.Context(), "problem resolve failed", "error", err)
 		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
 	}
 }

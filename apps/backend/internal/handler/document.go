@@ -55,7 +55,7 @@ type documentItemResponse struct {
 func (h *DocumentHandler) List(w http.ResponseWriter, r *http.Request) {
 	docs, err := h.svc.List(r.Context(), strings.TrimSpace(r.URL.Query().Get("kind")))
 	if err != nil {
-		slog.Error("documents list failed", "error", err)
+		slog.ErrorContext(r.Context(), "documents list failed", "error", err)
 		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
 		return
 	}
@@ -93,7 +93,7 @@ func (h *DocumentHandler) File(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "документ не найден")
 		return
 	case err != nil:
-		slog.Error("document file failed", "document", id, "error", err)
+		slog.ErrorContext(r.Context(), "document file failed", "document", id, "error", err)
 		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
 		return
 	}
@@ -118,7 +118,7 @@ func (h *DocumentHandler) Done(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "документ не найден")
 		return
 	case err != nil:
-		slog.Error("document done failed", "document", id, "error", err)
+		slog.ErrorContext(r.Context(), "document done failed", "document", id, "error", err)
 		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
 		return
 	}
@@ -143,7 +143,7 @@ func (h *DocumentHandler) Events(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "документ не найден")
 		return
 	case err != nil:
-		slog.Error("document events failed", "document", id, "error", err)
+		slog.ErrorContext(r.Context(), "document events failed", "document", id, "error", err)
 		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
 		return
 	}

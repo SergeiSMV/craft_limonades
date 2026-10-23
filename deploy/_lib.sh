@@ -6,7 +6,8 @@
 # --- Вывод ---
 log()  { printf '\033[1;36m[%s]\033[0m %s\n' "${SCRIPT_NAME:-deploy}" "$*"; }
 warn() { printf '\033[1;33m[%s] ВНИМАНИЕ:\033[0m %s\n' "${SCRIPT_NAME:-deploy}" "$*"; }
-die()  { printf '\033[1;31m[%s] ОШИБКА:\033[0m %s\n' "${SCRIPT_NAME:-deploy}" "$*" >&2; exit 1; }
+# die запоминает текст в LAST_ERROR: его уносит сигнал «упал» мониторингу таймеров (job_watch, ADHOC-42).
+die()  { LAST_ERROR="$*"; printf '\033[1;31m[%s] ОШИБКА:\033[0m %s\n' "${SCRIPT_NAME:-deploy}" "$*" >&2; exit 1; }
 
 # --- Пути ---
 # Раскладка на сервере (рекомендуемая):
@@ -54,7 +55,14 @@ set_env() {
 }
 
 # compose ... — docker compose с нашим env-файлом и prod-compose.
-compose() { docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"; }
+#
+# Bugsink (ADHOC-42) живёт в профиле monitoring и включается сам, когда в .env.prod задан
+# BUGSINK_SECRET_KEY: тогда его поднимают и обновляют те же `up -d` и `ps`, что и стек.
+compose() {
+  local -a profile=()
+  [[ -n "$(get_env BUGSINK_SECRET_KEY)" ]] && profile=(--profile monitoring)
+  docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" ${profile[@]+"${profile[@]}"} "$@"
+}
 
 # preflight_net — проверка прямого выхода к реестру GHCR (иначе pull/деплой не пройдут).
 preflight_net() {
@@ -406,3 +414,79 @@ offsite_push() {
   [[ $pushed -eq 1 ]] && log "Внешняя копия обновлена."
   return 0
 }
+
+# =====================================================================
+#  Мониторинг (ADHOC-42): поддомен Bugsink и сигналы таймеров (Cronitor / Healthchecks.io)
+# =====================================================================
+
+# setup_bugsink_vhost — vhost хостового nginx и сертификат для интерфейса Bugsink.
+# Ничего не делает, если BUGSINK_DOMAIN пуст. Идемпотентна: повторный запуск перегенерирует
+# vhost (прежний — в .bak) и не перевыпускает живой сертификат (--keep-until-expiring).
+setup_bugsink_vhost() {
+  local domain bind email template avail
+  domain="$(get_env BUGSINK_DOMAIN)"
+  [[ -n "$domain" ]] || { log "BUGSINK_DOMAIN не задан — поддомен Bugsink не настраиваю."; return 0; }
+  bind="$(get_env BUGSINK_BIND)"; bind="${bind:-127.0.0.1:8001}"
+  email="$(get_env CERTBOT_EMAIL)"
+  [[ -n "$email" ]] || die "CERTBOT_EMAIL не задан — сертификат для $domain не выпустить."
+  template="$REPO_ROOT/infra/nginx/bugsink.conf.template"
+  avail="/etc/nginx/sites-available/$domain"
+  if command -v getent >/dev/null 2>&1 && ! getent hosts "$domain" >/dev/null; then
+    warn "$domain пока не резолвится в IP — certbot не выпустит сертификат. Нужна DNS-запись."
+  fi
+  log "Генерирую vhost $avail"
+  [[ -f "$avail" ]] && cp -a "$avail" "$avail.bak-$(date +%Y%m%d-%H%M%S)"
+  BUGSINK_DOMAIN="$domain" BUGSINK_BIND="$bind" \
+    envsubst '${BUGSINK_DOMAIN} ${BUGSINK_BIND}' < "$template" > "$avail"
+  ln -sfn "$avail" "/etc/nginx/sites-enabled/$domain"
+  nginx -t
+  systemctl reload nginx
+  log "certbot --nginx для $domain…"
+  certbot --nginx -d "$domain" --non-interactive --agree-tos -m "$email" --redirect --keep-until-expiring
+}
+
+# job_ping ИМЯ [КОД] [ТЕКСТ] — сигнал внешнему сервису: таймер отработал (КОД 0) или упал.
+#
+# Что: адрес берётся из .env.prod (JOB_PING_<ИМЯ>, напр. JOB_PING_BACKUP); пусто — сигнал не
+# отправляется (стенд, dev, сервер без мониторинга).
+# Зачем: таймер, который молча перестал запускаться или падает, в journal не видит никто;
+# сервис пишет письмо, если сигнал не пришёл к сроку или пришёл сбой.
+# Как: формат — по адресу. Cronitor (cronitor.link): `?state=complete|fail` с текстом в
+# `message` и кодом в `status_code`. Иначе — Healthchecks.io: POST на <адрес>/<код>, текст
+# телом. Неудача отправки не роняет вызывающий скрипт: мониторинг не должен ломать бэкап.
+job_ping() {
+  local name="$1" code="${2:-0}" body="${3:-}" url state
+  url="$(get_env "JOB_PING_$name")"
+  [[ -n "$url" ]] || return 0
+  if [[ "$url" == *cronitor.link* ]]; then
+    state=complete; [[ "$code" -eq 0 ]] || state=fail
+    curl -fsS -m 10 --retry 3 -o /dev/null --get "$url" \
+      --data-urlencode "state=$state" --data-urlencode "status_code=$code" \
+      --data-urlencode "message=${body:0:2000}" \
+      || warn "сигнал мониторинга ($name) не ушёл — проверьте JOB_PING_$name и выход в интернет."
+  else
+    curl -fsS -m 10 --retry 3 -o /dev/null --data-raw "$body" "$url/$code" \
+      || warn "сигнал мониторинга ($name) не ушёл — проверьте JOB_PING_$name и выход в интернет."
+  fi
+  return 0
+}
+
+# job_watch ИМЯ — отправить сигнал при выходе скрипта: код выхода — исход запуска.
+# Ставится один раз, после всех ранних выходов, которые запуском не считаются (справка и т.п.):
+# trap на EXIT в bash один, второй заменил бы первый — поэтому только здесь.
+job_watch() {
+  JOB_WATCH_NAME="$1"
+  trap 'job_exit "$JOB_WATCH_NAME" "$?"' EXIT
+}
+
+# job_exit ИМЯ КОД — сигнал по коду выхода с текстом последней ошибки (die). Отдельно от
+# job_watch — для скриптов со своим обработчиком выхода (pg-restore.sh зовёт её из cleanup).
+job_exit() {
+  local name="$1" code="$2"
+  if [[ "$code" -eq 0 ]]; then
+    job_ping "$name" 0 "$SCRIPT_NAME: ок"
+  else
+    job_ping "$name" "$code" "$SCRIPT_NAME: код $code. ${LAST_ERROR:-подробности — journalctl}"
+  fi
+}
+

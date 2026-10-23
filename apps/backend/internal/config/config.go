@@ -21,6 +21,11 @@ type Config struct {
 	JWTSecret  string        // секрет подписи JWT (env JWT_SECRET); пусто → эфемерный секрет на время процесса
 	AccessTTL  time.Duration // время жизни access-токена (env ACCESS_TTL), дефолт 12h
 	RefreshTTL time.Duration // время жизни refresh-токена (env REFRESH_TTL), дефолт 720h (30 дней)
+
+	// Отправка ошибок в Bugsink (ADHOC-42); SentryDSN пуст — отправка выключена.
+	SentryDSN         string // адрес проекта Bugsink (env SENTRY_DSN)
+	SentryEnvironment string // окружение событий (env SENTRY_ENVIRONMENT), дефолт prod
+	SentryRelease     string // версия сборки (env SENTRY_RELEASE); пусто — без версии
 }
 
 // Load читает конфиг из окружения, подставляя безопасные значения по умолчанию.
@@ -34,6 +39,10 @@ func Load() Config {
 		JWTSecret:   getEnv("JWT_SECRET", ""),
 		AccessTTL:   parseDuration(getEnv("ACCESS_TTL", "12h"), 12*time.Hour),
 		RefreshTTL:  parseDuration(getEnv("REFRESH_TTL", "720h"), 720*time.Hour),
+
+		SentryDSN:         getEnv("SENTRY_DSN", ""),
+		SentryEnvironment: getEnv("SENTRY_ENVIRONMENT", "prod"),
+		SentryRelease:     getEnv("SENTRY_RELEASE", ""),
 	}
 }
 
