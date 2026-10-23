@@ -53,6 +53,7 @@ type czInfoResponse struct {
 	ProductName    string          `json:"product_name,omitempty"`
 	ProductGroup   string          `json:"product_group,omitempty"`
 	PackageType    string          `json:"package_type,omitempty"`
+	PackageLevel   string          `json:"package_level,omitempty"`
 	Status         string          `json:"status,omitempty"`
 	OwnerInn       string          `json:"owner_inn,omitempty"`
 	OwnerName      string          `json:"owner_name,omitempty"`

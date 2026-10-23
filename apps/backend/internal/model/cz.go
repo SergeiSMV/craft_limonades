@@ -30,12 +30,15 @@ var (
 // остаётся в Raw. Даты — строками, как их отдаёт ЧЗ: разбирать их будет CZ-04, когда партия
 // станет считаться по дате производства единицы (ADR-0017).
 type CisInfo struct {
-	RequestedCis   string   `json:"requestedCis"`   // код, который спрашивали
-	Cis            string   `json:"cis"`            // КИ марки или код агрегата
-	Gtin           string   `json:"gtin"`           // GTIN; у транспортного короба пусто
-	ProductName    string   `json:"productName"`    // наименование
-	ProductGroup   string   `json:"productGroup"`   // товарная группа: beer, softdrinks, …
-	PackageType    string   `json:"packageType"`    // UNIT, GROUP, BOX — вид упаковки
+	RequestedCis string `json:"requestedCis"`       // код, который спрашивали
+	Cis          string `json:"cis"`                // КИ марки или код агрегата
+	Gtin         string `json:"gtin"`               // GTIN; у транспортного короба пусто
+	ProductName  string `json:"productName"`        // наименование
+	ProductGroup string `json:"productGroup"`       // товарная группа: beer, softdrinks, …
+	PackageType  string `json:"generalPackageType"` // UNIT, GROUP, BOX — вид упаковки
+	// PackageLevel — уровень упаковки: UNIT у единицы, LEVEL1… у агрегатов. Вид в нём не
+	// виден — транспортный короб пива пришёл как LEVEL1 (сверено на проде, CZ-02).
+	PackageLevel   string   `json:"packageType"`
 	Status         string   `json:"status"`         // статус в обороте: INTRODUCED, …
 	OwnerInn       string   `json:"ownerInn"`       // ИНН владельца
 	OwnerName      string   `json:"ownerName"`      // владелец
