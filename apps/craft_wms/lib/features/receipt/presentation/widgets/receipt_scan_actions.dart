@@ -19,6 +19,7 @@ import '../../../stock/data/catalog_repository.dart';
 import '../bloc/receipt_cubit.dart';
 import '../bloc/receipt_models.dart';
 import 'receipt_action_sheet.dart';
+import 'receipt_cz_scan_actions.dart';
 import 'receipt_label_actions.dart';
 
 /// Скан и строки приёмки — общее для общего списка и страницы короба (ADHOC-18).
@@ -33,7 +34,11 @@ import 'receipt_label_actions.dart';
 /// Один скан-вход на всё: формы кодов не пересекаются (P4-04), поэтому кладовщику не нужно
 /// переключать режимы — он сканирует то, что держит в руках.
 mixin ReceiptScanActions<T extends StatefulWidget>
-    on State<T>, HardwareScanListener<T>, ReceiptLabelActions<T> {
+    on
+        State<T>,
+        HardwareScanListener<T>,
+        ReceiptLabelActions<T>,
+        ReceiptCzScanActions<T> {
   final scanController = TextEditingController();
   final scanFocus = FocusNode();
 
@@ -41,9 +46,11 @@ mixin ReceiptScanActions<T extends StatefulWidget>
   final _deduper = ScanDeduper();
 
   /// Короб, в который ложатся строки этого экрана; `null` — штучно (общий список).
+  @override
   String? get scanBoxId;
 
-  /// Отсканирован ярлык короба этой приёмки.
+  /// Отсканирован ярлык короба этой приёмки (или код короба ЧЗ, CZ-05).
+  @override
   void onBoxScanned(String boxId);
 
   /// Отсканирована (или выбрана) ячейка.
@@ -84,10 +91,10 @@ mixin ReceiptScanActions<T extends StatefulWidget>
         await _onCellScan(code);
       case ScanKind.good:
         await _onGoodScan(code);
-      // Марки и короба «Честного знака» здесь пока не ждут (приёмка марок — CZ-05):
-      // как незнакомый код. Раньше код короба (20 цифр) уходил сюда же через «товар».
+      // Марка и короб «Честного знака» читаются из ЧЗ (CZ-05).
       case ScanKind.czMark:
       case ScanKind.czBox:
+        await onCzScan(code);
       case ScanKind.unknown:
         // Ярлык ГЕ новой версии — исправная этикетка, а не чужой код: «не распознан»
         // отправил бы кладовщика искать поломку, которой нет (P4-04).
@@ -157,7 +164,7 @@ mixin ReceiptScanActions<T extends StatefulWidget>
       return;
     }
     snack(t.receipt.goodNotBound);
-    final picked = await _pickGood();
+    final picked = await pickGood();
     if (picked != null && mounted) {
       await _collectAndAdd(picked, scannedCode: code, newBarcode: code);
     }
@@ -177,7 +184,7 @@ mixin ReceiptScanActions<T extends StatefulWidget>
       cancelLabel: t.receipt.cancel,
     );
     if (!confirmed || !mounted) return;
-    final picked = await _pickGood();
+    final picked = await pickGood();
     if (picked == null || !mounted) return;
     await _collectAndAdd(picked, scannedCode: code, newBarcode: code);
   }
@@ -188,7 +195,12 @@ mixin ReceiptScanActions<T extends StatefulWidget>
   /// выдать внутренний и напечатать ярлык (P4-07, P4-08): иначе этот товар так и останется
   /// неопознаваемым сканом на следующих операциях.
   Future<void> addManual() async {
-    final picked = await _pickGood();
+    if (inCzBox) {
+      snack(t.receipt.czBoxClosed);
+      refocusScan();
+      return;
+    }
+    final picked = await pickGood();
     if (picked != null && mounted) {
       final codes = await cubit.barcodesOf(picked.id);
       if (!mounted) return;
@@ -208,6 +220,15 @@ mixin ReceiptScanActions<T extends StatefulWidget>
     String? scannedCode,
     String? newBarcode,
   }) async {
+    // Маркируемый товар принимается только марками (долг 16), в короб ЧЗ не добавляют ничего.
+    if (inCzBox) {
+      snack(t.receipt.czBoxClosed);
+      return;
+    }
+    if (good.czMarked) {
+      snack(t.receipt.czScanMark);
+      return;
+    }
     final res = await showDialog<DateQtyResult>(
       context: context,
       builder: (_) =>
@@ -232,31 +253,38 @@ mixin ReceiptScanActions<T extends StatefulWidget>
     await cubit.removeBarcode(code, goodId: goodId);
     if (!mounted) return;
     snack(t.receipt.barcodeUnbound);
-    final picked = await _pickGood();
+    final picked = await pickGood();
     if (picked != null && mounted) {
       await _collectAndAdd(picked, scannedCode: code, newBarcode: code);
     }
   }
 
   /// Меню строки по долгому нажатию.
+  ///
+  /// Строку с марками ЧЗ не правят: количество — число марок, партия — из ЧЗ (CZ-05). Строку
+  /// короба ЧЗ и не удаляют: короб уходит только целиком, с его страницы.
   Future<void> showLineMenu(ReceiptLineDraft line) async {
+    final czBox =
+        line.boxId != null && (cubit.state.boxById(line.boxId!)?.isCz ?? false);
     final action = await showReceiptActionSheet<String>(context, [
-      ReceiptAction(
-        value: 'edit',
-        icon: Icons.edit_outlined,
-        label: t.receipt.edit,
-      ),
+      if (line.marks.isEmpty)
+        ReceiptAction(
+          value: 'edit',
+          icon: Icons.edit_outlined,
+          label: t.receipt.edit,
+        ),
       ReceiptAction(
         value: 'print',
         icon: MdiIcons.printer,
         label: t.receipt.printGoodLabel,
       ),
-      ReceiptAction(
-        value: 'delete',
-        icon: Icons.delete_outline,
-        label: t.receipt.delete,
-        danger: true,
-      ),
+      if (!czBox)
+        ReceiptAction(
+          value: 'delete',
+          icon: Icons.delete_outline,
+          label: t.receipt.delete,
+          danger: true,
+        ),
     ]);
     if (!mounted || action == null) return;
     switch (action) {
@@ -285,7 +313,8 @@ mixin ReceiptScanActions<T extends StatefulWidget>
   }
 
   /// Нижний лист выбора товара из номенклатуры.
-  Future<Good?> _pickGood() => showModalBottomSheet<Good>(
+  @override
+  Future<Good?> pickGood() => showModalBottomSheet<Good>(
     backgroundColor: AppColors.kNeumorphicBg,
     context: context,
     isScrollControlled: true,

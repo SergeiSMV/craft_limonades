@@ -17,11 +17,18 @@ enum ProblemReason {
   /// Не наша марка ЧЗ.
   foreignMark('foreign_mark'),
 
+  /// Марка ЧЗ выбыла из оборота (CZ-05). Заводит только приёмка по ответу ЧЗ — кладовщику
+  /// на выбор не предлагается: без чтения ЧЗ выбытие не установить.
+  retired('retired', selectable: false),
+
   /// Прочее — комментарий обязателен.
   other('other');
 
-  const ProblemReason(this.wire);
+  const ProblemReason(this.wire, {this.selectable = true});
 
   /// Как значение уходит на сервер.
   final String wire;
+
+  /// Причину выбирает кладовщик при пометке; `false` — её ставит только программа.
+  final bool selectable;
 }

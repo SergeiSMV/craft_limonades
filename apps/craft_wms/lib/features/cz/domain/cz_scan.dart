@@ -66,6 +66,7 @@ class CzCompositionLine {
     required this.count,
     required this.cis,
     this.good,
+    this.discrepancy,
   });
 
   final String gtin;
@@ -78,6 +79,19 @@ class CzCompositionLine {
   final DateTime? producedDate;
   final int count;
   final List<String> cis;
+
+  /// Расхождение единиц строки с ЧЗ (CZ-05): `foreign_mark`, `retired`; `null` — нет.
+  final String? discrepancy;
+}
+
+/// Групповая упаковка внутри сканированной (CZ-05): приёмка заводит её агрегатом.
+class CzGroupRef {
+  const CzGroupRef({required this.code, required this.parentCode});
+
+  final String code;
+
+  /// Сканированный код или другая упаковка из того же ответа.
+  final String parentCode;
 }
 
 /// Ответ на скан марки или кода короба (CZ-04).
@@ -104,6 +118,9 @@ class CzScanResult {
     this.composition = const [],
     this.units = 0,
     this.unreadable = const [],
+    this.discrepancy,
+    this.groups = const [],
+    this.parents = const {},
   });
 
   /// Код, приведённый сервером к ключу ЧЗ (КИ или `00`+SSCC).
@@ -142,6 +159,17 @@ class CzScanResult {
 
   /// Вложенные коды, по которым ЧЗ отказал.
   final List<String> unreadable;
+
+  /// Расхождение кода с ЧЗ (CZ-05): `foreign_mark` — владелец не наша организация,
+  /// `retired` — марка не в обороте; `null` — нет. Такую марку приёмка принимает, а сервер
+  /// при проводке уводит её проблемой в «Изолятор».
+  final String? discrepancy;
+
+  /// Групповые упаковки внутри упаковки (CZ-05).
+  final List<CzGroupRef> groups;
+
+  /// КИ единицы → упаковка, в которой она лежит: сканированный код или упаковка из [groups].
+  final Map<String, String> parents;
 }
 
 /// Чтение «Честного знака» по скану. Только онлайн: ЧЗ без связи не читается.

@@ -30,13 +30,18 @@ type receiptSubmitPayload struct {
 	LoadUnits   []struct {
 		ID   string `json:"id"`
 		Kind string `json:"kind"`
+		// CZCode — короб ЧЗ (`00`+SSCC), которым является эта ГЕ (CZ-05); пусто — свой ярлык.
+		CZCode string `json:"cz_code"`
 	} `json:"load_units"`
-	Lines []struct {
-		GoodID         string          `json:"good_id"`
-		ProductionDate string          `json:"production_date"`
-		CellID         string          `json:"cell_id"`
-		LoadUnitID     string          `json:"load_unit_id"`
-		Qty            decimal.Decimal `json:"qty"`
+	// CZGroups — групповые упаковки ЧЗ из состава коробов и сканов (CZ-05).
+	CZGroups []receiptCZGroupPayload `json:"cz_groups"`
+	Lines    []struct {
+		GoodID         string               `json:"good_id"`
+		ProductionDate string               `json:"production_date"`
+		CellID         string               `json:"cell_id"`
+		LoadUnitID     string               `json:"load_unit_id"`
+		Qty            decimal.Decimal      `json:"qty"`
+		Marks          []receiptMarkPayload `json:"marks"` // марки ЧЗ строки (CZ-05)
 	} `json:"lines"`
 }
 
@@ -92,8 +97,15 @@ func (s *OperationsService) receiptSubmit(ctx context.Context, userID, id string
 		if kind != model.LoadUnitBox && kind != model.LoadUnitPallet {
 			return repository.Applied{}, ErrInvalidLoadUnitKind
 		}
-		in.LoadUnits = append(in.LoadUnits, repository.LoadUnitInput{ID: luID, Kind: kind})
+		in.LoadUnits = append(in.LoadUnits, repository.LoadUnitInput{
+			ID: luID, Kind: kind, CZCode: strings.TrimSpace(lu.CZCode),
+		})
 	}
+	cz, err := newReceiptCZ(in.LoadUnits, p.CZGroups)
+	if err != nil {
+		return repository.Applied{}, err
+	}
+	in.CZGroups = cz.groups
 
 	for _, ln := range p.Lines {
 		goodID := strings.TrimSpace(ln.GoodID)
@@ -115,8 +127,13 @@ func (s *OperationsService) receiptSubmit(ctx context.Context, userID, id string
 		if err != nil {
 			return repository.Applied{}, err
 		}
+		marks, err := cz.marks(ln.Marks, luID, ln.Qty)
+		if err != nil {
+			return repository.Applied{}, err
+		}
 		in.Lines = append(in.Lines, model.ReceiptLineInput{
 			GoodID: goodID, ProductionDate: iso, CellID: cellID, LoadUnitID: luID, Qty: ln.Qty,
+			Marks: marks,
 		})
 	}
 	return s.repo.ReceiptSubmit(ctx, id, in)

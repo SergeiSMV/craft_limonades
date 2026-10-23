@@ -14,6 +14,7 @@ String reasonLabel(ProblemReason r) => switch (r) {
   ProblemReason.spoilage => t.problems.reasonSpoilage,
   ProblemReason.expired => t.problems.reasonExpired,
   ProblemReason.foreignMark => t.problems.reasonForeignMark,
+  ProblemReason.retired => t.problems.reasonRetired,
   ProblemReason.other => t.problems.reasonOther,
 };
 

@@ -31,6 +31,7 @@ type Config struct {
 	CZSignerSocket  string        // сокет подписанта cz-signer (env CZ_SIGNER_SOCKET)
 	CZAPIURL        string        // адрес True API (env CZ_API_URL), дефолт — боевой
 	CZRefreshBefore time.Duration // за сколько до истечения обновлять токен (env CZ_TOKEN_REFRESH_BEFORE), дефолт 1h
+	CZOwnerINN      string        // ИНН нашей организации в ЧЗ (env CZ_OWNER_INN); пусто — владельца марки не сверяем
 }
 
 // Load читает конфиг из окружения, подставляя безопасные значения по умолчанию.
@@ -52,6 +53,7 @@ func Load() Config {
 		CZSignerSocket:  getEnv("CZ_SIGNER_SOCKET", ""),
 		CZAPIURL:        getEnv("CZ_API_URL", "https://markirovka.crpt.ru/api/v3/true-api"),
 		CZRefreshBefore: parseDuration(getEnv("CZ_TOKEN_REFRESH_BEFORE", "1h"), time.Hour),
+		CZOwnerINN:      strings.TrimSpace(getEnv("CZ_OWNER_INN", "")),
 	}
 }
 

@@ -48,6 +48,10 @@ class OutboxEffects {
           goodId: goodId,
           pending: true,
         );
+        // ШК из марки ЧЗ — товар маркируемый (CZ-05), как его пометит и сервер.
+        if (payload['from_cz_mark'] == true) {
+          await _cache.setGoodCzMarked(goodId, true);
+        }
       case OutboxKind.receiptSubmit:
       case OutboxKind.putawaySubmit:
       case OutboxKind.movementSubmit:

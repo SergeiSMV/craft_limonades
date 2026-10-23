@@ -208,13 +208,18 @@ mixin GoodsSearchHandlers<T extends StatefulWidget> on State<T> {
     final failure = await context.read<GoodsListCubit>().bindBarcode(
       goodId: good.id,
       barcode: barcode,
+      fromCzMark: czMark != null,
     );
     if (!mounted) return;
     if (failure != null) {
       snack(t.stockListScreen.bindFailed);
       return;
     }
-    openGoodDetail(good, czMark: czMark);
+    // Товар выбран из списка до привязки — признак «маркируемый» в нём ещё прежний.
+    openGoodDetail(
+      czMark != null ? good.copyWith(czMarked: true) : good,
+      czMark: czMark,
+    );
   }
 
   /// Нижний лист выбора товара из номенклатуры; null — лист закрыли, ничего не выбрав.

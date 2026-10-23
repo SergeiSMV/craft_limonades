@@ -46,11 +46,31 @@ class ReceiptLineTile extends StatelessWidget {
             color: AppColors.kSidebarHover,
           ),
         ),
-        subtitle: Text(
-          cellAddress == null ? batch : '$batch · $cellAddress',
-          style: RegularTextStyles().regularInter10.copyWith(
-            color: AppColors.kTextMuted,
-          ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              cellAddress == null ? batch : '$batch · $cellAddress',
+              style: RegularTextStyles().regularInter10.copyWith(
+                color: AppColors.kTextMuted,
+              ),
+            ),
+            // Марки ЧЗ строки и расхождения — каждое своей строкой (CZ-05).
+            if (line.marks.isNotEmpty)
+              Text(
+                t.receipt.czMarksLine(count: line.marks.length),
+                style: RegularTextStyles().regularInter10.copyWith(
+                  color: AppColors.kTextMuted,
+                ),
+              ),
+            if (line.discrepancies > 0)
+              Text(
+                t.receipt.czDiscrepancyLine(count: line.discrepancies),
+                style: RegularTextStyles().regularInter10.copyWith(
+                  color: AppColors.kDanger,
+                ),
+              ),
+          ],
         ),
         trailing: Text(
           t.receipt.qtyWithUom(qty: fmtQty(line.qty), uom: line.good.uom),

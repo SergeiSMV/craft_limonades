@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 
+	"craftwms/internal/model"
 	"craftwms/internal/repository"
 )
 
@@ -158,6 +159,9 @@ func (s *OperationsService) dispatch(ctx context.Context, userID, id string, op 
 			GoodID    string `json:"good_id"`
 			Barcode   string `json:"barcode"`
 			Symbology string `json:"symbology"`
+			// FromCZMark — ШК пришёл из марки ЧЗ (CZ-05): привязка заодно помечает товар
+			// маркируемым (долг 16, признак по факту). Старые клиенты поле не шлют — false.
+			FromCZMark bool `json:"from_cz_mark"`
 		}
 		if err := json.Unmarshal(op.Payload, &p); err != nil {
 			return repository.Applied{}, ErrInvalidPayload
@@ -172,6 +176,7 @@ func (s *OperationsService) dispatch(ctx context.Context, userID, id string, op 
 		}
 		return s.repo.BindBarcode(ctx, id, repository.BarcodeBindInput{
 			GoodID: goodID, Barcode: code, Symbology: strings.TrimSpace(p.Symbology),
+			FromCZMark: p.FromCZMark,
 		})
 
 	case repository.KindUnbindBarcode:
@@ -338,6 +343,15 @@ func isRejection(err error) bool {
 		errors.Is(err, repository.ErrLoadUnitNotFound) ||
 		errors.Is(err, repository.ErrNoDefaultCell) ||
 		errors.Is(err, repository.ErrUnknownReference) ||
+		// Марки ЧЗ приёмки (CZ-05): марка или короб уже приняты, код не по форме, GTIN марки —
+		// не товар строки или незнаком, марок больше количества. Повтор этого не исправит — без
+		// записи здесь очередь ТСД повторяла бы такую приёмку бесконечно.
+		errors.Is(err, model.ErrCZMarkExists) ||
+		errors.Is(err, model.ErrCZAggregateExists) ||
+		errors.Is(err, model.ErrCZBadCode) ||
+		errors.Is(err, model.ErrCZMarkGoodMismatch) ||
+		errors.Is(err, model.ErrCZUnknownGTIN) ||
+		errors.Is(err, model.ErrCZMarksExceedQty) ||
 		// Размещение (P5-02): сеанс уже проведён, пуст, противоречит складу или просит больше,
 		// чем лежит. Повтор этого не исправит — сеанс разбирает человек.
 		errors.Is(err, ErrInvalidPutawayID) ||

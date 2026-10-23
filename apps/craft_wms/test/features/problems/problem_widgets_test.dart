@@ -126,9 +126,13 @@ void main() {
     }
     expect(find.text(t.problems.mark), findsOneWidget);
     // Варианты — неоморфные кнопки приложения, а не чипы Material; выбрана одна причина.
+    // Причины только те, что выбирает кладовщик: «выбыла» ставит приёмка (CZ-05).
     expect(
       find.byType(NeumorphicChoice),
-      findsNWidgets(warehouses.length + ProblemReason.values.length),
+      findsNWidgets(
+        warehouses.length +
+            ProblemReason.values.where((r) => r.selectable).length,
+      ),
     );
     expect(
       tester

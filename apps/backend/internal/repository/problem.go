@@ -55,6 +55,10 @@ type ProblemSubmitInput struct {
 	Reason                string
 	Comment               string
 	Mark                  string
+
+	// fromReceipt — проблему заводит проводка приёмки (CZ-05): товар ещё в ячейке приёмки,
+	// и это законно — он уходит в «Изолятор», не дожидаясь размещения.
+	fromReceipt bool
 }
 
 // problemSubmit фиксирует проблему и переводит остаток на склад назначения (P6-07-1).
@@ -215,8 +219,9 @@ func problemGoods(ctx context.Context, q Querier, in ProblemSubmitInput, cell, f
 	return problemRow{cell: cell, fromIwh: fromIwh, batch: batchID, qty: &qty}, nil
 }
 
-// guardProblemPlace — ячейка склада документа, не ячейка приёмки, товар не числится уже
-// на складе назначения и не лежит на системном складе.
+// guardProblemPlace — ячейка склада документа, не ячейка приёмки (кроме проблемы, которую
+// заводит сама приёмка, CZ-05), товар не числится уже на складе назначения и не лежит на
+// системном складе.
 func guardProblemPlace(ctx context.Context, q Querier, cell, fromIwh string, in ProblemSubmitInput) error {
 	if fromIwh == in.ToInternalWarehouseID {
 		return ErrSameInternalWarehouse
@@ -226,6 +231,9 @@ func guardProblemPlace(ctx context.Context, q Querier, cell, fromIwh string, in 
 	}
 	if err := guardCellOfWarehouse(ctx, q, cell, in.WarehouseID); err != nil {
 		return err
+	}
+	if in.fromReceipt {
+		return nil
 	}
 	return guardNotReceivingCell(ctx, q, cell)
 }

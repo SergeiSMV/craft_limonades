@@ -154,11 +154,14 @@ func main() {
 			RefreshBefore: cfg.CZRefreshBefore,
 			Log:           log,
 		})
-		svc.CZ = service.NewCZService(czClient, czMarks)
+		svc.CZ = service.NewCZService(czClient, czMarks).WithOwnerINN(cfg.CZOwnerINN)
 		log.Info("chestny znak enabled", "api", cfg.CZAPIURL, "signer", cfg.CZSignerSocket)
+		if cfg.CZOwnerINN == "" {
+			log.Warn("CZ_OWNER_INN is empty — mark owner is not checked on receipt")
+		}
 	} else {
 		// Явный nil интерфейса: *trueapi.Client(nil) внутри интерфейса не был бы nil.
-		svc.CZ = service.NewCZService(nil, nil)
+		svc.CZ = service.NewCZService(nil, czMarks)
 	}
 
 	// 5. HTTP-сервер с собранным роутером транспортного слоя.

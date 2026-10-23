@@ -37,14 +37,14 @@ func (r *BarcodeRepository) GetGoodByBarcode(ctx context.Context, code string) (
 	var g model.Good
 	err := r.pool.QueryRow(ctx, `
 		SELECT g.id::text, g.code, g.name, g.full_name, g.uom,
-		       g.group_id::text, ng.name, g.supplier_id::text, s.name, g.is_active
+		       g.group_id::text, ng.name, g.supplier_id::text, s.name, g.is_active, g.cz_marked
 		FROM barcodes b
 		JOIN goods g                     ON g.id = b.good_id
 		LEFT JOIN nomenclature_groups ng ON ng.id = g.group_id
 		LEFT JOIN suppliers s            ON s.id = g.supplier_id
 		WHERE b.barcode = $1`, code).
 		Scan(&g.ID, &g.Code, &g.Name, &g.FullName, &g.UOM,
-			&g.GroupID, &g.GroupName, &g.SupplierID, &g.SupplierName, &g.IsActive)
+			&g.GroupID, &g.GroupName, &g.SupplierID, &g.SupplierName, &g.IsActive, &g.CZMarked)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return model.Good{}, ErrNotFound
 	}

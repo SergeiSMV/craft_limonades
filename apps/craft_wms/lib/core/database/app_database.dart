@@ -36,6 +36,9 @@ class CachedGoods extends Table {
   BoolColumn get isActive => boolean().withDefault(const Constant(true))();
   TextColumn get searchText => text()();
 
+  /// Маркируемый товар (CZ-05), см. `Good.czMarked`.
+  BoolColumn get czMarked => boolean().withDefault(const Constant(false))();
+
   @override
   Set<Column<Object>> get primaryKey => {id};
 }
@@ -338,7 +341,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   /// Миграции схемы.
   ///
@@ -365,6 +368,8 @@ class AppDatabase extends _$AppDatabase {
   ///
   /// 8 → 9: у внутренних складов — признак «в выборе» (ADHOC-29): скрытые портал оставляет
   /// в справочнике ради подписи их остатка.
+  ///
+  /// 9 → 10: у товаров — признак «маркируемый» (CZ-05).
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) => m.createAll(),
@@ -425,6 +430,16 @@ class AppDatabase extends _$AppDatabase {
           cachedInternalWarehouses,
           cachedInternalWarehouses.isActive,
         );
+      }
+      // Только при подъёме до 10 и выше: таблица товаров живёт с версии 1, и тесты прежних
+      // шагов (onUpgrade(2, 3) по базе текущей схемы) иначе добавляли бы колонку повторно.
+      if (from < 10 && to >= 10) {
+        await m.addColumn(cachedGoods, cachedGoods.czMarked);
+        // Признак встаёт «нет» у всех товаров — маркируемый товар принимался бы по ШК.
+        // Снимаем отметку товаров: до следующей загрузки справочник читается с сервера.
+        await (delete(
+          catalogSyncMarks,
+        )..where((t) => t.catalog.equals('goods'))).go();
       }
     },
   );

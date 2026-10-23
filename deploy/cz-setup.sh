@@ -155,6 +155,13 @@ thumb="$(tr -d ' :' <<<"$thumb" | tr 'A-F' 'a-f')"
 printf '%s\n' "${thumbs[@]}" | tr 'A-F' 'a-f' | grep -qx "$thumb" \
   || die "сертификата с отпечатком $thumb в uMy пользователя $cz_user нет."
 
+# ИНН организации в ЧЗ (CZ-05): по нему приёмка отличает чужие марки. Не секрет — в .env.prod.
+inn_def="$(get_env CZ_OWNER_INN)"
+read -rp "  ИНН организации в Честном знаке (как в МЧД) [${inn_def:-пусто}]: " owner_inn
+owner_inn="${owner_inn:-$inn_def}"
+[[ -z "$owner_inn" || "$owner_inn" =~ ^([0-9]{10}|[0-9]{12})$ ]] || die "ИНН — 10 или 12 цифр."
+[[ -n "$owner_inn" ]] || warn "ИНН не задан — приёмка не будет сверять владельца марки."
+
 pin_cur="$(env_file_value CZ_SIGNER_PIN)"
 if [[ -n "$pin_cur" ]]; then pin_shown="задан, Enter — оставить"; else pin_shown="пусто — без пароля"; fi
 read -rsp "  Пароль копии ключа [$pin_shown]: " pin; printf '\n'
@@ -173,6 +180,7 @@ chown root:root "$env_out.new"; chmod 600 "$env_out.new"; mv -f "$env_out.new" "
 log "Отпечаток и пароль записаны в $env_out (root, 600)."
 
 set_env CZ_SIGNER_USER "$cz_user"
+set_env CZ_OWNER_INN "$owner_inn"
 set_env CZ_SIGNER_SOCKET "$CZ_SOCKET"
 
 # --- 3. Служба ---------------------------------------------------------------------------

@@ -13,13 +13,14 @@ const (
 	ProblemReasonSpoilage    = "spoilage"     // порча
 	ProblemReasonExpired     = "expired"      // просрок
 	ProblemReasonForeignMark = "foreign_mark" // не наша марка ЧЗ
+	ProblemReasonRetired     = "retired"      // марка ЧЗ выбыла из оборота (CZ-05)
 	ProblemReasonOther       = "other"        // прочее — с обязательным комментарием
 )
 
 // ProblemReasons — все причины, в порядке показа.
 var ProblemReasons = []string{
 	ProblemReasonBreakage, ProblemReasonSpoilage, ProblemReasonExpired,
-	ProblemReasonForeignMark, ProblemReasonOther,
+	ProblemReasonForeignMark, ProblemReasonRetired, ProblemReasonOther,
 }
 
 // InternalWarehouse — внутренний склад: «Основной», «Брак», «Изолятор» … (ADR-0016).
@@ -58,7 +59,9 @@ var problemDecisions = map[string][]string{
 	ProblemReasonSpoilage:    {ProblemDecisionWriteOff, ProblemDecisionSupplierReturn},
 	ProblemReasonExpired:     {ProblemDecisionWriteOff, ProblemDecisionSupplierReturn},
 	ProblemReasonForeignMark: {ProblemDecisionPlace, ProblemDecisionSupplierReturn},
-	ProblemReasonOther:       {ProblemDecisionWriteOff, ProblemDecisionPlace, ProblemDecisionSupplierReturn},
+	// Выбывшую марку продать нельзя — разместить обратно в «Основной» не даём (CZ-05).
+	ProblemReasonRetired: {ProblemDecisionWriteOff, ProblemDecisionSupplierReturn},
+	ProblemReasonOther:   {ProblemDecisionWriteOff, ProblemDecisionPlace, ProblemDecisionSupplierReturn},
 }
 
 // ProblemDecisionsFor — решения, допустимые при причине; неизвестная причина — пусто.

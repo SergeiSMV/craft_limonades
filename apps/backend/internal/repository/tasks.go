@@ -106,6 +106,52 @@ func createPutawayTaskForReceipt(ctx context.Context, q Querier, receiptID strin
 	return nil
 }
 
+// excludeFromPutawayTask убирает из задания приёмки россыпь, которую проводка тут же увела
+// проблемой в «Изолятор» (CZ-05): размещение берёт россыпь только «Основного», и позиция
+// с изолированным товаром не закрылась бы никогда. Россыпь вне ячейки приёмки в задание не
+// попадала — убирать нечего. Опустевшее задание удаляется: оно только что создано этой же
+// проводкой, сеансов по нему нет.
+func excludeFromPutawayTask(ctx context.Context, q Querier, receiptID, cellID, goodID, productionDate string, qty decimal.Decimal) error {
+	var receiving bool
+	if err := q.QueryRow(ctx, `SELECT is_default FROM cells WHERE id = $1::uuid`, cellID).Scan(&receiving); err != nil {
+		return fmt.Errorf("ячейка проблемы приёмки: %w", err)
+	}
+	if !receiving {
+		return nil
+	}
+	batchID, err := existingBatch(ctx, q, goodID, productionDate)
+	if err != nil {
+		return err
+	}
+	// Позиция россыпи по товару и партии в задании приёмки одна (строки приёмки уникальны
+	// по товару, партии, ячейке и ГЕ): уходит целиком — удаляется, иначе уменьшается.
+	const item = `
+		FROM warehouse_tasks t
+		WHERE t.id = i.task_id AND t.receipt_id = $1::uuid AND i.load_unit_id IS NULL
+		  AND i.good_id = $2::uuid AND i.batch_id = $3::uuid`
+	tag, err := q.Exec(ctx, `DELETE FROM putaway_task_items i USING warehouse_tasks t
+		WHERE t.id = i.task_id AND t.receipt_id = $1::uuid AND i.load_unit_id IS NULL
+		  AND i.good_id = $2::uuid AND i.batch_id = $3::uuid AND i.qty <= $4::numeric`,
+		receiptID, goodID, batchID, qty.String())
+	if err != nil {
+		return fmt.Errorf("убрать позицию из задания: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		if _, err := q.Exec(ctx, `UPDATE putaway_task_items i SET qty = i.qty - $4::numeric`+item,
+			receiptID, goodID, batchID, qty.String()); err != nil {
+			return fmt.Errorf("уменьшить позицию задания: %w", err)
+		}
+		return nil
+	}
+	if _, err := q.Exec(ctx, `
+		DELETE FROM warehouse_tasks t
+		WHERE t.receipt_id = $1::uuid
+		  AND NOT EXISTS (SELECT 1 FROM putaway_task_items i WHERE i.task_id = t.id)`, receiptID); err != nil {
+		return fmt.Errorf("удалить пустое задание: %w", err)
+	}
+	return nil
+}
+
 // taskRemainder — что ещё осталось разместить по заданию: короба и россыпь по (товар, партия).
 type taskRemainder struct {
 	boxes map[string]bool               // короб задания → ещё не размещён

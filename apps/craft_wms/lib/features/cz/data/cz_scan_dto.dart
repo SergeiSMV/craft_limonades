@@ -29,8 +29,24 @@ CzScanResult czScanFromJson(Map<String, dynamic> j) {
     unreadable: [
       for (final c in (j['unreadable'] as List?) ?? const []) c as String,
     ],
+    discrepancy: _text(j['discrepancy']),
+    groups: [
+      for (final g in (j['groups'] as List?) ?? const [])
+        CzGroupRef(
+          code: (g as Map<String, dynamic>)['code'] as String,
+          parentCode: (g['parent_code'] as String?) ?? '',
+        ),
+    ],
+    parents: {
+      for (final e
+          in ((j['parents'] as Map<String, dynamic>?) ?? const {}).entries)
+        e.key: e.value as String,
+    },
   );
 }
+
+/// Непустая строка или `null`: сервер опускает пустые поля, но и пустую строку считаем «нет».
+String? _text(Object? v) => v is String && v.isNotEmpty ? v : null;
 
 /// Вид кода: неизвестное значение считаем маркой — карточка товара покажет то, что есть.
 CzCodeKind _kind(String? v) => switch (v) {
@@ -64,6 +80,7 @@ CzCompositionLine _line(Map<String, dynamic> j) => CzCompositionLine(
   producedDate: _day(j['produced_date']),
   count: (j['count'] as num).toInt(),
   cis: [for (final c in (j['cis'] as List?) ?? const []) c as String],
+  discrepancy: _text(j['discrepancy']),
 );
 
 /// Дата ЧЗ днём (`YYYY-MM-DD`); пусто или не дата — `null`.

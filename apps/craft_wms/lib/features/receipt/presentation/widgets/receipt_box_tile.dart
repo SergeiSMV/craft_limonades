@@ -59,7 +59,9 @@ class ReceiptBoxTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    t.receipt.box(code: box.shortCode),
+                    box.isCz
+                        ? t.receipt.czBox(code: box.shortCode)
+                        : t.receipt.box(code: box.shortCode),
                     style: SemiboldTextStyles().semiboldInter14.copyWith(
                       color: AppColors.kSidebarHover,
                     ),
