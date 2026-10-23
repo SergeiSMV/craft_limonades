@@ -50,27 +50,34 @@ signer_health() {
 
 # cz_api ПУТЬ [ТЕЛО] — вызов admin-ручки ЧЗ бэкенда: тело ответа — в файл $CZ_OUT, код — в
 # CZ_HTTP. Без подстановки $(…): она шла бы в подоболочке, и код ответа терялся бы.
+#
+# Вход админа — один раз за запуск (CZ_ADMIN_TOKEN): у входа лимит 10 в минуту, а проверка
+# опрашивает статус каждые 3 секунды — вход на каждый опрос упирался в 429.
 CZ_OUT="$(mktemp)"
 trap 'rm -f "$CZ_OUT"' EXIT
 CZ_HTTP=000
+CZ_ADMIN_TOKEN=""
 cz_api() {
-  local bind token
+  local bind
   bind="$(get_env BACKEND_BIND)"; bind="${bind:-127.0.0.1:8080}"
-  token="$(admin_token)" || true
-  [[ -n "$token" ]] || die "вход админа в backend не удался — проверьте ADMIN_USERNAME/ADMIN_PASSWORD."
+  if [[ -z "$CZ_ADMIN_TOKEN" ]]; then
+    CZ_ADMIN_TOKEN="$(admin_token)" || true
+    [[ -n "$CZ_ADMIN_TOKEN" ]] || die "вход админа в backend не удался — проверьте ADMIN_USERNAME/ADMIN_PASSWORD (или подождите минуту: лимит входов)."
+  fi
   if [[ -n "${2:-}" ]]; then
     CZ_HTTP="$(printf '%s' "$2" | curl -sS -m 60 -o "$CZ_OUT" -w '%{http_code}' \
-      -H "Authorization: Bearer $token" -H 'Content-Type: application/json' --data-binary @- \
+      -H "Authorization: Bearer $CZ_ADMIN_TOKEN" -H 'Content-Type: application/json' --data-binary @- \
       "http://$bind/api/v1/admin/cz/$1")" || CZ_HTTP=000
   else
     CZ_HTTP="$(curl -sS -m 60 -o "$CZ_OUT" -w '%{http_code}' \
-      -H "Authorization: Bearer $token" "http://$bind/api/v1/admin/cz/$1")" || CZ_HTTP=000
+      -H "Authorization: Bearer $CZ_ADMIN_TOKEN" "http://$bind/api/v1/admin/cz/$1")" || CZ_HTTP=000
   fi
 }
 
 # cz_test — проверка по звеньям: служба → пробная подпись → токен в бэкенде → чтение марки.
 #
-# Токена ждём полторы минуты: бэкенд после неудачного входа повторяет его через минуту.
+# Токена ждём полторы минуты: бэкенд входит сразу при старте, а после неудачи повторяет вход
+# с растущей паузой (1, 2, 4… до 15 минут). Настройка поэтому всегда перезапускает бэкенд.
 cz_test() {
   command -v jq >/dev/null 2>&1 || die "нет jq: sudo apt-get install -y jq"
   systemctl is-active --quiet "$CZ_SIGNER_UNIT" \
@@ -93,7 +100,7 @@ cz_test() {
     sleep 3
   done
   [[ "$valid" == "true" ]] \
-    || die "токен за полторы минуты не получен — причина в журнале: docker compose … logs backend | grep 'true api'"
+    || die "токена пока нет. Бэкенд после неудачных входов ждёт до 15 минут — пункт 18 перезапустит его сразу; причина — в журнале: docker compose … logs backend | grep 'true api'"
   log "✅ Токен получен, действует до $(jq -r '.token_expires_at' "$CZ_OUT") (UTC)."
 
   local code
@@ -178,8 +185,11 @@ for _ in $(seq 1 10); do [[ -S "$CZ_SOCKET" ]] && break; sleep 1; done
 [[ -S "$CZ_SOCKET" ]] || die "служба не открыла сокет — смотрите: journalctl -u $CZ_SIGNER_UNIT -n 30"
 
 # --- 4. Backend с сокетом -----------------------------------------------------------------
-log "Пересоздаю backend с сокетом подписанта…"
-compose up -d backend
+# Всегда перезапуск, а не только `up -d`: при повторной настройке окружение бэкенда не
+# меняется, контейнер не пересоздаётся, и он сидел бы в паузе после прошлых неудачных входов
+# (найдено при выкатке CZ-02: первый запуск был с неверным паролем копии).
+log "Перезапускаю backend с сокетом подписанта…"
+compose up -d --force-recreate backend
 health_check || die "backend не поднялся после пересоздания — смотрите: docker compose … logs backend"
 
 # --- 5. Проверка ---------------------------------------------------------------------------
