@@ -1,0 +1,35 @@
+[Unit]
+# Подписант Честного знака (CZ-02): подписывает КЭП строку входа в True API для бэкенда.
+# Работает на хосте, где стоят КриптоПро CSP и ключ; бэкенд ходит к нему через unix-сокет
+# в /run/cz-signer (каталог смонтирован в контейнер). В сеть не выходит.
+# Плейсхолдеры подставляет install_systemd_units (deploy/_lib.sh), если в .env.prod задан
+# CZ_SIGNER_USER. Пока подписант не настроен (нет файла с отпечатком и паролем или бинаря),
+# служба не стартует — без ошибок, по условиям ниже.
+Description=Craft WMS Chestny Znak signer (CryptoPro, unix socket)
+ConditionPathExists=__CZ_SIGNER_ENV__
+ConditionPathExists=__CZ_SIGNER_BIN__
+
+[Service]
+Type=simple
+# Ключ — файловая копия в /var/opt/cprocsp/keys/<пользователь>, сертификат — в его uMy:
+# подписывать может только этот пользователь.
+User=__CZ_SIGNER_USER__
+# Группа сокета: в неё входит бэкенд (group_add в compose по CZ_SIGNER_GID).
+Group=cz-signer
+# Отпечаток и пароль копии ключа (root, 600): systemd читает файл до смены пользователя.
+EnvironmentFile=__CZ_SIGNER_ENV__
+Environment=CZ_SIGNER_SOCKET=/run/cz-signer/sign.sock
+# Каталог сокета: владелец — служба, группа — cz-signer. Preserve: каталог смонтирован в
+# контейнер бэкенда, и при перезапуске службы он должен остаться тем же, иначе бэкенд
+# смотрел бы в удалённый каталог до своего перезапуска.
+RuntimeDirectory=cz-signer
+RuntimeDirectoryMode=0750
+RuntimeDirectoryPreserve=yes
+ExecStart=__CZ_SIGNER_BIN__
+Restart=on-failure
+RestartSec=10
+NoNewPrivileges=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

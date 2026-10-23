@@ -26,6 +26,11 @@ type Config struct {
 	SentryDSN         string // адрес проекта Bugsink (env SENTRY_DSN)
 	SentryEnvironment string // окружение событий (env SENTRY_ENVIRONMENT), дефолт prod
 	SentryRelease     string // версия сборки (env SENTRY_RELEASE); пусто — без версии
+
+	// Честный знак (CZ-02); CZSignerSocket пуст — чтение ЧЗ выключено.
+	CZSignerSocket  string        // сокет подписанта cz-signer (env CZ_SIGNER_SOCKET)
+	CZAPIURL        string        // адрес True API (env CZ_API_URL), дефолт — боевой
+	CZRefreshBefore time.Duration // за сколько до истечения обновлять токен (env CZ_TOKEN_REFRESH_BEFORE), дефолт 1h
 }
 
 // Load читает конфиг из окружения, подставляя безопасные значения по умолчанию.
@@ -43,6 +48,10 @@ func Load() Config {
 		SentryDSN:         getEnv("SENTRY_DSN", ""),
 		SentryEnvironment: getEnv("SENTRY_ENVIRONMENT", "prod"),
 		SentryRelease:     getEnv("SENTRY_RELEASE", ""),
+
+		CZSignerSocket:  getEnv("CZ_SIGNER_SOCKET", ""),
+		CZAPIURL:        getEnv("CZ_API_URL", "https://markirovka.crpt.ru/api/v3/true-api"),
+		CZRefreshBefore: parseDuration(getEnv("CZ_TOKEN_REFRESH_BEFORE", "1h"), time.Hour),
 	}
 }
 

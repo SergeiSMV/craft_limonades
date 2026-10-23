@@ -112,6 +112,24 @@ install_systemd_units() {
     changed=1
   fi
 
+  # Подписант Честного знака (CZ-02) — только там, где задан CZ_SIGNER_USER. Юнит пишется,
+  # лишь когда содержимое поменялось: update.sh зовёт эту функцию каждые 5 минут, а
+  # перезапускать службу без причины незачем.
+  local cz_user cz_unit_changed=0
+  cz_user="$(get_env CZ_SIGNER_USER)"
+  if [[ -n "$cz_user" ]]; then
+    cz_signer_prepare
+    local cz_new
+    cz_new="$(sed -e "s|__CZ_SIGNER_USER__|$cz_user|g" \
+                  -e "s|__CZ_SIGNER_BIN__|$(cz_signer_bin)|g" \
+                  -e "s|__CZ_SIGNER_ENV__|$(cz_signer_env)|g" "$units_dir/$CZ_SIGNER_UNIT")"
+    if [[ ! -f "$sysd/$CZ_SIGNER_UNIT" || "$cz_new" != "$(cat "$sysd/$CZ_SIGNER_UNIT")" ]]; then
+      printf '%s\n' "$cz_new" > "$sysd/$CZ_SIGNER_UNIT"
+      cz_unit_changed=1
+    fi
+    changed=1
+  fi
+
   [[ $changed -eq 1 ]] || return 0
   # В тестах (CRAFT_SYSTEMD_DIR задан) systemd не трогаем — только раскладываем файлы.
   [[ -n "${CRAFT_SYSTEMD_DIR:-}" ]] && return 0
@@ -119,6 +137,11 @@ install_systemd_units() {
   [[ "$(get_env AUTO_UPDATE)" == "true" ]] && systemctl enable --now craft-wms-update.timer >/dev/null
   [[ "$(get_env AUTO_BACKUP)" != "false" ]] && \
     systemctl enable --now craft-wms-backup.timer craft-wms-restore-check.timer >/dev/null
+  if [[ -n "$cz_user" ]]; then
+    systemctl enable "$CZ_SIGNER_UNIT" >/dev/null 2>&1
+    [[ $cz_unit_changed -eq 1 ]] && systemctl try-restart "$CZ_SIGNER_UNIT"
+    cz_signer_start
+  fi
   return 0
 }
 
@@ -272,6 +295,85 @@ portal_deploy() {
   mv "$tmp" "$root"
   rm -rf "$old"
   log "Портал обновлён: $root ($(du -sh "$root" 2>/dev/null | cut -f1))"
+}
+
+# admin_token — access-токен админа портала (ADMIN_USERNAME/ADMIN_PASSWORD) для admin-ручек
+# бэкенда: проверка мониторинга (ADHOC-43), проверка Честного знака (CZ-02). Нужен jq.
+# Пароль идёт в теле запроса через stdin — в списке процессов его нет.
+admin_token() {
+  local bind user pass body
+  bind="$(get_env BACKEND_BIND)"; bind="${bind:-127.0.0.1:8080}"
+  user="$(get_env ADMIN_USERNAME)"; pass="$(get_env ADMIN_PASSWORD)"
+  [[ -n "$user" && -n "$pass" ]] || die "ADMIN_USERNAME/ADMIN_PASSWORD не заданы — admin-ручки бэкенда не вызвать."
+  body="$(jq -n --arg u "$user" --arg p "$pass" '{username:$u,password:$p}')"
+  printf '%s' "$body" | curl -fsS -m 10 -H 'Content-Type: application/json' --data-binary @- \
+    "http://$bind/api/v1/auth/login/password" | jq -r '.access // empty'
+}
+
+# =====================================================================
+#  Подписант Честного знака (CZ-02)
+# =====================================================================
+# Служба на хосте, а не контейнер: КриптоПро CSP, ключ и лицензия стоят на сервере. Бинарь
+# едет в образе бэкенда и достаётся оттуда (cz_signer_deploy), юнит ставит
+# install_systemd_units. Всё включается переменной CZ_SIGNER_USER — пользователь сервера,
+# у которого лежит ключ; без неё ничего из этого раздела не выполняется.
+
+CZ_SIGNER_UNIT=craft-wms-cz-signer.service
+
+# cz_signer_bin — куда кладётся бинарь подписанта: рядом с .env.prod, вне клона репозитория.
+cz_signer_bin() { printf '%s/bin/cz-signer' "$(cd "$REPO_ROOT/.." && pwd)"; }
+
+# cz_signer_env — файл с отпечатком и паролем копии ключа (root, 600). Отдельно от .env.prod:
+# пароль ключа не нужен ни бэкенду, ни остальным скриптам.
+cz_signer_env() { printf '%s/cz-signer.env' "$(dirname "$ENV_FILE")"; }
+
+# cz_signer_prepare — группа cz-signer и её GID в .env.prod.
+#
+# Зачем GID: бэкенд входит в группу сокета через group_add в compose, а внутри контейнера
+# группы с таким именем нет — нужен номер. Записывается, только если изменился: иначе
+# каждая запись .env.prod пересоздавала бы контейнер бэкенда.
+cz_signer_prepare() {
+  # В тестах (CRAFT_SYSTEMD_DIR задан) систему не трогаем.
+  [[ -n "${CRAFT_SYSTEMD_DIR:-}" ]] && return 0
+  local user gid
+  user="$(get_env CZ_SIGNER_USER)"
+  id "$user" >/dev/null 2>&1 || warn "CZ_SIGNER_USER=$user: такого пользователя на сервере нет — подписант не запустится."
+  getent group cz-signer >/dev/null || groupadd --system cz-signer
+  gid="$(getent group cz-signer | cut -d: -f3)"
+  [[ "$(get_env CZ_SIGNER_GID)" == "$gid" ]] || set_env CZ_SIGNER_GID "$gid"
+}
+
+# cz_signer_start — запустить службу, если она не работает. Пока подписант не настроен
+# (нет файла с паролем или бинаря), systemd пропускает старт по условиям юнита, без ошибки.
+cz_signer_start() {
+  systemctl start "$CZ_SIGNER_UNIT" >/dev/null 2>&1 || warn "подписант ЧЗ не запустился — смотрите: journalctl -u $CZ_SIGNER_UNIT"
+}
+
+# cz_signer_deploy — достать бинарь подписанта из образа бэкенда и, если он новый,
+# подменить и перезапустить службу.
+#
+# Как у портала: контейнер только создаётся, не запускается. Подмена атомарная (mv), а
+# одинаковый бинарь не трогается — служба перезапускается лишь на новой версии.
+cz_signer_deploy() {
+  [[ -n "$(get_env CZ_SIGNER_USER)" ]] || return 0
+  local image bin tmp cid
+  image="$(get_env BACKEND_IMAGE)"; bin="$(cz_signer_bin)"; tmp="$bin.new.$$"
+  mkdir -p "$(dirname "$bin")"
+  cid="$(docker create "$image" 2>/dev/null)" || { warn "не удалось создать контейнер из образа бэкенда — подписант не обновлён."; return 1; }
+  if ! docker cp "$cid:/usr/local/bin/cz-signer" "$tmp" 2>/dev/null; then
+    docker rm -f "$cid" >/dev/null 2>&1; rm -f "$tmp"
+    warn "в образе бэкенда нет cz-signer — подписант не обновлён."; return 1
+  fi
+  docker rm -f "$cid" >/dev/null 2>&1
+  [[ -s "$tmp" ]] || { rm -f "$tmp"; warn "из образа извлёкся пустой cz-signer — не подменяю."; return 1; }
+
+  if [[ -f "$bin" ]] && cmp -s "$tmp" "$bin"; then
+    rm -f "$tmp"; return 0
+  fi
+  chown root:root "$tmp"; chmod 0755 "$tmp"; mv -f "$tmp" "$bin"
+  log "Подписант ЧЗ обновлён: $bin"
+  systemctl try-restart "$CZ_SIGNER_UNIT" >/dev/null 2>&1 || true
+  cz_signer_start
 }
 
 # ── Яндекс.Диск через WebDAV ────────────────────────────────────────────────

@@ -124,6 +124,8 @@ compose pull --quiet backend || warn "не удалось обновить об�
 # не прошла миграция — прежний контейнер продолжает работать с прежней схемой.
 # БД поднимать отдельно не нужно: `compose run` тянет depends_on: db (condition: service_healthy).
 log "Миграции…"; compose run --rm --entrypoint /usr/local/bin/migrate backend up
+# Группа сокета подписанта ЧЗ (CZ-02) — до `up -d`: её GID уходит в group_add бэкенда.
+[[ -n "$(get_env CZ_SIGNER_USER)" ]] && cz_signer_prepare
 
 compose up -d
 cid="$(compose ps -q backend)"; [[ -n "$cid" ]] || die "контейнер backend не создан."
@@ -143,6 +145,8 @@ log "Стартовый админ…"; compose run --rm --entrypoint /usr/local
 # поэтому правки юнитов доезжают на сервер сами, без повторного install.sh.
 log "Ставлю systemd-таймеры по .env.prod…"
 install_systemd_units
+# Бинарь подписанта ЧЗ — после юнитов: на новом бинаре служба перезапускается (CZ-02).
+cz_signer_deploy || warn "подписант ЧЗ не установлен — повторит update.sh."
 if [[ "$(get_env AUTO_UPDATE)" == "true" ]]; then
   log "Авто-обновление включено (каждые $(get_env UPDATE_INTERVAL || echo 5min))."
 else
