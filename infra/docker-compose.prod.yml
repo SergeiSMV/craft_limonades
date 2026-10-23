@@ -103,6 +103,10 @@ services:
       CREATE_SUPERUSER: ${BUGSINK_ADMIN:-}
       DATABASE_URL: postgresql://bugsink:${BUGSINK_DB_PASSWORD:-}@bugsink-db:5432/bugsink
       BASE_URL: https://${BUGSINK_DOMAIN:-localhost}
+      # Кому Bugsink отвечает. Без списка он берёт только хост из BASE_URL (+ localhost), и
+      # backend, который шлёт события по сети compose на `bugsink:8000`, получал 400
+      # DisallowedHost (найдено при проверке ADHOC-43).
+      ALLOWED_HOSTS: ${BUGSINK_DOMAIN:-localhost},bugsink,localhost,127.0.0.1
       BEHIND_HTTPS_PROXY: "True"
       USE_X_FORWARDED_HOST: "True"
       SITE_TITLE: Craft WMS · ошибки

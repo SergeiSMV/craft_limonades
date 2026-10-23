@@ -130,6 +130,14 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 			})
 		}
 
+		// Проверка мониторинга (ADHOC-43): проверочная ошибка в Bugsink. Только admin — письмо
+		// уходит на каждый вызов. Сервисов не требует, поэтому вне условий выше.
+		r.Group(func(r chi.Router) {
+			r.Use(appmw.Authenticator(tokens))
+			r.Use(appmw.RequireRole(model.RoleAdmin))
+			r.Post("/admin/monitoring/test", MonitoringTest)
+		})
+
 		// Чтение справочников (товары/группы/поставщики/ячейки/остатки) — любому аутентифицированному
 		// сотруднику (это кормит экраны ТСД, не только админку). Только GET, без изменений данных.
 		if svc.Catalog != nil {

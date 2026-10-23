@@ -48,7 +48,10 @@ func enable(t *testing.T) *memTransport {
 	if err != nil || !ok {
 		t.Fatalf("Init: %v %v", ok, err)
 	}
-	t.Cleanup(func() { sentry.CurrentHub().BindClient(nil) })
+	t.Cleanup(func() {
+		sentry.CurrentHub().BindClient(nil)
+		active.Store(false)
+	})
 	return tr
 }
 
@@ -98,6 +101,7 @@ func TestHandler_errorBecomesEvent_infoDoesNot(t *testing.T) {
 
 func TestHandler_disabledSendsNothing(t *testing.T) {
 	sentry.CurrentHub().BindClient(nil)
+	active.Store(false)
 	if ok, err := Init(Options{}); ok || err != nil {
 		t.Fatalf("без DSN отправка должна быть выключена: %v %v", ok, err)
 	}
@@ -156,5 +160,13 @@ func TestMiddleware_errorLogCarriesRequest(t *testing.T) {
 	events := tr.all()
 	if len(events) != 1 || events[0].Request == nil || events[0].Tags["request_id"] == "" {
 		t.Fatalf("событие без запроса: %+v", events)
+	}
+}
+
+// Без Init отправка выключена, даже если у hub есть клиент-заглушка sentry-go.
+func TestEnabled_falseWithoutInit(t *testing.T) {
+	active.Store(false)
+	if Enabled() {
+		t.Error("без Init с DSN отправка должна считаться выключенной")
 	}
 }
