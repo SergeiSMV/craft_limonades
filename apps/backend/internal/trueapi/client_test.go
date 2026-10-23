@@ -242,15 +242,16 @@ func TestTokenWithoutExpUsesFallback(t *testing.T) {
 	}
 }
 
-// cisesInfoBody — ответ cises/info по образцу CZ-01: марка, транспортный короб и отказ по коду.
+// cisesInfoBody — ответ cises/info в формате, сверенном на проде (CZ-02): марка, транспортный
+// короб и отказ по коду. Вид упаковки — generalPackageType, packageType — уровень (у короба LEVEL1).
 const cisesInfoBody = `[
  {"cisInfo":{"requestedCis":"0104600000000017215abc","cis":"0104600000000017215abc",
    "gtin":"04600000000017","productName":"Лимонад","productGroup":"softdrinks",
-   "packageType":"UNIT","status":"INTRODUCED","ownerInn":"6234203222","ownerName":"ООО Крафт",
+   "packageType":"UNIT","generalPackageType":"UNIT","status":"INTRODUCED","ownerInn":"6234203222","ownerName":"ООО Крафт",
    "producedDate":"2026-10-13T00:00:00.000Z","expirationDate":"2027-04-13T00:00:00.000Z",
    "parent":"0104600000000024215grp","tnVedEaes":"2202"}},
  {"cisInfo":{"requestedCis":"00146000000000000017","cis":"00146000000000000017",
-   "packageType":"BOX","status":"INTRODUCED","child":["0104600000000017215abc","0104600000000017215abd"]}},
+   "packageType":"LEVEL1","generalPackageType":"BOX","status":"INTRODUCED","child":["0104600000000017215abc","0104600000000017215abd"]}},
  {"cisInfo":{"requestedCis":"010460000000001721zzz"},"errorMessage":"Код не найден"}
 ]`
 
@@ -279,7 +280,7 @@ func TestCisesInfo(t *testing.T) {
 	if !strings.Contains(string(unit.Raw), `"tnVedEaes":"2202"`) {
 		t.Fatalf("raw lost fields: %s", unit.Raw)
 	}
-	if box.PackageType != "BOX" || len(box.Child) != 2 {
+	if box.PackageType != "BOX" || box.PackageLevel != "LEVEL1" || len(box.Child) != 2 {
 		t.Fatalf("box = %+v", box)
 	}
 	if missing.ErrorMessage != "Код не найден" || missing.RequestedCis != "010460000000001721zzz" {
