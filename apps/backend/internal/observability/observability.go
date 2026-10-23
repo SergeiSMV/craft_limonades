@@ -13,6 +13,7 @@ package observability
 import (
 	"context"
 	"errors"
+	"sync/atomic"
 	"time"
 
 	"github.com/getsentry/sentry-go"
@@ -48,20 +49,29 @@ func Init(o Options) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	active.Store(true)
 	return true, nil
 }
+
+// active — Init прошёл с DSN. Свой признак, а не «у hub есть клиент»: sentry-go держит
+// клиент-заглушку и без Init, и такая проверка считала отправку включённой в dev и тестах.
+var active atomic.Bool
 
 // Flush дожидается отправки накопленных событий — при остановке сервиса, иначе ошибки,
 // случившиеся перед самым SIGTERM, пропали бы вместе с процессом.
 func Flush(timeout time.Duration) bool {
-	if sentry.CurrentHub().Client() == nil {
+	if !enabled() {
 		return true
 	}
 	return sentry.Flush(timeout)
 }
 
+// Enabled — отправка включена (задан DSN). Нужно проверке мониторинга (ADHOC-43): ответить,
+// ушла ли тестовая ошибка или её некуда было отправлять.
+func Enabled() bool { return enabled() }
+
 // enabled — отправка включена.
-func enabled() bool { return sentry.CurrentHub().Client() != nil }
+func enabled() bool { return active.Load() }
 
 // hubFrom — hub запроса из контекста, а вне запроса — общий.
 func hubFrom(ctx context.Context) *sentry.Hub {

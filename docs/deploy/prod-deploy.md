@@ -434,34 +434,64 @@ HTTP-монитор `https://<DEPLOY_DOMAIN>/ready` раз в 5 минут, пи
 туда каждую запись журнала уровня error и каждую панику запроса — с запросом (без токена),
 `request_id` и пользователем.
 
-Включение, один раз:
-
-1. DNS: запись `BUGSINK_DOMAIN` (например, `errors.craft.skogi.ru`) на тот же IP, что у
-   основного домена.
-2. В `.env.prod`: `BUGSINK_DOMAIN`, `BUGSINK_SECRET_KEY` (`openssl rand -base64 50`),
-   `BUGSINK_DB_PASSWORD` (`openssl rand -hex 24`), `BUGSINK_ADMIN` (`почта:пароль`) и
-   `BUGSINK_EMAIL_*` — SMTP-ящик для алертов.
-3. Поддомен, сертификат и контейнеры:
-
-   ```bash
-   sudo bash /opt/craft-wms/app/deploy/install.sh
-   ```
-
-   Повторная установка безопасна: vhost основного домена перегенерируется, живой сертификат
-   не перевыпускается, миграций нет — `no change`.
-4. Войти на `https://<BUGSINK_DOMAIN>` учёткой из `BUGSINK_ADMIN`, завести команду и проект
-   (`backend`), в настройках проекта включить письма о новых ошибках.
-5. DSN проекта (`https://<ключ>@<домен>/<номер>`) записать в `SENTRY_DSN` с **внутренним**
-   адресом: `http://<ключ>@bugsink:8000/<номер>` — события идут по сети compose, наружу не
-   выходят. Затем `sudo bash /opt/craft-wms/app/deploy/update.sh` — бэкенд пересоздастся
-   с новым окружением.
-
-Проверка: в журнале бэкенда при старте — `error reporting enabled`.
+Включение — **панель управления, пункт 16 «Настроить мониторинг»**
+(`sudo bash /opt/craft-wms/app/deploy/craft.sh`), или напрямую:
 
 ```bash
-docker compose --env-file /opt/craft-wms/.env.prod -f /opt/craft-wms/app/infra/docker-compose.prod.yml \
-  logs backend | grep "error reporting"
+sudo bash /opt/craft-wms/app/deploy/monitoring-setup.sh
 ```
+
+Нужно заранее: DNS-запись поддомена (`errors.<DEPLOY_DOMAIN>`) на IP сервера; SMTP-ящик
+для алертов (сервер, порт, логин, **пароль приложения** — обычный пароль почты не подойдёт);
+адреса трёх мониторов таймеров. Скрипт спрашивает только это (Enter — оставить как есть),
+остальное делает сам:
+
+1. генерирует ключ Bugsink, пароль его базы и пароль админа — всё в `.env.prod`;
+2. поддомен: vhost хостового nginx и сертификат Let's Encrypt;
+3. поднимает `bugsink` и `bugsink-db`, заводит команду `craft` и проект `backend`, включает
+   письма о новых ошибках, повторах после «решено» и снятии с паузы;
+4. берёт DSN проекта, переводит на внутренний адрес сети compose (`http://<ключ>@bugsink:8000/<номер>`)
+   и пишет в `SENTRY_DSN` — события идут не через nginx и наружу не выходят;
+5. пересоздаёт backend с новым окружением;
+6. проверка: тестовое письмо (если задан SMTP) и проверочная ошибка из backend — скрипт ждёт,
+   пока она появится в Bugsink.
+
+В конце — адрес интерфейса, почта входа и **пароль админа (показывается один раз)** — в
+менеджер паролей. Повторный запуск безопасен: секреты не перегенерируются, команда и проект не
+задваиваются; так же меняют SMTP или адреса мониторов.
+
+Проверить мониторинг в любой момент — пункт 17 «Проверить мониторинг» или:
+
+```bash
+sudo bash /opt/craft-wms/app/deploy/monitoring-setup.sh --test
+```
+
+Проверочная ошибка — запрос админа `POST /api/v1/admin/monitoring/test`: пишет в журнал ошибку
+«проверка мониторинга» и проходит весь путь до Bugsink. Письмо о новой ошибке Bugsink шлёт один
+раз на ошибку: чтобы проверить письмо снова, отметьте её в интерфейсе решённой (Resolve).
+
+### Где смотреть, если что-то не так
+
+| Что                          | Где                                                                  |
+|------------------------------|----------------------------------------------------------------------|
+| Ошибки бэкенда с разбором    | Bugsink — `https://<BUGSINK_DOMAIN>`                                 |
+| Журнал бэкенда целиком       | панель, пункт 7 «Логи backend»                                       |
+| Автообновление               | `journalctl -u craft-wms-update -n 50`                               |
+| Бэкап и его проверка         | `journalctl -u craft-wms-backup`, `journalctl -u craft-wms-restore-check` |
+| Bugsink сам                  | `docker compose … logs bugsink`                                      |
+| nginx: вход снаружи, TLS     | `/var/log/nginx/access.log`, `/var/log/nginx/error.log`              |
+| Доступен ли сервер снаружи   | UptimeRobot                                                          |
+| Отработали ли таймеры        | Cronitor                                                             |
+
+`docker compose …` — полностью:
+`docker compose --env-file /opt/craft-wms/.env.prod -f /opt/craft-wms/app/infra/docker-compose.prod.yml`.
+
+**Автообновление завершается ошибкой, если не скачался образ backend или портала** — работа
+при этом сделана, стек живёт на прежних образах. Частая причина — истёк `GHCR_TOKEN`
+(personal access token GitHub с правом `read:packages`): так прод 20–23.10.2026 трое суток
+стоял на сборке 13 октября, а скрипт отчитывался «Обновление завершено». Новый токен —
+GitHub → Settings → Developer settings → Personal access tokens, в `.env.prod` заменить
+`GHCR_TOKEN=`; таймер подхватит его в течение 5 минут.
 
 ### Файрвол (по желанию)
 
