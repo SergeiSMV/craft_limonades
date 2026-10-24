@@ -120,6 +120,8 @@ void main() {
           comment: TextEditingController(),
           mark: TextEditingController(),
           onWarehouse: (_) {},
+          onTakePhoto: () {},
+          onRemovePhoto: (_) {},
           onReason: (_) {},
         ),
       );

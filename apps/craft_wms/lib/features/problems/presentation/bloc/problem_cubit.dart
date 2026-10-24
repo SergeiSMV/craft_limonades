@@ -8,6 +8,7 @@ import '../../../../core/warehouse/internal_warehouses.dart';
 import '../../../contents/domain/contents_entities.dart';
 import '../../../stock/data/catalog_models.dart';
 import '../../domain/problem_models.dart';
+import '../../domain/problem_photos.dart';
 import '../../domain/problem_repository.dart';
 import 'problem_state.dart';
 
@@ -19,10 +20,13 @@ import 'problem_state.dart';
 /// назначения — не тот, где товар уже лежит.
 @injectable
 class ProblemCubit extends Cubit<ProblemState> {
-  ProblemCubit(this._repo, this._ids) : super(const ProblemState());
+  ProblemCubit(this._repo, this._ids, this._photos, this._camera)
+    : super(const ProblemState());
 
   final ProblemRepository _repo;
   final LoadUnitIdGenerator _ids;
+  final ProblemPhotoRepository _photos;
+  final PhotoCamera _camera;
 
   /// Склады, которыми можно пометить, — для выбора на экране.
   List<InternalWarehouse> warehouses = const [];
@@ -152,6 +156,29 @@ class ProblemCubit extends Cubit<ProblemState> {
   void next() =>
       emit(ProblemState(problemId: _ids.newId(), reason: state.reason));
 
+  //* --- фото (ADHOC-45) --- *//
+
+  /// Снять фото камерой терминала. Больше [kProblemPhotoMax] не берём; отмену съёмки — молча.
+  Future<void> takePhoto() async {
+    if (state.photos.length >= kProblemPhotoMax || state.outcome != null) {
+      return;
+    }
+    final content = await _camera.take();
+    if (content == null || isClosed) return;
+    emit(
+      state.copyWith(
+        photos: [
+          ...state.photos,
+          ProblemPhotoShot(id: _ids.newId(), content: content),
+        ],
+      ),
+    );
+  }
+
+  /// Убрать снимок до фиксации.
+  void removePhoto(String id) =>
+      emit(state.copyWith(photos: [...state.photos.where((p) => p.id != id)]));
+
   //* --- фиксация --- *//
 
   /// Зафиксировать: поставить в очередь и попробовать отправить.
@@ -159,6 +186,12 @@ class ProblemCubit extends Cubit<ProblemState> {
     if (!state.canSubmit) return;
     emit(state.copyWith(busy: true, notice: null));
     final res = await _repo.submit(payload(state));
+    // Снимки — вслед за проблемой, своей очередью: и проведённой, и ждущей связи. Отклонённой
+    // проблемы на сервере не будет — её снимкам некуда лечь.
+    if (!(res.isLeft && res.left is RejectedFailure) &&
+        state.photos.isNotEmpty) {
+      await _photos.enqueue(state.problemId!, state.photos);
+    }
     final s = state.copyWith(busy: false);
     emit(
       res.fold(

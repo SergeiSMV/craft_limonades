@@ -11,6 +11,7 @@ import '../../../../core/outbox/outbox_repository.dart';
 import '../../../../core/outbox/sent_sessions.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../movement/domain/movement_repository.dart';
+import '../../../problems/domain/problem_photos.dart';
 import '../../../putaway/data/putaway_repository.dart';
 import '../bloc/sync_status_cubit.dart';
 import '../widgets/operation_tile.dart';
@@ -48,6 +49,10 @@ class _SyncQueuePageState extends State<SyncQueuePage> {
   late final Stream<List<OutboxOperation>> _rejected = outbox.watchRejected();
   late final Stream<List<OutboxOperation>> _pending = outbox.watchPending();
 
+  /// Фото к проблемам идут своей очередью (ADHOC-45) — здесь только сколько их ждёт.
+  late final Stream<int> _photos = getIt<ProblemPhotoRepository>()
+      .watchPendingCount();
+
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
@@ -73,43 +78,57 @@ class _SyncQueuePageState extends State<SyncQueuePage> {
             stream: _pending,
             builder: (context, pendingSnapshot) {
               final pending = pendingSnapshot.data ?? const <OutboxOperation>[];
-              if (rejected.isEmpty && pending.isEmpty) {
-                return Center(child: Text(t.syncQueue.empty));
-              }
-              return ListView(
-                padding: AppInsets.all16,
-                children: [
-                  // Отклонённые выше ожидающих: ожидающие уйдут сами, а эти без человека
-                  // не сдвинутся, и ради них экран и открывают.
-                  if (rejected.isNotEmpty) ...[
-                    _SectionTitle(
-                      t.syncQueue.rejectedTitle(count: rejected.length),
-                    ),
-                    for (final operation in rejected)
-                      OperationTile(
-                        operation: operation,
-                        onRetry: () => outbox.retry(operation.operationId),
-                        onDiscard: () =>
-                            _confirmDiscard(context, outbox, operation),
-                        onFix: _fixable(operation)
-                            ? () => _fix(context, operation)
-                            : null,
-                      ),
-                    AppBoxes.kHeight16,
-                  ],
-                  if (pending.isNotEmpty) ...[
-                    _SectionTitle(
-                      t.syncQueue.pendingTitle(count: pending.length),
-                    ),
-                    for (final operation in pending)
-                      OperationTile(operation: operation),
-                  ],
-                ],
+              return StreamBuilder<int>(
+                stream: _photos,
+                builder: (context, photosSnapshot) {
+                  final photos = photosSnapshot.data ?? 0;
+                  if (rejected.isEmpty && pending.isEmpty && photos == 0) {
+                    return Center(child: Text(t.syncQueue.empty));
+                  }
+                  return _list(context, rejected, pending, photos);
+                },
               );
             },
           );
         },
       ),
+    );
+  }
+
+  /// Списки очереди: отклонённые, ожидающие, число фото в своей очереди.
+  Widget _list(
+    BuildContext context,
+    List<OutboxOperation> rejected,
+    List<OutboxOperation> pending,
+    int photos,
+  ) {
+    return ListView(
+      padding: AppInsets.all16,
+      children: [
+        // Отклонённые выше ожидающих: ожидающие уйдут сами, а эти без человека
+        // не сдвинутся, и ради них экран и открывают.
+        if (rejected.isNotEmpty) ...[
+          _SectionTitle(t.syncQueue.rejectedTitle(count: rejected.length)),
+          for (final operation in rejected)
+            OperationTile(
+              operation: operation,
+              onRetry: () => outbox.retry(operation.operationId),
+              onDiscard: () => _confirmDiscard(context, outbox, operation),
+              onFix: _fixable(operation)
+                  ? () => _fix(context, operation)
+                  : null,
+            ),
+          AppBoxes.kHeight16,
+        ],
+        if (pending.isNotEmpty) ...[
+          _SectionTitle(t.syncQueue.pendingTitle(count: pending.length)),
+          for (final operation in pending) OperationTile(operation: operation),
+        ],
+        if (photos > 0) ...[
+          AppBoxes.kHeight16,
+          _SectionTitle(t.syncQueue.photosTitle(count: photos)),
+        ],
+      ],
     );
   }
 

@@ -52,6 +52,8 @@ abstract final class AppSizes {
   //* --- Image Sizes ------------------------------------------------------ *//
   static const double kImagePlaceholder =
       240; // иллюстрация-заглушка (ошибка/пусто)
+  static const double kPhotoThumb =
+      96; // миниатюра фото проблемы склада (ADHOC-45): три в ряд на ширине ТСД
 
   //* --- Button Sizes ----------------------------------------------------- *//
   static const double kButtonHeight64 = 64;

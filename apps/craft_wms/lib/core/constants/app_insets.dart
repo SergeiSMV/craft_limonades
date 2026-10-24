@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 abstract final class AppInsets {
   //* --- All ------------------------------------------------------------- *//
   static const EdgeInsets all2 = EdgeInsets.all(2);
+  static const EdgeInsets all4 = EdgeInsets.all(4);
   static const EdgeInsets all8 = EdgeInsets.all(8);
   static const EdgeInsets all12 = EdgeInsets.all(12);
   static const EdgeInsets all16 = EdgeInsets.all(16);

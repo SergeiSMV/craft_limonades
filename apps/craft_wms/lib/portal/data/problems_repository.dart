@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import 'package:either_dart/either.dart';
 import 'package:injectable/injectable.dart';
@@ -69,6 +71,7 @@ class PortalProblem {
     required this.returnTaskNumber,
     required this.resolvedBy,
     required this.resolvedAt,
+    this.photos = const [],
   });
 
   factory PortalProblem.fromJson(Map<String, dynamic> j) => PortalProblem(
@@ -100,6 +103,9 @@ class PortalProblem {
     resolvedAt: j['resolved_at'] == null
         ? null
         : DateTime.parse(j['resolved_at'] as String),
+    photos: [
+      for (final e in j['photos'] as List<dynamic>? ?? const []) e as String,
+    ],
   );
 
   final String id;
@@ -145,6 +151,9 @@ class PortalProblem {
   final String resolvedBy;
   final DateTime? resolvedAt;
 
+  /// Фото со склада — идентификаторы в порядке съёмки (ADHOC-45); снимок — [ProblemsRepository.photo].
+  final List<String> photos;
+
   /// Короткий код короба — как на ярлыке: последние восемь знаков идентификатора.
   String get loadUnitCode => loadUnitId.isEmpty
       ? ''
@@ -188,6 +197,16 @@ class ProblemsRepository {
         PortalProblem.fromJson(e as Map<String, dynamic>),
     ];
   });
+
+  /// Снимок к проблеме (ADHOC-45) как есть — для миниатюры и просмотра.
+  Future<Either<Failure, Uint8List>> photo(String problemId, String photoId) =>
+      _call(() async {
+        final resp = await _dio.get<List<int>>(
+          ApiConst.problemPhoto(problemId, photoId),
+          options: Options(responseType: ResponseType.bytes),
+        );
+        return Uint8List.fromList(resp.data ?? const []);
+      });
 
   /// Справочник поставщиков — выбор, кому возвращать.
   Future<Either<Failure, List<PortalSupplier>>> suppliers() => _call(() async {
