@@ -1,11 +1,13 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/constants/app_borders.dart';
 import '../../../../core/constants/app_boxes.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_insets.dart';
 import '../../../../core/constants/app_sizes.dart';
+import '../../../../core/di/injection.dart';
 import '../../../../core/gen/assets.gen.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
@@ -16,6 +18,8 @@ import '../../../../core/widgets/page_header.dart';
 import '../../../../core/widgets/section_title.dart';
 import '../../../../core/widgets/system_ui_wrapper.dart';
 import '../../domain/problem_records.dart';
+import '../bloc/record_photos_cubit.dart';
+import '../widgets/photos/problem_photo_strip.dart';
 import '../widgets/records/record_format.dart';
 
 /// Карточка проблемы (ADHOC-34, ADHOC-35) — тремя разделами по порядку событий: проблема (что,
@@ -76,6 +80,12 @@ class ProblemRecordPage extends StatelessWidget {
                 if (p.mark != null) _text(t.problems.markLine(mark: p.mark!)),
                 _muted(createdMeta(p)),
               ]),
+              AppBoxes.kHeight8,
+              // Фото (ADHOC-45): с сервера, свои неотправленные, у открытой — снять ещё.
+              BlocProvider(
+                create: (_) => getIt<RecordPhotosCubit>()..load(p),
+                child: const _RecordPhotos(),
+              ),
               AppBoxes.kHeight8,
               SectionTitle(title: t.problems.sectionDecision),
               // Открытая — решения ещё нет, и исполнять нечего: раздел исполнения не нужен.
@@ -138,4 +148,24 @@ class ProblemRecordPage extends StatelessWidget {
       ),
     ),
   );
+}
+
+/// Фото в карточке — плашкой, как остальные разделы.
+class _RecordPhotos extends StatelessWidget {
+  const _RecordPhotos();
+
+  /// Снять фото к проблеме.
+  void take(BuildContext context) => context.read<RecordPhotosCubit>().take();
+
+  @override
+  Widget build(BuildContext context) {
+    final cubit = context.watch<RecordPhotosCubit>();
+    return DetailCard(
+      padding: AppInsets.all12,
+      child: ProblemPhotoStrip(
+        photos: cubit.state,
+        onAdd: cubit.canAdd ? () => take(context) : null,
+      ),
+    );
+  }
 }

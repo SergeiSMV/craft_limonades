@@ -310,6 +310,23 @@ class CachedInternalWarehouses extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+/// Очередь фото к проблемам склада (ADHOC-45): снимки, ещё не загруженные на сервер.
+///
+/// Отдельно от очереди операций: снимок весит сотни килобайт, и в теле операции он задерживал
+/// бы всё, что стоит за ним. Снимок грузится после того, как проблема дошла до сервера, и
+/// удаляется отсюда, как только сервер его принял. Сам снимок — здесь же, в базе: переживает
+/// перезапуск, а файлов, которые пришлось бы чистить, нет.
+class ProblemPhotoUploads extends Table {
+  /// Идентификатор снимка — выдаёт терминал; повтор загрузки сервер не задваивает.
+  TextColumn get id => text()();
+  TextColumn get problemId => text()();
+  BlobColumn get content => blob()();
+  DateTimeColumn get createdAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
 /// Подключение к локальной базе.
 ///
 /// Файл `craft_wms.sqlite` в каталоге приложения; при удалении приложения уходит вместе с ним.
@@ -332,6 +349,7 @@ class CachedInternalWarehouses extends Table {
     CachedLoadUnitLines,
     CachedLooseStock,
     CachedInternalWarehouses,
+    ProblemPhotoUploads,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -341,7 +359,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   /// Миграции схемы.
   ///
@@ -370,6 +388,8 @@ class AppDatabase extends _$AppDatabase {
   /// в справочнике ради подписи их остатка.
   ///
   /// 9 → 10: у товаров — признак «маркируемый» (CZ-05).
+  ///
+  /// 10 → 11: очередь фото к проблемам склада [problemPhotoUploads] (ADHOC-45).
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) => m.createAll(),
@@ -440,6 +460,10 @@ class AppDatabase extends _$AppDatabase {
         await (delete(
           catalogSyncMarks,
         )..where((t) => t.catalog.equals('goods'))).go();
+      }
+      // Только при подъёме до 11 и выше — по той же причине, что у шага 10.
+      if (from < 11 && to >= 11) {
+        await m.createTable(problemPhotoUploads);
       }
     },
   );

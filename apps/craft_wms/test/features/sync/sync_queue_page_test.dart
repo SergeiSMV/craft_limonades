@@ -13,6 +13,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
+import '../../support/problem_photo_stubs.dart';
+
 class _MockOutbox extends Mock implements OutboxRepository {}
 
 class _MockCache extends Mock implements CatalogCache {}
@@ -51,6 +53,7 @@ void main() {
   );
 
   setUp(() {
+    registerProblemPhotoStubs();
     LocaleSettings.useDeviceLocale();
     outbox = _MockOutbox();
     when(

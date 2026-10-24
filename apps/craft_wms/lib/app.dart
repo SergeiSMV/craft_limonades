@@ -9,6 +9,7 @@ import 'core/sync/catalog_sync_service.dart';
 import 'core/sync/sync_engine.dart';
 import 'core/theme/app_theme.dart';
 import 'core/widgets/printer_reconnect_banner.dart';
+import 'features/problems/domain/problem_photos.dart';
 
 /// Корневой виджет. Держит роутер и слушает состояние входа, чтобы гейтить навигацию.
 class CraftWmsApp extends StatelessWidget {
@@ -36,6 +37,9 @@ class CraftWmsApp extends StatelessWidget {
               // Движок очереди: разгребает всё, что не ушло раньше (P2-04). Тоже без await —
               // отправка идёт фоном и экрана не касается.
               getIt<SyncEngine>().start();
+              // Очередь фото проблем (ADHOC-45): снимки, снятые до перезапуска, — сразу; дальше
+              // она сама идёт вслед за проходами очереди операций.
+              getIt<ProblemPhotoRepository>().upload();
             // _router.replaceAll([const SplashRoute()]);
             case AuthUnauthenticated():
               // Очередь остаётся на диске и уйдёт под следующим входом — гасим только движок.

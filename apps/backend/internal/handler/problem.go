@@ -63,6 +63,8 @@ type problemResponse struct {
 	// Исполнение возврата (ADHOC-34): кто и когда отгрузил поставщику; нет — ещё не отгружен.
 	ShippedBy string     `json:"shipped_by,omitempty"`
 	ShippedAt *time.Time `json:"shipped_at,omitempty"`
+	// Photos — идентификаторы фото в порядке съёмки (ADHOC-45); снимок — отдельным запросом.
+	Photos []string `json:"photos"`
 }
 
 func toProblemResponse(p model.Problem) problemResponse {
@@ -78,8 +80,16 @@ func toProblemResponse(p model.Problem) problemResponse {
 		Status: p.Status, Decision: p.Decision, DocNumber: p.DocNumber, DocDate: p.DocDate,
 		SupplierID: p.SupplierID, SupplierName: p.SupplierName, ReturnTaskNo: p.ReturnTaskNo,
 		ResolvedBy: p.ResolvedByName, ResolvedAt: p.ResolvedAt,
-		ShippedBy: p.ShippedByName, ShippedAt: p.ShippedAt,
+		ShippedBy: p.ShippedByName, ShippedAt: p.ShippedAt, Photos: photosOrEmpty(p.Photos),
 	}
+}
+
+// photosOrEmpty — пустой список вместо null: клиенту не нужно отличать «нет фото» от «нет поля».
+func photosOrEmpty(ids []string) []string {
+	if ids == nil {
+		return []string{}
+	}
+	return ids
 }
 
 // List: GET /api/v1/problems?status=open|resolved — рабочий список: открытые сверху.

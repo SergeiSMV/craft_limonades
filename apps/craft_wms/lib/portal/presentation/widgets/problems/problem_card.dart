@@ -14,6 +14,7 @@ import '../../../data/problems_repository.dart';
 import '../common/neumorphic_plate.dart';
 import '../common/neumorphic_text_button.dart';
 import 'problem_labels.dart';
+import 'problem_photos.dart';
 
 /// Карточка проблемы склада (P6-07-3): что помечено и где, почему, кто и когда; у открытой —
 /// кнопка «Решить», у решённой — принятое решение.
@@ -131,6 +132,13 @@ class ProblemCard extends StatelessWidget {
             ),
             style: muted,
           ),
+          // Фото со склада (ADHOC-45) — офис видит брак, прежде чем решить.
+          if (p.photos.isNotEmpty) ...[
+            AppBoxes.kHeight12,
+            Text(t.portal.problems.photos, style: main),
+            AppBoxes.kHeight8,
+            ProblemPhotos(problemId: p.id, photos: p.photos),
+          ],
           if (p.resolved) ...[
             AppBoxes.kHeight12,
             Text(

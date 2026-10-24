@@ -18,6 +18,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
+import '../../support/problem_photo_stubs.dart';
+
 class _MockRepo extends Mock implements ProblemRecordsRepository {}
 
 /// Эталон ответа ленты — общий с сервером (`problem_http_test.go`): сервер обязан отдавать
@@ -54,7 +56,10 @@ ProblemRecord problem(String id, String resolvedAt, {String? box}) =>
 /// и фильтром, подписи решения, карточка.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  setUp(LocaleSettings.useDeviceLocale);
+  setUp(() {
+    LocaleSettings.useDeviceLocale();
+    registerProblemPhotoStubs();
+  });
   setUpAll(() => registerFallbackValue(const ResolvedProblemsQuery()));
 
   test('эталон ответа разбирается: проблема, товар, решение офиса', () {
@@ -327,6 +332,44 @@ void main() {
         reason: 'раздела «Товар» нет',
       );
       expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'фото в карточке: у открытой — «Сфотографировать», у решённой — только просмотр',
+    (tester) async {
+      final open = ProblemRecord(
+        id: 'p-open',
+        createdAt: DateTime.utc(2026, 10, 24, 9),
+        createdBy: 'Иванов Иван',
+        cellAddress: 'С-Н-П',
+        reason: 'foreign_mark',
+        fromWarehouse: 'Основной',
+        toWarehouse: 'Изолятор',
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildAppTheme(),
+          home: ProblemRecordPage(problem: open),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text(t.problems.photos(count: 0, max: 3)), findsOneWidget);
+      expect(find.text(t.problems.takePhoto), findsOneWidget);
+
+      // Карточки открываются своими маршрутами; в тесте — пустой кадр между ними, иначе
+      // Flutter переиспользовал бы элемент страницы вместе с cubit фото прежней карточки.
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildAppTheme(),
+          home: ProblemRecordPage(
+            problem: problem('p1', '2026-10-21T10:00:00Z'),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text(t.problems.takePhoto), findsNothing);
     },
   );
 }

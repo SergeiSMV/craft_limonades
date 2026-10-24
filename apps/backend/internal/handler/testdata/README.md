@@ -13,7 +13,7 @@
 | `problem_submit.json` | проблема склада: россыпь в «Брак», короб в «Изолятор» (P6-07-1); вместо id складов — коды | `problem_http_test.go` | `test/features/problems/problem_cubit_test.dart` |
 | `return_submit.json` | отгрузка возврата поставщику: короб и россыпь одним сеансом (ADHOC-31); вместо id задания — `TASK` | `return_http_test.go` | `test/features/supplier_return/supplier_return_cubit_test.dart` |
 | `contents_snapshot.json` | **ответ** `GET /contents/snapshot`: снимок для кэша ТСД (P5-05) | `contents_http_test.go` | `test/features/contents/contents_repository_test.dart` |
-| `problems_resolved.json` | **ответ** `GET /problems/resolved`: лента решённых проблем на ТСД (ADHOC-34) | `problem_http_test.go` | `test/features/problems/resolved_problems_test.dart` |
+| `problems_resolved.json` | **ответ** `GET /problems/resolved`: лента решённых проблем на ТСД (ADHOC-34), с `photos` (ADHOC-45) | `problem_http_test.go` | `test/features/problems/resolved_problems_test.dart` |
 | `cz_scan_mark.json` | **ответ** `POST /cz/scan` по марке: данные ЧЗ, товар, место в WMS (CZ-04) | `cz_scan_http_test.go` | `test/features/cz/cz_scan_repository_test.dart` |
 | `cz_scan_box.json` | **ответ** `POST /cz/scan` по коробу: ГЕ и состав по товару и партии (CZ-04), упаковка каждой единицы (CZ-05) | `cz_scan_http_test.go` | `test/features/cz/cz_scan_repository_test.dart` |
 

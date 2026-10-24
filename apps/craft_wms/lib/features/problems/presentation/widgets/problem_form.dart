@@ -15,6 +15,8 @@ import '../../../movement/presentation/widgets/move_format.dart'
     show withWarehouse;
 import '../../domain/problem_models.dart';
 import '../bloc/problem_state.dart';
+import '../bloc/problem_photo_view.dart';
+import 'photos/problem_photo_strip.dart';
 import 'problem_format.dart';
 
 /// Куда и почему: что помечаем (карточкой, как «В руках» в перемещении), склад назначения
@@ -29,6 +31,8 @@ class ProblemForm extends StatelessWidget {
     required this.mark,
     required this.onWarehouse,
     required this.onReason,
+    required this.onTakePhoto,
+    required this.onRemovePhoto,
   });
 
   final ProblemState state;
@@ -37,6 +41,12 @@ class ProblemForm extends StatelessWidget {
   final TextEditingController mark;
   final ValueChanged<String> onWarehouse;
   final ValueChanged<ProblemReason> onReason;
+
+  /// Снять фото к проблеме (ADHOC-45).
+  final VoidCallback onTakePhoto;
+
+  /// Убрать снимок до фиксации.
+  final ValueChanged<String> onRemovePhoto;
 
   @override
   Widget build(BuildContext context) {
@@ -87,6 +97,16 @@ class ProblemForm extends StatelessWidget {
           AppBoxes.kHeight16,
           _field(controller: mark, hint: t.problems.mark),
         ],
+        AppBoxes.kHeight16,
+        // Фото — последним: снимают, когда остальное уже выбрано (ADHOC-45).
+        ProblemPhotoStrip(
+          photos: [
+            for (final p in state.photos)
+              ProblemPhotoView(id: p.id, content: p.content),
+          ],
+          onAdd: onTakePhoto,
+          onRemove: onRemovePhoto,
+        ),
         AppBoxes.kHeight16,
       ],
     );
