@@ -23,6 +23,17 @@ ENV_FILE="${CRAFT_ENV_FILE:-$(cd "$REPO_ROOT/.." && pwd)/.env.prod}"
 
 require_env_file() {
   [[ -f "$ENV_FILE" ]] || die "нет файла $ENV_FILE — создайте его (шаблон: infra/.env.prod.example). См. docs/deploy/prod-deploy.md."
+  # Файл — root 600 (ADHOC-44): без прав его не прочитать, и get_env молча вернул бы пустые
+  # значения — пустой пароль базы или фразы шифрования. Лучше отказ с подсказкой.
+  [[ -r "$ENV_FILE" ]] || die "нет прав на чтение $ENV_FILE (секреты, root 600) — запускайте через sudo."
+}
+
+# secure_env_file — права на .env.prod: root 600. В нём пароль базы, JWT-секрет, фраза
+# шифрования бэкапов, токен GHCR, пароли Bugsink и SMTP; читать его, кроме root, некому —
+# таймеры и панель работают от root (ADHOC-44, долг 32).
+secure_env_file() {
+  chown root:root "$ENV_FILE"
+  chmod 600 "$ENV_FILE"
 }
 
 # get_env KEY — значение переменной из .env.prod.

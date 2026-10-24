@@ -22,6 +22,9 @@ SCRIPT_NAME=update
 source "$(dirname "${BASH_SOURCE[0]}")/_lib.sh"
 
 require_env_file
+# Права на секреты чинятся при каждом обновлении (ADHOC-44): файл, пересозданный руками
+# с умолчательными 644, через 5 минут снова root 600.
+[[ $EUID -eq 0 ]] && secure_env_file
 command -v docker >/dev/null 2>&1 || die "docker не установлен."
 
 # --- 0. Перезапуск из временной копии ---------------------------------------------------

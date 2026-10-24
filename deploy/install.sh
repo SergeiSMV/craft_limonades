@@ -19,6 +19,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/_lib.sh"
 [[ $EUID -eq 0 ]] || die "запускать через sudo."
 command -v apt-get >/dev/null 2>&1 || die "ожидается Debian/Ubuntu (apt)."
 require_env_file
+secure_env_file
 
 # --- Читаем и валидируем ключевые параметры ---
 DOMAIN="$(get_env DEPLOY_DOMAIN)"; EMAIL="$(get_env CERTBOT_EMAIL)"; BIND="$(get_env BACKEND_BIND)"

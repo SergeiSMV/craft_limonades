@@ -17,6 +17,13 @@ SCRIPT_NAME=craft
 # shellcheck source=deploy/_lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/_lib.sh"
 
+# .env.prod — root 600 (ADHOC-44): без root панель не прочла бы ни домен, ни пароль базы для
+# бэкапа. Запущена без sudo — перезапускаемся через него сами, а не сыплем пустыми значениями.
+if [[ $EUID -ne 0 && -f "$ENV_FILE" && ! -r "$ENV_FILE" ]]; then
+  printf 'Панели нужен root (.env.prod — root 600) — перезапускаю через sudo.\n'
+  exec sudo bash "${BASH_SOURCE[0]}" "$@"
+fi
+
 # --- Палитра ---
 C_HEAD=$'\033[1;35m'; C_ITEM=$'\033[0;36m'; C_NUM=$'\033[1;32m'
 C_OK=$'\033[1;32m';   C_BAD=$'\033[1;31m'; C_WARN=$'\033[1;33m'
