@@ -45,6 +45,8 @@ type Services struct {
 	Contents          *service.ContentsService
 	// Problem — «Проблемы склада» в портале: список и решение офиса (P6-07-3).
 	Problem *service.ProblemService
+	// ProblemPhoto — фото к проблемам склада (ADHOC-45): загрузка с ТСД, отдача ТСД и порталу.
+	ProblemPhoto *service.ProblemPhotoService
 	// CZ — чтение Честного знака (CZ-02); БД не нужна, без подписанта отвечает «не настроен».
 	CZ *service.CZService
 }
@@ -275,6 +277,17 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 				r.Use(appmw.RequireRole(model.RoleAdmin))
 				r.Get("/problems", prH.List)                  // открытые сверху
 				r.Post("/problems/{id}/resolve", prH.Resolve) // «Провести» решение
+			})
+		}
+
+		// Фото к проблемам склада (ADHOC-45) — сотруднику: снимает кладовщик на ТСД, смотрят и
+		// склад, и офис. Добавить фото можно только к открытой проблеме — это решает сервис.
+		if svc.ProblemPhoto != nil {
+			phH := NewProblemPhotoHandler(svc.ProblemPhoto)
+			r.Group(func(r chi.Router) {
+				r.Use(appmw.Authenticator(tokens))
+				r.Put("/problems/{id}/photos/{photoId}", phH.Put)
+				r.Get("/problems/{id}/photos/{photoId}", phH.Get)
 			})
 		}
 

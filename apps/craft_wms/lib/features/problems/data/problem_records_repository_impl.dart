@@ -215,6 +215,7 @@ ProblemRecord problemRecordFromJson(Map<String, dynamic> j) {
       final v? => DateTime.parse(v),
       null => null,
     },
+    photos: [for (final id in j['photos'] as List? ?? const []) id as String],
   );
 }
 

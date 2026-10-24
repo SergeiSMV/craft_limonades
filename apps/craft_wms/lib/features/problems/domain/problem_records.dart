@@ -68,6 +68,7 @@ class ProblemRecord {
     this.shippedBy,
     this.shippedAt,
     this.pending = false,
+    this.photos = const [],
   });
 
   final String id;
@@ -90,6 +91,10 @@ class ProblemRecord {
   final String? mark;
   final String fromWarehouse;
   final String toWarehouse;
+
+  /// Фото на сервере — идентификаторы в порядке съёмки (ADHOC-45).
+  final List<String> photos;
+
   final List<ProblemRecordItem> items;
 
   /// Решение — [ProblemDecision]; пусто — проблема открыта.

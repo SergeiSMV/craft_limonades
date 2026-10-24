@@ -147,4 +147,9 @@ abstract final class ApiConst {
 
   ///**PATCH** - признак «маркируемый» у товара, только admin (CZ-05): `goods/{id}/cz-marked`.
   static String goodCzMarked(String id) => 'goods/$id/cz-marked';
+
+  ///**PUT / GET** - фото к проблеме склада (ADHOC-45): `problems/{id}/photos/{photoId}`.
+  /// PUT — тело сам снимок, идемпотентно по id фото; GET — снимок как есть.
+  static String problemPhoto(String problemId, String photoId) =>
+      'problems/$problemId/photos/$photoId';
 }

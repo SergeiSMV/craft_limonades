@@ -102,6 +102,8 @@ func newReceivingE2E(t *testing.T, ids map[string]string) *rcvEnv {
 		InternalWarehouse: service.NewInternalWarehouseService(
 			repository.NewInternalWarehouseRepository(pool)),
 		Problem: service.NewProblemService(repository.NewProblemRepository(pool)),
+		ProblemPhoto: service.NewProblemPhotoService(
+			repository.NewProblemPhotoRepository(pool)),
 	})
 	e.srv = httptest.NewServer(router)
 	t.Cleanup(e.srv.Close)

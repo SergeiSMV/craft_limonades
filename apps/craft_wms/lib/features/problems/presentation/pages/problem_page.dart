@@ -406,6 +406,8 @@ class _ProblemViewState extends State<_ProblemView> with HardwareScanListener {
               mark: _mark,
               onWarehouse: cubit.setWarehouse,
               onReason: cubit.setReason,
+              onTakePhoto: cubit.takePhoto,
+              onRemovePhoto: cubit.removePhoto,
             ),
           ),
           Padding(

@@ -1,11 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:craft_wms/core/error/failure.dart';
 import 'package:craft_wms/core/load_unit/load_unit_id_generator.dart';
 import 'package:craft_wms/core/warehouse/internal_warehouses.dart';
 import 'package:craft_wms/features/contents/domain/contents_entities.dart';
 import 'package:craft_wms/features/problems/domain/problem_models.dart';
+import 'package:craft_wms/features/problems/domain/problem_photos.dart';
 import 'package:craft_wms/features/problems/domain/problem_repository.dart';
 import 'package:craft_wms/features/problems/presentation/bloc/problem_cubit.dart';
 import 'package:craft_wms/features/problems/presentation/bloc/problem_state.dart';
@@ -44,6 +46,35 @@ class _FakeRepo implements ProblemRepository {
 }
 
 class _Ids extends Mock implements LoadUnitIdGenerator {}
+
+/// Очередь фото в памяти: что поставили и к какой проблеме (ADHOC-45).
+class _FakePhotos implements ProblemPhotoRepository {
+  final queued = <String, List<ProblemPhotoShot>>{};
+
+  @override
+  Future<void> enqueue(String problemId, List<ProblemPhotoShot> shots) async =>
+      (queued[problemId] ??= []).addAll(shots);
+
+  @override
+  Future<List<PendingProblemPhoto>> pendingOf(String problemId) async => [];
+
+  @override
+  Stream<int> watchPendingCount() => Stream.value(0);
+
+  @override
+  Future<Either<Failure, Uint8List>> fetch({
+    required String problemId,
+    required String photoId,
+  }) async => const Left(Failure.network());
+}
+
+/// Камера, которая отдаёт заранее заданный снимок (`null` — съёмку отменили).
+class _FakeCamera implements PhotoCamera {
+  Uint8List? next = Uint8List.fromList([0xFF, 0xD8, 0xFF]);
+
+  @override
+  Future<Uint8List?> take() async => next;
+}
 
 /// Эталон формата — тот же файл, что применяет настоящий роутер сервера (P6-07-1).
 const _fixturePath = '../backend/internal/handler/testdata/problem_submit.json';
@@ -86,9 +117,13 @@ void main() {
   late _FakeRepo repo;
   late _Ids ids;
   late int seq;
+  late _FakePhotos photos;
+  late _FakeCamera camera;
 
   setUp(() {
     repo = _FakeRepo();
+    photos = _FakePhotos();
+    camera = _FakeCamera();
     ids = _Ids();
     seq = 0;
     when(
@@ -97,7 +132,7 @@ void main() {
   });
 
   Future<ProblemCubit> started() async {
-    final c = ProblemCubit(repo, ids);
+    final c = ProblemCubit(repo, ids, photos, camera);
     await c.init();
     return c;
   }
@@ -234,4 +269,54 @@ void main() {
     expect(c.state.rejectReason, contains('target'));
     await c.close();
   });
+
+  test(
+    'фото: не больше трёх, отмена съёмки — без снимка, убрать до фиксации',
+    () async {
+      final c = await started();
+      camera.next = null;
+      await c.takePhoto();
+      expect(c.state.photos, isEmpty, reason: 'съёмку отменили');
+
+      camera.next = Uint8List.fromList([0xFF, 0xD8, 0xFF]);
+      for (var i = 0; i < 4; i++) {
+        await c.takePhoto();
+      }
+      expect(c.state.photos, hasLength(kProblemPhotoMax));
+      c.removePhoto(c.state.photos.first.id);
+      expect(c.state.photos, hasLength(kProblemPhotoMax - 1));
+      await c.close();
+    },
+  );
+
+  test(
+    'фото уходят в очередь вслед за проблемой — и без связи, но не после отказа',
+    () async {
+      final c = await started();
+      c.onBox(box(), cell);
+      c.chooseWholeBox();
+      c.setWarehouse('DEFECT');
+      c.setReason(ProblemReason.spoilage);
+      await c.takePhoto();
+      await c.takePhoto();
+      final problem = c.state.problemId!;
+      repo.result = const Left(Failure.network());
+      await c.submit();
+      expect(photos.queued[problem], hasLength(2));
+
+      c.next();
+      c.onBox(box(), cell);
+      c.chooseWholeBox();
+      c.setWarehouse('DEFECT');
+      await c.takePhoto();
+      repo.result = const Left(Failure.rejected('нет'));
+      await c.submit();
+      expect(
+        photos.queued.containsKey(c.state.problemId),
+        isFalse,
+        reason: 'отклонённой проблемы на сервере не будет',
+      );
+      await c.close();
+    },
+  );
 }

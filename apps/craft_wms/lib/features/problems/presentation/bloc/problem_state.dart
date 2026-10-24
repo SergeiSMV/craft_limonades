@@ -3,6 +3,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import '../../../contents/domain/contents_entities.dart';
 import '../../../stock/data/catalog_models.dart';
 import '../../domain/problem_models.dart';
+import '../../domain/problem_photos.dart';
 
 part 'problem_state.freezed.dart';
 
@@ -102,6 +103,9 @@ abstract class ProblemState with _$ProblemState {
     ProblemOutcome? outcome,
     String? rejectReason,
     ProblemNotice? notice,
+
+    /// Снимки к проблеме (ADHOC-45), до [kProblemPhotoMax]; уходят своей очередью вслед за ней.
+    @Default(<ProblemPhotoShot>[]) List<ProblemPhotoShot> photos,
   }) = _ProblemState;
 
   const ProblemState._();

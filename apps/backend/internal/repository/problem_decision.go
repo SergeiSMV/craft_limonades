@@ -51,7 +51,9 @@ const problemSelect = `
 		       fw.name, tw.name, p.status, COALESCE(p.decision, ''), COALESCE(p.doc_number, ''),
 		       COALESCE(to_char(p.doc_date, 'YYYY-MM-DD'), ''), COALESCE(p.supplier_id::text, ''),
 		       COALESCE(s.name, ''), COALESCE(t.number, 0), COALESCE(ru.full_name, ''), p.resolved_at,
-		       COALESCE(su.full_name, ''), sh.posted_at
+		       COALESCE(su.full_name, ''), sh.posted_at,
+		       ARRAY(SELECT ph.id::text FROM problem_photos ph
+		             WHERE ph.problem_id = p.id ORDER BY ph.created_at, ph.id)
 		FROM warehouse_problems p
 		JOIN cells c                ON c.id = p.cell_id
 		JOIN internal_warehouses fw ON fw.id = p.from_internal_warehouse_id
@@ -108,7 +110,7 @@ func (r *ProblemRepository) query(ctx context.Context, sql string, args ...any) 
 		if err := rows.Scan(&p.ID, &p.CreatedAt, &p.CreatedByName, &p.CellAddress, &p.LoadUnitID,
 			&p.Reason, &p.Comment, &p.Mark, &p.FromWarehouse, &p.ToWarehouse, &p.Status, &p.Decision,
 			&p.DocNumber, &p.DocDate, &p.SupplierID, &p.SupplierName, &p.ReturnTaskNo,
-			&p.ResolvedByName, &p.ResolvedAt, &p.ShippedByName, &p.ShippedAt); err != nil {
+			&p.ResolvedByName, &p.ResolvedAt, &p.ShippedByName, &p.ShippedAt, &p.Photos); err != nil {
 			rows.Close()
 			return nil, fmt.Errorf("разобрать проблему: %w", err)
 		}
