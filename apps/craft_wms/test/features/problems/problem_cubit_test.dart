@@ -56,6 +56,9 @@ class _FakePhotos implements ProblemPhotoRepository {
       (queued[problemId] ??= []).addAll(shots);
 
   @override
+  Future<void> upload() async {}
+
+  @override
   Future<List<PendingProblemPhoto>> pendingOf(String problemId) async => [];
 
   @override

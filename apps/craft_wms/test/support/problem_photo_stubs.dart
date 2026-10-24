@@ -18,6 +18,9 @@ class FakeProblemPhotos implements ProblemPhotoRepository {
       (queued[problemId] ??= []).addAll(shots);
 
   @override
+  Future<void> upload() async {}
+
+  @override
   Future<List<PendingProblemPhoto>> pendingOf(String problemId) async => [
     for (final s in queued[problemId] ?? const <ProblemPhotoShot>[])
       PendingProblemPhoto(id: s.id, problemId: problemId, content: s.content),

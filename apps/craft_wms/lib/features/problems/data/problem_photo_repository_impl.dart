@@ -22,9 +22,10 @@ import '../domain/problem_photos.dart';
 /// - отказ по существу (решение уже принято, три фото, не снимок) — снимок удаляется, причина
 ///   уходит в журнал: повтор её не исправит.
 ///
-/// `@Singleton`, а не ленивый: подписка на проходы очереди нужна с запуска приложения, а не
-/// с первого открытия экрана проблем — иначе снимки, снятые до перезапуска, ждали бы его.
-@Singleton(as: ProblemPhotoRepository)
+/// Ленивый, как остальные репозитории: регистрация зависимостей общая с порталом, а в вебе
+/// локальной базы нет — созданный при старте, он ронял бы портал. Запускает очередь
+/// приложение ТСД после входа ([upload]); с этого момента она подписана на проходы очереди.
+@LazySingleton(as: ProblemPhotoRepository)
 class ProblemPhotoRepositoryImpl implements ProblemPhotoRepository {
   ProblemPhotoRepositoryImpl(this._db, this._dio, this._engine, this._talker) {
     // После прохода очереди операций — догрузить снимки: проблема к ним уже на сервере.
@@ -109,6 +110,7 @@ class ProblemPhotoRepositoryImpl implements ProblemPhotoRepository {
 
   /// Пройти очередь снимков по порядку съёмки. Снимки проблемы, которой на сервере ещё нет,
   /// пропускаются до следующего прохода; без связи проход останавливается.
+  @override
   Future<void> upload() async {
     if (_uploading) {
       _again = true;

@@ -39,6 +39,10 @@ abstract interface class ProblemPhotoRepository {
   /// Поставить снимки проблемы в очередь и сразу попробовать отправить. Без связи уйдут сами.
   Future<void> enqueue(String problemId, List<ProblemPhotoShot> shots);
 
+  /// Догрузить очередь — после входа: снимки, снятые до перезапуска, уходят, не дожидаясь
+  /// следующего прохода очереди операций. Без связи — ждут дальше.
+  Future<void> upload();
+
   /// Неотправленные снимки проблемы — показать рядом с загруженными.
   Future<List<PendingProblemPhoto>> pendingOf(String problemId);
 
