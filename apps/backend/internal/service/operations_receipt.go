@@ -34,14 +34,14 @@ type receiptSubmitPayload struct {
 		CZCode string `json:"cz_code"`
 	} `json:"load_units"`
 	// CZGroups — групповые упаковки ЧЗ из состава коробов и сканов (CZ-05).
-	CZGroups []receiptCZGroupPayload `json:"cz_groups"`
+	CZGroups []czGroupPayload `json:"cz_groups"`
 	Lines    []struct {
-		GoodID         string               `json:"good_id"`
-		ProductionDate string               `json:"production_date"`
-		CellID         string               `json:"cell_id"`
-		LoadUnitID     string               `json:"load_unit_id"`
-		Qty            decimal.Decimal      `json:"qty"`
-		Marks          []receiptMarkPayload `json:"marks"` // марки ЧЗ строки (CZ-05)
+		GoodID         string          `json:"good_id"`
+		ProductionDate string          `json:"production_date"`
+		CellID         string          `json:"cell_id"`
+		LoadUnitID     string          `json:"load_unit_id"`
+		Qty            decimal.Decimal `json:"qty"`
+		Marks          []czMarkPayload `json:"marks"` // марки ЧЗ строки (CZ-05)
 	} `json:"lines"`
 }
 
@@ -101,7 +101,7 @@ func (s *OperationsService) receiptSubmit(ctx context.Context, userID, id string
 			ID: luID, Kind: kind, CZCode: strings.TrimSpace(lu.CZCode),
 		})
 	}
-	cz, err := newReceiptCZ(in.LoadUnits, p.CZGroups)
+	cz, err := newCZIntake(in.LoadUnits, p.CZGroups)
 	if err != nil {
 		return repository.Applied{}, err
 	}

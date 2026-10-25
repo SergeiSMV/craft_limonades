@@ -64,7 +64,7 @@ type operationsRepo interface {
 	BindBarcode(ctx context.Context, operationID string, in repository.BarcodeBindInput) (repository.Applied, error)
 	UnbindBarcode(ctx context.Context, operationID, barcode string) (repository.Applied, error)
 	StockEntryStart(ctx context.Context, operationID, sessionID, warehouseID, createdBy string) (repository.Applied, error)
-	StockEntryCheckpoint(ctx context.Context, operationID, sessionID, cellID string, lines []repository.StockEntryLineInput, barcodes []repository.BarcodeBindInput) (repository.Applied, error)
+	StockEntryCheckpoint(ctx context.Context, operationID, sessionID string, in repository.StockEntryCellInput) (repository.Applied, error)
 	StockEntryFinalize(ctx context.Context, operationID, sessionID string) (repository.Applied, error)
 	ReceiptSubmit(ctx context.Context, operationID string, in repository.ReceiptSubmitInput) (repository.Applied, error)
 	PutawaySubmit(ctx context.Context, operationID string, in repository.PutawaySubmitInput) (repository.Applied, error)
@@ -266,7 +266,9 @@ func (s *OperationsService) dispatch(ctx context.Context, userID, id string, op 
 			}
 			binds = append(binds, repository.BarcodeBindInput{GoodID: goodID, Barcode: code, Symbology: strings.TrimSpace(b.Symbology)})
 		}
-		return s.repo.StockEntryCheckpoint(ctx, id, sessionID, cellID, lines, binds)
+		return s.repo.StockEntryCheckpoint(ctx, id, sessionID, repository.StockEntryCellInput{
+			CellID: cellID, Lines: lines, Barcodes: binds,
+		})
 
 	case repository.KindStockEntryFinalize:
 		var p struct {

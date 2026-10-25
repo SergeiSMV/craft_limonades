@@ -44,9 +44,12 @@ func placeLoadUnit(ctx context.Context, q Querier, in model.PlaceLoadUnitInput) 
 	}
 	if _, err := q.Exec(ctx, `
 		INSERT INTO placements
-			(load_unit_id, from_cell_id, to_cell_id, source, receipt_id, putaway_id, movement_id, user_id)
-		VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5::uuid, $6::uuid, $7::uuid, NULLIF($8, '')::uuid)`,
-		in.LoadUnitID, from, in.CellID, in.Source, in.ReceiptID, in.PutawayID, in.MovementID, in.UserID); err != nil {
+			(load_unit_id, from_cell_id, to_cell_id, source, receipt_id, putaway_id, movement_id, user_id,
+			 stock_entry_session_id)
+		VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5::uuid, $6::uuid, $7::uuid, NULLIF($8, '')::uuid,
+		        $9::uuid)`,
+		in.LoadUnitID, from, in.CellID, in.Source, in.ReceiptID, in.PutawayID, in.MovementID, in.UserID,
+		in.StockEntryID); err != nil {
 		return fmt.Errorf("записать размещение ГЕ: %w", err)
 	}
 	return nil

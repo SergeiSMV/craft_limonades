@@ -12,12 +12,13 @@ import '../../../../core/gen/assets.gen.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/scanner/hardware_scan_listener.dart';
+import '../../../../core/widgets/bar_buttons.dart';
 import '../../../../core/widgets/bind_prompt_dialog.dart';
 import '../../../../core/widgets/page_header.dart';
 import '../../../../core/widgets/system_ui_wrapper.dart';
+import '../../../cz/presentation/widgets/cz_intake_scan.dart';
 import '../../../stock/data/catalog_models.dart';
 import '../bloc/receipt_cubit.dart';
-import '../widgets/receipt_context_bar.dart';
 import '../widgets/receipt_label_actions.dart';
 import '../widgets/receipt_line_tile.dart';
 import '../widgets/receipt_cz_scan_actions.dart';
@@ -61,6 +62,7 @@ class _ReceiptBoxViewState extends State<_ReceiptBoxView>
     with
         HardwareScanListener,
         ReceiptLabelActions,
+        CzIntakeScan,
         ReceiptCzScanActions,
         ReceiptScanActions<_ReceiptBoxView> {
   /// Строки этой страницы ложатся в короб.
@@ -139,7 +141,7 @@ class _ReceiptBoxViewState extends State<_ReceiptBoxView>
               child: Row(
                 children: [
                   Expanded(
-                    child: ReceiptBarButton(
+                    child: BarButton(
                       onPressed: changeCell,
                       text: cellText,
                       icon: MdiIcons.cogTransfer,
@@ -148,13 +150,13 @@ class _ReceiptBoxViewState extends State<_ReceiptBoxView>
                   // У короба ЧЗ своя этикетка поставщика с SSCC — ярлык не нужен (CZ-05).
                   if (!box.isCz) ...[
                     AppBoxes.kWidth8,
-                    ReceiptIconButton(
+                    BarIconButton(
                       onPressed: () => printBoxLabel(box.id),
                       icon: MdiIcons.printer,
                     ),
                   ],
                   AppBoxes.kWidth8,
-                  ReceiptIconButton(
+                  BarIconButton(
                     onPressed: _deleteBox,
                     icon: Icons.delete_outline,
                     color: AppColors.kDanger,

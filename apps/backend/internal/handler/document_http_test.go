@@ -60,9 +60,9 @@ func newDocE2E(t *testing.T) *docEnv {
 	if err != nil {
 		t.Fatalf("создать сессию: %v", err)
 	}
-	if err := seRepo.Checkpoint(ctx, sid, cell, []repository.StockEntryLineInput{
+	if err := seRepo.Checkpoint(ctx, sid, repository.StockEntryCellInput{CellID: cell, Lines: []repository.StockEntryLineInput{
 		{GoodID: good, ProductionDate: "2026-01-15", Qty: decimal.RequireFromString("3")},
-	}, nil); err != nil {
+	}}); err != nil {
 		t.Fatalf("checkpoint: %v", err)
 	}
 	if _, err := seRepo.Finalize(ctx, sid); err != nil {

@@ -1,14 +1,12 @@
 import 'package:flutter_neumorphic_plus/flutter_neumorphic.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
-import '../../../../core/constants/app_borders.dart';
 import '../../../../core/constants/app_boxes.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_insets.dart';
-import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
-import '../../../../core/theme/semibold_text.dart';
+import '../../../../core/widgets/bar_buttons.dart';
 import '../bloc/receipt_cubit.dart';
 
 /// Шапка общего списка приёмки: от кого принимаем и по какому документу, куда кладём штучный
@@ -89,110 +87,20 @@ class ReceiptContextBar extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: ReceiptBarButton(
+                child: BarButton(
                   onPressed: onChangeCell,
                   text: cellText,
                   icon: MdiIcons.cogTransfer,
                 ),
               ),
               AppBoxes.kWidth8,
-              ReceiptIconButton(
+              BarIconButton(
                 onPressed: onNewBox,
                 icon: MdiIcons.packageVariantPlus,
               ),
             ],
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// Выпуклая кнопка-строка шапки — как шапка ячейки во «Вводе остатков». Общая для общего
-/// списка и страницы короба.
-class ReceiptBarButton extends StatelessWidget {
-  const ReceiptBarButton({
-    super.key,
-    required this.onPressed,
-    required this.text,
-    required this.icon,
-    this.color,
-  });
-
-  final VoidCallback onPressed;
-  final String text;
-  final IconData icon;
-
-  /// Цвет текста и иконки; `null` — обычный цвет шапки.
-  final Color? color;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = this.color ?? AppColors.kSidebarHover;
-    return NeumorphicButton(
-      onPressed: onPressed,
-      style: NeumorphicStyle(
-        shadowLightColor: AppColors.kNeumorphicLight,
-        shadowDarkColor: AppColors.kNeumorphicDark,
-        intensity: 1,
-        color: AppColors.kNeumorphicBg,
-        depth: 3,
-        shape: NeumorphicShape.flat,
-        boxShape: NeumorphicBoxShape.roundRect(AppBorders.kCircular8),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              text,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: SemiboldTextStyles().semiboldInter14.copyWith(
-                color: color,
-              ),
-            ),
-          ),
-          AppBoxes.kWidth8,
-          Icon(icon, size: AppSizes.kIcon25, color: color),
-        ],
-      ),
-    );
-  }
-}
-
-/// Квадратная выпуклая кнопка-иконка — как кнопка отмены во «Вводе остатков».
-class ReceiptIconButton extends StatelessWidget {
-  const ReceiptIconButton({
-    super.key,
-    required this.onPressed,
-    required this.icon,
-    this.color,
-  });
-
-  final VoidCallback onPressed;
-  final IconData icon;
-
-  /// Цвет иконки; `null` — обычный цвет шапки.
-  final Color? color;
-
-  @override
-  Widget build(BuildContext context) {
-    return NeumorphicButton(
-      onPressed: onPressed,
-      style: NeumorphicStyle(
-        shadowLightColor: AppColors.kNeumorphicLight,
-        shadowDarkColor: AppColors.kNeumorphicDark,
-        intensity: 1,
-        color: AppColors.kNeumorphicBg,
-        depth: 3,
-        shape: NeumorphicShape.flat,
-        boxShape: NeumorphicBoxShape.roundRect(AppBorders.kCircular8),
-      ),
-      padding: AppInsets.all12,
-      child: Icon(
-        icon,
-        color: color ?? AppColors.kSidebarHover,
-        size: AppSizes.kIcon20,
       ),
     );
   }

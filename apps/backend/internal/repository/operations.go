@@ -125,24 +125,14 @@ func (r *OperationsRepository) StockEntryStart(ctx context.Context, operationID,
 	})
 }
 
-// StockEntryCheckpoint фиксирует ячейку сессии: новые привязки ШК + строки, всё под одной пометкой.
-func (r *OperationsRepository) StockEntryCheckpoint(ctx context.Context, operationID, sessionID, cellID string, lines []StockEntryLineInput, barcodes []BarcodeBindInput) (Applied, error) {
+// StockEntryCheckpoint фиксирует ячейку сессии: новые привязки ШК + содержимое ячейки, всё под
+// одной пометкой — тем же checkpointCell, что и прямая ручка.
+func (r *OperationsRepository) StockEntryCheckpoint(ctx context.Context, operationID, sessionID string, in StockEntryCellInput) (Applied, error) {
 	return r.inTx(ctx, operationID, KindStockEntryCheckpoint, func(q Querier) (json.RawMessage, error) {
-		if err := guardSessionDraft(ctx, q, sessionID); err != nil {
+		if err := checkpointCell(ctx, q, sessionID, in); err != nil {
 			return nil, err
 		}
-		// Привязки — до строк: строка может ссылаться на товар только что привязанного ШК.
-		for _, b := range barcodes {
-			if err := bindBarcode(ctx, q, b.GoodID, b.Barcode, b.Symbology); err != nil {
-				return nil, err
-			}
-		}
-		for _, ln := range lines {
-			if err := upsertSessionLine(ctx, q, sessionID, cellID, ln.GoodID, ln.ProductionDate, ln.Qty); err != nil {
-				return nil, err
-			}
-		}
-		return jsonResult(map[string]int{"accepted": len(lines)})
+		return jsonResult(map[string]int{"accepted": len(in.Lines)})
 	})
 }
 
@@ -214,7 +204,7 @@ func (r *OperationsRepository) ReceiptSubmit(ctx context.Context, operationID st
 		}
 		// Марки ЧЗ — после проводки (CZ-05): месту марки нужен размещённый короб, а проблеме
 		// с расхождением — остаток, который она переводит в «Изолятор».
-		if err := receiveCZ(ctx, q, in, cells); err != nil {
+		if err := receiveCZ(ctx, q, receiptCZIntake(in, cells)); err != nil {
 			return nil, err
 		}
 		return jsonResult(map[string]any{"receipt_id": in.ReceiptID, "posted": posted})

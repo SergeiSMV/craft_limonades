@@ -1,33 +1,32 @@
 import 'package:flutter_neumorphic_plus/flutter_neumorphic.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
-import '../../../../core/constants/app_borders.dart';
-import '../../../../core/constants/app_boxes.dart';
-import '../../../../core/constants/app_colors.dart';
-import '../../../../core/constants/app_insets.dart';
-import '../../../../core/constants/app_sizes.dart';
-import '../../../../core/gen/strings.g.dart';
-import '../../../../core/theme/regular_text.dart';
-import '../../../../core/theme/semibold_text.dart';
-import '../bloc/receipt_models.dart';
+import '../constants/app_borders.dart';
+import '../constants/app_boxes.dart';
+import '../constants/app_colors.dart';
+import '../constants/app_insets.dart';
+import '../constants/app_sizes.dart';
+import '../theme/regular_text.dart';
+import '../theme/semibold_text.dart';
 
-/// Короб в общем списке приёмки: код с ярлыка, сколько позиций, где лежит. Нажатие открывает
-/// страницу короба (ADHOC-18).
+/// Короб в списке прихода: код с ярлыка, сколько позиций, где лежит. Нажатие открывает
+/// страницу короба — приёмки (ADHOC-18) или ячейки «Ввода остатков» (ADHOC-46).
 ///
 /// Выпуклая плитка, а не строка списка: короб — вход внутрь, а не позиция, и выглядеть
 /// одинаково со строками товара ему нельзя.
-class ReceiptBoxTile extends StatelessWidget {
-  const ReceiptBoxTile({
+class BoxTile extends StatelessWidget {
+  const BoxTile({
     super.key,
-    required this.box,
-    required this.positions,
-    required this.cellAddress,
+    required this.title,
+    required this.subtitle,
     required this.onTap,
   });
 
-  final ReceiptBox box;
-  final int positions;
-  final String cellAddress;
+  /// Короб для человека: «Короб AB12 CD34», «Короб ЧЗ 1234 5678».
+  final String title;
+
+  /// Сколько позиций и где лежит.
+  final String subtitle;
   final VoidCallback onTap;
 
   @override
@@ -59,15 +58,13 @@ class ReceiptBoxTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    box.isCz
-                        ? t.receipt.czBox(code: box.shortCode)
-                        : t.receipt.box(code: box.shortCode),
+                    title,
                     style: SemiboldTextStyles().semiboldInter14.copyWith(
                       color: AppColors.kSidebarHover,
                     ),
                   ),
                   Text(
-                    '${t.receipt.boxPositions(count: positions)} · $cellAddress',
+                    subtitle,
                     style: RegularTextStyles().regularInter12.copyWith(
                       color: AppColors.kTextMuted,
                     ),

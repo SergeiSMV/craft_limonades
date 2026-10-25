@@ -7,6 +7,7 @@ import '../../../../core/error/failure.dart';
 import '../../../../core/load_unit/load_unit_id_generator.dart';
 import '../../../../core/printer/printer_device.dart';
 import '../../../../core/printer/printer_service.dart';
+import '../../../cz/domain/cz_intake.dart';
 import '../../../stock/data/catalog_models.dart';
 import '../../../stock/data/catalog_repository.dart';
 import '../../data/receipt_draft_store.dart';
@@ -46,7 +47,7 @@ abstract class ReceiptState with _$ReceiptState {
     @Default(<ReceiptLineDraft>[]) List<ReceiptLineDraft> lines,
 
     /// Групповые упаковки ЧЗ приёмки (CZ-05).
-    @Default(<ReceiptCzGroup>[]) List<ReceiptCzGroup> czGroups,
+    @Default(<CzGroupDraft>[]) List<CzGroupDraft> czGroups,
 
     /// Идёт отправка.
     @Default(false) bool busy,
@@ -154,7 +155,7 @@ class ReceiptCubit extends Cubit<ReceiptState> {
           .toList(),
       czGroups: list(
         'cz_groups',
-      ).map((e) => ReceiptCzGroup.fromJson(e as Map<String, dynamic>)).toList(),
+      ).map((e) => CzGroupDraft.fromJson(e as Map<String, dynamic>)).toList(),
     );
   }
 
@@ -349,29 +350,16 @@ class ReceiptCubit extends Cubit<ReceiptState> {
 
   //* --- марки «Честного знака» (CZ-05) --- *//
 
-  /// Привязать ШК из марки ЧЗ к выбранному товару: сервер заодно помечает товар маркируемым.
-  /// Исход не разбираем — как у привязки при скане ШК: очередь примет операцию в любом случае.
-  Future<void> bindCzBarcode({
-    required String goodId,
-    required String barcode,
-  }) async {
-    await _catalog.bindBarcode(
-      goodId: goodId,
-      barcode: barcode,
-      fromCzMark: true,
-    );
-  }
-
   /// Короб ЧЗ целиком: новая ГЕ в текущей ячейке со своим кодом, строки — состав по ЧЗ, по
   /// товару и партии. Кладовщику остаётся только ячейка. Возвращает исход и, если короб лёг,
   /// его идентификатор — по нему экран открывает страницу короба.
-  ({ReceiptCzAdd result, String? boxId}) addCzBox({
+  ({CzIntakeAdd result, String? boxId}) addCzBox({
     required String code,
-    required List<ReceiptCzLine> lines,
-    List<ReceiptCzGroup> groups = const [],
+    required List<CzIntakeLine> lines,
+    List<CzGroupDraft> groups = const [],
   }) {
     if (state.czBoxByCode(code) != null || _marksTaken(lines)) {
-      return (result: ReceiptCzAdd.duplicate, boxId: null);
+      return (result: CzIntakeAdd.duplicate, boxId: null);
     }
     final box = ReceiptBox(
       id: _ids.newId(),
@@ -386,22 +374,22 @@ class ReceiptCubit extends Cubit<ReceiptState> {
         failure: null,
       ),
     );
-    return (result: ReceiptCzAdd.added, boxId: box.id);
+    return (result: CzIntakeAdd.added, boxId: box.id);
   }
 
   /// Марки россыпью — одна марка или групповая упаковка набором своих марок: в короб [boxId]
   /// (свой, с ярлыком) или штучно в текущую ячейку. Товар и партия — из ЧЗ, без диалога даты
   /// и количества: каждая марка — единица.
-  ReceiptCzAdd addCzMarks({
-    required List<ReceiptCzLine> lines,
-    List<ReceiptCzGroup> groups = const [],
+  CzIntakeAdd addCzMarks({
+    required List<CzIntakeLine> lines,
+    List<CzGroupDraft> groups = const [],
     String? boxId,
   }) {
     final box = boxId == null ? null : state.boxById(boxId);
-    if (box?.isCz ?? false) return ReceiptCzAdd.czBoxClosed;
+    if (box?.isCz ?? false) return CzIntakeAdd.czBoxClosed;
     if (_marksTaken(lines) ||
         groups.any((g) => state.czGroups.any((e) => e.code == g.code))) {
-      return ReceiptCzAdd.duplicate;
+      return CzIntakeAdd.duplicate;
     }
     emit(
       state.copyWith(
@@ -415,11 +403,11 @@ class ReceiptCubit extends Cubit<ReceiptState> {
         failure: null,
       ),
     );
-    return ReceiptCzAdd.added;
+    return CzIntakeAdd.added;
   }
 
   /// Есть ли среди марок уже принятые в этой приёмке (или повтор внутри самих [lines]).
-  bool _marksTaken(List<ReceiptCzLine> lines) {
+  bool _marksTaken(List<CzIntakeLine> lines) {
     final seen = <String>{};
     for (final l in lines) {
       for (final m in l.marks) {
@@ -574,14 +562,7 @@ class ReceiptCubit extends Cubit<ReceiptState> {
             if (l.cell != null) 'cell_id': l.cell!.id,
             if (l.boxId != null) 'load_unit_id': l.boxId,
             if (l.marks.isNotEmpty)
-              'marks': [
-                for (final m in l.marks)
-                  {
-                    'cis': m.cis,
-                    'aggregate_code': m.aggregateCode ?? '',
-                    'discrepancy': m.discrepancy ?? '',
-                  },
-              ],
+              'marks': [for (final m in l.marks) czMarkJson(m)],
           },
       ],
     };

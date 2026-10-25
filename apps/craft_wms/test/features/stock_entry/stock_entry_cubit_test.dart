@@ -1,13 +1,18 @@
+import 'package:craft_wms/core/load_unit/load_unit_id_generator.dart';
+import 'package:craft_wms/core/printer/printer_service.dart';
 import 'package:craft_wms/core/database/app_database.dart';
 import 'package:craft_wms/features/stock/data/catalog_models.dart';
 import 'package:craft_wms/features/stock_entry/data/entry_draft_store.dart';
 import 'package:craft_wms/features/stock/data/catalog_repository.dart';
-import 'package:craft_wms/features/stock_entry/data/stock_entry_repository.dart';
+import 'package:craft_wms/features/stock_entry/domain/stock_entry_repository.dart';
 import 'package:craft_wms/features/stock_entry/presentation/bloc/stock_entry_cubit.dart';
 import 'package:drift/native.dart';
 import 'package:either_dart/either.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:uuid/uuid.dart';
+
+class _MockPrinter extends Mock implements PrinterService {}
 
 class _MockRepo extends Mock implements StockEntryRepository {}
 
@@ -29,7 +34,13 @@ void main() {
     catalog = _MockCatalog();
     db = AppDatabase.forTesting(NativeDatabase.memory());
     drafts = EntryDraftStore(db);
-    cubit = StockEntryCubit(repo, catalog, drafts);
+    cubit = StockEntryCubit(
+      repo,
+      catalog,
+      drafts,
+      const LoadUnitIdGenerator(Uuid()),
+      _MockPrinter(),
+    );
     // Привязка уходит операцией очереди (ADHOC-14) — репозиторий её принимает всегда.
     when(
       () => catalog.bindBarcode(
@@ -245,9 +256,7 @@ void main() {
         verifyNever(
           () => repo.checkpoint(
             sessionId: any(named: 'sessionId'),
-            cellId: any(named: 'cellId'),
-            lines: any(named: 'lines'),
-            newBarcodes: any(named: 'newBarcodes'),
+            body: any(named: 'body'),
           ),
         );
       },
@@ -330,9 +339,7 @@ void main() {
         when(
           () => repo.checkpoint(
             sessionId: any(named: 'sessionId'),
-            cellId: any(named: 'cellId'),
-            lines: any(named: 'lines'),
-            newBarcodes: any(named: 'newBarcodes'),
+            body: any(named: 'body'),
           ),
         ).thenAnswer((_) async => const Right(null));
         when(
@@ -374,21 +381,20 @@ void main() {
         final captured = verify(
           () => repo.checkpoint(
             sessionId: captureAny(named: 'sessionId'),
-            cellId: captureAny(named: 'cellId'),
-            lines: captureAny(named: 'lines'),
-            newBarcodes: captureAny(named: 'newBarcodes'),
+            body: captureAny(named: 'body'),
           ),
         ).captured;
-        // captured — плоский список по 4 на вызов; 2 вызова = 8 элементов.
-        expect(captured.length, 8);
+        // captured — плоский список по 2 на вызов (сессия, тело); 2 вызова = 4 элемента.
+        expect(captured.length, 4);
         expect(captured[0], 'sess-1'); // ячейка 1
-        expect(captured[1], 'c1');
-        final lines1 = captured[2] as List;
+        final body1 = captured[1] as Map<String, dynamic>;
+        expect(body1['cell_id'], 'c1');
+        final lines1 = body1['lines'] as List;
         expect(lines1.length, 2); // (gA,15.01) + (gB,20.02)
         // Привязки с checkpoint'ом больше не едут (ADHOC-14): они ушли своими операциями
         // очереди. Прежде вся копилка везлась с ПЕРВЫМ checkpoint, и один конфликтный ШК
         // откатывал вместе с собой просчёт целой ячейки.
-        expect(captured[3] as List, isEmpty);
+        expect(body1['new_barcodes'] as List, isEmpty);
         verify(
           () => catalog.bindBarcode(goodId: 'gA', barcode: '460'),
         ).called(1);
@@ -399,11 +405,11 @@ void main() {
           () => catalog.bindBarcode(goodId: 'gB', barcode: '777'),
         ).called(1);
         expect((lines1.first as Map)['production_date'], '15-01-2026');
-        expect(captured[5], 'c2'); // ячейка 2
-        expect(
-          (captured[7] as List),
-          isEmpty,
-        ); // ШК уже отправлены с первой ячейкой
+        final body2 = captured[3] as Map<String, dynamic>;
+        expect(body2['cell_id'], 'c2'); // ячейка 2
+        expect(body2['new_barcodes'] as List, isEmpty);
+        // Проход без марок очередь перед финалом не ждёт.
+        verifyNever(() => repo.drainQueue());
 
         verify(() => repo.finalize('sess-1')).called(1);
         expect(cubit.state.finished, isTrue);

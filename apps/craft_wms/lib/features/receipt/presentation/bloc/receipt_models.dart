@@ -2,6 +2,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 
 import '../../../../core/load_unit/box_code.dart';
 import '../../../../core/printer/load_unit_label.dart';
+import '../../../cz/domain/cz_intake.dart';
 import '../../../stock/data/catalog_models.dart';
 
 part 'receipt_models.freezed.dart';
@@ -36,34 +37,6 @@ abstract class ReceiptBox with _$ReceiptBox {
     if (cz == null) return LoadUnitLabel(id).shortCodeFormatted;
     return czBoxTail(cz);
   }
-}
-
-/// Марка «Честного знака» в строке приёмки (CZ-05), как её прочитал скан.
-///
-/// [aggregateCode] — короб ЧЗ или групповая упаковка этой приёмки, в которой марка пришла;
-/// `null` — марка россыпью. [discrepancy] — расхождение с ЧЗ (`foreign_mark`, `retired`):
-/// такая марка принимается, а сервер при проводке уводит её проблемой в «Изолятор».
-@freezed
-abstract class ReceiptMarkDraft with _$ReceiptMarkDraft {
-  const factory ReceiptMarkDraft({
-    required String cis,
-    String? aggregateCode,
-    String? discrepancy,
-  }) = _ReceiptMarkDraft;
-
-  factory ReceiptMarkDraft.fromJson(Map<String, dynamic> json) =>
-      _$ReceiptMarkDraftFromJson(json);
-}
-
-/// Групповая упаковка ЧЗ приёмки (CZ-05): из состава короба ЧЗ или отсканированная целиком.
-/// [parentCode] — короб или упаковка этой же приёмки; `null` — сама по себе.
-@freezed
-abstract class ReceiptCzGroup with _$ReceiptCzGroup {
-  const factory ReceiptCzGroup({required String code, String? parentCode}) =
-      _ReceiptCzGroup;
-
-  factory ReceiptCzGroup.fromJson(Map<String, dynamic> json) =>
-      _$ReceiptCzGroupFromJson(json);
 }
 
 /// Документ поставщика, по которому пришёл товар (ADHOC-23): номер накладной и её дата.
@@ -101,7 +74,7 @@ abstract class ReceiptLineDraft with _$ReceiptLineDraft {
     Cell? cell,
 
     /// Марки ЧЗ строки (CZ-05): единицы, принятые сканом марки или в составе короба ЧЗ.
-    @Default(<ReceiptMarkDraft>[]) List<ReceiptMarkDraft> marks,
+    @Default(<CzMarkDraft>[]) List<CzMarkDraft> marks,
   }) = _ReceiptLineDraft;
 
   factory ReceiptLineDraft.fromJson(Map<String, dynamic> json) =>
@@ -121,32 +94,6 @@ abstract class ReceiptLineDraft with _$ReceiptLineDraft {
       productionDate == date &&
       this.boxId == boxId &&
       cell?.id == cellId;
-}
-
-/// Товар партии с марками ЧЗ, готовый лечь в приёмку (CZ-05): что прочитал скан, с товаром
-/// справочника и датой производства единиц (дд.мм.гггг). Количество — число марок.
-class ReceiptCzLine {
-  const ReceiptCzLine({
-    required this.good,
-    required this.date,
-    required this.marks,
-  });
-
-  final Good good;
-  final String date;
-  final List<ReceiptMarkDraft> marks;
-}
-
-/// Чем закончилось добавление марок ЧЗ в приёмку (CZ-05).
-enum ReceiptCzAdd {
-  /// Марки легли в приёмку.
-  added,
-
-  /// Короб или марка уже есть в этой приёмке: второй раз одну бутылку не принять.
-  duplicate,
-
-  /// Короб ЧЗ закрыт: его состав — из ЧЗ, руками в него не добавляют.
-  czBoxClosed,
 }
 
 /// Чем закончилась отправка приёмки.
