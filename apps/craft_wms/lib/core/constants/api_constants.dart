@@ -141,6 +141,10 @@ abstract final class ApiConst {
   ///**GET** - история короба, приёмка и переносы (P5-05-1): `load-units/{id}/history`.
   static String loadUnitHistory(String id) => 'load-units/$id/history';
 
+  ///**GET** - карточка ГЕ короба ЧЗ по коду `00`+SSCC с его этикетки (CZ-06):
+  /// `load-units/cz/{code}`. Код — только цифры, в пути безопасен.
+  static String loadUnitByCzCode(String code) => 'load-units/cz/$code';
+
   ///**POST** - скан марки «Честного знака» или кода короба: данные ЧЗ, товар, место в WMS,
   /// состав (CZ-04): `cz/scan`. Код — в теле: в КИ бывают `/`, `%`, `"`.
   static const String czScan = 'cz/scan';

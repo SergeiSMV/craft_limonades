@@ -305,6 +305,7 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 				// P5-05-1: поиск по короткому коду с ярлыка и история — для перепечатки ярлыка.
 				r.Get("/load-units", contentsH.SearchLoadUnits)              // ?code=… — все короба
 				r.Get("/load-units/{id}/history", contentsH.LoadUnitHistory) // приёмка и переносы
+				r.Get("/load-units/cz/{code}", contentsH.LoadUnitByCZCode)   // короб ЧЗ по SSCC
 			})
 		}
 

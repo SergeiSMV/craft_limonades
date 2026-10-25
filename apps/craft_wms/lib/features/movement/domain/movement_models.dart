@@ -69,6 +69,10 @@ abstract class MoveLine with _$MoveLine {
 
     /// Как склад товара показывается человеку.
     @JsonKey(name: 'internal_warehouse_name') String? internalWarehouseName,
+
+    /// КИ марок ЧЗ строки (CZ-06): маркируемый товар двигается только марками, по одной на
+    /// единицу; количество строки — их число.
+    @Default(<String>[]) List<String> marks,
   }) = _MoveLine;
 
   const MoveLine._();

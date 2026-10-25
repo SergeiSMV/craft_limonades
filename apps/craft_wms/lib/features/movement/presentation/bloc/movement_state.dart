@@ -32,6 +32,9 @@ sealed class MoveHold with _$MoveHold {
     /// Склад взятого товара (P6-07-2); `null` — «Основной».
     String? internalWarehouseId,
     String? internalWarehouseName,
+
+    /// КИ взятых марок ЧЗ (CZ-06); пусто — товар взят количеством (немаркируемый).
+    @Default(<String>[]) List<String> marks,
   }) = HoldGoods;
 }
 
@@ -91,6 +94,15 @@ sealed class MoveNotice with _$MoveNotice {
 
   /// Перемещено — куда.
   const factory MoveNotice.moved(String address) = NoticeMoved;
+
+  /// Маркируемый товар берут только сканом марок (CZ-06).
+  const factory MoveNotice.scanMark() = NoticeScanMark;
+
+  /// Эта марка уже в руках.
+  const factory MoveNotice.markTaken() = NoticeMarkTaken;
+
+  /// Марка другого товара, партии или места, чем уже взятые: сначала положите взятое.
+  const factory MoveNotice.markOtherGoods() = NoticeMarkOtherGoods;
 }
 
 /// Состояние экрана перемещения (P6-04).
@@ -189,6 +201,17 @@ abstract class MovementState with _$MovementState {
       if (left > 0) out.add((c, left));
     }
     return out;
+  }
+
+  /// Где марка [cis] после строк этого сеанса: приёмник последней строки с ней; `null` — сеанс
+  /// её не трогал (CZ-06). Марка в коробе, который сеанс перенёс, едет с коробом — её место
+  /// по-прежнему этот короб.
+  MovePlace? markPlaceInSession(String cis) {
+    MovePlace? place;
+    for (final l in lines) {
+      if (l.marks.contains(cis)) place = l.to;
+    }
+    return place;
   }
 
   /// Ячейка, куда короб перенесён в этом сеансе; `null` — не переносили.

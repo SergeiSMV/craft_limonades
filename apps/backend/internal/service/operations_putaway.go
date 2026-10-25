@@ -32,6 +32,8 @@ type putawaySubmitPayload struct {
 		ProductionDate string          `json:"production_date"`
 		Qty            decimal.Decimal `json:"qty"`
 		ToCellID       string          `json:"to_cell_id"`
+		// КИ марок ЧЗ строки россыпи (CZ-06), по одной на единицу. Прежние клиенты не шлют.
+		Marks []string `json:"marks"`
 	} `json:"lines"`
 }
 
@@ -83,7 +85,7 @@ func (s *OperationsService) putawaySubmit(ctx context.Context, userID, id string
 			if !isUUID(luID) {
 				return repository.Applied{}, ErrInvalidLoadUnitID
 			}
-			if goodID != "" || ln.ProductionDate != "" || !ln.Qty.IsZero() {
+			if goodID != "" || ln.ProductionDate != "" || !ln.Qty.IsZero() || len(ln.Marks) > 0 {
 				return repository.Applied{}, ErrInvalidPayload
 			}
 			in.Lines = append(in.Lines, repository.PutawayLineInput{LoadUnitID: luID, ToCellID: toCell})
@@ -103,8 +105,12 @@ func (s *OperationsService) putawaySubmit(ctx context.Context, userID, id string
 		if err != nil {
 			return repository.Applied{}, err
 		}
+		marks, err := lineMarks(ln.Marks)
+		if err != nil {
+			return repository.Applied{}, err
+		}
 		in.Lines = append(in.Lines, repository.PutawayLineInput{
-			GoodID: goodID, ProductionDate: iso, Qty: ln.Qty, ToCellID: toCell,
+			GoodID: goodID, ProductionDate: iso, Qty: ln.Qty, ToCellID: toCell, Marks: marks,
 		})
 	}
 	return s.repo.PutawaySubmit(ctx, id, in)

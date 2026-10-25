@@ -352,6 +352,15 @@ func isRejection(err error) bool {
 		errors.Is(err, model.ErrCZMarkGoodMismatch) ||
 		errors.Is(err, model.ErrCZUnknownGTIN) ||
 		errors.Is(err, model.ErrCZMarksExceedQty) ||
+		// Марки ЧЗ движения, пометки проблемы и отгрузки возврата (CZ-06): нет марок у
+		// маркируемого товара, их не столько, они не там или не той партии, у позиции возврата
+		// названы не все или лишняя. Повтор этого не исправит.
+		errors.Is(err, model.ErrCZMarksRequired) ||
+		errors.Is(err, model.ErrCZMarksQtyMismatch) ||
+		errors.Is(err, model.ErrCZMarkNotAtSource) ||
+		errors.Is(err, model.ErrCZMarkBatchMismatch) ||
+		errors.Is(err, model.ErrCZReturnMarksIncomplete) ||
+		errors.Is(err, model.ErrCZReturnMarkForeign) ||
 		// Размещение (P5-02): сеанс уже проведён, пуст, противоречит складу или просит больше,
 		// чем лежит. Повтор этого не исправит — сеанс разбирает человек.
 		errors.Is(err, ErrInvalidPutawayID) ||

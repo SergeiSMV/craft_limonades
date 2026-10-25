@@ -19,6 +19,13 @@ abstract class PutawayPick with _$PutawayPick {
     TaskGood? good,
     @JsonKey(name: 'production_date') String? productionDate,
     double? qty,
+
+    /// Код короба ЧЗ взятого короба (CZ-06) — для подписи; `null` — свой короб или россыпь.
+    @JsonKey(name: 'cz_code') String? czCode,
+
+    /// КИ марок ЧЗ взятой россыпи (CZ-06): маркируемый товар берут марками, количество —
+    /// их число.
+    @Default(<String>[]) List<String> marks,
   }) = _PutawayPick;
 
   const PutawayPick._();
@@ -71,6 +78,9 @@ sealed class PutawayNotice with _$PutawayNotice {
 
   /// Положено в ячейку.
   const factory PutawayNotice.placed(String address) = NoticePlaced;
+
+  /// Эта марка уже взята или положена в этом сеансе (CZ-06).
+  const factory PutawayNotice.markTaken() = NoticeMarkTaken;
 
   /// Отброшенное задание вернуть в пул не удалось — нет связи; вернётся само по зависанию.
   const factory PutawayNotice.releaseOffline(int number) = NoticeReleaseOffline;

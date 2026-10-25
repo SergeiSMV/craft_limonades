@@ -200,13 +200,9 @@ func receiptCZProblems(ctx context.Context, q Querier, in ReceiptSubmitInput, ce
 		if bi.foreign {
 			p.Reason = model.ProblemReasonForeignMark
 		}
+		// Марки короба запоминают проблему в problemSubmit (CZ-06).
 		if err := problemSubmit(ctx, q, p); err != nil {
 			return err
-		}
-		if _, err := q.Exec(ctx, `
-			UPDATE cz_marks SET problem_id = $2::uuid WHERE load_unit_id = $1::uuid`,
-			lu.ID, p.ProblemID); err != nil {
-			return fmt.Errorf("марки короба с проблемой: %w", err)
 		}
 	}
 	for _, k := range looseKeys {
@@ -222,10 +218,10 @@ func receiptCZProblems(ctx context.Context, q Querier, in ReceiptSubmitInput, ce
 		if len(cis) == 1 {
 			p.Mark = cis[0]
 		}
+		// Марки уходят в россыпь «Изолятора» той же ячейки вместе с товаром — общим путём
+		// пометки проблемы марками (CZ-06).
+		p.Marks = cis
 		if err := problemSubmit(ctx, q, p); err != nil {
-			return err
-		}
-		if err := moveMarksToProblem(ctx, q, cis, p.ProblemID, isolator); err != nil {
 			return err
 		}
 		if ln.LoadUnitID == "" {
@@ -241,21 +237,6 @@ func receiptCZProblems(ctx context.Context, q Querier, in ReceiptSubmitInput, ce
 type problemKey struct {
 	line   int
 	reason string
-}
-
-// moveMarksToProblem переводит марки проблемы в россыпь «Изолятора»: марка из своего короба
-// ложится в ячейку короба — туда же, куда проблема вынула её товар.
-func moveMarksToProblem(ctx context.Context, q Querier, cis []string, problemID, isolator string) error {
-	if _, err := q.Exec(ctx, `
-		UPDATE cz_marks m
-		SET problem_id = $2::uuid,
-		    cell_id = COALESCE(m.cell_id, (SELECT lu.cell_id FROM load_units lu WHERE lu.id = m.load_unit_id)),
-		    load_unit_id = NULL,
-		    internal_warehouse_id = $3::uuid
-		WHERE m.cis = ANY($1::text[])`, cis, problemID, isolator); err != nil {
-		return fmt.Errorf("марки в проблему: %w", err)
-	}
-	return nil
 }
 
 // isolatorWarehouse — id «Изолятора». Нет его (удалён или переименован код) — отказ: товар

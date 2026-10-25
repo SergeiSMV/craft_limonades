@@ -190,6 +190,7 @@ func (r *ProblemRepository) attachItems(ctx context.Context, problems []model.Pr
 
 // lockedProblem — проблема, заблокированная под решение.
 type lockedProblem struct {
+	id                                                            string
 	warehouse, cell, loadUnit, good, batch, toIwh, reason, status string
 	qty                                                           decimal.Decimal
 }
@@ -227,12 +228,7 @@ func (r *ProblemRepository) Resolve(ctx context.Context, in model.ResolveProblem
 			return ErrDecisionNotAllowed
 		}
 
-		var lines []problemLine
-		if p.loadUnit != "" {
-			lines, err = problemBoxLines(ctx, q, p)
-		} else {
-			lines, err = problemGoodsLines(ctx, q, p)
-		}
+		lines, err := problemLines(ctx, q, p)
 		if err != nil {
 			return err
 		}
@@ -240,7 +236,7 @@ func (r *ProblemRepository) Resolve(ctx context.Context, in model.ResolveProblem
 		var taskID string
 		switch in.Decision {
 		case model.ProblemDecisionWriteOff:
-			err = writeOffProblem(ctx, q, p, lines)
+			err = writeOffProblem(ctx, q, p, lines, model.CZMarkWrittenOff)
 		case model.ProblemDecisionPlace:
 			var to string
 			if to, err = defaultInternalWarehouse(ctx, q); err == nil {
@@ -293,6 +289,7 @@ func lockProblem(ctx context.Context, q Querier, id string) (lockedProblem, erro
 	if err != nil {
 		return lockedProblem{}, fmt.Errorf("прочитать проблему: %w", err)
 	}
+	p.id = id
 	p.loadUnit, p.good, p.batch = deref(lu), deref(good), deref(batch)
 	if qty != nil {
 		if p.qty, err = decimal.NewFromString(*qty); err != nil {
@@ -374,8 +371,9 @@ func problemGoodsLines(ctx context.Context, q Querier, p lockedProblem) ([]probl
 }
 
 // writeOffProblem списывает товар проблемы с остатка: строки склада-метки уменьшаются, состав
-// короба обнуляется — пустой короб перестаёт быть живым.
-func writeOffProblem(ctx context.Context, q Querier, p lockedProblem, lines []problemLine) error {
+// короба обнуляется — пустой короб перестаёт быть живым. Марки проблемы уходят со склада
+// статусом markStatus (CZ-06): «списана» по решению офиса, «возвращена» отгрузкой возврата.
+func writeOffProblem(ctx context.Context, q Querier, p lockedProblem, lines []problemLine, markStatus string) error {
 	for _, l := range lines {
 		if err := removeStock(ctx, q,
 			model.StockKey{CellID: l.cell, GoodID: l.good, BatchID: l.batch, InternalWarehouseID: p.toIwh},
@@ -388,7 +386,7 @@ func writeOffProblem(ctx context.Context, q Querier, p lockedProblem, lines []pr
 			}
 		}
 	}
-	return nil
+	return retireProblemMarks(ctx, q, p, markStatus)
 }
 
 // relabelProblem переводит товар проблемы на склад to в тех же ячейках; короб меняет склад
@@ -407,8 +405,9 @@ func relabelProblem(ctx context.Context, q Querier, p lockedProblem, lines []pro
 			p.loadUnit, to); err != nil {
 			return fmt.Errorf("сменить склад короба: %w", err)
 		}
+		return nil
 	}
-	return nil
+	return relabelProblemMarks(ctx, q, p, to)
 }
 
 // returnProblem переводит товар на склад возврата и кладёт проблему в открытое задание возврата

@@ -6,7 +6,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_insets.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/gen/strings.g.dart';
-import '../../../../core/printer/load_unit_label.dart';
+import '../../../../core/load_unit/box_code.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/theme/semibold_text.dart';
 import '../../../../core/utils/qty_format.dart';
@@ -59,9 +59,7 @@ class PutawayLists extends StatelessWidget {
               color: AppColors.kPrimary,
             ),
             title: Text(
-              t.putaway.box(
-                code: LoadUnitLabel(b.loadUnitId!).shortCodeFormatted,
-              ),
+              t.putaway.box(code: boxCode(b.loadUnitId!, czCode: b.czCode)),
               style: SemiboldTextStyles().semiboldInter14,
             ),
             subtitle: Text(

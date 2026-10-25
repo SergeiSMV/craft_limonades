@@ -5,13 +5,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/gen/strings.g.dart';
-import '../../../../core/printer/load_unit_label.dart';
+import '../../../../core/load_unit/box_code.dart';
 import '../../../../core/scanner/hardware_scan_listener.dart';
 import '../../../../core/scanner/scan_code.dart';
 import '../../../../core/widgets/page_header.dart';
 import '../../../../core/widgets/system_ui_wrapper.dart';
 import '../../../stock/presentation/stock_navigation.dart';
 import '../../domain/contents_entities.dart';
+import '../bloc/contents_view_state.dart';
 import '../bloc/load_unit_cubit.dart';
 import '../bloc/load_unit_history_cubit.dart';
 import '../contents_navigation.dart';
@@ -107,9 +108,16 @@ class _LoadUnitViewState extends State<_LoadUnitView>
           automaticallyImplyLeading: false,
           backgroundColor: AppColors.kBg,
           title: PageHeader(
-            // Код короба — в заголовке: он известен из QR до всякой загрузки (ADHOC-21).
+            // Код короба — в заголовке: он известен из QR до всякой загрузки (ADHOC-21). У короба
+            // ЧЗ ярлыка нет — после загрузки его код с этикетки ЧЗ (CZ-06).
             title: t.contents.boxCode(
-              code: LoadUnitLabel(widget.loadUnitId).shortCodeFormatted,
+              code: boxCode(
+                widget.loadUnitId,
+                czCode: switch (state) {
+                  ContentsViewLoaded(:final data) => data.value?.czCode,
+                  _ => null,
+                },
+              ),
             ),
             textColor: AppColors.kSidebarHover,
             goBack: () => Navigator.of(context).pop(),

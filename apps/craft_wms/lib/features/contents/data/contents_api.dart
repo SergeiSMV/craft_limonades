@@ -27,6 +27,13 @@ class ContentsApi {
     timeout: _viewTimeout,
   );
 
+  /// Карточка ГЕ короба ЧЗ по коду `00`+SSCC (CZ-06); 404 — короб не принят.
+  Future<Either<Failure, LoadUnitView>> cardByCzCode(String code) => _get(
+    ApiConst.loadUnitByCzCode(code),
+    (d) => loadUnitFromJson(d as Map<String, dynamic>),
+    timeout: _viewTimeout,
+  );
+
   /// Содержимое ячейки.
   Future<Either<Failure, CellView>> cell(String id) => _get(
     ApiConst.cellContents(id),

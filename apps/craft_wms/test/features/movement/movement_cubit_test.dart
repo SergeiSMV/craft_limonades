@@ -5,6 +5,7 @@ import 'package:craft_wms/core/error/failure.dart';
 import 'package:craft_wms/core/load_unit/load_unit_id_generator.dart';
 import 'package:craft_wms/core/outbox/sent_sessions.dart';
 import 'package:craft_wms/features/contents/domain/contents_entities.dart';
+import 'package:craft_wms/features/movement/domain/movement_models.dart';
 import 'package:craft_wms/features/movement/domain/movement_repository.dart';
 import 'package:craft_wms/features/movement/presentation/bloc/movement_cubit.dart';
 import 'package:craft_wms/features/movement/presentation/bloc/movement_state.dart';
@@ -400,4 +401,119 @@ void main() {
       await c.close();
     },
   );
+
+  group('марки ЧЗ (CZ-06)', () {
+    const czFixture =
+        '../backend/internal/handler/testdata/movement_submit_cz.json';
+    const czWh = '6e000000-0000-4000-8000-0000000000a1';
+    const czGood = '6e000000-0000-4000-8000-0000000000c1';
+    const czBox = '6e000000-0000-4000-8000-000000000004';
+    const m1 = '0104600000000020215M1';
+    const m2 = '0104600000000020215M2';
+    const m3 = '0104600000000020215M3';
+    const beer = MoveGood(id: czGood, name: 'Пиво', code: '16121', uom: 'шт');
+    final czCell1 = Cell(
+      id: '6e000000-0000-4000-8000-0000000000a3',
+      warehouseId: czWh,
+      address: 'M1-1-1-1',
+    );
+    final czCell2 = Cell(
+      id: '6e000000-0000-4000-8000-0000000000a5',
+      warehouseId: czWh,
+      address: 'M1-1-1-2',
+    );
+    final loose = MovePlace(cellId: czCell1.id, cellAddress: czCell1.address);
+    final inBox = MovePlace(
+      cellId: czCell2.id,
+      cellAddress: czCell2.address,
+      loadUnitId: czBox,
+    );
+    final boxView = LoadUnitView(
+      id: czBox,
+      cellId: czCell2.id,
+      live: true,
+      czCode: '00046000000000000020',
+      lines: [line(12)],
+    );
+
+    void take(MovementCubit c, List<String> marks, MovePlace from, Cell cell) =>
+        c.takeMarks(
+          marks: marks,
+          good: beer,
+          productionDate: date,
+          from: from,
+          cell: cell,
+        );
+
+    test('клиент собирает сеанс марками ровно в формате эталона', () async {
+      when(
+        () => ids.newId(),
+      ).thenReturn('6e000000-0000-4000-8000-000000000006');
+      final fixture =
+          jsonDecode(File(czFixture).readAsStringSync())
+              as Map<String, dynamic>;
+      final expected =
+          ((fixture['operations'] as List).single
+              as Map<String, dynamic>)['payload'];
+
+      final c = await started();
+      // Две марки россыпью по одной — в короб ЧЗ.
+      take(c, [m1], loose, czCell1);
+      take(c, [m2], loose, czCell1);
+      expect((c.state.hold! as HoldGoods).qty, 2);
+      c.onBox(boxView, czCell2);
+      // Марка, лежавшая в коробе ЧЗ, — россыпью в M1-1-1-1.
+      take(c, [m3], inBox, czCell2);
+      c.onCell(czCell1);
+
+      expect(c.state.hold, isNull);
+      expect(
+        jsonDecode(jsonEncode(MovementCubit.payload(c.state))),
+        expected,
+        reason: 'формат разошёлся с testdata/movement_submit_cz.json',
+      );
+      expect(c.state.markPlaceInSession(m1)?.loadUnitId, czBox);
+      expect(c.state.markPlaceInSession(m3)?.cellId, czCell1.id);
+      await c.close();
+    });
+
+    test(
+      'повтор, чужое место, товар в руках, ШК маркируемого — подсказки',
+      () async {
+        final c = await started();
+        take(c, [m1], loose, czCell1);
+        take(c, [m1], loose, czCell1);
+        expect(c.state.notice, const MoveNotice.markTaken());
+        take(c, [m3], inBox, czCell2);
+        expect(c.state.notice, const MoveNotice.markOtherGoods());
+        c.dropHold();
+
+        // Источник в руках — ячейка; марка лежит в коробе.
+        c.onCell(czCell1, loose: [line(5)]);
+        take(c, [m3], inBox, czCell2);
+        expect(c.state.notice, const MoveNotice.notInSource());
+
+        // Товар взят количеством — марку к нему не добавить.
+        c.takeGoods(line(5), 1);
+        take(c, [m1], loose, czCell1);
+        expect(c.state.notice, const MoveNotice.putFirst());
+
+        c.markRequired();
+        expect(c.state.notice, const MoveNotice.scanMark());
+
+        // Ячейка приёмки — не источник и для марок.
+        c.dropHold();
+        final receiving = Cell(
+          id: 'r',
+          warehouseId: czWh,
+          address: 'С-Н-П',
+          isDefault: true,
+        );
+        take(c, [m1], MovePlace(cellId: 'r', cellAddress: 'С-Н-П'), receiving);
+        expect(c.state.notice, const MoveNotice.receivingCell());
+        expect(c.state.hold, isNull);
+        await c.close();
+      },
+    );
+  });
 }

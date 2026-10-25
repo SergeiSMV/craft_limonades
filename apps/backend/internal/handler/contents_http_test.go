@@ -45,6 +45,29 @@ func TestContentsHTTP_snapshotWireFormat(t *testing.T) {
 	if got := e.operations(t, receipt); len(got) != 1 || got[0] != service.StatusAccepted {
 		t.Fatalf("приёмка под эталон не применилась: %v", got)
 	}
+	// Короб эталона — короб ЧЗ с маркой внутри, вторая марка — в россыпи (CZ-06). Пишутся
+	// прямо в базу: приёмка короба ЧЗ требует ответа ЧЗ, а проверяется здесь формат снимка.
+	marks := want["marks"].([]any)
+	boxMark, looseMark := marks[0].(map[string]any), marks[1].(map[string]any)
+	if _, err := e.pool.Exec(context.Background(), `
+		INSERT INTO cz_aggregates (code, kind, load_unit_id) VALUES ($1, 'BOX', $2::uuid);
+	`, lu["cz_code"], box); err != nil {
+		t.Fatalf("короб ЧЗ эталона: %v", err)
+	}
+	if _, err := e.pool.Exec(context.Background(), `
+		INSERT INTO cz_marks (cis, good_id, batch_id, load_unit_id, aggregate_code)
+		SELECT $1, $2::uuid, b.id, $3::uuid, $4 FROM batches b
+		WHERE b.good_id = $2::uuid AND b.production_date = '2026-09-01'`,
+		boxMark["cis"], good, box, lu["cz_code"]); err != nil {
+		t.Fatalf("марка короба эталона: %v", err)
+	}
+	if _, err := e.pool.Exec(context.Background(), `
+		INSERT INTO cz_marks (cis, good_id, batch_id, cell_id, internal_warehouse_id)
+		SELECT $1, $2::uuid, b.id, $3::uuid, w.id FROM batches b, internal_warehouses w
+		WHERE b.good_id = $2::uuid AND b.production_date = '2026-09-02' AND w.is_default`,
+		looseMark["cis"], good, looseCell); err != nil {
+		t.Fatalf("марка россыпи эталона: %v", err)
+	}
 
 	code, body := e.call(t, http.MethodGet, "/api/v1/contents/snapshot", e.workerToken, "")
 	if code != http.StatusOK {
@@ -61,6 +84,25 @@ func TestContentsHTTP_snapshotWireFormat(t *testing.T) {
 		g, _ := json.MarshalIndent(got, "", "  ")
 		t.Fatalf("снимок разошёлся с эталоном testdata/contents_snapshot.json — сверьте формат "+
 			"с тем, что разбирает клиент.\nПолучено: %s", g)
+	}
+
+	// Короб ЧЗ по коду с этикетки (CZ-06): карточка той же ГЕ; кривой код — 400, не принятый — 404.
+	code, body = e.call(t, http.MethodGet, "/api/v1/load-units/cz/"+lu["cz_code"].(string), e.workerToken, "")
+	if code != http.StatusOK {
+		t.Fatalf("короб ЧЗ по коду: код %d, %s", code, body)
+	}
+	var card map[string]any
+	if err := json.Unmarshal(body, &card); err != nil {
+		t.Fatalf("карточка короба ЧЗ не разбирается: %v", err)
+	}
+	if card["id"] != box || card["cz_code"] != lu["cz_code"] || card["cz_opened"] != false {
+		t.Fatalf("короб ЧЗ по коду: %s", body)
+	}
+	if code, _ := e.call(t, http.MethodGet, "/api/v1/load-units/cz/0012", e.workerToken, ""); code != http.StatusBadRequest {
+		t.Fatalf("кривой код короба ЧЗ: код %d, ждали 400", code)
+	}
+	if code, _ := e.call(t, http.MethodGet, "/api/v1/load-units/cz/00000000000000000001", e.workerToken, ""); code != http.StatusNotFound {
+		t.Fatalf("не принятый короб ЧЗ: код %d, ждали 404", code)
 	}
 }
 

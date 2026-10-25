@@ -252,8 +252,40 @@ class CachedLoadUnits extends Table {
   TextColumn get internalWarehouseId =>
       text().withDefault(const Constant(''))();
 
+  /// Код короба ЧЗ (`00`+SSCC) — короб узнаётся сканом этикетки ЧЗ без связи (CZ-06);
+  /// `null` — свой короб с QR.
+  TextColumn get czCode => text().nullable()();
+
+  /// Короб ЧЗ вскрыт: из него вынута хоть одна марка (CZ-06).
+  BoolColumn get czOpened => boolean().withDefault(const Constant(false))();
+
   @override
   Set<Column<Object>> get primaryKey => {id};
+}
+
+/// Марки ЧЗ на складе из снимка (CZ-06): что за единицу отсканировали и где она лежит, —
+/// перемещение маркируемого товара идёт марками и без связи.
+///
+/// Место — как на сервере: [loadUnitId] (в коробе; ячейка — у короба) или [cellId] со складом
+/// [internalWarehouseId] (россыпью). [aggregateCode] — упаковка ЧЗ, в которой марка пришла:
+/// скан групповой упаковки — набор марок с этим кодом.
+@TableIndex(name: 'cached_cz_marks_lu', columns: {#loadUnitId})
+@TableIndex(name: 'cached_cz_marks_cell', columns: {#cellId})
+@TableIndex(name: 'cached_cz_marks_aggregate', columns: {#aggregateCode})
+class CachedCzMarks extends Table {
+  TextColumn get cis => text()();
+  TextColumn get goodId => text()();
+  TextColumn get batchId => text()();
+
+  /// Дата партии в транспортном виде DD-MM-YYYY.
+  TextColumn get productionDate => text()();
+  TextColumn get loadUnitId => text().nullable()();
+  TextColumn get cellId => text().nullable()();
+  TextColumn get internalWarehouseId => text().nullable()();
+  TextColumn get aggregateCode => text().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {cis};
 }
 
 /// Содержимое коробов снимка: товар партии с количеством.
@@ -350,6 +382,7 @@ class ProblemPhotoUploads extends Table {
     CachedLooseStock,
     CachedInternalWarehouses,
     ProblemPhotoUploads,
+    CachedCzMarks,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -359,7 +392,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   /// Миграции схемы.
   ///
@@ -390,6 +423,9 @@ class AppDatabase extends _$AppDatabase {
   /// 9 → 10: у товаров — признак «маркируемый» (CZ-05).
   ///
   /// 10 → 11: очередь фото к проблемам склада [problemPhotoUploads] (ADHOC-45).
+  ///
+  /// 11 → 12: у коробов снимка — код короба ЧЗ и признак вскрытия, марки ЧЗ на складе
+  /// [cachedCzMarks] (CZ-06).
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) => m.createAll(),
@@ -464,6 +500,20 @@ class AppDatabase extends _$AppDatabase {
       // Только при подъёме до 11 и выше — по той же причине, что у шага 10.
       if (from < 11 && to >= 11) {
         await m.createTable(problemPhotoUploads);
+      }
+      if (from < 12 && to >= 12) {
+        // Колонки — только базе, где таблица коробов уже была (версия 7 и выше): с более
+        // ранних её только что создал шаг «< 7» по текущей схеме.
+        if (from >= 7) {
+          await m.addColumn(cachedLoadUnits, cachedLoadUnits.czCode);
+          await m.addColumn(cachedLoadUnits, cachedLoadUnits.czOpened);
+        }
+        await m.createTable(cachedCzMarks);
+        // Снимок без марок и кодов коробов ЧЗ: короб ЧЗ не нашёлся бы по скану, а марки —
+        // вовсе. Снимаем отметку снимка: до следующей загрузки содержимое читается с сервера.
+        await (delete(
+          catalogSyncMarks,
+        )..where((t) => t.catalog.equals('contents'))).go();
       }
     },
   );

@@ -203,7 +203,25 @@ class PutawayCubit extends Cubit<PutawayState> {
       emit(state.copyWith(notice: const PutawayNotice.alreadyPlaced()));
       return;
     }
-    emit(state.copyWith(pick: PutawayPick(loadUnitId: id), notice: null));
+    emit(
+      state.copyWith(
+        pick: PutawayPick(loadUnitId: id, czCode: item.czCode),
+        notice: null,
+      ),
+    );
+  }
+
+  /// Взять короб ЧЗ по коду `00`+SSCC с его этикетки (CZ-06): ярлыка WMS у короба ЧЗ нет,
+  /// задание знает его код — короб находится и без связи.
+  void pickCzBox(String czCode) {
+    final item = state.task.items
+        .where((i) => i.isBox && i.czCode == czCode)
+        .firstOrNull;
+    if (item == null) {
+      emit(state.copyWith(notice: const PutawayNotice.notInTask()));
+      return;
+    }
+    pickBox(item.loadUnitId!);
   }
 
   /// Россыпь задания по товару: позиции с остатком — экран выбирает партию и количество.
@@ -230,6 +248,60 @@ class PutawayCubit extends Cubit<PutawayState> {
           good: item.good,
           productionDate: item.productionDate,
           qty: qty,
+        ),
+        notice: null,
+      ),
+    );
+  }
+
+  /// Взять россыпь марками ЧЗ (CZ-06): марки товара [goodId] партии [productionDate],
+  /// лежащие россыпью в ячейке приёмки. Партия — позиция задания; к взятым марками того же
+  /// товара и партии марки добавляются, не больше остатка позиции.
+  void pickMarks(List<String> marks, String goodId, String productionDate) {
+    final used = {
+      for (final l in state.lines) ...l.pick.marks,
+      ...?state.pick?.marks,
+    };
+    final fresh = [
+      for (final m in marks)
+        if (!used.contains(m)) m,
+    ];
+    if (fresh.isEmpty) {
+      emit(state.copyWith(notice: const PutawayNotice.markTaken()));
+      return;
+    }
+    final item = state.task.items
+        .where(
+          (i) =>
+              !i.isBox &&
+              i.good?.id == goodId &&
+              i.productionDate == productionDate,
+        )
+        .firstOrNull;
+    if (item == null) {
+      emit(state.copyWith(notice: const PutawayNotice.notInTask()));
+      return;
+    }
+    final pick = state.pick;
+    final held =
+        pick != null &&
+            pick.marks.isNotEmpty &&
+            pick.good?.id == goodId &&
+            pick.productionDate == productionDate
+        ? pick.marks
+        : const <String>[];
+    final all = [...held, ...fresh];
+    if (all.length > state.looseLeft(item)) {
+      emit(state.copyWith(notice: const PutawayNotice.alreadyPlaced()));
+      return;
+    }
+    emit(
+      state.copyWith(
+        pick: PutawayPick(
+          good: item.good,
+          productionDate: item.productionDate,
+          qty: all.length.toDouble(),
+          marks: all,
         ),
         notice: null,
       ),
@@ -273,7 +345,10 @@ class PutawayCubit extends Cubit<PutawayState> {
     if (same >= 0) {
       final prev = lines[same].pick;
       lines[same] = lines[same].copyWith(
-        pick: prev.copyWith(qty: (prev.qty ?? 0) + (pick.qty ?? 0)),
+        pick: prev.copyWith(
+          qty: (prev.qty ?? 0) + (pick.qty ?? 0),
+          marks: [...prev.marks, ...pick.marks],
+        ),
       );
     } else {
       lines.add(PutawayLine(pick: pick, cell: cell));
@@ -374,6 +449,7 @@ class PutawayCubit extends Cubit<PutawayState> {
                 'production_date': l.pick.productionDate,
                 'qty': l.pick.qty,
                 'to_cell_id': l.cell.id,
+                if (l.pick.marks.isNotEmpty) 'marks': l.pick.marks,
               },
     ],
   };

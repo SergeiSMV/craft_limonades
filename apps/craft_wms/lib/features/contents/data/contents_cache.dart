@@ -28,6 +28,7 @@ class ContentsCache {
     await _db.delete(_db.cachedLoadUnits).go();
     await _db.delete(_db.cachedLoadUnitLines).go();
     await _db.delete(_db.cachedLooseStock).go();
+    await _db.delete(_db.cachedCzMarks).go();
     await _db.batch((b) {
       b.insertAll(_db.cachedLoadUnits, [
         for (final lu in snapshot.loadUnits)
@@ -37,6 +38,8 @@ class ContentsCache {
             cellId: lu.cellId,
             createdAt: lu.createdAt,
             internalWarehouseId: Value(lu.internalWarehouseId),
+            czCode: Value(lu.czCode),
+            czOpened: Value(lu.czOpened),
           ),
       ]);
       b.insertAll(_db.cachedLoadUnitLines, [
@@ -59,6 +62,19 @@ class ContentsCache {
             batchId: l.line.batchId,
             productionDate: l.line.productionDate,
             qty: l.line.qty,
+          ),
+      ]);
+      b.insertAll(_db.cachedCzMarks, [
+        for (final m in snapshot.marks)
+          CachedCzMarksCompanion.insert(
+            cis: m.cis,
+            goodId: m.goodId,
+            batchId: m.batchId,
+            productionDate: m.productionDate,
+            loadUnitId: Value(m.loadUnitId),
+            cellId: Value(m.cellId),
+            internalWarehouseId: Value(m.internalWarehouseId),
+            aggregateCode: Value(m.aggregateCode),
           ),
       ]);
     });
@@ -95,6 +111,34 @@ class ContentsCache {
   /// страниц: на масштабе пилота это сотни строк, а список на экране строится лениво.
   Future<Map<String, LoadUnitView>> allLoadUnits() async =>
       _withLines(await _db.select(_db.cachedLoadUnits).get());
+
+  /// Короб снимка с кодом короба ЧЗ [czCode] (`00`+SSCC, CZ-06); `null` — такого нет.
+  Future<String?> loadUnitIdByCzCode(String czCode) async {
+    final row = await (_db.select(
+      _db.cachedLoadUnits,
+    )..where((t) => t.czCode.equals(czCode))).getSingleOrNull();
+    return row?.id;
+  }
+
+  /// Марки снимка по коду (CZ-06): марка с этим КИ или марки упаковки с этим кодом. Склад —
+  /// как прислал сервер; к соглашению терминала его приводит репозиторий.
+  Future<List<StockMark>> marksByCode(String code) async {
+    final rows = await (_db.select(
+      _db.cachedCzMarks,
+    )..where((t) => t.cis.equals(code) | t.aggregateCode.equals(code))).get();
+    return [
+      for (final r in rows)
+        StockMark(
+          cis: r.cis,
+          goodId: r.goodId,
+          productionDate: r.productionDate,
+          loadUnitId: r.loadUnitId,
+          cellId: r.cellId,
+          internalWarehouseId: r.internalWarehouseId,
+          aggregateCode: r.aggregateCode,
+        ),
+    ];
+  }
 
   /// Короба снимка в ячейке.
   Future<List<LoadUnitView>> loadUnitsInCell(String cellId) async {
@@ -183,6 +227,8 @@ class ContentsCache {
           // В снимке только живые короба.
           live: true,
           internalWarehouseId: r.internalWarehouseId,
+          czCode: r.czCode,
+          czOpened: r.czOpened,
           lines: byUnit[r.id] ?? const [],
         ),
     };
