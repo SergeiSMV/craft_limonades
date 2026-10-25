@@ -322,4 +322,37 @@ void main() {
       await c.close();
     },
   );
+
+  test(
+    'марками ЧЗ: отмечаются, добавляются, повтор и чужое место — подсказки (CZ-06)',
+    () async {
+      const m1 = '0104600000000015215M1';
+      const m2 = '0104600000000015215M2';
+      final c = await started();
+      c.chooseMarks(marks: [m1], line: line(1), cell: receiving);
+      expect(c.state.notice, const ProblemNotice.receivingCell());
+
+      c.chooseMarks(marks: [m1], line: line(1), cell: cell, box: box());
+      c.chooseMarks(marks: [m2], line: line(1), cell: cell, box: box());
+      final subject = c.state.subject! as SubjectGoods;
+      expect(subject.marks, [m1, m2]);
+      expect(subject.qty, 2);
+      c.chooseMarks(marks: [m2], line: line(1), cell: cell, box: box());
+      expect(c.state.notice, const ProblemNotice.markTaken());
+      c.chooseMarks(
+        marks: ['0104600000000015215M3'],
+        line: line(1),
+        cell: cell,
+      );
+      expect(c.state.notice, const ProblemNotice.markOtherGoods());
+
+      c.setWarehouse('DEFECT');
+      c.setReason(ProblemReason.breakage);
+      final p = ProblemCubit.payload(c.state);
+      expect(p['from_load_unit_id'], boxId);
+      expect(p['qty'], 2.0);
+      expect(p['marks'], [m1, m2]);
+      await c.close();
+    },
+  );
 }

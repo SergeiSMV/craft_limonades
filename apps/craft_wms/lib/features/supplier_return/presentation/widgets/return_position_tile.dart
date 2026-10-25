@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/gen/strings.g.dart';
-import '../../../../core/printer/load_unit_label.dart';
+import '../../../../core/load_unit/box_code.dart';
 import '../../../../core/widgets/neumorphic_line_tile.dart';
 import '../../../tasks/data/tasks_models.dart';
 import '../../../tasks/presentation/widgets/common/task_format.dart';
@@ -17,9 +17,13 @@ class ReturnPositionTile extends StatelessWidget {
     required this.checked,
     required this.active,
     required this.onTap,
+    this.scannedMarks = 0,
   });
 
   final TaskItem item;
+
+  /// Сколько марок позиции отсканировано (CZ-06, долг 30).
+  final int scannedMarks;
   final bool checked;
 
   /// Место позиции подтверждено сканом — её можно отметить.
@@ -45,10 +49,15 @@ class ReturnPositionTile extends StatelessWidget {
         ),
       ],
       if (item.cell.isNotEmpty) t.supplierReturn.cellLine(cell: item.cell),
-      if (!active)
+      if (item.marks.isNotEmpty)
+        t.supplierReturn.marksLine(
+          scanned: scannedMarks,
+          total: item.marks.length,
+        ),
+      if (!active && item.marks.isEmpty)
         item.isBox
             ? t.supplierReturn.scanBoxOrCell(
-                code: LoadUnitLabel(item.loadUnitId!).shortCodeFormatted,
+                code: boxCode(item.loadUnitId!, czCode: item.czCode),
                 cell: item.cell,
               )
             : t.supplierReturn.scanCell(cell: item.cell),
@@ -56,7 +65,7 @@ class ReturnPositionTile extends StatelessWidget {
     final tile = NeumorphicLineTile(
       title: item.isBox
           ? t.supplierReturn.box(
-              code: LoadUnitLabel(item.loadUnitId!).shortCodeFormatted,
+              code: boxCode(item.loadUnitId!, czCode: item.czCode),
             )
           : item.good?.name ?? '',
       subtitle: lines.join('\n'),

@@ -238,9 +238,12 @@ void main() {
     () async {
       await db.customStatement('DROP TABLE cached_internal_warehouses');
       await db.customStatement('DROP TABLE cached_load_units');
+      // Таблица версии 7 плюс колонки, которые добавит шаг 12 (CZ-06): тест гоняет один
+      // шаг 7 → 8, а снимок пишется по текущей схеме.
       await db.customStatement(
         'CREATE TABLE cached_load_units (id TEXT NOT NULL, kind TEXT NOT NULL, '
-        'cell_id TEXT NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY (id))',
+        'cell_id TEXT NOT NULL, created_at INTEGER NOT NULL, cz_code TEXT, '
+        'cz_opened INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (id))',
       );
       await db
           .into(db.catalogSyncMarks)
@@ -542,6 +545,193 @@ void main() {
       expect((await repo.history(box)).left, isA<NetworkFailure>());
     });
   });
+
+  group('короб ЧЗ по SSCC (CZ-06)', () {
+    const czCode = '00046012345678901234';
+
+    test('эталон: код короба ЧЗ и марки снимка', () {
+      expect(fixture.loadUnits.single.czCode, czCode);
+      expect(fixture.loadUnits.single.czOpened, isFalse);
+      final inBox = fixture.marks.firstWhere((m) => m.loadUnitId != null);
+      expect(inBox.loadUnitId, box);
+      expect(inBox.aggregateCode, czCode);
+      expect(inBox.productionDate, '01-09-2026');
+      final loose = fixture.marks.firstWhere((m) => m.cellId != null);
+      expect(loose.cellId, looseCell);
+      expect(loose.internalWarehouseId, mainIwh);
+      expect(loose.aggregateCode, isNull);
+    });
+
+    test('со связью — ГЕ по ответу сервера', () async {
+      when(() => api.cardByCzCode(czCode)).thenAnswer(
+        (_) async =>
+            const Right(LoadUnitView(id: box, live: true, czCode: czCode)),
+      );
+      expect((await repo.loadUnitIdByCzCode(czCode)).right, box);
+    });
+
+    test('сервер не знает короба — не принят', () async {
+      when(
+        () => api.cardByCzCode(czCode),
+      ).thenAnswer((_) async => const Left(Failure.server(404)));
+      expect((await repo.loadUnitIdByCzCode(czCode)).right, isNull);
+    });
+
+    test('без связи — по снимку, код и вскрытие в карточке', () async {
+      when(
+        () => api.cardByCzCode(any()),
+      ).thenAnswer((_) async => const Left(Failure.network()));
+      expect(
+        (await repo.loadUnitIdByCzCode(czCode)).left,
+        isA<NetworkFailure>(),
+        reason: 'снимка ещё не было — узнать негде',
+      );
+
+      await cache.replace(fixture);
+      expect((await repo.loadUnitIdByCzCode(czCode)).right, box);
+      expect(
+        (await repo.loadUnitIdByCzCode('00000000000000000001')).right,
+        isNull,
+      );
+      final card = (await repo.loadUnit(box)).right.value!;
+      expect(card.czCode, czCode);
+      expect(card.isCzBox, isTrue);
+    });
+
+    test('короб ЧЗ своей неотправленной приёмки — по очереди', () async {
+      when(
+        () => api.cardByCzCode(any()),
+      ).thenAnswer((_) async => const Left(Failure.network()));
+      await outbox.enqueue(
+        kind: OutboxKind.receiptSubmit,
+        payload: {
+          'warehouse_id': wh,
+          'load_units': [
+            {'id': box, 'kind': 'box', 'cz_code': czCode},
+          ],
+          'lines': [
+            {
+              'good_id': good,
+              'production_date': '01-09-2026',
+              'qty': 2,
+              'load_unit_id': box,
+            },
+          ],
+        },
+      );
+      expect((await repo.loadUnitIdByCzCode(czCode)).right, box);
+      expect((await repo.loadUnit(box)).right.value!.czCode, czCode);
+    });
+  });
+
+  group('марки на складе (CZ-06)', () {
+    const boxMark = '0104601234567890215abcDEF';
+    const looseMark = '0104601234567890215ghiJKL';
+    const czCode = '00046012345678901234';
+
+    test(
+      'из снимка: марка по КИ, упаковка — её марки, склад «Основной» — null',
+      () async {
+        await cache.replace(fixture);
+        final mark = (await repo.marksByCode(looseMark)).single;
+        expect(mark.cellId, looseCell);
+        expect(mark.internalWarehouseId, isNull);
+        expect(mark.productionDate, '02-09-2026');
+        // Код короба ЧЗ как упаковка: его марки.
+        final inBox = (await repo.marksByCode(czCode)).single;
+        expect(inBox.cis, boxMark);
+        expect(inBox.loadUnitId, box);
+        expect(await repo.marksByCode('0104600000000000215ZZ'), isEmpty);
+      },
+    );
+
+    test(
+      'своя неотправленная операция переносит марку и заводит новую',
+      () async {
+        await cache.replace(fixture);
+        await outbox.enqueue(
+          kind: OutboxKind.movementSubmit,
+          payload: {
+            'warehouse_id': wh,
+            'lines': [
+              {
+                'good_id': good,
+                'production_date': '01-09-2026',
+                'qty': 1,
+                'from_load_unit_id': box,
+                'to_cell_id': looseCell,
+                'marks': [boxMark],
+              },
+            ],
+          },
+        );
+        await outbox.enqueue(
+          kind: OutboxKind.receiptSubmit,
+          payload: {
+            'warehouse_id': wh,
+            'load_units': const [],
+            'lines': [
+              {
+                'good_id': good,
+                'production_date': '03-09-2026',
+                'qty': 1,
+                'marks': [
+                  {'cis': '0104601234567890215NEW'},
+                ],
+              },
+            ],
+          },
+        );
+
+        final moved = (await repo.marksByCode(boxMark)).single;
+        expect(moved.loadUnitId, isNull);
+        expect(moved.cellId, looseCell);
+        expect(moved.pending, isTrue);
+        final fresh = (await repo.marksByCode('0104601234567890215NEW')).single;
+        expect(
+          fresh.cellId,
+          looseCell,
+          reason: 'строка без ячейки — ячейка приёмки',
+        );
+        expect(fresh.productionDate, '03-09-2026');
+      },
+    );
+  });
+
+  test(
+    'миграция 11 → 12: код короба ЧЗ, марки снимка, снимок перечитать',
+    () async {
+      await db.customStatement('DROP TABLE cached_cz_marks');
+      await db.customStatement('DROP TABLE cached_load_units');
+      await db.customStatement(
+        'CREATE TABLE cached_load_units (id TEXT NOT NULL, kind TEXT NOT NULL, '
+        'cell_id TEXT NOT NULL, created_at INTEGER NOT NULL, '
+        "internal_warehouse_id TEXT NOT NULL DEFAULT '', PRIMARY KEY (id))",
+      );
+      await db
+          .into(db.catalogSyncMarks)
+          .insert(
+            CatalogSyncMarksCompanion.insert(
+              catalog: ContentsCache.markName,
+              syncedAt: DateTime.utc(2026, 10, 8),
+            ),
+          );
+
+      await db.migration.onUpgrade(Migrator(db), 11, 12);
+
+      expect(
+        await cache.asOf(),
+        isNull,
+        reason: 'в снимке нет марок и кодов коробов ЧЗ — перечитать',
+      );
+      await cache.replace(fixture);
+      expect(
+        (await cache.loadUnits([box]))[box]?.czCode,
+        '00046012345678901234',
+      );
+      expect(await db.select(db.cachedCzMarks).get(), hasLength(2));
+    },
+  );
 
   test('короткий код: приведение и совпадение по хвосту', () {
     expect(shortCodeQuery(' 9fa0 b1c2 '), '9FA0B1C2');

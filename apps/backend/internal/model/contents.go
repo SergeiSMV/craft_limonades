@@ -51,6 +51,11 @@ type LoadUnitCard struct {
 	Contents    []ContentLine // только строки с количеством больше нуля
 	// InternalWarehouseID — склад короба целиком (P6-07-1): «Основной», «Брак», «Изолятор» …
 	InternalWarehouseID string
+	// CZCode — код короба ЧЗ (`00`+SSCC), если ГЕ — транспортный короб ЧЗ (CZ-03); nil — свой
+	// короб с QR. По нему ТСД находит короб сканом этикетки ЧЗ, в том числе без связи (CZ-06).
+	CZCode *string
+	// CZOpened — короб ЧЗ вскрыт: из него вынута хоть одна марка (CZ-06).
+	CZOpened bool
 }
 
 // LooseLine — россыпь: товар партии в ячейке вне коробов (P5-05).
@@ -80,6 +85,24 @@ type ContentsSnapshot struct {
 	AsOf      time.Time
 	LoadUnits []LoadUnitCard
 	Loose     []LooseLine
+	Marks     []ContentsMark // марки ЧЗ на складе (CZ-06)
+}
+
+// ContentsMark — марка ЧЗ на складе в снимке для ТСД (CZ-06): по ней терминал без связи
+// узнаёт, что за единицу отсканировали и где она лежит.
+//
+// Место — как у марки в базе: LoadUnitID (в коробе; ячейка — у короба) или CellID
+// с InternalWarehouseID (россыпью). AggregateCode — упаковка ЧЗ, в которой марка пришла:
+// скан групповой упаковки на ТСД — набор марок с этим кодом.
+type ContentsMark struct {
+	CIS                 string
+	GoodID              string
+	BatchID             string
+	ProductionDate      time.Time
+	LoadUnitID          *string
+	CellID              *string
+	InternalWarehouseID *string
+	AggregateCode       *string
 }
 
 // LoadUnitReceipt — приёмка, которая завела короб (P5-05-1): кто, когда, от кого.

@@ -64,7 +64,7 @@ func (f *fakeOpsRepo) StockEntryStart(_ context.Context, operationID, sessionID,
 	return repository.Applied{Result: json.RawMessage(`{"session_id":"` + sessionID + `"}`)}, nil
 }
 
-func (f *fakeOpsRepo) StockEntryCheckpoint(_ context.Context, operationID, _, _ string, _ []repository.StockEntryLineInput, _ []repository.BarcodeBindInput) (repository.Applied, error) {
+func (f *fakeOpsRepo) StockEntryCheckpoint(_ context.Context, operationID, _ string, _ repository.StockEntryCellInput) (repository.Applied, error) {
 	if f.seen[operationID] {
 		return repository.Applied{Result: json.RawMessage(`{}`), Duplicate: true}, nil
 	}

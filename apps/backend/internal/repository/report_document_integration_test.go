@@ -47,11 +47,11 @@ func closedSession(t *testing.T, fx *stockFixture, repo *repository.StockEntryRe
 	if err != nil {
 		t.Fatalf("создать сессию: %v", err)
 	}
-	if err := repo.Checkpoint(ctx, sessionID, fx.cellA, []repository.StockEntryLineInput{{
+	if err := repo.Checkpoint(ctx, sessionID, repository.StockEntryCellInput{CellID: fx.cellA, Lines: []repository.StockEntryLineInput{{
 		GoodID:         fx.good,
 		ProductionDate: "2026-01-01",
 		Qty:            decimal.RequireFromString("7"),
-	}}, nil); err != nil {
+	}}}); err != nil {
 		t.Fatalf("checkpoint: %v", err)
 	}
 	if _, err := repo.Finalize(ctx, sessionID); err != nil {

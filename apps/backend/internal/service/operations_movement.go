@@ -35,6 +35,8 @@ type movementSubmitPayload struct {
 		ToLoadUnitID   string          `json:"to_load_unit_id"`
 		// Склад россыпи-источника (P6-07-1); пусто — «Основной». Прежние клиенты его не шлют.
 		InternalWarehouseID string `json:"internal_warehouse_id"`
+		// КИ марок ЧЗ строки товара (CZ-06), по одной на единицу. Прежние клиенты не шлют.
+		Marks []string `json:"marks"`
 	} `json:"lines"`
 }
 
@@ -94,7 +96,7 @@ func (s *OperationsService) movementSubmit(ctx context.Context, userID, id strin
 			// Склад у короба свой (P6-07-1): из строки его не берём.
 			if line.GoodID != "" || ln.ProductionDate != "" || !ln.Qty.IsZero() ||
 				line.FromCellID != "" || line.FromLoadUnitID != "" || line.ToLoadUnitID != "" ||
-				line.InternalWarehouseID != "" {
+				line.InternalWarehouseID != "" || len(ln.Marks) > 0 {
 				return repository.Applied{}, ErrInvalidPayload
 			}
 			if line.ToCellID == "" {
@@ -119,6 +121,9 @@ func (s *OperationsService) movementSubmit(ctx context.Context, userID, id strin
 			return repository.Applied{}, err
 		}
 		line.ProductionDate = iso
+		if line.Marks, err = lineMarks(ln.Marks); err != nil {
+			return repository.Applied{}, err
+		}
 		in.Lines = append(in.Lines, line)
 	}
 	return s.repo.MovementSubmit(ctx, id, in)

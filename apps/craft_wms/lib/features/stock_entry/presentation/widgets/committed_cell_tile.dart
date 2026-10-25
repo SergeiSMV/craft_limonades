@@ -5,7 +5,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/theme/semibold_text.dart';
-import '../bloc/stock_entry_cubit.dart';
+import '../../domain/entry_models.dart';
 
 /// Плитка пройденной ячейки: адрес + число позиций; тап → редактировать, долгое нажатие → меню.
 class CommittedCellTile extends StatelessWidget {

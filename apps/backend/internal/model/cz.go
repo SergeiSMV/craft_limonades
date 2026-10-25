@@ -80,6 +80,22 @@ var (
 	ErrCZMarkGoodMismatch = errors.New("chestny znak mark belongs to another good")
 	// ErrCZMarksExceedQty — марок в строке приёмки больше, чем её количество (CZ-05).
 	ErrCZMarksExceedQty = errors.New("more chestny znak marks than line quantity")
+	// ErrCZMarksRequired — маркируемый товар россыпью и из короба двигается только марками
+	// (CZ-06): иначе неизвестно, какие именно единицы переехали.
+	ErrCZMarksRequired = errors.New("marked goods move only by chestny znak marks")
+	// ErrCZMarksQtyMismatch — марок в строке не столько, сколько единиц она двигает (CZ-06).
+	ErrCZMarksQtyMismatch = errors.New("chestny znak marks count differs from line quantity")
+	// ErrCZMarkNotAtSource — марки нет там, откуда строка берёт товар, или она уже не на
+	// складе (CZ-06).
+	ErrCZMarkNotAtSource = errors.New("chestny znak mark is not at the line source")
+	// ErrCZMarkBatchMismatch — марка другого товара или другой партии, не строки (CZ-06).
+	ErrCZMarkBatchMismatch = errors.New("chestny znak mark belongs to another good or batch")
+	// ErrCZReturnMarksIncomplete — у позиции возврата отсканированы не все её марки (CZ-06,
+	// долг 30): к поставщику уезжают конкретные экземпляры, и все они должны быть названы.
+	ErrCZReturnMarksIncomplete = errors.New("not all chestny znak marks of the return position were scanned")
+	// ErrCZReturnMarkForeign — отсканированная марка не числится ни в одной позиции сеанса
+	// возврата (CZ-06).
+	ErrCZReturnMarkForeign = errors.New("chestny znak mark is not in the return positions")
 )
 
 // Вид агрегата ЧЗ — generalPackageType ответа ЧЗ.

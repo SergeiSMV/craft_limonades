@@ -105,6 +105,72 @@ void main() {
     },
   );
 
+  test('короб ЧЗ — по коду с этикетки ЧЗ (CZ-06)', () async {
+    const czCode = '00046012345678901234';
+    final c = SupplierReturnCubit(
+      repo,
+      ids,
+      task.copyWith(
+        items: [
+          task.items.first.copyWith(czCode: czCode),
+          task.items.last,
+        ],
+      ),
+    );
+    c.scanCzBox('00000000000000000001');
+    expect(c.state.notice, ReturnNotice.boxNotInTask);
+    c.scanCzBox(czCode);
+    expect(c.state.marked, hasLength(1));
+    await c.close();
+  });
+
+  test(
+    'позиция с марками — только сканом всех марок, марки в теле (CZ-06, долг 30)',
+    () async {
+      const m1 = '0104600000000017215R1';
+      const m2 = '0104600000000017215R2';
+      final c = SupplierReturnCubit(
+        repo,
+        ids,
+        task.copyWith(
+          items: [
+            task.items.first,
+            task.items.last.copyWith(marks: [m1, m2]),
+          ],
+        ),
+      );
+      final loose = c.state.open.last;
+      expect(
+        c.state.isActive(loose),
+        isTrue,
+        reason: 'место подтверждает марка',
+      );
+
+      c.scanCell('M1-1-1-1');
+      c.scanGood(good.id);
+      expect(c.state.notice, ReturnNotice.scanMark);
+      c.toggle(loose);
+      expect(c.state.notice, ReturnNotice.scanMark);
+      c.scanMark('0104600000000017215XX');
+      expect(c.state.notice, ReturnNotice.notInTask);
+
+      c.scanMark(m2);
+      expect(c.state.scannedOf(loose), 1);
+      expect(c.state.marked, isNot(contains(looseProblem)));
+      c.scanMark(m2);
+      expect(c.state.notice, ReturnNotice.alreadyChecked);
+      c.scanMark(m1);
+      expect(c.state.marked, contains(looseProblem));
+
+      c.scanBox(box);
+      expect(c.state.complete, isTrue);
+      final p = SupplierReturnCubit.payload(c.state);
+      expect(p['problem_ids'], [boxProblem, looseProblem]);
+      expect(p['marks'], [m1, m2]);
+      await c.close();
+    },
+  );
+
   test('«Отгружено» — только целиком; итог по ответу отправки', () async {
     when(
       () => repo.submit(

@@ -61,6 +61,22 @@ class FakeContentsRepository implements ContentsRepository {
   @override
   Future<CellRef?> findCell(String address) async => cells[address];
 
+  /// Короба ЧЗ: код `00`+SSCC → ГЕ (CZ-06).
+  final Map<String, String> czBoxes = {};
+
+  @override
+  Future<Either<Failure, String?>> loadUnitIdByCzCode(String czCode) async =>
+      Right(czBoxes[czCode]);
+
+  /// Марки склада (CZ-06): ищутся по КИ и по коду упаковки.
+  List<StockMark> marks = const [];
+
+  @override
+  Future<List<StockMark>> marksByCode(String code) async => [
+    for (final m in marks)
+      if (m.cis == code || m.aggregateCode == code) m,
+  ];
+
   /// Короба склада для вкладки «Короба» (P5-05-1).
   List<LoadUnitView> units = const [];
 

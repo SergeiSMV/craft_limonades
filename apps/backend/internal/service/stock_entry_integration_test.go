@@ -89,23 +89,23 @@ func TestStockEntry_fullCycle(t *testing.T) {
 	}
 
 	// Checkpoint ячейки 1: строка good1@15-01-2026 = 10 + попутная привязка ШК к good2.
-	err = env.svc.Checkpoint(ctx, sess, env.cell1,
-		[]service.EntryLine{{GoodID: env.good1, ProductionDate: "15-01-2026", Qty: decimal.NewFromInt(10)}},
-		[]service.EntryBarcode{{GoodID: env.good2, Barcode: "4600000000017", Symbology: "ean13"}})
+	err = env.svc.Checkpoint(ctx, sess, service.EntryCell{CellID: env.cell1,
+		Lines:    []service.EntryLine{{GoodID: env.good1, ProductionDate: "15-01-2026", Qty: decimal.NewFromInt(10)}},
+		Barcodes: []service.EntryBarcode{{GoodID: env.good2, Barcode: "4600000000017", Symbology: "ean13"}}})
 	if err != nil {
 		t.Fatalf("Checkpoint cell1: %v", err)
 	}
 
 	// Повторный checkpoint той же грани в ячейке 1 → SET перезаписывает (было 10, стало 7).
-	err = env.svc.Checkpoint(ctx, sess, env.cell1,
-		[]service.EntryLine{{GoodID: env.good1, ProductionDate: "15-01-2026", Qty: decimal.NewFromInt(7)}}, nil)
+	err = env.svc.Checkpoint(ctx, sess, service.EntryCell{CellID: env.cell1,
+		Lines: []service.EntryLine{{GoodID: env.good1, ProductionDate: "15-01-2026", Qty: decimal.NewFromInt(7)}}})
 	if err != nil {
 		t.Fatalf("Checkpoint cell1 повтор: %v", err)
 	}
 
 	// Ячейка 2: good1 другой партии (20-02-2026) = 5.
-	err = env.svc.Checkpoint(ctx, sess, env.cell2,
-		[]service.EntryLine{{GoodID: env.good1, ProductionDate: "20-02-2026", Qty: decimal.RequireFromString("5.5")}}, nil)
+	err = env.svc.Checkpoint(ctx, sess, service.EntryCell{CellID: env.cell2,
+		Lines: []service.EntryLine{{GoodID: env.good1, ProductionDate: "20-02-2026", Qty: decimal.RequireFromString("5.5")}}})
 	if err != nil {
 		t.Fatalf("Checkpoint cell2: %v", err)
 	}
@@ -140,8 +140,8 @@ func TestStockEntry_fullCycle(t *testing.T) {
 		t.Fatalf("повторный Finalize: ожидалась ErrSessionClosed, получено %v", err)
 	}
 	// Checkpoint по закрытой сессии → ErrSessionClosed.
-	err = env.svc.Checkpoint(ctx, sess, env.cell1,
-		[]service.EntryLine{{GoodID: env.good1, ProductionDate: "15-01-2026", Qty: decimal.NewFromInt(1)}}, nil)
+	err = env.svc.Checkpoint(ctx, sess, service.EntryCell{CellID: env.cell1,
+		Lines: []service.EntryLine{{GoodID: env.good1, ProductionDate: "15-01-2026", Qty: decimal.NewFromInt(1)}}})
 	if !errors.Is(err, repository.ErrSessionClosed) {
 		t.Fatalf("Checkpoint закрытой: ожидалась ErrSessionClosed, получено %v", err)
 	}
@@ -162,19 +162,19 @@ func TestStockEntry_validation(t *testing.T) {
 	}
 
 	// Неверный формат даты → ErrInvalidDate.
-	err = env.svc.Checkpoint(ctx, sess, env.cell1,
-		[]service.EntryLine{{GoodID: env.good1, ProductionDate: "2026-01-15", Qty: decimal.NewFromInt(1)}}, nil)
+	err = env.svc.Checkpoint(ctx, sess, service.EntryCell{CellID: env.cell1,
+		Lines: []service.EntryLine{{GoodID: env.good1, ProductionDate: "2026-01-15", Qty: decimal.NewFromInt(1)}}})
 	if !errors.Is(err, service.ErrInvalidDate) {
 		t.Fatalf("дата ISO вместо DD-MM-YYYY: ожидалась ErrInvalidDate, получено %v", err)
 	}
 	// Отрицательное количество → ErrInvalidQuantity.
-	err = env.svc.Checkpoint(ctx, sess, env.cell1,
-		[]service.EntryLine{{GoodID: env.good1, ProductionDate: "15-01-2026", Qty: decimal.NewFromInt(-1)}}, nil)
+	err = env.svc.Checkpoint(ctx, sess, service.EntryCell{CellID: env.cell1,
+		Lines: []service.EntryLine{{GoodID: env.good1, ProductionDate: "15-01-2026", Qty: decimal.NewFromInt(-1)}}})
 	if !errors.Is(err, service.ErrInvalidQuantity) {
 		t.Fatalf("отрицательное qty: ожидалась ErrInvalidQuantity, получено %v", err)
 	}
 	// Пустая ячейка → ErrEmptyCell.
-	if err := env.svc.Checkpoint(ctx, sess, "  ", nil, nil); !errors.Is(err, service.ErrEmptyCell) {
+	if err := env.svc.Checkpoint(ctx, sess, service.EntryCell{CellID: "  "}); !errors.Is(err, service.ErrEmptyCell) {
 		t.Fatalf("пустая ячейка: ожидалась ErrEmptyCell, получено %v", err)
 	}
 

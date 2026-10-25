@@ -69,7 +69,14 @@ mixin GoodsSearchHandlers<T extends StatefulWidget> on State<T> {
         .cancelPendingSearch(); // ввод завершён — отложенный поиск уже не нужен
     // Марка или короб «Честного знака» (CZ-04) — раньше ячеек и ШК: код короба — сплошные
     // цифры и иначе ушёл бы в «ШК товара» с предложением привязать его к товару.
+    // Принятый короб ЧЗ открывается карточкой ГЕ и без связи (CZ-06); не принятый — составом
+    // по ЧЗ.
     final kind = classifyScan(input);
+    if (kind == ScanKind.czBox &&
+        await openScannedContents(context, ScanCode(raw: input))) {
+      return;
+    }
+    if (!mounted) return;
     if (kind == ScanKind.czMark || kind == ScanKind.czBox) {
       await openCzCode(input);
       return;

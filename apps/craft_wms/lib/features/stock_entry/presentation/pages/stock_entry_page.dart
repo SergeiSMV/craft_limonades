@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/di/injection.dart';
+import '../../../../core/error/failure.dart';
 import '../../../../core/gen/assets.gen.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/widgets/page_header.dart';
@@ -112,6 +113,28 @@ class _StockEntryView extends StatelessWidget {
         child: BlocListener<StockEntryCubit, StockEntryState>(
           listenWhen: (p, c) => c.failure != null && p.failure != c.failure,
           listener: (context, state) {
+            final failure = state.failure!;
+            // Отказ строк (ADHOC-46): сервер называет все плохие строки ячейки списком — в
+            // снекбар он не поместится, а кладовщику по нему исправлять ячейку.
+            if (failure is ServerFailure &&
+                failure.statusCode == 422 &&
+                failure.message != null) {
+              context.read<StockEntryCubit>().clearFailure();
+              showDialog<void>(
+                context: context,
+                builder: (dctx) => AlertDialog(
+                  title: Text(t.stockEntry.rejectedTitle),
+                  content: SingleChildScrollView(child: Text(failure.message!)),
+                  actions: [
+                    FilledButton(
+                      onPressed: () => Navigator.of(dctx).pop(),
+                      child: Text(t.stockEntry.ok),
+                    ),
+                  ],
+                ),
+              );
+              return;
+            }
             ScaffoldMessenger.of(context)
               ..hideCurrentSnackBar()
               ..showSnackBar(

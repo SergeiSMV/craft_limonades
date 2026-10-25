@@ -67,6 +67,13 @@ abstract class TaskItem with _$TaskItem {
     @Default(false) bool placed,
     @JsonKey(name: 'problem_id') String? problemId,
     @Default('') String cell,
+
+    /// Код короба ЧЗ (`00`+SSCC), если короб позиции — транспортный короб ЧЗ (CZ-06): ярлыка
+    /// WMS у него нет, его узнают сканом этикетки ЧЗ.
+    @JsonKey(name: 'cz_code') String? czCode,
+
+    /// КИ марок ЧЗ позиции возврата россыпью (CZ-06, долг 30): отгружается сканом каждой.
+    @Default(<String>[]) List<String> marks,
   }) = _TaskItem;
 
   const TaskItem._();

@@ -12,6 +12,7 @@ import '../../../../core/scanner/scan_deduper.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../stock/data/catalog_models.dart';
 import '../../../stock/data/catalog_repository.dart';
+import '../../domain/entry_models.dart';
 import '../bloc/stock_entry_cubit.dart';
 import 'cell_search_field.dart';
 import 'committed_cell_tile.dart';

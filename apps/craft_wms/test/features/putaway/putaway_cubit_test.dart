@@ -137,6 +137,71 @@ void main() {
   });
 
   test(
+    'короб ЧЗ — по коду с этикетки ЧЗ, в руках с кодом ЧЗ (CZ-06)',
+    () async {
+      const czCode = '00046012345678901234';
+      final t = task();
+      final cubit = cubitFor(
+        t.copyWith(
+          items: [
+            t.items.first.copyWith(czCode: czCode),
+            t.items.last,
+          ],
+        ),
+      );
+      await cubit.init();
+
+      cubit.pickCzBox('00000000000000000001');
+      expect(cubit.state.notice, isA<NoticeNotInTask>());
+
+      cubit.pickCzBox(czCode);
+      expect(cubit.state.pick?.loadUnitId, box);
+      expect(cubit.state.pick?.czCode, czCode);
+      await cubit.close();
+    },
+  );
+
+  test(
+    'россыпь марками ЧЗ: добавляются, повтор и перебор — подсказки, марки в теле (CZ-06)',
+    () async {
+      const m1 = '0104600000000017215A1';
+      const m2 = '0104600000000017215A2';
+      const m3 = '0104600000000017215A3';
+      const m4 = '0104600000000017215A4';
+      final cubit = cubitFor(task());
+      await cubit.init();
+
+      cubit.pickMarks([m1], good.id, '01-01-2026');
+      expect(
+        cubit.state.notice,
+        isA<NoticeNotInTask>(),
+        reason: 'партии нет в задании',
+      );
+
+      cubit.pickMarks([m1], good.id, '02-09-2026');
+      cubit.pickMarks([m2], good.id, '02-09-2026');
+      expect(cubit.state.pick?.marks, [m1, m2]);
+      expect(cubit.state.pick?.qty, 2);
+      cubit.pickMarks([m2], good.id, '02-09-2026');
+      expect(cubit.state.notice, isA<NoticeMarkTaken>());
+      cubit.pickMarks([m3, m4], good.id, '02-09-2026');
+      expect(
+        cubit.state.notice,
+        isA<NoticeAlreadyPlaced>(),
+        reason: 'в задании 3',
+      );
+
+      cubit.placeIn(cell('c1', 'A-1'));
+      cubit.pickMarks([m3], good.id, '02-09-2026');
+      cubit.placeIn(cell('c1', 'A-1'));
+      final line = (PutawayCubit.payload(cubit.state)['lines'] as List).single;
+      expect(line, containsPair('marks', [m1, m2, m3]));
+      expect(line, containsPair('qty', 3.0));
+      await cubit.close();
+    },
+  );
+
+  test(
     'россыпь: остаток уменьшается, больше остатка не взять, одна ячейка — одна строка',
     () async {
       final cubit = cubitFor(task());

@@ -189,6 +189,10 @@ type MovementLineInput struct {
 	InternalWarehouseID string
 
 	ToCellID string
+
+	// Marks — КИ марок ЧЗ строки товара (CZ-06): у маркируемого товара обязательны, по одной
+	// на единицу; марки переезжают вместе с остатком.
+	Marks []string
 }
 
 // MovementSubmitInput — документ движения, собранный устройством целиком (P6-01).
@@ -419,6 +423,13 @@ func movementGoods(ctx context.Context, q Querier, in MovementSubmitInput, lineN
 		}
 	}
 
+	// Марки ЧЗ — туда же, куда товар (CZ-06): из короба или россыпи источника в короб или
+	// россыпь приёмника той же строкой склада.
+	if err := moveMarks(ctx, q, ln.GoodID, batchID, ln.Marks, ln.Qty,
+		placeOf(ln.FromLoadUnitID, fromCell, iwh), placeOf(ln.ToLoadUnitID, toCell, iwh)); err != nil {
+		return nil, err
+	}
+
 	if _, err := q.Exec(ctx, `
 		INSERT INTO movement_lines
 			(movement_id, line_no, good_id, batch_id, qty, internal_warehouse_id,
@@ -565,11 +576,11 @@ func looseQty(ctx context.Context, q Querier, cellID, goodID, batchID, iwh strin
 // товар — «товар · партия · количество: откуда → куда», где место — ячейка или короб.
 func movementLineText(ctx context.Context, q Querier, ln MovementLineInput) string {
 	if ln.LoadUnitID != "" {
-		return boxText(ln.LoadUnitID) + " → " + cellText(ctx, q, ln.ToCellID)
+		return boxText(ctx, q, ln.LoadUnitID) + " → " + cellText(ctx, q, ln.ToCellID)
 	}
 	place := func(cellID, loadUnitID string) string {
 		if loadUnitID != "" {
-			return boxText(loadUnitID)
+			return boxText(ctx, q, loadUnitID)
 		}
 		return cellText(ctx, q, cellID)
 	}

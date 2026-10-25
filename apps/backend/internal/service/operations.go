@@ -64,7 +64,7 @@ type operationsRepo interface {
 	BindBarcode(ctx context.Context, operationID string, in repository.BarcodeBindInput) (repository.Applied, error)
 	UnbindBarcode(ctx context.Context, operationID, barcode string) (repository.Applied, error)
 	StockEntryStart(ctx context.Context, operationID, sessionID, warehouseID, createdBy string) (repository.Applied, error)
-	StockEntryCheckpoint(ctx context.Context, operationID, sessionID, cellID string, lines []repository.StockEntryLineInput, barcodes []repository.BarcodeBindInput) (repository.Applied, error)
+	StockEntryCheckpoint(ctx context.Context, operationID, sessionID string, in repository.StockEntryCellInput) (repository.Applied, error)
 	StockEntryFinalize(ctx context.Context, operationID, sessionID string) (repository.Applied, error)
 	ReceiptSubmit(ctx context.Context, operationID string, in repository.ReceiptSubmitInput) (repository.Applied, error)
 	PutawaySubmit(ctx context.Context, operationID string, in repository.PutawaySubmitInput) (repository.Applied, error)
@@ -266,7 +266,9 @@ func (s *OperationsService) dispatch(ctx context.Context, userID, id string, op 
 			}
 			binds = append(binds, repository.BarcodeBindInput{GoodID: goodID, Barcode: code, Symbology: strings.TrimSpace(b.Symbology)})
 		}
-		return s.repo.StockEntryCheckpoint(ctx, id, sessionID, cellID, lines, binds)
+		return s.repo.StockEntryCheckpoint(ctx, id, sessionID, repository.StockEntryCellInput{
+			CellID: cellID, Lines: lines, Barcodes: binds,
+		})
 
 	case repository.KindStockEntryFinalize:
 		var p struct {
@@ -352,6 +354,15 @@ func isRejection(err error) bool {
 		errors.Is(err, model.ErrCZMarkGoodMismatch) ||
 		errors.Is(err, model.ErrCZUnknownGTIN) ||
 		errors.Is(err, model.ErrCZMarksExceedQty) ||
+		// Марки ЧЗ движения, пометки проблемы и отгрузки возврата (CZ-06): нет марок у
+		// маркируемого товара, их не столько, они не там или не той партии, у позиции возврата
+		// названы не все или лишняя. Повтор этого не исправит.
+		errors.Is(err, model.ErrCZMarksRequired) ||
+		errors.Is(err, model.ErrCZMarksQtyMismatch) ||
+		errors.Is(err, model.ErrCZMarkNotAtSource) ||
+		errors.Is(err, model.ErrCZMarkBatchMismatch) ||
+		errors.Is(err, model.ErrCZReturnMarksIncomplete) ||
+		errors.Is(err, model.ErrCZReturnMarkForeign) ||
 		// Размещение (P5-02): сеанс уже проведён, пуст, противоречит складу или просит больше,
 		// чем лежит. Повтор этого не исправит — сеанс разбирает человек.
 		errors.Is(err, ErrInvalidPutawayID) ||

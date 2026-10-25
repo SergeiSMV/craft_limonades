@@ -29,6 +29,9 @@ enum ReturnNotice {
 
   /// Товар есть в задании, но его ячейка не отсканирована: [SupplierReturnState.noticeCell].
   needCell,
+
+  /// Позиция маркируемого товара отмечается только сканом каждой марки (CZ-06, долг 30).
+  scanMark,
 }
 
 /// Состояние сеанса отгрузки возврата поставщику (ADHOC-31).
@@ -41,6 +44,9 @@ abstract class SupplierReturnState with _$SupplierReturnState {
     required WarehouseTask task,
     required String shipmentId,
     @Default(<String>{}) Set<String> marked,
+
+    /// Отсканированные марки ЧЗ позиций россыпью (CZ-06, долг 30).
+    @Default(<String>{}) Set<String> scannedMarks,
     String? cell,
     ReturnNotice? notice,
 
@@ -60,10 +66,15 @@ abstract class SupplierReturnState with _$SupplierReturnState {
   ];
 
   /// Позиция активна: отмечена или её ячейка отсканирована. Серую отметить нельзя — так
-  /// подтверждается, что товар взят из нужного места, а не по одному штрихкоду.
+  /// подтверждается, что товар взят из нужного места, а не по одному штрихкоду. Позиция с
+  /// марками активна всегда: место подтверждает скан самой марки (CZ-06).
   bool isActive(TaskItem it) =>
+      it.marks.isNotEmpty ||
       marked.contains(it.problemId) ||
       (cell != null && it.cell.toLowerCase() == cell!.toLowerCase());
+
+  /// Сколько марок позиции [it] отсканировано.
+  int scannedOf(TaskItem it) => it.marks.where(scannedMarks.contains).length;
 
   /// Все позиции отмечены: задание отгружается только целиком.
   bool get complete =>
@@ -97,6 +108,39 @@ class SupplierReturnCubit extends Cubit<SupplierReturnState> {
     _check(boxes);
   }
 
+  /// Скан этикетки короба ЧЗ (`00`+SSCC, CZ-06): ярлыка WMS у короба ЧЗ нет, задание знает
+  /// его код.
+  void scanCzBox(String czCode) {
+    final boxes = state.open.where((it) => it.czCode == czCode);
+    if (boxes.isEmpty) {
+      emit(state.copyWith(notice: ReturnNotice.boxNotInTask));
+      return;
+    }
+    _check(boxes);
+  }
+
+  /// Скан марки ЧЗ (CZ-06, долг 30): марка отмечается в своей позиции; отсканированы все марки
+  /// позиции — позиция отмечена. Место марка подтверждает сама: она — тот самый экземпляр.
+  void scanMark(String cis) {
+    final item = state.open.where((it) => it.marks.contains(cis)).firstOrNull;
+    if (item == null) {
+      emit(state.copyWith(notice: ReturnNotice.notInTask));
+      return;
+    }
+    if (state.scannedMarks.contains(cis)) {
+      emit(state.copyWith(notice: ReturnNotice.alreadyChecked));
+      return;
+    }
+    final scanned = {...state.scannedMarks, cis};
+    final all = item.marks.every(scanned.contains);
+    emit(
+      state.copyWith(
+        scannedMarks: scanned,
+        marked: all ? {...state.marked, item.problemId!} : state.marked,
+      ),
+    );
+  }
+
   /// Скан ячейки: её позиции становятся активными. Ячейка без позиций — подсказка.
   void scanCell(String address) {
     final a = address.toLowerCase();
@@ -115,6 +159,13 @@ class SupplierReturnCubit extends Cubit<SupplierReturnState> {
       emit(state.copyWith(notice: ReturnNotice.notInTask));
       return;
     }
+    // Позиции с марками штрихкодом не отмечаются (CZ-06): какие экземпляры уехали, должно
+    // быть известно.
+    if (candidates.every((it) => it.marks.isNotEmpty)) {
+      emit(state.copyWith(notice: ReturnNotice.scanMark));
+      return;
+    }
+    candidates.removeWhere((it) => it.marks.isNotEmpty);
     final here = candidates.where(
       (it) =>
           state.cell != null &&
@@ -142,6 +193,10 @@ class SupplierReturnCubit extends Cubit<SupplierReturnState> {
   void toggle(TaskItem item) {
     final id = item.problemId;
     if (id == null) return;
+    if (item.marks.isNotEmpty) {
+      emit(state.copyWith(notice: ReturnNotice.scanMark));
+      return;
+    }
     if (!state.isActive(item)) {
       emit(
         state.copyWith(notice: ReturnNotice.needCell, noticeCell: item.cell),
@@ -170,16 +225,25 @@ class SupplierReturnCubit extends Cubit<SupplierReturnState> {
   void clearNotice() => emit(state.copyWith(notice: null, noticeCell: null));
 
   /// Тело операции `return_submit` — формат эталона `testdata/return_submit.json`. Позиции —
-  /// в порядке задания.
-  static Map<String, dynamic> payload(SupplierReturnState s) => {
-    'shipment_id': s.shipmentId,
-    'task_id': s.task.id,
-    'warehouse_id': s.task.warehouseId,
-    'problem_ids': [
+  /// в порядке задания; марки ЧЗ (CZ-06) — отмеченных позиций, только когда они есть.
+  static Map<String, dynamic> payload(SupplierReturnState s) {
+    final marked = [
       for (final it in s.open)
-        if (s.marked.contains(it.problemId)) it.problemId,
-    ],
-  };
+        if (s.marked.contains(it.problemId)) it,
+    ];
+    final marks = [
+      for (final it in marked)
+        for (final m in it.marks)
+          if (s.scannedMarks.contains(m)) m,
+    ];
+    return {
+      'shipment_id': s.shipmentId,
+      'task_id': s.task.id,
+      'warehouse_id': s.task.warehouseId,
+      'problem_ids': [for (final it in marked) it.problemId],
+      if (marks.isNotEmpty) 'marks': marks,
+    };
+  }
 
   /// «Отгружено»: только когда отмечены все позиции.
   Future<void> submit() async {

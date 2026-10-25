@@ -7,10 +7,11 @@ import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/theme/semibold_text.dart';
 import '../../../../core/utils/qty_format.dart';
-import '../bloc/stock_entry_cubit.dart';
+import '../../domain/entry_models.dart';
 
 /// Строка буфера: товар · партия · количество (с единицей). ШК на строке не хранится — привязки
-/// живут отдельно (уровень товара), поэтому и метки ШК на строке нет.
+/// живут отдельно (уровень товара), поэтому и метки ШК на строке нет. Марки ЧЗ строки и
+/// расхождения с ЧЗ — каждое своей строкой (ADHOC-46).
 class LineTile extends StatelessWidget {
   const LineTile({super.key, required this.line, this.onLongPress});
 
@@ -34,11 +35,30 @@ class LineTile extends StatelessWidget {
             color: AppColors.kSidebarHover,
           ),
         ),
-        subtitle: Text(
-          t.stockEntry.lineSubtitle(date: line.productionDate),
-          style: RegularTextStyles().regularInter10.copyWith(
-            color: AppColors.kTextMuted,
-          ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              t.stockEntry.lineSubtitle(date: line.productionDate),
+              style: RegularTextStyles().regularInter10.copyWith(
+                color: AppColors.kTextMuted,
+              ),
+            ),
+            if (line.marks.isNotEmpty)
+              Text(
+                t.stockEntry.marksLine(count: line.marks.length),
+                style: RegularTextStyles().regularInter10.copyWith(
+                  color: AppColors.kTextMuted,
+                ),
+              ),
+            if (line.discrepancies > 0)
+              Text(
+                t.stockEntry.discrepancyLine(count: line.discrepancies),
+                style: RegularTextStyles().regularInter10.copyWith(
+                  color: AppColors.kDanger,
+                ),
+              ),
+          ],
         ),
         trailing: Text(
           t.stockEntry.qtyWithUom(qty: fmtQty(line.qty), uom: line.good.uom),

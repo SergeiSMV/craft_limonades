@@ -12,6 +12,7 @@ import '../../../../core/error/failure.dart';
 import '../../../../core/gen/assets.gen.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/load_unit/load_unit_code.dart';
+import '../../../../core/scanner/cz_code.dart';
 import '../../../../core/scanner/hardware_scan_listener.dart';
 import '../../../../core/scanner/scan_code.dart';
 import '../../../../core/scanner/scan_deduper.dart';
@@ -22,6 +23,7 @@ import '../../../../core/widgets/qty_dialog.dart';
 import '../../../../core/widgets/rejected_session_banner.dart';
 import '../../../../core/widgets/scan_field.dart';
 import '../../../../core/widgets/system_ui_wrapper.dart';
+import '../../../contents/domain/contents_repository.dart';
 import '../../../stock/data/catalog_models.dart';
 import '../../../stock/data/catalog_repository.dart';
 import '../../../tasks/data/tasks_models.dart';
@@ -95,10 +97,10 @@ class _PutawayViewState extends State<_PutawayView> with HardwareScanListener {
         await onCellScan(code);
       case ScanKind.good:
         await onGoodScan(code);
-      // Марки и короба «Честного знака» здесь пока не ждут (приёмка марок — CZ-05):
-      // как незнакомый код. Раньше код короба (20 цифр) уходил сюда же через «товар».
-      case ScanKind.czMark:
       case ScanKind.czBox:
+        cubit.pickCzBox(czBoxFrom(code)!);
+      case ScanKind.czMark:
+        await onMarkScan(czMarkFrom(code)!);
       case ScanKind.unknown:
         if (readLoadUnitPayload(code) is LoadUnitPayloadUnsupported) {
           snack(t.putaway.boxLabelUnsupported);
@@ -145,8 +147,48 @@ class _PutawayViewState extends State<_PutawayView> with HardwareScanListener {
     await pickLooseOf(good.id);
   }
 
+  /// Скан марки или групповой упаковки ЧЗ (CZ-06): россыпь маркируемого товара берётся
+  /// марками, лежащими россыпью в ячейке приёмки, — того же товара и партии, что первая.
+  Future<void> onMarkScan(String code) async {
+    final marks = await getIt<ContentsRepository>().marksByCode(code);
+    final receiving = (await getIt<CatalogRepository>().defaultCell()).fold(
+      (_) => null,
+      (c) => c,
+    );
+    if (!mounted) return;
+    final here = [
+      for (final m in marks)
+        if (!m.inBox && m.cellId != null && m.cellId == receiving?.id) m,
+    ];
+    if (here.isEmpty) {
+      snack(t.putaway.markNotHere);
+      return;
+    }
+    final first = here.first;
+    cubit.pickMarks(
+      [
+        for (final m in here)
+          if (m.goodId == first.goodId &&
+              m.productionDate == first.productionDate)
+            m.cis,
+      ],
+      first.goodId,
+      first.productionDate,
+    );
+  }
+
+  /// Маркируемый товар берут марками (CZ-06): по ШК и касанием — подсказка. `true` —
+  /// подсказка показана, брать нельзя.
+  Future<bool> needsMarks(String goodId) async {
+    final good = await getIt<CatalogRepository>().goodById(goodId);
+    if (!(good?.czMarked ?? false)) return false;
+    if (mounted) snack(t.putaway.scanMark);
+    return true;
+  }
+
   /// Взять россыпь товара: одна партия — сразу количество, несколько — сначала партия.
   Future<void> pickLooseOf(String goodId) async {
+    if (await needsMarks(goodId)) return;
     final candidates = cubit.looseOf(goodId);
     if (candidates.isEmpty) {
       final inTask = cubit.state.task.items.any((i) => i.good?.id == goodId);
@@ -199,8 +241,10 @@ class _PutawayViewState extends State<_PutawayView> with HardwareScanListener {
   }
 
   /// Позиция россыпи из списка — касанием, без скана (товар без штрихкода).
-  Future<void> onLooseTapped(TaskItem item) =>
-      pickLoose(item, cubit.state.looseLeft(item));
+  Future<void> onLooseTapped(TaskItem item) async {
+    if (await needsMarks(item.good?.id ?? '')) return;
+    await pickLoose(item, cubit.state.looseLeft(item));
+  }
 
   /// Короб из списка — касанием, без скана (затёртый ярлык).
   void onBoxTapped(TaskItem item) => cubit.pickBox(item.loadUnitId!);
@@ -269,6 +313,7 @@ class _PutawayViewState extends State<_PutawayView> with HardwareScanListener {
       NoticeReceivingCell() => t.putaway.noticeReceivingCell,
       NoticeForeignCell() => t.putaway.noticeForeignCell,
       NoticePlaced(:final address) => t.putaway.noticePlaced(cell: address),
+      NoticeMarkTaken() => t.putaway.noticeMarkTaken,
       NoticeReleaseOffline(:final number) => t.putaway.noticeReleaseOffline(
         number: number,
       ),

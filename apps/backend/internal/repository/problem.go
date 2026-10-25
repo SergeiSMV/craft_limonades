@@ -56,9 +56,15 @@ type ProblemSubmitInput struct {
 	Comment               string
 	Mark                  string
 
-	// fromReceipt — проблему заводит проводка приёмки (CZ-05): товар ещё в ячейке приёмки,
-	// и это законно — он уходит в «Изолятор», не дожидаясь размещения.
-	fromReceipt bool
+	// Marks — КИ марок ЧЗ помеченного товара (CZ-06): у маркируемого товара обязательны, по
+	// одной на единицу. Марки уходят в россыпь склада назначения той же ячейки и запоминают
+	// проблему — решение офиса и отгрузка возврата берут ровно их.
+	Marks []string
+
+	// fromIntake — проблему заводит проводка прихода: приёмки (CZ-05) или ввода остатков
+	// (ADHOC-46). Товар может лежать в ячейке приёмки, и это законно — он уходит в «Изолятор»,
+	// не дожидаясь размещения.
+	fromIntake bool
 }
 
 // problemSubmit фиксирует проблему и переводит остаток на склад назначения (P6-07-1).
@@ -119,6 +125,37 @@ func problemSubmit(ctx context.Context, q Querier, in ProblemSubmitInput) error 
 			return ErrProblemPosted
 		}
 		return fmt.Errorf("записать проблему склада: %w", err)
+	}
+	return problemMarks(ctx, q, in, row)
+}
+
+// problemMarks привязывает к проблеме её марки ЧЗ (CZ-06) — после записи проблемы: ссылка
+// марки на проблему — внешний ключ.
+//
+// Короб целиком — все марки короба: они остаются в нём и едут с ним. Товар — марки строки:
+// из россыпи или короба в россыпь склада назначения той же ячейки, туда же, куда остаток.
+func problemMarks(ctx context.Context, q Querier, in ProblemSubmitInput, row problemRow) error {
+	if in.LoadUnitID != "" {
+		if _, err := q.Exec(ctx, `
+			UPDATE cz_marks SET problem_id = $2::uuid, updated_at = now()
+			WHERE load_unit_id = $1::uuid AND status = $3`,
+			in.LoadUnitID, in.ProblemID, model.CZMarkInStock); err != nil {
+			return fmt.Errorf("марки короба с проблемой: %w", err)
+		}
+		return nil
+	}
+	if err := moveMarks(ctx, q, in.GoodID, row.batch, in.Marks, in.Qty,
+		placeOf(in.FromLoadUnitID, row.cell, row.fromIwh),
+		placeOf("", row.cell, in.ToInternalWarehouseID)); err != nil {
+		return czRejection(err, "Пометка «"+goodText(ctx, q, in.GoodID, in.ProductionDate, in.Qty)+"» отклонена")
+	}
+	if len(in.Marks) == 0 {
+		return nil
+	}
+	if _, err := q.Exec(ctx, `
+		UPDATE cz_marks SET problem_id = $2::uuid WHERE cis = ANY($1::text[])`,
+		in.Marks, in.ProblemID); err != nil {
+		return fmt.Errorf("марки в проблему: %w", err)
 	}
 	return nil
 }
@@ -232,7 +269,7 @@ func guardProblemPlace(ctx context.Context, q Querier, cell, fromIwh string, in 
 	if err := guardCellOfWarehouse(ctx, q, cell, in.WarehouseID); err != nil {
 		return err
 	}
-	if in.fromReceipt {
+	if in.fromIntake {
 		return nil
 	}
 	return guardNotReceivingCell(ctx, q, cell)

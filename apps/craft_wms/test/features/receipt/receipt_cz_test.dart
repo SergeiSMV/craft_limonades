@@ -1,11 +1,11 @@
 import 'package:craft_wms/core/database/app_database.dart';
 import 'package:craft_wms/core/load_unit/load_unit_id_generator.dart';
 import 'package:craft_wms/core/printer/printer_service.dart';
+import 'package:craft_wms/features/cz/domain/cz_intake.dart';
 import 'package:craft_wms/features/cz/domain/cz_scan.dart';
 import 'package:craft_wms/features/receipt/data/receipt_draft_store.dart';
 import 'package:craft_wms/features/receipt/data/receipt_repository.dart';
 import 'package:craft_wms/features/receipt/presentation/bloc/receipt_cubit.dart';
-import 'package:craft_wms/features/receipt/presentation/bloc/receipt_cz.dart';
 import 'package:craft_wms/features/receipt/presentation/bloc/receipt_models.dart';
 import 'package:craft_wms/features/stock/data/catalog_models.dart';
 import 'package:craft_wms/features/stock/data/catalog_repository.dart';
@@ -98,16 +98,12 @@ void main() {
 
   group('из ответа скана', () {
     test('состав короба — строки по партии, упаковка каждой марки', () {
-      final lines = czReceiptLines(boxScan, {gtin: beer});
+      final lines = czIntakeLines(boxScan, {gtin: beer});
       expect(lines.map((l) => l.date), ['01.09.2026', '02.09.2026']);
-      expect(lines.first.marks.map((m) => m.aggregateCode), [
-        pack,
-        pack,
-        box,
-      ]);
+      expect(lines.first.marks.map((m) => m.aggregateCode), [pack, pack, box]);
       expect(lines.last.marks.single.discrepancy, 'foreign_mark');
-      expect(czReceiptGroups(boxScan), const [
-        ReceiptCzGroup(code: pack, parentCode: box),
+      expect(czIntakeGroups(boxScan), const [
+        CzGroupDraft(code: pack, parentCode: box),
       ]);
     });
 
@@ -119,12 +115,12 @@ void main() {
         producedDate: DateTime(2026, 9, 1),
         discrepancy: 'retired',
       );
-      final line = czReceiptLines(scan, {gtin: beer}).single;
+      final line = czIntakeLines(scan, {gtin: beer}).single;
       expect(
         line.marks.single,
-        ReceiptMarkDraft(cis: mark('U1'), discrepancy: 'retired'),
+        CzMarkDraft(cis: mark('U1'), discrepancy: 'retired'),
       );
-      expect(czReceiptGroups(scan), isEmpty);
+      expect(czIntakeGroups(scan), isEmpty);
     });
 
     test('чего не хватает: незнакомый GTIN и единицы без даты', () {
@@ -143,10 +139,10 @@ void main() {
       cubit.setTargetCell(cell1);
       final r = cubit.addCzBox(
         code: box,
-        lines: czReceiptLines(boxScan, {gtin: beer}),
-        groups: czReceiptGroups(boxScan),
+        lines: czIntakeLines(boxScan, {gtin: beer}),
+        groups: czIntakeGroups(boxScan),
       );
-      expect(r.result, ReceiptCzAdd.added);
+      expect(r.result, CzIntakeAdd.added);
       final b = cubit.state.boxById(r.boxId!)!;
       expect(b.czCode, box);
       expect(b.cell, cell1);
@@ -156,25 +152,25 @@ void main() {
 
       expect(
         cubit.addCzBox(code: box, lines: const [], groups: const []).result,
-        ReceiptCzAdd.duplicate,
+        CzIntakeAdd.duplicate,
       );
     });
 
     test('в короб ЧЗ не добавляют ни марки, ни товар по ШК', () async {
       final r = cubit.addCzBox(
         code: box,
-        lines: czReceiptLines(boxScan, {gtin: beer}),
+        lines: czIntakeLines(boxScan, {gtin: beer}),
       );
       final single = [
-        ReceiptCzLine(
+        CzIntakeLine(
           good: beer,
           date: '01.09.2026',
-          marks: [ReceiptMarkDraft(cis: mark('X1'))],
+          marks: [CzMarkDraft(cis: mark('X1'))],
         ),
       ];
       expect(
         cubit.addCzMarks(lines: single, boxId: r.boxId),
-        ReceiptCzAdd.czBoxClosed,
+        CzIntakeAdd.czBoxClosed,
       );
       const plain = Good(id: 'g2', name: 'Кальмар', uom: 'шт');
       await cubit.addLine(
@@ -187,14 +183,14 @@ void main() {
     });
 
     test('марки россыпью копятся в строке партии, повтор марки — отказ', () {
-      ReceiptCzLine one(String n) => ReceiptCzLine(
+      CzIntakeLine one(String n) => CzIntakeLine(
         good: beer,
         date: '01.09.2026',
-        marks: [ReceiptMarkDraft(cis: mark(n))],
+        marks: [CzMarkDraft(cis: mark(n))],
       );
-      expect(cubit.addCzMarks(lines: [one('A')]), ReceiptCzAdd.added);
-      expect(cubit.addCzMarks(lines: [one('B')]), ReceiptCzAdd.added);
-      expect(cubit.addCzMarks(lines: [one('A')]), ReceiptCzAdd.duplicate);
+      expect(cubit.addCzMarks(lines: [one('A')]), CzIntakeAdd.added);
+      expect(cubit.addCzMarks(lines: [one('B')]), CzIntakeAdd.added);
+      expect(cubit.addCzMarks(lines: [one('A')]), CzIntakeAdd.duplicate);
       final line = cubit.state.lines.single;
       expect(line.qty, 2);
       expect(line.marks.map((m) => m.cis), [mark('A'), mark('B')]);
@@ -203,8 +199,8 @@ void main() {
     test('удалённый короб ЧЗ уносит свои упаковки', () {
       final r = cubit.addCzBox(
         code: box,
-        lines: czReceiptLines(boxScan, {gtin: beer}),
-        groups: czReceiptGroups(boxScan),
+        lines: czIntakeLines(boxScan, {gtin: beer}),
+        groups: czIntakeGroups(boxScan),
       );
       cubit.removeBox(r.boxId!);
       expect(cubit.state.lines, isEmpty);
@@ -214,8 +210,8 @@ void main() {
     test('короб ЧЗ, марки и упаковки переживают перезапуск', () async {
       cubit.addCzBox(
         code: box,
-        lines: czReceiptLines(boxScan, {gtin: beer}),
-        groups: czReceiptGroups(boxScan),
+        lines: czIntakeLines(boxScan, {gtin: beer}),
+        groups: czIntakeGroups(boxScan),
       );
       await cubit.draftWrites;
 

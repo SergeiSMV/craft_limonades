@@ -120,6 +120,16 @@ class LoadUnitBody extends StatelessWidget {
                     ),
                   ),
                 ),
+              if (lu.czOpened)
+                Padding(
+                  padding: AppInsets.top4,
+                  child: Text(
+                    t.contents.czOpened,
+                    style: RegularTextStyles().regularInter12.copyWith(
+                      color: AppColors.kTextMuted,
+                    ),
+                  ),
+                ),
               if (lu.pending) const PendingMark(),
             ],
           ),

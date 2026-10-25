@@ -37,6 +37,8 @@ LoadUnitView loadUnitFromJson(Map<String, dynamic> j) {
     createdAt: DateTime.tryParse(j['created_at'] as String? ?? '')?.toLocal(),
     live: j['live'] as bool? ?? false,
     internalWarehouseId: warehouse,
+    czCode: j['cz_code'] as String?,
+    czOpened: j['cz_opened'] as bool? ?? false,
     lines: [
       for (final c in j['contents'] as List? ?? const [])
         contentLineFromJson(c as Map<String, dynamic>, warehouseId: warehouse),
@@ -89,6 +91,8 @@ class SnapshotLoadUnit {
     required this.createdAt,
     required this.lines,
     this.internalWarehouseId = '',
+    this.czCode,
+    this.czOpened = false,
   });
 
   factory SnapshotLoadUnit.fromJson(Map<String, dynamic> j) => SnapshotLoadUnit(
@@ -97,6 +101,8 @@ class SnapshotLoadUnit {
     cellId: j['cell_id'] as String,
     createdAt: DateTime.parse(j['created_at'] as String),
     internalWarehouseId: j['internal_warehouse_id'] as String? ?? '',
+    czCode: j['cz_code'] as String?,
+    czOpened: j['cz_opened'] as bool? ?? false,
     lines: [
       for (final c in j['contents'] as List? ?? const [])
         SnapshotLine.fromJson(c as Map<String, dynamic>),
@@ -111,6 +117,47 @@ class SnapshotLoadUnit {
 
   /// Склад короба целиком (P6-07-2); пусто — сервер до P6-07-1.
   final String internalWarehouseId;
+
+  /// Код короба ЧЗ (`00`+SSCC) и вскрыт ли он (CZ-06); `null` — свой короб с QR.
+  final String? czCode;
+  final bool czOpened;
+}
+
+/// Марка ЧЗ на складе из снимка (CZ-06): в коробе ([loadUnitId]) или россыпью ([cellId]
+/// со складом [internalWarehouseId]). [aggregateCode] — упаковка ЧЗ, в которой марка пришла.
+class SnapshotMark {
+  const SnapshotMark({
+    required this.cis,
+    required this.goodId,
+    required this.batchId,
+    required this.productionDate,
+    this.loadUnitId,
+    this.cellId,
+    this.internalWarehouseId,
+    this.aggregateCode,
+  });
+
+  factory SnapshotMark.fromJson(Map<String, dynamic> j) => SnapshotMark(
+    cis: j['cis'] as String,
+    goodId: j['good_id'] as String,
+    batchId: j['batch_id'] as String,
+    productionDate: j['production_date'] as String,
+    loadUnitId: j['load_unit_id'] as String?,
+    cellId: j['cell_id'] as String?,
+    internalWarehouseId: j['internal_warehouse_id'] as String?,
+    aggregateCode: j['aggregate_code'] as String?,
+  );
+
+  final String cis;
+  final String goodId;
+  final String batchId;
+
+  /// Дата партии в транспортном виде DD-MM-YYYY.
+  final String productionDate;
+  final String? loadUnitId;
+  final String? cellId;
+  final String? internalWarehouseId;
+  final String? aggregateCode;
 }
 
 /// Россыпь снимка.
@@ -138,6 +185,7 @@ class ContentsSnapshot {
     required this.asOf,
     required this.loadUnits,
     required this.loose,
+    this.marks = const [],
   });
 
   factory ContentsSnapshot.fromJson(Map<String, dynamic> j) => ContentsSnapshot(
@@ -150,12 +198,19 @@ class ContentsSnapshot {
       for (final l in j['loose'] as List? ?? const [])
         SnapshotLoose.fromJson(l as Map<String, dynamic>),
     ],
+    marks: [
+      for (final m in j['marks'] as List? ?? const [])
+        SnapshotMark.fromJson(m as Map<String, dynamic>),
+    ],
   );
 
   /// Момент, на который согласован снимок (UTC).
   final DateTime asOf;
   final List<SnapshotLoadUnit> loadUnits;
   final List<SnapshotLoose> loose;
+
+  /// Марки ЧЗ на складе (CZ-06); пусто — сервер до CZ-06.
+  final List<SnapshotMark> marks;
 }
 
 /// История короба (`GET /load-units/{id}/history`, P5-05-1).
@@ -183,6 +238,7 @@ LoadUnitHistory historyFromJson(Map<String, dynamic> j) {
             'receipt' => LoadUnitMoveKind.receipt,
             'putaway' => LoadUnitMoveKind.putaway,
             'move' => LoadUnitMoveKind.move,
+            'stock_entry' => LoadUnitMoveKind.stockEntry,
             _ => LoadUnitMoveKind.other,
           },
           userName: m['user_name'] as String?,

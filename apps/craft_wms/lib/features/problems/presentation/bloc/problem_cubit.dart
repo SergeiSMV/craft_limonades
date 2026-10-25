@@ -103,6 +103,56 @@ class ProblemCubit extends Cubit<ProblemState> {
     }
   }
 
+  /// Пометить товар марками ЧЗ (CZ-06): [line] — товар, партия и склад марок, [cell] — где они
+  /// лежат, [box] — короб, если марки в нём. К уже отмеченным марками того же товара, партии и
+  /// места марки добавляются; повтор — подсказка, другое — подсказка.
+  void chooseMarks({
+    required List<String> marks,
+    required ContentLine line,
+    required Cell cell,
+    LoadUnitView? box,
+  }) {
+    if (marks.isEmpty || !_cellAllowed(cell)) return;
+    final current = state.subject;
+    if (current is SubjectGoods && current.marks.isNotEmpty) {
+      if (current.line.goodId != line.goodId ||
+          current.line.productionDate != line.productionDate ||
+          current.line.internalWarehouseId != line.internalWarehouseId ||
+          current.cell.id != cell.id ||
+          current.box?.id != box?.id) {
+        emit(state.copyWith(notice: const ProblemNotice.markOtherGoods()));
+        return;
+      }
+      final fresh = [
+        for (final m in marks)
+          if (!current.marks.contains(m)) m,
+      ];
+      if (fresh.isEmpty) {
+        emit(state.copyWith(notice: const ProblemNotice.markTaken()));
+        return;
+      }
+      emit(
+        state.copyWith(
+          subject: current.copyWith(
+            marks: [...current.marks, ...fresh],
+            qty: current.qty + fresh.length,
+          ),
+          notice: null,
+        ),
+      );
+      return;
+    }
+    _choose(
+      ProblemSubject.goods(
+        line: line,
+        qty: marks.length.toDouble(),
+        cell: cell,
+        box: box,
+        marks: marks,
+      ),
+    );
+  }
+
   /// Выбрать помечаемое; склад назначения подставляется, если выбирать не из чего.
   void _choose(ProblemSubject subject) {
     final targets = targetsFor(subject);
@@ -210,7 +260,7 @@ class ProblemCubit extends Cubit<ProblemState> {
   ///
   /// Короб целиком — только его id: склад и ячейку сервер знает сам. Товар из короба —
   /// короб-источник; из россыпи — ячейка и склад россыпи, если он не «Основной». Дата партии —
-  /// DD-MM-YYYY. Марка — только если отсканирована.
+  /// DD-MM-YYYY. Марка — только если отсканирована. Марки ЧЗ (CZ-06) — у маркируемого товара.
   @visibleForTesting
   static Map<String, dynamic> payload(ProblemState s) {
     final subject = s.subject!;
@@ -220,18 +270,26 @@ class ProblemCubit extends Cubit<ProblemState> {
       'warehouse_id': subject.place.warehouseId,
       ...switch (subject) {
         SubjectBox(:final box) => {'load_unit_id': box.id},
-        SubjectGoods(:final line, :final qty, :final cell, :final box) => {
-          'good_id': line.goodId,
-          'production_date': line.productionDate,
-          'qty': qty,
-          if (box != null)
-            'from_load_unit_id': box.id
-          else ...{
-            'cell_id': cell.id,
-            if (line.internalWarehouseId != null)
-              'internal_warehouse_id': line.internalWarehouseId,
+        SubjectGoods(
+          :final line,
+          :final qty,
+          :final cell,
+          :final box,
+          :final marks,
+        ) =>
+          {
+            'good_id': line.goodId,
+            'production_date': line.productionDate,
+            'qty': qty,
+            if (box != null)
+              'from_load_unit_id': box.id
+            else ...{
+              'cell_id': cell.id,
+              if (line.internalWarehouseId != null)
+                'internal_warehouse_id': line.internalWarehouseId,
+            },
+            if (marks.isNotEmpty) 'marks': marks,
           },
-        },
       },
       'to_internal_warehouse_id': s.toWarehouseId,
       'reason': s.reason!.wire,

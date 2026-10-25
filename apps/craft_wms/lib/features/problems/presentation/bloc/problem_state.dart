@@ -30,12 +30,14 @@ sealed class ProblemSubject with _$ProblemSubject {
   }) = SubjectBox;
 
   /// Товар; [box] — из этого короба (вынимается в россыпь склада назначения), `null` — из
-  /// россыпи ячейки.
+  /// россыпи ячейки. [marks] — КИ марок ЧЗ помеченных единиц (CZ-06): маркируемый товар
+  /// помечают марками, количество — их число.
   const factory ProblemSubject.goods({
     required ContentLine line,
     required double qty,
     required Cell cell,
     LoadUnitView? box,
+    @Default(<String>[]) List<String> marks,
   }) = SubjectGoods;
 
   const ProblemSubject._();
@@ -82,6 +84,12 @@ sealed class ProblemNotice with _$ProblemNotice {
   /// Короба нет в снимке терминала, а связи нет.
   const factory ProblemNotice.boxUnknownOffline() =
       ProblemNoticeBoxUnknownOffline;
+
+  /// Эта марка уже в проблеме (CZ-06).
+  const factory ProblemNotice.markTaken() = ProblemNoticeMarkTaken;
+
+  /// Марка другого товара, партии или места, чем уже отмеченные (CZ-06).
+  const factory ProblemNotice.markOtherGoods() = ProblemNoticeMarkOtherGoods;
 }
 
 /// Состояние экрана «Проблемы склада» (P6-07-2): одна проблема — одна операция.

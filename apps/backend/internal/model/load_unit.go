@@ -41,6 +41,8 @@ const (
 	PlacementPutaway = "putaway"
 	// PlacementMove — перемещение перенесло короб из ячейки в ячейку (P6).
 	PlacementMove = "move"
+	// PlacementStockEntry — ввод остатков завёл короб в ячейке прохода (ADHOC-46).
+	PlacementStockEntry = "stock_entry"
 )
 
 // Placement — одна строка журнала размещений: ГЕ перенесли из ячейки в ячейку (P5-01).
@@ -67,9 +69,11 @@ type Placement struct {
 type PlaceLoadUnitInput struct {
 	LoadUnitID string
 	CellID     string
-	Source     string  // PlacementReceipt | PlacementPutaway | PlacementMove
+	Source     string  // PlacementReceipt | PlacementPutaway | PlacementMove | PlacementStockEntry
 	UserID     string  // кто переносит; пусто — неизвестен
 	ReceiptID  *string // документ приёмки, если переносит она
 	PutawayID  *string // документ размещения, если переносит он (P5-02)
 	MovementID *string // документ движения, если переносит перемещение (P6-01)
+	// StockEntryID — сессия ввода остатков, если короб завёл проход (ADHOC-46).
+	StockEntryID *string
 }

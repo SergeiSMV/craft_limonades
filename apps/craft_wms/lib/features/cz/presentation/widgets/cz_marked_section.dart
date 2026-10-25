@@ -72,6 +72,8 @@ class _CzMarkedView extends StatelessWidget {
         czText(
           t.czMarked.line(value: state.marked ? t.czMarked.yes : t.czMarked.no),
         ),
+        // Что значит признак для склада (CZ-06) и как быть с товаром, принятым без марок.
+        if (state.marked) czText(t.czMarked.rule),
         if (isAdmin) ...[
           AppBoxes.kHeight8,
           Row(

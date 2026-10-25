@@ -14,6 +14,7 @@ import '../../../../core/widgets/bind_prompt_dialog.dart';
 import '../../../../core/widgets/cell_change_sheet.dart';
 import '../../../../core/widgets/date_qty_dialog.dart';
 import '../../../../core/widgets/good_picker_sheet.dart';
+import '../../../cz/presentation/widgets/cz_intake_scan.dart';
 import '../../../stock/data/catalog_models.dart';
 import '../../../stock/data/catalog_repository.dart';
 import '../bloc/receipt_cubit.dart';
@@ -38,6 +39,7 @@ mixin ReceiptScanActions<T extends StatefulWidget>
         State<T>,
         HardwareScanListener<T>,
         ReceiptLabelActions<T>,
+        CzIntakeScan<T>,
         ReceiptCzScanActions<T> {
   final scanController = TextEditingController();
   final scanFocus = FocusNode();

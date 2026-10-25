@@ -13,6 +13,7 @@ import '../../../../core/gen/assets.gen.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/load_unit/load_unit_code.dart';
 import '../../../../core/scanner/hardware_scan_listener.dart';
+import '../../../../core/scanner/cz_code.dart';
 import '../../../../core/scanner/scan_code.dart';
 import '../../../../core/scanner/scan_deduper.dart';
 import '../../../../core/theme/regular_text.dart';
@@ -38,6 +39,7 @@ import '../bloc/resolved_problems_cubit.dart';
 import '../widgets/current/current_problems_view.dart';
 import '../widgets/problem_choice.dart';
 import '../widgets/problem_form.dart';
+import '../widgets/problem_mark_scan_actions.dart';
 import '../widgets/problem_outcome_view.dart';
 import '../widgets/resolved/resolved_feed.dart';
 import '../widgets/resolved/resolved_filter_button.dart';
@@ -72,7 +74,8 @@ class _ProblemView extends StatefulWidget {
   State<_ProblemView> createState() => _ProblemViewState();
 }
 
-class _ProblemViewState extends State<_ProblemView> with HardwareScanListener {
+class _ProblemViewState extends State<_ProblemView>
+    with HardwareScanListener, ProblemMarkScanActions {
   final _scanController = TextEditingController();
   final _scanFocus = FocusNode();
   final _comment = TextEditingController();
@@ -155,6 +158,14 @@ class _ProblemViewState extends State<_ProblemView> with HardwareScanListener {
     final s = cubit.state;
     if (code.isEmpty || !_deduper.allow(code) || s.outcome != null) return;
     if (s.subject != null) {
+      // Помечено марками (CZ-06) — следующая марка добавляется к ним.
+      final subject = s.subject;
+      if (subject is SubjectGoods &&
+          subject.marks.isNotEmpty &&
+          classifyScan(code) == ScanKind.czMark) {
+        await onMarkScan(czMarkFrom(code)!);
+        return;
+      }
       if (s.reason == ProblemReason.foreignMark) _mark.text = code;
       return;
     }
@@ -163,11 +174,11 @@ class _ProblemViewState extends State<_ProblemView> with HardwareScanListener {
         await onBoxScan(loadUnitIdFrom(code)!);
       case ScanKind.cell:
         await onCellScan(code);
-      case ScanKind.good:
-      // Марки и короба «Честного знака» здесь пока не ждут (приёмка марок — CZ-05):
-      // как незнакомый код. Раньше код короба (20 цифр) уходил сюда же через «товар».
-      case ScanKind.czMark:
       case ScanKind.czBox:
+        await onCzBoxScan(czBoxFrom(code)!);
+      case ScanKind.czMark:
+        await onMarkScan(czMarkFrom(code)!);
+      case ScanKind.good:
       case ScanKind.unknown:
         snack(t.problems.scanBoxOrCell);
     }
@@ -188,6 +199,22 @@ class _ProblemViewState extends State<_ProblemView> with HardwareScanListener {
       return;
     }
     await onBox(box);
+  }
+
+  /// Скан этикетки короба ЧЗ (`00`+SSCC, CZ-06): ГЕ находится по коду, дальше — как скан QR.
+  Future<void> onCzBoxScan(String czCode) async {
+    final res = await contents.loadUnitIdByCzCode(czCode);
+    if (!mounted) return;
+    if (res.isLeft) {
+      snack(t.movement.noData);
+      return;
+    }
+    final id = res.right;
+    if (id == null) {
+      snack(t.czScan.boxNotReceived);
+      return;
+    }
+    await onBoxScan(id);
   }
 
   /// Короб найден — сканом или в ячейке.
@@ -240,6 +267,7 @@ class _ProblemViewState extends State<_ProblemView> with HardwareScanListener {
   }
 
   /// Ячейка справочника терминала по условию; `null` — такой нет.
+  @override
   Future<Cell?> cellWhere(bool Function(Cell) test) async {
     final res = await getIt<CatalogRepository>().listAllCells();
     return res
@@ -266,6 +294,13 @@ class _ProblemViewState extends State<_ProblemView> with HardwareScanListener {
       null => null,
     };
     if (from == null) return;
+    // Маркируемый товар помечают марками (CZ-06): какие именно единицы, должно быть известно.
+    final good = await getIt<CatalogRepository>().goodById(line.goodId);
+    if (!mounted) return;
+    if (good?.czMarked ?? false) {
+      snack(t.problems.scanMark);
+      return;
+    }
     final qty = await showQtyDialog(
       context,
       max: line.qty,
@@ -311,10 +346,13 @@ class _ProblemViewState extends State<_ProblemView> with HardwareScanListener {
       ProblemNoticeCellEmpty() => t.problems.cellEmpty,
       ProblemNoticeLabelInvalid() => t.movement.noticeLabelInvalid,
       ProblemNoticeBoxUnknownOffline() => t.movement.noticeBoxUnknownOffline,
+      ProblemNoticeMarkTaken() => t.problems.noticeMarkTaken,
+      ProblemNoticeMarkOtherGoods() => t.movement.noticeMarkOtherGoods,
     });
     cubit.clearNotice();
   }
 
+  @override
   void snack(String text) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()

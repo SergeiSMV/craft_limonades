@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import '../../../core/di/injection.dart';
 import '../../../core/gen/strings.g.dart';
 import '../../../core/router/app_router.dart';
+import '../../../core/scanner/cz_code.dart';
 import '../../../core/scanner/scan_code.dart';
 import '../domain/contents_entities.dart';
 import '../domain/contents_repository.dart';
@@ -53,12 +54,32 @@ Future<bool> openScannedContents(
       final route = CellContentsRoute(cellId: cell.id, address: cell.address);
       unawaited(replace ? router.replace(route) : router.push(route));
       return true;
-    case ScanKind.good:
-    // Марки и короба «Честного знака» здесь пока не ждут (приёмка марок — CZ-05):
-    // как незнакомый код. Раньше код короба (20 цифр) уходил сюда же через «товар».
-    case ScanKind.czMark:
     case ScanKind.czBox:
+      return _openCzBox(context, code, replace: replace);
+    case ScanKind.good:
+    // Марку «Честного знака» обрабатывает вызывающий (карточка товара с блоком марки, CZ-04).
+    case ScanKind.czMark:
     case ScanKind.unknown:
       return false;
   }
+}
+
+/// Скан этикетки короба ЧЗ (`00`+SSCC, CZ-06): принятый короб — его карточка, как по QR.
+///
+/// Короб, которого склад не знает, отдаётся вызывающему (`false`): в «Остатках» его состав по
+/// ЧЗ показывает экран скана ЧЗ (CZ-04).
+Future<bool> _openCzBox(
+  BuildContext context,
+  ScanCode code, {
+  required bool replace,
+}) async {
+  final res = await getIt<ContentsRepository>().loadUnitIdByCzCode(
+    czBoxFrom(code.raw)!,
+  );
+  final id = res.isRight ? res.right : null;
+  if (id == null || !context.mounted) return false;
+  final router = context.router;
+  final route = LoadUnitRoute(loadUnitId: id);
+  unawaited(replace ? router.replace(route) : router.push(route));
+  return true;
 }

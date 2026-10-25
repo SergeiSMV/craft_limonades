@@ -1,15 +1,20 @@
+import 'package:craft_wms/core/load_unit/load_unit_id_generator.dart';
+import 'package:craft_wms/core/printer/printer_service.dart';
 import 'dart:io';
 
 import 'package:craft_wms/core/database/app_database.dart';
 import 'package:craft_wms/features/stock/data/catalog_models.dart';
 import 'package:craft_wms/features/stock_entry/data/entry_draft_store.dart';
 import 'package:craft_wms/features/stock/data/catalog_repository.dart';
-import 'package:craft_wms/features/stock_entry/data/stock_entry_repository.dart';
+import 'package:craft_wms/features/stock_entry/domain/stock_entry_repository.dart';
 import 'package:craft_wms/features/stock_entry/presentation/bloc/stock_entry_cubit.dart';
 import 'package:drift/native.dart';
 import 'package:either_dart/either.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:uuid/uuid.dart';
+
+class _MockPrinter extends Mock implements PrinterService {}
 
 class _MockRepo extends Mock implements StockEntryRepository {}
 
@@ -43,7 +48,13 @@ void main() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     drafts = EntryDraftStore(db);
     repo = _MockRepo();
-    cubit = StockEntryCubit(repo, catalog, drafts);
+    cubit = StockEntryCubit(
+      repo,
+      catalog,
+      drafts,
+      const LoadUnitIdGenerator(Uuid()),
+      _MockPrinter(),
+    );
   });
 
   tearDown(() => db.close());
@@ -78,7 +89,13 @@ void main() {
     await cubit.draftWrites;
 
     // Новый cubit поверх того же хранилища — как после перезапуска экрана.
-    final restored = StockEntryCubit(repo, catalog, drafts);
+    final restored = StockEntryCubit(
+      repo,
+      catalog,
+      drafts,
+      const LoadUnitIdGenerator(Uuid()),
+      _MockPrinter(),
+    );
     await restored.restore();
 
     expect(restored.state.cell?.id, cellA.id);
@@ -100,9 +117,7 @@ void main() {
     when(
       () => repo.checkpoint(
         sessionId: any(named: 'sessionId'),
-        cellId: any(named: 'cellId'),
-        lines: any(named: 'lines'),
-        newBarcodes: any(named: 'newBarcodes'),
+        body: any(named: 'body'),
       ),
     ).thenAnswer((_) async => const Right(null));
     when(() => repo.finalize(any())).thenAnswer((_) async => const Right(1));
@@ -128,7 +143,13 @@ void main() {
     await cubit.draftWrites;
     await cubit.close(); // кладовщик ушёл с экрана
 
-    final reopened = StockEntryCubit(repo, catalog, drafts);
+    final reopened = StockEntryCubit(
+      repo,
+      catalog,
+      drafts,
+      const LoadUnitIdGenerator(Uuid()),
+      _MockPrinter(),
+    );
     await reopened.restore();
 
     expect(
@@ -164,7 +185,13 @@ void main() {
         "UPDATE entry_drafts SET payload = 'не json' WHERE id = 'current'",
       );
 
-      final restored = StockEntryCubit(repo, catalog, drafts);
+      final restored = StockEntryCubit(
+        repo,
+        catalog,
+        drafts,
+        const LoadUnitIdGenerator(Uuid()),
+        _MockPrinter(),
+      );
       await restored.restore();
 
       expect(restored.state.cell, isNull);
@@ -185,6 +212,8 @@ void main() {
       repo,
       _MockCatalog(),
       EntryDraftStore(first),
+      const LoadUnitIdGenerator(Uuid()),
+      _MockPrinter(),
     );
     firstCubit.selectCell(cellA);
     firstCubit.addLine(good: goodA, date: '15.01.2026', qty: 10);
@@ -201,6 +230,8 @@ void main() {
       repo,
       _MockCatalog(),
       EntryDraftStore(second),
+      const LoadUnitIdGenerator(Uuid()),
+      _MockPrinter(),
     );
     await secondCubit.restore();
 

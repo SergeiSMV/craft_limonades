@@ -48,6 +48,8 @@ type problemSubmitPayload struct {
 	Reason                string `json:"reason"`
 	Comment               string `json:"comment"`
 	Mark                  string `json:"mark"`
+	// КИ марок ЧЗ помеченного товара (CZ-06), по одной на единицу. Прежние клиенты не шлют.
+	Marks []string `json:"marks"`
 }
 
 // problemSubmit разбирает и проверяет проблему склада из очереди устройства (P6-07-1).
@@ -101,7 +103,8 @@ func (s *OperationsService) problemSubmit(ctx context.Context, userID, id string
 	if in.LoadUnitID != "" {
 		// Короб целиком: товарные поля и источник — противоречие, а не подсказка.
 		if in.GoodID != "" || p.ProductionDate != "" || !p.Qty.IsZero() ||
-			in.CellID != "" || in.FromLoadUnitID != "" || in.FromInternalWarehouseID != "" {
+			in.CellID != "" || in.FromLoadUnitID != "" || in.FromInternalWarehouseID != "" ||
+			len(p.Marks) > 0 {
 			return repository.Applied{}, ErrInvalidPayload
 		}
 		return s.repo.ProblemSubmit(ctx, id, in)
@@ -122,5 +125,8 @@ func (s *OperationsService) problemSubmit(ctx context.Context, userID, id string
 		return repository.Applied{}, err
 	}
 	in.ProductionDate = iso
+	if in.Marks, err = lineMarks(p.Marks); err != nil {
+		return repository.Applied{}, err
+	}
 	return s.repo.ProblemSubmit(ctx, id, in)
 }
