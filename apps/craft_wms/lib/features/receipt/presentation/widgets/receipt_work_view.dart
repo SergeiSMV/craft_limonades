@@ -6,9 +6,10 @@ import '../../../../core/gen/strings.g.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/scanner/hardware_scan_listener.dart';
 import '../../../../core/widgets/bind_prompt_dialog.dart';
+import '../../../../core/widgets/box_tile.dart';
+import '../../../cz/presentation/widgets/cz_intake_scan.dart';
 import '../../../stock/data/catalog_models.dart';
 import '../bloc/receipt_cubit.dart';
-import 'receipt_box_tile.dart';
 import 'receipt_context_bar.dart';
 import 'receipt_label_actions.dart';
 import 'receipt_line_tile.dart';
@@ -35,6 +36,7 @@ class _ReceiptWorkViewState extends State<ReceiptWorkView>
     with
         HardwareScanListener,
         ReceiptLabelActions,
+        CzIntakeScan,
         ReceiptCzScanActions,
         ReceiptScanActions<ReceiptWorkView> {
   /// В общем списке строки ложатся штучно.
@@ -116,10 +118,13 @@ class _ReceiptWorkViewState extends State<ReceiptWorkView>
                   children: [
                     // Короба сверху: их немного, и в них проваливаются; штучные строки — ниже.
                     for (final b in boxes)
-                      ReceiptBoxTile(
-                        box: b,
-                        positions: state.linesInBox(b.id),
-                        cellAddress: b.cell?.address ?? defaultAddress,
+                      BoxTile(
+                        title: b.isCz
+                            ? t.receipt.czBox(code: b.shortCode)
+                            : t.receipt.box(code: b.shortCode),
+                        subtitle:
+                            '${t.receipt.boxPositions(count: state.linesInBox(b.id))}'
+                            ' · ${b.cell?.address ?? defaultAddress}',
                         onTap: () => _openBox(b.id),
                       ),
                     for (final line in loose)

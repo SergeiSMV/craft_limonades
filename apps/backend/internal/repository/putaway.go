@@ -305,7 +305,7 @@ func insertPutawayLine(ctx context.Context, q Querier, putawayID string, lineNo 
 func putawayLineText(ctx context.Context, q Querier, ln PutawayLineInput) string {
 	to := cellText(ctx, q, ln.ToCellID)
 	if ln.LoadUnitID != "" {
-		return boxText(ln.LoadUnitID) + " → " + to
+		return boxText(ctx, q, ln.LoadUnitID) + " → " + to
 	}
 	return goodText(ctx, q, ln.GoodID, ln.ProductionDate, ln.Qty) + " → " + to
 }

@@ -135,6 +135,7 @@ class _History extends StatelessWidget {
   /// Перенос короба: откуда → куда, кто и когда.
   List<Widget> _move(LoadUnitMove m) => [
     _line(switch ((m.kind, m.from)) {
+      (LoadUnitMoveKind.stockEntry, _) => t.contents.moveStockEntry(to: m.to),
       (LoadUnitMoveKind.receipt, _) ||
       (_, null) => t.contents.moveReceipt(to: m.to),
       (LoadUnitMoveKind.putaway, final from?) => t.contents.movePutaway(

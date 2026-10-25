@@ -42,9 +42,9 @@ func TestDocuments(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	if err := seRepo.Checkpoint(ctx, sid, cell, []repository.StockEntryLineInput{
+	if err := seRepo.Checkpoint(ctx, sid, repository.StockEntryCellInput{CellID: cell, Lines: []repository.StockEntryLineInput{
 		{GoodID: good, ProductionDate: "2026-01-15", Qty: decimal.RequireFromString("10.5")},
-	}, nil); err != nil {
+	}}); err != nil {
 		t.Fatalf("Checkpoint: %v", err)
 	}
 	if _, err := seRepo.Finalize(ctx, sid); err != nil {

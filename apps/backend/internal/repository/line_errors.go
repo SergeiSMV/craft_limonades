@@ -86,6 +86,19 @@ func lineReason(err error) string {
 			"другого терминала: обновите данные и отсканируйте снова"
 	case errors.Is(err, model.ErrCZMarkBatchMismatch):
 		return "марка другого товара или другой партии"
+	// Ввод остатков с коробами и марками (ADHOC-46).
+	case errors.Is(err, ErrLoadUnitExists):
+		return "короб уже есть в учёте склада — его не вводят заново"
+	case errors.Is(err, model.ErrCZAggregateExists):
+		return "короб или упаковка ЧЗ уже есть в учёте склада"
+	case errors.Is(err, model.ErrCZMarkExists):
+		return "марка уже есть в учёте склада"
+	case errors.Is(err, ErrEntryDuplicate):
+		return "уже введено в другой ячейке этого прохода"
+	case errors.Is(err, ErrEntryCellHasMarks):
+		return "в ячейке уже лежат марки этого товара и партии россыпью — пересчёт их не учтёт"
+	case errors.Is(err, ErrEntryEmptyBox):
+		return "в коробе нет товара"
 	case errors.Is(err, ErrLoadUnitNotFound):
 		return "короб не найден"
 	case errors.Is(err, ErrLoadUnitNotPlaced):
@@ -173,8 +186,32 @@ func cellText(ctx context.Context, q Querier, cellID string) string {
 	return addr
 }
 
-// boxText — «короб XXXX XXXX»: короткий код, как на ярлыке (хвост UUID, две четвёрки).
-func boxText(loadUnitID string) string {
+// boxText — короб, как его видит кладовщик: короб ЧЗ — «короб ЧЗ XXXX XXXX» по коду ЧЗ (у него
+// нет ярлыка WMS, долг 33), свой короб — «короб XXXX XXXX», короткий код с ярлыка.
+func boxText(ctx context.Context, q Querier, loadUnitID string) string {
+	var czCode string
+	_ = q.QueryRow(ctx, `SELECT code FROM cz_aggregates WHERE load_unit_id = $1::uuid`, loadUnitID).
+		Scan(&czCode)
+	if czCode != "" {
+		return czBoxText(czCode)
+	}
+	return labelBoxText(loadUnitID)
+}
+
+// czBoxText — «короб ЧЗ XXXX XXXX»: последние восемь цифр SSCC, как на ТСД (CZ-06).
+func czBoxText(code string) string {
+	tail := code
+	if len(tail) > 8 {
+		tail = tail[len(tail)-8:]
+	}
+	if len(tail) == 8 {
+		tail = tail[:4] + " " + tail[4:]
+	}
+	return "короб ЧЗ " + tail
+}
+
+// labelBoxText — «короб XXXX XXXX»: короткий код, как на ярлыке (хвост UUID, две четвёрки).
+func labelBoxText(loadUnitID string) string {
 	hex := strings.ToUpper(strings.ReplaceAll(loadUnitID, "-", ""))
 	if len(hex) > 8 {
 		hex = hex[len(hex)-8:]

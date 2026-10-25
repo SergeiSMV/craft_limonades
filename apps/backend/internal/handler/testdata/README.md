@@ -8,6 +8,7 @@
 | `outbox_batch.json`   | привязка и отвязка ШК (P2-08)     | `operations_http_test.go`         | `test/core/wire_contract_test.dart`                     |
 | `receipt_submit.json` | приёмка: короб и россыпь (P4-11D) | `receiving_scenario_http_test.go` | `test/features/receipt/receipt_wire_contract_test.dart` |
 | `receipt_submit_cz.json` | приёмка с марками ЧЗ: короб ЧЗ с упаковкой и марки россыпью, одна с расхождением (CZ-05) | `receiving_cz_http_test.go` | `test/features/receipt/receipt_cz_wire_contract_test.dart` |
+| `stock_entry_checkpoint.json` | **тело** `POST /stock-entry/sessions/{id}/cells`: ячейка ввода остатков — россыпь, свой короб, короб ЧЗ с упаковкой, марки россыпью, одна с расхождением (ADHOC-46) | `stock_entry_http_test.go` | `test/features/stock_entry/stock_entry_wire_contract_test.dart` |
 | `putaway_submit.json` | размещение: короб и россыпь (P5-02) | `putaway_scenario_http_test.go` | `test/features/putaway/putaway_cubit_test.dart` |
 | `movement_submit.json` | движение: ГЕ целиком и товар между коробами и россыпью (P6-03); Go-тест гоняет его и пополнением (P6-05) | `movement_http_test.go` | `test/features/movement/movement_cubit_test.dart` |
 | `movement_submit_cz.json` | движение марками ЧЗ: марки россыпью в короб ЧЗ и марка из короба ЧЗ россыпью (CZ-06) | `movement_http_test.go` | `test/features/movement/movement_cubit_test.dart` |

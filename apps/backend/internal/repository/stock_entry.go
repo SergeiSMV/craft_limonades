@@ -28,6 +28,20 @@ type StockEntryLineInput struct {
 	GoodID         string
 	ProductionDate string
 	Qty            decimal.Decimal
+	// LoadUnitID — короб прохода, в котором лежит товар (ADHOC-46); пусто — россыпь.
+	LoadUnitID string
+	// Marks — марки ЧЗ строки (ADHOC-46): у маркируемого товара их ровно столько, сколько единиц.
+	Marks []model.ReceiptMark
+}
+
+// StockEntryCellInput — ячейка прохода в checkpoint'е: строки, короба прохода, групповые
+// упаковки ЧЗ (ADHOC-46) и новые привязки ШК.
+type StockEntryCellInput struct {
+	CellID    string
+	Lines     []StockEntryLineInput
+	LoadUnits []LoadUnitInput
+	CZGroups  []model.CZAggregate
+	Barcodes  []BarcodeBindInput
 }
 
 // BarcodeBindInput — новая привязка ШК, пришедшая с checkpoint'ом (коммитится в той же транзакции).
@@ -96,26 +110,51 @@ func createSessionWithID(ctx context.Context, q Querier, sessionID, warehouseID,
 	return id, nil
 }
 
-// Checkpoint фиксирует ячейку в сессии: новые привязки ШК + строки (upsert-SET по грани). Всё в
-// одной транзакции. Сессия должна быть draft, иначе ErrSessionClosed/ErrSessionNotFound.
-func (r *StockEntryRepository) Checkpoint(ctx context.Context, sessionID, cellID string, lines []StockEntryLineInput, barcodes []BarcodeBindInput) error {
+// Checkpoint фиксирует ячейку в сессии: новые привязки ШК, затем содержимое ячейки — строки,
+// короба и марки. Всё в одной транзакции. Сессия должна быть draft, иначе
+// ErrSessionClosed/ErrSessionNotFound; плохие строки ячейки — *DocumentLinesError (ADHOC-46).
+func (r *StockEntryRepository) Checkpoint(ctx context.Context, sessionID string, in StockEntryCellInput) error {
 	return WithinTx(ctx, r.pool, func(q Querier) error {
-		if err := guardSessionDraft(ctx, q, sessionID); err != nil {
+		return checkpointCell(ctx, q, sessionID, in)
+	})
+}
+
+// checkpointCell — checkpoint на Querier: им пользуются и прямая ручка, и операция очереди.
+//
+// Что: ячейка в сессии ЗАМЕНЯЕТСЯ присланной — прежние строки, короба, упаковки и марки этой
+// ячейки удаляются, присланные записываются (ADHOC-46).
+// Зачем: повторный checkpoint — это исправленная после отказа ячейка или ретрай, и строка,
+// убранная с ТСД, не должна остаться в сессии. Удаление идёт до проверки отказов: иначе
+// прежний вариант ячейки выглядел бы «тем же коробом в другой ячейке прохода».
+func checkpointCell(ctx context.Context, q Querier, sessionID string, in StockEntryCellInput) error {
+	if err := guardSessionDraft(ctx, q, sessionID); err != nil {
+		return err
+	}
+	// Привязки ШК — до строк: строка может ссылаться на товар только что привязанного ШК.
+	for _, b := range in.Barcodes {
+		if err := bindBarcode(ctx, q, b.GoodID, b.Barcode, b.Symbology); err != nil {
 			return err
 		}
-		// Привязки ШК — до строк: строка может ссылаться на товар только что привязанного ШК.
-		for _, b := range barcodes {
-			if err := bindBarcode(ctx, q, b.GoodID, b.Barcode, b.Symbology); err != nil {
-				return err
-			}
+	}
+	if err := clearSessionCell(ctx, q, sessionID, in.CellID); err != nil {
+		return err
+	}
+	if err := guardEntryCell(ctx, q, sessionID, in, true); err != nil {
+		return err
+	}
+	if err := insertSessionCZ(ctx, q, sessionID, in); err != nil {
+		return err
+	}
+	for _, ln := range in.Lines {
+		lineID, err := upsertSessionLine(ctx, q, sessionID, in.CellID, ln)
+		if err != nil {
+			return err
 		}
-		for _, ln := range lines {
-			if err := upsertSessionLine(ctx, q, sessionID, cellID, ln.GoodID, ln.ProductionDate, ln.Qty); err != nil {
-				return err
-			}
+		if err := insertSessionMarks(ctx, q, sessionID, lineID, ln.Marks); err != nil {
+			return err
 		}
-		return nil
-	})
+	}
+	return nil
 }
 
 // Finalize переносит все строки сессии в stock (SET) и закрывает сессию — в одной транзакции.
@@ -133,14 +172,23 @@ func (r *StockEntryRepository) Finalize(ctx context.Context, sessionID string) (
 	return written, nil
 }
 
-// finalizeSession — низкоуровневый финал на Querier: строки сессии → stock (SET) + закрытие.
+// finalizeSession — низкоуровневый финал на Querier: содержимое сессии → склад + закрытие.
 // Вынесен, чтобы финал из очереди шёл в одной транзакции с пометкой операции (P2-05).
+//
+// Порядок (ADHOC-46): отказы → ГЕ прохода → SET остатка граней → состав и размещение коробов →
+// марки, упаковки и проблемы ЧЗ. SET считается до размещения коробов прохода: в сумму «короба,
+// уже лежащие в ячейке» они попасть не должны — их состав уже в строках сессии.
 func finalizeSession(ctx context.Context, q Querier, sessionID string) (int, error) {
 	if err := guardSessionDraft(ctx, q, sessionID); err != nil {
 		return 0, err
 	}
-	lines, err := listSessionLines(ctx, q, sessionID)
+	cells, err := loadSessionCells(ctx, q, sessionID)
 	if err != nil {
+		return 0, err
+	}
+	// Между checkpoint и финалом короб или марку могла завести приёмка — проверка повторяется
+	// под транзакцией финала.
+	if err := guardSessionCells(ctx, q, sessionID, cells); err != nil {
 		return 0, err
 	}
 	// Ввод остатков приходует в склад по умолчанию: выбор учётной принадлежности сделан для
@@ -149,19 +197,22 @@ func finalizeSession(ctx context.Context, q Querier, sessionID string) (int, err
 	if err != nil {
 		return 0, err
 	}
-
-	written := 0
-	// По каждой строке: партия GetOrCreate (P-FS-02) → SET остатка (P-FS-02).
-	for _, ln := range lines {
-		batchID, err := getOrCreateBatch(ctx, q, ln.goodID, ln.productionDate)
-		if err != nil {
-			return 0, err
+	for _, c := range cells {
+		for _, lu := range c.LoadUnits {
+			if err := createLoadUnit(ctx, q, lu.ID, lu.Kind); err != nil {
+				return 0, err
+			}
 		}
-		key := model.StockKey{CellID: ln.cellID, GoodID: ln.goodID, BatchID: batchID, InternalWarehouseID: iwh}
-		if err := setStock(ctx, q, key, ln.qty); err != nil {
-			return 0, err
-		}
-		written++
+	}
+	batches, written, err := setSessionStock(ctx, q, cells, iwh)
+	if err != nil {
+		return 0, err
+	}
+	if err := placeSessionBoxes(ctx, q, sessionID, cells, batches); err != nil {
+		return 0, err
+	}
+	if err := receiveSessionCZ(ctx, q, sessionID, cells); err != nil {
+		return 0, err
 	}
 	if _, err := q.Exec(ctx, `
 		UPDATE stock_entry_sessions SET status='closed', closed_at=now()
@@ -216,12 +267,15 @@ func buildStockEntrySnapshot(ctx context.Context, q Querier, sessionID string) (
 		return model.ReportSnapshot{}, fmt.Errorf("снимок документа, шапка: %w", err)
 	}
 
+	// Строка документа — грань остатка: россыпь и короба прохода одного товара и партии в ячейке
+	// сводятся в одну строку (ADHOC-46) — в 1С короба нет, есть количество в ячейке.
 	rows, err := q.Query(ctx, `
-		SELECT c.address, g.code, g.name, l.production_date::text, l.qty::text
+		SELECT c.address, g.code, g.name, l.production_date::text, sum(l.qty)::text
 		FROM stock_entry_lines l
 		JOIN cells c ON c.id = l.cell_id
 		JOIN goods g ON g.id = l.good_id
 		WHERE l.session_id = $1::uuid
+		GROUP BY c.address, g.code, g.name, l.production_date
 		ORDER BY c.address, g.name`, sessionID)
 	if err != nil {
 		return model.ReportSnapshot{}, fmt.Errorf("снимок документа, строки: %w", err)
@@ -254,52 +308,21 @@ func guardSessionDraft(ctx context.Context, q Querier, sessionID string) error {
 	return nil
 }
 
-// upsertSessionLine — SET-семантика внутри сессии: грань (session,cell,good,date) уникальна,
-// повторный checkpoint той же грани перезаписывает количество.
-func upsertSessionLine(ctx context.Context, q Querier, sessionID, cellID, goodID, productionDate string, qty decimal.Decimal) error {
-	_, err := q.Exec(ctx, `
-		INSERT INTO stock_entry_lines (session_id, cell_id, good_id, production_date, qty)
-		VALUES ($1::uuid, $2::uuid, $3::uuid, $4::date, $5::numeric)
-		ON CONFLICT (session_id, cell_id, good_id, production_date)
-		DO UPDATE SET qty = EXCLUDED.qty`,
-		sessionID, cellID, goodID, productionDate, qty.String())
+// upsertSessionLine записывает строку ячейки и возвращает её id. Грань строки — (сессия, ячейка,
+// товар, партия, короб); ячейка перед записью очищена (checkpointCell), поэтому совпадение грани
+// — повтор той же грани в одном теле, и количества складываются: марки обеих строк ложатся на
+// одну строку сессии, и её количество должно сойтись с их числом.
+func upsertSessionLine(ctx context.Context, q Querier, sessionID, cellID string, ln StockEntryLineInput) (string, error) {
+	var id string
+	err := q.QueryRow(ctx, `
+		INSERT INTO stock_entry_lines (session_id, cell_id, good_id, production_date, qty, load_unit_id)
+		VALUES ($1::uuid, $2::uuid, $3::uuid, $4::date, $5::numeric, NULLIF($6, '')::uuid)
+		ON CONFLICT (session_id, cell_id, good_id, production_date, load_unit_id)
+		DO UPDATE SET qty = stock_entry_lines.qty + EXCLUDED.qty
+		RETURNING id::text`,
+		sessionID, cellID, ln.GoodID, ln.ProductionDate, ln.Qty.String(), ln.LoadUnitID).Scan(&id)
 	if err != nil {
-		return fmt.Errorf("upsert session line: %w", err)
+		return "", fmt.Errorf("upsert session line: %w", err)
 	}
-	return nil
-}
-
-// sessionLine — строка сессии для финала (внутренняя).
-type sessionLine struct {
-	cellID         string
-	goodID         string
-	productionDate string // ISO 'YYYY-MM-DD'
-	qty            decimal.Decimal
-}
-
-// listSessionLines читает все строки сессии. Rows вычитываем полностью в срез до следующих
-// запросов (на одном соединении tx нельзя держать открытый Rows и параллельно исполнять запросы).
-func listSessionLines(ctx context.Context, q Querier, sessionID string) ([]sessionLine, error) {
-	rows, err := q.Query(ctx, `
-		SELECT cell_id::text, good_id::text, production_date::text, qty::text
-		FROM stock_entry_lines WHERE session_id = $1::uuid`, sessionID)
-	if err != nil {
-		return nil, fmt.Errorf("list session lines: %w", err)
-	}
-	defer rows.Close()
-
-	var out []sessionLine
-	for rows.Next() {
-		var l sessionLine
-		var qtyStr string
-		if err := rows.Scan(&l.cellID, &l.goodID, &l.productionDate, &qtyStr); err != nil {
-			return nil, fmt.Errorf("scan session line: %w", err)
-		}
-		l.qty, err = decimal.NewFromString(qtyStr)
-		if err != nil {
-			return nil, fmt.Errorf("parse qty %q: %w", qtyStr, err)
-		}
-		out = append(out, l)
-	}
-	return out, rows.Err()
+	return id, nil
 }

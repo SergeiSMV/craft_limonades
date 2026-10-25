@@ -10,6 +10,7 @@ import 'package:craft_wms/core/outbox/outbox_repository.dart';
 import 'package:craft_wms/core/outbox/outbox_sender.dart';
 import 'package:craft_wms/core/printer/printer_service.dart';
 import 'package:craft_wms/core/sync/sync_engine.dart';
+import 'package:craft_wms/features/cz/domain/cz_intake.dart';
 import 'package:craft_wms/features/receipt/data/receipt_draft_store.dart';
 import 'package:craft_wms/features/receipt/data/receipt_repository.dart';
 import 'package:craft_wms/features/receipt/presentation/bloc/receipt_cubit.dart';
@@ -128,10 +129,10 @@ void main() {
     addTearDown(cubit.close);
 
     // Марки строки эталона — как их прочитал скан: упаковка и расхождение («» — нет).
-    List<ReceiptMarkDraft> marksOf(Map<String, dynamic> line) => [
+    List<CzMarkDraft> marksOf(Map<String, dynamic> line) => [
       for (final m
           in (line['marks'] as List<dynamic>).cast<Map<String, dynamic>>())
-        ReceiptMarkDraft(
+        CzMarkDraft(
           cis: m['cis'] as String,
           aggregateCode: (m['aggregate_code'] as String).isEmpty
               ? null
@@ -157,21 +158,21 @@ void main() {
     final added = cubit.addCzBox(
       code: lu['cz_code'] as String,
       lines: [
-        ReceiptCzLine(good: good, date: date(boxLine), marks: marksOf(boxLine)),
+        CzIntakeLine(good: good, date: date(boxLine), marks: marksOf(boxLine)),
       ],
       groups: [
-        ReceiptCzGroup(
+        CzGroupDraft(
           code: czGroup['code'] as String,
           parentCode: czGroup['parent_code'] as String,
         ),
       ],
     );
-    expect(added.result, ReceiptCzAdd.added);
+    expect(added.result, CzIntakeAdd.added);
     cubit.setTargetCell(defaultCell);
     for (final m in marksOf(looseLine)) {
       cubit.addCzMarks(
         lines: [
-          ReceiptCzLine(good: good, date: date(looseLine), marks: [m]),
+          CzIntakeLine(good: good, date: date(looseLine), marks: [m]),
         ],
       );
     }

@@ -576,11 +576,11 @@ func looseQty(ctx context.Context, q Querier, cellID, goodID, batchID, iwh strin
 // товар — «товар · партия · количество: откуда → куда», где место — ячейка или короб.
 func movementLineText(ctx context.Context, q Querier, ln MovementLineInput) string {
 	if ln.LoadUnitID != "" {
-		return boxText(ln.LoadUnitID) + " → " + cellText(ctx, q, ln.ToCellID)
+		return boxText(ctx, q, ln.LoadUnitID) + " → " + cellText(ctx, q, ln.ToCellID)
 	}
 	place := func(cellID, loadUnitID string) string {
 		if loadUnitID != "" {
-			return boxText(loadUnitID)
+			return boxText(ctx, q, loadUnitID)
 		}
 		return cellText(ctx, q, cellID)
 	}

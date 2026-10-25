@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 
+	"craftwms/internal/model"
 	"craftwms/internal/repository"
 )
 
@@ -35,6 +36,39 @@ type EntryLine struct {
 	GoodID         string
 	ProductionDate string
 	Qty            decimal.Decimal
+	// LoadUnitID — короб ячейки, в котором лежит товар (ADHOC-46); пусто — россыпь.
+	LoadUnitID string
+	// Marks — марки ЧЗ строки (ADHOC-46).
+	Marks []EntryMark
+}
+
+// EntryMark — марка ЧЗ строки ввода (ADHOC-46).
+type EntryMark struct {
+	CIS           string
+	AggregateCode string // упаковка ЧЗ той же ячейки; пусто — сама по себе
+	Discrepancy   string // расхождение со скана; пусто — нет
+}
+
+// EntryLoadUnit — короб, заведённый в ячейке прохода (ADHOC-46): свой с QR или короб ЧЗ.
+type EntryLoadUnit struct {
+	ID     string
+	Kind   string
+	CZCode string // `00`+SSCC короба ЧЗ; пусто — свой короб с QR
+}
+
+// EntryGroup — групповая упаковка ЧЗ ячейки прохода (ADHOC-46).
+type EntryGroup struct {
+	Code       string
+	ParentCode string
+}
+
+// EntryCell — ячейка прохода в checkpoint'е (транспорт).
+type EntryCell struct {
+	CellID    string
+	Lines     []EntryLine
+	LoadUnits []EntryLoadUnit
+	CZGroups  []EntryGroup
+	Barcodes  []EntryBarcode
 }
 
 // EntryBarcode — новая привязка ШК, пришедшая с checkpoint'ом.
@@ -48,7 +82,7 @@ type EntryBarcode struct {
 type stockEntryRepo interface {
 	Create(ctx context.Context, warehouseID, createdBy string) (string, error)
 	CreateWithID(ctx context.Context, sessionID, warehouseID, createdBy string) (string, error)
-	Checkpoint(ctx context.Context, sessionID, cellID string, lines []repository.StockEntryLineInput, barcodes []repository.BarcodeBindInput) error
+	Checkpoint(ctx context.Context, sessionID string, in repository.StockEntryCellInput) error
 	Finalize(ctx context.Context, sessionID string) (int, error)
 }
 
@@ -88,31 +122,77 @@ func (s *StockEntryService) Start(ctx context.Context, sessionID, warehouseID, c
 	return s.repo.CreateWithID(ctx, sessionID, warehouseID, createdBy)
 }
 
-// Checkpoint фиксирует ячейку: валидирует строки/привязки, парсит даты и передаёт в репозиторий.
-func (s *StockEntryService) Checkpoint(ctx context.Context, sessionID, cellID string, lines []EntryLine, barcodes []EntryBarcode) error {
-	cellID = strings.TrimSpace(cellID)
-	if cellID == "" {
+// Checkpoint фиксирует ячейку: валидирует строки, короба, упаковки и марки, привязки, парсит
+// даты и передаёт в репозиторий.
+//
+// Форма данных ЧЗ (коды, вложенность упаковок, марка короба ЧЗ — в строке этого короба)
+// проверяется тем же czIntake, что у приёмки (ADHOC-46): отказ до транзакции, а не нарушение
+// ключа на середине вставки. Строка в коробе ссылается на короб той же ячейки.
+func (s *StockEntryService) Checkpoint(ctx context.Context, sessionID string, cell EntryCell) error {
+	in := repository.StockEntryCellInput{CellID: strings.TrimSpace(cell.CellID)}
+	if in.CellID == "" {
 		return ErrEmptyCell
 	}
 
-	repoLines := make([]repository.StockEntryLineInput, 0, len(lines))
-	for _, ln := range lines {
+	boxes := map[string]bool{}
+	for _, lu := range cell.LoadUnits {
+		id := strings.TrimSpace(lu.ID)
+		if !isUUID(id) {
+			return ErrInvalidLoadUnitID
+		}
+		kind := strings.TrimSpace(lu.Kind)
+		if kind == "" {
+			kind = model.LoadUnitBox
+		}
+		if kind != model.LoadUnitBox && kind != model.LoadUnitPallet {
+			return ErrInvalidLoadUnitKind
+		}
+		boxes[id] = true
+		in.LoadUnits = append(in.LoadUnits, repository.LoadUnitInput{
+			ID: id, Kind: kind, CZCode: strings.TrimSpace(lu.CZCode),
+		})
+	}
+	groups := make([]czGroupPayload, len(cell.CZGroups))
+	for i, g := range cell.CZGroups {
+		groups[i] = czGroupPayload(g)
+	}
+	cz, err := newCZIntake(in.LoadUnits, groups)
+	if err != nil {
+		return err
+	}
+	in.CZGroups = cz.groups
+
+	for _, ln := range cell.Lines {
 		goodID := strings.TrimSpace(ln.GoodID)
 		if goodID == "" {
 			return ErrEmptyGoodID
 		}
-		if ln.Qty.IsNegative() {
+		luID := strings.TrimSpace(ln.LoadUnitID)
+		if luID != "" && !boxes[luID] {
+			return ErrInvalidLoadUnitID
+		}
+		// Ноль россыпью — «здесь этого нет» (SET грани), а пустая строка короба смысла не имеет.
+		if ln.Qty.IsNegative() || (luID != "" && !ln.Qty.IsPositive()) {
 			return ErrInvalidQuantity
 		}
 		iso, err := parseEntryDate(ln.ProductionDate)
 		if err != nil {
 			return err
 		}
-		repoLines = append(repoLines, repository.StockEntryLineInput{GoodID: goodID, ProductionDate: iso, Qty: ln.Qty})
+		marks := make([]czMarkPayload, len(ln.Marks))
+		for i, m := range ln.Marks {
+			marks[i] = czMarkPayload(m)
+		}
+		lineMarks, err := cz.marks(marks, luID, ln.Qty)
+		if err != nil {
+			return err
+		}
+		in.Lines = append(in.Lines, repository.StockEntryLineInput{
+			GoodID: goodID, ProductionDate: iso, Qty: ln.Qty, LoadUnitID: luID, Marks: lineMarks,
+		})
 	}
 
-	repoBarcodes := make([]repository.BarcodeBindInput, 0, len(barcodes))
-	for _, b := range barcodes {
+	for _, b := range cell.Barcodes {
 		goodID := strings.TrimSpace(b.GoodID)
 		code := strings.TrimSpace(b.Barcode)
 		if goodID == "" {
@@ -121,10 +201,10 @@ func (s *StockEntryService) Checkpoint(ctx context.Context, sessionID, cellID st
 		if code == "" {
 			return ErrEmptyBarcode
 		}
-		repoBarcodes = append(repoBarcodes, repository.BarcodeBindInput{GoodID: goodID, Barcode: code, Symbology: strings.TrimSpace(b.Symbology)})
+		in.Barcodes = append(in.Barcodes, repository.BarcodeBindInput{GoodID: goodID, Barcode: code, Symbology: strings.TrimSpace(b.Symbology)})
 	}
 
-	return s.repo.Checkpoint(ctx, sessionID, cellID, repoLines, repoBarcodes)
+	return s.repo.Checkpoint(ctx, sessionID, in)
 }
 
 // Finalize переносит сессию в остатки и закрывает её; возвращает число записанных строк.

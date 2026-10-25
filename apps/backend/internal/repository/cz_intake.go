@@ -12,21 +12,34 @@ import (
 	"craftwms/internal/model"
 )
 
-// isolatorCode — код внутреннего склада «Изолятор» (миграция 23): туда приёмка переводит товар
-// с расхождением ЧЗ (CZ-05). Флага у склада нет, поэтому — по коду, как его и завела миграция.
+// isolatorCode — код внутреннего склада «Изолятор» (миграция 23): туда приход переводит товар
+// с расхождением ЧЗ (CZ-05, ADHOC-46). Флага у склада нет, поэтому — по коду, как его и завела миграция.
 const isolatorCode = "ISOLATOR"
 
-// receiveCZ записывает марки и агрегаты ЧЗ проведённой приёмки (CZ-05) — в её транзакции.
+// CZIntakeInput — приход ЧЗ: что приёмка (CZ-05) или финал ввода остатков (ADHOC-46) отдают
+// общей записи марок, упаковок и проблем с расхождением.
+type CZIntakeInput struct {
+	// ReceiptID — приёмка, задание на размещение которой правят проблемы россыпи; пусто —
+	// ввод остатков: задания у него нет.
+	ReceiptID   string
+	WarehouseID string
+	CreatedBy   string
+	LoadUnits   []LoadUnitInput
+	// Lines — строки прихода; ячейка у каждой уже подставлена.
+	Lines    []model.ReceiptLineInput
+	CZGroups []model.CZAggregate
+}
+
+// receiveCZ записывает марки и агрегаты ЧЗ проведённого прихода — в его транзакции.
 //
-// Что: короба ЧЗ (это ГЕ приёмки) и групповые упаковки, марки с местом — в коробе или россыпью
+// Что: короба ЧЗ (это ГЕ прихода) и групповые упаковки, марки с местом — в коробе или россыпью
 // в ячейке строки на складе по умолчанию, признак «маркируемый» у их товаров; расхождения с ЧЗ —
 // проблемы склада с переводом в «Изолятор».
-// Зачем после postReceipt: место марки в коробе — размещённая ГЕ, а проблема переводит уже
-// оприходованный остаток. Всё в одной транзакции: приёмка без своих марок означала бы, что
+// Зачем после проводки: место марки в коробе — размещённая ГЕ, а проблема переводит уже
+// оприходованный остаток. Всё в одной транзакции: приход без своих марок означал бы, что
 // «где лежит марка» отвечает неправду.
-// [cells] — ячейка каждой строки после подстановки ячейки приёмки.
-func receiveCZ(ctx context.Context, q Querier, in ReceiptSubmitInput, cells []string) error {
-	if err := insertReceiptAggregates(ctx, q, in); err != nil {
+func receiveCZ(ctx context.Context, q Querier, in CZIntakeInput) error {
+	if err := insertIntakeAggregates(ctx, q, in); err != nil {
 		return err
 	}
 	hasMarks := false
@@ -50,7 +63,7 @@ func receiveCZ(ctx context.Context, q Querier, in ReceiptSubmitInput, cells []st
 	goodOfGTIN := map[string]string{}
 	var marks []model.CZMark
 	var goods []string
-	for i, ln := range in.Lines {
+	for _, ln := range in.Lines {
 		if len(ln.Marks) == 0 {
 			continue
 		}
@@ -67,7 +80,7 @@ func receiveCZ(ctx context.Context, q Querier, in ReceiptSubmitInput, cells []st
 				LoadUnitID: ln.LoadUnitID,
 			}
 			if ln.LoadUnitID == "" {
-				mark.CellID, mark.InternalWarehouseID = cells[i], iwh
+				mark.CellID, mark.InternalWarehouseID = ln.CellID, iwh
 			}
 			marks = append(marks, mark)
 		}
@@ -79,12 +92,12 @@ func receiveCZ(ctx context.Context, q Querier, in ReceiptSubmitInput, cells []st
 	if err := markGoodsCZ(ctx, q, goods); err != nil {
 		return err
 	}
-	return receiptCZProblems(ctx, q, in, cells, boxes)
+	return intakeCZProblems(ctx, q, in, boxes)
 }
 
-// insertReceiptAggregates заводит короба ЧЗ приёмки и её групповые упаковки — родитель раньше
+// insertIntakeAggregates заводит короба ЧЗ прихода и его групповые упаковки — родитель раньше
 // вложенной: внешний ключ parent_code не примет упаковку раньше её короба.
-func insertReceiptAggregates(ctx context.Context, q Querier, in ReceiptSubmitInput) error {
+func insertIntakeAggregates(ctx context.Context, q Querier, in CZIntakeInput) error {
 	done := map[string]bool{"": true}
 	for _, lu := range in.LoadUnits {
 		if lu.CZCode == "" {
@@ -97,7 +110,7 @@ func insertReceiptAggregates(ctx context.Context, q Querier, in ReceiptSubmitInp
 		}
 		done[lu.CZCode] = true
 	}
-	// Вложенность проверил сервис (родитель — упаковка той же приёмки, без циклов), поэтому
+	// Вложенность проверил сервис (родитель — упаковка того же прихода, без циклов), поэтому
 	// каждый проход вставляет хотя бы одну упаковку; проход без вставок — защита от зацикливания.
 	pending := in.CZGroups
 	for len(pending) > 0 {
@@ -142,14 +155,14 @@ func guardMarksOfGood(ctx context.Context, q Querier, ln model.ReceiptLineInput,
 	return nil
 }
 
-// receiptCZProblems заводит проблемы склада по маркам с расхождением (CZ-05).
+// intakeCZProblems заводит проблемы склада по маркам с расхождением (CZ-05).
 //
 // Короб ЧЗ, в котором есть хоть одна такая марка, уходит в «Изолятор» целиком: короб — одна
 // ГЕ с одной меткой склада, и все его марки — марки проблемы. Марки россыпью (и в своём коробе
 // с QR) — проблемой на товар и партию строки с их числом, отдельной на каждую причину; из
 // своего короба они вынимаются в россыпь «Изолятора» той же ячейки.
 // Причина короба — «чужая марка», если такая в нём есть: решение по ней шире (можно разместить).
-func receiptCZProblems(ctx context.Context, q Querier, in ReceiptSubmitInput, cells []string, boxes map[string]string) error {
+func intakeCZProblems(ctx context.Context, q Querier, in CZIntakeInput, boxes map[string]string) error {
 	type boxIssue struct{ foreign, retired bool }
 	boxIssues := map[string]*boxIssue{}
 	var looseKeys []problemKey
@@ -186,9 +199,9 @@ func receiptCZProblems(ctx context.Context, q Querier, in ReceiptSubmitInput, ce
 	}
 	base := ProblemSubmitInput{
 		WarehouseID: in.WarehouseID, CreatedBy: in.CreatedBy, ToInternalWarehouseID: isolator,
-		fromReceipt: true,
+		fromIntake: true,
 	}
-	// Короба — в порядке ГЕ приёмки: номер проблемы не должен зависеть от обхода словаря.
+	// Короба — в порядке ГЕ прихода: номер проблемы не должен зависеть от обхода словаря.
 	for _, lu := range in.LoadUnits {
 		bi := boxIssues[lu.ID]
 		if bi == nil {
@@ -213,7 +226,7 @@ func receiptCZProblems(ctx context.Context, q Querier, in ReceiptSubmitInput, ce
 		if ln.LoadUnitID != "" {
 			p.FromLoadUnitID = ln.LoadUnitID
 		} else {
-			p.CellID = cells[k.line]
+			p.CellID = ln.CellID
 		}
 		if len(cis) == 1 {
 			p.Mark = cis[0]
@@ -224,7 +237,7 @@ func receiptCZProblems(ctx context.Context, q Querier, in ReceiptSubmitInput, ce
 		if err := problemSubmit(ctx, q, p); err != nil {
 			return err
 		}
-		if ln.LoadUnitID == "" {
+		if ln.LoadUnitID == "" && in.ReceiptID != "" {
 			if err := excludeFromPutawayTask(ctx, q, in.ReceiptID, p.CellID, p.GoodID, p.ProductionDate, p.Qty); err != nil {
 				return err
 			}
@@ -233,14 +246,28 @@ func receiptCZProblems(ctx context.Context, q Querier, in ReceiptSubmitInput, ce
 	return nil
 }
 
-// problemKey — проблема марок россыпью: строка приёмки и причина.
+// receiptCZIntake — приход ЧЗ проведённой приёмки. [cells] — ячейка каждой строки после
+// подстановки ячейки приёмки.
+func receiptCZIntake(in ReceiptSubmitInput, cells []string) CZIntakeInput {
+	lines := make([]model.ReceiptLineInput, len(in.Lines))
+	for i, ln := range in.Lines {
+		ln.CellID = cells[i]
+		lines[i] = ln
+	}
+	return CZIntakeInput{
+		ReceiptID: in.ReceiptID, WarehouseID: in.WarehouseID, CreatedBy: in.CreatedBy,
+		LoadUnits: in.LoadUnits, Lines: lines, CZGroups: in.CZGroups,
+	}
+}
+
+// problemKey — проблема марок россыпью: строка прихода и причина.
 type problemKey struct {
 	line   int
 	reason string
 }
 
 // isolatorWarehouse — id «Изолятора». Нет его (удалён или переименован код) — отказ: товар
-// с расхождением принять на «Основной» как обычный нельзя.
+// с расхождением завести на «Основной» как обычный нельзя.
 func isolatorWarehouse(ctx context.Context, q Querier) (string, error) {
 	var id string
 	err := q.QueryRow(ctx, `SELECT id::text FROM internal_warehouses WHERE code = $1`, isolatorCode).Scan(&id)

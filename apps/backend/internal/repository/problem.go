@@ -61,9 +61,10 @@ type ProblemSubmitInput struct {
 	// проблему — решение офиса и отгрузка возврата берут ровно их.
 	Marks []string
 
-	// fromReceipt — проблему заводит проводка приёмки (CZ-05): товар ещё в ячейке приёмки,
-	// и это законно — он уходит в «Изолятор», не дожидаясь размещения.
-	fromReceipt bool
+	// fromIntake — проблему заводит проводка прихода: приёмки (CZ-05) или ввода остатков
+	// (ADHOC-46). Товар может лежать в ячейке приёмки, и это законно — он уходит в «Изолятор»,
+	// не дожидаясь размещения.
+	fromIntake bool
 }
 
 // problemSubmit фиксирует проблему и переводит остаток на склад назначения (P6-07-1).
@@ -268,7 +269,7 @@ func guardProblemPlace(ctx context.Context, q Querier, cell, fromIwh string, in 
 	if err := guardCellOfWarehouse(ctx, q, cell, in.WarehouseID); err != nil {
 		return err
 	}
-	if in.fromReceipt {
+	if in.fromIntake {
 		return nil
 	}
 	return guardNotReceivingCell(ctx, q, cell)
