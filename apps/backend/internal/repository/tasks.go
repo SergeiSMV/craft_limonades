@@ -441,14 +441,41 @@ func (r *TaskRepository) attachItems(ctx context.Context, tasks []model.Task) er
 	if err != nil {
 		return err
 	}
+	czCodes, err := r.boxCZCodes(ctx, boxIDs)
+	if err != nil {
+		return err
+	}
 	for ti := range tasks {
 		for ii := range tasks[ti].Items {
 			if lu := tasks[ti].Items[ii].LoadUnitID; lu != nil {
 				tasks[ti].Items[ii].Contents = contents[*lu]
+				if code, ok := czCodes[*lu]; ok {
+					tasks[ti].Items[ii].CZCode = &code
+				}
 			}
 		}
 	}
 	return nil
+}
+
+// boxCZCodes — коды коробов ЧЗ среди коробов заданий (CZ-06): ГЕ → `00`+SSCC.
+func (r *TaskRepository) boxCZCodes(ctx context.Context, ids []string) (map[string]string, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT load_unit_id::text, code FROM cz_aggregates
+		WHERE load_unit_id = ANY($1::uuid[])`, ids)
+	if err != nil {
+		return nil, fmt.Errorf("коды коробов ЧЗ задания: %w", err)
+	}
+	defer rows.Close()
+	out := map[string]string{}
+	for rows.Next() {
+		var lu, code string
+		if err := rows.Scan(&lu, &code); err != nil {
+			return nil, fmt.Errorf("разобрать код короба ЧЗ: %w", err)
+		}
+		out[lu] = code
+	}
+	return out, rows.Err()
 }
 
 // attachReturnItems дочитывает позиции заданий возврата (ADHOC-31): проблемы, решённые
@@ -504,6 +531,38 @@ func (r *TaskRepository) attachReturnItems(ctx context.Context, tasks []model.Ta
 		}
 		t := &tasks[index[taskID]]
 		t.Items = append(t.Items, it)
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	rows.Close()
+	return r.attachReturnMarks(ctx, tasks, ids, index)
+}
+
+// attachReturnMarks дочитывает марки ЧЗ позиций возврата россыпью (CZ-06, долг 30): ТСД
+// считает «отсканировано N из M» без связи.
+func (r *TaskRepository) attachReturnMarks(ctx context.Context, tasks []model.Task, ids []string, index map[string]int) error {
+	rows, err := r.pool.Query(ctx, `
+		SELECT p.return_task_id::text, p.id::text, m.cis
+		FROM warehouse_problems p
+		JOIN cz_marks m ON m.problem_id = p.id AND m.status = $2 AND m.load_unit_id IS NULL
+		WHERE p.return_task_id = ANY($1::uuid[]) AND p.load_unit_id IS NULL
+		ORDER BY m.cis`, ids, model.CZMarkInStock)
+	if err != nil {
+		return fmt.Errorf("марки позиций возврата: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var taskID, problemID, cis string
+		if err := rows.Scan(&taskID, &problemID, &cis); err != nil {
+			return fmt.Errorf("разобрать марку позиции возврата: %w", err)
+		}
+		items := tasks[index[taskID]].Items
+		for i := range items {
+			if items[i].ProblemID != nil && *items[i].ProblemID == problemID {
+				items[i].Marks = append(items[i].Marks, cis)
+			}
+		}
 	}
 	return rows.Err()
 }

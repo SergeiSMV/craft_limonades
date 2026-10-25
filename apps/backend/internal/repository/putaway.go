@@ -43,6 +43,10 @@ type PutawayLineInput struct {
 	Qty            decimal.Decimal
 
 	ToCellID string
+
+	// Marks — КИ марок ЧЗ строки россыпи (CZ-06): у маркируемого товара обязательны, по одной
+	// на единицу; марки переезжают из ячейки приёмки вместе с остатком.
+	Marks []string
 }
 
 // PutawaySubmitInput — сеанс размещения, собранный устройством целиком (P5-02).
@@ -246,6 +250,10 @@ func putawayLoose(ctx context.Context, q Querier, ln PutawayLineInput, batchID, 
 		model.StockKey{CellID: from, GoodID: ln.GoodID, BatchID: batchID, InternalWarehouseID: iwh},
 		model.StockKey{CellID: ln.ToCellID, GoodID: ln.GoodID, BatchID: batchID, InternalWarehouseID: iwh},
 		ln.Qty); err != nil {
+		return putawayLineRow{}, err
+	}
+	if err := moveMarks(ctx, q, ln.GoodID, batchID, ln.Marks, ln.Qty,
+		placeOf("", from, iwh), placeOf("", ln.ToCellID, iwh)); err != nil {
 		return putawayLineRow{}, err
 	}
 	good, qty := ln.GoodID, ln.Qty.String()

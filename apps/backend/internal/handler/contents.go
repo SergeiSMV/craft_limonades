@@ -22,6 +22,7 @@ type contentsReader interface {
 	LoadUnitCard(ctx context.Context, id string) (model.LoadUnitCard, error)
 	SearchLoadUnits(ctx context.Context, code string) ([]model.LoadUnitCard, error)
 	LoadUnitHistory(ctx context.Context, id string) (model.LoadUnitHistory, error)
+	LoadUnitByCZCode(ctx context.Context, code string) (model.LoadUnitCard, error)
 }
 
 // ContentsHandler — просмотр содержимого ячеек и коробов на ТСД (P5-05).
@@ -56,6 +57,10 @@ type loadUnitCardResponse struct {
 	Contents    []contentLineResponse `json:"contents"`
 	// Склад короба целиком (P6-07-1): товар кладётся в короб только того же склада.
 	InternalWarehouseID string `json:"internal_warehouse_id"`
+	// Короб ЧЗ (CZ-06): код `00`+SSCC — по нему короб находят сканом этикетки ЧЗ; null —
+	// свой короб с QR. cz_opened — из короба ЧЗ вынута хоть одна марка.
+	CZCode   *string `json:"cz_code"`
+	CZOpened bool    `json:"cz_opened"`
 }
 
 type looseLineResponse struct {
@@ -88,6 +93,9 @@ type snapshotLoadUnitResponse struct {
 	Contents  []snapshotLineResponse `json:"contents"`
 	// Склад короба целиком (P6-07-1).
 	InternalWarehouseID string `json:"internal_warehouse_id"`
+	// Короб ЧЗ (CZ-06): ТСД узнаёт его по скану SSCC без связи. Поля — только у короба ЧЗ.
+	CZCode   *string `json:"cz_code,omitempty"`
+	CZOpened bool    `json:"cz_opened,omitempty"`
 }
 
 type snapshotLooseResponse struct {
@@ -96,10 +104,24 @@ type snapshotLooseResponse struct {
 	snapshotLineResponse
 }
 
+// snapshotMarkResponse — марка ЧЗ на складе (CZ-06): в коробе (load_unit_id) или россыпью
+// (cell_id + internal_warehouse_id). aggregate_code — упаковка ЧЗ, в которой марка пришла.
+type snapshotMarkResponse struct {
+	CIS                 string  `json:"cis"`
+	GoodID              string  `json:"good_id"`
+	BatchID             string  `json:"batch_id"`
+	ProductionDate      string  `json:"production_date"`
+	LoadUnitID          *string `json:"load_unit_id,omitempty"`
+	CellID              *string `json:"cell_id,omitempty"`
+	InternalWarehouseID *string `json:"internal_warehouse_id,omitempty"`
+	AggregateCode       *string `json:"aggregate_code,omitempty"`
+}
+
 type snapshotResponse struct {
 	AsOf      string                     `json:"as_of"` // RFC3339
 	LoadUnits []snapshotLoadUnitResponse `json:"load_units"`
 	Loose     []snapshotLooseResponse    `json:"loose"`
+	Marks     []snapshotMarkResponse     `json:"marks"`
 }
 
 // Snapshot: GET /api/v1/contents/snapshot — все живые короба и россыпь для кэша ТСД. 200.
@@ -113,6 +135,7 @@ func (h *ContentsHandler) Snapshot(w http.ResponseWriter, r *http.Request) {
 		AsOf:      snap.AsOf.UTC().Format(time.RFC3339),
 		LoadUnits: make([]snapshotLoadUnitResponse, 0, len(snap.LoadUnits)),
 		Loose:     make([]snapshotLooseResponse, 0, len(snap.Loose)),
+		Marks:     make([]snapshotMarkResponse, 0, len(snap.Marks)),
 	}
 	for _, lu := range snap.LoadUnits {
 		// У живого короба ячейка есть всегда — это часть определения живости.
@@ -124,6 +147,8 @@ func (h *ContentsHandler) Snapshot(w http.ResponseWriter, r *http.Request) {
 			ID: lu.ID, Kind: lu.Kind, CellID: cellID,
 			CreatedAt:           lu.CreatedAt.UTC().Format(time.RFC3339),
 			InternalWarehouseID: lu.InternalWarehouseID,
+			CZCode:              lu.CZCode,
+			CZOpened:            lu.CZOpened,
 			Contents:            make([]snapshotLineResponse, 0, len(lu.Contents)),
 		}
 		for _, c := range lu.Contents {
@@ -135,6 +160,16 @@ func (h *ContentsHandler) Snapshot(w http.ResponseWriter, r *http.Request) {
 		out.Loose = append(out.Loose, snapshotLooseResponse{
 			CellID: l.CellID, InternalWarehouseID: l.InternalWarehouseID,
 			snapshotLineResponse: toSnapshotLine(l.ContentLine),
+		})
+	}
+	for _, m := range snap.Marks {
+		out.Marks = append(out.Marks, snapshotMarkResponse{
+			CIS: m.CIS, GoodID: m.GoodID, BatchID: m.BatchID,
+			ProductionDate:      m.ProductionDate.Format(productionDateLayout),
+			LoadUnitID:          m.LoadUnitID,
+			CellID:              m.CellID,
+			InternalWarehouseID: m.InternalWarehouseID,
+			AggregateCode:       m.AggregateCode,
 		})
 	}
 	writeJSON(w, http.StatusOK, out)
@@ -168,6 +203,17 @@ func (h *ContentsHandler) CellContents(w http.ResponseWriter, r *http.Request) {
 // 200 / 400 / 404.
 func (h *ContentsHandler) LoadUnitCard(w http.ResponseWriter, r *http.Request) {
 	card, err := h.svc.LoadUnitCard(r.Context(), chi.URLParam(r, "id"))
+	if err != nil {
+		contentsError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, toLoadUnitCard(card))
+}
+
+// LoadUnitByCZCode: GET /api/v1/load-units/cz/{code} — карточка ГЕ короба ЧЗ по коду
+// `00`+SSCC с его этикетки (CZ-06). 200 / 400 / 404 (короб не принят).
+func (h *ContentsHandler) LoadUnitByCZCode(w http.ResponseWriter, r *http.Request) {
+	card, err := h.svc.LoadUnitByCZCode(r.Context(), chi.URLParam(r, "code"))
 	if err != nil {
 		contentsError(w, r, err)
 		return
@@ -280,6 +326,8 @@ func toLoadUnitCard(lu model.LoadUnitCard) loadUnitCardResponse {
 		Contents:  make([]contentLineResponse, 0, len(lu.Contents)),
 
 		InternalWarehouseID: lu.InternalWarehouseID,
+		CZCode:              lu.CZCode,
+		CZOpened:            lu.CZOpened,
 	}
 	for _, c := range lu.Contents {
 		out.Contents = append(out.Contents, toContentLine(c))
@@ -306,7 +354,7 @@ func toSnapshotLine(c model.ContentLine) snapshotLineResponse {
 func contentsError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
 	case errors.Is(err, service.ErrInvalidCellID), errors.Is(err, service.ErrInvalidLoadUnitID),
-		errors.Is(err, service.ErrInvalidShortCode):
+		errors.Is(err, service.ErrInvalidShortCode), errors.Is(err, service.ErrInvalidCZBoxCode):
 		writeError(w, http.StatusBadRequest, err.Error())
 	case errors.Is(err, model.ErrCellNotFound), errors.Is(err, model.ErrLoadUnitNotFound):
 		writeError(w, http.StatusNotFound, err.Error())

@@ -14,6 +14,7 @@ import '../../../../core/gen/assets.gen.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/load_unit/load_unit_code.dart';
 import '../../../../core/scanner/hardware_scan_listener.dart';
+import '../../../../core/scanner/cz_code.dart';
 import '../../../../core/scanner/scan_code.dart';
 import '../../../../core/scanner/scan_deduper.dart';
 import '../../../../core/theme/regular_text.dart';
@@ -91,10 +92,10 @@ class _SupplierReturnViewState extends State<_SupplierReturnView>
         cubit.scanCell(code);
       case ScanKind.good:
         await onGoodScan(code);
-      // Марки и короба «Честного знака» здесь пока не ждут (приёмка марок — CZ-05):
-      // как незнакомый код. Раньше код короба (20 цифр) уходил сюда же через «товар».
-      case ScanKind.czMark:
       case ScanKind.czBox:
+        cubit.scanCzBox(czBoxFrom(code)!);
+      case ScanKind.czMark:
+        cubit.scanMark(czMarkFrom(code)!);
       case ScanKind.unknown:
         if (readLoadUnitPayload(code) is LoadUnitPayloadUnsupported) {
           snack(t.supplierReturn.boxLabelUnsupported);
@@ -153,6 +154,7 @@ class _SupplierReturnViewState extends State<_SupplierReturnView>
       ReturnNotice.needCell => t.supplierReturn.noticeNeedCell(
         cell: state.noticeCell ?? '',
       ),
+      ReturnNotice.scanMark => t.supplierReturn.noticeScanMark,
     });
     cubit.clearNotice();
   }
@@ -265,6 +267,7 @@ class _SupplierReturnViewState extends State<_SupplierReturnView>
                     item: open[i],
                     checked: state.marked.contains(open[i].problemId),
                     active: state.isActive(open[i]),
+                    scannedMarks: state.scannedOf(open[i]),
                     onTap: () => onTapItem(open[i]),
                   ),
                 ),

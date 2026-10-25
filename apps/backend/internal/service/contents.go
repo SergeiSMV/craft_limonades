@@ -17,7 +17,12 @@ var (
 	ErrInvalidCellID = errors.New("cell id must be a UUID")
 	// ErrInvalidShortCode — короткий код не из 1…8 шестнадцатеричных знаков.
 	ErrInvalidShortCode = errors.New("short code must be 1 to 8 hex digits")
+	// ErrInvalidCZBoxCode — код короба ЧЗ не `00` + 18 цифр SSCC.
+	ErrInvalidCZBoxCode = errors.New("chestny znak box code must be 00 and 18 digits")
 )
+
+// czBoxCodePattern — код транспортного короба ЧЗ: `00` + SSCC (CZ-03).
+var czBoxCodePattern = regexp.MustCompile(`^00[0-9]{18}$`)
 
 // shortCodeSearchLimit — сколько коробов отдаёт поиск по короткому коду. По одному-двум знакам
 // совпадает пол-склада; кладовщику нужен его короб, а не выгрузка, — он допишет код.
@@ -33,6 +38,7 @@ type contentsRepo interface {
 	LoadUnitCard(ctx context.Context, id string) (model.LoadUnitCard, error)
 	SearchLoadUnits(ctx context.Context, code string, limit int) ([]model.LoadUnitCard, error)
 	LoadUnitHistory(ctx context.Context, id string) (model.LoadUnitHistory, error)
+	LoadUnitByCZCode(ctx context.Context, code string) (model.LoadUnitCard, error)
 }
 
 // ContentsService — просмотр содержимого ячеек и коробов на ТСД (P5-05).
@@ -85,6 +91,17 @@ func (s *ContentsService) SearchLoadUnits(ctx context.Context, raw string) ([]mo
 		return nil, ErrInvalidShortCode
 	}
 	return s.repo.SearchLoadUnits(ctx, code, shortCodeSearchLimit)
+}
+
+// LoadUnitByCZCode — карточка ГЕ, которой стал короб ЧЗ с кодом `00`+SSCC (CZ-06): своего
+// ярлыка у короба ЧЗ нет, кладовщик сканирует этикетку ЧЗ. Короб не принят —
+// model.ErrLoadUnitNotFound.
+func (s *ContentsService) LoadUnitByCZCode(ctx context.Context, raw string) (model.LoadUnitCard, error) {
+	code := strings.TrimSpace(raw)
+	if !czBoxCodePattern.MatchString(code) {
+		return model.LoadUnitCard{}, ErrInvalidCZBoxCode
+	}
+	return s.repo.LoadUnitByCZCode(ctx, code)
 }
 
 // LoadUnitHistory — история короба: приёмка и переносы.

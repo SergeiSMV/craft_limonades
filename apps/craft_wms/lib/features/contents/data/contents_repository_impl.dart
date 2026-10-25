@@ -77,6 +77,54 @@ class ContentsRepositoryImpl implements ContentsRepository {
   }
 
   @override
+  Future<List<StockMark>> marksByCode(String code) async {
+    final overlay = await _overlay();
+    final def = overlay.cells.defaultInternalWarehouse;
+    final base = {
+      for (final m in await _cache.marksByCode(code))
+        m.cis: m.cellId == null
+            ? m
+            : StockMark(
+                cis: m.cis,
+                goodId: m.goodId,
+                productionDate: m.productionDate,
+                cellId: m.cellId,
+                internalWarehouseId: InternalWarehouses.normalize(
+                  m.internalWarehouseId,
+                  def,
+                ),
+                aggregateCode: m.aggregateCode,
+              ),
+    };
+    // Короба марок и операций — с наложенной очередью: марка, вынутая из короба, ложится
+    // в его ячейку и склад.
+    final boxes = overlay.applyToAll(
+      _units(
+        await _cache.loadUnits({
+          ...overlay.referencedLoadUnits,
+          for (final m in base.values) ?m.loadUnitId,
+        }),
+        overlay.cells,
+      ),
+    );
+    return overlay.applyToMarks(base, code, boxes: boxes).values.toList();
+  }
+
+  @override
+  Future<Either<Failure, String?>> loadUnitIdByCzCode(String czCode) async {
+    final overlay = await _overlay();
+    final res = await _api.cardByCzCode(czCode);
+    if (res.isRight) return Right(res.right.id);
+    // Короб своей неотправленной приёмки сервер ещё не знает, снимок — тем более.
+    final own = overlay.loadUnitIdByCzCode(czCode);
+    if (_isNotFound(res.left)) return Right(own);
+    if (res.left is! NetworkFailure) return Left(res.left);
+    final cached = await _cache.loadUnitIdByCzCode(czCode);
+    if (cached != null || own != null) return Right(cached ?? own);
+    return await _cache.asOf() == null ? Left(res.left) : const Right(null);
+  }
+
+  @override
   Future<Either<Failure, Viewed<CellView>>> cell(CellRef cell) async {
     final overlay = await _overlay();
     final res = await _api.cell(cell.id);

@@ -12,6 +12,7 @@ import '../../../../core/error/failure.dart';
 import '../../../../core/gen/assets.gen.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/load_unit/load_unit_code.dart';
+import '../../../../core/scanner/cz_code.dart';
 import '../../../../core/scanner/hardware_scan_listener.dart';
 import '../../../../core/scanner/scan_code.dart';
 import '../../../../core/scanner/scan_deduper.dart';
@@ -38,6 +39,7 @@ import '../widgets/move_goods_sheet.dart';
 import '../widgets/move_hold_card.dart';
 import '../widgets/move_lines_list.dart';
 import '../widgets/move_manual_pick.dart';
+import '../widgets/move_mark_scan_actions.dart';
 import '../widgets/move_outcome_view.dart';
 import '../widgets/move_qty_header.dart';
 
@@ -71,7 +73,7 @@ class _MovementView extends StatefulWidget {
 }
 
 class _MovementViewState extends State<_MovementView>
-    with HardwareScanListener {
+    with HardwareScanListener, MoveMarkScanActions {
   final _scanController = TextEditingController();
   final _scanFocus = FocusNode();
   final _deduper = ScanDeduper();
@@ -126,10 +128,10 @@ class _MovementViewState extends State<_MovementView>
         await onCellScan(code);
       case ScanKind.good:
         await onGoodScan(code);
-      // Марки и короба «Честного знака» здесь пока не ждут (приёмка марок — CZ-05):
-      // как незнакомый код. Раньше код короба (20 цифр) уходил сюда же через «товар».
-      case ScanKind.czMark:
       case ScanKind.czBox:
+        await onCzBoxScan(czBoxFrom(code)!);
+      case ScanKind.czMark:
+        await onMarkScan(czMarkFrom(code)!);
       case ScanKind.unknown:
         if (readLoadUnitPayload(code) is LoadUnitPayloadUnsupported) {
           snack(t.movement.boxLabelUnsupported);
@@ -155,6 +157,23 @@ class _MovementViewState extends State<_MovementView>
       return;
     }
     await onBox(box);
+  }
+
+  /// Скан этикетки короба ЧЗ (`00`+SSCC, CZ-06): своего ярлыка у короба ЧЗ нет — ГЕ находится
+  /// по коду, дальше всё как у скана QR.
+  Future<void> onCzBoxScan(String czCode) async {
+    final res = await contents.loadUnitIdByCzCode(czCode);
+    if (!mounted) return;
+    if (res.isLeft) {
+      snack(t.movement.noData);
+      return;
+    }
+    final id = res.right;
+    if (id == null) {
+      snack(t.czScan.boxNotReceived);
+      return;
+    }
+    await onBoxScan(id);
   }
 
   /// Короб найден — сканом или вручную ([manual]). Ячейка — та, куда короб перенесён в этом
@@ -261,6 +280,11 @@ class _MovementViewState extends State<_MovementView>
       );
       return;
     }
+    // Маркируемый товар берут марками (CZ-06): какие именно единицы, должно быть известно.
+    if (good.czMarked) {
+      cubit.markRequired();
+      return;
+    }
     await takeFrom(cubit.candidates(goodId: good.id));
   }
 
@@ -281,6 +305,12 @@ class _MovementViewState extends State<_MovementView>
         ? options.single
         : await showMoveGoodsSheet(context, options);
     if (chosen == null || !mounted) return;
+    final good = await getIt<CatalogRepository>().goodById(chosen.$1.goodId);
+    if (!mounted) return;
+    if (good?.czMarked ?? false) {
+      cubit.markRequired();
+      return;
+    }
     final hold = cubit.state.hold;
     if (hold is! HoldSource) return;
     final qty = await showQtyDialog(
@@ -316,6 +346,7 @@ class _MovementViewState extends State<_MovementView>
   }
 
   /// Ячейка справочника терминала по условию; `null` — такой нет.
+  @override
   Future<Cell?> cellWhere(bool Function(Cell) test) async {
     final res = await getIt<CatalogRepository>().listAllCells();
     return res
@@ -348,10 +379,14 @@ class _MovementViewState extends State<_MovementView>
       NoticeBoxIntoBox() => t.movement.noticeBoxIntoBox,
       NoticeWarehouseMismatch() => t.movement.noticeWarehouseMismatch,
       NoticeMoved(:final address) => t.movement.noticeMoved(cell: address),
+      NoticeScanMark() => t.movement.noticeScanMark,
+      NoticeMarkTaken() => t.movement.noticeMarkTaken,
+      NoticeMarkOtherGoods() => t.movement.noticeMarkOtherGoods,
     });
     cubit.clearNotice();
   }
 
+  @override
   void snack(String text) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()

@@ -39,6 +39,11 @@ func (r *ContentsRepository) withinSnapshot(ctx context.Context, fn func(Querier
 	return fn(tx)
 }
 
+// czBoxColumns — код короба ЧЗ и признак вскрытия для карточки ГЕ (CZ-06). Запрос обязан
+// присоединить `cz_aggregates cza ON cza.load_unit_id = lu.id` (LEFT JOIN): у своего короба
+// с QR агрегата нет, код — NULL, вскрытия нет.
+const czBoxColumns = `cza.code, cza.opened_at IS NOT NULL`
+
 // Snapshot возвращает все живые короба с содержимым и всю россыпь склада одним согласованным
 // снимком — для кэша ТСД.
 //
@@ -56,7 +61,10 @@ func (r *ContentsRepository) Snapshot(ctx context.Context) (model.ContentsSnapsh
 		if snap.LoadUnits, err = liveLoadUnits(ctx, q, nil); err != nil {
 			return err
 		}
-		snap.Loose, err = looseStock(ctx, q, nil)
+		if snap.Loose, err = looseStock(ctx, q, nil); err != nil {
+			return err
+		}
+		snap.Marks, err = marksInStock(ctx, q)
 		return err
 	})
 	if err != nil {
@@ -97,12 +105,13 @@ func (r *ContentsRepository) LoadUnitCard(ctx context.Context, id string) (model
 	err := r.withinSnapshot(ctx, func(q Querier) error {
 		err := q.QueryRow(ctx, `
 			SELECT lu.id::text, lu.kind, lu.status, lu.cell_id::text, c.address, lu.created_at,
-			       lu.internal_warehouse_id::text
+			       lu.internal_warehouse_id::text, `+czBoxColumns+`
 			FROM load_units lu
 			LEFT JOIN cells c ON c.id = lu.cell_id
+			LEFT JOIN cz_aggregates cza ON cza.load_unit_id = lu.id
 			WHERE lu.id = $1::uuid`, id).
 			Scan(&card.ID, &card.Kind, &card.Status, &card.CellID, &card.CellAddress, &card.CreatedAt,
-				&card.InternalWarehouseID)
+				&card.InternalWarehouseID, &card.CZCode, &card.CZOpened)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return model.ErrLoadUnitNotFound
 		}
@@ -123,6 +132,22 @@ func (r *ContentsRepository) LoadUnitCard(ctx context.Context, id string) (model
 	return card, nil
 }
 
+// LoadUnitByCZCode — карточка ГЕ короба ЧЗ по коду `00`+SSCC (CZ-06). Нет такого принятого
+// короба — model.ErrLoadUnitNotFound.
+func (r *ContentsRepository) LoadUnitByCZCode(ctx context.Context, code string) (model.LoadUnitCard, error) {
+	var id string
+	err := r.pool.QueryRow(ctx, `
+		SELECT load_unit_id::text FROM cz_aggregates
+		WHERE code = $1 AND kind = $2 AND load_unit_id IS NOT NULL`, code, model.CZAggregateBox).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return model.LoadUnitCard{}, model.ErrLoadUnitNotFound
+	}
+	if err != nil {
+		return model.LoadUnitCard{}, fmt.Errorf("короб ЧЗ по коду: %w", err)
+	}
+	return r.LoadUnitCard(ctx, id)
+}
+
 // liveLoadUnits — живые короба (размещены и не пусты) с содержимым; cellID — фильтр по
 // ячейке, nil — весь склад.
 //
@@ -131,9 +156,10 @@ func (r *ContentsRepository) LoadUnitCard(ctx context.Context, id string) (model
 func liveLoadUnits(ctx context.Context, q Querier, cellID *string) ([]model.LoadUnitCard, error) {
 	rows, err := q.Query(ctx, `
 		SELECT lu.id::text, lu.kind, lu.status, lu.cell_id::text, c.address, lu.created_at,
-			       lu.internal_warehouse_id::text
+			       lu.internal_warehouse_id::text, `+czBoxColumns+`
 		FROM load_units lu
 		JOIN cells c ON c.id = lu.cell_id
+		LEFT JOIN cz_aggregates cza ON cza.load_unit_id = lu.id
 		WHERE ($1::uuid IS NULL OR lu.cell_id = $1::uuid)
 		  AND EXISTS (SELECT 1 FROM lu_content x WHERE x.load_unit_id = lu.id AND x.qty > 0)
 		ORDER BY c.address, lu.created_at, lu.id`, cellID)
@@ -147,7 +173,7 @@ func liveLoadUnits(ctx context.Context, q Querier, cellID *string) ([]model.Load
 	for rows.Next() {
 		var lu model.LoadUnitCard
 		if err := rows.Scan(&lu.ID, &lu.Kind, &lu.Status, &lu.CellID, &lu.CellAddress, &lu.CreatedAt,
-			&lu.InternalWarehouseID); err != nil {
+			&lu.InternalWarehouseID, &lu.CZCode, &lu.CZOpened); err != nil {
 			return nil, fmt.Errorf("разобрать короб: %w", err)
 		}
 		lu.Live = true
@@ -250,6 +276,34 @@ func looseStock(ctx context.Context, q Querier, cellID *string) ([]model.LooseLi
 	return out, rows.Err()
 }
 
+// marksInStock — все марки ЧЗ, числящиеся на складе (CZ-06), для снимка ТСД.
+//
+// Только `in_stock`: ушедшая марка места не имеет, и терминалу её искать незачем. Партия —
+// с датой выпуска: операции ТСД несут партию датой.
+func marksInStock(ctx context.Context, q Querier) ([]model.ContentsMark, error) {
+	rows, err := q.Query(ctx, `
+		SELECT m.cis, m.good_id::text, m.batch_id::text, b.production_date,
+		       m.load_unit_id::text, m.cell_id::text, m.internal_warehouse_id::text, m.aggregate_code
+		FROM cz_marks m
+		JOIN batches b ON b.id = m.batch_id
+		WHERE m.status = $1
+		ORDER BY m.cis`, model.CZMarkInStock)
+	if err != nil {
+		return nil, fmt.Errorf("марки на складе: %w", err)
+	}
+	defer rows.Close()
+	var out []model.ContentsMark
+	for rows.Next() {
+		var m model.ContentsMark
+		if err := rows.Scan(&m.CIS, &m.GoodID, &m.BatchID, &m.ProductionDate,
+			&m.LoadUnitID, &m.CellID, &m.InternalWarehouseID, &m.AggregateCode); err != nil {
+			return nil, fmt.Errorf("разобрать марку: %w", err)
+		}
+		out = append(out, m)
+	}
+	return out, rows.Err()
+}
+
 // scanContentLine разбирает строку «короб, товар, партия, количество».
 func scanContentLine(rows pgx.Rows, lu *string, ln *model.ContentLine) error {
 	var code *string
@@ -281,9 +335,10 @@ func (r *ContentsRepository) SearchLoadUnits(ctx context.Context, code string, l
 	err := r.withinSnapshot(ctx, func(q Querier) error {
 		rows, err := q.Query(ctx, `
 			SELECT lu.id::text, lu.kind, lu.status, lu.cell_id::text, c.address, lu.created_at,
-			       lu.internal_warehouse_id::text
+			       lu.internal_warehouse_id::text, `+czBoxColumns+`
 			FROM load_units lu
 			LEFT JOIN cells c ON c.id = lu.cell_id
+			LEFT JOIN cz_aggregates cza ON cza.load_unit_id = lu.id
 			WHERE strpos(upper(right(replace(lu.id::text, '-', ''), 8)), $1) > 0
 			ORDER BY (lu.cell_id IS NOT NULL
 			          AND EXISTS (SELECT 1 FROM lu_content x WHERE x.load_unit_id = lu.id AND x.qty > 0)) DESC,
@@ -297,7 +352,7 @@ func (r *ContentsRepository) SearchLoadUnits(ctx context.Context, code string, l
 		for rows.Next() {
 			var lu model.LoadUnitCard
 			if err := rows.Scan(&lu.ID, &lu.Kind, &lu.Status, &lu.CellID, &lu.CellAddress, &lu.CreatedAt,
-				&lu.InternalWarehouseID); err != nil {
+				&lu.InternalWarehouseID, &lu.CZCode, &lu.CZOpened); err != nil {
 				return fmt.Errorf("разобрать короб: %w", err)
 			}
 			out = append(out, lu)

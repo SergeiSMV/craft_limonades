@@ -238,6 +238,77 @@ class MovementCubit extends Cubit<MovementState> {
     );
   }
 
+  /// Маркируемый товар взят не марками (штрихкодом или из списка) — подсказка (CZ-06).
+  void markRequired() =>
+      emit(state.copyWith(notice: const MoveNotice.scanMark()));
+
+  /// Отсканированы марки ЧЗ (CZ-06): марка — одна единица, групповая упаковка — её марки,
+  /// лежащие в одном месте. Товар и партия — марки, место [from] — где марки лежат с учётом
+  /// сеанса, [cell] — ячейка этого места.
+  ///
+  /// С пустыми руками или с источником, где марки лежат, — марки берутся в руки товаром без
+  /// диалога количества. С марками того же товара, партии, склада и места в руках — добавляются
+  /// к ним. Источник в руках другой — «нет в источнике»; в руках другое — «сначала положите».
+  void takeMarks({
+    required List<String> marks,
+    required MoveGood good,
+    required String productionDate,
+    required MovePlace from,
+    required Cell cell,
+    String? internalWarehouseId,
+    String? internalWarehouseName,
+  }) {
+    if (marks.isEmpty || !_cellAllowed(cell)) return;
+    final hold = state.hold;
+    switch (hold) {
+      case HoldGoods(marks: final held) when held.isEmpty:
+        emit(state.copyWith(notice: const MoveNotice.putFirst()));
+      case final HoldGoods g:
+        if (g.good.id != good.id ||
+            g.productionDate != productionDate ||
+            g.internalWarehouseId != internalWarehouseId ||
+            !g.from.samePlace(from)) {
+          emit(state.copyWith(notice: const MoveNotice.markOtherGoods()));
+          return;
+        }
+        final fresh = [
+          for (final m in marks)
+            if (!g.marks.contains(m)) m,
+        ];
+        if (fresh.isEmpty) {
+          emit(state.copyWith(notice: const MoveNotice.markTaken()));
+          return;
+        }
+        emit(
+          state.copyWith(
+            hold: g.copyWith(
+              marks: [...g.marks, ...fresh],
+              qty: g.qty + fresh.length,
+            ),
+            notice: null,
+          ),
+        );
+      case HoldSource(place: final source) when !source.samePlace(from):
+        emit(state.copyWith(notice: const MoveNotice.notInSource()));
+      default:
+        emit(
+          state.copyWith(
+            hold: MoveHold.goods(
+              good: good,
+              productionDate: productionDate,
+              qty: marks.length.toDouble(),
+              from: from,
+              internalWarehouseId: internalWarehouseId,
+              internalWarehouseName: internalWarehouseName,
+              marks: marks,
+            ),
+            warehouseId: state.warehouseId ?? cell.warehouseId,
+            notice: null,
+          ),
+        );
+    }
+  }
+
   /// Положить взятый товар в [to]. Тот же товар той же партии тем же путём — одна строка
   /// с суммой.
   void _put(MovePlace to, Cell cell) {
@@ -263,7 +334,10 @@ class MovementCubit extends Cubit<MovementState> {
           l.to.samePlace(to),
     );
     if (same >= 0) {
-      lines[same] = lines[same].copyWith(qty: (lines[same].qty ?? 0) + g.qty);
+      lines[same] = lines[same].copyWith(
+        qty: (lines[same].qty ?? 0) + g.qty,
+        marks: [...lines[same].marks, ...g.marks],
+      );
     } else {
       lines.add(
         MoveLine(
@@ -274,6 +348,7 @@ class MovementCubit extends Cubit<MovementState> {
           to: to,
           internalWarehouseId: g.internalWarehouseId,
           internalWarehouseName: g.internalWarehouseName,
+          marks: g.marks,
         ),
       );
     }
@@ -349,7 +424,8 @@ class MovementCubit extends Cubit<MovementState> {
     await init();
   }
 
-  /// Тело операции `movement_submit` — формат эталона `testdata/movement_submit.json`.
+  /// Тело операции `movement_submit` — формат эталонов `testdata/movement_submit.json` и
+  /// `movement_submit_cz.json` (марки ЧЗ строки, CZ-06).
   ///
   /// У короба ячейку не шлём: сервер берёт её из места короба. Дата партии — в транспортном
   /// виде DD-MM-YYYY. Склад товара шлём только у россыпи не «Основного» склада (P6-07-2): из
@@ -377,6 +453,7 @@ class MovementCubit extends Cubit<MovementState> {
                   'to_load_unit_id': l.to.loadUnitId
                 else
                   'to_cell_id': l.to.cellId,
+                if (l.marks.isNotEmpty) 'marks': l.marks,
               },
     ],
   };

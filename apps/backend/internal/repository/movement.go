@@ -189,6 +189,10 @@ type MovementLineInput struct {
 	InternalWarehouseID string
 
 	ToCellID string
+
+	// Marks — КИ марок ЧЗ строки товара (CZ-06): у маркируемого товара обязательны, по одной
+	// на единицу; марки переезжают вместе с остатком.
+	Marks []string
 }
 
 // MovementSubmitInput — документ движения, собранный устройством целиком (P6-01).
@@ -417,6 +421,13 @@ func movementGoods(ctx context.Context, q Querier, in MovementSubmitInput, lineN
 			ln.Qty); err != nil {
 			return nil, err
 		}
+	}
+
+	// Марки ЧЗ — туда же, куда товар (CZ-06): из короба или россыпи источника в короб или
+	// россыпь приёмника той же строкой склада.
+	if err := moveMarks(ctx, q, ln.GoodID, batchID, ln.Marks, ln.Qty,
+		placeOf(ln.FromLoadUnitID, fromCell, iwh), placeOf(ln.ToLoadUnitID, toCell, iwh)); err != nil {
+		return nil, err
 	}
 
 	if _, err := q.Exec(ctx, `

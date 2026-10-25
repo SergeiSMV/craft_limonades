@@ -92,6 +92,8 @@ class LoadUnitView {
     this.pending = false,
     this.internalWarehouseId,
     this.internalWarehouseName,
+    this.czCode,
+    this.czOpened = false,
   });
 
   final String id;
@@ -115,6 +117,16 @@ class LoadUnitView {
   /// Как склад показывается человеку; `null` — «Основной».
   final String? internalWarehouseName;
 
+  /// Код короба ЧЗ (`00`+SSCC), если это транспортный короб ЧЗ (CZ-03); `null` — свой короб
+  /// с QR. По нему короб находится сканом этикетки ЧЗ (CZ-06).
+  final String? czCode;
+
+  /// Короб ЧЗ вскрыт: из него вынута хоть одна марка (CZ-06).
+  final bool czOpened;
+
+  /// Транспортный короб ЧЗ: своего ярлыка у него нет, его узнают по SSCC.
+  bool get isCzBox => czCode != null;
+
   LoadUnitView copyWith({
     String? cellId,
     String? cellAddress,
@@ -122,6 +134,8 @@ class LoadUnitView {
     List<ContentLine>? lines,
     bool? pending,
     String? internalWarehouseName,
+    String? czCode,
+    bool? czOpened,
   }) => LoadUnitView(
     id: id,
     kind: kind,
@@ -133,6 +147,8 @@ class LoadUnitView {
     pending: pending ?? this.pending,
     internalWarehouseId: internalWarehouseId,
     internalWarehouseName: internalWarehouseName ?? this.internalWarehouseName,
+    czCode: czCode ?? this.czCode,
+    czOpened: czOpened ?? this.czOpened,
   );
 
   /// Тот же короб на другом складе — со строками этого склада (P6-07-2).
@@ -146,6 +162,8 @@ class LoadUnitView {
     lines: [for (final l in lines) l.onWarehouse(id)],
     pending: pending,
     internalWarehouseId: id,
+    czCode: czCode,
+    czOpened: czOpened,
   );
 }
 
@@ -172,6 +190,60 @@ class CellRef {
 
   final String id;
   final String address;
+}
+
+/// Марка ЧЗ на складе (CZ-06): что за единица и где лежит — в коробе ([loadUnitId]; ячейка —
+/// у короба) или россыпью ([cellId] строкой склада [internalWarehouseId], `null` — «Основной»).
+///
+/// [aggregateCode] — упаковка ЧЗ, в которой марка пришла: скан групповой упаковки — набор марок
+/// с этим кодом. [pending] — место дала своя неотправленная операция, а не снимок.
+class StockMark {
+  const StockMark({
+    required this.cis,
+    required this.goodId,
+    required this.productionDate,
+    this.loadUnitId,
+    this.cellId,
+    this.internalWarehouseId,
+    this.aggregateCode,
+    this.pending = false,
+  });
+
+  final String cis;
+  final String goodId;
+
+  /// Дата партии в транспортном виде DD-MM-YYYY.
+  final String productionDate;
+  final String? loadUnitId;
+  final String? cellId;
+  final String? internalWarehouseId;
+  final String? aggregateCode;
+  final bool pending;
+
+  bool get inBox => loadUnitId != null;
+
+  /// Та же марка в другом месте: в коробе [loadUnitId] ЛИБО россыпью [cellId] склада
+  /// [internalWarehouseId].
+  StockMark movedTo({
+    String? loadUnitId,
+    String? cellId,
+    String? internalWarehouseId,
+  }) => StockMark(
+    cis: cis,
+    goodId: goodId,
+    productionDate: productionDate,
+    loadUnitId: loadUnitId,
+    cellId: loadUnitId == null ? cellId : null,
+    internalWarehouseId: loadUnitId == null ? internalWarehouseId : null,
+    aggregateCode: aggregateCode,
+    pending: true,
+  );
+
+  /// Лежат ли марки в одном месте: тот же короб или та же россыпь того же склада.
+  bool samePlace(StockMark other) =>
+      loadUnitId == other.loadUnitId &&
+      cellId == other.cellId &&
+      internalWarehouseId == other.internalWarehouseId;
 }
 
 /// Откуда данные на экране.

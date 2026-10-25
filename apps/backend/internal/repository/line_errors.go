@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/shopspring/decimal"
+
+	"craftwms/internal/model"
 )
 
 // LineRejection — строка документа, отклонённая по существу (ADHOC-40).
@@ -53,6 +55,9 @@ var lineRejections = []error{
 	ErrReceivingCell, ErrSameCell, ErrLoadUnitNotFound, ErrLoadUnitNotPlaced, ErrLoadUnitNested,
 	ErrForeignCell, ErrUnknownReference, ErrInsufficientStock,
 	ErrPutawaySameCell, ErrLooseStockShort, ErrNotInTask, ErrExceedsTask,
+	// Марки ЧЗ строки (CZ-06).
+	model.ErrCZMarksRequired, model.ErrCZMarksQtyMismatch, model.ErrCZMarkNotAtSource,
+	model.ErrCZMarkBatchMismatch,
 }
 
 // isLineRejection — отказ ли это одной строки.
@@ -72,6 +77,15 @@ func lineReason(err error) string {
 		return "в источнике не хватает товара этой партии"
 	case errors.Is(err, ErrLooseStockShort):
 		return "в ячейке приёмки не хватает россыпи"
+	case errors.Is(err, model.ErrCZMarksRequired):
+		return "маркируемый товар перемещается только сканом марок"
+	case errors.Is(err, model.ErrCZMarksQtyMismatch):
+		return "марок не столько, сколько единиц в строке"
+	case errors.Is(err, model.ErrCZMarkNotAtSource):
+		return "марки нет в источнике строки или она уже не на складе — её могли переместить с " +
+			"другого терминала: обновите данные и отсканируйте снова"
+	case errors.Is(err, model.ErrCZMarkBatchMismatch):
+		return "марка другого товара или другой партии"
 	case errors.Is(err, ErrLoadUnitNotFound):
 		return "короб не найден"
 	case errors.Is(err, ErrLoadUnitNotPlaced):

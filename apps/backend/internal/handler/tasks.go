@@ -53,6 +53,10 @@ type taskItemResponse struct {
 	Qty            *decimal.Decimal      `json:"qty,omitempty"`
 	Remaining      *decimal.Decimal      `json:"remaining,omitempty"`
 	Placed         bool                  `json:"placed"` // у возврата — «отгружено»
+	// Короб ЧЗ (CZ-06): код `00`+SSCC — короб узнаётся сканом этикетки ЧЗ.
+	CZCode *string `json:"cz_code,omitempty"`
+	// Марки позиции возврата россыпью (CZ-06, долг 30): отгрузка — сканом каждой.
+	Marks []string `json:"marks,omitempty"`
 	// Позиция возврата (ADHOC-31): проблема-основание и где лежит сейчас.
 	ProblemID *string `json:"problem_id,omitempty"`
 	Cell      string  `json:"cell,omitempty"`
@@ -274,7 +278,7 @@ func toTaskResponse(t model.Task) taskResponse {
 	}
 	for _, it := range t.Items {
 		ir := taskItemResponse{LineNo: it.LineNo, LoadUnitID: it.LoadUnitID, Placed: it.Placed,
-			ProblemID: it.ProblemID, Cell: it.CellAddress}
+			ProblemID: it.ProblemID, Cell: it.CellAddress, CZCode: it.CZCode, Marks: it.Marks}
 		if it.LoadUnitID != nil {
 			for _, c := range it.Contents {
 				ir.Contents = append(ir.Contents, taskContentResponse{

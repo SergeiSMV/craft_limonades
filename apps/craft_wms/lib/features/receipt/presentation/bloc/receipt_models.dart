@@ -1,5 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../../../../core/load_unit/box_code.dart';
 import '../../../../core/printer/load_unit_label.dart';
 import '../../../stock/data/catalog_models.dart';
 
@@ -33,8 +34,7 @@ abstract class ReceiptBox with _$ReceiptBox {
   String get shortCode {
     final cz = czCode;
     if (cz == null) return LoadUnitLabel(id).shortCodeFormatted;
-    final tail = cz.substring(cz.length - 8);
-    return '${tail.substring(0, 4)} ${tail.substring(4)}';
+    return czBoxTail(cz);
   }
 }
 

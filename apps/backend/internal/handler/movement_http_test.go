@@ -187,3 +187,90 @@ func applyMovementFixture(t *testing.T, raw []byte, kind string) {
 		t.Fatalf("движение из ячейки приёмки: %v, ожидался отказ", got)
 	}
 }
+
+// Эталон движения марками ЧЗ (CZ-06) — серверная половина контракта; клиентская — в
+// movement_cubit_test.dart. Две марки россыпью из M1-1-1-1 ложатся в короб ЧЗ в M1-1-1-2,
+// третья, лежавшая в коробе ЧЗ с приёмки, — вынимается россыпью в M1-1-1-1. После проводки
+// марки там, куда переехал товар, а короб ЧЗ вскрыт.
+func TestMovementHTTP_czMarksWireFormat(t *testing.T) {
+	raw := readFixture(t, "movement_submit_cz.json")
+	var mf struct {
+		Operations []struct {
+			Payload struct {
+				WarehouseID string `json:"warehouse_id"`
+				Lines       []struct {
+					GoodID       string   `json:"good_id"`
+					FromCellID   string   `json:"from_cell_id"`
+					ToLoadUnitID string   `json:"to_load_unit_id"`
+					Marks        []string `json:"marks"`
+				} `json:"lines"`
+			} `json:"payload"`
+		} `json:"operations"`
+	}
+	if err := json.Unmarshal(raw, &mf); err != nil {
+		t.Fatalf("эталон движения марками не разбирается: %v", err)
+	}
+	p := mf.Operations[0].Payload
+	good, cell1, box := p.Lines[0].GoodID, p.Lines[0].FromCellID, p.Lines[0].ToLoadUnitID
+	loose, boxed := p.Lines[0].Marks, p.Lines[1].Marks[0]
+	const czBox = "00046000000000000020"
+
+	e := newReceivingE2E(t, map[string]string{"warehouse": p.WarehouseID, "cell1": cell1})
+	ctx := context.Background()
+	if _, err := e.pool.Exec(ctx, `INSERT INTO goods (id,code,name,uom,cz_marked) VALUES ($1::uuid,'16121','Пиво','шт',true)`, good); err != nil {
+		t.Fatalf("товар эталона: %v", err)
+	}
+	var cell2 string
+	if err := e.pool.QueryRow(ctx, `INSERT INTO cells (warehouse_id,address) VALUES ($1::uuid,'M1-1-1-2')
+		RETURNING id::text`, e.warehouse).Scan(&cell2); err != nil {
+		t.Fatalf("ячейка короба: %v", err)
+	}
+	// Приёмка кладёт короб 12 в M1-1-1-2 и россыпь 5 в M1-1-1-1; марки — прямо в базу: приёмка
+	// марок требует ответа ЧЗ, а проверяется здесь формат движения.
+	receipt := jsonf(`{"operations":[{"operation_id":%q,"kind":"receipt_submit","payload":{
+		"receipt_id":%q,"warehouse_id":%q,"doc_number":"ТН-1","doc_date":"01-10-2026",
+		"load_units":[{"id":%q,"kind":"box"}],
+		"lines":[
+			{"good_id":%q,"production_date":"01-09-2026","qty":12,"load_unit_id":%q,"cell_id":%q},
+			{"good_id":%q,"production_date":"01-09-2026","qty":5,"cell_id":%q}]}}]}`,
+		uuid.NewString(), uuid.NewString(), p.WarehouseID, box, good, box, cell2, good, cell1)
+	if got := e.operations(t, receipt); len(got) != 1 || got[0] != service.StatusAccepted {
+		t.Fatalf("приёмка под эталон не применилась: %v", got)
+	}
+	for _, q := range []struct {
+		sql  string
+		args []any
+	}{
+		{`INSERT INTO cz_aggregates (code, kind, load_unit_id) VALUES ($1, 'BOX', $2::uuid)`, []any{czBox, box}},
+		{`INSERT INTO cz_marks (cis, good_id, batch_id, load_unit_id, aggregate_code)
+		  SELECT $1, $2::uuid, b.id, $3::uuid, $4 FROM batches b WHERE b.good_id = $2::uuid`,
+			[]any{boxed, good, box, czBox}},
+		{`INSERT INTO cz_marks (cis, good_id, batch_id, cell_id, internal_warehouse_id)
+		  SELECT m, $2::uuid, b.id, $3::uuid, w.id
+		  FROM unnest($1::text[]) m, batches b, internal_warehouses w
+		  WHERE b.good_id = $2::uuid AND w.is_default`, []any{loose, good, cell1}},
+	} {
+		if _, err := e.pool.Exec(ctx, q.sql, q.args...); err != nil {
+			t.Fatalf("марки эталона: %v", err)
+		}
+	}
+
+	if got := e.operations(t, string(raw)); len(got) != 1 || got[0] != service.StatusAccepted {
+		t.Fatalf("эталонное движение марками не применилось: %v.\n"+
+			"Формат разошёлся — сверьте testdata/movement_submit_cz.json с тем, что шлёт клиент.", got)
+	}
+	var places string
+	if err := e.pool.QueryRow(ctx, `
+		SELECT string_agg(cis || '=' || COALESCE(load_unit_id::text, cell_id::text), ',' ORDER BY cis)
+		FROM cz_marks`).Scan(&places); err != nil {
+		t.Fatal(err)
+	}
+	if want := loose[0] + "=" + box + "," + loose[1] + "=" + box + "," + boxed + "=" + cell1; places != want {
+		t.Errorf("места марок:\n %s\nожидалось\n %s", places, want)
+	}
+	var opened bool
+	if err := e.pool.QueryRow(ctx, `SELECT opened_at IS NOT NULL FROM cz_aggregates WHERE code = $1`, czBox).
+		Scan(&opened); err != nil || !opened {
+		t.Errorf("короб ЧЗ не вскрыт: %v", err)
+	}
+}

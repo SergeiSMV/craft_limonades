@@ -6,7 +6,7 @@ import '../../../../../core/constants/app_boxes.dart';
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/constants/app_sizes.dart';
 import '../../../../../core/gen/strings.g.dart';
-import '../../../../../core/printer/load_unit_label.dart';
+import '../../../../../core/load_unit/box_code.dart';
 import '../../../../../core/theme/regular_text.dart';
 import '../../../domain/contents_entities.dart';
 import '../common/pending_mark.dart';
@@ -57,7 +57,7 @@ class BoxListTile extends StatelessWidget {
               children: [
                 Text(
                   t.contents.boxCode(
-                    code: LoadUnitLabel(loadUnit.id).shortCodeFormatted,
+                    code: boxCode(loadUnit.id, czCode: loadUnit.czCode),
                   ),
                   style: RegularTextStyles().regularInter14.copyWith(
                     height: 1.2,
@@ -78,6 +78,13 @@ class BoxListTile extends StatelessWidget {
                     t.contents.notLive,
                     style: RegularTextStyles().regularInter10.copyWith(
                       color: AppColors.kDanger,
+                    ),
+                  ),
+                if (loadUnit.czOpened)
+                  Text(
+                    t.contents.czOpened,
+                    style: RegularTextStyles().regularInter10.copyWith(
+                      color: AppColors.kTextMuted,
                     ),
                   ),
                 if (loadUnit.pending) const PendingMark(),

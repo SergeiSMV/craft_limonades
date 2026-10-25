@@ -31,6 +31,9 @@ type ReturnSubmitInput struct {
 	WarehouseID string
 	CreatedBy   string
 	ProblemIDs  []string
+	// Marks — КИ марок ЧЗ, отсканированных в сеансе (CZ-06, долг 30): позиция россыпью с
+	// марками отгружается, только когда отсканированы все её марки.
+	Marks []string
 }
 
 // returnSubmit проводит сеанс отгрузки возврата целиком (ADHOC-31).
@@ -68,21 +71,20 @@ func returnSubmit(ctx context.Context, q Querier, in ReturnSubmitInput) (int, er
 	}
 
 	lineNo := 0
+	scanned := newReturnMarks(in.Marks)
 	for _, id := range ids {
 		p, err := lockReturnPosition(ctx, q, id, in.TaskID)
 		if err != nil {
 			return 0, err
 		}
-		var lines []problemLine
-		if p.loadUnit != "" {
-			lines, err = problemBoxLines(ctx, q, p)
-		} else {
-			lines, err = problemGoodsLines(ctx, q, p)
+		if err := scanned.take(ctx, q, p); err != nil {
+			return 0, err
 		}
+		lines, err := problemLines(ctx, q, p)
 		if err != nil {
 			return 0, err
 		}
-		if err := writeOffProblem(ctx, q, p, lines); err != nil {
+		if err := writeOffProblem(ctx, q, p, lines, model.CZMarkReturned); err != nil {
 			return 0, err
 		}
 		for _, l := range lines {
@@ -99,6 +101,10 @@ func returnSubmit(ctx context.Context, q Querier, in ReturnSubmitInput) (int, er
 			id, in.ShipmentID); err != nil {
 			return 0, fmt.Errorf("отметить позицию отгруженной: %w", err)
 		}
+	}
+
+	if err := scanned.allTaken(); err != nil {
+		return 0, err
 	}
 
 	if _, err := q.Exec(ctx, `
@@ -159,6 +165,7 @@ func lockReturnPosition(ctx context.Context, q Querier, problemID, taskID string
 	if task == nil || *task != taskID || shipment != nil {
 		return lockedProblem{}, ErrNotInTask
 	}
+	p.id = problemID
 	p.loadUnit, p.good, p.batch = deref(lu), deref(good), deref(batch)
 	if qty != nil {
 		if p.qty, err = decimal.NewFromString(*qty); err != nil {

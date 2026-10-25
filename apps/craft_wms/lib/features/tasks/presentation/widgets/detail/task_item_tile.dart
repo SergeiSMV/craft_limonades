@@ -6,7 +6,7 @@ import '../../../../../core/constants/app_boxes.dart';
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/constants/app_sizes.dart';
 import '../../../../../core/gen/strings.g.dart';
-import '../../../../../core/printer/load_unit_label.dart';
+import '../../../../../core/load_unit/box_code.dart';
 import '../../../../../core/theme/regular_text.dart';
 import '../../../data/tasks_models.dart';
 import '../common/task_format.dart';
@@ -77,7 +77,7 @@ class TaskItemTile extends StatelessWidget {
 
   List<Widget> _box(TextStyle title, TextStyle muted) => [
     Text(
-      t.tasks.box(code: LoadUnitLabel(item.loadUnitId!).shortCodeFormatted),
+      t.tasks.box(code: boxCode(item.loadUnitId!, czCode: item.czCode)),
       style: title,
     ),
     // Каждый товар короба — наименование, партия и количество своими строками.

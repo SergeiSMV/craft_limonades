@@ -74,6 +74,93 @@ class PendingOverlay {
           if (l[key] case final String id) id,
   };
 
+  /// ГЕ короба ЧЗ с кодом [czCode] из своей неотправленной приёмки (CZ-06); `null` — нет.
+  String? loadUnitIdByCzCode(String czCode) {
+    for (final op in ops) {
+      if (op.kind != OutboxKind.receiptSubmit) continue;
+      for (final lu in op.payload['load_units'] as List? ?? const []) {
+        final m = lu as Map<String, dynamic>;
+        if (m['cz_code'] == czCode) return m['id'] as String?;
+      }
+    }
+    return null;
+  }
+
+  /// Марки по коду [code] с наложенными операциями (CZ-06): своя приёмка добавляет марки,
+  /// размещение, движение и пометка переносят их туда, куда переехал товар строки.
+  ///
+  /// [base] — марки снимка (КИ → марка); [boxes] — короба с наложенной очередью: марка из
+  /// короба ложится в его ячейку и склад. Марка подходит, если её КИ — [code] или её упаковка —
+  /// [code] (скан групповой упаковки).
+  Map<String, StockMark> applyToMarks(
+    Map<String, StockMark> base,
+    String code, {
+    Map<String, LoadUnitView> boxes = const {},
+  }) {
+    final out = {...base};
+    for (final op in ops) {
+      final p = op.payload;
+      if (op.kind == OutboxKind.problemSubmit) {
+        final to = _warehouse(p['to_internal_warehouse_id']);
+        final fromBox = p['from_load_unit_id'] as String?;
+        final cell = p['cell_id'] as String? ?? boxes[fromBox]?.cellId;
+        for (final cis in _marks(p)) {
+          final m = out[cis];
+          if (m != null) {
+            out[cis] = m.movedTo(cellId: cell, internalWarehouseId: to);
+          }
+        }
+        continue;
+      }
+      final receivingCell =
+          cells.defaultCellByWarehouse[p['warehouse_id'] as String?];
+      for (final l in _lines(op)) {
+        if (op.kind == OutboxKind.receiptSubmit) {
+          for (final raw in l['marks'] as List? ?? const []) {
+            final m = raw as Map<String, dynamic>;
+            final cis = m['cis'] as String;
+            final agg = m['aggregate_code'] as String?;
+            if (cis != code && agg != code) continue;
+            final box = l['load_unit_id'] as String?;
+            out[cis] = StockMark(
+              cis: cis,
+              goodId: l['good_id'] as String,
+              productionDate: l['production_date'] as String,
+              loadUnitId: box,
+              cellId: box == null
+                  ? l['cell_id'] as String? ?? receivingCell
+                  : null,
+              aggregateCode: agg,
+              pending: true,
+            );
+          }
+          continue;
+        }
+        final toBox = l['to_load_unit_id'] as String?;
+        final fromBox = l['from_load_unit_id'] as String?;
+        // Склад товара: россыпь — склад строки, из короба — склад короба (P6-07-1).
+        final iwh = fromBox != null
+            ? boxes[fromBox]?.internalWarehouseId
+            : _warehouse(l['internal_warehouse_id']);
+        for (final cis in _marks(l)) {
+          final m = out[cis];
+          if (m == null) continue;
+          out[cis] = m.movedTo(
+            loadUnitId: toBox,
+            cellId: l['to_cell_id'] as String?,
+            internalWarehouseId: iwh,
+          );
+        }
+      }
+    }
+    return out;
+  }
+
+  /// КИ марок строки или пометки (CZ-06).
+  static List<String> _marks(Map<String, dynamic> l) => [
+    for (final m in l['marks'] as List? ?? const []) m as String,
+  ];
+
   /// Короб с наложенными операциями. [base] — с сервера или из снимка, `null` — не найден.
   LoadUnitView? applyToLoadUnit(String id, LoadUnitView? base) {
     final boxes = <String, LoadUnitView>{id: ?base};
@@ -149,6 +236,13 @@ class PendingOverlay {
       final warehouse = op.payload['warehouse_id'] as String?;
       final receivingCell = cells.defaultCellByWarehouse[warehouse];
       final isReceipt = op.kind == OutboxKind.receiptSubmit;
+      // Коды коробов ЧЗ приёмки (CZ-06): короб ЧЗ из своей очереди узнаётся по SSCC.
+      final czCodes = <String, String>{
+        if (isReceipt)
+          for (final lu in op.payload['load_units'] as List? ?? const [])
+            if ((lu as Map<String, dynamic>)['cz_code'] case final String code)
+              lu['id'] as String: code,
+      };
       for (final l in _lines(op)) {
         final box = l['load_unit_id'] as String?;
         if (op.kind == OutboxKind.movementSubmit && box == null) {
@@ -169,6 +263,7 @@ class PendingOverlay {
               live: true,
               pending: true,
               lines: _add(lu.lines, line),
+              czCode: czCodes[box],
             );
           } else if (_loose(looseOf, cell) case final loose?) {
             _replace(loose, _add(loose, line));
