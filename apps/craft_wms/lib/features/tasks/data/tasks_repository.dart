@@ -40,8 +40,10 @@ class TasksRepository {
     return Right((tasks: tasks, fromCache: true, syncedAt: syncedAt));
   }
 
-  /// Число текущих заданий по снимку на терминале — для плитки главного меню.
-  Stream<int> watchCurrentCount() => _cache.watchCount();
+  /// Число текущих заданий по снимку на терминале — для плитки главного меню; [allow] —
+  /// только виды по правам должности (ADHOC-51).
+  Stream<int> watchCurrentCount({bool Function(String kind)? allow}) =>
+      _cache.watchCount(allow: allow);
 
   /// Карточка задания с заходами и журналом — по сети.
   Future<Either<Failure, TaskDetailData>> detail(String id) => _api.detail(id);

@@ -194,4 +194,17 @@ void main() {
       expect(tasks.map((t) => t.id), [serverTask().id]);
     },
   );
+
+  test('счётчик плитки — только разрешённые виды заданий (ADHOC-51)', () async {
+    final cache = TasksCache(db);
+    final stocktake = serverTask().copyWith(id: 's1', kind: TaskKind.stocktake);
+    await cache.replace([serverTask(), stocktake], DateTime(2026, 10, 26));
+
+    expect(await cache.watchCount().first, 2);
+    expect(
+      await cache.watchCount(allow: (k) => k == TaskKind.stocktake).first,
+      1,
+    );
+    expect(await cache.watchCount(allow: (_) => false).first, 0);
+  });
 }
