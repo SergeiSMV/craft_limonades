@@ -56,6 +56,8 @@ type loadUnitTransfer struct {
 	UserID     string
 	PutawayID  *string
 	MovementID *string
+	// StocktakeCellID — ячейка пересчёта, нашедшая короб не на месте (P10-03).
+	StocktakeCellID *string
 }
 
 // transferLoadUnit переносит ГЕ целиком: остаток по её составу переезжает из ячейки, где ГЕ
@@ -129,6 +131,8 @@ func transferLoadUnit(ctx context.Context, q Querier, in loadUnitTransfer) (stri
 		UserID:     in.UserID,
 		PutawayID:  in.PutawayID,
 		MovementID: in.MovementID,
+
+		StocktakeCellID: in.StocktakeCellID,
 	}); err != nil {
 		return "", nil, err
 	}

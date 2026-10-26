@@ -306,7 +306,7 @@ const taskHeaderSQL = `
 	       CASE WHEN t.assignee_id = $1::uuid THEN t.assignee_id::text END,
 	       CASE WHEN t.assignee_id = $1::uuid THEN COALESCE(u.full_name, '') ELSE '' END,
 	       CASE WHEN t.assignee_id = $1::uuid THEN t.taken_at END,
-	       t.created_at
+	       t.created_at, t.stocktake_id::text
 	FROM warehouse_tasks t
 	LEFT JOIN receipts r  ON r.id = t.receipt_id
 	-- Поставщик: у размещения — поставщик приёмки, у возврата — кому везём (ADHOC-31).
@@ -358,7 +358,8 @@ func scanTasks(rows pgx.Rows) ([]model.Task, error) {
 	for rows.Next() {
 		var t model.Task
 		if err := rows.Scan(&t.ID, &t.Number, &t.Kind, &t.Status, &t.WarehouseID, &t.ReceiptID,
-			&t.SupplierName, &t.ReceivedAt, &t.DocNumber, &t.DocDate, &t.AssigneeID, &t.AssigneeName, &t.TakenAt, &t.CreatedAt); err != nil {
+			&t.SupplierName, &t.ReceivedAt, &t.DocNumber, &t.DocDate, &t.AssigneeID, &t.AssigneeName, &t.TakenAt, &t.CreatedAt,
+			&t.StocktakeID); err != nil {
 			return nil, fmt.Errorf("разобрать задание: %w", err)
 		}
 		out = append(out, t)

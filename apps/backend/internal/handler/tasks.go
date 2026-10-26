@@ -63,20 +63,22 @@ type taskItemResponse struct {
 }
 
 type taskResponse struct {
-	ID           string             `json:"id"`
-	Number       int64              `json:"number"`
-	Kind         string             `json:"kind"`
-	Status       string             `json:"status"` // как его видит запросивший: чужое зависшее — new
-	WarehouseID  string             `json:"warehouse_id"`
-	ReceiptID    *string            `json:"receipt_id"`
-	Supplier     string             `json:"supplier"`    // пусто — без поставщика
-	ReceivedAt   *string            `json:"received_at"` // RFC3339
-	DocNumber    *string            `json:"doc_number"`  // накладная приёмки (ADHOC-23); null — нет
-	DocDate      *string            `json:"doc_date"`    // DD-MM-YYYY
-	AssigneeName string             `json:"assignee_name"`
-	TakenAt      *string            `json:"taken_at"`
-	CreatedAt    string             `json:"created_at"`
-	Items        []taskItemResponse `json:"items"`
+	ID           string  `json:"id"`
+	Number       int64   `json:"number"`
+	Kind         string  `json:"kind"`
+	Status       string  `json:"status"` // как его видит запросивший: чужое зависшее — new
+	WarehouseID  string  `json:"warehouse_id"`
+	ReceiptID    *string `json:"receipt_id"`
+	Supplier     string  `json:"supplier"`    // пусто — без поставщика
+	ReceivedAt   *string `json:"received_at"` // RFC3339
+	DocNumber    *string `json:"doc_number"`  // накладная приёмки (ADHOC-23); null — нет
+	DocDate      *string `json:"doc_date"`    // DD-MM-YYYY
+	AssigneeName string  `json:"assignee_name"`
+	TakenAt      *string `json:"taken_at"`
+	CreatedAt    string  `json:"created_at"`
+	// Пересчёт задания вида stocktake (P10-03); null — у других видов.
+	StocktakeID *string            `json:"stocktake_id"`
+	Items       []taskItemResponse `json:"items"`
 }
 
 type taskSessionLineResponse struct {
@@ -274,7 +276,7 @@ func toTaskResponse(t model.Task) taskResponse {
 		ReceiptID: t.ReceiptID, Supplier: t.SupplierName, ReceivedAt: formatTimePtr(t.ReceivedAt),
 		DocNumber: t.DocNumber, DocDate: formatProductionDate(t.DocDate),
 		AssigneeName: t.AssigneeName, TakenAt: formatTimePtr(t.TakenAt),
-		CreatedAt: t.CreatedAt.Format(time.RFC3339), Items: []taskItemResponse{},
+		CreatedAt: t.CreatedAt.Format(time.RFC3339), StocktakeID: t.StocktakeID, Items: []taskItemResponse{},
 	}
 	for _, it := range t.Items {
 		ir := taskItemResponse{LineNo: it.LineNo, LoadUnitID: it.LoadUnitID, Placed: it.Placed,

@@ -50,6 +50,9 @@ type Task struct {
 	TakenAt      *time.Time
 	CreatedAt    time.Time
 
+	// StocktakeID — пересчёт задания вида stocktake (P10-03): ячейки берут из него.
+	StocktakeID *string
+
 	Items []PutawayTaskItem
 }
 

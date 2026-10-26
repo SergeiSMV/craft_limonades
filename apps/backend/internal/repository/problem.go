@@ -65,6 +65,9 @@ type ProblemSubmitInput struct {
 	// (ADHOC-46). Товар может лежать в ячейке приёмки, и это законно — он уходит в «Изолятор»,
 	// не дожидаясь размещения.
 	fromIntake bool
+	// fromStocktake — проблему «не найдено» заводит подсчёт ячейки пересчёта (P10-03): склад
+	// назначения — системный «Не найдено», причина — не из выбора на ТСД.
+	fromStocktake bool
 }
 
 // problemSubmit фиксирует проблему и переводит остаток на склад назначения (P6-07-1).
@@ -81,7 +84,8 @@ type ProblemSubmitInput struct {
 // Ячейка приёмки отклоняется, как в движении: её содержимое разносит задание на размещение,
 // и брак под заданием оставил бы задание с недостающим «Основным» товаром.
 func problemSubmit(ctx context.Context, q Querier, in ProblemSubmitInput) error {
-	if !slices.Contains(model.ProblemReasons, in.Reason) {
+	if in.fromStocktake != (in.Reason == model.ProblemReasonNotFound) ||
+		(!in.fromStocktake && !slices.Contains(model.ProblemReasons, in.Reason)) {
 		return ErrUnknownReason
 	}
 	isBox := in.LoadUnitID != ""
@@ -92,8 +96,10 @@ func problemSubmit(ctx context.Context, q Querier, in ProblemSubmitInput) error 
 	if isGoods && !in.Qty.IsPositive() {
 		return ErrMovementQty
 	}
-	if err := guardActiveInternalWarehouse(ctx, q, in.ToInternalWarehouseID); err != nil {
-		return err
+	if !in.fromStocktake {
+		if err := guardActiveInternalWarehouse(ctx, q, in.ToInternalWarehouseID); err != nil {
+			return err
+		}
 	}
 
 	var row problemRow
@@ -263,8 +269,12 @@ func guardProblemPlace(ctx context.Context, q Querier, cell, fromIwh string, in 
 	if fromIwh == in.ToInternalWarehouseID {
 		return ErrSameInternalWarehouse
 	}
-	if err := guardNotSystemSource(ctx, q, fromIwh); err != nil {
-		return err
+	// Не найденное пересчётом уходит в «Не найдено» откуда угодно, и с системного склада тоже:
+	// товара на полке нет, где бы он ни числился.
+	if !in.fromStocktake {
+		if err := guardNotSystemSource(ctx, q, fromIwh); err != nil {
+			return err
+		}
 	}
 	if err := guardCellOfWarehouse(ctx, q, cell, in.WarehouseID); err != nil {
 		return err

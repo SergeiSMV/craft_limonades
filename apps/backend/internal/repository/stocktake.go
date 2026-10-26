@@ -96,9 +96,23 @@ func (r *StocktakeRepository) Create(ctx context.Context, in model.StocktakeCrea
 				return stocktakeRefErr(err, "область пересчёта")
 			}
 		}
-		if in.ScopeKind == model.StocktakeScopeCells {
+		switch in.ScopeKind {
+		case model.StocktakeScopeCells:
 			if err := guardStocktakeCells(ctx, q, in.WarehouseID, in.ObjectIDs); err != nil {
 				return err
+			}
+		case model.StocktakeScopeInternalWarehouse:
+			// Системные склады («Не найдено», «Возврат поставщику») пересчёт не считает: их
+			// товар — в решении офиса или задании возврата.
+			var system bool
+			if err := q.QueryRow(ctx, `
+				SELECT EXISTS (SELECT 1 FROM internal_warehouses
+				               WHERE id = ANY($1::text[]::uuid[]) AND system_role IS NOT NULL)`,
+				in.ObjectIDs).Scan(&system); err != nil {
+				return fmt.Errorf("проверить склады области: %w", err)
+			}
+			if system {
+				return model.ErrStocktakeUnknownObject
 			}
 		}
 
@@ -176,8 +190,7 @@ const stocktakeLockKey = 1010
 // «Остатки» (looseStock, liveLoadUnits): снимок не расходится с тем, что видит кладовщик.
 // При области по группе, поставщику, товару снимается только товар области, а короб — если в
 // нём есть товар области.
-func (r *StocktakeRepository) StartCount(ctx context.Context, stocktakeCellID, userID string) (model.StocktakeCellSnapshot, error) {
-	var out model.StocktakeCellSnapshot
+func (r *StocktakeRepository) StartCount(ctx context.Context, stocktakeCellID, userID string) (model.StocktakeCellView, error) {
 	err := WithinTx(ctx, r.pool, func(q Querier) error {
 		var cellID string
 		err := q.QueryRow(ctx, `SELECT cell_id::text FROM stocktake_cells WHERE id = $1::uuid`, stocktakeCellID).
@@ -211,8 +224,7 @@ func (r *StocktakeRepository) StartCount(ctx context.Context, stocktakeCellID, u
 		}
 		switch status {
 		case model.StocktakeCellCounting:
-			out, err = stocktakeSnapshotSize(ctx, q, stocktakeCellID)
-			return err
+			return nil
 		case model.StocktakeCellTaken, model.StocktakeCellDisrupted:
 		default:
 			return model.ErrStocktakeCellNotYours
@@ -228,7 +240,10 @@ func (r *StocktakeRepository) StartCount(ctx context.Context, stocktakeCellID, u
 				return err
 			}
 		}
-		if out, err = snap.take(ctx); err != nil {
+		if snap.system, err = systemInternalWarehouses(ctx, q); err != nil {
+			return err
+		}
+		if err := snap.take(ctx); err != nil {
 			return err
 		}
 
@@ -245,9 +260,9 @@ func (r *StocktakeRepository) StartCount(ctx context.Context, stocktakeCellID, u
 		return nil
 	})
 	if err != nil {
-		return model.StocktakeCellSnapshot{}, err
+		return model.StocktakeCellView{}, err
 	}
-	return out, nil
+	return r.CellView(ctx, stocktakeCellID, userID)
 }
 
 // stocktakeAreaGoodsInCell — товары области пересчёта, лежащие в ячейке (россыпью или в
@@ -270,18 +285,6 @@ func stocktakeAreaGoodsInCell(ctx context.Context, q Querier, stocktakeID, cellI
 	return out, nil
 }
 
-// stocktakeSnapshotSize — сколько строк и марок уже снято по ячейке пересчёта.
-func stocktakeSnapshotSize(ctx context.Context, q Querier, stocktakeCellID string) (model.StocktakeCellSnapshot, error) {
-	var out model.StocktakeCellSnapshot
-	if err := q.QueryRow(ctx, `
-		SELECT (SELECT count(*) FROM stocktake_lines WHERE stocktake_cell_id = $1::uuid),
-		       (SELECT count(*) FROM stocktake_marks WHERE stocktake_cell_id = $1::uuid)`, stocktakeCellID).
-		Scan(&out.Lines, &out.Marks); err != nil {
-		return out, fmt.Errorf("снимок ячейки пересчёта: %w", err)
-	}
-	return out, nil
-}
-
 // stocktakeLineKey — позиция россыпи в снимке: товар · партия · внутренний склад.
 type stocktakeLineKey struct{ good, batch, iwh string }
 
@@ -292,6 +295,7 @@ type stocktakeSnapshot struct {
 	stCell string
 	cell   string
 	area   map[string]bool
+	system map[string]bool
 	lines  map[stocktakeLineKey]string
 }
 
@@ -300,26 +304,45 @@ func (s *stocktakeSnapshot) inArea(goodID string) bool {
 	return s.area == nil || s.area[goodID]
 }
 
+// systemInternalWarehouses — системные внутренние склады («Не найдено», «Возврат поставщику»).
+//
+// Их товар пересчёт не считает: не найденное ждёт решения офиса, возврат лежит в задании, и
+// правка остатка выбила бы товар из-под проблемы или задания.
+func systemInternalWarehouses(ctx context.Context, q Querier) (map[string]bool, error) {
+	rows, err := q.Query(ctx, `SELECT id::text FROM internal_warehouses WHERE system_role IS NOT NULL`)
+	if err != nil {
+		return nil, fmt.Errorf("системные склады: %w", err)
+	}
+	ids, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	if err != nil {
+		return nil, fmt.Errorf("системные склады: %w", err)
+	}
+	out := make(map[string]bool, len(ids))
+	for _, id := range ids {
+		out[id] = true
+	}
+	return out, nil
+}
+
 // take пишет строки россыпи, коробов и марки ячейки.
-func (s *stocktakeSnapshot) take(ctx context.Context) (model.StocktakeCellSnapshot, error) {
-	var out model.StocktakeCellSnapshot
+func (s *stocktakeSnapshot) take(ctx context.Context) error {
 	loose, err := looseStock(ctx, s.q, &s.cell)
 	if err != nil {
-		return out, err
+		return err
 	}
 	for _, ln := range loose {
-		if !s.inArea(ln.GoodID) {
+		if !s.inArea(ln.GoodID) || s.system[ln.InternalWarehouseID] {
 			continue
 		}
 		if _, err := s.looseLine(ctx, stocktakeLineKey{ln.GoodID, ln.BatchID, ln.InternalWarehouseID},
 			ln.Qty.String()); err != nil {
-			return out, err
+			return err
 		}
 	}
 
 	boxes, err := liveLoadUnits(ctx, s.q, &s.cell)
 	if err != nil {
-		return out, err
+		return err
 	}
 	for _, lu := range boxes {
 		if !s.boxInArea(lu) {
@@ -328,20 +351,18 @@ func (s *stocktakeSnapshot) take(ctx context.Context) (model.StocktakeCellSnapsh
 		if _, err := s.q.Exec(ctx, `
 			INSERT INTO stocktake_lines (stocktake_cell_id, load_unit_id, internal_warehouse_id, expected_qty)
 			VALUES ($1::uuid, $2::uuid, $3::uuid, 1)`, s.stCell, lu.ID, lu.InternalWarehouseID); err != nil {
-			return out, fmt.Errorf("строка короба в снимке: %w", err)
+			return fmt.Errorf("строка короба в снимке: %w", err)
 		}
-		out.Lines++
 	}
-
-	if out.Marks, err = s.marks(ctx); err != nil {
-		return out, err
-	}
-	out.Lines += len(s.lines)
-	return out, nil
+	return s.marks(ctx)
 }
 
-// boxInArea — короб считается: ячейка целиком или в коробе есть товар области.
+// boxInArea — короб считается: не на системном складе, и ячейка целиком или в коробе есть
+// товар области.
 func (s *stocktakeSnapshot) boxInArea(lu model.LoadUnitCard) bool {
+	if s.system[lu.InternalWarehouseID] {
+		return false
+	}
 	if s.area == nil {
 		return true
 	}
@@ -372,14 +393,14 @@ func (s *stocktakeSnapshot) looseLine(ctx context.Context, key stocktakeLineKey,
 
 // marks — марки ЧЗ россыпью в ячейке: каждая «ожидалась» на строке своей позиции. Марка без
 // остатка россыпью (учёт разошёлся) заводит строку с нулём — она всё равно ожидается на полке.
-func (s *stocktakeSnapshot) marks(ctx context.Context) (int, error) {
+func (s *stocktakeSnapshot) marks(ctx context.Context) error {
 	rows, err := s.q.Query(ctx, `
 		SELECT cis, good_id::text, batch_id::text, internal_warehouse_id::text
 		FROM cz_marks
 		WHERE status = $1 AND cell_id = $2::uuid
 		ORDER BY cis`, model.CZMarkInStock, s.cell)
 	if err != nil {
-		return 0, fmt.Errorf("марки ячейки: %w", err)
+		return fmt.Errorf("марки ячейки: %w", err)
 	}
 	type mark struct {
 		cis string
@@ -390,30 +411,28 @@ func (s *stocktakeSnapshot) marks(ctx context.Context) (int, error) {
 		var m mark
 		if err := rows.Scan(&m.cis, &m.key.good, &m.key.batch, &m.key.iwh); err != nil {
 			rows.Close()
-			return 0, fmt.Errorf("разобрать марку ячейки: %w", err)
+			return fmt.Errorf("разобрать марку ячейки: %w", err)
 		}
 		marks = append(marks, m)
 	}
 	rows.Close()
 	if err := rows.Err(); err != nil {
-		return 0, fmt.Errorf("марки ячейки: %w", err)
+		return fmt.Errorf("марки ячейки: %w", err)
 	}
 
-	n := 0
 	for _, m := range marks {
-		if !s.inArea(m.key.good) {
+		if !s.inArea(m.key.good) || s.system[m.key.iwh] {
 			continue
 		}
 		line, err := s.looseLine(ctx, m.key, "0")
 		if err != nil {
-			return 0, err
+			return err
 		}
 		if _, err := s.q.Exec(ctx, `
 			INSERT INTO stocktake_marks (stocktake_cell_id, cis, line_id, expected)
 			VALUES ($1::uuid, $2, $3::uuid, true)`, s.stCell, m.cis, line); err != nil {
-			return 0, fmt.Errorf("марка в снимке: %w", err)
+			return fmt.Errorf("марка в снимке: %w", err)
 		}
-		n++
 	}
-	return n, nil
+	return nil
 }
