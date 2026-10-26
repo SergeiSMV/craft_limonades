@@ -251,7 +251,8 @@ func stocktakePositions(ctx context.Context, q Querier, stocktakeCellID string) 
 	return out, rows.Err()
 }
 
-// Close закрывает пересчёт (P10-03): задание уходит в «Завершённые».
+// Close закрывает пересчёт (P10-03): задание уходит в «Завершённые», в портал — документ
+// «Инвентаризация» (P10-05).
 //
 // Остаток к факту приводит подсчёт каждой ячейки, а не закрытие: закрытие подводит итог.
 // Неподсчитанные ячейки остаются как были и остаток не трогают; закрыть с ними можно только
@@ -283,6 +284,11 @@ func (r *StocktakeRepository) Close(ctx context.Context, id, userID string, forc
 			WHERE id = $1::uuid`, id, userID); err != nil {
 			return fmt.Errorf("закрыть пересчёт: %w", err)
 		}
+		// Документ «Инвентаризация» для 1С (P10-05) — в той же транзакции: закрытый пересчёт без
+		// документа невозможен, как и документ по незакрытому.
+		if err := saveStocktakeDocument(ctx, q, id, userID); err != nil {
+			return err
+		}
 		var taskID string
 		if err := q.QueryRow(ctx, `
 			UPDATE warehouse_tasks SET status = 'done', completed_by = $2::uuid, completed_at = now()
@@ -296,4 +302,33 @@ func (r *StocktakeRepository) Close(ctx context.Context, id, userID string, forc
 		return 0, err
 	}
 	return uncounted, nil
+}
+
+// List — пересчёты для портала (P10-05): открытые сверху, свежие первыми; status — `open`
+// (не закрытые), `closed` или пусто — все.
+func (r *StocktakeRepository) List(ctx context.Context, status string) ([]model.StocktakeListItem, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT st.id::text, st.number, st.scope_kind, st.status, COALESCE(u.full_name, ''),
+		       st.created_at, st.closed_at,
+		       count(sc.id), count(sc.id) FILTER (WHERE sc.status = 'counted')
+		FROM stocktakes st
+		LEFT JOIN users u ON u.id = st.created_by
+		LEFT JOIN stocktake_cells sc ON sc.stocktake_id = st.id
+		WHERE $1 = '' OR ($1 = 'open' AND st.status <> 'closed') OR ($1 = 'closed' AND st.status = 'closed')
+		GROUP BY st.id, u.full_name
+		ORDER BY (st.status = 'closed'), st.created_at DESC`, status)
+	if err != nil {
+		return nil, fmt.Errorf("список пересчётов: %w", err)
+	}
+	defer rows.Close()
+	out := []model.StocktakeListItem{}
+	for rows.Next() {
+		var it model.StocktakeListItem
+		if err := rows.Scan(&it.ID, &it.Number, &it.ScopeKind, &it.Status, &it.CreatedByName,
+			&it.CreatedAt, &it.ClosedAt, &it.Cells, &it.Counted); err != nil {
+			return nil, fmt.Errorf("разобрать пересчёт: %w", err)
+		}
+		out = append(out, it)
+	}
+	return out, rows.Err()
 }

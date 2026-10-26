@@ -23,6 +23,8 @@ func BuildDocumentXLSX(doc model.ReportDocument) ([]byte, error) {
 		return BuildReceiptXLSX(doc.Snapshot)
 	case model.ReportKindMovement:
 		return BuildMovementXLSX(doc.Snapshot)
+	case model.ReportKindStocktake:
+		return BuildStocktakeXLSX(doc.Snapshot)
 	default:
 		return nil, fmt.Errorf("%w: %q", ErrUnknownKind, doc.Kind)
 	}
@@ -40,6 +42,8 @@ func DocumentFilename(doc model.ReportDocument) string {
 		prefix = "postuplenie"
 	case model.ReportKindMovement:
 		prefix = "dvizhenie"
+	case model.ReportKindStocktake:
+		prefix = "inventarizaciya"
 	}
 	return fmt.Sprintf("%s-%s-%s.xlsx", prefix, doc.Snapshot.WarehouseCode, doc.CreatedAt.Format("20060102"))
 }

@@ -100,7 +100,8 @@ func (r *ReportDocumentRepository) List(ctx context.Context, kind string) ([]mod
 		       COALESCE(snapshot->>'supplier', ''),
 		       COALESCE(snapshot->>'doc_number', ''), COALESCE(snapshot->>'doc_date', ''),
 		       COALESCE(snapshot->>'operation', ''), COALESCE((snapshot->>'task_number')::bigint, 0),
-		       COALESCE(snapshot->>'executor', ''), created_at,
+		       COALESCE(snapshot->>'executor', ''), COALESCE((snapshot->>'stocktake_number')::bigint, 0),
+		       created_at,
 		       jsonb_array_length(COALESCE(snapshot->'rows', '[]'::jsonb)),
 		       status, downloaded_at, done_at
 		FROM report_documents
@@ -115,7 +116,7 @@ func (r *ReportDocumentRepository) List(ctx context.Context, kind string) ([]mod
 	for rows.Next() {
 		var d model.DocumentListItem
 		if err := rows.Scan(&d.ID, &d.Kind, &d.WarehouseCode, &d.WarehouseName, &d.Supplier,
-			&d.DocNumber, &d.DocDate, &d.Operation, &d.TaskNumber, &d.Executor, &d.CreatedAt, &d.LinesCount, &d.Status, &d.DownloadedAt, &d.DoneAt); err != nil {
+			&d.DocNumber, &d.DocDate, &d.Operation, &d.TaskNumber, &d.Executor, &d.StocktakeNumber, &d.CreatedAt, &d.LinesCount, &d.Status, &d.DownloadedAt, &d.DoneAt); err != nil {
 			return nil, fmt.Errorf("разбор строки списка документов: %w", err)
 		}
 		out = append(out, d)

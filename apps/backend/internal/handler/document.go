@@ -36,21 +36,23 @@ type documentItemResponse struct {
 	WarehouseName string `json:"warehouse_name"`
 	// Supplier, DocNumber, DocDate — поставщик и его накладная: у «Поступления» — свои,
 	// у «Движения» размещения — приёмки-основания. Пусто — нет.
-	Supplier     string  `json:"supplier"`
-	DocNumber    string  `json:"doc_number"`
-	DocDate      string  `json:"doc_date"`    // DD-MM-YYYY
-	Operation    string  `json:"operation"`   // операция «Движения» (`putaway`, `move`); пусто — другая форма
-	TaskNumber   int64   `json:"task_number"` // задание-основание «Движения»; 0 — нет
-	Executor     string  `json:"executor"`    // кто выполнил операцию; пусто — неизвестно
-	CreatedAt    string  `json:"created_at"`  // RFC3339
-	LinesCount   int     `json:"lines_count"`
-	Status       string  `json:"status"`
-	DownloadedAt *string `json:"downloaded_at"` // RFC3339 или null
-	DoneAt       *string `json:"done_at"`       // RFC3339 или null
+	Supplier   string `json:"supplier"`
+	DocNumber  string `json:"doc_number"`
+	DocDate    string `json:"doc_date"`    // DD-MM-YYYY
+	Operation  string `json:"operation"`   // операция «Движения» (`putaway`, `move`); пусто — другая форма
+	TaskNumber int64  `json:"task_number"` // задание-основание «Движения»; 0 — нет
+	// Пересчёт «Инвентаризации» (P10-05); 0 — другая форма.
+	StocktakeNumber int64   `json:"stocktake_number"`
+	Executor        string  `json:"executor"`   // кто выполнил операцию; пусто — неизвестно
+	CreatedAt       string  `json:"created_at"` // RFC3339
+	LinesCount      int     `json:"lines_count"`
+	Status          string  `json:"status"`
+	DownloadedAt    *string `json:"downloaded_at"` // RFC3339 или null
+	DoneAt          *string `json:"done_at"`       // RFC3339 или null
 }
 
 // List: GET /api/v1/documents — рабочий список: сначала необработанные, свежие сверху.
-// Необязательный ?kind= оставляет одну форму (`stock_entry`, `receipt`, `movement`): у каждой в портале
+// Необязательный ?kind= оставляет одну форму (`stock_entry`, `receipt`, `movement`, `stocktake`): у каждой в портале
 // своя вкладка. Незнакомая форма — пустой список, а не ошибка: фильтр, ничего не нашедший.
 func (h *DocumentHandler) List(w http.ResponseWriter, r *http.Request) {
 	docs, err := h.svc.List(r.Context(), strings.TrimSpace(r.URL.Query().Get("kind")))
@@ -62,21 +64,22 @@ func (h *DocumentHandler) List(w http.ResponseWriter, r *http.Request) {
 	out := make([]documentItemResponse, 0, len(docs))
 	for _, d := range docs {
 		out = append(out, documentItemResponse{
-			ID:            d.ID,
-			Kind:          d.Kind,
-			WarehouseCode: d.WarehouseCode,
-			WarehouseName: d.WarehouseName,
-			Supplier:      d.Supplier,
-			DocNumber:     d.DocNumber,
-			DocDate:       isoToTransportDate(d.DocDate),
-			Operation:     d.Operation,
-			TaskNumber:    d.TaskNumber,
-			Executor:      d.Executor,
-			CreatedAt:     d.CreatedAt.Format(time.RFC3339),
-			LinesCount:    d.LinesCount,
-			Status:        d.Status,
-			DownloadedAt:  formatTimePtr(d.DownloadedAt),
-			DoneAt:        formatTimePtr(d.DoneAt),
+			ID:              d.ID,
+			Kind:            d.Kind,
+			WarehouseCode:   d.WarehouseCode,
+			WarehouseName:   d.WarehouseName,
+			Supplier:        d.Supplier,
+			DocNumber:       d.DocNumber,
+			DocDate:         isoToTransportDate(d.DocDate),
+			Operation:       d.Operation,
+			TaskNumber:      d.TaskNumber,
+			StocktakeNumber: d.StocktakeNumber,
+			Executor:        d.Executor,
+			CreatedAt:       d.CreatedAt.Format(time.RFC3339),
+			LinesCount:      d.LinesCount,
+			Status:          d.Status,
+			DownloadedAt:    formatTimePtr(d.DownloadedAt),
+			DoneAt:          formatTimePtr(d.DoneAt),
 		})
 	}
 	writeJSON(w, http.StatusOK, out)

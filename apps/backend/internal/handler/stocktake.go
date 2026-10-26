@@ -24,6 +24,7 @@ type stocktakes interface {
 	StartCount(ctx context.Context, stocktakeCellID, userID string) (model.StocktakeCellView, error)
 	CellView(ctx context.Context, id, userID string) (model.StocktakeCellView, error)
 	Close(ctx context.Context, id, userID string, force bool) (int, error)
+	List(ctx context.Context, status string) ([]model.StocktakeListItem, error)
 }
 
 // StocktakeHandler — пересчёт склада (P10-03): заведение и закрытие — старшему смены (пока —
@@ -147,6 +148,36 @@ func (h *StocktakeHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusCreated, stocktakeCreatedResponse{ID: st.ID, Number: st.Number, TaskID: st.TaskID, Cells: st.Cells})
+}
+
+type stocktakeListItemResponse struct {
+	ID        string  `json:"id"`
+	Number    int64   `json:"number"`
+	ScopeKind string  `json:"scope_kind"`
+	Status    string  `json:"status"`
+	CreatedBy string  `json:"created_by"`
+	CreatedAt string  `json:"created_at"` // RFC3339
+	ClosedAt  *string `json:"closed_at"`  // RFC3339
+	Cells     int     `json:"cells"`
+	Counted   int     `json:"counted"`
+}
+
+// List: GET /api/v1/stocktakes?status=open|closed — пересчёты для портала: открытые сверху.
+func (h *StocktakeHandler) List(w http.ResponseWriter, r *http.Request) {
+	items, err := h.svc.List(r.Context(), r.URL.Query().Get("status"))
+	if err != nil {
+		stocktakeError(w, r, err, "list")
+		return
+	}
+	out := make([]stocktakeListItemResponse, 0, len(items))
+	for _, it := range items {
+		out = append(out, stocktakeListItemResponse{
+			ID: it.ID, Number: it.Number, ScopeKind: it.ScopeKind, Status: it.Status,
+			CreatedBy: it.CreatedByName, CreatedAt: it.CreatedAt.Format(time.RFC3339),
+			ClosedAt: rfc3339(it.ClosedAt), Cells: it.Cells, Counted: it.Counted,
+		})
+	}
+	writeJSON(w, http.StatusOK, out)
 }
 
 // Get: GET /api/v1/stocktakes/{id} — пересчёт с ходом выполнения: шапка и все ячейки.

@@ -262,6 +262,7 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 			r.Group(func(r chi.Router) {
 				r.Use(appmw.Authenticator(tokens))
 				r.Use(appmw.RequireRole(model.RoleAdmin))
+				r.Get("/stocktakes", stH.List)              // список для портала (P10-05)
 				r.Post("/stocktakes", stH.Create)           // завести по области
 				r.Post("/stocktakes/{id}/close", stH.Close) // закрыть, досрочно — с force
 			})
