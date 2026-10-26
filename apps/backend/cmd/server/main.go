@@ -101,7 +101,12 @@ func main() {
 	// нулевой, и роутер просто не регистрирует их маршруты.
 	var svc handler.Services
 	if pool != nil {
-		svc.Auth = service.NewAuthService(repository.NewUserRepository(pool), tokens)
+		users := repository.NewUserRepository(pool)
+		svc.Auth = service.NewAuthService(users, tokens)
+		// Права должности — для проверок по праву на каждой ручке (ADHOC-49).
+		svc.Rights = users
+		// Пользователи и должности в портале (ADHOC-49).
+		svc.Users = service.NewUserAdminService(repository.NewUserAdminRepository(pool))
 		// Репозитории справочников: переиспользуются импортом (запись) и каталогом (чтение).
 		groups := repository.NewNomenclatureGroupRepository(pool)
 		suppliers := repository.NewSupplierRepository(pool)

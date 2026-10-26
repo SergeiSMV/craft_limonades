@@ -66,10 +66,10 @@ func newReceivingE2E(t *testing.T, ids map[string]string) *rcvEnv {
 	}
 
 	e := &rcvEnv{pool: pool}
-	worker := seed(`INSERT INTO users (login,password_hash,full_name,role)
-	                VALUES ('90000041','x','Кладовщик','employee') RETURNING id::text`)
-	admin := seed(`INSERT INTO users (login,password_hash,full_name,role)
-	               VALUES ('90000042','x','Оператор','admin') RETURNING id::text`)
+	worker := seed(`INSERT INTO users (login,password_hash,full_name,position_id)
+	                VALUES ('90000041','x','Кладовщик','7a000000-0000-4000-8000-000000000002') RETURNING id::text`)
+	admin := seed(`INSERT INTO users (login,password_hash,full_name,position_id)
+	               VALUES ('90000042','x','Оператор','7a000000-0000-4000-8000-000000000001') RETURNING id::text`)
 	e.warehouse = seed(`INSERT INTO warehouses (id,code,name) VALUES ($1::uuid,'SHB','Шабулина') RETURNING id::text`, id("warehouse"))
 	// Ячейку по умолчанию в бою заводят сидер и импорт; здесь — тем же флагом, по которому её
 	// ищет приёмка.
@@ -89,6 +89,7 @@ func newReceivingE2E(t *testing.T, ids map[string]string) *rcvEnv {
 	}
 
 	router := handler.NewRouter(slog.New(slog.NewTextHandler(io.Discard, nil)), nil, tokens, handler.Services{
+		Auth:       service.NewAuthService(repository.NewUserRepository(pool), tokens),
 		Operations: service.NewOperationsService(repository.NewOperationsRepository(pool)),
 		Barcode:    service.NewBarcodeService(repository.NewBarcodeRepository(pool)),
 		Document:   service.NewDocumentService(repository.NewReportDocumentRepository(pool)),
@@ -106,6 +107,8 @@ func newReceivingE2E(t *testing.T, ids map[string]string) *rcvEnv {
 			repository.NewProblemPhotoRepository(pool)),
 		StockEntry: service.NewStockEntryService(repository.NewStockEntryRepository(pool)),
 		Stocktake:  service.NewStocktakeService(repository.NewStocktakeRepository(pool)),
+		Rights:     repository.NewUserRepository(pool),
+		Users:      service.NewUserAdminService(repository.NewUserAdminRepository(pool)),
 	})
 	e.srv = httptest.NewServer(router)
 	t.Cleanup(e.srv.Close)

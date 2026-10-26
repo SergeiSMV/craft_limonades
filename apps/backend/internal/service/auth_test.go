@@ -82,12 +82,12 @@ func addUsernameAdmin(t *testing.T, repo *fakeUserRepo) {
 		t.Fatalf("HashPassword: %v", err)
 	}
 	repo.add(model.User{
-		ID:           testAdminID,
-		Username:     testUsername,
-		PasswordHash: hash,
-		FullName:     "Админ Паролевич",
-		Role:         model.RoleAdmin,
-		IsActive:     true,
+		ID:             testAdminID,
+		Username:       testUsername,
+		PasswordHash:   hash,
+		FullName:       "Админ Паролевич",
+		PositionSystem: true, // «Администратор»: роль в токене — admin
+		IsActive:       true,
 	})
 }
 
@@ -104,12 +104,12 @@ func newService(t *testing.T, addUser bool) (*AuthService, *auth.TokenManager, *
 			t.Fatalf("HashPassword: %v", err)
 		}
 		repo.add(model.User{
-			ID:           testUserID,
-			Login:        testLogin,
-			PasswordHash: hash,
-			FullName:     "Тест Тестович",
-			Role:         model.RoleAdmin,
-			IsActive:     true,
+			ID:             testUserID,
+			Login:          testLogin,
+			PasswordHash:   hash,
+			FullName:       "Тест Тестович",
+			PositionSystem: true, // «Администратор»: роль в токене — admin
+			IsActive:       true,
 		})
 	}
 	return NewAuthService(repo, tm), tm, repo
