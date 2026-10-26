@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
+import '../../../../core/auth/rights.dart';
+import '../../../../core/auth/session_rights.dart';
 import '../../../../core/constants/app_borders.dart';
 import '../../../../core/constants/app_boxes.dart';
 import '../../../../core/constants/app_colors.dart';
@@ -89,6 +91,10 @@ class _ProblemViewState extends State<_ProblemView>
   /// Идёт фиксация новой проблемы: форма во весь экран, без вкладок.
   bool _adding = false;
 
+  /// Право «Проблемы: помечать товар» (ADHOC-51); без сессии в дереве (тесты) — есть.
+  bool get _canMark =>
+      sessionCan(context, Rights.tsdProblemsMark, withoutSession: true);
+
   ProblemCubit get cubit => context.read<ProblemCubit>();
   ContentsRepository get contents => getIt<ContentsRepository>();
 
@@ -154,8 +160,12 @@ class _ProblemViewState extends State<_ProblemView>
   Future<void> onScan(String value) async {
     final code = value.trim();
     _scanController.clear();
-    // Скан со списка — кладовщик начал фиксировать: открываем форму.
-    if (!_adding) setState(() => _adding = true);
+    // Скан со списка — кладовщик начал фиксировать: открываем форму. Без права помечать
+    // (ADHOC-51) скан со списка ничего не открывает.
+    if (!_adding) {
+      if (!_canMark) return;
+      setState(() => _adding = true);
+    }
     final s = cubit.state;
     if (code.isEmpty || !_deduper.allow(code) || s.outcome != null) return;
     if (s.subject != null) {
@@ -423,7 +433,7 @@ class _ProblemViewState extends State<_ProblemView>
           child: IndexedStack(
             index: _tab,
             children: [
-              CurrentProblemsView(onAdd: startAdding),
+              CurrentProblemsView(onAdd: _canMark ? startAdding : null),
               const ResolvedFeed(),
             ],
           ),

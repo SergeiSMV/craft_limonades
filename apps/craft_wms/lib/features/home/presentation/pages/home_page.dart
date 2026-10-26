@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/auth/auth_cubit.dart';
 import '../../../../core/auth/profile.dart';
+import '../../../../core/auth/rights.dart';
 import '../../../../core/config/app_config.dart';
 import '../../../../core/constants/app_boxes.dart';
 import '../../../../core/constants/app_colors.dart';
@@ -138,6 +139,9 @@ class HomePage extends StatelessWidget {
   /// Разметка меню. Вынесена из [build], чтобы провайдер состояния синхронизации стоял выше
   /// дерева, которое его читает.
   Widget _buildScaffold(BuildContext context, Profile? profile) {
+    // Плитки — по правам должности (ADHOC-51); без профиля (вход ещё идёт) — все.
+    bool can(String right, [List<String> more = const []]) =>
+        profile?.can(right, more) ?? true;
     return SystemUiWrapper(
       style: StatusBarStyle.light,
       child: Scaffold(
@@ -259,6 +263,10 @@ class HomePage extends StatelessWidget {
                   ),
                 ),
                 AppBoxes.kHeight8,
+                // Ни одного права ТСД у должности — вместо плиток объяснение (ADHOC-51).
+                if (profile != null && !profile.can(Rights.tsd))
+                  const Expanded(child: _NoTsdAccess())
+                else
                 // Сетка операций 2×N. Рабочая — «Остатки», прочие — заглушки.
                 Expanded(
                   child: GridView.count(
@@ -269,6 +277,7 @@ class HomePage extends StatelessWidget {
                     children: [
                       // Пометка незавершённой приёмки: она лежит черновиком мимо очереди,
                       // и индикатор синхронизации её не видит (тот же урок, что ADHOC-13).
+                      if (can(Rights.tsdReceipt))
                       PendingPassBuilder(
                         watch: getIt<ReceiptDraftStore>().watchHasDraft,
                         builder: (context, hasDraft) => MenuTile(
@@ -281,6 +290,7 @@ class HomePage extends StatelessWidget {
                         ),
                       ),
                       // Пометка незавершённого перемещения — та же, что у приёмки (P6-04).
+                      if (can(Rights.tsdMovement))
                       PendingPassBuilder(
                         watch: getIt<MovementDraftStore>().watchHasDraft,
                         builder: (context, hasDraft) => MenuTile(
@@ -293,6 +303,10 @@ class HomePage extends StatelessWidget {
                         ),
                       ),
                       // Счётчик текущих заданий — из снимка на терминале, работает без связи.
+                      if (can(Rights.tsdPutaway, [
+                        Rights.tsdStocktakeCount,
+                        Rights.tsdStocktakeManage,
+                      ]))
                       CurrentTasksCountBuilder(
                         builder: (context, count) => MenuTile(
                           title: t.homeScreen.tiles.tasksTitle,
@@ -307,6 +321,11 @@ class HomePage extends StatelessWidget {
                       // «Остатков», и кладовщик должен увидеть незакрытый проход уже отсюда.
                       // Плитка рисует пометку сама — обёртка снаружи уводила кружок в зазор
                       // между плитками.
+                      // «Ввод остатков» открывается из «Остатков» — плитка нужна и ему.
+                      if (can(Rights.tsdStockView, [
+                        Rights.tsdStockCzMarked,
+                        Rights.tsdStockEntry,
+                      ]))
                       PendingPassBuilder(
                         builder: (context, hasPass) => MenuTile(
                           title: t.homeScreen.tiles.stockTitle,
@@ -317,6 +336,7 @@ class HomePage extends StatelessWidget {
                           onTap: () => openStock(context),
                         ),
                       ),
+                      if (can(Rights.tsdProblemsView, [Rights.tsdProblemsMark]))
                       MenuTile(
                         title: t.homeScreen.tiles.problemsTitle,
                         subtitle: t.homeScreen.tiles.problemsSubtitle,
@@ -342,4 +362,36 @@ class HomePage extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Нет ни одного права на ТСД (ADHOC-51): войти можно, работать — нет; выйти — меню профиля.
+class _NoTsdAccess extends StatelessWidget {
+  const _NoTsdAccess();
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Padding(
+      padding: AppInsets.h8,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            t.homeScreen.noAccessTitle,
+            textAlign: TextAlign.center,
+            style: BoldTextStyles().boldInter20.copyWith(
+              color: AppColors.kTileText,
+            ),
+          ),
+          AppBoxes.kHeight8,
+          Text(
+            t.homeScreen.noAccessBody,
+            textAlign: TextAlign.center,
+            style: RegularTextStyles().regularInter14.copyWith(
+              color: AppColors.kTileText,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 }

@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
+import '../../../../core/auth/rights.dart';
+import '../../../../core/auth/session_rights.dart';
 import '../../../../core/constants/app_borders.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_insets.dart';
@@ -20,7 +22,6 @@ import '../../../../core/widgets/neumorphic_action_button.dart';
 import '../../../../core/widgets/page_header.dart';
 import '../../../../core/widgets/scan_field.dart';
 import '../../../../core/widgets/system_ui_wrapper.dart';
-import '../../../../core/auth/auth_cubit.dart';
 import '../../domain/stocktake_models.dart';
 import '../bloc/stocktake_cells_cubit.dart';
 import '../widgets/stocktake_cells_list.dart';
@@ -156,8 +157,8 @@ class _StocktakeViewState extends State<_StocktakeView>
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.read<AuthCubit?>()?.state;
-    final isAdmin = auth is AuthAuthenticated && auth.profile.role == 'admin';
+    // Закрыть пересчёт — право «заводить и закрывать» (ADHOC-51).
+    final canManage = sessionCan(context, Rights.tsdStocktakeManage);
     return BlocConsumer<StocktakeCellsCubit, StocktakeCellsState>(
       listenWhen: (a, b) =>
           (b.notice != null && a.notice != b.notice) ||
@@ -208,7 +209,7 @@ class _StocktakeViewState extends State<_StocktakeView>
                       onOpenDraft: openCount,
                     ),
                   ),
-                  if (isAdmin && state.info != null && !state.info!.closed)
+                  if (canManage && state.info != null && !state.info!.closed)
                     Padding(
                       padding: AppInsets.all16,
                       child: NeumorphicActionStack(

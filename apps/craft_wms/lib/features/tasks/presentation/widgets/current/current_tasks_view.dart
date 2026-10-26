@@ -1,3 +1,4 @@
+import '../../../../../core/auth/session_rights.dart';
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -58,6 +59,11 @@ class CurrentTasksView extends StatelessWidget {
         break;
     }
 
+    // Только виды заданий, на которые у должности есть право (ADHOC-51).
+    final tasks = [
+      for (final task in state.visible)
+        if (_allowed(context, task.kind)) task,
+    ];
     return RefreshIndicator(
       onRefresh: cubit.load,
       child: ListView(
@@ -75,13 +81,23 @@ class CurrentTasksView extends StatelessWidget {
                 ),
               ),
             ),
-          if (state.visible.isEmpty)
+          if (tasks.isEmpty)
             TasksMessage(text: t.tasks.emptyCurrent)
           else
-            for (final task in state.visible)
+            for (final task in tasks)
               TaskTile(task: task, onTap: () => openTask(context, task)),
         ],
       ),
+    );
+  }
+
+  bool _allowed(BuildContext context, String kind) {
+    final rights = taskKindRights(kind);
+    return sessionCan(
+      context,
+      rights.first,
+      more: rights.skip(1).toList(),
+      withoutSession: true,
     );
   }
 }

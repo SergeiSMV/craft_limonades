@@ -21,10 +21,11 @@ import '../records/record_tile.dart';
 /// Список склада — только со связью; без неё видны свои неотправленные и подсказка: свои —
 /// из очереди терминала, и кладовщик видит, что зафиксированное без сети не пропало.
 class CurrentProblemsView extends StatelessWidget {
-  const CurrentProblemsView({super.key, required this.onAdd});
+  const CurrentProblemsView({super.key, this.onAdd});
 
   /// Перейти к фиксации новой проблемы.
-  final VoidCallback onAdd;
+  /// «Пометить товар»; `null` — у должности нет права помечать (ADHOC-51), кнопки нет.
+  final VoidCallback? onAdd;
 
   /// Открыть карточку — всё уже пришло в списке, запроса нет.
   void openProblem(BuildContext context, ProblemRecord problem) =>
@@ -38,10 +39,11 @@ class CurrentProblemsView extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Expanded(child: _list(context, state, cubit)),
-        Padding(
-          padding: AppInsets.all16,
-          child: FilledButton(onPressed: onAdd, child: Text(t.problems.add)),
-        ),
+        if (onAdd != null)
+          Padding(
+            padding: AppInsets.all16,
+            child: FilledButton(onPressed: onAdd, child: Text(t.problems.add)),
+          ),
       ],
     );
   }

@@ -21,6 +21,8 @@
     "error_empty_credentials": "Заполните логин и пароль"
   },
   "home_screen": {
+    "no_access_title": "Нет доступа к ТСД",
+    "no_access_body": "У вашей должности нет прав на работу с терминалом. Обратитесь к администратору.",
     "title": "ГЛАВНОЕ МЕНЮ",
     "logs_tooltip": "Логи",
     "scanner_tooltip": "Сканер",

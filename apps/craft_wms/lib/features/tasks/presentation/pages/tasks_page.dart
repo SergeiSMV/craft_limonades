@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
-import '../../../../core/auth/auth_cubit.dart';
+import '../../../../core/auth/rights.dart';
+import '../../../../core/auth/session_rights.dart';
 import '../../../../core/constants/app_borders.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_insets.dart';
@@ -66,11 +67,9 @@ class _TasksViewState extends State<_TasksView> {
   /// Вернуться на главный экран.
   void goBack() => context.router.maybePop();
 
-  /// Старший смены — пока admin: ему доступно заведение пересчёта.
-  bool get _isAdmin {
-    final auth = context.read<AuthCubit?>()?.state;
-    return auth is AuthAuthenticated && auth.profile.role == 'admin';
-  }
+  /// Заводить пересчёт — право «Задания: пересчёт — заводить и закрывать» (ADHOC-51).
+  bool get _canCreateStocktake =>
+      sessionCan(context, Rights.tsdStocktakeManage);
 
   /// Завести пересчёт; по возврату «Текущие» обновляются — появилось новое задание.
   Future<void> createStocktake() async {
@@ -117,8 +116,8 @@ class _TasksViewState extends State<_TasksView> {
                 children: const [CurrentTasksView(), CompletedFeed()],
               ),
             ),
-            // Завести пересчёт (P10-04) — старшему смены; пока право у admin.
-            if (_tab == 0 && _isAdmin)
+            // Завести пересчёт (P10-04) — старшему смены, по праву должности.
+            if (_tab == 0 && _canCreateStocktake)
               Padding(
                 padding: AppInsets.all16,
                 child: NeumorphicActionStack(
