@@ -1,6 +1,6 @@
 # P1-10D · Модель данных и форматы файлов импорта
 
-**Статус:** актуально на миграции `000001`–`000029` (P1 · P-FastStart · P2 · P3 · P4 · P5 · P6 · CZ-03 · CZ-05 · ADHOC-45 · ADHOC-46).
+**Статус:** актуально на миграции `000001`–`000030` (P1 · P-FastStart · P2 · P3 · P4 · P5 · P6 · CZ-03 · CZ-05 · ADHOC-45 · ADHOC-46 · P10-01).
 **Задача:** свести в один документ схему БД (таблицы, ключи, связи, инварианты) и ожидаемые
 форматы файлов импорта номенклатуры и ячеек — чтобы понимать модель без чтения миграций.
 **Критерий:** есть `docs/data-model.md`, описывающий таблицы и форматы импорта.
@@ -462,7 +462,7 @@ Checkpoint ячейки **заменяет** её содержимое в сес
 | `name`       | `text`        | как показывается человеку                                  |
 | `is_default` | `boolean`     | куда приходовать, если склад не выбран; **ровно один**     |
 | `is_active`  | `boolean`     | скрыт из выбора; остатки на нём сохраняются                |
-| `system_role`| `text`        | UNIQUE; `supplier_return`; CHECK; NULL — обычный (`000024`) |
+| `system_role`| `text`        | UNIQUE; `supplier_return` / `not_found`; CHECK; NULL — обычный (`000024`, `000032`) |
 
 Справочник, а не enum: число складов произвольно и пополняется из интерфейса. Стартовый состав
 (`MAIN` «Основной» по умолчанию, `DEFECT` «Брак») заводится миграцией — без склада по умолчанию
@@ -473,8 +473,10 @@ Checkpoint ячейки **заменяет** её содержимое в сес
 отвечает флаг, поэтому склад можно переименовать или заменить, не трогая логику.
 
 Системный склад (`system_role`, P6-07-3) — тот, на который товар переводит программа:
-`RETURN` «Возврат поставщику» (`supplier_return`) заводит миграция `000024`. Его не скрыть и не
-удалить, при пометке проблемы на ТСД его не выбрать, и товар на нём заново не помечается.
+`RETURN` «Возврат поставщику» (`supplier_return`) заводит миграция `000024`, `NOT_FOUND`
+«Не найдено» (`not_found`) — миграция `000032`: туда пересчёт уводит короб и марки, которые не
+нашёл (P10-03). Системный склад не скрыть и не удалить, при пометке проблемы на ТСД его не
+выбрать, товар на нём заново не помечается, и пересчёт его не считает.
 Ищется по роли, а не по коду — код и имя правятся из портала.
 
 **Изменение `stock` (миграция `000013`).** Добавлена колонка `internal_warehouse_id` (FK, NOT NULL),
@@ -544,11 +546,12 @@ batch_id, cell_id, load_unit_id)`. Повторный скан той же ко�
 | `load_unit_id` | `uuid`        | FK → `load_units(id)` `ON DELETE CASCADE`                     |
 | `from_cell_id` | `uuid`        | FK → `cells(id)`; NULL — первое размещение (приёмка)          |
 | `to_cell_id`   | `uuid`        | FK → `cells(id)`, NOT NULL                                    |
-| `source`       | `text`        | `receipt` / `putaway` / `move` / `stock_entry`; CHECK         |
+| `source`       | `text`        | `receipt` / `putaway` / `move` / `stock_entry` / `stocktake`; CHECK |
 | `receipt_id`   | `uuid`        | FK → `receipts(id)`; заполнен, если перенос сделала приёмка   |
 | `putaway_id`   | `uuid`        | FK → `putaways(id)`; заполнен, если перенёс сеанс размещения  |
 | `movement_id`  | `uuid`        | FK → `movements(id)`; заполнен, если перенесло перемещение    |
 | `stock_entry_session_id` | `uuid` | FK → `stock_entry_sessions(id)`; короб завёл ввод остатков (ADHOC-46) |
+| `stocktake_cell_id` | `uuid` | FK → `stocktake_cells(id)`; учётный короб нашёл пересчёт в другой ячейке (`000032`, P10-03) |
 | `user_id`      | `uuid`        | FK → `users(id)`; NULL только у строк без известного автора   |
 | `placed_at`    | `timestamptz` | момент переноса                                               |
 
@@ -608,11 +611,12 @@ CHECK: строка — короб (только `load_unit_id`) **либо** р
 |--------------------|---------------|-----------------------------------------------------------|
 | `id`               | `uuid`        | PK                                                        |
 | `number`           | `bigint`      | identity, UNIQUE — короткий номер для людей               |
-| `kind`             | `text`        | `putaway` / `supplier_return` (`000024`); CHECK           |
+| `kind`             | `text`        | `putaway` / `supplier_return` (`000024`) / `stocktake` (`000030`); CHECK |
 | `status`           | `text`        | `new` / `in_progress` / `done`; CHECK                     |
 | `warehouse_id`     | `uuid`        | FK → `warehouses(id)`                                     |
 | `receipt_id`       | `uuid`        | FK → `receipts(id)` — основание; `UNIQUE (receipt_id, kind)` |
 | `supplier_id`      | `uuid`        | FK → `suppliers(id)` — кому возврат; есть ровно у `supplier_return` |
+| `stocktake_id`     | `uuid`        | FK → `stocktakes(id)` — пересчёт; есть ровно у `stocktake`, одно задание на пересчёт; ячейки из него берут разные работники, исполнителя у задания нет |
 | `assignee_id`      | `uuid`        | FK → `users(id)` — кто держит; есть ровно у `in_progress` |
 | `taken_at`         | `timestamptz` | когда взято                                               |
 | `last_activity_at` | `timestamptz` | взятие или сеанс; от него считается «зависло» (8 ч)       |
@@ -741,7 +745,7 @@ CHECK:
 | `from_load_unit_id`          | `uuid`          | FK → `load_units(id)`; товар вынут из короба       |
 | `from_internal_warehouse_id` | `uuid`          | FK, NOT NULL; склад до пометки                     |
 | `to_internal_warehouse_id`   | `uuid`          | FK, NOT NULL; склад после; CHECK `<>` from         |
-| `reason`                     | `text`          | `breakage` / `spoilage` / `expired` / `foreign_mark` / `retired` / `other`; CHECK |
+| `reason`                     | `text`          | `breakage` / `spoilage` / `expired` / `foreign_mark` / `retired` / `not_found` / `other`; CHECK |
 | `comment`                    | `text`          | NOT NULL DEFAULT `''`; у `other` обязателен (сервис) |
 | `mark`                       | `text`          | марка ЧЗ или код короба ЧЗ проблемы                |
 | `status`                     | `text`          | `open` / `resolved`; CHECK                         |
@@ -896,6 +900,82 @@ FK `(batch_id, good_id) → batches(id, good_id)`, как у `stock` и `lu_cont
 Индекс `(problem_id, created_at)`. **До трёх фото на проблему и только к открытой** — держит сервис
 под блокировкой строки проблемы (CHECK одной строки соседей не видит).
 
+### 3.36 `stocktakes` — документ пересчёта (миграция `000030`, P10-01)
+
+| Колонка        | Тип           | Ограничения / смысл                                        |
+|----------------|---------------|-------------------------------------------------------------|
+| `id`           | `uuid`        | PK                                                          |
+| `number`       | `bigint`      | identity, UNIQUE — «Пересчёт №…»                            |
+| `warehouse_id` | `uuid`        | FK → `warehouses(id)`                                       |
+| `scope_kind`   | `text`        | `cells` / `group` / `supplier` / `good` / `internal_warehouse` / `all`; CHECK |
+| `status`       | `text`        | `new` / `in_progress` / `closed`; CHECK                     |
+| `created_by`   | `uuid`        | FK → `users(id)`                                            |
+| `created_at`   | `timestamptz` | DEFAULT `now()`                                             |
+| `closed_by`    | `uuid`        | FK → `users(id)`                                            |
+| `closed_at`    | `timestamptz` | есть ровно у `closed`                                       |
+
+### 3.37 `stocktake_scope` — область пересчёта (миграция `000030`)
+
+Объекты области, как их выбрал старший смены: `cell_id` / `group_id` / `supplier_id` / `good_id` /
+`internal_warehouse_id` — ровно один в строке (`num_nonnulls = 1`), повтор объекта в документе
+запрещён частичными уникальными индексами. Матрица — группа номенклатуры (узел дерева из 1С),
+берётся с поддеревом. У области `all` строк нет. В ячейки область разворачивается при
+заведении (P10-02): `cells` и `all` — как заданы (`all` — все ячейки склада, включая пустые),
+`internal_warehouse`, `group`, `supplier`, `good` — ячейки с ненулевым остатком своих товаров
+или склада; ячейка приёмки (`cells.is_default`) не входит никогда.
+
+### 3.38 `stocktake_cells` — ячейки пересчёта (миграция `000030`)
+
+| Колонка        | Тип           | Ограничения / смысл                                             |
+|----------------|---------------|------------------------------------------------------------------|
+| `id`           | `uuid`        | PK                                                               |
+| `stocktake_id` | `uuid`        | FK `ON DELETE CASCADE`; `UNIQUE (stocktake_id, cell_id)`         |
+| `cell_id`      | `uuid`        | FK → `cells(id)`                                                 |
+| `status`       | `text`        | `pending` / `taken` / `counting` / `counted` / `disrupted`; CHECK |
+| `taken_by`, `taken_at` | | кто взял ячейку (любой работник); есть у всех, кроме `pending`   |
+| `started_at`   | `timestamptz` | начало подсчёта (скан ячейки) — снимок и мягкая блокировка; нет у `pending` и `taken` |
+| `counted_by`, `counted_at` | | подсчёт закончен; `counted_at` есть ровно у `counted`   |
+
+Частичные индексы: `(cell_id) WHERE status = 'counting'` — «на пересчёте ли ячейка» для движений;
+`(taken_by) WHERE status IN ('taken','counting')` — «мои ячейки».
+
+**Мягкая блокировка (миграция `000031`, P10-02).** Триггеры `*_stocktake_disrupt` на `stock`,
+`lu_content`, `load_units` (`cell_id`, `internal_warehouse_id`) и `cz_marks` (статус и место)
+вызывают `stocktake_disrupt_cells(uuid[])`: подсчёт затронутых ячеек в статусе `counting`
+становится `disrupted`. Функция берёт разделяемую рекомендательную блокировку ячейки
+`(1010, hashtext(cell_id))`, начало подсчёта — исключительную: снимок и движение не проходят
+друг мимо друга.
+
+### 3.39 `stocktake_lines` — строки пересчёта (миграция `000030`)
+
+| Колонка                 | Тип             | Ограничения / смысл                                   |
+|-------------------------|-----------------|--------------------------------------------------------|
+| `id`                    | `uuid`          | PK                                                     |
+| `stocktake_cell_id`     | `uuid`          | FK → `stocktake_cells(id)` `ON DELETE CASCADE`         |
+| `load_unit_id`          | `uuid`          | FK → `load_units(id)`; короб строки                    |
+| `good_id`, `batch_id`   | `uuid`          | вместе или оба NULL; составной FK → `batches(id, good_id)` |
+| `internal_warehouse_id` | `uuid`          | FK → `internal_warehouses(id)`, NOT NULL               |
+| `expected_qty`          | `numeric(20,3)` | снимок при начале подсчёта ячейки; 0 — излишек         |
+| `fact_qty`              | `numeric(20,3)` | факт; NULL — не подтверждён                            |
+| `problem_id`            | `uuid`          | FK → `warehouse_problems(id)`; короб не найден (`000032`) |
+
+Три вида строки: россыпь (товар · партия), короб целиком (короб без товара, количество 0 или 1),
+товар во вскрытом коробе (короб · товар · партия). Одна позиция ячейки — одна строка:
+`UNIQUE NULLS NOT DISTINCT (stocktake_cell_id, load_unit_id, good_id, batch_id,
+internal_warehouse_id)`.
+
+### 3.40 `stocktake_marks` — марки пересчёта (миграция `000030`)
+
+PK `(stocktake_cell_id, cis)`; `line_id` FK → `stocktake_lines(id)` `ON DELETE CASCADE`;
+`expected` — лежала в ячейке россыпью при начале подсчёта, `found` — отсканирована; хотя бы
+одно из двух истинно. Ожидалась и не найдена — проблема «не найдено» при подсчёте ячейки,
+ссылка — `problem_id` (миграция `000032`, P10-03).
+
+**Подсчёт ячейки (P10-03).** Факт приходит операцией `stocktake_cell_submit`; ячейка становится
+`counted`, строки получают `fact_qty` (не названная позиция — 0), остаток россыпи приводится к
+факту сразу, каждая правка — строкой `audit_log` (`stocktake.adjust`, было/стало в `details`).
+Товар системных складов в снимок и факт не входит.
+
 ---
 
 ## 4. Инварианты и целостность
@@ -906,6 +986,8 @@ FK `(batch_id, good_id) → batches(id, good_id)`, как у `stock` и `lu_cont
 - **Согласованность денормализации:** составной FK на `stock` не даёт `good_id` разойтись с партией.
 - **Место марки ЧЗ однозначно:** на складе — ровно одно (ГЕ или ячейка с внутренним
   складом), ушла — ни одного; держит `CHECK cz_marks_place` (CZ-03).
+- **Подсчёт ячейки не переживает движения через неё:** изменение содержимого ячейки в статусе
+  `counting` переводит её в `disrupted` триггерами миграции `000031` (P10-02).
 - **Атомарность движения остатка** обеспечивается на уровне SQL (upsert-приход /
   `UPDATE … WHERE qty >= $` расход / transfer в транзакции), **без `FOR UPDATE`**; нулевые остатки
   не удаляются. `qty` на границе SQL передаётся строкой (`$::numeric` / `qty::text`) — детали P1-03.

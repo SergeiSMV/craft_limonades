@@ -15,6 +15,9 @@ const (
 	ProblemReasonForeignMark = "foreign_mark" // не наша марка ЧЗ
 	ProblemReasonRetired     = "retired"      // марка ЧЗ выбыла из оборота (CZ-05)
 	ProblemReasonOther       = "other"        // прочее — с обязательным комментарием
+	// ProblemReasonNotFound — короб или марка не найдены пересчётом (P10-03). Заводит только
+	// программа при подсчёте ячейки, поэтому в ProblemReasons (выбор на ТСД) её нет.
+	ProblemReasonNotFound = "not_found"
 )
 
 // ProblemReasons — все причины, в порядке показа.
@@ -62,6 +65,8 @@ var problemDecisions = map[string][]string{
 	// Выбывшую марку продать нельзя — разместить обратно в «Основной» не даём (CZ-05).
 	ProblemReasonRetired: {ProblemDecisionWriteOff, ProblemDecisionSupplierReturn},
 	ProblemReasonOther:   {ProblemDecisionWriteOff, ProblemDecisionPlace, ProblemDecisionSupplierReturn},
+	// Не найдено (P10-03): списать по документу 1С или «нашлось» — вернуть в «Основной».
+	ProblemReasonNotFound: {ProblemDecisionWriteOff, ProblemDecisionPlace},
 }
 
 // ProblemDecisionsFor — решения, допустимые при причине; неизвестная причина — пусто.

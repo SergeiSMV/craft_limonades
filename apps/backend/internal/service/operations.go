@@ -71,6 +71,7 @@ type operationsRepo interface {
 	MovementSubmit(ctx context.Context, operationID string, in repository.MovementSubmitInput) (repository.Applied, error)
 	ProblemSubmit(ctx context.Context, operationID string, in repository.ProblemSubmitInput) (repository.Applied, error)
 	ReturnSubmit(ctx context.Context, operationID string, in repository.ReturnSubmitInput) (repository.Applied, error)
+	StocktakeCellSubmit(ctx context.Context, operationID string, in model.StocktakeCellSubmitInput) (repository.Applied, error)
 }
 
 // OperationsService — приём батча операций из очереди устройства с дедупом по operation_id.
@@ -298,6 +299,9 @@ func (s *OperationsService) dispatch(ctx context.Context, userID, id string, op 
 	case repository.KindReturnSubmit:
 		return s.returnSubmit(ctx, userID, id, op.Payload)
 
+	case repository.KindStocktakeCellSubmit:
+		return s.stocktakeCellSubmit(ctx, userID, id, op.Payload)
+
 	default:
 		return repository.Applied{}, ErrUnknownKind
 	}
@@ -409,7 +413,21 @@ func isRejection(err error) bool {
 		errors.Is(err, ErrInvalidShipmentID) ||
 		errors.Is(err, repository.ErrShipmentPosted) ||
 		errors.Is(err, repository.ErrEmptyShipment) ||
-		errors.Is(err, repository.ErrProblemGoodsMissing)
+		errors.Is(err, repository.ErrProblemGoodsMissing) ||
+		// Подсчёт ячейки пересчёта (P10-03): ячейка не своя, не начата, уже подсчитана, сбита
+		// движением или пересчёт закрыт; в факте товар не области, неизвестный короб или марка,
+		// товар в проблеме, маркируемый без марок. Повтор не поможет — ячейку пересчитывают.
+		errors.Is(err, model.ErrStocktakeCellNotFound) ||
+		errors.Is(err, model.ErrStocktakeCellNotYours) ||
+		errors.Is(err, model.ErrStocktakeCellNotCounting) ||
+		errors.Is(err, model.ErrStocktakeCellCounted) ||
+		errors.Is(err, model.ErrStocktakeCellDisrupted) ||
+		errors.Is(err, model.ErrStocktakeClosed) ||
+		errors.Is(err, model.ErrStocktakeOutOfArea) ||
+		errors.Is(err, model.ErrStocktakeUnknownBox) ||
+		errors.Is(err, model.ErrStocktakeUnknownMark) ||
+		errors.Is(err, model.ErrStocktakeInProblem) ||
+		errors.Is(err, model.ErrStocktakeMarksRequired)
 }
 
 // rejected собирает результат-отказ с причиной, читаемой человеком на экране разбора.

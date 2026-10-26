@@ -146,6 +146,10 @@ class _History extends StatelessWidget {
         from: from,
         to: m.to,
       ),
+      (LoadUnitMoveKind.stocktake, final from?) => t.contents.moveStocktake(
+        from: from,
+        to: m.to,
+      ),
       (LoadUnitMoveKind.other, final from?) => t.contents.moveOther(
         from: from,
         to: m.to,

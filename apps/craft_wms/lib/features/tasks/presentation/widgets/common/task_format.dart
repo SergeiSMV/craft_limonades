@@ -12,6 +12,7 @@ export '../../../../../core/utils/date_time_format.dart'
 String taskKindLabel(String kind) => switch (kind) {
   TaskKind.putaway => t.tasks.kindPutaway,
   TaskKind.supplierReturn => t.tasks.kindSupplierReturn,
+  TaskKind.stocktake => t.tasks.kindStocktake,
   _ => kind,
 };
 
@@ -42,8 +43,14 @@ String taskBasis(WarehouseTask task) {
 
 /// Автор задания. Задание от приёмки заводит система — «автоматически». Когда задания начнут
 /// создавать люди (портал, P8; пересчёт, P10), сервер начнёт отдавать автора, и он встанет здесь.
-String taskAuthor(WarehouseTask task) =>
-    t.tasks.author(name: t.tasks.authorAuto);
+///
+/// Пересчёт (P10-04) заводит старший смены — сервер отдаёт его имя.
+String taskAuthor(WarehouseTask task) => t.tasks.author(
+  name: switch (task.stocktake?.createdBy) {
+    final name? when name.isNotEmpty => name,
+    _ => t.tasks.authorAuto,
+  },
+);
 
 /// Поставщик-основание для ленты, где приёмки как объекта нет — только имя. У возврата —
 /// кому везли (ADHOC-31).

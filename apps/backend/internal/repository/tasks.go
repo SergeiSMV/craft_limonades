@@ -306,7 +306,7 @@ const taskHeaderSQL = `
 	       CASE WHEN t.assignee_id = $1::uuid THEN t.assignee_id::text END,
 	       CASE WHEN t.assignee_id = $1::uuid THEN COALESCE(u.full_name, '') ELSE '' END,
 	       CASE WHEN t.assignee_id = $1::uuid THEN t.taken_at END,
-	       t.created_at
+	       t.created_at, t.stocktake_id::text
 	FROM warehouse_tasks t
 	LEFT JOIN receipts r  ON r.id = t.receipt_id
 	-- Поставщик: у размещения — поставщик приёмки, у возврата — кому везём (ADHOC-31).
@@ -358,7 +358,8 @@ func scanTasks(rows pgx.Rows) ([]model.Task, error) {
 	for rows.Next() {
 		var t model.Task
 		if err := rows.Scan(&t.ID, &t.Number, &t.Kind, &t.Status, &t.WarehouseID, &t.ReceiptID,
-			&t.SupplierName, &t.ReceivedAt, &t.DocNumber, &t.DocDate, &t.AssigneeID, &t.AssigneeName, &t.TakenAt, &t.CreatedAt); err != nil {
+			&t.SupplierName, &t.ReceivedAt, &t.DocNumber, &t.DocDate, &t.AssigneeID, &t.AssigneeName, &t.TakenAt, &t.CreatedAt,
+			&t.StocktakeID); err != nil {
 			return nil, fmt.Errorf("разобрать задание: %w", err)
 		}
 		out = append(out, t)
@@ -379,6 +380,9 @@ func (r *TaskRepository) attachItems(ctx context.Context, tasks []model.Task) er
 		index[t.ID] = i
 	}
 	if err := r.attachReturnItems(ctx, tasks, ids, index); err != nil {
+		return err
+	}
+	if err := r.attachStocktakes(ctx, tasks); err != nil {
 		return err
 	}
 	rows, err := r.pool.Query(ctx, `
@@ -456,6 +460,43 @@ func (r *TaskRepository) attachItems(ctx context.Context, tasks []model.Task) er
 		}
 	}
 	return nil
+}
+
+// attachStocktakes дочитывает к заданиям пересчёта (P10-04) номер, область и ход: сколько
+// ячеек всего и сколько подсчитано — одним запросом на список.
+func (r *TaskRepository) attachStocktakes(ctx context.Context, tasks []model.Task) error {
+	var ids []string
+	index := map[string]int{}
+	for i, t := range tasks {
+		if t.StocktakeID != nil {
+			ids = append(ids, *t.StocktakeID)
+			index[*t.StocktakeID] = i
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	rows, err := r.pool.Query(ctx, `
+		SELECT st.id::text, st.number, st.scope_kind, COALESCE(u.full_name, ''),
+		       count(sc.id), count(sc.id) FILTER (WHERE sc.status = 'counted')
+		FROM stocktakes st
+		LEFT JOIN users u ON u.id = st.created_by
+		LEFT JOIN stocktake_cells sc ON sc.stocktake_id = st.id
+		WHERE st.id = ANY($1::text[]::uuid[])
+		GROUP BY st.id, u.full_name`, ids)
+	if err != nil {
+		return fmt.Errorf("пересчёты заданий: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		var st model.TaskStocktakeInfo
+		if err := rows.Scan(&id, &st.Number, &st.ScopeKind, &st.CreatedBy, &st.Cells, &st.Counted); err != nil {
+			return fmt.Errorf("разобрать пересчёт задания: %w", err)
+		}
+		tasks[index[id]].Stocktake = &st
+	}
+	return rows.Err()
 }
 
 // boxCZCodes — коды коробов ЧЗ среди коробов заданий (CZ-06): ГЕ → `00`+SSCC.

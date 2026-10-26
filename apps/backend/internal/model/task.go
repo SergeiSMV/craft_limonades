@@ -13,6 +13,9 @@ const (
 	// TaskSupplierReturn — отгрузить возврат поставщику (P6-07-3, ADHOC-31): позиции — проблемы,
 	// решённые офисом возвратом этому поставщику.
 	TaskSupplierReturn = "supplier_return"
+	// TaskStocktake — пересчёт (P10-01): задание одно общее на пересчёт, его не берут целиком —
+	// работники берут из него ячейки.
+	TaskStocktake = "stocktake"
 )
 
 // Статусы задания: пул new → in_progress (взято) → done.
@@ -46,6 +49,11 @@ type Task struct {
 	AssigneeName string
 	TakenAt      *time.Time
 	CreatedAt    time.Time
+
+	// StocktakeID — пересчёт задания вида stocktake (P10-03): ячейки берут из него.
+	StocktakeID *string
+	// Stocktake — номер, область и ход пересчёта (P10-04); nil — у других видов.
+	Stocktake *TaskStocktakeInfo
 
 	Items []PutawayTaskItem
 }
@@ -169,4 +177,15 @@ type TaskSessionLine struct {
 	Qty            *decimal.Decimal
 	FromAddress    string
 	ToAddress      string
+}
+
+// TaskStocktakeInfo — пересчёт задания так, как его показывает плитка на ТСД (P10-04): номер,
+// вид области и ход — сколько ячеек всего и сколько подсчитано.
+type TaskStocktakeInfo struct {
+	Number    int64
+	ScopeKind string
+	// CreatedBy — кто завёл пересчёт: у задания пересчёта автор — человек, а не система.
+	CreatedBy string
+	Cells     int
+	Counted   int
 }
