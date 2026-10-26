@@ -22,6 +22,7 @@ type stocktakeRepo interface {
 	StartCount(ctx context.Context, stocktakeCellID, userID string) (model.StocktakeCellView, error)
 	CellView(ctx context.Context, id, userID string) (model.StocktakeCellView, error)
 	Close(ctx context.Context, id, userID string, force bool) (int, error)
+	List(ctx context.Context, status string) ([]model.StocktakeListItem, error)
 }
 
 // StocktakeService — пересчёт склада (P10): заведение по области, ячейки для работника,
@@ -117,4 +118,12 @@ func (s *StocktakeService) Close(ctx context.Context, id, userID string, force b
 		return 0, model.ErrStocktakeNotFound
 	}
 	return s.repo.Close(ctx, id, userID, force)
+}
+
+// List — пересчёты для портала (P10-05): `open`, `closed` или пусто — все.
+func (s *StocktakeService) List(ctx context.Context, status string) ([]model.StocktakeListItem, error) {
+	if status != "" && status != "open" && status != "closed" {
+		return nil, model.ErrInvalidStocktake
+	}
+	return s.repo.List(ctx, status)
 }

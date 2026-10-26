@@ -33,6 +33,9 @@ func (f *fakeStocktakeRepo) CellView(context.Context, string, string) (model.Sto
 	return model.StocktakeCellView{}, nil
 }
 func (f *fakeStocktakeRepo) Close(context.Context, string, string, bool) (int, error) { return 0, nil }
+func (f *fakeStocktakeRepo) List(context.Context, string) ([]model.StocktakeListItem, error) {
+	return nil, nil
+}
 
 // P10-02: форма области проверяется до базы — вид известен, у «всего склада» объектов нет,
 // у остальных они есть, всё — UUID; повторы объектов схлопываются.

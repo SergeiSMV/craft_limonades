@@ -90,6 +90,10 @@ abstract final class AppSizes {
   static const double kPortalCalendarHeight = 340;
   // Список выбора из справочника в диалоге портала (ADHOC-30), не выше.
   static const double kPortalPickListMaxHeight = 220;
+  static const double kPortalDialogWidth =
+      520; // диалог с таблицей или выбором (пересчёт, P10-05)
+  static const double kPortalTreeIndent =
+      16; // отступ уровня дерева групп в выборе (P10-05)
   static const double kContentMaxWidth =
       900; // предел ширины карточки (по макету)
   static const double kFormWidth = 480; // правая панель формы входа

@@ -11,6 +11,7 @@ import '../widgets/shell/portal_header.dart';
 import '../widgets/shell/portal_sidebar.dart';
 import '../widgets/tabs/cells_tab.dart';
 import '../widgets/tabs/documents_tab.dart';
+import '../widgets/tabs/inventory_tab.dart';
 import '../widgets/tabs/nomenclature_tab.dart';
 import '../widgets/tabs/problems_tab.dart';
 import '../widgets/tabs/settings_tab.dart';
@@ -68,11 +69,9 @@ class _PortalShellState extends State<PortalShell> {
         NavItem(
           icon: Icons.fact_check_outlined,
           label: t.portal.tabs.stocktake,
-          description: t.portal.inventory.description,
-          body: DocumentsTab(
-            kind: 'stock_entry',
-            empty: t.portal.inventory.empty,
-          ),
+          // P10-05: пересчёты, документы «Инвентаризация» и «Ввод остатков».
+          description: t.portal.stocktake.description,
+          body: const InventoryTab(),
         ),
       ],
     ),

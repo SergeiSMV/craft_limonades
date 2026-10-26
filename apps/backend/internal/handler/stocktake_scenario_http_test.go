@@ -94,6 +94,28 @@ func TestStocktakeScenarioHTTP(t *testing.T) {
 	if !strings.Contains(string(raw), `"status":"closed"`) || !strings.Contains(string(raw), `"status":"counted"`) {
 		t.Errorf("пересчёт после закрытия: %s", raw)
 	}
+
+	// P10-05: список пересчётов для портала и документ «Инвентаризация» для 1С.
+	if code, _ := e.call(t, http.MethodGet, "/api/v1/stocktakes", e.workerToken, ""); code != http.StatusForbidden {
+		t.Errorf("список пересчётов кладовщику: код %d, ожидался 403", code)
+	}
+	_, raw = e.call(t, http.MethodGet, "/api/v1/stocktakes?status=closed", e.adminToken, "")
+	if !strings.Contains(string(raw), `"id":"`+st.ID+`"`) || !strings.Contains(string(raw), `"cells":1,"counted":1`) {
+		t.Errorf("закрытые пересчёты: %s", raw)
+	}
+	_, raw = e.call(t, http.MethodGet, "/api/v1/documents?kind=stocktake", e.adminToken, "")
+	var docs []struct {
+		ID              string `json:"id"`
+		StocktakeNumber int64  `json:"stocktake_number"`
+		LinesCount      int    `json:"lines_count"`
+	}
+	mustJSON(t, raw, &docs)
+	if len(docs) != 1 || docs[0].StocktakeNumber == 0 || docs[0].LinesCount != 1 {
+		t.Fatalf("документы «Инвентаризация»: %s", raw)
+	}
+	if code, file := e.call(t, http.MethodGet, "/api/v1/documents/"+docs[0].ID+"/file.xlsx", e.adminToken, ""); code != http.StatusOK || len(file) == 0 {
+		t.Errorf("файл «Инвентаризации»: код %d, %d байт", code, len(file))
+	}
 }
 
 func mustJSON(t *testing.T, raw []byte, v any) {

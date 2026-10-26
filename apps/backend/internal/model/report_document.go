@@ -12,6 +12,8 @@ const (
 	// ReportKindMovement — форма «Движение» (P5-04): одна на размещение, перемещение и
 	// пополнение (P6); какая операция её породила — поле снимка Operation.
 	ReportKindMovement = "movement"
+	// ReportKindStocktake — форма «Инвентаризация» (P10-05): одна на пересчёт, при закрытии.
+	ReportKindStocktake = "stocktake"
 
 	// SourceTypeStockEntrySession — операция-источник: сессия ввода остатков.
 	SourceTypeStockEntrySession = "stock_entry_session"
@@ -22,6 +24,8 @@ const (
 	// SourceTypeMovement — операция-источник: документ движения — перемещение или
 	// пополнение (P6-07).
 	SourceTypeMovement = "movement"
+	// SourceTypeStocktake — операция-источник: пересчёт (P10-05).
+	SourceTypeStocktake = "stocktake"
 )
 
 // Операции «Движения» (P5-04). Значение лежит в снимке документа — менять нельзя.
@@ -68,6 +72,10 @@ type ReportSnapshot struct {
 	// (MovementOperation*); TaskNumber — номер задания-основания, 0 — операция без задания.
 	Operation  string `json:"operation,omitempty"`
 	TaskNumber int64  `json:"task_number,omitempty"`
+
+	// Шапка «Инвентаризации» (P10-05): номер пересчёта и вид его области; Executor — кто закрыл.
+	StocktakeNumber int64  `json:"stocktake_number,omitempty"`
+	ScopeKind       string `json:"scope_kind,omitempty"`
 }
 
 // ReportSnapshotRow — строка документа. Числа и даты хранятся текстом: qty — decimal, который
@@ -83,6 +91,14 @@ type ReportSnapshotRow struct {
 	GoodName        string  `json:"good_name"`
 	ProductionDate  string  `json:"production_date"`
 	Qty             string  `json:"qty"`
+
+	// Строка «Инвентаризации» (P10-05): склад WMS позиции, ожидалось, факт, расхождение (факт
+	// минус ожидалось) и пометка — «не найдено — проблема склада», «не считалась». Qty у неё пуст.
+	InternalWarehouse string `json:"internal_warehouse,omitempty"`
+	Expected          string `json:"expected,omitempty"`
+	Fact              string `json:"fact,omitempty"`
+	Diff              string `json:"diff,omitempty"`
+	Note              string `json:"note,omitempty"`
 }
 
 // Статусы документа (P3-02). Значения лежат в БД под CHECK-ограничением, менять их нельзя
@@ -108,12 +124,14 @@ type DocumentListItem struct {
 	DocDate       string // её дата YYYY-MM-DD
 	Operation     string // операция «Движения» (P5-04); пусто — другая форма
 	TaskNumber    int64  // задание-основание «Движения»; 0 — нет
-	Executor      string // кто выполнил операцию (ФИО из снимка); пусто — снимок без исполнителя
-	CreatedAt     time.Time
-	LinesCount    int
-	Status        string
-	DownloadedAt  *time.Time
-	DoneAt        *time.Time
+	// StocktakeNumber — пересчёт «Инвентаризации» (P10-05); 0 — другая форма.
+	StocktakeNumber int64
+	Executor        string // кто выполнил операцию (ФИО из снимка); пусто — снимок без исполнителя
+	CreatedAt       time.Time
+	LinesCount      int
+	Status          string
+	DownloadedAt    *time.Time
+	DoneAt          *time.Time
 }
 
 // ReportDocument — документ отчёта: чем он порождён и что в нём заморожено.
