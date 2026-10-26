@@ -30,6 +30,10 @@ import '../../features/stock/presentation/pages/stock_detail_page.dart';
 import '../../features/stock_entry/presentation/pages/entry_box_page.dart';
 import '../../features/stock_entry/presentation/pages/stock_entry_page.dart';
 import '../../features/sync/presentation/pages/sync_queue_page.dart';
+import '../../features/stocktake/domain/stocktake_models.dart'; // StocktakeCellView — аргумент StocktakeCountRoute
+import '../../features/stocktake/presentation/pages/stocktake_count_page.dart';
+import '../../features/stocktake/presentation/pages/stocktake_create_page.dart';
+import '../../features/stocktake/presentation/pages/stocktake_page.dart';
 import '../../features/tasks/data/tasks_models.dart'; // WarehouseTask — аргумент TaskDetailRoute
 import '../../features/tasks/presentation/pages/task_detail_page.dart';
 import '../../features/tasks/presentation/pages/tasks_page.dart';
@@ -78,6 +82,10 @@ class AppRouter extends RootStackRouter {
     // Выполнение задания на размещение (P5-03).
     AutoRoute(page: PutawayRoute.page, guards: [_authGuard]),
     AutoRoute(page: SupplierReturnRoute.page, guards: [_authGuard]),
+    // Пересчёт (P10-04): ячейки, подсчёт ячейки, заведение старшим смены.
+    AutoRoute(page: StocktakeRoute.page, guards: [_authGuard]),
+    AutoRoute(page: StocktakeCountRoute.page, guards: [_authGuard]),
+    AutoRoute(page: StocktakeCreateRoute.page, guards: [_authGuard]),
     // Содержимое ячейки и короба по скану (P5-05).
     AutoRoute(page: CellContentsRoute.page, guards: [_authGuard]),
     AutoRoute(page: LoadUnitRoute.page, guards: [_authGuard]),

@@ -84,6 +84,12 @@ class _OperationTileState extends State<OperationTile> {
         count: (operation.payload['problem_ids'] as List<dynamic>? ?? const [])
             .length,
       ),
+      OutboxKind.stocktakeCellSubmit => t.syncQueue.opStocktake(
+        count:
+            (operation.payload['loose'] as List<dynamic>? ?? const []).length,
+        boxes:
+            (operation.payload['boxes'] as List<dynamic>? ?? const []).length,
+      ),
     };
     return Card(
       margin: AppInsets.bottom8,

@@ -156,4 +156,27 @@ abstract final class ApiConst {
   /// PUT — тело сам снимок, идемпотентно по id фото; GET — снимок как есть.
   static String problemPhoto(String problemId, String photoId) =>
       'problems/$problemId/photos/$photoId';
+
+  ///**POST** - завести пересчёт по области, только admin (P10-03): `stocktakes`.
+  static const String stocktakes = 'stocktakes';
+
+  ///**GET** - пересчёт с ходом выполнения (P10-03): `stocktakes/{id}`.
+  static String stocktakeById(String id) => 'stocktakes/$id';
+
+  ///**GET** - ячейки пересчёта, которые работник может считать (P10-03): `stocktakes/{id}/cells`.
+  static String stocktakeCells(String id) => 'stocktakes/$id/cells';
+
+  ///**POST** - закрыть пересчёт, только admin (P10-03): `stocktakes/{id}/close`.
+  static String stocktakeClose(String id) => 'stocktakes/$id/close';
+
+  ///**POST** - взять ячейку пересчёта (P10-03): `stocktake-cells/{id}/take`.
+  static String stocktakeCellTake(String id) => 'stocktake-cells/$id/take';
+
+  ///**POST** - отказаться от ячейки пересчёта (P10-03): `stocktake-cells/{id}/release`.
+  static String stocktakeCellRelease(String id) =>
+      'stocktake-cells/$id/release';
+
+  ///**POST** - скан ячейки на месте: снимок и позиции без количеств (P10-03):
+  /// `stocktake-cells/{id}/start`.
+  static String stocktakeCellStart(String id) => 'stocktake-cells/$id/start';
 }

@@ -77,8 +77,17 @@ type taskResponse struct {
 	TakenAt      *string `json:"taken_at"`
 	CreatedAt    string  `json:"created_at"`
 	// Пересчёт задания вида stocktake (P10-03); null — у других видов.
-	StocktakeID *string            `json:"stocktake_id"`
-	Items       []taskItemResponse `json:"items"`
+	StocktakeID *string                `json:"stocktake_id"`
+	Stocktake   *taskStocktakeResponse `json:"stocktake,omitempty"` // ход пересчёта (P10-04)
+	Items       []taskItemResponse     `json:"items"`
+}
+
+type taskStocktakeResponse struct {
+	Number    int64  `json:"number"`
+	ScopeKind string `json:"scope_kind"`
+	CreatedBy string `json:"created_by"`
+	Cells     int    `json:"cells"`
+	Counted   int    `json:"counted"`
 }
 
 type taskSessionLineResponse struct {
@@ -277,6 +286,10 @@ func toTaskResponse(t model.Task) taskResponse {
 		DocNumber: t.DocNumber, DocDate: formatProductionDate(t.DocDate),
 		AssigneeName: t.AssigneeName, TakenAt: formatTimePtr(t.TakenAt),
 		CreatedAt: t.CreatedAt.Format(time.RFC3339), StocktakeID: t.StocktakeID, Items: []taskItemResponse{},
+	}
+	if st := t.Stocktake; st != nil {
+		out.Stocktake = &taskStocktakeResponse{Number: st.Number, ScopeKind: st.ScopeKind,
+			CreatedBy: st.CreatedBy, Cells: st.Cells, Counted: st.Counted}
 	}
 	for _, it := range t.Items {
 		ir := taskItemResponse{LineNo: it.LineNo, LoadUnitID: it.LoadUnitID, Placed: it.Placed,

@@ -13,8 +13,28 @@ abstract final class TaskKind {
   /// Отгрузить возврат поставщику (ADHOC-31): позиции — проблемы, решённые офисом возвратом.
   static const supplierReturn = 'supplier_return';
 
+  /// Пересчёт (P10-04): задание общее, работники берут из него ячейки.
+  static const stocktake = 'stocktake';
+
   /// Все виды — варианты фильтра ленты «Завершённые».
-  static const all = [putaway, supplierReturn];
+  static const all = [putaway, supplierReturn, stocktake];
+}
+
+/// Пересчёт задания — номер, вид области и ход: сколько ячеек всего и сколько подсчитано.
+@freezed
+abstract class TaskStocktake with _$TaskStocktake {
+  const factory TaskStocktake({
+    required int number,
+    @JsonKey(name: 'scope_kind') required String scopeKind,
+
+    /// Кто завёл пересчёт — у такого задания автор человек, а не система.
+    @JsonKey(name: 'created_by') @Default('') String createdBy,
+    @Default(0) int cells,
+    @Default(0) int counted,
+  }) = _TaskStocktake;
+
+  factory TaskStocktake.fromJson(Map<String, dynamic> json) =>
+      _$TaskStocktakeFromJson(json);
 }
 
 /// Статус задания так, как его видит этот кладовщик: чужое зависшее — «новое».
@@ -104,6 +124,10 @@ abstract class WarehouseTask with _$WarehouseTask {
     @JsonKey(name: 'assignee_name') @Default('') String assigneeName,
     @JsonKey(name: 'taken_at') DateTime? takenAt,
     @JsonKey(name: 'created_at') required DateTime createdAt,
+
+    /// Пересчёт задания вида `stocktake` (P10-04); `null` — у других видов.
+    @JsonKey(name: 'stocktake_id') String? stocktakeId,
+    TaskStocktake? stocktake,
     @Default(<TaskItem>[]) List<TaskItem> items,
   }) = _WarehouseTask;
 

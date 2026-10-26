@@ -1,0 +1,27 @@
+{
+  "operations": [
+    {
+      "operation_id": "7f000000-0000-4000-8000-0000000000f3",
+      "kind": "stocktake_cell_submit",
+      "payload": {
+        "stocktake_cell_id": "CELL",
+        "loose": [
+          {
+            "good_id": "7f000000-0000-4000-8000-0000000000b1",
+            "production_date": "01-01-2026",
+            "internal_warehouse_id": null,
+            "qty": 3.0
+          },
+          {
+            "good_id": "7f000000-0000-4000-8000-0000000000b2",
+            "production_date": "01-02-2026",
+            "internal_warehouse_id": null,
+            "qty": 1.0,
+            "marks": ["0104600000000017215S1"]
+          }
+        ],
+        "boxes": ["7f000000-0000-4000-8000-0000000000c1"]
+      }
+    }
+  ]
+}

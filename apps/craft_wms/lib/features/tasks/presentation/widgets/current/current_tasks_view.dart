@@ -20,9 +20,20 @@ class CurrentTasksView extends StatelessWidget {
 
   /// Открыть карточку задания; по возврату список обновляется — задание могли взять,
   /// отдать или выполнить.
+  ///
+  /// Пересчёт (P10-04) открывается сразу списком ячеек: карточки с позициями у него нет —
+  /// работники берут из него ячейки.
   Future<void> openTask(BuildContext context, WarehouseTask task) async {
     final cubit = context.read<CurrentTasksCubit>();
-    await context.router.push(TaskDetailRoute(taskId: task.id, task: task));
+    final stocktakeId = task.stocktakeId;
+    await context.router.push(
+      task.kind == TaskKind.stocktake && stocktakeId != null
+          ? StocktakeRoute(
+              stocktakeId: stocktakeId,
+              number: task.stocktake?.number,
+            )
+          : TaskDetailRoute(taskId: task.id, task: task),
+    );
     await cubit.load();
   }
 

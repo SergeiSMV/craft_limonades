@@ -239,6 +239,7 @@ LoadUnitHistory historyFromJson(Map<String, dynamic> j) {
             'putaway' => LoadUnitMoveKind.putaway,
             'move' => LoadUnitMoveKind.move,
             'stock_entry' => LoadUnitMoveKind.stockEntry,
+            'stocktake' => LoadUnitMoveKind.stocktake,
             _ => LoadUnitMoveKind.other,
           },
           userName: m['user_name'] as String?,

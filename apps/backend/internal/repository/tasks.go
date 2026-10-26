@@ -382,6 +382,9 @@ func (r *TaskRepository) attachItems(ctx context.Context, tasks []model.Task) er
 	if err := r.attachReturnItems(ctx, tasks, ids, index); err != nil {
 		return err
 	}
+	if err := r.attachStocktakes(ctx, tasks); err != nil {
+		return err
+	}
 	rows, err := r.pool.Query(ctx, `
 		SELECT i.task_id::text, i.line_no, i.load_unit_id::text,
 		       NOT EXISTS (
@@ -457,6 +460,43 @@ func (r *TaskRepository) attachItems(ctx context.Context, tasks []model.Task) er
 		}
 	}
 	return nil
+}
+
+// attachStocktakes дочитывает к заданиям пересчёта (P10-04) номер, область и ход: сколько
+// ячеек всего и сколько подсчитано — одним запросом на список.
+func (r *TaskRepository) attachStocktakes(ctx context.Context, tasks []model.Task) error {
+	var ids []string
+	index := map[string]int{}
+	for i, t := range tasks {
+		if t.StocktakeID != nil {
+			ids = append(ids, *t.StocktakeID)
+			index[*t.StocktakeID] = i
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	rows, err := r.pool.Query(ctx, `
+		SELECT st.id::text, st.number, st.scope_kind, COALESCE(u.full_name, ''),
+		       count(sc.id), count(sc.id) FILTER (WHERE sc.status = 'counted')
+		FROM stocktakes st
+		LEFT JOIN users u ON u.id = st.created_by
+		LEFT JOIN stocktake_cells sc ON sc.stocktake_id = st.id
+		WHERE st.id = ANY($1::text[]::uuid[])
+		GROUP BY st.id, u.full_name`, ids)
+	if err != nil {
+		return fmt.Errorf("пересчёты заданий: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		var st model.TaskStocktakeInfo
+		if err := rows.Scan(&id, &st.Number, &st.ScopeKind, &st.CreatedBy, &st.Cells, &st.Counted); err != nil {
+			return fmt.Errorf("разобрать пересчёт задания: %w", err)
+		}
+		tasks[index[id]].Stocktake = &st
+	}
+	return rows.Err()
 }
 
 // boxCZCodes — коды коробов ЧЗ среди коробов заданий (CZ-06): ГЕ → `00`+SSCC.
