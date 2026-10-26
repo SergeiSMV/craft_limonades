@@ -125,6 +125,21 @@ func (r *ReportDocumentRepository) List(ctx context.Context, kind string) ([]mod
 }
 
 // ByID читает документ вместе со снимком — для сборки файла.
+// KindByID — вид документа (ADHOC-50): по нему проверяется право на действие с ним.
+// Нет документа (или id не uuid) — ErrDocumentNotFound.
+func (r *ReportDocumentRepository) KindByID(ctx context.Context, id string) (string, error) {
+	var kind string
+	err := r.pool.QueryRow(ctx, `SELECT kind FROM report_documents
+		WHERE id::text = $1`, id).Scan(&kind)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", ErrDocumentNotFound
+	}
+	if err != nil {
+		return "", fmt.Errorf("вид документа: %w", err)
+	}
+	return kind, nil
+}
+
 func (r *ReportDocumentRepository) ByID(ctx context.Context, id string) (model.ReportDocument, error) {
 	var doc model.ReportDocument
 	var raw []byte

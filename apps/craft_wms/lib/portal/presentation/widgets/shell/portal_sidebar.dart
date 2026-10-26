@@ -120,7 +120,10 @@ class PortalSidebar extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          profile.role,
+                          // Должность (ADHOC-49); у сервера без должностей — роль.
+                          profile.position.isEmpty
+                              ? profile.role
+                              : profile.position,
                           style: RegularTextStyles().regularInter12.copyWith(
                             color: AppColors.kTextMuted,
                           ),

@@ -16,6 +16,7 @@ var ErrEmptyDocumentID = errors.New("document id is required")
 type documentRepo interface {
 	List(ctx context.Context, kind string) ([]model.DocumentListItem, error)
 	ByID(ctx context.Context, id string) (model.ReportDocument, error)
+	KindByID(ctx context.Context, id string) (string, error)
 	MarkDownloaded(ctx context.Context, id string) error
 	MarkDone(ctx context.Context, id string) error
 	LogEvent(ctx context.Context, documentID, event, userID, details string) error
@@ -36,6 +37,11 @@ func NewDocumentService(repo documentRepo) *DocumentService {
 // List отдаёт список документов для портала; kind пуст — все формы, иначе одна.
 func (s *DocumentService) List(ctx context.Context, kind string) ([]model.DocumentListItem, error) {
 	return s.repo.List(ctx, kind)
+}
+
+// Kind — вид документа: право на действие с ним зависит от вида (ADHOC-50).
+func (s *DocumentService) Kind(ctx context.Context, id string) (string, error) {
+	return s.repo.KindByID(ctx, id)
 }
 
 // File собирает .xlsx документа и отмечает скачивание. Возвращает байты и имя файла.

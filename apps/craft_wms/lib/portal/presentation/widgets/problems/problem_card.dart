@@ -26,14 +26,16 @@ class ProblemCard extends StatelessWidget {
     super.key,
     required this.problem,
     required this.busy,
-    required this.onResolve,
+    this.onResolve,
   });
 
   final PortalProblem problem;
 
   /// Идёт проведение решения — кнопка ждёт.
   final bool busy;
-  final VoidCallback onResolve;
+
+  /// «Провести»; `null` — у должности нет права решать (ADHOC-50), кнопки нет.
+  final VoidCallback? onResolve;
 
   @override
   Widget build(BuildContext context) {
@@ -88,13 +90,13 @@ class ProblemCard extends StatelessWidget {
                   ],
                 ),
               ),
-              if (!p.resolved) ...[
+              if (!p.resolved && onResolve != null) ...[
                 AppBoxes.kWidth16,
                 NeumorphicTextButton(
                   label: t.portal.problems.resolve,
                   accent: true,
                   busy: busy,
-                  onPressed: onResolve,
+                  onPressed: onResolve!,
                 ),
               ],
             ],

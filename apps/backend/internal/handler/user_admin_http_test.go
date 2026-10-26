@@ -8,8 +8,8 @@ import (
 	"craftwms/internal/model"
 )
 
-// ADHOC-49: должности и права через настоящий роутер. Админ заводит должность «Оператор» с
-// правами «портал» и «проблемы склада» и пользователя на ней с входом по паролю; оператор
+// ADHOC-49/50: должности и права через настоящий роутер. Админ заводит должность «Оператор» с
+// действиями «Проблемы склада: смотреть и решать» и пользователя на ней с входом по паролю; оператор
 // видит проблемы, но не документы и не ручки ТСД. Новое право действует сразу, без нового
 // токена; блокировка — тоже. Кладовщику пользователи недоступны.
 func TestUserAdminHTTP_positionRights(t *testing.T) {
@@ -19,12 +19,13 @@ func TestUserAdminHTTP_positionRights(t *testing.T) {
 		t.Errorf("кладовщик смотрит должности: код %d, ожидался 403", code)
 	}
 	_, raw := e.call(t, http.MethodGet, "/api/v1/rights", e.adminToken, "")
-	if string(raw) != `{"rights":["tsd","portal","catalog","documents","problems","stocktake","warehouses","cz","users"]}`+"\n" {
+	if !strings.HasPrefix(string(raw), `{"rights":["portal.nomenclature.import","portal.receipt.view",`) ||
+		strings.Count(string(raw), `"`)/2 != len(model.Rights)+1 {
 		t.Errorf("права: %s", raw)
 	}
 
 	code, raw := e.call(t, http.MethodPost, "/api/v1/positions", e.adminToken,
-		`{"name":"  Оператор ","rights":["problems","portal","problems"]}`)
+		`{"name":"  Оператор ","rights":["portal.problems.view","portal.problems.resolve","portal.problems.view"]}`)
 	if code != http.StatusCreated {
 		t.Fatalf("завести должность: код %d, %s", code, raw)
 	}
@@ -33,11 +34,11 @@ func TestUserAdminHTTP_positionRights(t *testing.T) {
 	}
 	mustJSON(t, raw, &pos)
 	_, raw = e.call(t, http.MethodGet, "/api/v1/positions", e.adminToken, "")
-	if !strings.Contains(string(raw), `"name":"Оператор","rights":["portal","problems"],"is_system":false,"users":0`) ||
+	if !strings.Contains(string(raw), `"name":"Оператор","rights":["portal.problems.view","portal.problems.resolve"],"is_system":false,"users":0`) ||
 		!strings.HasPrefix(string(raw), `[{"id":"`+model.PositionAdminID+`","name":"Администратор"`) {
 		t.Errorf("должности: %s", raw)
 	}
-	if code, _ := e.call(t, http.MethodPost, "/api/v1/positions", e.adminToken, `{"name":"Склад","rights":["fly"]}`); code != http.StatusBadRequest {
+	if code, _ := e.call(t, http.MethodPost, "/api/v1/positions", e.adminToken, `{"name":"Склад","rights":["portal"]}`); code != http.StatusBadRequest {
 		t.Errorf("неизвестное право: код %d, ожидался 400", code)
 	}
 
@@ -61,7 +62,7 @@ func TestUserAdminHTTP_positionRights(t *testing.T) {
 	op := tokens.Access
 
 	_, raw = e.call(t, http.MethodGet, "/api/v1/auth/me", op, "")
-	if !strings.Contains(string(raw), `"full_name":"Офис Оператор","role":"employee","position":"Оператор","rights":["portal","problems"]`) {
+	if !strings.Contains(string(raw), `"full_name":"Офис Оператор","role":"employee","position":"Оператор","rights":["portal.problems.view","portal.problems.resolve"]`) {
 		t.Errorf("профиль оператора: %s", raw)
 	}
 	for path, want := range map[string]int{
@@ -76,11 +77,14 @@ func TestUserAdminHTTP_positionRights(t *testing.T) {
 	}
 
 	if code, raw := e.call(t, http.MethodPatch, "/api/v1/positions/"+pos.ID, e.adminToken,
-		`{"name":"Оператор","rights":["portal","problems","documents"]}`); code != http.StatusNoContent {
+		`{"name":"Оператор","rights":["portal.problems.view","portal.problems.resolve","portal.receipt.view"]}`); code != http.StatusNoContent {
 		t.Fatalf("дать право документов: код %d, %s", code, raw)
 	}
-	if code, _ := e.call(t, http.MethodGet, "/api/v1/documents", op, ""); code != http.StatusOK {
-		t.Errorf("документы после нового права — с прежним токеном: код %d, ожидался 200", code)
+	if code, _ := e.call(t, http.MethodGet, "/api/v1/documents?kind=receipt", op, ""); code != http.StatusOK {
+		t.Errorf("«Приход» после нового права — с прежним токеном: код %d, ожидался 200", code)
+	}
+	if code, _ := e.call(t, http.MethodGet, "/api/v1/documents?kind=movement", op, ""); code != http.StatusForbidden {
+		t.Errorf("«Перемещение» без права: код %d, ожидался 403", code)
 	}
 
 	if code, raw := e.call(t, http.MethodPatch, "/api/v1/users/"+user.ID, e.adminToken, `{"is_active":false}`); code != http.StatusNoContent {
@@ -145,7 +149,7 @@ func TestUserAdminHTTP_guards(t *testing.T) {
 			`{"full_name":"Офис","position_id":"` + model.PositionWorkerID + `","username":"office2","password":"123"}`, http.StatusBadRequest},
 		{"пароль работнику по бейджу", http.MethodPatch, "/api/v1/users/" + worker.ID, `{"password":"12345678"}`, http.StatusBadRequest},
 		{"системную должность изменить", http.MethodPatch, "/api/v1/positions/" + model.PositionAdminID,
-			`{"name":"Босс","rights":["portal"]}`, http.StatusConflict},
+			`{"name":"Босс","rights":["portal.receipt.view"]}`, http.StatusConflict},
 		{"системную должность удалить", http.MethodDelete, "/api/v1/positions/" + model.PositionAdminID, "", http.StatusConflict},
 		{"единственного админа — в кладовщики", http.MethodPatch, "/api/v1/users/" + admin,
 			`{"position_id":"` + model.PositionWorkerID + `"}`, http.StatusConflict},
@@ -177,5 +181,76 @@ func TestUserAdminHTTP_guards(t *testing.T) {
 	if code, raw := e.call(t, http.MethodPatch, "/api/v1/users/"+admin, e.adminToken,
 		`{"position_id":"`+model.PositionWorkerID+`"}`); code != http.StatusNoContent {
 		t.Errorf("перевести админа при втором: код %d, %s", code, raw)
+	}
+}
+
+// ADHOC-50: права по действиям. Должность «Приёмщик» — только «ТСД: Приход» и «Приход:
+// смотреть»: операция приёмки проходит, операция перемещения отклоняется с русским текстом;
+// список «Прихода» виден, скачать и провести нельзя. Пересчёт заводит «Старший» с правом ТСД
+// «Пересчёт: заводить и закрывать» — без прав портала.
+func TestUserAdminHTTP_actionRights(t *testing.T) {
+	e := newReceivingE2E(t, nil)
+	login := func(name, rights string) string {
+		t.Helper()
+		code, raw := e.call(t, http.MethodPost, "/api/v1/positions", e.adminToken,
+			`{"name":"`+name+`","rights":[`+rights+`]}`)
+		if code != http.StatusCreated {
+			t.Fatalf("должность %s: код %d, %s", name, code, raw)
+		}
+		var pos struct {
+			ID string `json:"id"`
+		}
+		mustJSON(t, raw, &pos)
+		user := strings.ToLower(map[string]string{"Приёмщик": "receiver", "Старший": "senior"}[name])
+		if code, raw := e.call(t, http.MethodPost, "/api/v1/users", e.adminToken,
+			`{"full_name":"`+name+`","position_id":"`+pos.ID+`","username":"`+user+`","password":"secret-pass"}`); code != http.StatusCreated {
+			t.Fatalf("пользователь %s: код %d, %s", name, code, raw)
+		}
+		_, raw = e.call(t, http.MethodPost, "/api/v1/auth/login/password", "", `{"username":"`+user+`","password":"secret-pass"}`)
+		var tokens struct {
+			Access string `json:"access"`
+		}
+		mustJSON(t, raw, &tokens)
+		return tokens.Access
+	}
+
+	receiver := login("Приёмщик", `"tsd.receipt","portal.receipt.view"`)
+	code, raw := e.call(t, http.MethodPost, "/api/v1/operations", receiver, `{"operations":[
+		{"operation_id":"7f000000-0000-4000-8000-0000000000e1","kind":"movement_submit","payload":{}}]}`)
+	if code != http.StatusOK || !strings.Contains(string(raw), `"status":"rejected","error":"нет права на эту операцию — обратитесь к администратору"`) {
+		t.Errorf("перемещение приёмщиком: код %d, %s", code, raw)
+	}
+	if code, _ := e.call(t, http.MethodGet, "/api/v1/tasks", receiver, ""); code != http.StatusForbidden {
+		t.Errorf("задания приёмщиком: код %d, ожидался 403", code)
+	}
+
+	var doc string
+	if err := e.pool.QueryRow(t.Context(), `INSERT INTO report_documents (kind, source_type, source_id, snapshot)
+		VALUES ('receipt', 'receipt', gen_random_uuid(), '{"warehouse_code":"SHB","warehouse_name":"Шабулина"}') RETURNING id::text`).Scan(&doc); err != nil {
+		t.Fatalf("документ: %v", err)
+	}
+	_, raw = e.call(t, http.MethodGet, "/api/v1/documents", receiver, "")
+	if !strings.Contains(string(raw), `"id":"`+doc+`"`) {
+		t.Errorf("список «Прихода» приёмщику: %s", raw)
+	}
+	for _, c := range []struct{ method, path string }{
+		{http.MethodGet, "/api/v1/documents/" + doc + "/file.xlsx"},
+		{http.MethodPost, "/api/v1/documents/" + doc + "/done"},
+	} {
+		if code, _ := e.call(t, c.method, c.path, receiver, ""); code != http.StatusForbidden {
+			t.Errorf("%s %s приёмщиком: код %d, ожидался 403", c.method, c.path, code)
+		}
+	}
+	if code, _ := e.call(t, http.MethodGet, "/api/v1/documents/"+doc+"/events", receiver, ""); code != http.StatusOK {
+		t.Errorf("история «Прихода» приёмщику: код %d, ожидался 200", code)
+	}
+
+	senior := login("Старший", `"tsd.tasks.stocktake_manage"`)
+	if code, raw := e.call(t, http.MethodPost, "/api/v1/stocktakes", senior,
+		`{"warehouse_id":"`+e.warehouse+`","scope_kind":"all"}`); code != http.StatusCreated {
+		t.Errorf("пересчёт с правом ТСД: код %d, %s", code, raw)
+	}
+	if code, _ := e.call(t, http.MethodGet, "/api/v1/stocktakes", senior, ""); code != http.StatusForbidden {
+		t.Errorf("список пересчётов портала без права портала: код %d, ожидался 403", code)
 	}
 }

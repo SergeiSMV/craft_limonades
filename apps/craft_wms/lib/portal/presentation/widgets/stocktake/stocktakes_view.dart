@@ -18,7 +18,14 @@ import 'stocktake_labels.dart';
 
 /// Пересчёты в портале (P10-05): открытые и закрытые, «Завести пересчёт», ход и закрытие.
 class StocktakesView extends StatefulWidget {
-  const StocktakesView({super.key, required this.padding});
+  const StocktakesView({
+    super.key,
+    required this.padding,
+    this.canManage = true,
+  });
+
+  /// Право «Пересчёты: заводить и закрывать» (ADHOC-50); без него — только ход.
+  final bool canManage;
 
   final EdgeInsets padding;
 
@@ -113,11 +120,12 @@ class _StocktakesViewState extends State<StocktakesView> {
             runSpacing: AppSizes.kChipSpacing,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              NeumorphicTextButton(
-                label: t.portal.stocktake.create,
-                accent: true,
-                onPressed: _create,
-              ),
+              if (widget.canManage)
+                NeumorphicTextButton(
+                  label: t.portal.stocktake.create,
+                  accent: true,
+                  onPressed: _create,
+                ),
               PortalFilterChip(
                 label: t.portal.stocktake.filterOpen,
                 selected: !_closedTab,
@@ -187,7 +195,7 @@ class _StocktakesViewState extends State<StocktakesView> {
               stocktake: _items[i],
               busy: _closing.contains(_items[i].id),
               onProgress: () => showStocktakeProgressDialog(context, _items[i]),
-              onClose: () => _close(_items[i]),
+              onClose: widget.canManage ? () => _close(_items[i]) : null,
             ),
           ),
         ),

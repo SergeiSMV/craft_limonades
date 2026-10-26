@@ -31,9 +31,9 @@ class DocTable extends StatelessWidget {
     required this.docs,
     required this.downloading,
     required this.posting,
-    required this.onDownload,
-    required this.onPost,
-    required this.onHistory,
+    this.onDownload,
+    this.onPost,
+    this.onHistory,
   });
 
   final DocForm form;
@@ -45,9 +45,10 @@ class DocTable extends StatelessWidget {
   final Set<String> downloading;
   final Set<String> posting;
 
-  final ValueChanged<PortalDoc> onDownload;
-  final ValueChanged<PortalDoc> onPost;
-  final ValueChanged<PortalDoc> onHistory;
+  /// Действия; `null` — у должности нет права (ADHOC-50), кнопки нет.
+  final ValueChanged<PortalDoc>? onDownload;
+  final ValueChanged<PortalDoc>? onPost;
+  final ValueChanged<PortalDoc>? onHistory;
 
   @override
   Widget build(BuildContext context) {
@@ -176,9 +177,9 @@ class DocTable extends StatelessWidget {
             compact: compact,
             downloading: downloading.contains(doc.id),
             posting: posting.contains(doc.id),
-            onHistory: () => onHistory(doc),
-            onDownload: () => onDownload(doc),
-            onPost: () => onPost(doc),
+            onHistory: onHistory == null ? null : () => onHistory!(doc),
+            onDownload: onDownload == null ? null : () => onDownload!(doc),
+            onPost: onPost == null ? null : () => onPost!(doc),
           ),
         ),
       ],

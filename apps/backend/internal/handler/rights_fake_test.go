@@ -6,18 +6,19 @@ import (
 	"craftwms/internal/model"
 )
 
-// fakeRights — права по id пользователя для тестов роутера без базы (ADHOC-49): тот же
+// fakeRights — доступ по id пользователя для тестов роутера без базы (ADHOC-49): тот же
 // контракт, что у репозитория пользователей. Неизвестный id — заблокирован.
-type fakeRights map[string][]string
+type fakeRights map[string]model.Access
 
-func (f fakeRights) UserRights(_ context.Context, id string) ([]string, bool, error) {
-	r, ok := f[id]
-	return r, ok, nil
+func (f fakeRights) UserAccess(_ context.Context, id string) (model.Access, error) {
+	return f[id], nil
 }
 
-// testRights — админ (…a1) со всеми правами и кладовщик (…b1) с работой на ТСД: id те же,
-// что у токенов в тестах без базы.
+// testRights — «Администратор» (…a1) и кладовщик с правами ТСД (…b1): id те же, что у
+// токенов в тестах без базы.
 var testRights = fakeRights{
-	"00000000-0000-4000-8000-0000000000a1": model.Rights,
-	"00000000-0000-4000-8000-0000000000b1": {model.RightTSD},
+	"00000000-0000-4000-8000-0000000000a1": {Rights: model.Rights, System: true, Active: true},
+	"00000000-0000-4000-8000-0000000000b1": {
+		Rights: []string{model.RightTSDReceipt, model.RightTSDStockView}, Active: true,
+	},
 }

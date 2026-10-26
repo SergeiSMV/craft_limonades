@@ -8,7 +8,8 @@ import (
 	"craftwms/internal/testutil"
 )
 
-// ADHOC-49: схема должностей держит свои правила сама — стартовые должности на месте,
+// ADHOC-49/50: схема должностей держит свои правила сама — стартовые должности на месте (после
+// миграции 34 прежние коды стали действиями: у «Администратора» все 31, у кладовщика — 8 на ТСД),
 // пользователь без должности становится кладовщиком, права — только из списка, системная
 // должность одна, должность с пользователями не удалить.
 func TestPositionsSchema(t *testing.T) {
@@ -22,7 +23,7 @@ func TestPositionsSchema(t *testing.T) {
 	var admin, worker string
 	mustScan(t, pool, `SELECT string_agg(name || ':' || is_system::text || ':' || cardinality(rights)::text, ' ' ORDER BY name)
 		FROM positions`, &admin)
-	if admin != "Администратор:true:9 Кладовщик:false:1" {
+	if admin != "Администратор:true:31 Кладовщик:false:8" {
 		t.Errorf("стартовые должности: %s", admin)
 	}
 	mustScan(t, pool, `INSERT INTO users (login, password_hash, full_name) VALUES ('10000077','x','Без должности')
