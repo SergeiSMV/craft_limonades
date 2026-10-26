@@ -157,6 +157,15 @@ type StocktakeCell struct {
 	Mine        bool
 }
 
+// CellUnderCount — ячейка склада сейчас на подсчёте пересчёта (ADHOC-48): что ТСД
+// показывает кладовщику перед движением через неё — кто считает и какой пересчёт.
+type CellUnderCount struct {
+	StocktakeNumber int64
+	Address         string
+	CountedByName   string
+	StartedAt       time.Time
+}
+
 // StocktakeCellView — ячейка на подсчёте с позициями снимка: что ТСД показывает кладовщику.
 type StocktakeCellView struct {
 	StocktakeCell

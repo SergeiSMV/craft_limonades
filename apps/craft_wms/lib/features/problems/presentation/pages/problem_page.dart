@@ -31,6 +31,7 @@ import '../../../movement/domain/movement_models.dart';
 import '../../../movement/presentation/widgets/move_qty_header.dart';
 import '../../../stock/data/catalog_models.dart';
 import '../../../stock/data/catalog_repository.dart';
+import '../../../stocktake/presentation/widgets/cell_count_warning.dart';
 import '../../domain/problem_models.dart';
 import '../bloc/current_problems_cubit.dart';
 import '../bloc/problem_cubit.dart';
@@ -221,6 +222,12 @@ class _ProblemViewState extends State<_ProblemView>
   Future<void> onBox(LoadUnitView box) async {
     final cellId = box.cellId;
     final cell = cellId == null ? null : await cellWhere((c) => c.id == cellId);
+    if (!mounted) return;
+    if (cell != null &&
+        !cell.isDefault &&
+        !await allowMoveThroughCell(context, cell.id)) {
+      return;
+    }
     if (mounted) cubit.onBox(box, cell);
   }
 
@@ -236,8 +243,13 @@ class _ProblemViewState extends State<_ProblemView>
     await onCell(cell);
   }
 
-  /// Ячейка выбрана — сканом или из справочника: её короба и россыпь на выбор.
+  /// Ячейка выбрана — сканом или из справочника: её короба и россыпь на выбор. Пометка
+  /// меняет остаток ячейки, поэтому ячейка на пересчёте — сначала предупреждение (ADHOC-48).
   Future<void> onCell(Cell cell) async {
+    if (!cell.isDefault && !await allowMoveThroughCell(context, cell.id)) {
+      return;
+    }
+    if (!mounted) return;
     final res = await contents.cell(
       CellRef(id: cell.id, address: cell.address),
     );

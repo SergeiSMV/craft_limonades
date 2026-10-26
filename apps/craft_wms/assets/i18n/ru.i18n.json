@@ -1142,6 +1142,13 @@
   "stocktake": {
     "title": "Пересчёт №${number}",
     "title_plain": "Пересчёт",
+    "under_count_title": "Ячейка на пересчёте",
+    "under_count_cell": "Ячейка: ${cell}",
+    "under_count_by": "Считает: ${name}",
+    "under_count_number": "Пересчёт: №${number}",
+    "under_count_body": "Движение собьёт подсчёт — ячейку посчитают заново.",
+    "under_count_cancel": "Отмена",
+    "under_count_go": "Всё равно",
     "scope": "Область: ${scope}",
     "scope_cells": "ячейки",
     "scope_group": "группа номенклатуры",

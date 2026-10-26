@@ -179,4 +179,8 @@ abstract final class ApiConst {
   ///**POST** - скан ячейки на месте: снимок и позиции без количеств (P10-03):
   /// `stocktake-cells/{id}/start`.
   static String stocktakeCellStart(String id) => 'stocktake-cells/$id/start';
+
+  ///**GET** - идёт ли в ячейке склада подсчёт пересчёта (ADHOC-48):
+  /// `cells/{id}/stocktake-count`.
+  static String cellStocktakeCount(String id) => 'cells/$id/stocktake-count';
 }

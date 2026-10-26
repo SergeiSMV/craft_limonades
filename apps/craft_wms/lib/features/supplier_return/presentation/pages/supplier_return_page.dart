@@ -22,7 +22,9 @@ import '../../../../core/widgets/neumorphic_action_button.dart';
 import '../../../../core/widgets/page_header.dart';
 import '../../../../core/widgets/scan_field.dart';
 import '../../../../core/widgets/system_ui_wrapper.dart';
+import '../../../stock/data/catalog_models.dart';
 import '../../../stock/data/catalog_repository.dart';
+import '../../../stocktake/presentation/widgets/cell_count_warning.dart';
 import '../../../tasks/data/tasks_models.dart';
 import '../bloc/supplier_return_cubit.dart';
 import '../widgets/return_outcome_view.dart';
@@ -89,7 +91,7 @@ class _SupplierReturnViewState extends State<_SupplierReturnView>
       case ScanKind.cargoUnit:
         cubit.scanBox(loadUnitIdFrom(code)!);
       case ScanKind.cell:
-        cubit.scanCell(code);
+        await onCellScan(code);
       case ScanKind.good:
         await onGoodScan(code);
       case ScanKind.czBox:
@@ -104,6 +106,25 @@ class _SupplierReturnViewState extends State<_SupplierReturnView>
         }
     }
     refocusScan();
+  }
+
+  /// Скан ячейки: товар возврата забирают из неё, и это меняет её остаток — ячейка на
+  /// пересчёте сначала предупреждает (ADHOC-48). Адрес не из справочника — проверять нечего,
+  /// подсказку даст задание.
+  Future<void> onCellScan(String address) async {
+    final a = address.toLowerCase();
+    final cells = (await getIt<CatalogRepository>().listAllCells()).fold(
+      (_) => const <Cell>[],
+      (cells) => cells,
+    );
+    final cell = cells.where((c) => c.address.toLowerCase() == a).firstOrNull;
+    if (!mounted) return;
+    if (cell != null &&
+        !cell.isDefault &&
+        !await allowMoveThroughCell(context, cell.id)) {
+      return;
+    }
+    if (mounted) cubit.scanCell(address);
   }
 
   /// Скан штрихкода товара: товар — из справочника терминала, позиция — из задания.

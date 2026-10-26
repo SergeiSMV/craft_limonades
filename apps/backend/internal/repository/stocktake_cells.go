@@ -304,6 +304,32 @@ func (r *StocktakeRepository) Close(ctx context.Context, id, userID string, forc
 	return uncounted, nil
 }
 
+// CountingInCell — подсчёт, который сейчас идёт в ячейке склада (ADHOC-48); nil — не идёт.
+//
+// Что: номер пересчёта, адрес ячейки, кто считает и с какого времени.
+// Зачем: ТСД перед движением через ячейку предупреждает кладовщика — движение собьёт подсчёт.
+// Как: только `counting` открытого пересчёта — у взятой и не начатой снимка ещё нет, сбивать
+// нечего. Ячейка может быть в двух открытых пересчётах — берётся начатый последним.
+func (r *StocktakeRepository) CountingInCell(ctx context.Context, cellID string) (*model.CellUnderCount, error) {
+	var c model.CellUnderCount
+	err := r.pool.QueryRow(ctx, `
+		SELECT st.number, c.address, COALESCE(u.full_name, ''), sc.started_at
+		FROM stocktake_cells sc
+		JOIN stocktakes st ON st.id = sc.stocktake_id
+		JOIN cells c ON c.id = sc.cell_id
+		LEFT JOIN users u ON u.id = sc.taken_by
+		WHERE sc.cell_id = $1::uuid AND sc.status = 'counting' AND st.status <> 'closed'
+		ORDER BY sc.started_at DESC
+		LIMIT 1`, cellID).Scan(&c.StocktakeNumber, &c.Address, &c.CountedByName, &c.StartedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("подсчёт в ячейке: %w", err)
+	}
+	return &c, nil
+}
+
 // List — пересчёты для портала (P10-05): открытые сверху, свежие первыми; status — `open`
 // (не закрытые), `closed` или пусто — все.
 func (r *StocktakeRepository) List(ctx context.Context, status string) ([]model.StocktakeListItem, error) {
