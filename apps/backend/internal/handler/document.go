@@ -11,6 +11,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	appmw "craftwms/internal/middleware"
+	"craftwms/internal/model"
 	"craftwms/internal/repository"
 	"craftwms/internal/service"
 )
@@ -18,7 +19,9 @@ import (
 // xlsxContentType — MIME .xlsx (OOXML).
 const xlsxContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
-// DocumentHandler — рабочий список документов оператора (P3-02). Только admin: это портал.
+// DocumentHandler — рабочий список документов оператора (P3-02). Право — по виду документа и
+// действию (ADHOC-50): «Приход: скачивать», «Перемещение: проводить» и т. п.; маршрут пускает
+// любого с правом хоть на один вид, обработчик уточняет.
 type DocumentHandler struct {
 	svc *service.DocumentService
 }
@@ -54,8 +57,18 @@ type documentItemResponse struct {
 // List: GET /api/v1/documents — рабочий список: сначала необработанные, свежие сверху.
 // Необязательный ?kind= оставляет одну форму (`stock_entry`, `receipt`, `movement`, `stocktake`): у каждой в портале
 // своя вкладка. Незнакомая форма — пустой список, а не ошибка: фильтр, ничего не нашедший.
+//
+// Права: с ?kind= — любое право на этот вид (смотреть, скачивать, проводить: без списка
+// последние два бессмысленны), иначе 403; без него — только такие виды. История документа —
+// право «смотреть».
 func (h *DocumentHandler) List(w http.ResponseWriter, r *http.Request) {
-	docs, err := h.svc.List(r.Context(), strings.TrimSpace(r.URL.Query().Get("kind")))
+	kind := strings.TrimSpace(r.URL.Query().Get("kind"))
+	access, _ := appmw.AccessFromContext(r.Context())
+	if kind != "" && !canListDocuments(access, kind) {
+		writeError(w, http.StatusForbidden, "нет права смотреть эти документы")
+		return
+	}
+	docs, err := h.svc.List(r.Context(), kind)
 	if err != nil {
 		slog.ErrorContext(r.Context(), "documents list failed", "error", err)
 		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
@@ -63,6 +76,9 @@ func (h *DocumentHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 	out := make([]documentItemResponse, 0, len(docs))
 	for _, d := range docs {
+		if !canListDocuments(access, d.Kind) {
+			continue
+		}
 		out = append(out, documentItemResponse{
 			ID:              d.ID,
 			Kind:            d.Kind,
@@ -89,6 +105,9 @@ func (h *DocumentHandler) List(w http.ResponseWriter, r *http.Request) {
 // 200 .xlsx (attachment) / 404 (нет документа).
 func (h *DocumentHandler) File(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
+	if !h.allowed(w, r, id, model.DocDownload) {
+		return
+	}
 	userID, _ := appmw.UserIDFromContext(r.Context())
 	data, filename, err := h.svc.File(r.Context(), id, userID)
 	switch {
@@ -111,6 +130,9 @@ func (h *DocumentHandler) File(w http.ResponseWriter, r *http.Request) {
 // 204 / 404. Повтор идемпотентен и тоже отвечает 204: оператор нажал дважды — это не ошибка.
 func (h *DocumentHandler) Done(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
+	if !h.allowed(w, r, id, model.DocPost) {
+		return
+	}
 	userID, _ := appmw.UserIDFromContext(r.Context())
 	err := h.svc.MarkDone(r.Context(), id, userID)
 	switch {
@@ -140,6 +162,9 @@ type documentEventResponse struct {
 // 200 / 404 (нет документа).
 func (h *DocumentHandler) Events(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
+	if !h.allowed(w, r, id, model.DocView) {
+		return
+	}
 	events, err := h.svc.Events(r.Context(), id)
 	switch {
 	case errors.Is(err, repository.ErrDocumentNotFound):
@@ -179,4 +204,31 @@ func isoToTransportDate(iso string) string {
 		return ""
 	}
 	return d.Format(productionDateLayout)
+}
+
+// allowed — есть ли право на действие [a] с документом [id] (ADHOC-50); нет — ответ уже
+// записан: 404 — нет документа, 403 — нет права.
+func (h *DocumentHandler) allowed(w http.ResponseWriter, r *http.Request, id string, a model.DocumentAction) bool {
+	kind, err := h.svc.Kind(r.Context(), id)
+	switch {
+	case errors.Is(err, repository.ErrDocumentNotFound):
+		writeError(w, http.StatusNotFound, "документ не найден")
+		return false
+	case err != nil:
+		slog.ErrorContext(r.Context(), "document kind failed", "document", id, "error", err)
+		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
+		return false
+	}
+	access, _ := appmw.AccessFromContext(r.Context())
+	if !access.Can(model.DocumentRight(kind, a)) {
+		writeError(w, http.StatusForbidden, "нет права на это действие с документом")
+		return false
+	}
+	return true
+}
+
+// canListDocuments — видит ли пользователь документы вида kind в списке: любое право на вид.
+func canListDocuments(a model.Access, kind string) bool {
+	return a.CanAny(model.DocumentRight(kind, model.DocView), model.DocumentRight(kind, model.DocDownload),
+		model.DocumentRight(kind, model.DocPost))
 }

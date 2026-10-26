@@ -4,35 +4,144 @@ package model
 import (
 	"errors"
 	"slices"
+	"strings"
 	"time"
 )
 
 // Роли пользователя — прежняя модель доступа (до ADHOC-49). Теперь роль не хранится, а
-// выводится из прав должности: admin — у кого есть право «пользователи и должности». Её ещё
+// выводится из прав должности: admin — у кого есть право «должности и пользователи». Её ещё
 // читают старые сборки ТСД и портала (`/auth/me`) и метка события Bugsink.
 const (
 	RoleEmployee = "employee"
 	RoleAdmin    = "admin"
 )
 
-// Права должности (ADHOC-49). Коды фиксированы — их проверяет код; список совпадает с
-// ограничением positions.rights в миграции 33.
+// Права должности — действия по разделам (ADHOC-50, миграция 34): код
+// «приложение.раздел.действие». Группы дерева (раздел, приложение) не хранятся: галочку раздела
+// рисует портал. Список совпадает с ограничением positions.rights.
 const (
-	RightTSD        = "tsd"        // работа на ТСД
-	RightPortal     = "portal"     // вход в портал
-	RightCatalog    = "catalog"    // справочники: импорт номенклатуры и ячеек, этикетки
-	RightDocuments  = "documents"  // документы для 1С: скачать и «Провести»
-	RightProblems   = "problems"   // проблемы склада: решения офиса
-	RightStocktake  = "stocktake"  // пересчёт: заводить и закрывать
-	RightWarehouses = "warehouses" // внутренние склады
-	RightCZ         = "cz"         // Честный знак: маркируемость товара, состояние
-	RightUsers      = "users"      // пользователи, должности и мониторинг
+	RightNomenclatureImport = "portal.nomenclature.import" // Номенклатура: загружать из 1С
+	RightReceiptView        = "portal.receipt.view"        // Приход: смотреть документы и историю
+	RightReceiptDownload    = "portal.receipt.download"    // Приход: скачивать
+	RightReceiptPost        = "portal.receipt.post"        // Приход: проводить
+	RightStocktakeView      = "portal.stocktake.view"      // Пересчёты: смотреть ход
+	RightStocktakeManage    = "portal.stocktake.manage"    // Пересчёты: заводить и закрывать
+	RightStocktakeDocView   = "portal.stocktake_doc.view"
+	RightStocktakeDocLoad   = "portal.stocktake_doc.download"
+	RightStocktakeDocPost   = "portal.stocktake_doc.post"
+	RightStockEntryDocView  = "portal.stock_entry_doc.view"
+	RightStockEntryDocLoad  = "portal.stock_entry_doc.download"
+	RightStockEntryDocPost  = "portal.stock_entry_doc.post"
+	RightCellsImport        = "portal.cells.import" // Ячейки: загружать
+	RightCellsLabels        = "portal.cells.labels" // Ячейки: печатать этикетки
+	RightMovementView       = "portal.movement.view"
+	RightMovementDownload   = "portal.movement.download"
+	RightMovementPost       = "portal.movement.post"
+	RightProblemsView       = "portal.problems.view"    // Проблемы склада: смотреть с фото
+	RightProblemsResolve    = "portal.problems.resolve" // Проблемы склада: решать и проводить
+	RightSettingsWarehouses = "portal.settings.warehouses"
+	RightSettingsUsers      = "portal.settings.users" // должности и пользователи
+
+	RightTSDReceipt         = "tsd.receipt"
+	RightTSDMovement        = "tsd.movement"
+	RightTSDPutaway         = "tsd.tasks.putaway" // размещение и возврат поставщику
+	RightTSDStocktakeCount  = "tsd.tasks.stocktake_count"
+	RightTSDStocktakeManage = "tsd.tasks.stocktake_manage"
+	RightTSDStockView       = "tsd.stock.view"
+	RightTSDStockCZMarked   = "tsd.stock.cz_marked" // признак «маркируемый (ЧЗ)»
+	RightTSDStockEntry      = "tsd.stock_entry"
+	RightTSDProblemsView    = "tsd.problems.view"
+	RightTSDProblemsMark    = "tsd.problems.mark"
 )
 
-// Rights — все права, в порядке показа в карточке должности.
+// Префиксы приложений: «любое право портала / ТСД».
+const (
+	RightsPortal = "portal."
+	RightsTSD    = "tsd."
+)
+
+// Rights — все действия, в порядке дерева портала.
 var Rights = []string{
-	RightTSD, RightPortal, RightCatalog, RightDocuments, RightProblems, RightStocktake,
-	RightWarehouses, RightCZ, RightUsers,
+	RightNomenclatureImport,
+	RightReceiptView, RightReceiptDownload, RightReceiptPost,
+	RightStocktakeView, RightStocktakeManage,
+	RightStocktakeDocView, RightStocktakeDocLoad, RightStocktakeDocPost,
+	RightStockEntryDocView, RightStockEntryDocLoad, RightStockEntryDocPost,
+	RightCellsImport, RightCellsLabels,
+	RightMovementView, RightMovementDownload, RightMovementPost,
+	RightProblemsView, RightProblemsResolve,
+	RightSettingsWarehouses, RightSettingsUsers,
+	RightTSDReceipt, RightTSDMovement,
+	RightTSDPutaway, RightTSDStocktakeCount, RightTSDStocktakeManage,
+	RightTSDStockView, RightTSDStockCZMarked, RightTSDStockEntry,
+	RightTSDProblemsView, RightTSDProblemsMark,
+}
+
+// DocumentAction — действие с документом для 1С.
+type DocumentAction int
+
+// Действия с документом: смотреть (список и история), скачивать, проводить.
+const (
+	DocView DocumentAction = iota
+	DocDownload
+	DocPost
+)
+
+// DocumentRight — право на действие с документом вида kind; пусто — вид неизвестен.
+func DocumentRight(kind string, a DocumentAction) string {
+	rights := map[string][3]string{
+		ReportKindReceipt:    {RightReceiptView, RightReceiptDownload, RightReceiptPost},
+		ReportKindMovement:   {RightMovementView, RightMovementDownload, RightMovementPost},
+		ReportKindStocktake:  {RightStocktakeDocView, RightStocktakeDocLoad, RightStocktakeDocPost},
+		ReportKindStockEntry: {RightStockEntryDocView, RightStockEntryDocLoad, RightStockEntryDocPost},
+	}[kind]
+	return rights[a]
+}
+
+// Access — доступ пользователя на момент запроса: действующие права, системная ли должность,
+// активен ли.
+type Access struct {
+	Rights []string
+	System bool
+	Active bool
+}
+
+// Can — есть ли право.
+func (a Access) Can(right string) bool { return slices.Contains(a.Rights, right) }
+
+// CanAny — есть ли хоть одно из прав; право с точкой на конце — префикс: «portal.» — любое
+// право портала, «tsd.» — любое право ТСД.
+func (a Access) CanAny(rights ...string) bool {
+	for _, want := range rights {
+		for _, r := range a.Rights {
+			if r == want || (strings.HasSuffix(want, ".") && strings.HasPrefix(r, want)) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// OperationRights — права, любое из которых пускает операцию очереди вида kind (ADHOC-50).
+// Привязка и отвязка ШК и неизвестный вид — любое право ТСД: ШК привязывают и в приёмке, и в
+// остатках, и во вводе остатков; неизвестный вид отклонит сам разбор операции.
+func OperationRights(kind string) []string {
+	switch kind {
+	case "receipt_submit":
+		return []string{RightTSDReceipt}
+	case "putaway_submit", "return_submit":
+		return []string{RightTSDPutaway}
+	case "movement_submit":
+		return []string{RightTSDMovement}
+	case "problem_submit":
+		return []string{RightTSDProblemsMark}
+	case "stocktake_cell_submit":
+		return []string{RightTSDStocktakeCount}
+	case "stock_entry_start", "stock_entry_checkpoint", "stock_entry_finalize":
+		return []string{RightTSDStockEntry}
+	default:
+		return []string{RightsTSD}
+	}
 }
 
 // Постоянные id стартовых должностей (миграция 33): «Кладовщик» — должность по умолчанию.
@@ -92,9 +201,9 @@ func (u User) Rights() []string { return UserRights(u.PositionSystem, u.Position
 // Can — есть ли у пользователя право.
 func (u User) Can(right string) bool { return slices.Contains(u.Rights(), right) }
 
-// Role — прежняя роль для старых клиентов: admin — у кого право «пользователи и должности».
+// Role — прежняя роль для старых клиентов: admin — у кого право «должности и пользователи».
 func (u User) Role() string {
-	if u.Can(RightUsers) {
+	if u.Can(RightSettingsUsers) {
 		return RoleAdmin
 	}
 	return RoleEmployee

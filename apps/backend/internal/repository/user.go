@@ -60,23 +60,24 @@ func (r *UserRepository) GetByID(ctx context.Context, id string) (model.User, er
 	return collectUser(rows)
 }
 
-// UserRights — действующие права пользователя и активен ли он (ADHOC-49): их проверяет
-// middleware на каждой ручке с правом. Читается из базы на каждый запрос, а не из токена:
-// смена должности и блокировка действуют сразу, без ожидания нового access-токена.
-func (r *UserRepository) UserRights(ctx context.Context, userID string) ([]string, bool, error) {
-	var system, active bool
+// UserAccess — доступ пользователя (ADHOC-49): действующие права, системная ли должность,
+// активен ли. Его проверяет middleware на каждой ручке с правом — из базы на каждый запрос, а
+// не из токена: смена должности и блокировка действуют сразу. Нет пользователя — неактивен.
+func (r *UserRepository) UserAccess(ctx context.Context, userID string) (model.Access, error) {
+	var a model.Access
 	var rights []string
 	err := r.pool.QueryRow(ctx, `
 		SELECT p.is_system, p.rights, u.is_active
 		FROM users u JOIN positions p ON p.id = u.position_id
-		WHERE u.id = $1::uuid`, userID).Scan(&system, &rights, &active)
+		WHERE u.id = $1::uuid`, userID).Scan(&a.System, &rights, &a.Active)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, false, nil
+		return model.Access{}, nil
 	}
 	if err != nil {
-		return nil, false, fmt.Errorf("права пользователя: %w", err)
+		return model.Access{}, fmt.Errorf("права пользователя: %w", err)
 	}
-	return model.UserRights(system, rights), active, nil
+	a.Rights = model.UserRights(a.System, rights)
+	return a, nil
 }
 
 // CreateAdminIfNotExists создаёт админа (должность «Администратор»), если логина ещё нет. Идемпотентно.

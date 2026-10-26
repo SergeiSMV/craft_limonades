@@ -38,6 +38,9 @@ var (
 	ErrBatchTooLarge = errors.New("too many operations in one batch")
 	// ErrInvalidOperationID — operation_id не UUID.
 	ErrInvalidOperationID = errors.New("operation_id must be a UUID")
+	// ErrNoOperationRight — у должности нет права на операцию этого вида (ADHOC-50). Текст —
+	// для экрана ТСД, он показывает отказ дословно.
+	ErrNoOperationRight = errors.New("нет права на эту операцию — обратитесь к администратору")
 	// ErrUnknownKind — сервер не знает такого типа операции.
 	ErrUnknownKind = errors.New("unknown operation kind")
 	// ErrInvalidPayload — тело операции не разбирается или неполно.
@@ -106,6 +109,14 @@ func NewOperationsService(repo operationsRepo) *OperationsService {
 // устройство пришлёт снова. Перескочить через застрявшую операцию нельзя — «привязать» и
 // «отвязать» один ШК в обратном порядке дают противоположный итог.
 func (s *OperationsService) Apply(ctx context.Context, userID string, ops []Operation) ([]OperationResult, error) {
+	return s.ApplyAllowed(ctx, userID, ops, nil)
+}
+
+// ApplyAllowed — Apply с проверкой права на вид операции (ADHOC-50): [allow] отвечает, можно
+// ли пользователю операцию вида kind; нельзя — операция отклоняется, остальные идут дальше.
+// nil — без проверки.
+func (s *OperationsService) ApplyAllowed(ctx context.Context, userID string, ops []Operation,
+	allow func(kind string) bool) ([]OperationResult, error) {
 	if len(ops) == 0 {
 		return nil, ErrEmptyBatch
 	}
@@ -115,6 +126,10 @@ func (s *OperationsService) Apply(ctx context.Context, userID string, ops []Oper
 
 	results := make([]OperationResult, 0, len(ops))
 	for _, op := range ops {
+		if allow != nil && !allow(op.Kind) {
+			results = append(results, rejected(op.OperationID, ErrNoOperationRight))
+			continue
+		}
 		res, temporary := s.applyOne(ctx, userID, op)
 		if temporary != nil {
 			// Прерываем разбор: всё, что уже применено, возвращаем — эти операции устройство

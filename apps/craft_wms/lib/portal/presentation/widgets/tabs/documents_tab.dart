@@ -26,7 +26,12 @@ import '../documents/mark_done_dialog.dart';
 /// документов и подписями, а работа оператора с документом одна и та же. Две копии вкладки
 /// разошлись бы на первой же правке — например, в отметке «Выполнено».
 class DocumentsTab extends StatefulWidget {
-  const DocumentsTab({super.key, required this.kind, required this.empty});
+  const DocumentsTab({
+    super.key,
+    required this.kind,
+    required this.empty,
+    this.rights = (view: true, download: true, post: true),
+  });
 
   /// Форма документов: `stock_entry` — ввод остатков, `receipt` — «Поступление»,
   /// `movement` — «Движение».
@@ -35,9 +40,15 @@ class DocumentsTab extends StatefulWidget {
   /// Текст пустого списка.
   final String empty;
 
+  /// Действия с документами по правам должности (ADHOC-50): нет права — нет кнопки.
+  final DocRights rights;
+
   @override
   State<DocumentsTab> createState() => _DocumentsTabState();
 }
+
+/// Права на действия с документами вида: смотреть историю, скачивать, проводить.
+typedef DocRights = ({bool view, bool download, bool post});
 
 class _DocumentsTabState extends State<DocumentsTab> {
   final _repo = getIt<DocumentsRepository>();
@@ -186,9 +197,9 @@ class _DocumentsTabState extends State<DocumentsTab> {
                 ),
                 downloading: _downloading,
                 posting: _marking,
-                onDownload: _download,
-                onPost: _markDone,
-                onHistory: _showHistory,
+                onDownload: widget.rights.download ? _download : null,
+                onPost: widget.rights.post ? _markDone : null,
+                onHistory: widget.rights.view ? _showHistory : null,
               ),
             ),
           ),

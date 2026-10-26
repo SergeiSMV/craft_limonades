@@ -19,7 +19,7 @@ class StocktakeCard extends StatelessWidget {
     required this.stocktake,
     required this.busy,
     required this.onProgress,
-    required this.onClose,
+    this.onClose,
   });
 
   final PortalStocktake stocktake;
@@ -27,7 +27,9 @@ class StocktakeCard extends StatelessWidget {
   /// Идёт закрытие — кнопка ждёт.
   final bool busy;
   final VoidCallback onProgress;
-  final VoidCallback onClose;
+
+  /// «Закрыть»; `null` — у должности нет права заводить и закрывать (ADHOC-50).
+  final VoidCallback? onClose;
 
   @override
   Widget build(BuildContext context) {
@@ -82,12 +84,12 @@ class StocktakeCard extends StatelessWidget {
                 label: t.portal.stocktake.showProgress,
                 onPressed: onProgress,
               ),
-              if (!s.closed)
+              if (!s.closed && onClose != null)
                 NeumorphicTextButton(
                   label: t.portal.stocktake.close,
                   accent: true,
                   busy: busy,
-                  onPressed: onClose,
+                  onPressed: onClose!,
                 ),
             ],
           ),

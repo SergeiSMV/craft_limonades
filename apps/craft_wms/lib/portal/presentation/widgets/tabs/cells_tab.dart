@@ -16,7 +16,11 @@ import '../common/upload_widgets.dart';
 /// Вкладка «Ячейки» (P1-08): загрузка файла ячеек `.xlsx` → `POST /import/cells` (P1-05).
 /// По макету зеркалит вкладку «Номенклатура»: карточка с зоной загрузки, ниже — отчёт импорта.
 class CellsTab extends StatefulWidget {
-  const CellsTab({super.key});
+  const CellsTab({super.key, this.labels = true, this.upload = true});
+
+  /// Блоки по правам должности (ADHOC-50): печать этикеток и загрузка ячеек.
+  final bool labels;
+  final bool upload;
 
   @override
   State<CellsTab> createState() => _CellsTabState();
@@ -113,6 +117,7 @@ class _CellsTabState extends State<CellsTab> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (widget.labels)
               Card(
                 child: Padding(
                   padding: AppInsets.all32,
@@ -158,7 +163,8 @@ class _CellsTabState extends State<CellsTab> {
                   ),
                 ),
               ),
-              AppBoxes.kHeight24,
+              if (widget.labels && widget.upload) AppBoxes.kHeight24,
+              if (widget.upload)
               Card(
                 child: Padding(
                   padding: AppInsets.all32,
