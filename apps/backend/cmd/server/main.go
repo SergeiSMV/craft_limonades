@@ -128,6 +128,7 @@ func main() {
 		svc.Receipt = service.NewReceiptService(repository.NewReceiptRepository(pool), cells)
 		svc.LoadUnit = service.NewLoadUnitService(repository.NewLoadUnitRepository(pool))
 		svc.Task = service.NewTaskService(repository.NewTaskRepository(pool))
+		svc.Stocktake = service.NewStocktakeService(repository.NewStocktakeRepository(pool))
 		// История перемещений на ТСД (ADHOC-28).
 		svc.MovementHistory = service.NewMovementHistoryService(repository.NewMovementHistoryRepository(pool))
 		// Справочник внутренних складов для пометки брака на ТСД (P6-07-1).

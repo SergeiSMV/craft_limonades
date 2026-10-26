@@ -5,6 +5,7 @@ import (
 	"errors"
 	"slices"
 	"testing"
+	"time"
 
 	"craftwms/internal/model"
 )
@@ -17,9 +18,21 @@ func (f *fakeStocktakeRepo) Create(_ context.Context, in model.StocktakeCreateIn
 	f.created = append(f.created, in)
 	return model.StocktakeCreated{}, nil
 }
-func (f *fakeStocktakeRepo) StartCount(context.Context, string, string) (model.StocktakeCellSnapshot, error) {
-	return model.StocktakeCellSnapshot{}, nil
+func (f *fakeStocktakeRepo) Get(context.Context, string, string, time.Duration) (model.Stocktake, error) {
+	return model.Stocktake{}, nil
 }
+func (f *fakeStocktakeRepo) Cells(context.Context, string, string, time.Duration) ([]model.StocktakeCell, error) {
+	return nil, nil
+}
+func (f *fakeStocktakeRepo) Take(context.Context, string, string, time.Duration) error { return nil }
+func (f *fakeStocktakeRepo) Release(context.Context, string, string) error             { return nil }
+func (f *fakeStocktakeRepo) StartCount(context.Context, string, string) (model.StocktakeCellView, error) {
+	return model.StocktakeCellView{}, nil
+}
+func (f *fakeStocktakeRepo) CellView(context.Context, string, string) (model.StocktakeCellView, error) {
+	return model.StocktakeCellView{}, nil
+}
+func (f *fakeStocktakeRepo) Close(context.Context, string, string, bool) (int, error) { return 0, nil }
 
 // P10-02: форма области проверяется до базы — вид известен, у «всего склада» объектов нет,
 // у остальных они есть, всё — UUID; повторы объектов схлопываются.

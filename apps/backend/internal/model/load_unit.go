@@ -43,6 +43,9 @@ const (
 	PlacementMove = "move"
 	// PlacementStockEntry — ввод остатков завёл короб в ячейке прохода (ADHOC-46).
 	PlacementStockEntry = "stock_entry"
+	// PlacementStocktake — пересчёт нашёл учётный короб в другой ячейке и перенёс его туда
+	// (P10-03).
+	PlacementStocktake = "stocktake"
 )
 
 // Placement — одна строка журнала размещений: ГЕ перенесли из ячейки в ячейку (P5-01).
@@ -76,4 +79,6 @@ type PlaceLoadUnitInput struct {
 	MovementID *string // документ движения, если переносит перемещение (P6-01)
 	// StockEntryID — сессия ввода остатков, если короб завёл проход (ADHOC-46).
 	StockEntryID *string
+	// StocktakeCellID — ячейка пересчёта, в которой нашли короб (P10-03).
+	StocktakeCellID *string
 }

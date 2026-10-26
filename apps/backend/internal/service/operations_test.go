@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"craftwms/internal/model"
 	"craftwms/internal/repository"
 )
 
@@ -21,6 +22,7 @@ type fakeOpsRepo struct {
 	moves    []repository.MovementSubmitInput
 	problems []repository.ProblemSubmitInput
 	returns  []repository.ReturnSubmitInput
+	counts   []model.StocktakeCellSubmitInput
 	bindErr  error // ошибка, которую вернуть на привязку
 	failWith error // временная ошибка (прерывает батч)
 }
@@ -104,6 +106,15 @@ func (f *fakeOpsRepo) MovementSubmit(_ context.Context, operationID string, in r
 	}
 	f.seen[operationID] = true
 	f.moves = append(f.moves, in)
+	return repository.Applied{Result: json.RawMessage(`{}`)}, nil
+}
+
+func (f *fakeOpsRepo) StocktakeCellSubmit(_ context.Context, operationID string, in model.StocktakeCellSubmitInput) (repository.Applied, error) {
+	if f.seen[operationID] {
+		return repository.Applied{Result: json.RawMessage(`{}`), Duplicate: true}, nil
+	}
+	f.seen[operationID] = true
+	f.counts = append(f.counts, in)
 	return repository.Applied{Result: json.RawMessage(`{}`)}, nil
 }
 

@@ -112,6 +112,14 @@ func (fx *stocktakeFixture) takeBy(t *testing.T, stCell, user string) {
 	}
 }
 
+// marksIn — сколько марок записано в снимок ячейки пересчёта.
+func (fx *stocktakeFixture) marksIn(t *testing.T, stCell string) int {
+	t.Helper()
+	var n int
+	mustScanInt(t, fx.putawayFixture, `SELECT count(*) FROM stocktake_marks WHERE stocktake_cell_id = $1::uuid`, &n, stCell)
+	return n
+}
+
 func (fx *stocktakeFixture) cellStatus(t *testing.T, stCell string) string {
 	t.Helper()
 	var s string
@@ -222,8 +230,13 @@ func TestStocktake_startCountSnapshot(t *testing.T) {
 
 	snap, err := fx.repo.StartCount(ctx, stCell, fx.user)
 	mustNoErr(t, err)
-	if snap.Lines != 4 || snap.Marks != 2 {
-		t.Errorf("снимок: строк %d, марок %d — ожидалось 4 и 2", snap.Lines, snap.Marks)
+	if len(snap.Positions) != 4 || fx.marksIn(t, stCell) != 2 {
+		t.Errorf("снимок: позиций %d, марок %d — ожидалось 4 и 2", len(snap.Positions), fx.marksIn(t, stCell))
+	}
+	for _, p := range snap.Positions {
+		if (p.Kind == model.StocktakePositionBox) != (p.LoadUnitID != nil && p.GoodID == nil) {
+			t.Errorf("позиция %+v: вид не совпадает с содержимым", p)
+		}
 	}
 	for what, c := range map[string]struct {
 		sql  string
@@ -257,8 +270,8 @@ func TestStocktake_startCountSnapshot(t *testing.T) {
 	// Повтор (операция ушла второй раз) снимок не пересоздаёт.
 	var lineID, again string
 	mustScan(t, fx.pool, `SELECT min(id::text) FROM stocktake_lines WHERE stocktake_cell_id = $1::uuid`, &lineID, stCell)
-	if snap2, err := fx.repo.StartCount(ctx, stCell, fx.user); err != nil || snap2 != snap {
-		t.Errorf("повтор: %+v, %v — ожидалось %+v", snap2, err, snap)
+	if snap2, err := fx.repo.StartCount(ctx, stCell, fx.user); err != nil || len(snap2.Positions) != len(snap.Positions) {
+		t.Errorf("повтор: %+v, %v — ожидалось %d позиций", snap2, err, len(snap.Positions))
 	}
 	mustScan(t, fx.pool, `SELECT min(id::text) FROM stocktake_lines WHERE stocktake_cell_id = $1::uuid`, &again, stCell)
 	if again != lineID {
@@ -281,8 +294,8 @@ func TestStocktake_snapshotAreaGoodsOnly(t *testing.T) {
 	fx.takeBy(t, stCell, fx.user)
 	snap, err := fx.repo.StartCount(context.Background(), stCell, fx.user)
 	mustNoErr(t, err)
-	if snap.Lines != 1 || snap.Marks != 1 {
-		t.Errorf("снимок по поставщику: строк %d, марок %d — ожидалось 1 и 1", snap.Lines, snap.Marks)
+	if len(snap.Positions) != 1 || fx.marksIn(t, stCell) != 1 {
+		t.Errorf("снимок по поставщику: позиций %d, марок %d — ожидалось 1 и 1", len(snap.Positions), fx.marksIn(t, stCell))
 	}
 	var foreign string
 	mustScan(t, fx.pool, `SELECT count(*)::text FROM stocktake_lines

@@ -49,6 +49,8 @@ type Services struct {
 	ProblemPhoto *service.ProblemPhotoService
 	// CZ — чтение Честного знака (CZ-02); БД не нужна, без подписанта отвечает «не настроен».
 	CZ *service.CZService
+	// Stocktake — пересчёт склада (P10-03): заведение, ячейки, подсчёт, закрытие.
+	Stocktake *service.StocktakeService
 	// ClientErrors — пересылка событий ТСД и портала в Bugsink (ADHOC-47); nil — события
 	// отбрасываются, но приём остаётся: клиент не должен копить ошибки отправки.
 	ClientErrors EnvelopeRelay
@@ -239,6 +241,29 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 				r.Get("/tasks/{id}", taskH.Get)              // карточка с заходами
 				r.Post("/tasks/{id}/take", taskH.Take)       // взять в работу
 				r.Post("/tasks/{id}/release", taskH.Release) // отказаться
+			})
+		}
+
+		// Пересчёт (P10-03). Ячейки, взятие и начало подсчёта — сотруднику на ТСД, только со
+		// связью: кто держит ячейку и что в ней ожидалось, знает сервер. Факт ячейки — операция
+		// очереди stocktake_cell_submit, работает без связи. Заводит и закрывает пересчёт старший
+		// смены — право «заводить пересчёт»; пока должностей нет, оно у admin.
+		if svc.Stocktake != nil {
+			stH := NewStocktakeHandler(svc.Stocktake)
+			r.Group(func(r chi.Router) {
+				r.Use(appmw.Authenticator(tokens))
+				r.Get("/stocktakes/{id}", stH.Get)                   // ход выполнения
+				r.Get("/stocktakes/{id}/cells", stH.Cells)           // свободные и свои ячейки
+				r.Get("/stocktake-cells/{id}", stH.Cell)             // своя ячейка с позициями
+				r.Post("/stocktake-cells/{id}/take", stH.Take)       // взять ячейку
+				r.Post("/stocktake-cells/{id}/release", stH.Release) // отказаться
+				r.Post("/stocktake-cells/{id}/start", stH.Start)     // скан ячейки: снимок
+			})
+			r.Group(func(r chi.Router) {
+				r.Use(appmw.Authenticator(tokens))
+				r.Use(appmw.RequireRole(model.RoleAdmin))
+				r.Post("/stocktakes", stH.Create)           // завести по области
+				r.Post("/stocktakes/{id}/close", stH.Close) // закрыть, досрочно — с force
 			})
 		}
 

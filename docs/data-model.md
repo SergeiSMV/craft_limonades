@@ -462,7 +462,7 @@ Checkpoint ячейки **заменяет** её содержимое в сес
 | `name`       | `text`        | как показывается человеку                                  |
 | `is_default` | `boolean`     | куда приходовать, если склад не выбран; **ровно один**     |
 | `is_active`  | `boolean`     | скрыт из выбора; остатки на нём сохраняются                |
-| `system_role`| `text`        | UNIQUE; `supplier_return`; CHECK; NULL — обычный (`000024`) |
+| `system_role`| `text`        | UNIQUE; `supplier_return` / `not_found`; CHECK; NULL — обычный (`000024`, `000032`) |
 
 Справочник, а не enum: число складов произвольно и пополняется из интерфейса. Стартовый состав
 (`MAIN` «Основной» по умолчанию, `DEFECT` «Брак») заводится миграцией — без склада по умолчанию
@@ -473,8 +473,10 @@ Checkpoint ячейки **заменяет** её содержимое в сес
 отвечает флаг, поэтому склад можно переименовать или заменить, не трогая логику.
 
 Системный склад (`system_role`, P6-07-3) — тот, на который товар переводит программа:
-`RETURN` «Возврат поставщику» (`supplier_return`) заводит миграция `000024`. Его не скрыть и не
-удалить, при пометке проблемы на ТСД его не выбрать, и товар на нём заново не помечается.
+`RETURN` «Возврат поставщику» (`supplier_return`) заводит миграция `000024`, `NOT_FOUND`
+«Не найдено» (`not_found`) — миграция `000032`: туда пересчёт уводит короб и марки, которые не
+нашёл (P10-03). Системный склад не скрыть и не удалить, при пометке проблемы на ТСД его не
+выбрать, товар на нём заново не помечается, и пересчёт его не считает.
 Ищется по роли, а не по коду — код и имя правятся из портала.
 
 **Изменение `stock` (миграция `000013`).** Добавлена колонка `internal_warehouse_id` (FK, NOT NULL),
@@ -544,11 +546,12 @@ batch_id, cell_id, load_unit_id)`. Повторный скан той же ко�
 | `load_unit_id` | `uuid`        | FK → `load_units(id)` `ON DELETE CASCADE`                     |
 | `from_cell_id` | `uuid`        | FK → `cells(id)`; NULL — первое размещение (приёмка)          |
 | `to_cell_id`   | `uuid`        | FK → `cells(id)`, NOT NULL                                    |
-| `source`       | `text`        | `receipt` / `putaway` / `move` / `stock_entry`; CHECK         |
+| `source`       | `text`        | `receipt` / `putaway` / `move` / `stock_entry` / `stocktake`; CHECK |
 | `receipt_id`   | `uuid`        | FK → `receipts(id)`; заполнен, если перенос сделала приёмка   |
 | `putaway_id`   | `uuid`        | FK → `putaways(id)`; заполнен, если перенёс сеанс размещения  |
 | `movement_id`  | `uuid`        | FK → `movements(id)`; заполнен, если перенесло перемещение    |
 | `stock_entry_session_id` | `uuid` | FK → `stock_entry_sessions(id)`; короб завёл ввод остатков (ADHOC-46) |
+| `stocktake_cell_id` | `uuid` | FK → `stocktake_cells(id)`; учётный короб нашёл пересчёт в другой ячейке (`000032`, P10-03) |
 | `user_id`      | `uuid`        | FK → `users(id)`; NULL только у строк без известного автора   |
 | `placed_at`    | `timestamptz` | момент переноса                                               |
 
@@ -742,7 +745,7 @@ CHECK:
 | `from_load_unit_id`          | `uuid`          | FK → `load_units(id)`; товар вынут из короба       |
 | `from_internal_warehouse_id` | `uuid`          | FK, NOT NULL; склад до пометки                     |
 | `to_internal_warehouse_id`   | `uuid`          | FK, NOT NULL; склад после; CHECK `<>` from         |
-| `reason`                     | `text`          | `breakage` / `spoilage` / `expired` / `foreign_mark` / `retired` / `other`; CHECK |
+| `reason`                     | `text`          | `breakage` / `spoilage` / `expired` / `foreign_mark` / `retired` / `not_found` / `other`; CHECK |
 | `comment`                    | `text`          | NOT NULL DEFAULT `''`; у `other` обязателен (сервис) |
 | `mark`                       | `text`          | марка ЧЗ или код короба ЧЗ проблемы                |
 | `status`                     | `text`          | `open` / `resolved`; CHECK                         |
@@ -954,6 +957,7 @@ FK `(batch_id, good_id) → batches(id, good_id)`, как у `stock` и `lu_cont
 | `internal_warehouse_id` | `uuid`          | FK → `internal_warehouses(id)`, NOT NULL               |
 | `expected_qty`          | `numeric(20,3)` | снимок при начале подсчёта ячейки; 0 — излишек         |
 | `fact_qty`              | `numeric(20,3)` | факт; NULL — не подтверждён                            |
+| `problem_id`            | `uuid`          | FK → `warehouse_problems(id)`; короб не найден (`000032`) |
 
 Три вида строки: россыпь (товар · партия), короб целиком (короб без товара, количество 0 или 1),
 товар во вскрытом коробе (короб · товар · партия). Одна позиция ячейки — одна строка:
@@ -964,7 +968,13 @@ internal_warehouse_id)`.
 
 PK `(stocktake_cell_id, cis)`; `line_id` FK → `stocktake_lines(id)` `ON DELETE CASCADE`;
 `expected` — лежала в ячейке россыпью при начале подсчёта, `found` — отсканирована; хотя бы
-одно из двух истинно. Ожидалась и не найдена — «не найдено» при закрытии (P10-03).
+одно из двух истинно. Ожидалась и не найдена — проблема «не найдено» при подсчёте ячейки,
+ссылка — `problem_id` (миграция `000032`, P10-03).
+
+**Подсчёт ячейки (P10-03).** Факт приходит операцией `stocktake_cell_submit`; ячейка становится
+`counted`, строки получают `fact_qty` (не названная позиция — 0), остаток россыпи приводится к
+факту сразу, каждая правка — строкой `audit_log` (`stocktake.adjust`, было/стало в `details`).
+Товар системных складов в снимок и факт не входит.
 
 ---
 
