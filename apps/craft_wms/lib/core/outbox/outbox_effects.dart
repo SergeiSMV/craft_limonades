@@ -57,6 +57,7 @@ class OutboxEffects {
       case OutboxKind.movementSubmit:
       case OutboxKind.problemSubmit:
       case OutboxKind.returnSubmit:
+      case OutboxKind.stocktakeCellSubmit:
         break; // приёмка, размещение и движение справочник не меняют — следствий в кэше нет
       case OutboxKind.unbindBarcode:
         // Отвязка убирает запись сразу: кладовщик отвязал ошибочный код и не должен видеть
@@ -92,9 +93,11 @@ class OutboxEffects {
     // свежего снимка без связи короб оказался бы там, где лежал до неё. Задания — по той же
     // причине: новое задание от приёмки сервер создаёт только при её проведении.
     // Отгрузка возврата (ADHOC-31) снимает товар со склада и выполняет задание — тоже оба.
+    // Подсчёт ячейки пересчёта (P10-04) правит остаток, переносит короба и двигает ход задания.
     if (operation.kind == OutboxKind.receiptSubmit ||
         operation.kind == OutboxKind.putawaySubmit ||
-        operation.kind == OutboxKind.returnSubmit) {
+        operation.kind == OutboxKind.returnSubmit ||
+        operation.kind == OutboxKind.stocktakeCellSubmit) {
       _contents.requestRefresh();
       _tasks.requestRefresh();
       return;
@@ -118,6 +121,7 @@ class OutboxEffects {
       case OutboxKind.movementSubmit:
       case OutboxKind.problemSubmit:
       case OutboxKind.returnSubmit:
+      case OutboxKind.stocktakeCellSubmit:
         break; // приёмка, размещение и движение в кэше справочников следа не оставляют
     }
   }
@@ -137,6 +141,7 @@ class OutboxEffects {
       case OutboxKind.movementSubmit:
       case OutboxKind.problemSubmit:
       case OutboxKind.returnSubmit:
+      case OutboxKind.stocktakeCellSubmit:
         break; // откатывать в кэше нечего: документ возвращается человеку на разбор
       case OutboxKind.unbindBarcode:
         // Операция старого формата, без товара в теле, — восстанавливать нечем.

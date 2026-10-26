@@ -1,7 +1,9 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
+import '../../../../core/auth/auth_cubit.dart';
 import '../../../../core/constants/app_borders.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_insets.dart';
@@ -9,6 +11,8 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/gen/assets.gen.dart';
 import '../../../../core/gen/strings.g.dart';
+import '../../../../core/router/app_router.dart';
+import '../../../../core/widgets/neumorphic_action_button.dart';
 import '../../../../core/widgets/page_header.dart';
 import '../../../../core/widgets/tab_switch.dart';
 import '../../../../core/widgets/system_ui_wrapper.dart';
@@ -62,6 +66,19 @@ class _TasksViewState extends State<_TasksView> {
   /// Вернуться на главный экран.
   void goBack() => context.router.maybePop();
 
+  /// Старший смены — пока admin: ему доступно заведение пересчёта.
+  bool get _isAdmin {
+    final auth = context.read<AuthCubit?>()?.state;
+    return auth is AuthAuthenticated && auth.profile.role == 'admin';
+  }
+
+  /// Завести пересчёт; по возврату «Текущие» обновляются — появилось новое задание.
+  Future<void> createStocktake() async {
+    final current = context.read<CurrentTasksCubit>();
+    await context.router.push(const StocktakeCreateRoute());
+    await current.load();
+  }
+
   @override
   Widget build(BuildContext context) {
     return SystemUiWrapper(
@@ -100,6 +117,20 @@ class _TasksViewState extends State<_TasksView> {
                 children: const [CurrentTasksView(), CompletedFeed()],
               ),
             ),
+            // Завести пересчёт (P10-04) — старшему смены; пока право у admin.
+            if (_tab == 0 && _isAdmin)
+              Padding(
+                padding: AppInsets.all16,
+                child: NeumorphicActionStack(
+                  buttons: [
+                    NeumorphicActionButton(
+                      label: t.stocktake.create,
+                      icon: MdiIcons.clipboardPlusOutline,
+                      onPressed: createStocktake,
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
       ),

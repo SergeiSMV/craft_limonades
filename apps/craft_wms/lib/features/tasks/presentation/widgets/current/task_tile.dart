@@ -9,6 +9,7 @@ import '../../../../../core/constants/app_sizes.dart';
 import '../../../../../core/gen/strings.g.dart';
 import '../../../../../core/theme/regular_text.dart';
 import '../../../../../core/theme/semibold_text.dart';
+import '../../../../stocktake/presentation/widgets/stocktake_format.dart';
 import '../../../data/tasks_models.dart';
 import '../common/task_format.dart';
 import '../common/task_status_badge.dart';
@@ -49,9 +50,11 @@ class TaskTile extends StatelessWidget {
         child: Row(
           children: [
             Icon(
-              task.kind == TaskKind.supplierReturn
-                  ? MdiIcons.truckDeliveryOutline
-                  : MdiIcons.forklift,
+              switch (task.kind) {
+                TaskKind.supplierReturn => MdiIcons.truckDeliveryOutline,
+                TaskKind.stocktake => MdiIcons.clipboardCheckOutline,
+                _ => MdiIcons.forklift,
+              },
               size: AppSizes.kIcon25,
               color: AppColors.kTileTasks,
             ),
@@ -75,11 +78,32 @@ class TaskTile extends StatelessWidget {
                       TaskStatusBadge(status: task.status),
                     ],
                   ),
-                  Text(t.tasks.number(number: task.number), style: muted),
+                  Text(
+                    task.stocktake == null
+                        ? t.tasks.number(number: task.number)
+                        : t.stocktake.tileNumber(
+                            number: task.stocktake!.number,
+                          ),
+                    style: muted,
+                  ),
                   Text(
                     t.tasks.createdLine(created: fullDateTime(task.createdAt)),
                     style: muted,
                   ),
+                  // Пересчёт (P10-04) — область и ход: сколько ячеек подсчитано.
+                  if (task.stocktake case final st?) ...[
+                    Text(
+                      t.stocktake.scope(scope: scopeLabel(st.scopeKind)),
+                      style: muted,
+                    ),
+                    Text(
+                      t.stocktake.progress(
+                        counted: st.counted,
+                        total: st.cells,
+                      ),
+                      style: muted,
+                    ),
+                  ],
                   // Возврат — кому везём (ADHOC-31): без поставщика задания не различить.
                   if (task.kind == TaskKind.supplierReturn)
                     Text(

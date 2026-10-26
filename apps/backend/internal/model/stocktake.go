@@ -57,12 +57,12 @@ var (
 	// ErrStocktakeNoCells — область не дала ни одной ячейки: считать нечего.
 	ErrStocktakeNoCells = errors.New("stocktake scope has no cells")
 	// ErrStocktakeCellNotFound — нет ячейки пересчёта с таким идентификатором.
-	ErrStocktakeCellNotFound = errors.New("stocktake cell not found")
+	ErrStocktakeCellNotFound = errors.New("ячейка пересчёта не найдена")
 	// ErrStocktakeCellNotYours — ячейку пересчёта держит другой работник или она не в том
 	// состоянии, чтобы начать подсчёт.
-	ErrStocktakeCellNotYours = errors.New("stocktake cell is not taken by this user")
+	ErrStocktakeCellNotYours = errors.New("ячейка пересчёта не взята вами — возьмите её в списке")
 	// ErrStocktakeClosed — пересчёт уже закрыт.
-	ErrStocktakeClosed = errors.New("stocktake is closed")
+	ErrStocktakeClosed = errors.New("пересчёт уже закрыт")
 )
 
 // StocktakeCreateInput — новый пересчёт: склад, вид области и её объекты, кто заводит.
@@ -84,31 +84,32 @@ type StocktakeCreated struct {
 	Cells  int
 }
 
-// Ошибки подсчёта ячейки и закрытия пересчёта (P10-03).
+// Ошибки подсчёта ячейки и закрытия пересчёта (P10-03). Текст — по-русски: отказ операции
+// очереди ТСД показывает кладовщику дословно (P10-04).
 var (
 	// ErrStocktakeNotFound — нет пересчёта с таким идентификатором.
 	ErrStocktakeNotFound = errors.New("stocktake not found")
 	// ErrStocktakeCellBusy — ячейку уже держит другой работник: взять её нельзя.
-	ErrStocktakeCellBusy = errors.New("stocktake cell is taken by another user")
+	ErrStocktakeCellBusy = errors.New("ячейку уже взял другой сотрудник")
 	// ErrStocktakeCellCounted — ячейка уже подсчитана.
-	ErrStocktakeCellCounted = errors.New("stocktake cell is already counted")
+	ErrStocktakeCellCounted = errors.New("ячейка уже подсчитана")
 	// ErrStocktakeCellDisrupted — пока ячейку считали, через неё прошло движение: подсчёт не
 	// годится, ячейку нужно начать заново.
-	ErrStocktakeCellDisrupted = errors.New("stocktake cell was disrupted by a movement, count it again")
+	ErrStocktakeCellDisrupted = errors.New("пока ячейку считали, через неё прошло движение — посчитайте ячейку заново")
 	// ErrStocktakeCellNotCounting — подсчёт ячейки не начат: факт без снимка не с чем сравнить.
-	ErrStocktakeCellNotCounting = errors.New("stocktake cell count has not been started")
+	ErrStocktakeCellNotCounting = errors.New("подсчёт ячейки не начат — отсканируйте ячейку на месте")
 	// ErrStocktakeOutOfArea — в факте товар не из области пересчёта.
-	ErrStocktakeOutOfArea = errors.New("goods are outside of the stocktake scope")
+	ErrStocktakeOutOfArea = errors.New("товар не из области пересчёта")
 	// ErrStocktakeUnknownBox — найден короб, которого нет в WMS: его заводят приёмкой или
 	// «Вводом остатков», а не пересчётом.
-	ErrStocktakeUnknownBox = errors.New("load unit is unknown to WMS: register it by receipt or stock entry")
+	ErrStocktakeUnknownBox = errors.New("короба нет в WMS — заведите его приёмкой или «Вводом остатков»")
 	// ErrStocktakeUnknownMark — найдена марка, которой нет на складе WMS.
-	ErrStocktakeUnknownMark = errors.New("mark is not in stock in WMS: register it by receipt or stock entry")
+	ErrStocktakeUnknownMark = errors.New("марки нет на складе WMS — заведите её приёмкой или «Вводом остатков»")
 	// ErrStocktakeInProblem — найденный короб или марка в открытой проблеме склада («Не найдено»,
 	// возврат): их судьбу решает офис, пересчёт их не трогает.
-	ErrStocktakeInProblem = errors.New("goods are in an open warehouse problem: the office decides")
+	ErrStocktakeInProblem = errors.New("товар в открытой проблеме склада — его судьбу решает офис")
 	// ErrStocktakeMarksRequired — маркируемый товар россыпью считается марками.
-	ErrStocktakeMarksRequired = errors.New("marked goods are counted by marks")
+	ErrStocktakeMarksRequired = errors.New("маркируемый товар считается сканом каждой марки")
 	// ErrStocktakeUncounted — в пересчёте есть неподсчитанные ячейки, а закрыть досрочно не
 	// подтвердили.
 	ErrStocktakeUncounted = errors.New("stocktake has uncounted cells")

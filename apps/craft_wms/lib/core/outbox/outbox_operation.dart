@@ -30,7 +30,10 @@ enum OutboxKind {
   problemSubmit('problem_submit'),
 
   /// Сеанс отгрузки возврата поставщику по заданию целиком (ADHOC-31).
-  returnSubmit('return_submit');
+  returnSubmit('return_submit'),
+
+  /// Подсчёт ячейки пересчёта целиком: россыпь и найденные короба (P10-04).
+  stocktakeCellSubmit('stocktake_cell_submit');
 
   const OutboxKind(this.wire);
 
