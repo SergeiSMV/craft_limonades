@@ -35,8 +35,9 @@ class PortalApp extends StatelessWidget {
         localizationsDelegates: GlobalMaterialLocalizations.delegates,
         home: BlocBuilder<AuthCubit, AuthState>(
           builder: (context, state) => switch (state) {
+            // Портал — по праву «вход в портал» и хотя бы одному разделу (ADHOC-49).
             AuthAuthenticated(:final profile) =>
-              profile.role == 'admin'
+              PortalShell.hasSections(profile)
                   ? PortalShell(profile: profile)
                   : const _AdminOnlyView(),
             // unknown — тихое восстановление сессии при старте (не мигаем формой входа).
@@ -110,7 +111,8 @@ class _LoadingViewState extends State<_LoadingView>
   }
 }
 
-/// Отказ в доступе для не-admin (MVP admin-only; роль operator — отдельной задачей).
+/// Отказ в доступе: у должности нет права входа в портал или ни одного его раздела
+/// (ADHOC-49).
 class _AdminOnlyView extends StatelessWidget {
   const _AdminOnlyView();
 

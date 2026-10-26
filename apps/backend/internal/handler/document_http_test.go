@@ -47,10 +47,10 @@ func newDocE2E(t *testing.T) *docEnv {
 		}
 		return id
 	}
-	admin := seed(`INSERT INTO users (login,password_hash,full_name,role)
-	               VALUES ('90000010','x','Админ','admin') RETURNING id::text`)
-	worker := seed(`INSERT INTO users (login,password_hash,full_name,role)
-	                VALUES ('90000011','x','Кладовщик','employee') RETURNING id::text`)
+	admin := seed(`INSERT INTO users (login,password_hash,full_name,position_id)
+	               VALUES ('90000010','x','Админ','7a000000-0000-4000-8000-000000000001') RETURNING id::text`)
+	worker := seed(`INSERT INTO users (login,password_hash,full_name,position_id)
+	                VALUES ('90000011','x','Кладовщик','7a000000-0000-4000-8000-000000000002') RETURNING id::text`)
 	wh := seed(`INSERT INTO warehouses(code,name) VALUES('SHB','Шабулина') RETURNING id::text`)
 	cell := seed(`INSERT INTO cells(warehouse_id,address) VALUES($1::uuid,'M1-1-1-1') RETURNING id::text`, wh)
 	good := seed(`INSERT INTO goods(name,uom) VALUES('Кальмар','шт') RETURNING id::text`)
@@ -86,7 +86,7 @@ func newDocE2E(t *testing.T) *docEnv {
 
 	router := handler.NewRouter(
 		slog.New(slog.NewTextHandler(io.Discard, nil)), nil, tokens,
-		handler.Services{Document: service.NewDocumentService(docRepo)},
+		handler.Services{Document: service.NewDocumentService(docRepo), Rights: repository.NewUserRepository(pool)},
 	)
 	srv := httptest.NewServer(router)
 	t.Cleanup(srv.Close)

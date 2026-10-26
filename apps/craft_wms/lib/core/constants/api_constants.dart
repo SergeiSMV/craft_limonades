@@ -179,4 +179,23 @@ abstract final class ApiConst {
   ///**POST** - скан ячейки на месте: снимок и позиции без количеств (P10-03):
   /// `stocktake-cells/{id}/start`.
   static String stocktakeCellStart(String id) => 'stocktake-cells/$id/start';
+
+  ///**GET** - идёт ли в ячейке склада подсчёт пересчёта (ADHOC-48):
+  /// `cells/{id}/stocktake-count`.
+  static String cellStocktakeCount(String id) => 'cells/$id/stocktake-count';
+
+  ///**GET** - коды всех прав должности (ADHOC-49): `rights`.
+  static const String rights = 'rights';
+
+  ///**GET/POST** - должности (ADHOC-49): `positions`.
+  static const String positions = 'positions';
+
+  ///**PATCH/DELETE** - должность (ADHOC-49): `positions/{id}`.
+  static String positionById(String id) => 'positions/$id';
+
+  ///**GET/POST** - пользователи (ADHOC-49): `users`.
+  static const String users = 'users';
+
+  ///**PATCH** - пользователь (ADHOC-49): `users/{id}`.
+  static String userById(String id) => 'users/$id';
 }

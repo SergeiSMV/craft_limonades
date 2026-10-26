@@ -49,8 +49,8 @@ func newE2E(t *testing.T) *e2eEnv {
 
 	var userID string
 	err := pool.QueryRow(ctx,
-		`INSERT INTO users (login, password_hash, full_name, role)
-		 VALUES ('90000001','x','Кладовщик','employee') RETURNING id::text`).Scan(&userID)
+		`INSERT INTO users (login, password_hash, full_name,position_id)
+		 VALUES ('90000001','x','Кладовщик','7a000000-0000-4000-8000-000000000002') RETURNING id::text`).Scan(&userID)
 	if err != nil {
 		t.Fatalf("seed user: %v", err)
 	}
@@ -62,7 +62,7 @@ func newE2E(t *testing.T) *e2eEnv {
 	opsSvc := service.NewOperationsService(repository.NewOperationsRepository(pool))
 	router := handler.NewRouter(
 		slog.New(slog.NewTextHandler(io.Discard, nil)), nil, tokens,
-		handler.Services{Operations: opsSvc},
+		handler.Services{Operations: opsSvc, Rights: repository.NewUserRepository(pool)},
 	)
 	srv := httptest.NewServer(router)
 	t.Cleanup(srv.Close)

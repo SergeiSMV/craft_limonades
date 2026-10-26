@@ -97,7 +97,11 @@ type meResponse struct {
 	UserID   string `json:"user_id"`
 	Login    string `json:"login"`
 	FullName string `json:"full_name"`
-	Role     string `json:"role"`
+	// Role — прежняя роль для старых сборок ТСД и портала: admin — у кого право
+	// «пользователи и должности» (ADHOC-49).
+	Role     string   `json:"role"`
+	Position string   `json:"position"`
+	Rights   []string `json:"rights"` // действующие права должности — по ним клиент показывает функции
 }
 
 // Me: GET /api/v1/auth/me (защищённый) → профиль текущего пользователя.
@@ -117,7 +121,9 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 		UserID:   user.ID,
 		Login:    user.Login,
 		FullName: user.FullName,
-		Role:     user.Role,
+		Role:     user.Role(),
+		Position: user.PositionName,
+		Rights:   user.Rights(),
 	})
 }
 

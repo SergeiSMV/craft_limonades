@@ -22,8 +22,8 @@ import (
 func newUser(t *testing.T, fx *stockFixture) string {
 	t.Helper()
 	var id string
-	mustScan(t, fx.pool, `INSERT INTO users (login, password_hash, full_name, role)
-		VALUES ('90000077','x','Кладовщик','employee') RETURNING id::text`, &id)
+	mustScan(t, fx.pool, `INSERT INTO users (login, password_hash, full_name,position_id)
+		VALUES ('90000077','x','Кладовщик','7a000000-0000-4000-8000-000000000002') RETURNING id::text`, &id)
 	return id
 }
 

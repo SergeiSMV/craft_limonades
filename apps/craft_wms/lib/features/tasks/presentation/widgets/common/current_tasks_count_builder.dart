@@ -1,3 +1,4 @@
+import '../../../../../core/auth/session_rights.dart';
 import 'package:flutter/widgets.dart';
 
 import '../../../../../core/di/injection.dart';
@@ -21,7 +22,18 @@ class CurrentTasksCountBuilder extends StatefulWidget {
 
 class _CurrentTasksCountBuilderState extends State<CurrentTasksCountBuilder> {
   final _repo = getIt<TasksRepository>();
-  late final Stream<int> _count = _repo.watchCurrentCount();
+  // Только задания тех видов, что должность может взять (ADHOC-51).
+  late final Stream<int> _count = _repo.watchCurrentCount(
+    allow: (kind) {
+      final rights = taskKindRights(kind);
+      return sessionCan(
+        context,
+        rights.first,
+        more: rights.skip(1).toList(),
+        withoutSession: true,
+      );
+    },
+  );
 
   @override
   void initState() {

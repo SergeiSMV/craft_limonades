@@ -19,7 +19,10 @@ import '../problems/problem_toolbar.dart';
 /// списать по документу 1С, разместить в «Основной» или вернуть поставщику. Открытые сверху;
 /// поиск и фильтр — по загруженному списку. Всё admin-only на бэке.
 class ProblemsTab extends StatefulWidget {
-  const ProblemsTab({super.key});
+  const ProblemsTab({super.key, this.canResolve = true});
+
+  /// Право «Проблемы склада: принимать решение» (ADHOC-50); без него — только просмотр.
+  final bool canResolve;
 
   @override
   State<ProblemsTab> createState() => _ProblemsTabState();
@@ -133,7 +136,9 @@ class _ProblemsTabState extends State<ProblemsTab> {
                   : ProblemCard(
                       problem: shown[i],
                       busy: _posting.contains(shown[i].id),
-                      onResolve: () => _resolve(shown[i]),
+                      onResolve: widget.canResolve
+                          ? () => _resolve(shown[i])
+                          : null,
                     ),
             ),
           ),

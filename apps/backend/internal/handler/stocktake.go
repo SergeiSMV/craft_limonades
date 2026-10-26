@@ -25,6 +25,7 @@ type stocktakes interface {
 	CellView(ctx context.Context, id, userID string) (model.StocktakeCellView, error)
 	Close(ctx context.Context, id, userID string, force bool) (int, error)
 	List(ctx context.Context, status string) ([]model.StocktakeListItem, error)
+	CountingInCell(ctx context.Context, cellID string) (*model.CellUnderCount, error)
 }
 
 // StocktakeHandler — пересчёт склада (P10-03): заведение и закрытие — старшему смены (пока —
@@ -278,6 +279,33 @@ func (h *StocktakeHandler) Close(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]int{"uncounted": uncounted})
+}
+
+// stocktakeCountingResponse — ячейка склада на подсчёте (ADHOC-48).
+type stocktakeCountingResponse struct {
+	StocktakeNumber int64  `json:"stocktake_number"`
+	Address         string `json:"address"`
+	CountedBy       string `json:"counted_by"`
+	StartedAt       string `json:"started_at"` // RFC3339
+}
+
+// CellCounting: GET /api/v1/cells/{id}/stocktake-count — идёт ли в ячейке склада подсчёт
+// пересчёта (ADHOC-48). ТСД спрашивает перед движением через ячейку и предупреждает
+// кладовщика. 200 — `{"counting": {...}}` или `{"counting": null}`.
+func (h *StocktakeHandler) CellCounting(w http.ResponseWriter, r *http.Request) {
+	c, err := h.svc.CountingInCell(r.Context(), chi.URLParam(r, "id"))
+	if err != nil {
+		stocktakeError(w, r, err, "cell counting")
+		return
+	}
+	var out *stocktakeCountingResponse
+	if c != nil {
+		out = &stocktakeCountingResponse{
+			StocktakeNumber: c.StocktakeNumber, Address: c.Address, CountedBy: c.CountedByName,
+			StartedAt: c.StartedAt.Format(time.RFC3339),
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"counting": out})
 }
 
 // stocktakeError — ответ на ошибку пересчёта; текст — для экрана ТСД и портала.

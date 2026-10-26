@@ -25,18 +25,20 @@ class DocCard extends StatelessWidget {
     required this.doc,
     required this.downloading,
     required this.posting,
-    required this.onDownload,
-    required this.onPost,
-    required this.onHistory,
+    this.onDownload,
+    this.onPost,
+    this.onHistory,
   });
 
   final DocForm form;
   final PortalDoc doc;
   final bool downloading;
   final bool posting;
-  final VoidCallback onDownload;
-  final VoidCallback onPost;
-  final VoidCallback onHistory;
+
+  /// Действия; `null` — у должности нет права (ADHOC-50), кнопки нет.
+  final VoidCallback? onDownload;
+  final VoidCallback? onPost;
+  final VoidCallback? onHistory;
 
   @override
   Widget build(BuildContext context) {
@@ -95,29 +97,37 @@ class DocCard extends StatelessWidget {
 
   /// Кнопки действий — прямо на плашке карточки, как в строке таблицы.
   Widget _actions(bool posted) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
+    final history = onHistory;
+    final download = onDownload;
+    final post = onPost;
+    final buttons = <Widget>[
+      if (history != null)
         NeumorphicIconButton(
           icon: Icons.schedule,
           tooltip: t.portal.documents.historyTitle,
-          onPressed: onHistory,
+          onPressed: history,
         ),
-        AppBoxes.kWidth12,
+      if (download != null)
         NeumorphicIconButton(
           icon: Icons.download,
           tooltip: t.portal.documents.download,
           busy: downloading,
-          onPressed: onDownload,
+          onPressed: download,
         ),
-        if (!posted) ...[
-          AppBoxes.kWidth12,
-          NeumorphicIconButton(
-            icon: Icons.check,
-            tooltip: t.portal.documents.post,
-            busy: posting,
-            onPressed: onPost,
-          ),
+      if (!posted && post != null)
+        NeumorphicIconButton(
+          icon: Icons.check,
+          tooltip: t.portal.documents.post,
+          busy: posting,
+          onPressed: post,
+        ),
+    ];
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var i = 0; i < buttons.length; i++) ...[
+          if (i > 0) AppBoxes.kWidth12,
+          buttons[i],
         ],
       ],
     );
@@ -132,18 +142,18 @@ class DocCardList extends StatelessWidget {
     required this.docs,
     required this.downloading,
     required this.posting,
-    required this.onDownload,
-    required this.onPost,
-    required this.onHistory,
+    this.onDownload,
+    this.onPost,
+    this.onHistory,
   });
 
   final DocForm form;
   final List<PortalDoc> docs;
   final Set<String> downloading;
   final Set<String> posting;
-  final ValueChanged<PortalDoc> onDownload;
-  final ValueChanged<PortalDoc> onPost;
-  final ValueChanged<PortalDoc> onHistory;
+  final ValueChanged<PortalDoc>? onDownload;
+  final ValueChanged<PortalDoc>? onPost;
+  final ValueChanged<PortalDoc>? onHistory;
 
   @override
   Widget build(BuildContext context) {
@@ -157,9 +167,9 @@ class DocCardList extends StatelessWidget {
             doc: docs[i],
             downloading: downloading.contains(docs[i].id),
             posting: posting.contains(docs[i].id),
-            onDownload: () => onDownload(docs[i]),
-            onPost: () => onPost(docs[i]),
-            onHistory: () => onHistory(docs[i]),
+            onDownload: onDownload == null ? null : () => onDownload!(docs[i]),
+            onPost: onPost == null ? null : () => onPost!(docs[i]),
+            onHistory: onHistory == null ? null : () => onHistory!(docs[i]),
           ),
         ],
       ],

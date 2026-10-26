@@ -26,11 +26,16 @@ func NewUserRepository(pool *pgxpool.Pool) *UserRepository {
 
 // колонки в фиксированном порядке; id приводим к тексту (id::text), чтобы скан шёл в string.
 // login и username nullable → COALESCE к ” (пусто = отсутствует), чтобы скан шёл в string.
-const userColumns = `id::text AS id, COALESCE(login,'') AS login, COALESCE(username,'') AS username, password_hash, full_name, role, is_active, created_at, updated_at`
+// Должность и её права — тем же запросом (ADHOC-49): права проверяются по ним.
+const userColumns = `u.id::text AS id, COALESCE(u.login,'') AS login, COALESCE(u.username,'') AS username,
+	u.password_hash, u.full_name, u.position_id::text AS position_id, p.name AS position_name,
+	p.is_system AS position_system, p.rights AS position_rights, u.is_active, u.created_at, u.updated_at`
+
+const userFrom = ` FROM users u JOIN positions p ON p.id = u.position_id`
 
 // GetByLogin возвращает пользователя по логину (первые 8 цифр бейджа).
 func (r *UserRepository) GetByLogin(ctx context.Context, login string) (model.User, error) {
-	rows, err := r.pool.Query(ctx, `SELECT `+userColumns+` FROM users WHERE login = $1`, login)
+	rows, err := r.pool.Query(ctx, `SELECT `+userColumns+userFrom+` WHERE u.login = $1`, login)
 	if err != nil {
 		return model.User{}, fmt.Errorf("query user by login: %w", err)
 	}
@@ -39,7 +44,7 @@ func (r *UserRepository) GetByLogin(ctx context.Context, login string) (model.Us
 
 // GetByUsername возвращает пользователя по username (вход по логину/паролю, P1-01-1).
 func (r *UserRepository) GetByUsername(ctx context.Context, username string) (model.User, error) {
-	rows, err := r.pool.Query(ctx, `SELECT `+userColumns+` FROM users WHERE username = $1`, username)
+	rows, err := r.pool.Query(ctx, `SELECT `+userColumns+userFrom+` WHERE u.username = $1`, username)
 	if err != nil {
 		return model.User{}, fmt.Errorf("query user by username: %w", err)
 	}
@@ -48,22 +53,42 @@ func (r *UserRepository) GetByUsername(ctx context.Context, username string) (mo
 
 // GetByID возвращает пользователя по id (uuid как текст).
 func (r *UserRepository) GetByID(ctx context.Context, id string) (model.User, error) {
-	rows, err := r.pool.Query(ctx, `SELECT `+userColumns+` FROM users WHERE id = $1::uuid`, id)
+	rows, err := r.pool.Query(ctx, `SELECT `+userColumns+userFrom+` WHERE u.id = $1::uuid`, id)
 	if err != nil {
 		return model.User{}, fmt.Errorf("query user by id: %w", err)
 	}
 	return collectUser(rows)
 }
 
-// CreateAdminIfNotExists создаёт админа, если логина ещё нет. Идемпотентно.
+// UserAccess — доступ пользователя (ADHOC-49): действующие права, системная ли должность,
+// активен ли. Его проверяет middleware на каждой ручке с правом — из базы на каждый запрос, а
+// не из токена: смена должности и блокировка действуют сразу. Нет пользователя — неактивен.
+func (r *UserRepository) UserAccess(ctx context.Context, userID string) (model.Access, error) {
+	var a model.Access
+	var rights []string
+	err := r.pool.QueryRow(ctx, `
+		SELECT p.is_system, p.rights, u.is_active
+		FROM users u JOIN positions p ON p.id = u.position_id
+		WHERE u.id = $1::uuid`, userID).Scan(&a.System, &rights, &a.Active)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return model.Access{}, nil
+	}
+	if err != nil {
+		return model.Access{}, fmt.Errorf("права пользователя: %w", err)
+	}
+	a.Rights = model.UserRights(a.System, rights)
+	return a, nil
+}
+
+// CreateAdminIfNotExists создаёт админа (должность «Администратор»), если логина ещё нет. Идемпотентно.
 // Возвращает created=true, если строка была вставлена; false — если логин уже существовал.
 func (r *UserRepository) CreateAdminIfNotExists(ctx context.Context, login, passwordHash, fullName string) (bool, error) {
 	// ON CONFLICT DO NOTHING RETURNING id: при конфликте строк не вернётся → created=false.
 	rows, err := r.pool.Query(ctx, `
-		INSERT INTO users (login, password_hash, full_name, role, is_active)
-		VALUES ($1, $2, $3, 'admin', true)
+		INSERT INTO users (login, password_hash, full_name, position_id, is_active)
+		VALUES ($1, $2, $3, $4::uuid, true)
 		ON CONFLICT (login) DO NOTHING
-		RETURNING id`, login, passwordHash, fullName)
+		RETURNING id`, login, passwordHash, fullName, model.PositionAdminID)
 	if err != nil {
 		return false, fmt.Errorf("insert admin: %w", err)
 	}
@@ -77,10 +102,10 @@ func (r *UserRepository) CreateAdminIfNotExists(ctx context.Context, login, pass
 func (r *UserRepository) CreateUsernameAdminIfNotExists(ctx context.Context, username, passwordHash, fullName string) (bool, error) {
 	// login=NULL (у admin бейджа нет); XOR-констрейнт схемы это допускает.
 	rows, err := r.pool.Query(ctx, `
-		INSERT INTO users (username, password_hash, full_name, role, is_active)
-		VALUES ($1, $2, $3, 'admin', true)
+		INSERT INTO users (username, password_hash, full_name, position_id, is_active)
+		VALUES ($1, $2, $3, $4::uuid, true)
 		ON CONFLICT (username) DO NOTHING
-		RETURNING id`, username, passwordHash, fullName)
+		RETURNING id`, username, passwordHash, fullName, model.PositionAdminID)
 	if err != nil {
 		return false, fmt.Errorf("insert username admin: %w", err)
 	}

@@ -23,6 +23,7 @@ type stocktakeRepo interface {
 	CellView(ctx context.Context, id, userID string) (model.StocktakeCellView, error)
 	Close(ctx context.Context, id, userID string, force bool) (int, error)
 	List(ctx context.Context, status string) ([]model.StocktakeListItem, error)
+	CountingInCell(ctx context.Context, cellID string) (*model.CellUnderCount, error)
 }
 
 // StocktakeService — пересчёт склада (P10): заведение по области, ячейки для работника,
@@ -126,4 +127,13 @@ func (s *StocktakeService) List(ctx context.Context, status string) ([]model.Sto
 		return nil, model.ErrInvalidStocktake
 	}
 	return s.repo.List(ctx, status)
+}
+
+// CountingInCell — подсчёт, идущий в ячейке склада (ADHOC-48); nil — не идёт. Неверный id —
+// тоже nil: ячейки с таким id нет, и подсчёта в ней нет.
+func (s *StocktakeService) CountingInCell(ctx context.Context, cellID string) (*model.CellUnderCount, error) {
+	if !isUUID(cellID) {
+		return nil, nil
+	}
+	return s.repo.CountingInCell(ctx, cellID)
 }

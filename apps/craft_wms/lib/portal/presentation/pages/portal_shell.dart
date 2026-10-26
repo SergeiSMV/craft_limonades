@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/auth/auth_cubit.dart';
 import '../../../core/auth/profile.dart';
+import '../../../core/auth/rights.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_sizes.dart';
 import '../../../core/gen/strings.g.dart';
@@ -15,7 +16,6 @@ import '../widgets/tabs/inventory_tab.dart';
 import '../widgets/tabs/nomenclature_tab.dart';
 import '../widgets/tabs/problems_tab.dart';
 import '../widgets/tabs/settings_tab.dart';
-import '../widgets/tabs/stub_tab.dart';
 
 /// Оболочка портала после входа: сайдбар (меню по секциям + профиль), шапка с заголовком
 /// раздела и область вкладки. Светлая неоморфная (ADHOC-25); на узком экране меню уходит
@@ -23,8 +23,12 @@ import '../widgets/tabs/stub_tab.dart';
 class PortalShell extends StatefulWidget {
   const PortalShell({super.key, required this.profile});
 
-  /// Профиль вошедшего (имя + роль) — для карточки пользователя в сайдбаре.
+  /// Профиль вошедшего (имя + должность и права) — для карточки в сайдбаре и меню.
   final Profile profile;
+
+  /// Есть ли что показать: хоть одно действие портала (ADHOC-50) — отдельного «входа в
+  /// портал» нет, в него пускает любой отмеченный раздел.
+  static bool hasSections(Profile p) => p.can(Rights.portal);
 
   @override
   State<PortalShell> createState() => _PortalShellState();
@@ -33,88 +37,131 @@ class PortalShell extends StatefulWidget {
 class _PortalShellState extends State<PortalShell> {
   int _selected = 0;
 
-  /// Меню по секциям (порядок из ТЗ/макета). Метки фаз — где раздел станет рабочим.
-  List<NavSection> get _sections => [
-    NavSection(
-      title: t.portal.menu.operations,
-      items: [
+  /// Меню по секциям (порядок из ТЗ/макета) — только разделы, где у должности есть хоть одно
+  /// действие (ADHOC-50); действия внутри раздела — тоже по правам. Секция без разделов не
+  /// показывается. «Сборка» — с P9: прав на неё пока нет.
+  List<NavSection> get _sections {
+    final p = widget.profile;
+    final receipt = docRights(
+      p,
+      Rights.receiptView,
+      Rights.receiptDownload,
+      Rights.receiptPost,
+    );
+    final movement = docRights(
+      p,
+      Rights.movementView,
+      Rights.movementDownload,
+      Rights.movementPost,
+    );
+    final stocktakeDocs = docRights(
+      p,
+      Rights.stocktakeDocView,
+      Rights.stocktakeDocDownload,
+      Rights.stocktakeDocPost,
+    );
+    final stockEntryDocs = docRights(
+      p,
+      Rights.stockEntryDocView,
+      Rights.stockEntryDocDownload,
+      Rights.stockEntryDocPost,
+    );
+    final stocktakes = p.can(Rights.stocktakeView, [Rights.stocktakeManage]);
+    final cellsLabels = p.can(Rights.cellsLabels);
+    final cellsUpload = p.can(Rights.cellsImport);
+    final settings = p.can(Rights.settingsWarehouses, [Rights.settingsUsers]);
+    return [
+      NavSection(
+        title: t.portal.menu.operations,
+        items: [
+          /// Номенклатура
+          if (p.can(Rights.nomenclatureImport))
+            NavItem(
+              icon: Icons.inventory_2_outlined,
+              label: t.portal.tabs.nomenclature,
+              body: const NomenclatureTab(),
+            ),
 
-        /// Номенклатура
-        NavItem(
-          icon: Icons.inventory_2_outlined,
-          label: t.portal.tabs.nomenclature,
-          body: const NomenclatureTab(),
-        ),
+          /// Приход
+          if (receipt != null)
+            NavItem(
+              icon: Icons.local_shipping_outlined,
+              label: t.portal.tabs.receipt,
+              // P4-10: документы «Поступление» — та же вкладка документов, другая форма.
+              description: t.portal.receipt.description,
+              body: DocumentsTab(
+                kind: 'receipt',
+                empty: t.portal.receipt.empty,
+                rights: receipt,
+              ),
+            ),
 
-        /// Приход
-        NavItem(
-          icon: Icons.local_shipping_outlined,
-          label: t.portal.tabs.receipt,
-          // P4-10: документы «Поступление» — та же вкладка документов, другая форма.
-          description: t.portal.receipt.description,
-          body: DocumentsTab(
-            kind: 'receipt',
-            empty: t.portal.receipt.empty,
-          ),
-        ),
-
-        /// Сборка
-        NavItem(
-          icon: Icons.shopping_cart_checkout,
-          label: t.portal.tabs.picking,
-          body: const StubTab(phase: 'P9', icon: Icons.shopping_cart_checkout),
-        ),
-
-        /// Инвентаризация
-        NavItem(
-          icon: Icons.fact_check_outlined,
-          label: t.portal.tabs.stocktake,
-          // P10-05: пересчёты, документы «Инвентаризация» и «Ввод остатков».
-          description: t.portal.stocktake.description,
-          body: const InventoryTab(),
-        ),
-      ],
-    ),
-    NavSection(
-      title: t.portal.menu.warehouse,
-      items: [
-        NavItem(
-          icon: Icons.grid_view_outlined,
-          label: t.portal.tabs.cells,
-          body: const CellsTab(),
-        ),
-        NavItem(
-          icon: Icons.swap_horiz,
-          label: t.portal.tabs.movement,
-          // P5-04: документы «Движение» (размещение, в P6 — перемещение и пополнение).
-          description: t.portal.movement.description,
-          body: DocumentsTab(
-            kind: 'movement',
-            empty: t.portal.movement.empty,
-          ),
-        ),
-        NavItem(
-          icon: Icons.report_problem_outlined,
-          label: t.portal.tabs.problems,
-          // P6-07-3: решение офиса по проблемам, помеченным на ТСД.
-          description: t.portal.problems.description,
-          body: const ProblemsTab(),
-        ),
-      ],
-    ),
-    NavSection(
-      title: t.portal.menu.system,
-      items: [
-        NavItem(
-          icon: Icons.settings_outlined,
-          label: t.portal.tabs.settings,
-          // ADHOC-29: внутренние склады («Брак», «Изолятор» …) — первый раздел настроек.
-          description: t.portal.settings.description,
-          body: const SettingsTab(),
-        ),
-      ],
-    ),
-  ];
+          /// Инвентаризация
+          if (stocktakes || stocktakeDocs != null || stockEntryDocs != null)
+            NavItem(
+              icon: Icons.fact_check_outlined,
+              label: t.portal.tabs.stocktake,
+              // P10-05: пересчёты, документы «Инвентаризация» и «Ввод остатков».
+              description: t.portal.stocktake.description,
+              body: InventoryTab(
+                stocktakes: stocktakes,
+                canManage: p.can(Rights.stocktakeManage),
+                stocktakeDocs: stocktakeDocs,
+                stockEntryDocs: stockEntryDocs,
+              ),
+            ),
+        ],
+      ),
+      NavSection(
+        title: t.portal.menu.warehouse,
+        items: [
+          if (cellsLabels || cellsUpload)
+            NavItem(
+              icon: Icons.grid_view_outlined,
+              label: t.portal.tabs.cells,
+              body: CellsTab(labels: cellsLabels, upload: cellsUpload),
+            ),
+          if (movement != null)
+            NavItem(
+              icon: Icons.swap_horiz,
+              label: t.portal.tabs.movement,
+              // P5-04: документы «Движение» (размещение, в P6 — перемещение и пополнение).
+              description: t.portal.movement.description,
+              body: DocumentsTab(
+                kind: 'movement',
+                empty: t.portal.movement.empty,
+                rights: movement,
+              ),
+            ),
+          if (p.can(Rights.problemsView, [Rights.problemsResolve]))
+            NavItem(
+              icon: Icons.report_problem_outlined,
+              label: t.portal.tabs.problems,
+              // P6-07-3: решение офиса по проблемам, помеченным на ТСД.
+              description: t.portal.problems.description,
+              body: ProblemsTab(canResolve: p.can(Rights.problemsResolve)),
+            ),
+        ],
+      ),
+      NavSection(
+        title: t.portal.menu.system,
+        items: [
+          if (settings)
+            NavItem(
+              icon: Icons.settings_outlined,
+              label: t.portal.tabs.settings,
+              // ADHOC-29: внутренние склады; ADHOC-50: должности и пользователи.
+              description: t.portal.settings.description,
+              body: SettingsTab(
+                warehouses: p.can(Rights.settingsWarehouses),
+                users: p.can(Rights.settingsUsers),
+                profile: p,
+              ),
+            ),
+        ],
+      ),
+    ].where((s) => s.items.isNotEmpty).toList();
+  }
 
   /// Плоский список пунктов (индекс = глобальный номер вкладки, как в IndexedStack).
   List<NavItem> get _flat => [for (final s in _sections) ...s.items];
@@ -139,7 +186,8 @@ class _PortalShellState extends State<PortalShell> {
     // Узкое окно (телефон, половина экрана): постоянный сайдбар съел бы больше половины
     // ширины, поэтому меню уезжает в выдвижную панель, а в шапке появляется кнопка меню.
     // Сайдбар тот же — вторая вёрстка меню разошлась бы с первой.
-    final compact = MediaQuery.sizeOf(context).width < AppSizes.kPortalCompactWidth;
+    final compact =
+        MediaQuery.sizeOf(context).width < AppSizes.kPortalCompactWidth;
     final content = Column(
       children: [
         PortalHeader(
@@ -191,4 +239,10 @@ class _PortalShellState extends State<PortalShell> {
             ),
     );
   }
+}
+
+/// Права на действия с документами вида (ADHOC-50); `null` — ни одного, раздела нет.
+DocRights? docRights(Profile p, String view, String download, String post) {
+  final r = (view: p.can(view), download: p.can(download), post: p.can(post));
+  return r.view || r.download || r.post ? r : null;
 }

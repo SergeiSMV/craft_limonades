@@ -14,12 +14,16 @@ class PortalTextField extends StatelessWidget {
     required this.controller,
     required this.hint,
     this.autofocus = false,
+    this.obscureText = false,
     this.onSubmitted,
   });
 
   final TextEditingController controller;
   final String hint;
   final bool autofocus;
+
+  /// Скрыть вводимое — поле пароля (ADHOC-50).
+  final bool obscureText;
   final ValueChanged<String>? onSubmitted;
 
   @override
@@ -37,6 +41,7 @@ class PortalTextField extends StatelessWidget {
       child: TextField(
         controller: controller,
         autofocus: autofocus,
+        obscureText: obscureText,
         onSubmitted: onSubmitted,
         style: RegularTextStyles().regularInter14.copyWith(
           color: AppColors.kTextMain,

@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
+import '../../../../core/auth/rights.dart';
+import '../../../../core/auth/session_rights.dart';
 import '../../../../core/constants/app_borders.dart';
 import '../../../../core/constants/app_boxes.dart';
 import '../../../../core/constants/app_colors.dart';
@@ -31,6 +33,7 @@ import '../../../movement/domain/movement_models.dart';
 import '../../../movement/presentation/widgets/move_qty_header.dart';
 import '../../../stock/data/catalog_models.dart';
 import '../../../stock/data/catalog_repository.dart';
+import '../../../stocktake/presentation/widgets/cell_count_warning.dart';
 import '../../domain/problem_models.dart';
 import '../bloc/current_problems_cubit.dart';
 import '../bloc/problem_cubit.dart';
@@ -87,6 +90,10 @@ class _ProblemViewState extends State<_ProblemView>
 
   /// Идёт фиксация новой проблемы: форма во весь экран, без вкладок.
   bool _adding = false;
+
+  /// Право «Проблемы: помечать товар» (ADHOC-51); без сессии в дереве (тесты) — есть.
+  bool get _canMark =>
+      sessionCan(context, Rights.tsdProblemsMark, withoutSession: true);
 
   ProblemCubit get cubit => context.read<ProblemCubit>();
   ContentsRepository get contents => getIt<ContentsRepository>();
@@ -153,8 +160,12 @@ class _ProblemViewState extends State<_ProblemView>
   Future<void> onScan(String value) async {
     final code = value.trim();
     _scanController.clear();
-    // Скан со списка — кладовщик начал фиксировать: открываем форму.
-    if (!_adding) setState(() => _adding = true);
+    // Скан со списка — кладовщик начал фиксировать: открываем форму. Без права помечать
+    // (ADHOC-51) скан со списка ничего не открывает.
+    if (!_adding) {
+      if (!_canMark) return;
+      setState(() => _adding = true);
+    }
     final s = cubit.state;
     if (code.isEmpty || !_deduper.allow(code) || s.outcome != null) return;
     if (s.subject != null) {
@@ -221,6 +232,12 @@ class _ProblemViewState extends State<_ProblemView>
   Future<void> onBox(LoadUnitView box) async {
     final cellId = box.cellId;
     final cell = cellId == null ? null : await cellWhere((c) => c.id == cellId);
+    if (!mounted) return;
+    if (cell != null &&
+        !cell.isDefault &&
+        !await allowMoveThroughCell(context, cell.id)) {
+      return;
+    }
     if (mounted) cubit.onBox(box, cell);
   }
 
@@ -236,8 +253,13 @@ class _ProblemViewState extends State<_ProblemView>
     await onCell(cell);
   }
 
-  /// Ячейка выбрана — сканом или из справочника: её короба и россыпь на выбор.
+  /// Ячейка выбрана — сканом или из справочника: её короба и россыпь на выбор. Пометка
+  /// меняет остаток ячейки, поэтому ячейка на пересчёте — сначала предупреждение (ADHOC-48).
   Future<void> onCell(Cell cell) async {
+    if (!cell.isDefault && !await allowMoveThroughCell(context, cell.id)) {
+      return;
+    }
+    if (!mounted) return;
     final res = await contents.cell(
       CellRef(id: cell.id, address: cell.address),
     );
@@ -411,7 +433,7 @@ class _ProblemViewState extends State<_ProblemView>
           child: IndexedStack(
             index: _tab,
             children: [
-              CurrentProblemsView(onAdd: startAdding),
+              CurrentProblemsView(onAdd: _canMark ? startAdding : null),
               const ResolvedFeed(),
             ],
           ),

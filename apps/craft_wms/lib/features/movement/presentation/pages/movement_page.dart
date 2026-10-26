@@ -29,6 +29,7 @@ import '../../../contents/domain/contents_repository.dart';
 import '../../../contents/domain/load_unit_label_printer.dart';
 import '../../../stock/data/catalog_models.dart';
 import '../../../stock/data/catalog_repository.dart';
+import '../../../stocktake/presentation/widgets/cell_count_warning.dart';
 import '../bloc/movement_cubit.dart';
 import '../bloc/movement_history_cubit.dart';
 import '../bloc/movement_state.dart';
@@ -181,6 +182,8 @@ class _MovementViewState extends State<_MovementView>
   Future<void> onBox(LoadUnitView box, {bool manual = false}) async {
     final cellId = cubit.state.boxCellInSession(box.id) ?? box.cellId;
     final cell = cellId == null ? null : await cellWhere((c) => c.id == cellId);
+    if (!mounted) return;
+    if (cell != null && !await allowMoveThroughCell(context, cell.id)) return;
     if (mounted) cubit.onBox(box, cell, manual: manual);
   }
 
@@ -246,8 +249,13 @@ class _MovementViewState extends State<_MovementView>
   }
 
   /// Ячейка выбрана — сканом или из справочника. Её россыпь нужна, только если она становится
-  /// источником: с коробом или товаром в руках ячейка — приёмник.
+  /// источником: с коробом или товаром в руках ячейка — приёмник. Ячейка на пересчёте —
+  /// сначала предупреждение (ADHOC-48).
   Future<void> onCell(Cell cell) async {
+    if (!cell.isDefault && !await allowMoveThroughCell(context, cell.id)) {
+      return;
+    }
+    if (!mounted) return;
     if (cubit.state.hold != null) {
       cubit.onCell(cell);
       return;

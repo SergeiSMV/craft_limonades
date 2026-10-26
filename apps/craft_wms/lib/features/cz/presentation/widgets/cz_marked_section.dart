@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../core/auth/auth_cubit.dart';
+import '../../../../core/auth/rights.dart';
+import '../../../../core/auth/session_rights.dart';
 import '../../../../core/constants/app_boxes.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/error/failure.dart';
@@ -63,8 +64,7 @@ class _CzMarkedView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Без сессии в дереве (экраны вне входа, тесты) правки нет — только признак.
-    final auth = context.read<AuthCubit?>()?.state;
-    final isAdmin = auth is AuthAuthenticated && auth.profile.role == 'admin';
+    final canEdit = sessionCan(context, Rights.tsdStockCzMarked);
     return BlocConsumer<CzMarkedCubit, CzMarkedState>(
       listenWhen: (a, b) => b.failure != null && a.failure != b.failure,
       listener: onState,
@@ -74,7 +74,7 @@ class _CzMarkedView extends StatelessWidget {
         ),
         // Что значит признак для склада (CZ-06) и как быть с товаром, принятым без марок.
         if (state.marked) czText(t.czMarked.rule),
-        if (isAdmin) ...[
+        if (canEdit) ...[
           AppBoxes.kHeight8,
           Row(
             children: [

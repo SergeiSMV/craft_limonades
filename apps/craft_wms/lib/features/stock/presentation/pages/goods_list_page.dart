@@ -2,6 +2,8 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_neumorphic_plus/flutter_neumorphic.dart';
 
+import '../../../../core/auth/rights.dart';
+import '../../../../core/auth/session_rights.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_insets.dart';
 import '../../../../core/di/injection.dart';
@@ -144,7 +146,11 @@ class _GoodsListViewState extends State<_GoodsListView>
             StockHeader(
               title: t.stockListScreen.title,
               goBack: goBack,
-              openStockEntry: () => openStockEntry(context),
+              // «Ввод остатков» — по праву должности (ADHOC-51).
+              openStockEntry:
+                  sessionCan(context, Rights.tsdStockEntry, withoutSession: true)
+                  ? () => openStockEntry(context)
+                  : null,
               search: _tab == 0 ? goodsSearch() : _boxesSearch(),
             ),
             Padding(

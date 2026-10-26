@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	appmw "craftwms/internal/middleware"
+	"craftwms/internal/model"
 	"craftwms/internal/service"
 )
 
@@ -51,7 +52,11 @@ func (h *OperationsHandler) Apply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	results, err := h.svc.Apply(r.Context(), userID, req.Operations)
+	// Право — по виду операции (ADHOC-50): маршрут пускает любого с правом ТСД.
+	access, _ := appmw.AccessFromContext(r.Context())
+	results, err := h.svc.ApplyAllowed(r.Context(), userID, req.Operations, func(kind string) bool {
+		return access.CanAny(model.OperationRights(kind)...)
+	})
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrEmptyBatch), errors.Is(err, service.ErrBatchTooLarge):

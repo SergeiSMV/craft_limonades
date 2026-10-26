@@ -106,12 +106,15 @@ class TasksCache {
   /// Сколько текущих заданий в снимке — для счётчика на плитке «ЗАДАНИЯ».
   ///
   /// Поток, а не разовое чтение: снимок обновляют и раздел «Задания», и главный экран, и
-  /// плитка должна меняться вместе с ним, а не только при перерисовке меню.
-  Stream<int> watchCount() =>
+  /// плитка должна меняться вместе с ним, а не только при перерисовке меню. [allow] —
+  /// считать только виды, на которые у должности есть право (ADHOC-51); `null` — все.
+  Stream<int> watchCount({bool Function(String kind)? allow}) =>
       _db.select(_db.cachedTasks).watchSingleOrNull().map((row) {
         if (row == null) return 0;
         final raw = jsonDecode(row.payload);
-        return raw is List ? raw.length : 0;
+        if (raw is! List) return 0;
+        if (allow == null) return raw.length;
+        return raw.where((e) => e is Map && allow('${e['kind']}')).length;
       });
 
   /// Снимок: задания в порядке сервера и момент получения. null — снимка ещё нет.
