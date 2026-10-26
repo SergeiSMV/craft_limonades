@@ -57,6 +57,8 @@ services:
       SENTRY_DSN: ${SENTRY_DSN:-}
       SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-prod}
       SENTRY_RELEASE: ${SENTRY_RELEASE:-}
+      # Проект Bugsink для ошибок ТСД и портала (ADHOC-47); пусто — события отбрасываются.
+      CLIENT_SENTRY_DSN: ${CLIENT_SENTRY_DSN:-}
       # Честный знак (CZ-02). CZ_SIGNER_SOCKET пуст — чтение ЧЗ выключено. Сокет подписанта
       # (служба на хосте) — в каталоге /run/cz-signer, смонтированном ниже.
       CZ_SIGNER_SOCKET: ${CZ_SIGNER_SOCKET:-}
