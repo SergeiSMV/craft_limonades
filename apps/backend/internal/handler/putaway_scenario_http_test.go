@@ -127,8 +127,8 @@ func newPutawayE2E(t *testing.T) *putawayEnv {
 		t.Fatalf("товар: %v", err)
 	}
 	var worker2 string
-	if err := e.pool.QueryRow(ctx, `INSERT INTO users (login,password_hash,full_name,role)
-		VALUES ('90000043','x','Сменщик','employee') RETURNING id::text`).Scan(&worker2); err != nil {
+	if err := e.pool.QueryRow(ctx, `INSERT INTO users (login,password_hash,full_name,position_id)
+		VALUES ('90000043','x','Сменщик','7a000000-0000-4000-8000-000000000002') RETURNING id::text`).Scan(&worker2); err != nil {
 		t.Fatalf("второй кладовщик: %v", err)
 	}
 	// Тот же секрет, что у роутера окружения: токен проверяется им.

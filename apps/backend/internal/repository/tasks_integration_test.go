@@ -24,8 +24,8 @@ const stale = 8 * time.Hour
 func newUserNamed(t *testing.T, pf *putawayFixture, login, name string) string {
 	t.Helper()
 	var id string
-	mustScan(t, pf.pool, `INSERT INTO users (login, password_hash, full_name, role)
-		VALUES ($1,'x',$2,'employee') RETURNING id::text`, &id, login, name)
+	mustScan(t, pf.pool, `INSERT INTO users (login, password_hash, full_name,position_id)
+		VALUES ($1,'x',$2,'7a000000-0000-4000-8000-000000000002') RETURNING id::text`, &id, login, name)
 	return id
 }
 

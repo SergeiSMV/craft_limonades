@@ -54,8 +54,8 @@ func newReceiptE2E(t *testing.T) *rcHTTPEnv {
 		}
 		return id
 	}
-	userID := scan(`INSERT INTO users (login,password_hash,full_name,role)
-	                VALUES ('90000041','x','Кладовщик','employee') RETURNING id::text`)
+	userID := scan(`INSERT INTO users (login,password_hash,full_name,position_id)
+	                VALUES ('90000041','x','Кладовщик','7a000000-0000-4000-8000-000000000002') RETURNING id::text`)
 	token, err := tokens.IssueAccess(userID, string(model.RoleEmployee))
 	if err != nil {
 		t.Fatalf("issue token: %v", err)
@@ -79,6 +79,7 @@ func newReceiptE2E(t *testing.T) *rcHTTPEnv {
 	router := handler.NewRouter(
 		slog.New(slog.NewTextHandler(io.Discard, nil)), nil, tokens,
 		handler.Services{
+			Rights:   repository.NewUserRepository(pool),
 			Barcode:  service.NewBarcodeService(repository.NewBarcodeRepository(pool)),
 			Receipt:  service.NewReceiptService(repository.NewReceiptRepository(pool), cells),
 			LoadUnit: service.NewLoadUnitService(repository.NewLoadUnitRepository(pool)),

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"log/slog"
 	"net"
 	"net/http"
@@ -54,6 +55,11 @@ type Services struct {
 	// ClientErrors — пересылка событий ТСД и портала в Bugsink (ADHOC-47); nil — события
 	// отбрасываются, но приём остаётся: клиент не должен копить ошибки отправки.
 	ClientErrors EnvelopeRelay
+	// Rights — права пользователя для проверок по праву (ADHOC-49); nil — ручки с правом
+	// отвечают 403 (урезанная сборка в тесте).
+	Rights appmw.RightsSource
+	// Users — пользователи и должности в портале (ADHOC-49).
+	Users *service.UserAdminService
 }
 
 // NewRouter собирает HTTP-роутер сервиса: общие middleware + маршруты.
@@ -64,6 +70,12 @@ type Services struct {
 // db (Pinger) может быть nil → /ready ответит 503.
 func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Services) http.Handler {
 	r := chi.NewRouter()
+	// need — проверка права должности (ADHOC-49); ставится после Authenticator.
+	rights := svc.Rights
+	if rights == nil {
+		rights = noRights{}
+	}
+	need := func(right string) func(http.Handler) http.Handler { return appmw.RequireRight(rights, right) }
 
 	// Общие middleware для всех маршрутов:
 	r.Use(chimw.RequestID)          // уникальный ID запроса — для трассировки в логах
@@ -110,35 +122,35 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 			})
 		}
 
-		// Импорт справочников — только admin (загрузка файла с телефона/web).
+		// Импорт справочников — право «справочники» (загрузка файла из портала).
 		if svc.Import != nil {
 			importH := NewImportHandler(svc.Import)
 			r.Group(func(r chi.Router) {
 				r.Use(appmw.Authenticator(tokens))
-				r.Use(appmw.RequireRole(model.RoleAdmin))
+				r.Use(need(model.RightCatalog))
 				r.Post("/import/goods", importH.ImportGoods) // .xls-выгрузка номенклатуры 1С
 				r.Post("/import/cells", importH.ImportCells) // .xlsx-файл физических ячеек склада
 			})
 		}
 
-		// PDF-этикетки ячеек (P-FastStart) — только admin (печать этикеток из портала).
+		// PDF-этикетки ячеек (P-FastStart) — право «справочники» (печать этикеток из портала).
 		if svc.Label != nil {
 			labelH := NewLabelHandler(svc.Label)
 			r.Group(func(r chi.Router) {
 				r.Use(appmw.Authenticator(tokens))
-				r.Use(appmw.RequireRole(model.RoleAdmin))
+				r.Use(need(model.RightCatalog))
 				r.Get("/cells/labels.pdf", labelH.CellLabelsPDF)
 			})
 		}
 
-		// Excel-отчёт «ввод остатков» по закрытой сессии (P-FS-08) — только admin (портал «Инвентаризация»).
+		// Excel-отчёт «ввод остатков» по закрытой сессии (P-FS-08) — право «документы для 1С».
 		// Документы оператора (P3-02). Список общий для всех форм отчёта: «ввод остатков» сейчас,
 		// «Поступление» и «Движение» — по мере появления операций в P4-P6.
 		if svc.Document != nil {
 			docH := NewDocumentHandler(svc.Document)
 			r.Group(func(r chi.Router) {
 				r.Use(appmw.Authenticator(tokens))
-				r.Use(appmw.RequireRole(model.RoleAdmin))
+				r.Use(need(model.RightDocuments))
 				r.Get("/documents", docH.List)                // рабочий список: необработанные сверху
 				r.Get("/documents/{id}/file.xlsx", docH.File) // скачать .xlsx (отмечает скачивание)
 				r.Post("/documents/{id}/done", docH.Done)     // «Выполнено»: занесён в 1С
@@ -146,29 +158,29 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 			})
 		}
 
-		// Проверка мониторинга (ADHOC-43): проверочная ошибка в Bugsink. Только admin — письмо
+		// Проверка мониторинга (ADHOC-43): проверочная ошибка в Bugsink. Право «пользователи» — письмо
 		// уходит на каждый вызов. Сервисов не требует, поэтому вне условий выше.
 		r.Group(func(r chi.Router) {
 			r.Use(appmw.Authenticator(tokens))
-			r.Use(appmw.RequireRole(model.RoleAdmin))
+			r.Use(need(model.RightUsers))
 			r.Post("/admin/monitoring/test", MonitoringTest)
 		})
 
-		// Честный знак (CZ-02) — только admin: проверка подписанта и токена, чтение марок
+		// Честный знак (CZ-02) — право «Честный знак»: проверка подписанта и токена, чтение марок
 		// по кодам. Каждый вызов info — запрос в True API от имени организации.
 		if svc.CZ != nil {
 			czH := NewCZHandler(svc.CZ)
 			r.Group(func(r chi.Router) {
 				r.Use(appmw.Authenticator(tokens))
-				r.Use(appmw.RequireRole(model.RoleAdmin))
+				r.Use(need(model.RightCZ))
 				r.Get("/admin/cz/status", czH.Status)
 				r.Post("/admin/cz/info", czH.Info)
-				// Признак «маркируемый» у товара (CZ-05): правит только admin.
+				// Признак «маркируемый» у товара (CZ-05): правит право «Честный знак».
 				r.Patch("/goods/{id}/cz-marked", czH.SetGoodCZMarked)
 			})
 			// Скан марки или кода короба на ТСД (CZ-04) — сотруднику: кладовщик сканирует марку
 			// в «Остатках» и «Номенклатуре». Только онлайн: каждый скан — запрос в True API.
-			r.With(appmw.Authenticator(tokens)).Post("/cz/scan", czH.Scan)
+			r.With(appmw.Authenticator(tokens), need(model.RightTSD)).Post("/cz/scan", czH.Scan)
 		}
 
 		// Чтение справочников (товары/группы/поставщики/ячейки/остатки) — любому аутентифицированному
@@ -192,12 +204,13 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 			barcodeH := NewBarcodeHandler(svc.Barcode)
 			r.Group(func(r chi.Router) {
 				r.Use(appmw.Authenticator(tokens))
-				r.Get("/barcodes", barcodeH.List)                        // все привязки ШК (кэш устройства, P2-02)
-				r.Get("/barcodes/{code}", barcodeH.GetByCode)            // товар по ШК или 404
-				r.Post("/barcodes", barcodeH.Bind)                       // привязать ШК к товару
-				r.Delete("/barcodes/{code}", barcodeH.Unbind)            // отвязать ошибочный ШК (P-FS-12)
-				r.Get("/goods/{id}/barcodes", barcodeH.ListByGood)       // все ШК товара (P-FS-12)
-				r.Post("/goods/{id}/barcode", barcodeH.GenerateInternal) // внутренний EAN-13 товару без ШК (P4-07)
+				r.Get("/barcodes", barcodeH.List)                  // все привязки ШК (кэш устройства, P2-02)
+				r.Get("/barcodes/{code}", barcodeH.GetByCode)      // товар по ШК или 404
+				r.Get("/goods/{id}/barcodes", barcodeH.ListByGood) // все ШК товара (P-FS-12)
+				// Привязки меняет склад — право «работа на ТСД» (ADHOC-49).
+				r.With(need(model.RightTSD)).Post("/barcodes", barcodeH.Bind)                       // привязать ШК к товару
+				r.With(need(model.RightTSD)).Delete("/barcodes/{code}", barcodeH.Unbind)            // отвязать ошибочный ШК (P-FS-12)
+				r.With(need(model.RightTSD)).Post("/goods/{id}/barcode", barcodeH.GenerateInternal) // внутренний EAN-13 товару без ШК (P4-07)
 			})
 		}
 
@@ -207,6 +220,7 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 			opsH := NewOperationsHandler(svc.Operations)
 			r.Group(func(r chi.Router) {
 				r.Use(appmw.Authenticator(tokens))
+				r.Use(need(model.RightTSD))
 				r.Post("/operations", opsH.Apply)
 			})
 		}
@@ -219,6 +233,7 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 			rcH := NewReceiptHandler(svc.Receipt, svc.LoadUnit)
 			r.Group(func(r chi.Router) {
 				r.Use(appmw.Authenticator(tokens))
+				r.Use(need(model.RightTSD))
 				r.Post("/receipts", rcH.Create)             // открыть документ приёмки
 				r.Get("/receipts/{id}", rcH.Get)            // шапка + строки
 				r.Post("/receipts/{id}/lines", rcH.AddLine) // строка сканом (ячейка и ГЕ опциональны)
@@ -235,6 +250,7 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 			taskH := NewTaskHandler(svc.Task)
 			r.Group(func(r chi.Router) {
 				r.Use(appmw.Authenticator(tokens))
+				r.Use(need(model.RightTSD))
 				r.Get("/tasks", taskH.Current)               // текущие: пул и свои взятые
 				r.Get("/tasks/completed", taskH.Completed)   // лента «Завершённые»
 				r.Get("/tasks/executors", taskH.Executors)   // варианты фильтра по исполнителю
@@ -247,13 +263,17 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 		// Пересчёт (P10-03). Ячейки, взятие и начало подсчёта — сотруднику на ТСД, только со
 		// связью: кто держит ячейку и что в ней ожидалось, знает сервер. Факт ячейки — операция
 		// очереди stocktake_cell_submit, работает без связи. Заводит и закрывает пересчёт старший
-		// смены — право «заводить пересчёт»; пока должностей нет, оно у admin.
+		// смены — право «пересчёт» (ADHOC-49). Ход пересчёта читает и портал.
 		if svc.Stocktake != nil {
 			stH := NewStocktakeHandler(svc.Stocktake)
 			r.Group(func(r chi.Router) {
 				r.Use(appmw.Authenticator(tokens))
-				r.Get("/stocktakes/{id}", stH.Get)                     // ход выполнения
-				r.Get("/stocktakes/{id}/cells", stH.Cells)             // свободные и свои ячейки
+				r.Get("/stocktakes/{id}", stH.Get)         // ход выполнения
+				r.Get("/stocktakes/{id}/cells", stH.Cells) // свободные и свои ячейки
+			})
+			r.Group(func(r chi.Router) {
+				r.Use(appmw.Authenticator(tokens))
+				r.Use(need(model.RightTSD))
 				r.Get("/stocktake-cells/{id}", stH.Cell)               // своя ячейка с позициями
 				r.Post("/stocktake-cells/{id}/take", stH.Take)         // взять ячейку
 				r.Post("/stocktake-cells/{id}/release", stH.Release)   // отказаться
@@ -262,7 +282,7 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 			})
 			r.Group(func(r chi.Router) {
 				r.Use(appmw.Authenticator(tokens))
-				r.Use(appmw.RequireRole(model.RoleAdmin))
+				r.Use(need(model.RightStocktake))
 				r.Get("/stocktakes", stH.List)              // список для портала (P10-05)
 				r.Post("/stocktakes", stH.Create)           // завести по области
 				r.Post("/stocktakes/{id}/close", stH.Close) // закрыть, досрочно — с force
@@ -276,6 +296,7 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 			mhH := NewMovementHistoryHandler(svc.MovementHistory)
 			r.Group(func(r chi.Router) {
 				r.Use(appmw.Authenticator(tokens))
+				r.Use(need(model.RightTSD))
 				r.Get("/movements", mhH.List)                // лента, свежие сверху
 				r.Get("/movements/executors", mhH.Executors) // варианты фильтра по исполнителю
 				r.Get("/movements/{id}", mhH.Get)            // запись со строками
@@ -283,7 +304,7 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 		}
 
 		// Внутренние склады (P6-07-1, ADHOC-29). Читает сотрудник: ТСД выбирает, каким складом
-		// пометить короб или товар, и подписывает помеченное. Ведёт справочник только admin из
+		// пометить короб или товар, и подписывает помеченное. Ведёт справочник право «склады» из
 		// портала: завести, переименовать, скрыть, удалить без остатка и истории.
 		if svc.InternalWarehouse != nil {
 			iwH := NewInternalWarehouseHandler(svc.InternalWarehouse)
@@ -293,7 +314,7 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 			})
 			r.Group(func(r chi.Router) {
 				r.Use(appmw.Authenticator(tokens))
-				r.Use(appmw.RequireRole(model.RoleAdmin))
+				r.Use(need(model.RightWarehouses))
 				r.Post("/internal-warehouses", iwH.Create)
 				r.Patch("/internal-warehouses/{id}", iwH.Update)
 				r.Delete("/internal-warehouses/{id}", iwH.Delete)
@@ -301,17 +322,17 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 		}
 
 		// «Проблемы склада» (P6-07-3) — офис из портала: рабочий список и решение по проблеме
-		// («Провести»: списать по документу 1С, разместить, вернуть поставщику). Только admin,
-		// как документы: решение меняет остаток.
+		// («Провести»: списать по документу 1С, разместить, вернуть поставщику). Право «проблемы
+		// склада»: решение меняет остаток.
 		if svc.Problem != nil {
 			prH := NewProblemHandler(svc.Problem)
 			// Склад видит проблемы на ТСД — сотруднику, только чтение: открытые на вкладке
 			// «Текущие» (ADHOC-35) и ленту решённых офисом (ADHOC-34). Решение — только офису.
-			r.With(appmw.Authenticator(tokens)).Get("/problems/current", prH.Current)
-			r.With(appmw.Authenticator(tokens)).Get("/problems/resolved", prH.Resolved)
+			r.With(appmw.Authenticator(tokens), need(model.RightTSD)).Get("/problems/current", prH.Current)
+			r.With(appmw.Authenticator(tokens), need(model.RightTSD)).Get("/problems/resolved", prH.Resolved)
 			r.Group(func(r chi.Router) {
 				r.Use(appmw.Authenticator(tokens))
-				r.Use(appmw.RequireRole(model.RoleAdmin))
+				r.Use(need(model.RightProblems))
 				r.Get("/problems", prH.List)                  // открытые сверху
 				r.Post("/problems/{id}/resolve", prH.Resolve) // «Провести» решение
 			})
@@ -323,8 +344,8 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 			phH := NewProblemPhotoHandler(svc.ProblemPhoto)
 			r.Group(func(r chi.Router) {
 				r.Use(appmw.Authenticator(tokens))
-				r.Put("/problems/{id}/photos/{photoId}", phH.Put)
 				r.Get("/problems/{id}/photos/{photoId}", phH.Get)
+				r.With(need(model.RightTSD)).Put("/problems/{id}/photos/{photoId}", phH.Put)
 			})
 		}
 
@@ -335,6 +356,7 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 			contentsH := NewContentsHandler(svc.Contents)
 			r.Group(func(r chi.Router) {
 				r.Use(appmw.Authenticator(tokens))
+				r.Use(need(model.RightTSD))
 				r.With(chimw.Compress(5, "application/json")).
 					Get("/contents/snapshot", contentsH.Snapshot) // кэш ТСД: короба и россыпь
 				r.Get("/cells/{id}/contents", contentsH.CellContents)  // что лежит в ячейке
@@ -351,9 +373,27 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 			seH := NewStockEntryHandler(svc.StockEntry)
 			r.Group(func(r chi.Router) {
 				r.Use(appmw.Authenticator(tokens))
+				r.Use(need(model.RightTSD))
 				r.Post("/stock-entry/sessions", seH.Start)                  // открыть сессию
 				r.Post("/stock-entry/sessions/{id}/cells", seH.Checkpoint)  // checkpoint ячейки
 				r.Post("/stock-entry/sessions/{id}/finalize", seH.Finalize) // финал → запись в stock
+			})
+		}
+
+		// Пользователи и должности (ADHOC-49) — право «пользователи и должности», портал.
+		if svc.Users != nil {
+			uH := NewUserAdminHandler(svc.Users)
+			r.Group(func(r chi.Router) {
+				r.Use(appmw.Authenticator(tokens))
+				r.Use(need(model.RightUsers))
+				r.Get("/rights", uH.Rights)                    // все права, в порядке показа
+				r.Get("/positions", uH.Positions)              // должности с правами и числом людей
+				r.Post("/positions", uH.CreatePosition)        // завести
+				r.Patch("/positions/{id}", uH.UpdatePosition)  // название и права
+				r.Delete("/positions/{id}", uH.DeletePosition) // удалить пустую
+				r.Get("/users", uH.Users)                      // все, и заблокированные
+				r.Post("/users", uH.CreateUser)                // завести: бейдж или логин с паролем
+				r.Patch("/users/{id}", uH.UpdateUser)          // ФИО, должность, блокировка, новый вход
 			})
 		}
 	})
@@ -374,3 +414,9 @@ func clientIPKey(r *http.Request) (string, error) {
 	}
 	return host, nil
 }
+
+// noRights — источник прав, когда его не подключили (урезанная сборка в тесте): у
+// пользователя нет ни одного права, ручки с правом отвечают 403.
+type noRights struct{}
+
+func (noRights) UserRights(context.Context, string) ([]string, bool, error) { return nil, true, nil }

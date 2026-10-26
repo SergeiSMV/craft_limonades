@@ -26,7 +26,7 @@ func TestMonitoringTest_adminOnly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	router := handler.NewRouter(slog.New(slog.NewTextHandler(io.Discard, nil)), nil, tokens, handler.Services{})
+	router := handler.NewRouter(slog.New(slog.NewTextHandler(io.Discard, nil)), nil, tokens, handler.Services{Rights: testRights})
 
 	call := func(token string) *httptest.ResponseRecorder {
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/monitoring/test", nil)

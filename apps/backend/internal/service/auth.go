@@ -82,8 +82,9 @@ func (s *AuthService) LoginWithPassword(ctx context.Context, username, password 
 	return s.issuePair(user)
 }
 
-// Refresh: валидный refresh-токен → перечитываем пользователя из БД (is_active/role могли
-// измениться) → выдаём свежий access. Так блокировка и смена роли подхватываются на refresh.
+// Refresh: валидный refresh-токен → перечитываем пользователя из БД (is_active и должность
+// могли измениться) → выдаём свежий access. Права при этом проверяются по базе на каждом
+// запросе (ADHOC-49), а роль в токене — лишь метка.
 func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (string, error) {
 	claims, err := s.tokens.ParseRefresh(refreshToken)
 	if err != nil {
@@ -93,7 +94,7 @@ func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (string,
 	if err != nil || !user.IsActive {
 		return "", ErrInvalidCredentials
 	}
-	return s.tokens.IssueAccess(user.ID, user.Role)
+	return s.tokens.IssueAccess(user.ID, user.Role())
 }
 
 // Profile возвращает пользователя по id (для защищённого /auth/me).
@@ -103,7 +104,7 @@ func (s *AuthService) Profile(ctx context.Context, userID string) (model.User, e
 
 // issuePair выпускает access+refresh для пользователя.
 func (s *AuthService) issuePair(user model.User) (TokenPair, error) {
-	access, err := s.tokens.IssueAccess(user.ID, user.Role)
+	access, err := s.tokens.IssueAccess(user.ID, user.Role())
 	if err != nil {
 		return TokenPair{}, err
 	}

@@ -52,7 +52,7 @@ func czRouter(t *testing.T, cz *service.CZService) (http.Handler, string, string
 		t.Fatal(err)
 	}
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	return handler.NewRouter(log, nil, tokens, handler.Services{CZ: cz}), admin, worker
+	return handler.NewRouter(log, nil, tokens, handler.Services{CZ: cz, Rights: testRights}), admin, worker
 }
 
 func czCall(router http.Handler, token, method, path, body string) *httptest.ResponseRecorder {

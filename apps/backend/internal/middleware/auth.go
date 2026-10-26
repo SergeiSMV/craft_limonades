@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"net/http"
+	"slices"
 	"strings"
 
 	"craftwms/internal/auth"
@@ -42,11 +43,34 @@ func Authenticator(tokens *auth.TokenManager) func(http.Handler) http.Handler {
 	}
 }
 
-// RequireRole пропускает только пользователей с нужной ролью (для admin-only ручек). Иначе 403.
-func RequireRole(role string) func(http.Handler) http.Handler {
+// RightsSource — откуда middleware берёт права пользователя (ADHOC-49): действующие права и
+// активен ли он. Реализует репозиторий пользователей.
+type RightsSource interface {
+	UserRights(ctx context.Context, userID string) (rights []string, active bool, err error)
+}
+
+// RequireRight пропускает только пользователей, у должности которых есть право (ADHOC-49).
+//
+// Что: 403 — права нет; 401 — пользователь заблокирован или удалён.
+// Зачем: проверка по именованному праву, а не по роли: состав прав должности настраивается.
+// Как: права читаются из базы на каждый запрос — смена должности и блокировка действуют
+// сразу, а не после выпуска нового access-токена. Ставится после Authenticator.
+func RequireRight(src RightsSource, right string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if RoleFromContext(r.Context()) != role {
+			userID, _ := UserIDFromContext(r.Context())
+			rights, active, err := src.UserRights(r.Context(), userID)
+			if err != nil {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusInternalServerError)
+				_, _ = w.Write([]byte(`{"error":"internal error"}`))
+				return
+			}
+			if !active {
+				writeUnauthorized(w)
+				return
+			}
+			if !slices.Contains(rights, right) {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusForbidden)
 				_, _ = w.Write([]byte(`{"error":"forbidden"}`))
@@ -63,7 +87,9 @@ func UserIDFromContext(ctx context.Context) (string, bool) {
 	return id, ok
 }
 
-// RoleFromContext достаёт роль пользователя из контекста ("" — если её нет).
+// RoleFromContext достаёт роль пользователя из токена ("" — если её нет). С ADHOC-49 роль
+// выводится из прав должности на момент выпуска токена и служит только меткой (Bugsink);
+// доступ проверяет RequireRight.
 func RoleFromContext(ctx context.Context) string {
 	role, _ := ctx.Value(roleKey).(string)
 	return role
