@@ -7,7 +7,8 @@
 #   2) сам генерирует секреты Bugsink: ключ приложения, пароль базы, пароль админа;
 #   3) поддомен Bugsink: vhost хостового nginx + сертификат Let's Encrypt;
 #   4) поднимает Bugsink и его базу, заводит команду и проект, включает письма о новых ошибках;
-#   5) берёт DSN проекта, переводит на внутренний адрес сети compose и пишет в SENTRY_DSN;
+#   5) берёт DSN проектов, переводит на внутренний адрес сети compose и пишет в SENTRY_DSN
+#      (бэкенд) и CLIENT_SENTRY_DSN (ТСД и портал — события идут через бэкенд, ADHOC-47);
 #   6) пересоздаёт backend с новым окружением;
 #   7) проверка: тестовое письмо (если задан SMTP) и проверочная ошибка из backend —
 #      скрипт ждёт, пока она появится в Bugsink.
@@ -25,9 +26,10 @@ source "$(dirname "${BASH_SOURCE[0]}")/_lib.sh"
 require_env_file
 command -v docker >/dev/null 2>&1 || die "docker не установлен."
 
-# Проект и команда Bugsink, куда пишет backend.
+# Команда Bugsink и проекты: backend — ошибки сервера, app — ТСД и портала (ADHOC-47).
 BUGSINK_TEAM="craft"
 BUGSINK_PROJECT="backend"
+BUGSINK_APP_PROJECT="app"
 # Сообщение проверочной ошибки backend (handler.MonitoringTestMessage) — по нему её ищем.
 TEST_MESSAGE="проверка мониторинга"
 
@@ -170,8 +172,9 @@ log "Поднимаю Bugsink (первый раз — скачивание об
 compose up -d bugsink-db bugsink
 wait_bugsink
 
-log "Команда «$BUGSINK_TEAM», проект «$BUGSINK_PROJECT», письма о новых ошибках…"
-dsn="$(bugsink_shell "
+# project_dsn ИМЯ — завести проект команды (если нет), включить письма и вывести его DSN.
+project_dsn() {
+  bugsink_shell "
 from django.contrib.auth import get_user_model
 from teams.models import Team, TeamMembership
 from projects.models import Project, ProjectMembership
@@ -179,19 +182,32 @@ User = get_user_model()
 u = User.objects.filter(is_superuser=True).order_by('id').first()
 t, _ = Team.objects.get_or_create(name='$BUGSINK_TEAM')
 TeamMembership.objects.update_or_create(team=t, user=u, defaults=dict(role=1, accepted=True, send_email_alerts=True))
-p = Project.objects.filter(team=t, name='$BUGSINK_PROJECT').first() or Project.objects.create(team=t, name='$BUGSINK_PROJECT')
+p = Project.objects.filter(team=t, name='$1').first() or Project.objects.create(team=t, name='$1')
 p.alert_on_new_issue = True; p.alert_on_regression = True; p.alert_on_unmute = True; p.save()
 ProjectMembership.objects.update_or_create(project=p, user=u, defaults=dict(role=1, accepted=True, send_email_alerts=True))
 print('DSN=' + p.dsn)
-" | sed -n 's/^DSN=//p' | tail -1)"
-[[ "$dsn" =~ ^https?://([0-9a-f]+)@[^/]+/([0-9]+)$ ]] || die "не удалось получить DSN проекта Bugsink (получено: «$dsn»)."
-# Внутренний адрес сети compose: события от backend наружу не выходят и не зависят от nginx.
-set_env SENTRY_DSN "http://${BASH_REMATCH[1]}@bugsink:8000/${BASH_REMATCH[2]}"
+" | sed -n 's/^DSN=//p' | tail -1
+}
+
+# internal_dsn КЛЮЧ ИМЯ — DSN проекта ИМЯ на внутреннем адресе сети compose — в .env.prod.
+# События от backend (и пересланные им события приложений) наружу не выходят и не зависят
+# от nginx.
+internal_dsn() {
+  local key="$1" name="$2" dsn
+  dsn="$(project_dsn "$name")"
+  [[ "$dsn" =~ ^https?://([0-9a-f]+)@[^/]+/([0-9]+)$ ]] \
+    || die "не удалось получить DSN проекта Bugsink «$name» (получено: «$dsn»)."
+  set_env "$key" "http://${BASH_REMATCH[1]}@bugsink:8000/${BASH_REMATCH[2]}"
+  log "$key записан (проект «$name», внутренний адрес bugsink:8000)."
+}
+
+log "Команда «$BUGSINK_TEAM», проекты «$BUGSINK_PROJECT» и «$BUGSINK_APP_PROJECT», письма о новых ошибках…"
+internal_dsn SENTRY_DSN "$BUGSINK_PROJECT"
+internal_dsn CLIENT_SENTRY_DSN "$BUGSINK_APP_PROJECT"
 [[ -n "$(get_env SENTRY_ENVIRONMENT)" ]] || set_env SENTRY_ENVIRONMENT prod
-log "SENTRY_DSN записан (внутренний адрес bugsink:8000)."
 
 # --- 5. Backend с новым окружением -----------------------------------------------------
-log "Пересоздаю backend с SENTRY_DSN…"
+log "Пересоздаю backend с SENTRY_DSN и CLIENT_SENTRY_DSN…"
 compose up -d backend
 health_check || die "backend не поднялся после пересоздания — смотрите: docker compose … logs backend"
 

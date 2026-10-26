@@ -26,6 +26,9 @@ type Config struct {
 	SentryDSN         string // адрес проекта Bugsink (env SENTRY_DSN)
 	SentryEnvironment string // окружение событий (env SENTRY_ENVIRONMENT), дефолт prod
 	SentryRelease     string // версия сборки (env SENTRY_RELEASE); пусто — без версии
+	// ClientSentryDSN — проект Bugsink для ошибок ТСД и портала (env CLIENT_SENTRY_DSN,
+	// ADHOC-47); пусто — события приложений отбрасываются.
+	ClientSentryDSN string
 
 	// Честный знак (CZ-02); CZSignerSocket пуст — чтение ЧЗ выключено.
 	CZSignerSocket  string        // сокет подписанта cz-signer (env CZ_SIGNER_SOCKET)
@@ -49,6 +52,7 @@ func Load() Config {
 		SentryDSN:         getEnv("SENTRY_DSN", ""),
 		SentryEnvironment: getEnv("SENTRY_ENVIRONMENT", "prod"),
 		SentryRelease:     getEnv("SENTRY_RELEASE", ""),
+		ClientSentryDSN:   getEnv("CLIENT_SENTRY_DSN", ""),
 
 		CZSignerSocket:  getEnv("CZ_SIGNER_SOCKET", ""),
 		CZAPIURL:        getEnv("CZ_API_URL", "https://markirovka.crpt.ru/api/v3/true-api"),

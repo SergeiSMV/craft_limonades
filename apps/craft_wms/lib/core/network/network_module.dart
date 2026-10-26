@@ -6,15 +6,18 @@ import 'package:talker_flutter/talker_flutter.dart';
 
 import '../auth/token_storage.dart';
 import '../config/app_config.dart';
+import '../monitoring/error_reporting.dart';
 import 'auth_interceptor.dart';
 
 /// injectable-модуль: провайдит внешние объекты (Talker, Dio), которые нельзя пометить аннотацией.
 @module
 abstract class NetworkModule {
   /// Единый Talker — логгер приложения. В него пишут dio- и bloc-логгеры и его же
-  /// показывает экран логов на устройстве (talker_flutter).
+  /// показывает экран логов на устройстве (talker_flutter). Исключения из него уходят в
+  /// Bugsink (ADHOC-47).
   @lazySingleton
-  Talker get talker => TalkerFlutter.init();
+  Talker get talker =>
+      TalkerFlutter.init(observer: const ErrorReportingObserver());
 
   /// Настройки логгера dio.
   ///
