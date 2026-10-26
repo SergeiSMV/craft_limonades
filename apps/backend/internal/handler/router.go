@@ -252,12 +252,13 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 			stH := NewStocktakeHandler(svc.Stocktake)
 			r.Group(func(r chi.Router) {
 				r.Use(appmw.Authenticator(tokens))
-				r.Get("/stocktakes/{id}", stH.Get)                   // ход выполнения
-				r.Get("/stocktakes/{id}/cells", stH.Cells)           // свободные и свои ячейки
-				r.Get("/stocktake-cells/{id}", stH.Cell)             // своя ячейка с позициями
-				r.Post("/stocktake-cells/{id}/take", stH.Take)       // взять ячейку
-				r.Post("/stocktake-cells/{id}/release", stH.Release) // отказаться
-				r.Post("/stocktake-cells/{id}/start", stH.Start)     // скан ячейки: снимок
+				r.Get("/stocktakes/{id}", stH.Get)                     // ход выполнения
+				r.Get("/stocktakes/{id}/cells", stH.Cells)             // свободные и свои ячейки
+				r.Get("/stocktake-cells/{id}", stH.Cell)               // своя ячейка с позициями
+				r.Post("/stocktake-cells/{id}/take", stH.Take)         // взять ячейку
+				r.Post("/stocktake-cells/{id}/release", stH.Release)   // отказаться
+				r.Post("/stocktake-cells/{id}/start", stH.Start)       // скан ячейки: снимок
+				r.Get("/cells/{id}/stocktake-count", stH.CellCounting) // идёт ли подсчёт (ADHOC-48)
 			})
 			r.Group(func(r chi.Router) {
 				r.Use(appmw.Authenticator(tokens))

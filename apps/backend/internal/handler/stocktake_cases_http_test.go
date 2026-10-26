@@ -352,3 +352,59 @@ func TestStocktakeHTTP_earlyClose(t *testing.T) {
 		t.Errorf("ячейку закрытого пересчёта удалось взять")
 	}
 }
+
+// ADHOC-48: ТСД перед движением спрашивает, идёт ли в ячейке подсчёт. Взятая и не начатая —
+// нет (снимка ещё нет, сбивать нечего); после скана — да, с номером пересчёта и тем, кто
+// считает; после факта — снова нет. Соседняя ячейка и неверный id — нет.
+func TestStocktakeHTTP_cellCounting(t *testing.T) {
+	e := newStocktakeEnv(t)
+	e.put(t, e.cell1, e.lemon, e.lemonBatch, 10)
+	_, cells := e.create(t, `{"warehouse_id":"`+e.warehouse+`","scope_kind":"cells","object_ids":["`+e.cell1+`"]}`)
+	c1 := cells["M1-1-1-1"]
+	counting := func(cell string) string {
+		t.Helper()
+		code, raw := e.call(t, http.MethodGet, "/api/v1/cells/"+cell+"/stocktake-count", e.workerToken, "")
+		if code != http.StatusOK {
+			t.Fatalf("подсчёт в ячейке: код %d, %s", code, raw)
+		}
+		var body struct {
+			Counting *struct {
+				StocktakeNumber int64  `json:"stocktake_number"`
+				Address         string `json:"address"`
+				CountedBy       string `json:"counted_by"`
+				StartedAt       string `json:"started_at"`
+			} `json:"counting"`
+		}
+		mustJSON(t, raw, &body)
+		if body.Counting == nil {
+			return "нет"
+		}
+		if body.Counting.StocktakeNumber == 0 || body.Counting.StartedAt == "" {
+			t.Errorf("подсчёт без номера или времени: %s", raw)
+		}
+		return body.Counting.Address + " · " + body.Counting.CountedBy
+	}
+
+	if code, raw := e.call(t, http.MethodPost, "/api/v1/stocktake-cells/"+c1+"/take", e.workerToken, ""); code != http.StatusNoContent {
+		t.Fatalf("взять ячейку: код %d, %s", code, raw)
+	}
+	if got := counting(e.cell1); got != "нет" {
+		t.Errorf("взятая, не начатая ячейка: %s, ожидалось «нет»", got)
+	}
+	e.rescan(t, c1)
+	if got := counting(e.cell1); got != "M1-1-1-1 · Кладовщик" {
+		t.Errorf("ячейка на подсчёте: %s", got)
+	}
+	if got := counting(e.cell2); got != "нет" {
+		t.Errorf("соседняя ячейка: %s, ожидалось «нет»", got)
+	}
+	if got := counting("не-uuid"); got != "нет" {
+		t.Errorf("неверный id: %s, ожидалось «нет»", got)
+	}
+	if status, msg := e.submit(t, c1, `{"good_id":"`+e.lemon+`","production_date":"01-01-2026","qty":10}`, ``); status != "accepted" {
+		t.Fatalf("подсчёт: %s %s", status, msg)
+	}
+	if got := counting(e.cell1); got != "нет" {
+		t.Errorf("посчитанная ячейка: %s, ожидалось «нет»", got)
+	}
+}

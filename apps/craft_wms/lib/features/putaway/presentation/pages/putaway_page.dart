@@ -26,6 +26,7 @@ import '../../../../core/widgets/system_ui_wrapper.dart';
 import '../../../contents/domain/contents_repository.dart';
 import '../../../stock/data/catalog_models.dart';
 import '../../../stock/data/catalog_repository.dart';
+import '../../../stocktake/presentation/widgets/cell_count_warning.dart';
 import '../../../tasks/data/tasks_models.dart';
 import '../../../tasks/presentation/widgets/common/task_format.dart';
 import '../bloc/putaway_cubit.dart';
@@ -124,7 +125,15 @@ class _PutawayViewState extends State<_PutawayView> with HardwareScanListener {
       snack(t.putaway.cellNotFound(address: address));
       return;
     }
-    cubit.placeIn(cell);
+    await placeIn(cell);
+  }
+
+  /// Положить в ячейку; ячейка на пересчёте — сначала предупреждение (ADHOC-48).
+  Future<void> placeIn(Cell cell) async {
+    if (!cell.isDefault && !await allowMoveThroughCell(context, cell.id)) {
+      return;
+    }
+    if (mounted) cubit.placeIn(cell);
   }
 
   /// Скан штрихкода товара: товар ищется в задании; партия и количество — из задания.
@@ -262,7 +271,7 @@ class _PutawayViewState extends State<_PutawayView> with HardwareScanListener {
     );
     // Поле поиска в листе могло открыть клавиатуру — на экране скана она не нужна.
     await hideKeyboard();
-    if (cell != null && mounted) cubit.placeIn(cell);
+    if (cell != null && mounted) await placeIn(cell);
     refocusScan();
   }
 
