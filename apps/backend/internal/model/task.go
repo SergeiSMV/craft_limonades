@@ -13,6 +13,9 @@ const (
 	// TaskSupplierReturn — отгрузить возврат поставщику (P6-07-3, ADHOC-31): позиции — проблемы,
 	// решённые офисом возвратом этому поставщику.
 	TaskSupplierReturn = "supplier_return"
+	// TaskStocktake — пересчёт (P10-01): задание одно общее на пересчёт, его не берут целиком —
+	// работники берут из него ячейки.
+	TaskStocktake = "stocktake"
 )
 
 // Статусы задания: пул new → in_progress (взято) → done.
