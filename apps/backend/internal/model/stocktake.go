@@ -203,3 +203,16 @@ type StocktakeCellResult struct {
 	MovedBoxes  int `json:"moved_boxes"`
 	Problems    int `json:"problems"`
 }
+
+// StocktakeListItem — пересчёт в списке портала (P10-05): шапка и ход без самих ячеек.
+type StocktakeListItem struct {
+	ID            string
+	Number        int64
+	ScopeKind     string
+	Status        string
+	CreatedByName string
+	CreatedAt     time.Time
+	ClosedAt      *time.Time
+	Cells         int
+	Counted       int
+}

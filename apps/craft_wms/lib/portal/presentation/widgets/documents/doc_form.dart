@@ -12,7 +12,7 @@ typedef CellText = ({String main, String sub});
 class DocForm {
   const DocForm._(this.kind);
 
-  /// Описание формы по её коду (`receipt`, `movement`, `stock_entry`).
+  /// Описание формы по её коду (`receipt`, `movement`, `stock_entry`, `stocktake`).
   factory DocForm.of(String kind) => DocForm._(kind);
 
   final String kind;
@@ -57,6 +57,11 @@ class DocForm {
       main: t.portal.movement.task(number: doc.taskNumber),
       sub: _operation(doc.operation),
     ),
+    // «Инвентаризация» (P10-05) — пересчёт и число позиций.
+    'stocktake' => (
+      main: t.portal.stocktake.doc(number: doc.stocktakeNumber),
+      sub: t.portal.documents.lines(count: doc.linesCount),
+    ),
     _ => (
       main: t.portal.inventory.mark,
       sub: t.portal.documents.lines(count: doc.linesCount),
@@ -75,6 +80,7 @@ class DocForm {
             ),
     'movement' when doc.taskNumber == 0 => _operation(doc.operation),
     'movement' => '${document(doc).main} · ${_operation(doc.operation)}',
+    'stocktake' => t.portal.stocktake.doc(number: doc.stocktakeNumber),
     _ => t.portal.inventory.mark,
   };
 

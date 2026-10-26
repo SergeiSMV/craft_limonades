@@ -123,7 +123,7 @@ func TestStocktakeCount_boxes(t *testing.T) {
 	}
 	var lostIwh, problem, foreignCell, source string
 	mustScan(t, fx.pool, `SELECT internal_warehouse_id::text FROM load_units WHERE id = $1::uuid`, &lostIwh, lost)
-	mustScan(t, fx.pool, `SELECT problem_id::text FROM stocktake_lines WHERE load_unit_id = $1::uuid`, &problem, lost)
+	mustScan(t, fx.pool, `SELECT problem_id::text FROM stocktake_lines WHERE load_unit_id = $1::uuid AND good_id IS NULL`, &problem, lost)
 	mustScan(t, fx.pool, `SELECT cell_id::text FROM load_units WHERE id = $1::uuid`, &foreignCell, foreign)
 	mustScan(t, fx.pool, `SELECT source FROM placements WHERE load_unit_id = $1::uuid
 		ORDER BY placed_at DESC LIMIT 1`, &source, foreign)
@@ -304,3 +304,38 @@ func TestStocktake_takeReleaseClose(t *testing.T) {
 
 // service8h — срок зависания взятой ячейки, как в сервисе.
 const service8h = 8 * time.Hour
+
+// P10-05: закрытие публикует «Инвентаризацию» — по ячейке, товару, партии, складу: россыпь и
+// состав коробов вместе (короб не найден — недостача его состава с пометкой), неподсчитанная
+// ячейка — строкой «не считалась».
+func TestStocktake_closePublishesInventory(t *testing.T) {
+	fx := setupStocktake(t)
+	ctx := context.Background()
+	fx.box(t, fx.cellB, 12)
+	fx.put(t, fx.cellB, fx.good, fx.batch, fx.iwh, 5)
+	st, cells := fx.counting(t, fx.cellB, fx.cellD)
+	if _, err := fx.submit(cells["B"], nil, fact(fx.good, "2026-01-01", "", 3)); err != nil {
+		t.Fatalf("подсчёт B: %v", err)
+	}
+	if _, err := fx.repo.Close(ctx, st.ID, fx.user, true); err != nil {
+		t.Fatalf("закрыть: %v", err)
+	}
+
+	doc, err := repository.NewReportDocumentRepository(fx.pool).BySource(ctx, model.SourceTypeStocktake, st.ID)
+	mustNoErr(t, err)
+	if doc.Kind != model.ReportKindStocktake || doc.Snapshot.StocktakeNumber != st.Number {
+		t.Fatalf("документ: %s №%d", doc.Kind, doc.Snapshot.StocktakeNumber)
+	}
+	rows := doc.Snapshot.Rows
+	if len(rows) != 2 {
+		t.Fatalf("строк %d: %+v", len(rows), rows)
+	}
+	b, d := rows[0], rows[1]
+	if b.CellAddress != "B" || b.Expected != "17" || b.Fact != "3" || b.Diff != "-14" ||
+		b.Note != "не найдено — проблема склада" || b.InternalWarehouse == "" {
+		t.Errorf("строка B: %+v — ожидалось 17 (5 россыпью + 12 в коробе), факт 3", b)
+	}
+	if d.CellAddress != "D" || d.Note != "не считалась" || d.Expected != "" {
+		t.Errorf("строка D: %+v", d)
+	}
+}

@@ -34,6 +34,8 @@ type stocktakeLine struct {
 	id                         string
 	loadUnit, good, batch, iwh string
 	fact                       decimal.Decimal
+	// foreign — короб найден не по снимку, перенесён сюда.
+	foreign bool
 }
 
 // stocktakeCount — подсчёт одной ячейки пересчёта в транзакции операции.
@@ -130,9 +132,10 @@ func (sc *stocktakeCount) load(ctx context.Context) error {
 		if err := rows.Scan(&l.id, &l.loadUnit, &l.good, &l.batch, &l.iwh); err != nil {
 			return fmt.Errorf("разобрать строку снимка: %w", err)
 		}
-		if l.good == "" {
+		switch {
+		case l.good == "":
 			sc.boxes[l.loadUnit] = l
-		} else {
+		case l.loadUnit == "":
 			sc.loose[stocktakeLineKey{l.good, l.batch, l.iwh}] = l
 		}
 	}
@@ -174,6 +177,12 @@ func (sc *stocktakeCount) countBoxes(ctx context.Context, found []string) error 
 		}
 	}
 	for lu, l := range sc.boxes {
+		if l.foreign {
+			continue
+		}
+		if err := sc.boxContentLines(ctx, l, true, l.fact.IsPositive()); err != nil {
+			return err
+		}
 		if l.fact.IsPositive() {
 			continue
 		}
@@ -229,7 +238,26 @@ func (sc *stocktakeCount) foreignBox(ctx context.Context, lu string) error {
 		RETURNING id::text`, sc.id, lu, iwh).Scan(&id); err != nil {
 		return fmt.Errorf("излишек короба: %w", err)
 	}
-	sc.boxes[lu] = &stocktakeLine{id: id, loadUnit: lu, iwh: iwh, fact: decimal.NewFromInt(1)}
+	l := &stocktakeLine{id: id, loadUnit: lu, iwh: iwh, fact: decimal.NewFromInt(1), foreign: true}
+	sc.boxes[lu] = l
+	return sc.boxContentLines(ctx, l, false, true)
+}
+
+// boxContentLines пишет состав короба строками «товар в коробе» (P10-05): документ
+// «Инвентаризация» разворачивает короба в товар — 1С знает товар, а не короба. Ожидалось —
+// состав, если короб был в снимке; факт — состав, если короб найден. Состав читается в момент
+// подсчёта: пока ячейка на подсчёте, он не менялся (иначе подсчёт сбит), а проблема «не найдено»
+// и перенос короба его не трогают.
+func (sc *stocktakeCount) boxContentLines(ctx context.Context, l *stocktakeLine, expected, found bool) error {
+	if _, err := sc.q.Exec(ctx, `
+		INSERT INTO stocktake_lines
+			(stocktake_cell_id, load_unit_id, good_id, batch_id, internal_warehouse_id, expected_qty, fact_qty)
+		SELECT $1::uuid, c.load_unit_id, c.good_id, c.batch_id, $3::uuid,
+		       CASE WHEN $4 THEN c.qty ELSE 0 END, CASE WHEN $5 THEN c.qty ELSE 0 END
+		FROM lu_content c
+		WHERE c.load_unit_id = $2::uuid AND c.qty > 0`, sc.id, l.loadUnit, l.iwh, expected, found); err != nil {
+		return fmt.Errorf("состав короба в подсчёте: %w", err)
+	}
 	return nil
 }
 
