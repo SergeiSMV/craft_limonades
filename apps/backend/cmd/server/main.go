@@ -165,6 +165,16 @@ func main() {
 		svc.CZ = service.NewCZService(nil, czMarks)
 	}
 
+	// Ошибки ТСД и портала (ADHOC-47): пересылка в проект Bugsink `app`. Без CLIENT_SENTRY_DSN
+	// события приложений отбрасываются. Неверный DSN — работаем без пересылки, как с SENTRY_DSN.
+	if relay, err := observability.NewRelay(cfg.ClientSentryDSN); err != nil {
+		log.Warn("client error relay disabled: bad CLIENT_SENTRY_DSN", "error", err)
+	} else if relay != nil {
+		// Только непустой: *Relay(nil) внутри интерфейса nil не был бы.
+		svc.ClientErrors = relay
+		log.Info("client error relay enabled")
+	}
+
 	// 5. HTTP-сервер с собранным роутером транспортного слоя.
 	srv := &http.Server{
 		Addr:              ":" + cfg.AppPort,

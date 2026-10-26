@@ -49,6 +49,9 @@ type Services struct {
 	ProblemPhoto *service.ProblemPhotoService
 	// CZ — чтение Честного знака (CZ-02); БД не нужна, без подписанта отвечает «не настроен».
 	CZ *service.CZService
+	// ClientErrors — пересылка событий ТСД и портала в Bugsink (ADHOC-47); nil — события
+	// отбрасываются, но приём остаётся: клиент не должен копить ошибки отправки.
+	ClientErrors EnvelopeRelay
 }
 
 // NewRouter собирает HTTP-роутер сервиса: общие middleware + маршруты.
@@ -72,6 +75,13 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 	health := NewHealthHandler(db)
 	r.Get("/health", health.Health) // liveness: процесс жив
 	r.Get("/ready", health.Ready)   // readiness: БД доступна
+
+	// Приём событий ТСД и портала по протоколу Sentry (ADHOC-47): путь задаёт SDK —
+	// `/api/<проект>/envelope/` по DSN, который приложение строит из адреса API. Вне /api/v1:
+	// это не прикладной API, а точка приёма SDK. Частота — по IP, как у входа.
+	clientErrors := NewClientErrorsHandler(svc.ClientErrors)
+	r.With(httprate.LimitBy(60, time.Minute, clientIPKey)).
+		Post("/api/{project}/envelope/", clientErrors.Envelope)
 
 	// Прикладной API — под версионированным префиксом /api/v1 (ADR-0015).
 	// Зачем: портал занимает корень домена, API уезжает в свой неймспейс (один origin, без CORS),

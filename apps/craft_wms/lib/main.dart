@@ -7,9 +7,14 @@ import 'package:talker_flutter/talker_flutter.dart';
 import 'app.dart';
 import 'core/auth/auth_cubit.dart';
 import 'core/di/injection.dart';
+import 'core/monitoring/error_reporting.dart';
 import 'core/scanner/scanner_service.dart';
 
-Future<void> main() async {
+/// Точка входа ТСД. Ошибки приложения уходят в Bugsink (ADHOC-47): запуск обёрнут, чтобы
+/// падение подготовки до первого кадра тоже дошло.
+Future<void> main() => ErrorReporting.run(ReportingApp.tsd, _start);
+
+Future<void> _start() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // 1. Только портретная ориентация. ТСД держат вертикально, ландшафта в работе кладовщика нет,
@@ -34,6 +39,9 @@ Future<void> main() async {
   // 5. Тихо восстанавливаем сессию из secure storage: состояние AuthCubit драйвит
   //    навигацию (см. app.dart), поэтому запускаем без await — UI покажет индикатор.
   getIt<AuthCubit>().restore();
+
+  // 6. Пользователь событий об ошибках — по состоянию входа (id и роль).
+  ErrorReporting.bindAuth(getIt<AuthCubit>());
 
   runApp(CraftWmsApp());
 }
