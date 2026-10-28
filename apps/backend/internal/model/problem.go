@@ -127,6 +127,9 @@ type Problem struct {
 	Reason        string
 	Comment       string
 	Mark          string
+	// Marks — КИ марок ЧЗ, привязанных к проблеме (CZ-06), по алфавиту (ADHOC-52): офис видит
+	// и копирует марку — «не наша марка» без самой марки не проверить.
+	Marks         []string
 	FromWarehouse string // имя внутреннего склада, откуда помечено
 	ToWarehouse   string // имя склада-метки
 	Items         []ProblemItem
