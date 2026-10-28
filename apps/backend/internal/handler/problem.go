@@ -45,10 +45,13 @@ type problemResponse struct {
 	Comment     string    `json:"comment"`
 	Mark        string    `json:"mark,omitempty"`
 	// Marks — КИ марок ЧЗ проблемы (ADHOC-52); нет марок — пустой список.
-	Marks         []string              `json:"marks"`
-	FromWarehouse string                `json:"from_warehouse"`
-	ToWarehouse   string                `json:"to_warehouse"`
-	Items         []problemItemResponse `json:"items"`
+	Marks         []string `json:"marks"`
+	FromWarehouse string   `json:"from_warehouse"`
+	ToWarehouse   string   `json:"to_warehouse"`
+	// Пересорт (ADHOC-53): прежний товар и перепривязанный ШК; у остальных причин поля нет.
+	FromGood string                `json:"from_good,omitempty"`
+	Barcode  string                `json:"barcode,omitempty"`
+	Items    []problemItemResponse `json:"items"`
 	// Решения, допустимые при причине, в порядке показа: портал не держит свою копию таблицы.
 	Decisions           []string `json:"decisions"`
 	SuggestedSupplierID string   `json:"suggested_supplier_id,omitempty"`
@@ -78,7 +81,8 @@ func toProblemResponse(p model.Problem) problemResponse {
 		ID: p.ID, CreatedAt: p.CreatedAt, CreatedBy: p.CreatedByName, CellAddress: p.CellAddress,
 		LoadUnitID: p.LoadUnitID, Reason: p.Reason, Comment: p.Comment, Mark: p.Mark,
 		Marks:         orEmpty(p.Marks),
-		FromWarehouse: p.FromWarehouse, ToWarehouse: p.ToWarehouse, Items: items,
+		FromWarehouse: p.FromWarehouse, ToWarehouse: p.ToWarehouse, FromGood: p.FromGoodName,
+		Barcode: p.Barcode, Items: items,
 		Decisions: model.ProblemDecisionsFor(p.Reason), SuggestedSupplierID: p.SuggestedSupplierID,
 		Status: p.Status, Decision: p.Decision, DocNumber: p.DocNumber, DocDate: p.DocDate,
 		SupplierID: p.SupplierID, SupplierName: p.SupplierName, ReturnTaskNo: p.ReturnTaskNo,

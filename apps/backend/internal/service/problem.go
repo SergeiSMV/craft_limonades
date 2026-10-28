@@ -85,7 +85,7 @@ func (s *ProblemService) Resolved(ctx context.Context, q ResolvedQuery) ([]model
 // Resolve проверяет форму решения и проводит его.
 //
 // Всё, что проверяется без базы, проверяется здесь: идентификаторы, известное решение, у
-// списания — номер и дата документа 1С (дата — ISO), у возврата — поставщик. Поля чужого
+// списания и пересорта — номер и дата документа 1С (дата — ISO), у возврата — поставщик. Поля чужого
 // решения — противоречие, а не подсказка. Допустимость решения при причине проверяет
 // репозиторий: причину знает только запись.
 func (s *ProblemService) Resolve(ctx context.Context, in model.ResolveProblemInput) error {
@@ -96,13 +96,15 @@ func (s *ProblemService) Resolve(ctx context.Context, in model.ResolveProblemInp
 	if !isUUID(in.ProblemID) {
 		return ErrInvalidProblemID
 	}
-	known := []string{model.ProblemDecisionWriteOff, model.ProblemDecisionPlace, model.ProblemDecisionSupplierReturn}
+	known := []string{model.ProblemDecisionWriteOff, model.ProblemDecisionPlace,
+		model.ProblemDecisionSupplierReturn, model.ProblemDecisionRegrade}
 	if !slices.Contains(known, in.Decision) {
 		return ErrInvalidDecision
 	}
 
-	writeOff := in.Decision == model.ProblemDecisionWriteOff
-	if writeOff {
+	// Документ 1С — у списания и у пересорта (ADHOC-53): документ пересортицы.
+	withDoc := in.Decision == model.ProblemDecisionWriteOff || in.Decision == model.ProblemDecisionRegrade
+	if withDoc {
 		if in.DocNumber == "" || utf8.RuneCountInString(in.DocNumber) > problemDocNumberMax {
 			return ErrInvalidDecision
 		}

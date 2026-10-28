@@ -17,6 +17,13 @@ abstract final class ProblemDecision {
 
   /// Возврат поставщику: склад возврата и задание.
   static const supplierReturn = 'supplier_return';
+
+  /// Пересорт (ADHOC-53): провести по документу пересортицы 1С.
+  static const regrade = 'regrade';
+
+  /// Решение с документом 1С: номер и дата.
+  static bool withDoc(String decision) =>
+      decision == writeOff || decision == regrade;
 }
 
 /// Товар проблемы: у открытой — что помечено сейчас, у решённой — что решение взяло.
@@ -73,6 +80,8 @@ class PortalProblem {
     required this.resolvedAt,
     this.photos = const [],
     this.marks = const [],
+    this.fromGood = '',
+    this.barcode = '',
   });
 
   factory PortalProblem.fromJson(Map<String, dynamic> j) => PortalProblem(
@@ -110,6 +119,8 @@ class PortalProblem {
     marks: [
       for (final e in j['marks'] as List<dynamic>? ?? const []) e as String,
     ],
+    fromGood: j['from_good'] as String? ?? '',
+    barcode: j['barcode'] as String? ?? '',
   );
 
   final String id;
@@ -148,7 +159,7 @@ class PortalProblem {
   final bool resolved;
   final String decision;
 
-  /// Документ списания 1С: номер и дата (ISO).
+  /// Документ 1С списания или пересортицы: номер и дата (ISO).
   final String docNumber;
   final String docDate;
 
@@ -157,6 +168,10 @@ class PortalProblem {
   final int returnTaskNumber;
   final String resolvedBy;
   final DateTime? resolvedAt;
+
+  /// Пересорт (ADHOC-53): товар, за которым марки числились до перепривязки, и сам ШК.
+  final String fromGood;
+  final String barcode;
 
   /// Фото со склада — идентификаторы в порядке съёмки (ADHOC-45); снимок — [ProblemsRepository.photo].
   final List<String> photos;
@@ -231,7 +246,7 @@ class ProblemsRepository {
           ApiConst.problemResolve(id),
           data: {
             'decision': r.decision,
-            if (r.decision == ProblemDecision.writeOff) ...{
+            if (ProblemDecision.withDoc(r.decision)) ...{
               'doc_number': r.docNumber,
               'doc_date': r.docDate,
             },

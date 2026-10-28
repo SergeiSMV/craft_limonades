@@ -34,7 +34,7 @@ erDiagram
 
 | Область          | Таблицы                                                 | Миграция           |
 |------------------|---------------------------------------------------------|--------------------|
-| Учётки и аудит   | `users`, `positions`, `audit_log`                       | `000001`, `000002`, `000033`, `000034` |
+| Учётки и аудит   | `users`, `positions`, `audit_log`                       | `000001`, `000002`, `000033`, `000034`, `000035` |
 | Склад и ячейки   | `warehouses`, `cells`                                   | `000003`, `000006`, `000015` |
 | Номенклатура     | `goods`, `barcodes`, `nomenclature_groups`, `suppliers` | `000003`, `000005`, `000016` |
 | Партии и остатки | `batches`, `stock`                                      | `000004`           |
@@ -94,7 +94,8 @@ username + паролю** (вход со смартфона/портала). Р�
 `.view|.download|.post`; `portal.stocktake.view|manage`; `portal.cells.import|labels`;
 `portal.problems.view|resolve`; `portal.settings.warehouses|users`. ТСД — `tsd.receipt`,
 `tsd.movement`, `tsd.tasks.putaway|stocktake_count|stocktake_manage`,
-`tsd.stock.view|cz_marked`, `tsd.stock_entry`, `tsd.problems.view|mark`. Всего 31.
+`tsd.stock.view|cz_marked|regrade`, `tsd.stock_entry`, `tsd.problems.view|mark`. Всего 32
+(`tsd.stock.regrade` — перепривязка ШК маркируемого товара, `000035`, ADHOC-53).
 
 Стартовые должности — с постоянными id: «Администратор» (`7a000000-…-000000000001`, системная,
 все действия; код не смотрит на её список) и «Кладовщик» (`7a000000-…-000000000002`, восемь
@@ -754,7 +755,7 @@ CHECK:
 Индексы: `(movement_id, line_no)` — строки документа; `(from_cell_id)` и `(to_cell_id)` — что
 уезжало из ячейки и приезжало в неё (история ячейки, проверка пересчёта в P10).
 
-### 3.29 `warehouse_problems` — проблемы склада (миграции `000023`, `000024`, `000027`)
+### 3.29 `warehouse_problems` — проблемы склада (миграции `000023`, `000024`, `000027`, `000035`)
 
 Пометка короба или товара другим внутренним складом — брак, изолятор. Брак — лишь метка:
 товар остаётся в той же ячейке и перемещается со своей меткой. Перевод остатка делается в той
@@ -764,29 +765,32 @@ CHECK:
 |------------------------------|-----------------|----------------------------------------------------|
 | `id`                         | `uuid`          | PK, **выдаёт устройство**                          |
 | `warehouse_id`               | `uuid`          | FK → `warehouses(id)`                              |
-| `cell_id`                    | `uuid`          | FK → `cells(id)`; где лежит помеченное             |
+| `cell_id`                    | `uuid`          | FK → `cells(id)`; где лежит помеченное; у пересорта NULL |
 | `load_unit_id`               | `uuid`          | FK → `load_units(id)`; короб целиком               |
 | `good_id`                    | `uuid`          | товар; составной FK `(batch_id, good_id)`          |
 | `batch_id`                   | `uuid`          | партия                                             |
 | `qty`                        | `numeric(20,3)` | количество                                         |
 | `from_load_unit_id`          | `uuid`          | FK → `load_units(id)`; товар вынут из короба       |
-| `from_internal_warehouse_id` | `uuid`          | FK, NOT NULL; склад до пометки                     |
-| `to_internal_warehouse_id`   | `uuid`          | FK, NOT NULL; склад после; CHECK `<>` from         |
-| `reason`                     | `text`          | `breakage` / `spoilage` / `expired` / `foreign_mark` / `retired` / `not_found` / `other`; CHECK |
+| `from_internal_warehouse_id` | `uuid`          | FK; склад до пометки; у пересорта NULL             |
+| `to_internal_warehouse_id`   | `uuid`          | FK; склад после; CHECK `<>` from; у пересорта NULL |
+| `from_good_id`               | `uuid`          | FK → `goods(id)`; пересорт — прежний товар марок (`000035`) |
+| `barcode`                    | `text`          | пересорт — перепривязанный ШК (`000035`)           |
+| `reason`                     | `text`          | `breakage` / `spoilage` / `expired` / `foreign_mark` / `retired` / `not_found` / `regrade` / `other`; CHECK |
 | `comment`                    | `text`          | NOT NULL DEFAULT `''`; у `other` обязателен (сервис) |
 | `mark`                       | `text`          | марка ЧЗ или код короба ЧЗ проблемы                |
 | `status`                     | `text`          | `open` / `resolved`; CHECK                         |
 | `created_by`                 | `uuid`          | FK → `users(id)`                                   |
 | `created_at`                 | `timestamptz`   | DEFAULT `now()`                                    |
-| `decision`                   | `text`          | `write_off` / `place` / `supplier_return`; CHECK (`000024`) |
-| `doc_number`, `doc_date`     | `text`, `date`  | документ списания 1С; ровно у `write_off`          |
+| `decision`                   | `text`          | `write_off` / `place` / `supplier_return` / `regrade`; CHECK (`000024`, `000035`) |
+| `doc_number`, `doc_date`     | `text`, `date`  | документ 1С; ровно у `write_off` и `regrade`       |
 | `supplier_id`                | `uuid`          | FK → `suppliers(id)`; ровно у `supplier_return`    |
 | `return_task_id`             | `uuid`          | FK → `warehouse_tasks(id)`; ровно у `supplier_return` |
 | `resolved_by`, `resolved_at` | `uuid`, `timestamptz` | кто и когда провёл решение; ровно у `resolved` |
 
 CHECK: короб целиком (только `load_unit_id`) **либо** товар (`good_id`, `batch_id`, `qty > 0`;
 источник — россыпь ячейки или `from_load_unit_id`). Товар из короба вынимается в россыпь склада
-назначения той же ячейки: у короба одна метка на весь состав.
+назначения той же ячейки: у короба одна метка на весь состав. С `000035` это
+`warehouse_problems_shape_check`, и у пересорта своя форма (ниже).
 
 Индекс: `(status, created_at DESC)` — рабочий список офиса (P6-07-3).
 
@@ -802,6 +806,17 @@ CHECK: короб целиком (только `load_unit_id`) **либо** то
 с их числом (`mark` — КИ, если марка одна). Решения по `retired` — списать или вернуть
 поставщику: выбывшую марку не продать. Откат `000027` переводит проблемы `retired` в
 `other` с пояснением в комментарии — удалить их нельзя, за ними остаток.
+
+**Пересорт (`regrade`, `000035`, ADHOC-53).** Заводит не ТСД-пометка, а перепривязка ШК
+маркируемого товара, у которого на складе есть марки этого GTIN: в той же транзакции марки
+(`cz_marks.good_id`, `batch_id`, `problem_id`), остаток ячеек и состав коробов переходят на
+новый товар. Пересорт — не метка склада: ячейки, пары складов, партии и короба у него нет,
+`good_id` — новый товар, `from_good_id` — прежний (CHECK: разные), `qty` — сколько марок
+перешло, `comment` — «Перепривязка GTIN …». Что взято, записано строками
+`warehouse_problem_lines` сразу при заведении (по месту и партии). Единственное решение —
+`regrade`: офис проводит его номером и датой документа пересортицы 1С, остаток решение не
+двигает. Откат `000035` удаляет пересорты со строками и ссылками марок; перевод марок
+и остатка на новый товар не отменяется.
 
 ### 3.30 `warehouse_problem_lines` — строки решения по проблеме (миграция `000024`, P6-07-3)
 
