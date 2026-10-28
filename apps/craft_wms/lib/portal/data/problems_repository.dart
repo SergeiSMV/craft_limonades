@@ -72,6 +72,7 @@ class PortalProblem {
     required this.resolvedBy,
     required this.resolvedAt,
     this.photos = const [],
+    this.marks = const [],
   });
 
   factory PortalProblem.fromJson(Map<String, dynamic> j) => PortalProblem(
@@ -106,6 +107,9 @@ class PortalProblem {
     photos: [
       for (final e in j['photos'] as List<dynamic>? ?? const []) e as String,
     ],
+    marks: [
+      for (final e in j['marks'] as List<dynamic>? ?? const []) e as String,
+    ],
   );
 
   final String id;
@@ -124,8 +128,11 @@ class PortalProblem {
   final String reason;
   final String comment;
 
-  /// Марка ЧЗ («не наша марка»).
+  /// Марка ЧЗ текстом, как её ввели при пометке (до CZ-06).
   final String mark;
+
+  /// КИ марок ЧЗ, привязанных к проблеме (ADHOC-52), по алфавиту.
+  final List<String> marks;
 
   /// Откуда помечено и какой меткой («Основной» → «Брак»).
   final String fromWarehouse;

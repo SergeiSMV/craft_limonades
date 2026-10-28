@@ -36,14 +36,16 @@ type problemItemResponse struct {
 }
 
 type problemResponse struct {
-	ID            string                `json:"id"`
-	CreatedAt     time.Time             `json:"created_at"`
-	CreatedBy     string                `json:"created_by"`
-	CellAddress   string                `json:"cell_address"`
-	LoadUnitID    string                `json:"load_unit_id,omitempty"`
-	Reason        string                `json:"reason"`
-	Comment       string                `json:"comment"`
-	Mark          string                `json:"mark,omitempty"`
+	ID          string    `json:"id"`
+	CreatedAt   time.Time `json:"created_at"`
+	CreatedBy   string    `json:"created_by"`
+	CellAddress string    `json:"cell_address"`
+	LoadUnitID  string    `json:"load_unit_id,omitempty"`
+	Reason      string    `json:"reason"`
+	Comment     string    `json:"comment"`
+	Mark        string    `json:"mark,omitempty"`
+	// Marks — КИ марок ЧЗ проблемы (ADHOC-52); нет марок — пустой список.
+	Marks         []string              `json:"marks"`
 	FromWarehouse string                `json:"from_warehouse"`
 	ToWarehouse   string                `json:"to_warehouse"`
 	Items         []problemItemResponse `json:"items"`
@@ -75,17 +77,19 @@ func toProblemResponse(p model.Problem) problemResponse {
 	return problemResponse{
 		ID: p.ID, CreatedAt: p.CreatedAt, CreatedBy: p.CreatedByName, CellAddress: p.CellAddress,
 		LoadUnitID: p.LoadUnitID, Reason: p.Reason, Comment: p.Comment, Mark: p.Mark,
+		Marks:         orEmpty(p.Marks),
 		FromWarehouse: p.FromWarehouse, ToWarehouse: p.ToWarehouse, Items: items,
 		Decisions: model.ProblemDecisionsFor(p.Reason), SuggestedSupplierID: p.SuggestedSupplierID,
 		Status: p.Status, Decision: p.Decision, DocNumber: p.DocNumber, DocDate: p.DocDate,
 		SupplierID: p.SupplierID, SupplierName: p.SupplierName, ReturnTaskNo: p.ReturnTaskNo,
 		ResolvedBy: p.ResolvedByName, ResolvedAt: p.ResolvedAt,
-		ShippedBy: p.ShippedByName, ShippedAt: p.ShippedAt, Photos: photosOrEmpty(p.Photos),
+		ShippedBy: p.ShippedByName, ShippedAt: p.ShippedAt, Photos: orEmpty(p.Photos),
 	}
 }
 
-// photosOrEmpty — пустой список вместо null: клиенту не нужно отличать «нет фото» от «нет поля».
-func photosOrEmpty(ids []string) []string {
+// orEmpty — пустой список вместо null: клиенту не нужно отличать «нет фото» или «нет марок»
+// от «нет поля».
+func orEmpty(ids []string) []string {
 	if ids == nil {
 		return []string{}
 	}
