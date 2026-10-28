@@ -46,18 +46,21 @@ func NewProblemRepository(pool *pgxpool.Pool) *ProblemRepository {
 
 // problemSelect — поля проблемы для списков; порядок совпадает со сканом в [scanProblems].
 const problemSelect = `
-		SELECT p.id::text, p.created_at, COALESCE(cu.full_name, ''), c.address,
+		SELECT p.id::text, p.created_at, COALESCE(cu.full_name, ''), COALESCE(c.address, ''),
 		       COALESCE(p.load_unit_id::text, ''), p.reason, p.comment, COALESCE(p.mark, ''),
-		       fw.name, tw.name, p.status, COALESCE(p.decision, ''), COALESCE(p.doc_number, ''),
+		       COALESCE(fw.name, ''), COALESCE(tw.name, ''), COALESCE(fg.name, ''),
+		       COALESCE(p.barcode, ''), p.status, COALESCE(p.decision, ''), COALESCE(p.doc_number, ''),
 		       COALESCE(to_char(p.doc_date, 'YYYY-MM-DD'), ''), COALESCE(p.supplier_id::text, ''),
 		       COALESCE(s.name, ''), COALESCE(t.number, 0), COALESCE(ru.full_name, ''), p.resolved_at,
 		       COALESCE(su.full_name, ''), sh.posted_at,
 		       ARRAY(SELECT ph.id::text FROM problem_photos ph
 		             WHERE ph.problem_id = p.id ORDER BY ph.created_at, ph.id)
 		FROM warehouse_problems p
-		JOIN cells c                ON c.id = p.cell_id
-		JOIN internal_warehouses fw ON fw.id = p.from_internal_warehouse_id
-		JOIN internal_warehouses tw ON tw.id = p.to_internal_warehouse_id
+		-- У пересорта (ADHOC-53) ячейки и пары складов нет — он лежит, где лежал.
+		LEFT JOIN cells c                ON c.id = p.cell_id
+		LEFT JOIN internal_warehouses fw ON fw.id = p.from_internal_warehouse_id
+		LEFT JOIN internal_warehouses tw ON tw.id = p.to_internal_warehouse_id
+		LEFT JOIN goods fg               ON fg.id = p.from_good_id
 		LEFT JOIN users cu          ON cu.id = p.created_by
 		LEFT JOIN users ru          ON ru.id = p.resolved_by
 		LEFT JOIN suppliers s       ON s.id = p.supplier_id
@@ -108,7 +111,8 @@ func (r *ProblemRepository) query(ctx context.Context, sql string, args ...any) 
 	for rows.Next() {
 		var p model.Problem
 		if err := rows.Scan(&p.ID, &p.CreatedAt, &p.CreatedByName, &p.CellAddress, &p.LoadUnitID,
-			&p.Reason, &p.Comment, &p.Mark, &p.FromWarehouse, &p.ToWarehouse, &p.Status, &p.Decision,
+			&p.Reason, &p.Comment, &p.Mark, &p.FromWarehouse, &p.ToWarehouse, &p.FromGoodName,
+			&p.Barcode, &p.Status, &p.Decision,
 			&p.DocNumber, &p.DocDate, &p.SupplierID, &p.SupplierName, &p.ReturnTaskNo,
 			&p.ResolvedByName, &p.ResolvedAt, &p.ShippedByName, &p.ShippedAt, &p.Photos); err != nil {
 			rows.Close()
@@ -165,7 +169,8 @@ func (r *ProblemRepository) attachMarks(ctx context.Context, problems []model.Pr
 //
 // Решённая — что решение взяло (строки решения, с ячейкой). Открытая короб — его состав сейчас
 // и ячейка, где он лежит: офис решает судьбу того, что в коробе на деле. Открытая товар — то,
-// что помечено, в ячейке пометки.
+// что помечено, в ячейке пометки. Пересорт (ADHOC-53) — его строки и открытым: что перешло на
+// новый товар, записано сразу при перепривязке.
 func (r *ProblemRepository) attachItems(ctx context.Context, problems []model.Problem, index map[string]int) error {
 	ids := make([]string, len(problems))
 	for i, p := range problems {
@@ -179,14 +184,14 @@ func (r *ProblemRepository) attachItems(ctx context.Context, problems []model.Pr
 		CROSS JOIN LATERAL (
 			SELECT l.good_id, l.batch_id, l.qty, l.cell_id, l.line_no AS ord
 			FROM warehouse_problem_lines l
-			WHERE p.status = 'resolved' AND l.problem_id = p.id
+			WHERE (p.status = 'resolved' OR p.reason = 'regrade') AND l.problem_id = p.id
 			UNION ALL
 			SELECT lc.good_id, lc.batch_id, lc.qty, lu.cell_id, 0
 			FROM load_units lu JOIN lu_content lc ON lc.load_unit_id = lu.id AND lc.qty > 0
 			WHERE p.status = 'open' AND lu.id = p.load_unit_id AND lu.cell_id IS NOT NULL
 			UNION ALL
 			SELECT p.good_id, p.batch_id, p.qty, p.cell_id, 0
-			WHERE p.status = 'open' AND p.good_id IS NOT NULL
+			WHERE p.status = 'open' AND p.good_id IS NOT NULL AND p.reason <> 'regrade'
 		) x
 		JOIN goods g   ON g.id = x.good_id
 		JOIN batches b ON b.id = x.batch_id
@@ -262,6 +267,12 @@ func (r *ProblemRepository) Resolve(ctx context.Context, in model.ResolveProblem
 			return ErrDecisionNotAllowed
 		}
 
+		// Пересорт (ADHOC-53) уже перевёл товар при перепривязке и записал строки: решение только
+		// связывает его с документом пересортицы 1С.
+		if in.Decision == model.ProblemDecisionRegrade {
+			return markResolved(ctx, q, in, "")
+		}
+
 		lines, err := problemLines(ctx, q, p)
 		if err != nil {
 			return err
@@ -294,18 +305,23 @@ func (r *ProblemRepository) Resolve(ctx context.Context, in model.ResolveProblem
 				return fmt.Errorf("записать строку решения: %w", err)
 			}
 		}
-		if _, err := q.Exec(ctx, `
-			UPDATE warehouse_problems
-			SET status = 'resolved', decision = $2, doc_number = NULLIF($3, ''),
-			    doc_date = NULLIF($4, '')::date, supplier_id = NULLIF($5, '')::uuid,
-			    return_task_id = NULLIF($6, '')::uuid, resolved_by = $7::uuid, resolved_at = now()
-			WHERE id = $1::uuid`,
-			in.ProblemID, in.Decision, in.DocNumber, in.DocDate, in.SupplierID, taskID,
-			in.ResolvedBy); err != nil {
-			return fmt.Errorf("записать решение: %w", err)
-		}
-		return nil
+		return markResolved(ctx, q, in, taskID)
 	})
+}
+
+// markResolved записывает решение офиса в проблему: что решили, документ, поставщик, задание.
+func markResolved(ctx context.Context, q Querier, in model.ResolveProblemInput, taskID string) error {
+	if _, err := q.Exec(ctx, `
+		UPDATE warehouse_problems
+		SET status = 'resolved', decision = $2, doc_number = NULLIF($3, ''),
+		    doc_date = NULLIF($4, '')::date, supplier_id = NULLIF($5, '')::uuid,
+		    return_task_id = NULLIF($6, '')::uuid, resolved_by = $7::uuid, resolved_at = now()
+		WHERE id = $1::uuid`,
+		in.ProblemID, in.Decision, in.DocNumber, in.DocDate, in.SupplierID, taskID,
+		in.ResolvedBy); err != nil {
+		return fmt.Errorf("записать решение: %w", err)
+	}
+	return nil
 }
 
 // lockProblem блокирует проблему под решение.
@@ -313,8 +329,8 @@ func lockProblem(ctx context.Context, q Querier, id string) (lockedProblem, erro
 	var p lockedProblem
 	var lu, good, batch, qty *string
 	err := q.QueryRow(ctx, `
-		SELECT warehouse_id::text, cell_id::text, load_unit_id::text, good_id::text, batch_id::text,
-		       qty::text, to_internal_warehouse_id::text, reason, status
+		SELECT warehouse_id::text, COALESCE(cell_id::text, ''), load_unit_id::text, good_id::text,
+		       batch_id::text, qty::text, COALESCE(to_internal_warehouse_id::text, ''), reason, status
 		FROM warehouse_problems WHERE id = $1::uuid FOR UPDATE`, id).
 		Scan(&p.warehouse, &p.cell, &lu, &good, &batch, &qty, &p.toIwh, &p.reason, &p.status)
 	if errors.Is(err, pgx.ErrNoRows) {

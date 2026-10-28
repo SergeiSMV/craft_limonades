@@ -66,8 +66,10 @@ func (s *CZService) Scan(ctx context.Context, raw string) (model.CZScan, error) 
 		if err != nil {
 			return model.CZScan{}, err
 		}
-		out.Mark, err = s.markInWMS(ctx, code)
-		return out, err
+		if out.Mark, err = s.markInWMS(ctx, code); err != nil || out.Mark == nil {
+			return out, err
+		}
+		return out, s.markGood(ctx, &out)
 	}
 
 	if info.PackageType == model.CZAggregateBox {
@@ -112,6 +114,24 @@ func (s *CZService) goodByGTIN(ctx context.Context, gtin string) (*model.CZGoodR
 		return nil, "", err
 	}
 	return &g, "", nil
+}
+
+// markGood ставит товаром скана тот, за которым марка числится в WMS (ADHOC-53).
+//
+// Зачем: товар марки записан при её приходе, и остаток считается по нему. Если ШК из марки
+// потом отвязали, поиск по GTIN товара не найдёт, и марка, лежащая на складе, выглядела бы
+// незнакомой. Отвязанный ШК называется отдельно — ТСД предложит вернуть привязку.
+func (s *CZService) markGood(ctx context.Context, out *model.CZScan) error {
+	if out.Good != nil && out.Good.ID == out.Mark.GoodID {
+		return nil
+	}
+	g, err := s.marks.GoodRef(ctx, out.Mark.GoodID)
+	if err != nil {
+		return err
+	}
+	out.UnboundBarcode, out.BindBarcode = out.BindBarcode, ""
+	out.Good = &g
+	return nil
 }
 
 // ean13FromGTIN — EAN-13 из GTIN-14 с ведущим нулём; иначе GTIN как есть.

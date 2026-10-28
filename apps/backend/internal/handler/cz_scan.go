@@ -21,6 +21,8 @@ type czScanResponse struct {
 	// предложить привязать (EAN-13).
 	Good        *czGoodResponse `json:"good"`
 	BindBarcode string          `json:"bind_barcode,omitempty"`
+	// UnboundBarcode — марка в WMS, а её ШК не привязан (ADHOC-53): товар — из записи марки.
+	UnboundBarcode string `json:"unbound_barcode,omitempty"`
 	// Mark — марка в WMS; null — не числится. LoadUnitID — принятый короб ЧЗ (ГЕ).
 	Mark       *czMarkResponse `json:"mark"`
 	LoadUnitID string          `json:"load_unit_id,omitempty"`
@@ -120,13 +122,14 @@ func toCZScanResponse(s model.CZScan) czScanResponse {
 			ExpirationDate: czDay(s.Info.ExpirationDate),
 			Parent:         s.Info.Parent,
 		},
-		Good:        toCZGood(s.Good),
-		BindBarcode: s.BindBarcode,
-		Discrepancy: s.Discrepancy,
-		LoadUnitID:  s.LoadUnitID,
-		Composition: make([]czCompositionLineResponse, 0, len(s.Composition)),
-		Units:       s.Units,
-		Unreadable:  s.Unreadable,
+		Good:           toCZGood(s.Good),
+		BindBarcode:    s.BindBarcode,
+		UnboundBarcode: s.UnboundBarcode,
+		Discrepancy:    s.Discrepancy,
+		LoadUnitID:     s.LoadUnitID,
+		Composition:    make([]czCompositionLineResponse, 0, len(s.Composition)),
+		Units:          s.Units,
+		Unreadable:     s.Unreadable,
 	}
 	if out.Unreadable == nil {
 		out.Unreadable = []string{}

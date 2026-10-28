@@ -18,6 +18,7 @@ String decisionLabel(String decision) => switch (decision) {
   ProblemDecision.writeOff => t.problems.decisionWriteOff,
   ProblemDecision.place => t.problems.decisionPlace,
   ProblemDecision.supplierReturn => t.problems.decisionSupplierReturn,
+  ProblemDecision.regrade => t.problems.decisionRegrade,
   _ => decision,
 };
 
@@ -33,6 +34,7 @@ String outcomeLabel(ProblemRecord p) => switch (p.decision) {
   ProblemDecision.place => t.problems.outcomePlace,
   ProblemDecision.supplierReturn =>
     p.awaitingShipment ? t.problems.outcomeAwaiting : t.problems.outcomeShipped,
+  ProblemDecision.regrade => t.problems.outcomeRegrade,
   _ => p.decision,
 };
 

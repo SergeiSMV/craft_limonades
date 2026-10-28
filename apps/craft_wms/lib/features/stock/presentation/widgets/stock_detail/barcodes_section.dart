@@ -15,6 +15,7 @@ import '../../../../../core/theme/semibold_text.dart';
 import '../../bloc/stock_detail_cubit.dart';
 import 'bind_barcode_button.dart';
 import 'bind_barcode_dialog.dart';
+import 'regrade_flow.dart';
 import '../../../../../core/widgets/expandable_card.dart';
 
 /// Секция «Штрихкоды (N)» карточки товара (P-FS-12): раскрывающийся список привязанных ШК
@@ -24,11 +25,22 @@ import '../../../../../core/widgets/expandable_card.dart';
 /// Если ШК не привязано ни одного, вместо сворачиваемого блока — одна кнопка «Привязать
 /// штрихкод +»: заголовок «Штрихкоды (0)» и пустой раскрывающийся список только занимали бы место.
 class BarcodesSection extends StatelessWidget {
-  const BarcodesSection({required this.goodName, super.key});
+  const BarcodesSection({
+    required this.goodId,
+    required this.goodName,
+    this.czMarked = false,
+    super.key,
+  });
+
+  /// Товар карточки.
+  final String goodId;
 
   /// Наименование товара — печатается на ярлыке рядом со штрихкодом: без него наклейка
   /// анонимна, и кладовщик не отличит одну от другой, пока не отсканирует.
   final String goodName;
+
+  /// Маркируемый товар (CZ-05): перед отвязкой его ШК проверяются марки на складе (ADHOC-53).
+  final bool czMarked;
 
   /// Напечатать товарный ярлык: штрихкод и наименование (P4-08).
   ///
@@ -57,8 +69,19 @@ class BarcodesSection extends StatelessWidget {
   }
 
   /// Подтвердить и отвязать ШК от товара.
+  ///
+  /// У маркируемого товара сначала — марки на складе (ADHOC-53): есть — вместо отвязки
+  /// перепривязка с пересортом ([RegradeFlow]).
   Future<void> confirmUnbind(BuildContext context, String code) async {
     final cubit = context.read<StockDetailCubit>();
+    if (czMarked) {
+      final flow = RegradeFlow(context, goodId: goodId, goodName: goodName);
+      final free = await flow.canUnbind(
+        code,
+        onRegraded: () => cubit.load(goodId),
+      );
+      if (!free || !context.mounted) return;
+    }
     final ok = await showDialog<bool>(
       context: context,
       builder: (dctx) => AlertDialog(

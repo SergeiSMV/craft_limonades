@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"craftwms/internal/model"
 	"craftwms/internal/repository"
 	"craftwms/internal/service"
 )
@@ -109,6 +110,9 @@ func (h *BarcodeHandler) Unbind(w http.ResponseWriter, r *http.Request) {
 	case errors.Is(err, service.ErrEmptyBarcode):
 		writeError(w, http.StatusBadRequest, "пустой штрихкод")
 		return
+	case errors.Is(err, repository.ErrBarcodeHasCZStock):
+		writeError(w, http.StatusConflict, err.Error())
+		return
 	case err != nil:
 		slog.ErrorContext(r.Context(), "unbind barcode failed", "error", err)
 		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
@@ -144,10 +148,64 @@ func (h *BarcodeHandler) Bind(w http.ResponseWriter, r *http.Request) {
 	case errors.Is(err, repository.ErrBarcodeConflict):
 		writeError(w, http.StatusConflict, "штрихкод уже привязан к другому товару")
 		return
+	case errors.Is(err, repository.ErrBarcodeMarksOtherGood):
+		writeError(w, http.StatusConflict, err.Error())
+		return
 	case err != nil:
 		slog.ErrorContext(r.Context(), "bind barcode failed", "error", err)
 		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
 		return
 	}
 	writeJSON(w, http.StatusCreated, req)
+}
+
+// CZStock: GET /api/v1/barcodes/{code}/cz-stock — сколько марок ЧЗ с этим ШК на складе
+// (ADHOC-53). 200 {marks_in_stock}; ТСД спрашивает перед отвязкой ШК маркируемого товара.
+func (h *BarcodeHandler) CZStock(w http.ResponseWriter, r *http.Request) {
+	n, err := h.svc.CZStock(r.Context(), chi.URLParam(r, "code"))
+	switch {
+	case errors.Is(err, service.ErrEmptyBarcode):
+		writeError(w, http.StatusBadRequest, "пустой штрихкод")
+		return
+	case err != nil:
+		slog.ErrorContext(r.Context(), "cz stock of barcode failed", "error", err)
+		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]int{"marks_in_stock": n})
+}
+
+// regradeRequest — тело POST /api/v1/barcodes/{code}/regrade.
+type regradeRequest struct {
+	GoodID string `json:"good_id"`
+}
+
+// Regrade: POST /api/v1/barcodes/{code}/regrade — перепривязать ШК к другому товару с пересортом
+// марок ЧЗ со склада (ADHOC-53). 200 {problem_id, marks}; 400 — нет товара в теле; 409 — отказ
+// по существу, текст — для кладовщика.
+func (h *BarcodeHandler) Regrade(w http.ResponseWriter, r *http.Request) {
+	var req regradeRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "невалидный JSON")
+		return
+	}
+	res, err := h.svc.Regrade(r.Context(), model.RegradeInput{
+		Barcode: chi.URLParam(r, "code"), GoodID: req.GoodID, UserID: currentUser(r),
+	})
+	switch {
+	case errors.Is(err, service.ErrEmptyBarcode), errors.Is(err, service.ErrEmptyGoodID):
+		writeError(w, http.StatusBadRequest, "нужны штрихкод и товар")
+		return
+	case errors.Is(err, repository.ErrGoodNotFound):
+		writeError(w, http.StatusNotFound, "товар не найден")
+		return
+	case repository.IsRegradeRefusal(err):
+		writeError(w, http.StatusConflict, err.Error())
+		return
+	case err != nil:
+		slog.ErrorContext(r.Context(), "regrade barcode failed", "error", err)
+		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"problem_id": res.ProblemID, "marks": res.Marks})
 }

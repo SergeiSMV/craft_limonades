@@ -68,6 +68,14 @@ func (m *scanMarks) MarkByCIS(_ context.Context, cis string) (model.CZMark, erro
 	}
 	return model.CZMark{}, model.ErrCZMarkNotFound
 }
+func (m *scanMarks) GoodRef(_ context.Context, id string) (model.CZGoodRef, error) {
+	for _, g := range m.goods {
+		if g.ID == id {
+			return g, nil
+		}
+	}
+	return model.CZGoodRef{ID: id, Name: "товар " + id}, nil
+}
 func (m *scanMarks) SetGoodCZMarked(context.Context, string, bool) error { return nil }
 func (m *scanMarks) LoadUnitByCZCode(_ context.Context, code string) (string, error) {
 	if id, ok := m.boxes[code]; ok {
@@ -104,7 +112,7 @@ func TestScanMark(t *testing.T) {
 	t.Run("товар известен, марка в WMS", func(t *testing.T) {
 		marks := &scanMarks{
 			goods: map[string]model.CZGoodRef{beerGTIN: {ID: "g1", Name: "Пиво Голубые Гавайи, кега"}},
-			marks: map[string]model.CZMark{beerMark: {CIS: beerMark, LoadUnitID: "lu1", ReceivedAt: received}},
+			marks: map[string]model.CZMark{beerMark: {CIS: beerMark, GoodID: "g1", LoadUnitID: "lu1", ReceivedAt: received}},
 		}
 		got, err := NewCZService(client, marks).Scan(context.Background(), "]d2"+beerMark+"\x1d93tail")
 		if err != nil {
@@ -115,6 +123,20 @@ func TestScanMark(t *testing.T) {
 			got.Good == nil || got.Good.ID != "g1" || got.BindBarcode != "" ||
 			got.Mark == nil || got.Mark.LoadUnitID != "lu1" || !got.Mark.ReceivedAt.Equal(received) ||
 			len(got.Composition) != 0 {
+			t.Fatalf("скан = %+v", got)
+		}
+	})
+
+	// ADHOC-53: ШК из марки отвязали, а марка на складе — товар из записи марки, привязку
+	// предлагают вернуть, а не завести новую.
+	t.Run("марка в WMS, ШК отвязан", func(t *testing.T) {
+		marks := &scanMarks{marks: map[string]model.CZMark{beerMark: {CIS: beerMark, GoodID: "g7"}}}
+		got, err := NewCZService(client, marks).Scan(context.Background(), beerMark)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.Good == nil || got.Good.ID != "g7" || got.BindBarcode != "" ||
+			got.UnboundBarcode != "4612728200172" {
 			t.Fatalf("скан = %+v", got)
 		}
 	})

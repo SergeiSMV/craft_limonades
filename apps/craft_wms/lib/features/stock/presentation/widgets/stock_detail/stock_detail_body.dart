@@ -9,6 +9,7 @@ import '../../../data/catalog_models.dart';
 import 'barcodes_section.dart';
 import 'good_info_card.dart';
 import 'places_sliver.dart';
+import 'unbound_barcode_notice.dart';
 import 'total_bar.dart';
 
 /// Тело карточки остатков: прокручиваемая часть (шапка товара, штрихкоды, места хранения)
@@ -57,11 +58,23 @@ class StockDetailBody extends StatelessWidget {
                     child: CzMarkSection(scan: czMark!),
                   ),
                 ),
+              // ШК из марки отвязан (ADHOC-53): вернуть его привязку к этому товару.
+              if (czMark?.unboundBarcode != null)
+                SliverPadding(
+                  padding: AppInsets.h8,
+                  sliver: SliverToBoxAdapter(
+                    child: UnboundBarcodeNotice(barcode: czMark!.unboundBarcode!),
+                  ),
+                ),
               const SliverToBoxAdapter(child: AppBoxes.kHeight8),
               SliverPadding(
                 padding: AppInsets.h8,
                 sliver: SliverToBoxAdapter(
-                  child: BarcodesSection(goodName: good.name),
+                  child: BarcodesSection(
+                    goodId: good.id,
+                    goodName: good.name,
+                    czMarked: good.czMarked,
+                  ),
                 ),
               ),
               const PlacesSliver(),

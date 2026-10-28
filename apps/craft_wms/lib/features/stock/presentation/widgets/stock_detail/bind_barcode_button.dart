@@ -15,10 +15,13 @@ import '../../../../../core/theme/semibold_text.dart';
 /// Стоит либо вместо секции ШК, когда у товара не привязано ни одного кода, либо под списком
 /// внутри раскрытой секции.
 class BindBarcodeButton extends StatelessWidget {
-  const BindBarcodeButton({super.key, required this.onPressed});
+  const BindBarcodeButton({super.key, required this.onPressed, this.label});
 
   /// Открыть диалог привязки.
   final VoidCallback onPressed;
+
+  /// Надпись; `null` — «Привязать штрихкод».
+  final String? label;
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +41,7 @@ class BindBarcodeButton extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            t.stockDetailScreen.bindBarcode,
+            label ?? t.stockDetailScreen.bindBarcode,
             style: SemiboldTextStyles().semiboldInter14.copyWith(
               color: AppColors.kTextMain,
             ),

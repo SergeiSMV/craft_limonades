@@ -67,8 +67,11 @@ func (scanCZMarks) MarkByCIS(_ context.Context, cis string) (model.CZMark, error
 	if cis != scanMark {
 		return model.CZMark{}, model.ErrCZMarkNotFound
 	}
-	return model.CZMark{CIS: cis, Status: model.CZMarkInStock, LoadUnitID: scanLU, LoadUnitCellID: scanCell,
+	return model.CZMark{CIS: cis, GoodID: scanGood, Status: model.CZMarkInStock, LoadUnitID: scanLU, LoadUnitCellID: scanCell,
 		AggregateCode: scanBox, CellAddress: "M1-1-10-1", ReceivedAt: time.Date(2026, 10, 23, 12, 0, 0, 0, time.FixedZone("MSK", 3*3600))}, nil
+}
+func (scanCZMarks) GoodRef(_ context.Context, id string) (model.CZGoodRef, error) {
+	return model.CZGoodRef{ID: id, Name: "Пиво «Голубые Гавайи», кега 30 л"}, nil
 }
 func (scanCZMarks) LoadUnitByCZCode(context.Context, string) (string, error) { return scanLU, nil }
 func (scanCZMarks) SetGoodCZMarked(_ context.Context, id string, _ bool) error {

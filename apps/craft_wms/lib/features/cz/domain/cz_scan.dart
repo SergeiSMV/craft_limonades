@@ -113,6 +113,7 @@ class CzScanResult {
     this.parent,
     this.good,
     this.bindBarcode,
+    this.unboundBarcode,
     this.mark,
     this.loadUnitId,
     this.composition = const [],
@@ -146,6 +147,10 @@ class CzScanResult {
   /// предложить привязать (EAN-13: GTIN без ведущего нуля).
   final CzGood? good;
   final String? bindBarcode;
+
+  /// Марка числится в WMS, а её ШК ни к какому товару не привязан (ADHOC-53): [good] — товар
+  /// из записи марки, карточка предлагает вернуть привязку этого ШК.
+  final String? unboundBarcode;
 
   /// Марка в WMS; `null` — не числится.
   final CzMarkInWms? mark;

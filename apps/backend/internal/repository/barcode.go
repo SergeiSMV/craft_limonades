@@ -121,7 +121,17 @@ func (r *BarcodeRepository) Unbind(ctx context.Context, barcode string) error {
 // unbindBarcode — низкоуровневая отвязка на Querier (пул или tx), зеркало bindBarcode. Нужна,
 // чтобы отвязка коммитилась в одной транзакции с пометкой операции в журнале идемпотентности
 // (P2-05): порознь они дали бы момент, в котором ШК уже отвязан, а операция не помечена.
+//
+// Марки ЧЗ этого ШК на складе отвязку запрещают (ADHOC-53): без ШК их товар не находится сканом,
+// а исправить ошибочную привязку — это перепривязка с пересортом ([BarcodeRepository.Regrade]).
 func unbindBarcode(ctx context.Context, q Querier, barcode string) error {
+	n, err := czStockOfBarcode(ctx, q, barcode)
+	if err != nil {
+		return err
+	}
+	if n > 0 {
+		return ErrBarcodeHasCZStock
+	}
 	if _, err := q.Exec(ctx, `DELETE FROM barcodes WHERE barcode = $1`, barcode); err != nil {
 		return fmt.Errorf("unbind barcode %q: %w", barcode, err)
 	}
@@ -199,6 +209,9 @@ func (r *BarcodeRepository) CreateInternal(ctx context.Context, goodID string) (
 // bindBarcode — низкоуровневая привязка на Querier (пул или tx), чтобы checkpoint сессии ввода
 // (P-FS-04) коммитил новые привязки в той же транзакции, что и строки ячейки.
 func bindBarcode(ctx context.Context, q Querier, goodID, barcode, symbology string) error {
+	if err := guardBindMarks(ctx, q, goodID, barcode); err != nil {
+		return err
+	}
 	// Вставляем; конфликт по UNIQUE(barcode) не роняем — разберём ниже (идемпотентность vs конфликт).
 	tag, err := q.Exec(ctx, `
 		INSERT INTO barcodes (good_id, barcode, symbology)

@@ -260,6 +260,16 @@ func (r *CZMarkRepository) GoodByGTIN(ctx context.Context, gtin string) (model.C
 	return goodByGTIN(ctx, r.pool, gtin)
 }
 
+// GoodRef — товар по id: как его называет скан марки (ADHOC-53).
+func (r *CZMarkRepository) GoodRef(ctx context.Context, goodID string) (model.CZGoodRef, error) {
+	g := model.CZGoodRef{ID: goodID}
+	if err := r.pool.QueryRow(ctx, `SELECT name FROM goods WHERE id = $1::uuid`, goodID).
+		Scan(&g.Name); err != nil {
+		return g, fmt.Errorf("товар марки: %w", err)
+	}
+	return g, nil
+}
+
 // goodByGTIN — GoodByGTIN на Querier, для приёмки внутри транзакции (CZ-05).
 func goodByGTIN(ctx context.Context, q Querier, gtin string) (model.CZGoodRef, error) {
 	short := gtin

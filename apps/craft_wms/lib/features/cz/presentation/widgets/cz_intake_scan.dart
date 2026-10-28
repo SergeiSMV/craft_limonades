@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/gen/strings.g.dart';
+import '../../../../core/printer/load_unit_label.dart';
 import '../../../../core/widgets/bind_prompt_dialog.dart';
 import '../../../stock/data/catalog_models.dart';
 import '../../../stock/data/catalog_repository.dart';
 import '../../domain/cz_intake.dart';
 import '../../domain/cz_scan.dart';
+import '../cz_labels.dart';
 
 /// Прочитанный код ЧЗ, готовый лечь в приход: ответ скана, строки по товару и партии и
 /// групповые упаковки.
@@ -75,7 +77,8 @@ mixin CzIntakeScan<T extends StatefulWidget> on State<T> {
   }
 
   /// Можно ли брать код в приход: короб не принят на склад раньше (а уже отсканированный в
-  /// этом приходе открывается), марка не числится на складе.
+  /// этом приходе открывается), марки в WMS нет. Отказ по марке называет, где она лежит или
+  /// куда ушла (ADHOC-53): иначе кладовщику не найти её.
   bool _acceptable(CzScanResult scan) {
     switch (scan.kind) {
       case CzCodeKind.box:
@@ -85,14 +88,33 @@ mixin CzIntakeScan<T extends StatefulWidget> on State<T> {
         }
         if (openOwnCzBox(scan.code)) return false;
       case CzCodeKind.unit:
-        if (scan.mark?.inStock ?? false) {
-          snack(t.czScan.markOnStock);
+        final mark = scan.mark;
+        if (mark != null) {
+          snack(markTakenText(mark));
           return false;
         }
       case CzCodeKind.group:
         break;
     }
     return true;
+  }
+
+  /// Почему марку не принять: где она на складе (короб, ячейка) или что с ней стало.
+  String markTakenText(CzMarkInWms m) {
+    if (!m.inStock) {
+      return t.czScan.markWasOnStock(status: wmsMarkStatusLabel(m.status));
+    }
+    final place = [
+      if (m.loadUnitId != null)
+        t.czScan.markPlaceBox(
+          code: LoadUnitLabel(m.loadUnitId!).shortCodeFormatted,
+        ),
+      if (m.cellAddress != null)
+        t.czScan.markPlaceCell(address: m.cellAddress!)
+      else
+        t.czScan.markPlaceNone,
+    ].join(', ');
+    return t.czScan.markOnStockAt(place: place);
   }
 
   /// Товары справочника по GTIN скана. Известный — из справочника терминала; незнакомый —

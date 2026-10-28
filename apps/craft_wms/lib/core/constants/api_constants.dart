@@ -55,6 +55,13 @@ abstract final class ApiConst {
   ///**GET** - товар по штрихкоду (404, если ШК не привязан) · **DELETE** - отвязать ШК (204, P-FS-12): `barcodes/{code}`.
   static String barcodeByCode(String code) => 'barcodes/$code';
 
+  ///**GET** - сколько марок ЧЗ с этим ШК на складе (ADHOC-53): `barcodes/{code}/cz-stock`.
+  static String barcodeCzStock(String code) => 'barcodes/$code/cz-stock';
+
+  ///**POST** - перепривязать ШК к другому товару с пересортом марок (ADHOC-53; 409 — отказ
+  ///по существу): `barcodes/{code}/regrade`.
+  static String barcodeRegrade(String code) => 'barcodes/$code/regrade';
+
   ///**GET** - все ШК товара (секция «Штрихкоды» карточки, P-FS-12): `goods/{id}/barcodes`.
   static String goodBarcodes(String id) => 'goods/$id/barcodes';
 

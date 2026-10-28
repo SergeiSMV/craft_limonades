@@ -70,10 +70,23 @@ void main() {
       supplierId: 's1',
     ));
     expect(ok.isRight, isTrue);
-    expect(adapter.requests.single.data, {
+    expect(adapter.requests.first.data, {
       'decision': 'write_off',
       'doc_number': 'СП-1',
       'doc_date': '2026-10-21',
+    });
+
+    // Пересорт (ADHOC-53) уходит с документом пересортицы, как списание.
+    await repo.resolve('p1', (
+      decision: ProblemDecision.regrade,
+      docNumber: 'ПС-7',
+      docDate: '2026-10-28',
+      supplierId: 's1',
+    ));
+    expect(adapter.requests.last.data, {
+      'decision': 'regrade',
+      'doc_number': 'ПС-7',
+      'doc_date': '2026-10-28',
     });
 
     final refused = await repo.resolve('p2', (

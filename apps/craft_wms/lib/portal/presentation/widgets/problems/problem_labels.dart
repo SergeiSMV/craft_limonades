@@ -11,6 +11,7 @@ String reasonLabel(String reason) => switch (reason) {
   'foreign_mark' => t.portal.problems.reasonForeignMark,
   'retired' => t.portal.problems.reasonRetired,
   'not_found' => t.portal.problems.reasonNotFound,
+  'regrade' => t.portal.problems.reasonRegrade,
   'other' => t.portal.problems.reasonOther,
   _ => reason,
 };
@@ -20,6 +21,7 @@ String decisionLabel(String decision) => switch (decision) {
   ProblemDecision.writeOff => t.portal.problems.decisionWriteOff,
   ProblemDecision.place => t.portal.problems.decisionPlace,
   ProblemDecision.supplierReturn => t.portal.problems.decisionSupplierReturn,
+  ProblemDecision.regrade => t.portal.problems.decisionRegrade,
   _ => decision,
 };
 

@@ -41,6 +41,42 @@ PortalProblem _problem() => PortalProblem(
   marks: const [_cis],
 );
 
+/// Пересорт (ADHOC-53): без ячейки и складов, с прежним товаром и ШК, проведён документом.
+PortalProblem _regrade() => PortalProblem(
+  id: 'p2',
+  createdAt: DateTime.utc(2026, 10, 28, 9),
+  createdBy: 'Администратор',
+  cellAddress: '',
+  loadUnitId: '',
+  reason: 'regrade',
+  comment: 'Перепривязка GTIN 04600000000017',
+  mark: '',
+  fromWarehouse: '',
+  toWarehouse: '',
+  items: const [
+    PortalProblemItem(
+      goodCode: '00-2',
+      goodName: 'Правильный',
+      productionDate: '2026-10-14',
+      qty: 3,
+      cellAddress: 'С-1-1-1',
+    ),
+  ],
+  decisions: const [],
+  suggestedSupplierId: '',
+  resolved: true,
+  decision: ProblemDecision.regrade,
+  docNumber: 'ПС-7',
+  docDate: '2026-10-28',
+  supplierName: '',
+  returnTaskNumber: 0,
+  resolvedBy: 'Администратор',
+  resolvedAt: DateTime.utc(2026, 10, 28, 10),
+  marks: const [_cis],
+  fromGood: 'Ошибочный',
+  barcode: '4600000000017',
+);
+
 /// ADHOC-52: карточка проблемы — ячейка только в строке товара, подписанные склад и
 /// комментарий, марки ЧЗ с копированием.
 void main() {
@@ -89,5 +125,36 @@ void main() {
     await tester.pump();
     expect(copied, _cis);
     expect(find.text(t.portal.problems.markCopied), findsOneWidget);
+  });
+
+  testWidgets('пересорт: прежний товар, ШК, без складов, документ', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: ProblemCard(problem: _regrade(), busy: false),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text(t.portal.problems.reasonRegrade), findsOneWidget);
+    expect(
+      find.text(t.portal.problems.regradeFrom(name: 'Ошибочный')),
+      findsOneWidget,
+    );
+    expect(
+      find.text(t.portal.problems.regradeBarcode(barcode: '4600000000017')),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Склад WMS'), findsNothing);
+    expect(
+      find.text(
+        t.portal.problems.resolvedRegrade(number: 'ПС-7', date: '28.10.2026'),
+      ),
+      findsOneWidget,
+    );
   });
 }

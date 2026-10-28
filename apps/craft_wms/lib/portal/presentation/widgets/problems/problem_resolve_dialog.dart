@@ -113,6 +113,8 @@ class _ResolveDialogState extends State<_ResolveDialog> {
     final error = switch (decision) {
       null => t.portal.problems.needDecision,
       ProblemDecision.writeOff when number.isEmpty => t.portal.problems.needDoc,
+      ProblemDecision.regrade when number.isEmpty =>
+        t.portal.problems.needDocRegrade,
       ProblemDecision.supplierReturn when _supplierId.isEmpty =>
         t.portal.problems.needSupplier,
       _ => null,
@@ -200,10 +202,13 @@ class _ResolveDialogState extends State<_ResolveDialog> {
 
   /// Поля выбранного решения.
   List<Widget> _fields(TextStyle muted) => switch (_decision) {
-    ProblemDecision.writeOff => [
+    // Пересорт (ADHOC-53) проводится документом пересортицы 1С — те же поля, что у списания.
+    ProblemDecision.writeOff || ProblemDecision.regrade => [
       PortalTextField(
         controller: _docNumber,
-        hint: t.portal.problems.docNumber,
+        hint: _decision == ProblemDecision.regrade
+            ? t.portal.problems.docNumberRegrade
+            : t.portal.problems.docNumber,
         autofocus: true,
         onSubmitted: (_) => submit(),
       ),
