@@ -3,6 +3,7 @@ package repository_test
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 
@@ -119,6 +120,18 @@ func TestCZProblemResolve_byMarks(t *testing.T) {
 	}
 	if got := cf.markState(t, czLoose[2]); got != "in_stock "+cf.cellA+" "+cf.iwh {
 		t.Errorf("размещённая марка: %s", got)
+	}
+
+	// ADHOC-52: список офиса отдаёт марки проблемы и после решения — по алфавиту.
+	list, err := repository.NewProblemRepository(cf.pool).List(context.Background(), model.ProblemFilter{})
+	if err != nil {
+		t.Fatalf("список проблем: %v", err)
+	}
+	want := map[string][]string{spoiled: slices.Sorted(slices.Values(czLoose[:2])), other: {czLoose[2]}}
+	for _, p := range list {
+		if !slices.Equal(p.Marks, want[p.ID]) {
+			t.Errorf("марки проблемы %s: %v, ожидались %v", p.ID, p.Marks, want[p.ID])
+		}
 	}
 }
 

@@ -124,7 +124,41 @@ func (r *ProblemRepository) query(ctx context.Context, sql string, args ...any) 
 	if err := r.attachItems(ctx, out, index); err != nil {
 		return nil, err
 	}
+	if err := r.attachMarks(ctx, out, index); err != nil {
+		return nil, err
+	}
 	return out, nil
+}
+
+// attachMarks подкладывает проблемам их марки ЧЗ (ADHOC-52).
+//
+// Ссылка `cz_marks.problem_id` ставится при пометке и после решения не снимается, поэтому
+// марки видны и у решённой: офис сверяет с ЧЗ, что именно списали или вернули.
+func (r *ProblemRepository) attachMarks(ctx context.Context, problems []model.Problem, index map[string]int) error {
+	ids := make([]string, len(problems))
+	for i, p := range problems {
+		ids[i] = p.ID
+	}
+	rows, err := r.pool.Query(ctx, `
+		SELECT problem_id::text, cis FROM cz_marks
+		WHERE problem_id = ANY($1::uuid[])
+		ORDER BY problem_id, cis`, ids)
+	if err != nil {
+		return fmt.Errorf("марки проблем: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id, cis string
+		if err := rows.Scan(&id, &cis); err != nil {
+			return fmt.Errorf("разобрать марку проблемы: %w", err)
+		}
+		p := &problems[index[id]]
+		p.Marks = append(p.Marks, cis)
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("марки проблем: %w", err)
+	}
+	return nil
 }
 
 // attachItems подкладывает проблемам товар и подсказку поставщика.

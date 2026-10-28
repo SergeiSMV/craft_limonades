@@ -14,6 +14,7 @@ import '../../../data/problems_repository.dart';
 import '../common/neumorphic_plate.dart';
 import '../common/neumorphic_text_button.dart';
 import 'problem_labels.dart';
+import 'problem_marks.dart';
 import 'problem_photos.dart';
 
 /// Карточка проблемы склада (P6-07-3): что помечено и где, почему, кто и когда; у открытой —
@@ -59,18 +60,6 @@ class ProblemCard extends StatelessWidget {
                   runSpacing: AppSizes.kChipSpacing,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    Text(
-                      p.loadUnitId.isEmpty
-                          ? t.portal.problems.goods
-                          : t.portal.problems.box(code: p.loadUnitCode),
-                      style: SemiboldTextStyles().semiboldInter16.copyWith(
-                        color: AppColors.kTextMain,
-                      ),
-                    ),
-                    Text(
-                      t.portal.problems.cell(cell: p.cellAddress),
-                      style: muted,
-                    ),
                     _Pill(
                       label: reasonLabel(p.reason),
                       bg: AppColors.kBadgeInfoBg,
@@ -104,7 +93,12 @@ class ProblemCard extends StatelessWidget {
           AppBoxes.kHeight12,
           // Товар построчно: наименование, партия, количество, ячейка — как на ТСД.
           for (final it in p.items) ...[
-            Text(it.goodName, style: main),
+            Text(
+              it.goodName,
+              style: SemiboldTextStyles().semiboldInter14.copyWith(
+                color: AppColors.kTextMain,
+              ),
+            ),
             Text(
               t.portal.problems.itemBatch(date: isoToRu(it.productionDate)),
               style: muted,
@@ -116,6 +110,11 @@ class ProblemCard extends StatelessWidget {
             ),
             AppBoxes.kHeight8,
           ],
+          // Марки ЧЗ — с копированием: «не наша марка» офис проверяет по самой марке (ADHOC-52).
+          if (_marks(p).isNotEmpty) ...[
+            ProblemMarks(marks: _marks(p)),
+            AppBoxes.kHeight8,
+          ],
           Text(
             t.portal.problems.warehouses(
               from: p.fromWarehouse,
@@ -125,8 +124,6 @@ class ProblemCard extends StatelessWidget {
           ),
           if (p.comment.isNotEmpty)
             Text(t.portal.problems.comment(text: p.comment), style: muted),
-          if (p.mark.isNotEmpty)
-            Text(t.portal.problems.mark(mark: p.mark), style: muted),
           Text(
             t.portal.problems.reported(
               name: p.createdBy,
@@ -162,6 +159,13 @@ class ProblemCard extends StatelessWidget {
       ),
     );
   }
+
+  /// Марки проблемы: привязанные к ней (CZ-06), а без них — введённая текстом до CZ-06.
+  ///
+  /// Текстовое поле при привязанных не показываем: у короба ЧЗ из прихода там код короба,
+  /// а не марка.
+  List<String> _marks(PortalProblem p) =>
+      p.marks.isNotEmpty ? p.marks : [if (p.mark.isNotEmpty) p.mark];
 
   /// Принятое решение одной строкой: документ списания, размещение или задание возврата.
   String _decisionText(PortalProblem p) => switch (p.decision) {
