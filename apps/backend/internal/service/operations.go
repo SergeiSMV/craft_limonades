@@ -336,6 +336,10 @@ func isRejection(err error) bool {
 		return true
 	}
 	return errors.Is(err, repository.ErrBarcodeConflict) ||
+		// Привязки при марках ЧЗ на складе (ADHOC-53): отвязать ШК с марками, привязать ШК к
+		// товару, когда его марки числятся за другим, — нельзя, повтор этого не изменит.
+		errors.Is(err, repository.ErrBarcodeHasCZStock) ||
+		errors.Is(err, repository.ErrBarcodeMarksOtherGood) ||
 		errors.Is(err, repository.ErrGoodNotFound) ||
 		errors.Is(err, repository.ErrSessionNotFound) ||
 		errors.Is(err, repository.ErrSessionClosed) ||

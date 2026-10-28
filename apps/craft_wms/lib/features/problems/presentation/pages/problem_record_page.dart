@@ -67,13 +67,16 @@ class ProblemRecordPage extends StatelessWidget {
               _card([
                 _strong(subjectLabel(p)),
                 for (final line in subjectLines(p)) _text(line),
-                _text(t.problems.placeLine(place: p.cellAddress)),
-                _text(
-                  t.problems.warehousesLine(
-                    from: p.fromWarehouse,
-                    to: p.toWarehouse,
+                // У пересорта (ADHOC-53) ячейки и складов нет: он лежит, где лежал.
+                if (p.cellAddress.isNotEmpty)
+                  _text(t.problems.placeLine(place: p.cellAddress)),
+                if (p.fromWarehouse.isNotEmpty)
+                  _text(
+                    t.problems.warehousesLine(
+                      from: p.fromWarehouse,
+                      to: p.toWarehouse,
+                    ),
                   ),
-                ),
                 _text(t.problems.reasonLine(reason: reasonLabelOf(p.reason))),
                 if (p.comment.isNotEmpty)
                   _text(t.problems.commentLine(comment: p.comment)),

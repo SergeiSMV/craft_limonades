@@ -18,6 +18,9 @@ const (
 	// ProblemReasonNotFound — короб или марка не найдены пересчётом (P10-03). Заводит только
 	// программа при подсчёте ячейки, поэтому в ProblemReasons (выбор на ТСД) её нет.
 	ProblemReasonNotFound = "not_found"
+	// ProblemReasonRegrade — пересорт (ADHOC-53): ШК перепривязан к другому товару, и марки
+	// ЧЗ этого GTIN со склада перешли на него. Заводит только перепривязка ШК.
+	ProblemReasonRegrade = "regrade"
 )
 
 // ProblemReasons — все причины, в порядке показа.
@@ -47,6 +50,9 @@ const (
 	ProblemDecisionWriteOff       = "write_off"       // списать по документу 1С
 	ProblemDecisionPlace          = "place"           // разместить: вернуть в «Основной»
 	ProblemDecisionSupplierReturn = "supplier_return" // возврат поставщику через задание
+	// ProblemDecisionRegrade — провести пересорт документом пересортицы 1С (ADHOC-53): товар уже
+	// переведён перепривязкой, решение только связывает её с документом 1С.
+	ProblemDecisionRegrade = "regrade"
 )
 
 // Статусы проблемы.
@@ -67,6 +73,7 @@ var problemDecisions = map[string][]string{
 	ProblemReasonOther:   {ProblemDecisionWriteOff, ProblemDecisionPlace, ProblemDecisionSupplierReturn},
 	// Не найдено (P10-03): списать по документу 1С или «нашлось» — вернуть в «Основной».
 	ProblemReasonNotFound: {ProblemDecisionWriteOff, ProblemDecisionPlace},
+	ProblemReasonRegrade:  {ProblemDecisionRegrade},
 }
 
 // ProblemDecisionsFor — решения, допустимые при причине; неизвестная причина — пусто.
@@ -127,6 +134,10 @@ type Problem struct {
 	Reason        string
 	Comment       string
 	Mark          string
+	// Пересорт (ADHOC-53): товар, за которым марки числились до перепривязки, и перепривязанный
+	// ШК; у остальных причин пусто.
+	FromGoodName string
+	Barcode      string
 	// Marks — КИ марок ЧЗ, привязанных к проблеме (CZ-06), по алфавиту (ADHOC-52): офис видит
 	// и копирует марку — «не наша марка» без самой марки не проверить.
 	Marks         []string
@@ -156,4 +167,18 @@ type Problem struct {
 	// Photos — идентификаторы фото проблемы в порядке съёмки (ADHOC-45); сами снимки отдаются
 	// отдельным запросом, в список не кладутся.
 	Photos []string
+}
+
+// RegradeInput — перепривязка ШК к другому товару с пересортом марок ЧЗ (ADHOC-53).
+type RegradeInput struct {
+	Barcode string
+	GoodID  string // новый товар
+	UserID  string
+}
+
+// RegradeResult — итог перепривязки: проблема «Пересорт» и сколько марок перешло; марок на
+// складе не было — проблемы нет.
+type RegradeResult struct {
+	ProblemID string
+	Marks     int
 }

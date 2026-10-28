@@ -37,6 +37,7 @@ type czClient interface {
 // настоящим nil, а не nil-указателем внутри интерфейса.
 type CZMarks interface {
 	GoodByGTIN(ctx context.Context, gtin string) (model.CZGoodRef, error)
+	GoodRef(ctx context.Context, goodID string) (model.CZGoodRef, error)
 	MarkByCIS(ctx context.Context, cis string) (model.CZMark, error)
 	LoadUnitByCZCode(ctx context.Context, code string) (string, error)
 	SetGoodCZMarked(ctx context.Context, goodID string, marked bool) error

@@ -220,9 +220,11 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 				r.Get("/barcodes/{code}", barcodeH.GetByCode)      // товар по ШК или 404
 				r.Get("/goods/{id}/barcodes", barcodeH.ListByGood) // все ШК товара (P-FS-12)
 				// Привязки меняет склад — любое право ТСД (ADHOC-49).
-				r.With(need(model.RightsTSD)).Post("/barcodes", barcodeH.Bind)                       // привязать ШК к товару
-				r.With(need(model.RightsTSD)).Delete("/barcodes/{code}", barcodeH.Unbind)            // отвязать ошибочный ШК (P-FS-12)
-				r.With(need(model.RightsTSD)).Post("/goods/{id}/barcode", barcodeH.GenerateInternal) // внутренний EAN-13 товару без ШК (P4-07)
+				r.With(need(model.RightsTSD)).Post("/barcodes", barcodeH.Bind)                              // привязать ШК к товару
+				r.With(need(model.RightsTSD)).Delete("/barcodes/{code}", barcodeH.Unbind)                   // отвязать ошибочный ШК (P-FS-12)
+				r.With(need(model.RightsTSD)).Get("/barcodes/{code}/cz-stock", barcodeH.CZStock)            // марки ЧЗ ШК на складе (ADHOC-53)
+				r.With(need(model.RightTSDStockRegrade)).Post("/barcodes/{code}/regrade", barcodeH.Regrade) // перепривязка с пересортом (ADHOC-53)
+				r.With(need(model.RightsTSD)).Post("/goods/{id}/barcode", barcodeH.GenerateInternal)        // внутренний EAN-13 товару без ШК (P4-07)
 			})
 		}
 

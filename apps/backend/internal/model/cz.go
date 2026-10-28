@@ -181,6 +181,9 @@ type CZScan struct {
 	// BindBarcode — какой ШК привязать к товару, если GTIN незнаком: EAN-13 — GTIN-14 без
 	// ведущего нуля, чтобы и обычный скан ШК той же бутылки находил товар.
 	BindBarcode string
+	// UnboundBarcode — марка числится в WMS, а её ШК (EAN-13 из GTIN) ни к какому товару не
+	// привязан (ADHOC-53): товар тогда — из записи марки, ТСД предлагает вернуть привязку.
+	UnboundBarcode string
 
 	Mark       *CZMark // марка в WMS: место, статус, приход; nil — не числится
 	LoadUnitID string  // короб в WMS — это ГЕ; пусто — короб не принят

@@ -19,6 +19,7 @@ CzScanResult czScanFromJson(Map<String, dynamic> j) {
     parent: cz['parent'] as String?,
     good: _good(j['good']),
     bindBarcode: j['bind_barcode'] as String?,
+    unboundBarcode: j['unbound_barcode'] as String?,
     mark: _mark(j['mark']),
     loadUnitId: j['load_unit_id'] as String?,
     composition: [

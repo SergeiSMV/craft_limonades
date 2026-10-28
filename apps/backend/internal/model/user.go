@@ -49,6 +49,7 @@ const (
 	RightTSDStocktakeManage = "tsd.tasks.stocktake_manage"
 	RightTSDStockView       = "tsd.stock.view"
 	RightTSDStockCZMarked   = "tsd.stock.cz_marked" // признак «маркируемый (ЧЗ)»
+	RightTSDStockRegrade    = "tsd.stock.regrade"   // перепривязать ШК маркируемого товара (ADHOC-53)
 	RightTSDStockEntry      = "tsd.stock_entry"
 	RightTSDProblemsView    = "tsd.problems.view"
 	RightTSDProblemsMark    = "tsd.problems.mark"
@@ -73,7 +74,7 @@ var Rights = []string{
 	RightSettingsWarehouses, RightSettingsUsers,
 	RightTSDReceipt, RightTSDMovement,
 	RightTSDPutaway, RightTSDStocktakeCount, RightTSDStocktakeManage,
-	RightTSDStockView, RightTSDStockCZMarked, RightTSDStockEntry,
+	RightTSDStockView, RightTSDStockCZMarked, RightTSDStockRegrade, RightTSDStockEntry,
 	RightTSDProblemsView, RightTSDProblemsMark,
 }
 

@@ -26,6 +26,8 @@ type barcodeRepo interface {
 	Unbind(ctx context.Context, barcode string) error
 	InternalByGood(ctx context.Context, goodID string) (string, error)
 	CreateInternal(ctx context.Context, goodID string) (string, error)
+	CZStockOfBarcode(ctx context.Context, barcode string) (int, error)
+	Regrade(ctx context.Context, in model.RegradeInput) (model.RegradeResult, error)
 }
 
 // BarcodeService — резолв товара по ШК и привязка ШК к товару (ввод остатков P-FastStart).
@@ -128,4 +130,27 @@ func (s *BarcodeService) Unbind(ctx context.Context, barcode string) error {
 		return ErrEmptyBarcode
 	}
 	return s.repo.Unbind(ctx, barcode)
+}
+
+// CZStock — сколько марок ЧЗ с этим ШК на складе (ADHOC-53): ТСД спрашивает перед отвязкой ШК
+// маркируемого товара и, если марки есть, предлагает перепривязку.
+func (s *BarcodeService) CZStock(ctx context.Context, barcode string) (int, error) {
+	barcode = strings.TrimSpace(barcode)
+	if barcode == "" {
+		return 0, ErrEmptyBarcode
+	}
+	return s.repo.CZStockOfBarcode(ctx, barcode)
+}
+
+// Regrade — перепривязать ШК к другому товару с пересортом марок ЧЗ со склада (ADHOC-53).
+func (s *BarcodeService) Regrade(ctx context.Context, in model.RegradeInput) (model.RegradeResult, error) {
+	in.Barcode = strings.TrimSpace(in.Barcode)
+	in.GoodID = strings.TrimSpace(in.GoodID)
+	if in.Barcode == "" {
+		return model.RegradeResult{}, ErrEmptyBarcode
+	}
+	if !isUUID(in.GoodID) {
+		return model.RegradeResult{}, ErrEmptyGoodID
+	}
+	return s.repo.Regrade(ctx, in)
 }

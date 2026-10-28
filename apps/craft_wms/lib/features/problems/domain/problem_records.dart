@@ -19,6 +19,9 @@ abstract final class ProblemDecision {
 
   /// Возврат поставщику: товар на складе возврата и в задании на отгрузку.
   static const supplierReturn = 'supplier_return';
+
+  /// Пересорт проведён документом пересортицы 1С (ADHOC-53).
+  static const regrade = 'regrade';
 }
 
 /// Товар проблемы: у открытой — что помечено сейчас (состав короба или товар), у решённой —

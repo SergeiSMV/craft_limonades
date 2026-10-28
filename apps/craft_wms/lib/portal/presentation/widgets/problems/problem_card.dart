@@ -115,13 +115,22 @@ class ProblemCard extends StatelessWidget {
             ProblemMarks(marks: _marks(p)),
             AppBoxes.kHeight8,
           ],
-          Text(
-            t.portal.problems.warehouses(
-              from: p.fromWarehouse,
-              to: p.toWarehouse,
+          // Пересорт (ADHOC-53): с какого товара ушли марки и по какому ШК; складов у него нет.
+          if (p.fromGood.isNotEmpty)
+            Text(t.portal.problems.regradeFrom(name: p.fromGood), style: muted),
+          if (p.barcode.isNotEmpty)
+            Text(
+              t.portal.problems.regradeBarcode(barcode: p.barcode),
+              style: muted,
             ),
-            style: muted,
-          ),
+          if (p.fromWarehouse.isNotEmpty)
+            Text(
+              t.portal.problems.warehouses(
+                from: p.fromWarehouse,
+                to: p.toWarehouse,
+              ),
+              style: muted,
+            ),
           if (p.comment.isNotEmpty)
             Text(t.portal.problems.comment(text: p.comment), style: muted),
           Text(
@@ -167,9 +176,13 @@ class ProblemCard extends StatelessWidget {
   List<String> _marks(PortalProblem p) =>
       p.marks.isNotEmpty ? p.marks : [if (p.mark.isNotEmpty) p.mark];
 
-  /// Принятое решение одной строкой: документ списания, размещение или задание возврата.
+  /// Принятое решение одной строкой: документ списания или пересортицы, размещение или задание возврата.
   String _decisionText(PortalProblem p) => switch (p.decision) {
     ProblemDecision.writeOff => t.portal.problems.resolvedWriteOff(
+      number: p.docNumber,
+      date: isoToRu(p.docDate),
+    ),
+    ProblemDecision.regrade => t.portal.problems.resolvedRegrade(
       number: p.docNumber,
       date: isoToRu(p.docDate),
     ),

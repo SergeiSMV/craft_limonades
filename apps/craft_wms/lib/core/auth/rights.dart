@@ -36,6 +36,7 @@ abstract final class Rights {
   static const tsdStocktakeManage = 'tsd.tasks.stocktake_manage';
   static const tsdStockView = 'tsd.stock.view';
   static const tsdStockCzMarked = 'tsd.stock.cz_marked';
+  static const tsdStockRegrade = 'tsd.stock.regrade';
   static const tsdStockEntry = 'tsd.stock_entry';
   static const tsdProblemsView = 'tsd.problems.view';
   static const tsdProblemsMark = 'tsd.problems.mark';
@@ -157,6 +158,7 @@ List<RightNode> rightsTree() {
           children: [
             RightNode(r.tsdStockView, code: Rights.tsdStockView),
             RightNode(r.tsdStockCz, code: Rights.tsdStockCzMarked),
+            RightNode(r.tsdStockRegrade, code: Rights.tsdStockRegrade),
           ],
         ),
         RightNode(r.tsdStockEntry, code: Rights.tsdStockEntry),
