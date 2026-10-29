@@ -18,6 +18,8 @@ set -euo pipefail
 STAND_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$STAND_DIR/../.." && pwd)"
 COMPOSE_FILE="$STAND_DIR/docker-compose.stand.yml"
+CZ_COMPOSE_FILE="$STAND_DIR/docker-compose.stand.cz.yml"
+CZ_DIR="$STAND_DIR/cz"
 ENV_FILE="$STAND_DIR/stand.env"
 SNAP_DIR="$STAND_DIR/snapshots"
 APP_DIR="$REPO_ROOT/apps/craft_wms"
@@ -50,10 +52,35 @@ load_env() {
   fi
   : "${STAND_HTTP_PORT:=8090}" "${STAND_DB_PORT:=5433}" "${STAND_KEEP_SNAPSHOTS:=5}"
   : "${STAND_PROD_PROJECT:=craft-wms}"
+  # Честный знак (ADHOC-54): по умолчанию выключен; туннель — тем же сервером, что снимок.
+  : "${STAND_CZ:=off}"
+  if [[ -z "${STAND_CZ_SSH:-}" && -n "${STAND_PROD_SSH:-}" ]]; then
+    STAND_CZ_SSH="cz-tunnel@${STAND_PROD_SSH#*@}"
+  fi
+  export STAND_CZ_SSH
 }
 
-# compose ... — docker compose стенда.
-compose() { docker compose -f "$COMPOSE_FILE" "$@"; }
+# set_stand_env КЛЮЧ ЗНАЧЕНИЕ — записать настройку в stand.env (заменить или дописать).
+# Значения — on/off, цифры ИНН, user@host: разделитель | в sed им не мешает.
+set_stand_env() {
+  if grep -q "^$1=" "$ENV_FILE"; then
+    sed -i.bak "s|^$1=.*|$1=$2|" "$ENV_FILE" && rm -f "$ENV_FILE.bak"
+  else
+    printf '%s=%s\n' "$1" "$2" >> "$ENV_FILE"
+  fi
+  export "$1=$2"
+}
+
+cz_enabled() { [[ "$STAND_CZ" == "on" ]]; }
+
+# compose ... — docker compose стенда; с ЧЗ — вместе с туннелем к подписанту (ADHOC-54).
+compose() {
+  if cz_enabled; then
+    docker compose -f "$COMPOSE_FILE" -f "$CZ_COMPOSE_FILE" "$@"
+  else
+    docker compose -f "$COMPOSE_FILE" "$@"
+  fi
+}
 
 # require_docker — Docker доступен; нет — поднять Colima сам. На этой машине Docker живёт в
 # Colima, и её штатно гасят после работы (`colima stop`) — стенд не должен падать из-за этого.
@@ -188,7 +215,11 @@ start_services() {
   if [[ ! -f "$APP_DIR/build/web/index.html" ]]; then
     warn "бандл портала не собран — на корне будет 404. Собрать: stand.sh portal"
   fi
-  compose up -d --wait backend nginx
+  # --remove-orphans: после STAND_CZ=off туннель прежнего запуска не остаётся висеть.
+  if ! compose up -d --wait --remove-orphans backend nginx; then
+    cz_enabled && die "стенд не поднялся — с ЧЗ чаще всего не открылся туннель к подписанту: stand.sh logs cz-tunnel (выключить ЧЗ — STAND_CZ=off в stand.env)."
+    die "стенд не поднялся: stand.sh logs backend"
+  fi
   cmd_status
 }
 
@@ -249,6 +280,123 @@ cmd_apk() {
     --dart-define=BASE_URL="http://$ip:$STAND_HTTP_PORT/api/v1/" --dart-define=STAND=true)
   log "APK: $APP_DIR/build/app/outputs/flutter-apk/app-release.apk"
   log "Приложение «КЛ: Склад · СТЕНД» ставится рядом с боевым, боевое не трогает."
+}
+
+# ───────────── Честный знак на стенде (ADHOC-54) ─────────────
+#
+# Подписант с КриптоПро и ключом — только на боевом сервере. Стенд ходит к нему SSH-туннелем
+# от пользователя cz-tunnel, которому сервер разрешает лишь проброс сокета подписанта
+# (deploy/stand-cz-access.sh). Ключ туннеля — свой, в deploy/test_stand/cz/ (вне git).
+
+# cz-setup — один раз: ключ туннеля, доступ на сервере (sudo — пароль спросит сервер), ИНН,
+# STAND_CZ=on, перезапуск стенда и проверка.
+cmd_cz_setup() {
+  [[ -n "${STAND_PROD_SSH:-}" ]] || die "STAND_PROD_SSH не задан в $ENV_FILE."
+  local host="${STAND_PROD_SSH#*@}"
+  ( umask 077; mkdir -p "$CZ_DIR" )
+  if [[ ! -f "$CZ_DIR/tunnel_key" ]]; then
+    ssh-keygen -q -t ed25519 -N '' -C craft-stand-cz-tunnel -f "$CZ_DIR/tunnel_key"
+    log "Создан ключ туннеля $CZ_DIR/tunnel_key."
+  fi
+  # Ключ хоста — тот, что эта машина уже подтвердила (stand.sh pull ходит туда же): туннель
+  # с чужим ключом хоста не поднимется.
+  local known
+  known="$(ssh-keygen -F "$host" 2>/dev/null | grep -v '^#' || true)"
+  [[ -n "$known" ]] || die "ключа хоста $host нет в ~/.ssh/known_hosts — сначала зайдите туда по SSH (или stand.sh pull)."
+  printf '%s\n' "$known" > "$CZ_DIR/known_hosts"
+
+  log "Даю стенду доступ к подписанту на $host (sudo на сервере спросит пароль)…"
+  scp -q "$REPO_ROOT/deploy/stand-cz-access.sh" "$STAND_PROD_SSH:/tmp/stand-cz-access.sh" \
+    || die "не удалось скопировать скрипт на $STAND_PROD_SSH."
+  ssh -t "$STAND_PROD_SSH" \
+    "sudo bash /tmp/stand-cz-access.sh '$(cat "$CZ_DIR/tunnel_key.pub")'; rc=\$?; rm -f /tmp/stand-cz-access.sh; exit \$rc" \
+    || die "сервер не выдал доступ (сообщение — выше)."
+
+  if [[ -z "${STAND_CZ_OWNER_INN:-}" ]]; then
+    local inn
+    read -rp "  ИНН организации в Честном знаке — как CZ_OWNER_INN на проде (Enter — не сверять владельца): " inn
+    [[ -z "$inn" || "$inn" =~ ^([0-9]{10}|[0-9]{12})$ ]] || die "ИНН — 10 или 12 цифр."
+    set_stand_env STAND_CZ_OWNER_INN "$inn"
+  fi
+  set_stand_env STAND_CZ on
+  log "ЧЗ на стенде включён (STAND_CZ=on). Поднимаю стенд…"
+  require_docker
+  cmd_up
+  cmd_cz_test
+}
+
+# ensure_check_admin — проверочный администратор стенда (STAND_CHECK_*, ADHOC-50) есть в базе.
+# После reset/refresh база — чистый снимок прода, и его там нет: заводим тем же сидером, что
+# прод (идемпотентно: есть — пропускает; склад и ячейка приёмки в снимке уже есть).
+ensure_check_admin() {
+  [[ -n "${STAND_CHECK_USERNAME:-}" && -n "${STAND_CHECK_PASSWORD:-}" && -n "${STAND_CHECK_BADGE:-}" ]] \
+    || die "STAND_CHECK_USERNAME/STAND_CHECK_PASSWORD/STAND_CHECK_BADGE не заданы в $ENV_FILE."
+  compose run --rm --no-deps --entrypoint /usr/local/bin/seed \
+    -e ADMIN_BADGE="$STAND_CHECK_BADGE" -e ADMIN_USERNAME="$STAND_CHECK_USERNAME" \
+    -e ADMIN_PASSWORD="$STAND_CHECK_PASSWORD" -e ADMIN_FULL_NAME="Проверка стенда" \
+    backend >/dev/null 2>&1 || die "проверочный администратор не заведён (stand.sh logs backend)."
+}
+
+# stand_api ПУТЬ [ТЕЛО] — admin-ручка ЧЗ бэкенда стенда от проверочного администратора:
+# тело ответа — в $CZ_OUT, код — в $CZ_HTTP. Вход один на запуск (лимит входов).
+CZ_OUT=""
+CZ_HTTP=000
+CZ_TOKEN=""
+stand_api() {
+  local base="http://localhost:$STAND_HTTP_PORT/api/v1"
+  if [[ -z "$CZ_TOKEN" ]]; then
+    [[ -n "${STAND_CHECK_USERNAME:-}" && -n "${STAND_CHECK_PASSWORD:-}" ]] \
+      || die "STAND_CHECK_USERNAME/STAND_CHECK_PASSWORD не заданы в $ENV_FILE."
+    CZ_TOKEN="$(jq -n --arg u "$STAND_CHECK_USERNAME" --arg p "$STAND_CHECK_PASSWORD" '{username:$u,password:$p}' \
+      | curl -fsS -m 10 -H 'Content-Type: application/json' --data-binary @- "$base/auth/login/password" \
+      | jq -r '.access // empty')" || true
+    [[ -n "$CZ_TOKEN" ]] || die "вход $STAND_CHECK_USERNAME на стенд не удался (или лимит входов — подождите минуту)."
+  fi
+  if [[ -n "${2:-}" ]]; then
+    CZ_HTTP="$(printf '%s' "$2" | curl -sS -m 60 -o "$CZ_OUT" -w '%{http_code}' \
+      -H "Authorization: Bearer $CZ_TOKEN" -H 'Content-Type: application/json' --data-binary @- \
+      "$base/admin/cz/$1")" || CZ_HTTP=000
+  else
+    CZ_HTTP="$(curl -sS -m 60 -o "$CZ_OUT" -w '%{http_code}' \
+      -H "Authorization: Bearer $CZ_TOKEN" "$base/admin/cz/$1")" || CZ_HTTP=000
+  fi
+}
+
+# cz-test — проверка по звеньям, как пункт 19 на проде: туннель → подписант → токен True API
+# в бэкенде стенда → по желанию чтение марки.
+cmd_cz_test() {
+  cz_enabled || die "ЧЗ на стенде выключен — сначала: stand.sh cz-setup"
+  command -v jq >/dev/null 2>&1 || die "нет jq."
+  CZ_OUT="$(mktemp)"
+  trap 'rm -f "$CZ_OUT"' EXIT
+  compose exec -T cz-tunnel test -S /run/cz-signer/sign.sock \
+    || die "туннель не держит сокет подписанта: stand.sh logs cz-tunnel"
+  log "✅ Туннель к подписанту открыт."
+  ensure_check_admin
+
+  log "Жду токен True API в бэкенде стенда…"
+  local valid=false
+  for _ in $(seq 1 30); do
+    stand_api status
+    [[ "$CZ_HTTP" == "200" ]] || die "status: HTTP $CZ_HTTP — у $STAND_CHECK_USERNAME нет должности «Администратор»?"
+    [[ "$(jq -r '.configured' "$CZ_OUT")" == "true" ]] \
+      || die "бэкенд стенда без сокета подписанта — пересоздайте: stand.sh up"
+    [[ "$(jq -r '.signer_ok' "$CZ_OUT")" == "true" ]] \
+      || die "подписант через туннель не отвечает: $(jq -r '.signer_error' "$CZ_OUT") (stand.sh logs cz-tunnel)"
+    valid="$(jq -r '.token_valid' "$CZ_OUT")"
+    [[ "$valid" == "true" ]] && break
+    sleep 3
+  done
+  [[ "$valid" == "true" ]] || die "токена пока нет — причина в журнале: stand.sh logs backend | grep 'true api'"
+  log "✅ Токен получен, действует до $(jq -r '.token_expires_at' "$CZ_OUT") (UTC)."
+
+  local code
+  read -rp "  КИ марки для пробного чтения (часть до GS; Enter — пропустить): " code
+  [[ -n "$code" ]] || return 0
+  stand_api info "$(jq -n --arg c "$code" '{codes: [$c]}')"
+  [[ "$CZ_HTTP" == "200" ]] || die "чтение марки: HTTP $CZ_HTTP — $(jq -r '.error // .' "$CZ_OUT" 2>/dev/null || cat "$CZ_OUT")"
+  jq -r '.items[] | "  код: \(.requested_cis)\n  \(.product_name // "—")\n  статус: \(.status // "—") · владелец: \(.owner_inn // "—")\(if .error_message then "\n  отказ ЧЗ: " + .error_message else "" end)"' "$CZ_OUT"
+  log "✅ Марка прочитана через True API со стенда."
 }
 
 # down — остановить стенд, база сохраняется.
@@ -342,6 +490,10 @@ cmd_help() {
   destroy [--keep-snapshots] [--yes]
                  удалить всё: стенд, базу, образ бэкенда и снимки (с подтверждением)
 
+Честный знак (подписант на проде, к нему — SSH-туннель; STAND_CZ в stand.env):
+  cz-setup       один раз: ключ туннеля, доступ на сервере (sudo), ИНН, включить и проверить
+  cz-test        проверка: туннель → подписант → токен True API → чтение марки
+
 Порты — в deploy/test_stand/stand.env (по умолчанию портал 8090, база 5433).
 EOF
 }
@@ -367,6 +519,8 @@ main() {
     psql)      require_docker; cmd_psql "$@" ;;
     down)      require_docker; cmd_down ;;
     destroy)   require_docker; cmd_destroy "$@" ;;
+    cz-setup)  cmd_cz_setup ;;
+    cz-test)   require_docker; cmd_cz_test ;;
     *)         cmd_help; die "неизвестная команда: $cmd" ;;
   esac
 }
