@@ -16,6 +16,7 @@ PortalProblem problem(
   bool resolved = false,
 }) => PortalProblem(
   id: id,
+  number: 9,
   createdAt: DateTime.utc(2026, 10, 21, 8),
   createdBy: 'Иванов',
   cellAddress: 'A-1',

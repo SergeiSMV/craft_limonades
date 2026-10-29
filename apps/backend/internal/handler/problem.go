@@ -37,6 +37,7 @@ type problemItemResponse struct {
 
 type problemResponse struct {
 	ID          string    `json:"id"`
+	Number      int64     `json:"number"` // номер для людей (ADHOC-55), префикс — у показа
 	CreatedAt   time.Time `json:"created_at"`
 	CreatedBy   string    `json:"created_by"`
 	CellAddress string    `json:"cell_address"`
@@ -78,7 +79,7 @@ func toProblemResponse(p model.Problem) problemResponse {
 		items = append(items, problemItemResponse(it))
 	}
 	return problemResponse{
-		ID: p.ID, CreatedAt: p.CreatedAt, CreatedBy: p.CreatedByName, CellAddress: p.CellAddress,
+		ID: p.ID, Number: p.Number, CreatedAt: p.CreatedAt, CreatedBy: p.CreatedByName, CellAddress: p.CellAddress,
 		LoadUnitID: p.LoadUnitID, Reason: p.Reason, Comment: p.Comment, Mark: p.Mark,
 		Marks:         orEmpty(p.Marks),
 		FromWarehouse: p.FromWarehouse, ToWarehouse: p.ToWarehouse, FromGood: p.FromGoodName,

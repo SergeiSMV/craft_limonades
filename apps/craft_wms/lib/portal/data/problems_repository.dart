@@ -58,6 +58,7 @@ class PortalProblemItem {
 class PortalProblem {
   const PortalProblem({
     required this.id,
+    required this.number,
     required this.createdAt,
     required this.createdBy,
     required this.cellAddress,
@@ -86,6 +87,7 @@ class PortalProblem {
 
   factory PortalProblem.fromJson(Map<String, dynamic> j) => PortalProblem(
     id: j['id'] as String,
+    number: (j['number'] as num?)?.toInt() ?? 0,
     createdAt: DateTime.parse(j['created_at'] as String),
     createdBy: j['created_by'] as String? ?? '',
     cellAddress: j['cell_address'] as String? ?? '',
@@ -124,6 +126,9 @@ class PortalProblem {
   );
 
   final String id;
+
+  /// Номер проблемы (ADHOC-55); показ — `docNumber` с префиксом «ПБ».
+  final int number;
   final DateTime createdAt;
 
   /// Кто зафиксировал на ТСД.

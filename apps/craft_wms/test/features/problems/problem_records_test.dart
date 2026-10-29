@@ -67,6 +67,8 @@ void main() {
     final p = problemRecordFromJson(raw.single as Map<String, dynamic>);
 
     expect(p.id, '7e000000-0000-4000-8000-000000000001');
+    expect(p.number, 1);
+    expect(numberLabel(p), t.problems.numberLine(number: 'ПБ-000001'));
     expect(
       (p.cellAddress, p.loadUnitId, p.reason),
       ('M1-1-1-1', null, 'breakage'),
@@ -254,6 +256,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text(t.problems.outcomeAwaiting), findsOneWidget);
     expect(find.text('Кальмар'), findsOneWidget);
+    // Без номера — своя неотправленная: номер выдаёт сервер (ADHOC-55).
+    expect(find.text(t.problems.numberPending), findsOneWidget);
     expect(find.text(t.problems.placeLine(place: 'M1-1-1-1')), findsOneWidget);
 
     online = false;

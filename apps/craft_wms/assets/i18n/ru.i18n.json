@@ -425,11 +425,12 @@
       "search": "Поиск по заданию, поставщику или накладной…"
     },
     "problems": {
+      "number": "Проблема ${number}",
       "photos": "Фото",
       "photo_failed": "Фото не загрузилось",
       "description": "Брак, просрок, не наша марка — что склад пометил на ТСД. Выберите решение и проведите: списать по документу 1С, разместить в «Основной» или вернуть поставщику.",
       "empty": "Проблем нет",
-      "search": "Поиск по товару, ячейке, коробу или комментарию…",
+      "search": "Поиск по номеру, товару, ячейке, коробу или комментарию…",
       "filter_open": "Открытые",
       "filter_resolved": "Решённые",
       "filter_all": "Все",
@@ -918,8 +919,13 @@
     "outcome_fix": "Исправить",
     "fix_reason": "Сервер отклонил перемещение. Уберите или поправьте строки и завершите снова.\n${reason}"
   },
+  "doc_number": {
+    "prefix_problem": "ПБ"
+  },
   "problems": {
     "title": "Проблемы склада",
+    "number_line": "Проблема ${number}",
+    "number_pending": "Номер присвоится после отправки",
     "photos": "Фото: ${count} из ${max}",
     "take_photo": "Сфотографировать",
     "photo_pending": "Ждёт отправки",
@@ -1009,6 +1015,7 @@
     "status_done": "выполнено",
     "from_receipt": "Приёмка: ${supplier}",
     "from_receipt_no_supplier": "Приёмка без поставщика",
+    "from_problem": "Проблема ${number}",
     "open_items": "осталось позиций: ${count}",
     "empty_current": "Заданий нет",
     "empty_completed": "Завершённых заданий нет",
@@ -1033,6 +1040,7 @@
     "basis_receipt_no_supplier": "Основание: приёмка от ${date}",
     "basis_doc": "Основание: документ № ${number} от ${date} ${supplier}",
     "basis_doc_no_supplier": "Основание: документ № ${number} от ${date}",
+    "basis_problem": "Основание: проблема ${number}",
     "created_line": "Создано: ${created}",
     "author": "Автор: ${name}",
     "author_auto": "автоматически",

@@ -51,6 +51,7 @@ class ProblemRecordItem {
 class ProblemRecord {
   const ProblemRecord({
     required this.id,
+    this.number,
     required this.createdAt,
     required this.createdBy,
     required this.cellAddress,
@@ -75,6 +76,9 @@ class ProblemRecord {
   });
 
   final String id;
+
+  /// Номер проблемы (ADHOC-55); `null` у своей неотправленной — номер выдаёт сервер.
+  final int? number;
   final DateTime createdAt;
 
   /// Кто зафиксировал; пусто у своей неотправленной — её зафиксировали на этом терминале.

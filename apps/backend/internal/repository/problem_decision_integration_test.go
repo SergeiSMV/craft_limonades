@@ -3,6 +3,7 @@ package repository_test
 import (
 	"context"
 	"errors"
+	"strconv"
 	"testing"
 	"time"
 
@@ -104,6 +105,73 @@ func TestProblemResolve_placeBoxAndNotAllowed(t *testing.T) {
 	breakage := mf.openProblem(t, mf.iwhByCode(t, "DEFECT"), model.ProblemReasonBreakage, mf.goodsProblem(1, mf.cellA, ""))
 	if err := mf.resolve(breakage, model.ResolveProblemInput{Decision: model.ProblemDecisionPlace}); !errors.Is(err, repository.ErrDecisionNotAllowed) {
 		t.Errorf("бой — разместить: %v", err)
+	}
+}
+
+// «Разместить» товар, лежащий в ячейке приёмки (ADHOC-55): метка снимается, а вынести его
+// заводится задание на размещение с проблемой-основанием. ТСД видит номер проблемы, сеанс
+// размещения по заданию переносит товар в ячейку хранения. Товар в ячейке хранения задания
+// не требует.
+func TestProblemResolve_placeInReceivingCellOpensPutaway(t *testing.T) {
+	mf := setupMove(t)
+	ctx := context.Background()
+	iso := mf.iwhByCode(t, "ISOLATOR")
+	mf.receive(t, nil, 5) // A: россыпь 5
+	if _, err := mf.move(t, uuid.NewString(), mf.goodsLine(1, mf.cellA, "", mf.cellC, "")); err != nil {
+		t.Fatalf("перенос в C: %v", err)
+	}
+	inReceiving := mf.openProblem(t, iso, model.ProblemReasonForeignMark, mf.goodsProblem(3, mf.cellA, ""))
+	inStorage := mf.openProblem(t, iso, model.ProblemReasonForeignMark, mf.goodsProblem(1, mf.cellC, ""))
+	// Ячейкой приёмки становится A — так лежит товар, изолированный проводкой приёмки.
+	mf.setReceiving(t, mf.cellA)
+
+	// Номер проблемы — по порядку заведения, и он же в списке проблем.
+	open, err := repository.NewProblemRepository(mf.pool).Current(ctx)
+	mustNoErr(t, err)
+	numbers := map[string]int64{}
+	for _, p := range open {
+		numbers[p.ID] = p.Number
+	}
+	if numbers[inReceiving] == 0 || numbers[inStorage] != numbers[inReceiving]+1 {
+		t.Errorf("номера проблем: %v", numbers)
+	}
+
+	mustNoErr(t, mf.resolve(inStorage, model.ResolveProblemInput{Decision: model.ProblemDecisionPlace}))
+	var tasks string
+	mustScan(t, mf.pool, `SELECT count(*)::text FROM warehouse_tasks WHERE problem_id IS NOT NULL`, &tasks)
+	if tasks != "0" {
+		t.Fatalf("товар не в ячейке приёмки — заданий %s, ожидалось 0", tasks)
+	}
+
+	mustNoErr(t, mf.resolve(inReceiving, model.ResolveProblemInput{Decision: model.ProblemDecisionPlace}))
+	var task, item string
+	mustScan(t, mf.pool, `SELECT id::text FROM warehouse_tasks
+		WHERE problem_id = $1::uuid AND kind = 'putaway' AND status = 'new'`, &task, inReceiving)
+	mustScan(t, mf.pool, `SELECT good_id::text || ' ' || qty::text FROM putaway_task_items
+		WHERE task_id = $1::uuid`, &item, task)
+	if item != mf.good+" 3.000" {
+		t.Errorf("позиция задания: %q", item)
+	}
+
+	current, err := repository.NewTaskRepository(mf.pool).ByID(ctx, task, mf.user)
+	mustNoErr(t, err)
+	var number string
+	mustScan(t, mf.pool, `SELECT number::text FROM warehouse_problems WHERE id = $1::uuid`, &number, inReceiving)
+	if current.Problem == nil || current.Problem.ID != inReceiving ||
+		strconv.FormatInt(current.Problem.Number, 10) != number || current.ReceiptID != nil {
+		t.Errorf("основание задания: проблема %+v, приёмка %v", current.Problem, current.ReceiptID)
+	}
+
+	if _, err := mf.submit(t, task, uuid.NewString(), looseTo(mf.good, 3, mf.cellB)); err != nil {
+		t.Fatalf("размещение по заданию проблемы: %v", err)
+	}
+	if b, a := mf.qtyIn(t, mf.cellB, mf.iwh), mf.qtyIn(t, mf.cellA, mf.iwh); b != "3" || a != "1" {
+		t.Errorf("B %s, A %s основного; ожидалось 3 и 1", b, a)
+	}
+	var status string
+	mustScan(t, mf.pool, `SELECT status FROM warehouse_tasks WHERE id = $1::uuid`, &status, task)
+	if status != "done" {
+		t.Errorf("задание: %s, ожидалось done", status)
 	}
 }
 

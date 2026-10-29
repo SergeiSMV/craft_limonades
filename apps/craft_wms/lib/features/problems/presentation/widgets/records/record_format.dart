@@ -1,6 +1,7 @@
 import '../../../../../core/gen/strings.g.dart';
 import '../../../../../core/utils/date_input.dart';
 import '../../../../../core/utils/date_time_format.dart';
+import '../../../../../core/utils/doc_number.dart';
 import '../../../../../core/utils/qty_format.dart';
 import '../../../../movement/presentation/widgets/move_format.dart';
 import '../../../domain/problem_models.dart';
@@ -76,6 +77,12 @@ String? executedMeta(ProblemRecord p) {
     time: fullDateTime(p.resolvedAtTime),
   );
 }
+
+/// Номер проблемы: «Проблема ПБ-000009»; своя неотправленная номера ещё не имеет (ADHOC-55).
+String numberLabel(ProblemRecord p) => switch (p.number) {
+  final n? => t.problems.numberLine(number: docNumber(DocKind.problem, n)),
+  null => t.problems.numberPending,
+};
 
 /// Причина по значению сервера; незнакомая — как есть.
 String reasonLabelOf(String wire) {

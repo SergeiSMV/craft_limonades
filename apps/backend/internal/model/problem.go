@@ -126,7 +126,9 @@ type ProblemItem struct {
 
 // Problem — проблема склада в рабочем списке офиса (P6-07-3).
 type Problem struct {
-	ID            string
+	ID string
+	// Number — номер проблемы для людей (ADHOC-55): счётчик вида, показ — с префиксом «ПБ».
+	Number        int64
 	CreatedAt     time.Time
 	CreatedByName string
 	CellAddress   string

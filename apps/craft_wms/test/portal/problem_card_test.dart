@@ -10,6 +10,7 @@ const _cis = '0104660326900093215abcdefghijkl';
 /// «Не наша марка» товаром с привязанной маркой и старой текстовой.
 PortalProblem _problem() => PortalProblem(
   id: 'p1',
+  number: 9,
   createdAt: DateTime.utc(2026, 10, 28, 7, 14),
   createdBy: 'Администратор',
   cellAddress: 'С-1-1-1',
@@ -44,6 +45,7 @@ PortalProblem _problem() => PortalProblem(
 /// Пересорт (ADHOC-53): без ячейки и складов, с прежним товаром и ШК, проведён документом.
 PortalProblem _regrade() => PortalProblem(
   id: 'p2',
+  number: 9,
   createdAt: DateTime.utc(2026, 10, 28, 9),
   createdBy: 'Администратор',
   cellAddress: '',
@@ -103,6 +105,10 @@ void main() {
       ),
     );
 
+    expect(
+      find.text(t.portal.problems.number(number: 'ПБ-000009')),
+      findsOneWidget,
+    );
     expect(find.text('Ячейка С-1-1-1'), findsNothing);
     expect(
       find.text(t.portal.problems.itemCell(cell: 'С-1-1-1')),

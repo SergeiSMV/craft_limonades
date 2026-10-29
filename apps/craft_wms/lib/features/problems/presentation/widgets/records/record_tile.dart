@@ -69,6 +69,7 @@ class ProblemRecordTile extends StatelessWidget {
                       color: AppColors.kSidebarHover,
                     ),
                   ),
+                  Text(numberLabel(problem), style: muted),
                   Text(
                     subjectLabel(problem),
                     style: RegularTextStyles().regularInter14.copyWith(

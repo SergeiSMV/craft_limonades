@@ -190,6 +190,7 @@ ProblemRecord problemRecordFromJson(Map<String, dynamic> j) {
   final task = j['return_task_number'] as int?;
   return ProblemRecord(
     id: j['id'] as String,
+    number: (j['number'] as num?)?.toInt(),
     createdAt: DateTime.parse(j['created_at'] as String),
     createdBy: j['created_by'] as String? ?? '',
     cellAddress: j['cell_address'] as String? ?? '',

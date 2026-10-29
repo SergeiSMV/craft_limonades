@@ -46,4 +46,24 @@ void main() {
       t.tasks.basisReceipt(date: '05.10.2026', supplier: 'ИП Березин'),
     );
   });
+
+  test('по решению «разместить» — номер проблемы склада (ADHOC-55)', () {
+    final json = {
+      'id': 't2',
+      'number': 8,
+      'kind': TaskKind.putaway,
+      'status': TaskStatus.fresh,
+      'warehouse_id': 'w1',
+      'receipt_id': null,
+      'supplier': '',
+      'problem': {'id': 'p1', 'number': 9},
+      'created_at': '2026-10-29T10:00:00Z',
+    };
+    final fromProblem = WarehouseTask.fromJson(json);
+    expect(taskBasis(fromProblem), t.tasks.basisProblem(number: 'ПБ-000009'));
+    expect(
+      supplierBasis('', problem: fromProblem.problem),
+      t.tasks.fromProblem(number: 'ПБ-000009'),
+    );
+  });
 }

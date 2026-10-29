@@ -46,7 +46,7 @@ func NewProblemRepository(pool *pgxpool.Pool) *ProblemRepository {
 
 // problemSelect — поля проблемы для списков; порядок совпадает со сканом в [scanProblems].
 const problemSelect = `
-		SELECT p.id::text, p.created_at, COALESCE(cu.full_name, ''), COALESCE(c.address, ''),
+		SELECT p.id::text, p.number, p.created_at, COALESCE(cu.full_name, ''), COALESCE(c.address, ''),
 		       COALESCE(p.load_unit_id::text, ''), p.reason, p.comment, COALESCE(p.mark, ''),
 		       COALESCE(fw.name, ''), COALESCE(tw.name, ''), COALESCE(fg.name, ''),
 		       COALESCE(p.barcode, ''), p.status, COALESCE(p.decision, ''), COALESCE(p.doc_number, ''),
@@ -110,7 +110,7 @@ func (r *ProblemRepository) query(ctx context.Context, sql string, args ...any) 
 	index := map[string]int{}
 	for rows.Next() {
 		var p model.Problem
-		if err := rows.Scan(&p.ID, &p.CreatedAt, &p.CreatedByName, &p.CellAddress, &p.LoadUnitID,
+		if err := rows.Scan(&p.ID, &p.Number, &p.CreatedAt, &p.CreatedByName, &p.CellAddress, &p.LoadUnitID,
 			&p.Reason, &p.Comment, &p.Mark, &p.FromWarehouse, &p.ToWarehouse, &p.FromGoodName,
 			&p.Barcode, &p.Status, &p.Decision,
 			&p.DocNumber, &p.DocDate, &p.SupplierID, &p.SupplierName, &p.ReturnTaskNo,
@@ -244,7 +244,8 @@ type problemLine struct {
 //
 // Что: находит товар проблемы там, где он лежит сейчас, и по решению списывает его («списать»),
 //
-//	возвращает в «Основной» («разместить») или переводит на склад возврата и кладёт проблему
+//	возвращает в «Основной» («разместить», товар в ячейке приёмки — с заданием на размещение,
+//	ADHOC-55) или переводит на склад возврата и кладёт проблему
 //	в открытое задание возврата поставщика («возврат»). Взятое пишется строками решения.
 //
 // Зачем одной транзакцией: решение, движение остатка и задание — один факт; решённая проблема
@@ -286,6 +287,10 @@ func (r *ProblemRepository) Resolve(ctx context.Context, in model.ResolveProblem
 			var to string
 			if to, err = defaultInternalWarehouse(ctx, q); err == nil {
 				err = relabelProblem(ctx, q, p, lines, to)
+			}
+			// Товар в ячейке приёмки после снятия метки выносит задание (ADHOC-55).
+			if err == nil {
+				err = createPutawayTaskForProblem(ctx, q, p.id, p.warehouse, lines)
 			}
 		case model.ProblemDecisionSupplierReturn:
 			taskID, err = returnProblem(ctx, q, p, lines, in)

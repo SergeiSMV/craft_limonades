@@ -128,7 +128,12 @@ class MovementCubit extends Cubit<MovementState> {
   /// В руках короб — он едет сюда целиком. В руках товар — ложится сюда россыпью. Иначе
   /// россыпь ячейки становится источником.
   void onCell(Cell cell, {List<ContentLine> loose = const []}) {
-    if (!_cellAllowed(cell)) return;
+    final asSource = switch (state.hold) {
+      HoldGoods() => false,
+      HoldSource(place: final held) => !held.isBox,
+      _ => true,
+    };
+    if (!_cellAllowed(cell, labelledSource: asSource)) return;
     final place = MovePlace(cellId: cell.id, cellAddress: cell.address);
     switch (state.hold) {
       case HoldGoods():
@@ -136,9 +141,24 @@ class MovementCubit extends Cubit<MovementState> {
       case HoldSource(place: final held) when held.isBox:
         _moveBox(held, place, cell);
       default:
-        final source = MoveHold.source(place: place, contents: loose);
+        // Из ячейки приёмки — только россыпь с меткой (ADHOC-55): «Основной» разносит задание.
+        final source = MoveHold.source(
+          place: place,
+          contents: cell.isDefault
+              ? [
+                  for (final l in loose)
+                    if (l.internalWarehouseId != null) l,
+                ]
+              : loose,
+        );
         if (state.candidates(source as HoldSource).isEmpty) {
-          emit(state.copyWith(notice: const MoveNotice.noLoose()));
+          emit(
+            state.copyWith(
+              notice: cell.isDefault
+                  ? const MoveNotice.receivingCell()
+                  : const MoveNotice.noLoose(),
+            ),
+          );
           return;
         }
         emit(
@@ -152,9 +172,11 @@ class MovementCubit extends Cubit<MovementState> {
   }
 
   /// Ячейка годится в дело: не ячейка приёмки (из неё и в неё двигают заданием на
-  /// размещение) и того же склада, что сеанс.
-  bool _cellAllowed(Cell cell) {
-    if (cell.isDefault) {
+  /// размещение) и того же склада, что сеанс. [labelledSource] — ячейка приёмки берётся
+  /// источником россыпи с меткой склада: задание её не разносит (ADHOC-55), что именно
+  /// из неё брать, решает вызывающий.
+  bool _cellAllowed(Cell cell, {bool labelledSource = false}) {
+    if (cell.isDefault && !labelledSource) {
       emit(state.copyWith(notice: const MoveNotice.receivingCell()));
       return false;
     }
@@ -258,7 +280,9 @@ class MovementCubit extends Cubit<MovementState> {
     String? internalWarehouseId,
     String? internalWarehouseName,
   }) {
-    if (marks.isEmpty || !_cellAllowed(cell)) return;
+    // Марки в ячейке приёмки берутся, только если это россыпь с меткой (ADHOC-55).
+    final labelled = !from.isBox && internalWarehouseId != null;
+    if (marks.isEmpty || !_cellAllowed(cell, labelledSource: labelled)) return;
     final hold = state.hold;
     switch (hold) {
       case HoldGoods(marks: final held) when held.isEmpty:

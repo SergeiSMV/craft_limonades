@@ -1,3 +1,4 @@
+import '../../../../core/utils/doc_number.dart';
 import '../../../../core/utils/search_text.dart';
 import '../../../data/problems_repository.dart';
 import 'problem_labels.dart';
@@ -21,8 +22,8 @@ Map<ProblemFilter, int> countProblems(List<PortalProblem> list) => {
   for (final f in ProblemFilter.values) f: list.where(f.accepts).length,
 };
 
-/// Проблемы под фильтр и поиск: все слова запроса — в товаре, коде, ячейке, коробе, причине,
-/// комментарии, складах, авторе или поставщике.
+/// Проблемы под фильтр и поиск: все слова запроса — в номере, товаре, коде, ячейке, коробе,
+/// причине, комментарии, складах, авторе или поставщике.
 List<PortalProblem> applyProblemFilter(
   List<PortalProblem> list, {
   required ProblemFilter filter,
@@ -38,6 +39,7 @@ List<PortalProblem> applyProblemFilter(
 }
 
 String _searchText(PortalProblem p) => [
+  docNumber(DocKind.problem, p.number),
   p.cellAddress,
   p.loadUnitCode,
   reasonLabel(p.reason),

@@ -60,7 +60,11 @@ class CompletedTile extends StatelessWidget {
                   ),
                   Text(t.tasks.number(number: task.number), style: muted),
                   Text(
-                    supplierBasis(task.supplier, kind: task.kind),
+                    supplierBasis(
+                      task.supplier,
+                      kind: task.kind,
+                      problem: task.problem,
+                    ),
                     style: muted,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,

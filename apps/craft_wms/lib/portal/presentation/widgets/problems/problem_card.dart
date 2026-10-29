@@ -9,6 +9,7 @@ import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/theme/semibold_text.dart';
 import '../../../../core/utils/date_time_format.dart';
+import '../../../../core/utils/doc_number.dart';
 import '../../../../core/utils/qty_format.dart';
 import '../../../data/problems_repository.dart';
 import '../common/neumorphic_plate.dart';
@@ -60,6 +61,14 @@ class ProblemCard extends StatelessWidget {
                   runSpacing: AppSizes.kChipSpacing,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
+                    Text(
+                      t.portal.problems.number(
+                        number: docNumber(DocKind.problem, p.number),
+                      ),
+                      style: SemiboldTextStyles().semiboldInter14.copyWith(
+                        color: AppColors.kTextMain,
+                      ),
+                    ),
                     _Pill(
                       label: reasonLabel(p.reason),
                       bg: AppColors.kBadgeInfoBg,

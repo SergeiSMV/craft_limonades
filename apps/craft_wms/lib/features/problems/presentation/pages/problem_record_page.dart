@@ -65,6 +65,7 @@ class ProblemRecordPage extends StatelessWidget {
             children: [
               SectionTitle(title: t.problems.sectionProblem),
               _card([
+                _muted(numberLabel(p)),
                 _strong(subjectLabel(p)),
                 for (final line in subjectLines(p)) _text(line),
                 // У пересорта (ADHOC-53) ячейки и складов нет: он лежит, где лежал.

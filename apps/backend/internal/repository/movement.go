@@ -28,6 +28,7 @@ var (
 	ErrUnknownMovementKind = errors.New("unknown movement kind")
 	// ErrReceivingCell — ячейка приёмки (С-Н-П) в движении ни источник, ни приёмник: её
 	// разносит задание на размещение (P5-02-1), иначе остаток задания разошёлся бы с ячейкой.
+	// Исключение — источник-россыпь с меткой склада (ADHOC-55): её в задании нет.
 	ErrReceivingCell = errors.New("receiving cell is emptied only by a putaway task")
 	// ErrEmptyMovementLine — в строке нет ни ГЕ, ни товара.
 	// У товара источник и приёмник — ровно по одному: ячейка или короб.
@@ -389,8 +390,13 @@ func movementGoods(ctx context.Context, q Querier, in MovementSubmitInput, lineN
 	if err := guardCellOfWarehouse(ctx, q, toCell, in.WarehouseID); err != nil {
 		return nil, err
 	}
-	for _, cell := range []string{fromCell, toCell} {
-		if err := guardNotReceivingCell(ctx, q, cell); err != nil {
+	if err := guardNotReceivingCell(ctx, q, toCell); err != nil {
+		return nil, err
+	}
+	// Россыпь с меткой («Брак», «Изолятор» …) задание на размещение не берёт (CZ-05) — из
+	// ячейки приёмки её выносит перемещение (ADHOC-55). Короб и «Основной» — по-прежнему заданием.
+	if ln.FromLoadUnitID != "" || iwh == defIwh {
+		if err := guardNotReceivingCell(ctx, q, fromCell); err != nil {
 			return nil, err
 		}
 	}
