@@ -75,6 +75,27 @@ func TestBuildMovementXLSX_noBasis(t *testing.T) {
 	}
 }
 
+// Задание по решению «разместить» (ADHOC-55): основание — проблема склада под её номером,
+// строк поставщика нет.
+func TestBuildMovementXLSX_problemBasis(t *testing.T) {
+	snap := movementSnap()
+	snap.Supplier, snap.DocNumber, snap.DocDate = "", "", ""
+	snap.ProblemNumber = 1
+	raw, err := BuildMovementXLSX(snap)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for cell, v := range map[string]string{
+		"A4": "Задание", "B4": "№ 57",
+		"A5": "Проблема склада", "B5": "ПБ-000001",
+		"A6": "Исполнитель",
+	} {
+		if got := movementValue(t, raw, cell); got != v {
+			t.Errorf("%s: получили %q, ждали %q", cell, got, v)
+		}
+	}
+}
+
 // Развилка «форма → шаблон» и имя файла знают «Движение».
 func TestBuildDocumentXLSX_movement(t *testing.T) {
 	doc := model.ReportDocument{

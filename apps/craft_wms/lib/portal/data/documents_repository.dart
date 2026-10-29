@@ -66,6 +66,7 @@ class PortalDoc {
     this.docDate = '',
     this.operation = '',
     this.taskNumber = 0,
+    this.problemNumber = 0,
     this.stocktakeNumber = 0,
     this.executor = '',
     required this.warehouseCode,
@@ -97,6 +98,10 @@ class PortalDoc {
   /// Номер задания-основания «Движения»; 0 — нет (перемещение идёт без задания).
   final int taskNumber;
 
+  /// Проблема склада, решение «разместить» по которой завело задание (ADHOC-55); 0 — задание
+  /// из приёмки или его нет.
+  final int problemNumber;
+
   /// Пересчёт «Инвентаризации» (P10-05); 0 — другая форма.
   final int stocktakeNumber;
 
@@ -116,6 +121,7 @@ class PortalDoc {
         docDate: j['doc_date'] as String? ?? '',
         operation: j['operation'] as String? ?? '',
         taskNumber: (j['task_number'] as num?)?.toInt() ?? 0,
+        problemNumber: (j['problem_number'] as num?)?.toInt() ?? 0,
         stocktakeNumber: (j['stocktake_number'] as num?)?.toInt() ?? 0,
         executor: j['executor'] as String? ?? '',
         warehouseCode: j['warehouse_code'] as String? ?? '',

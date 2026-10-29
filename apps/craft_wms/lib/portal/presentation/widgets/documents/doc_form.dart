@@ -1,4 +1,5 @@
 import '../../../../core/gen/strings.g.dart';
+import '../../../../core/utils/doc_number.dart';
 import '../../../data/documents_repository.dart';
 
 /// Две строки ячейки таблицы: основная и пояснение под ней (пусто — нет).
@@ -85,10 +86,19 @@ class DocForm {
   };
 
   /// Колонка контрагента. Поступление — поставщик; движение — поставщик и накладная приёмки,
-  /// из которой родилось задание; у перемещения основания нет.
+  /// из которой родилось задание, или проблема склада, решение по которой его завело
+  /// (ADHOC-55); у перемещения основания нет.
   CellText party(PortalDoc doc) {
     if (kind == 'movement' && doc.taskNumber == 0) {
       return (main: t.portal.movement.noBasis, sub: '');
+    }
+    if (kind == 'movement' && doc.problemNumber > 0) {
+      return (
+        main: t.portal.problems.number(
+          number: docNumber(DocKind.problem, doc.problemNumber),
+        ),
+        sub: '',
+      );
     }
     final supplier = doc.supplier.isEmpty
         ? t.portal.receipt.noSupplier

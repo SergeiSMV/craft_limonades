@@ -173,6 +173,26 @@ func TestProblemResolve_placeInReceivingCellOpensPutaway(t *testing.T) {
 	if status != "done" {
 		t.Errorf("задание: %s, ожидалось done", status)
 	}
+
+	// «Движение» размещения называет основанием проблему: и в снимке, и в списке портала.
+	var basis string
+	mustScan(t, mf.pool, `
+		SELECT snapshot->>'problem_number' FROM report_documents d
+		JOIN putaways p ON p.id::text = d.source_id::text WHERE p.task_id = $1::uuid`, &basis, task)
+	if basis != number {
+		t.Errorf("основание в снимке: %q, ожидалось %s", basis, number)
+	}
+	docs, err := repository.NewReportDocumentRepository(mf.pool).List(ctx, model.ReportKindMovement)
+	mustNoErr(t, err)
+	var listed int64
+	for _, d := range docs {
+		if d.Operation == model.MovementOperationPutaway {
+			listed = d.ProblemNumber
+		}
+	}
+	if strconv.FormatInt(listed, 10) != number {
+		t.Errorf("основание в списке документов: %d, ожидалось %s", listed, number)
+	}
 }
 
 // Возврат: товар переходит на склад возврата и копится в одном открытом задании поставщика;

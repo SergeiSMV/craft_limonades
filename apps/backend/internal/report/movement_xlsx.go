@@ -48,10 +48,14 @@ func BuildMovementXLSX(s model.ReportSnapshot) ([]byte, error) {
 		{"Операция", movementOperationTitle(s.Operation)},
 		{"Склад", s.WarehouseName},
 	}
-	// Основание: задание и приёмка, из которой оно родилось. Каждая строка — только если есть:
-	// перемещению (P6) задание не обязательно, а приёмка бывает без поставщика.
+	// Основание: задание и то, из чего оно родилось, — приёмка или проблема склада (ADHOC-55).
+	// Каждая строка — только если есть: перемещению (P6) задание не обязательно, а приёмка
+	// бывает без поставщика.
 	if s.TaskNumber > 0 {
 		header = append(header, [2]string{"Задание", "№ " + strconv.FormatInt(s.TaskNumber, 10)})
+	}
+	if s.ProblemNumber > 0 {
+		header = append(header, [2]string{"Проблема склада", model.ProblemDocNumber(s.ProblemNumber)})
 	}
 	if s.Supplier != "" {
 		header = append(header, [2]string{"Поставщик", s.Supplier})
