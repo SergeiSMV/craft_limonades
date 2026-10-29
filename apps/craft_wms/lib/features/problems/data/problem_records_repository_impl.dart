@@ -7,6 +7,7 @@ import '../../../core/error/dio_failure.dart';
 import '../../../core/error/failure.dart';
 import '../../../core/outbox/outbox_operation.dart';
 import '../../../core/outbox/outbox_repository.dart';
+import '../../../core/problems/problem_reasons.dart';
 import '../../../core/warehouse/internal_warehouses.dart';
 import '../../contents/data/contents_cache.dart';
 import '../../contents/domain/contents_entities.dart';
@@ -24,6 +25,7 @@ class ProblemRecordsRepositoryImpl implements ProblemRecordsRepository {
     this._catalog,
     this._contents,
     this._warehouses,
+    this._reasons,
   );
 
   final Dio _dio;
@@ -31,6 +33,7 @@ class ProblemRecordsRepositoryImpl implements ProblemRecordsRepository {
   final CatalogCache _catalog;
   final ContentsCache _contents;
   final InternalWarehouses _warehouses;
+  final ProblemReasons _reasons;
 
   /// Сколько операций очереди просматривать: неотправленных проблем на терминале единицы.
   static const _queueLimit = 1000;
@@ -76,6 +79,7 @@ class ProblemRecordsRepositoryImpl implements ProblemRecordsRepository {
     if (ops.isEmpty) return const [];
     final cells = {for (final c in await _catalog.cells()) c.id: c.address};
     final warehouses = await _warehouses.all();
+    final reasons = {for (final r in await _reasons.all()) r.code: r.name};
     String warehouseName(String? id) =>
         warehouses
             .where((w) => id == null ? w.isDefault : w.id == id)
@@ -130,6 +134,7 @@ class ProblemRecordsRepositoryImpl implements ProblemRecordsRepository {
           cellAddress: cell,
           loadUnitId: boxId,
           reason: p['reason'] as String? ?? '',
+          reasonName: reasons[p['reason']] ?? '',
           comment: p['comment'] as String? ?? '',
           mark: p['mark'] as String?,
           // Склад, откуда помечено: у короба — его склад, у товара — склад строки.
@@ -190,11 +195,13 @@ ProblemRecord problemRecordFromJson(Map<String, dynamic> j) {
   final task = j['return_task_number'] as int?;
   return ProblemRecord(
     id: j['id'] as String,
+    number: (j['number'] as num?)?.toInt(),
     createdAt: DateTime.parse(j['created_at'] as String),
     createdBy: j['created_by'] as String? ?? '',
     cellAddress: j['cell_address'] as String? ?? '',
     loadUnitId: opt('load_unit_id'),
     reason: j['reason'] as String? ?? '',
+    reasonName: j['reason_name'] as String? ?? '',
     comment: j['comment'] as String? ?? '',
     mark: opt('mark'),
     fromWarehouse: j['from_warehouse'] as String? ?? '',
@@ -204,6 +211,7 @@ ProblemRecord problemRecordFromJson(Map<String, dynamic> j) {
         _item(e as Map<String, dynamic>),
     ],
     decision: j['decision'] as String? ?? '',
+    resolutionName: j['resolution_name'] as String? ?? '',
     docNumber: opt('doc_number'),
     docDate: opt('doc_date'),
     supplierName: opt('supplier_name'),
@@ -215,6 +223,7 @@ ProblemRecord problemRecordFromJson(Map<String, dynamic> j) {
       final v? => DateTime.parse(v),
       null => null,
     },
+    shipmentNumber: (j['shipment_number'] as num?)?.toInt(),
     photos: [for (final id in j['photos'] as List? ?? const []) id as String],
   );
 }

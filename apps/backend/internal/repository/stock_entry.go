@@ -259,23 +259,30 @@ func finalizeSession(ctx context.Context, q Querier, sessionID string) (int, err
 func buildStockEntrySnapshot(ctx context.Context, q Querier, sessionID string) (model.ReportSnapshot, error) {
 	var snap model.ReportSnapshot
 	if err := q.QueryRow(ctx, `
-		SELECT w.code, w.name, s.created_at
+		SELECT w.code, w.name, s.created_at, s.number
 		FROM stock_entry_sessions s
 		JOIN warehouses w ON w.id = s.warehouse_id
 		WHERE s.id = $1::uuid`, sessionID).
-		Scan(&snap.WarehouseCode, &snap.WarehouseName, &snap.CreatedAt); err != nil {
+		Scan(&snap.WarehouseCode, &snap.WarehouseName, &snap.CreatedAt, &snap.SourceNumber); err != nil {
 		return model.ReportSnapshot{}, fmt.Errorf("снимок документа, шапка: %w", err)
 	}
 
 	// Строка документа — грань остатка: россыпь и короба прохода одного товара и партии в ячейке
 	// сводятся в одну строку (ADHOC-46) — в 1С короба нет, есть количество в ячейке.
+	// Марки ЧЗ строк прохода (ADHOC-55) — в документ строкой на марку.
 	rows, err := q.Query(ctx, `
-		SELECT c.address, g.code, g.name, l.production_date::text, sum(l.qty)::text
+		SELECT c.address, g.code, g.name, l.production_date::text, sum(l.qty)::text,
+		       COALESCE((SELECT array_agg(m.cis)
+		                 FROM stock_entry_marks m
+		                 JOIN stock_entry_lines ml ON ml.id = m.line_id
+		                 WHERE m.session_id = $1::uuid AND ml.cell_id = l.cell_id
+		                   AND ml.good_id = l.good_id AND ml.production_date = l.production_date),
+		                '{}')
 		FROM stock_entry_lines l
 		JOIN cells c ON c.id = l.cell_id
 		JOIN goods g ON g.id = l.good_id
 		WHERE l.session_id = $1::uuid
-		GROUP BY c.address, g.code, g.name, l.production_date
+		GROUP BY l.cell_id, l.good_id, c.address, g.code, g.name, l.production_date
 		ORDER BY c.address, g.name`, sessionID)
 	if err != nil {
 		return model.ReportSnapshot{}, fmt.Errorf("снимок документа, строки: %w", err)
@@ -284,10 +291,21 @@ func buildStockEntrySnapshot(ctx context.Context, q Querier, sessionID string) (
 	snap.Rows = make([]model.ReportSnapshotRow, 0)
 	for rows.Next() {
 		var row model.ReportSnapshotRow
-		if err := rows.Scan(&row.CellAddress, &row.GoodCode, &row.GoodName, &row.ProductionDate, &row.Qty); err != nil {
+		var qty string
+		var marks []string
+		if err := rows.Scan(&row.CellAddress, &row.GoodCode, &row.GoodName, &row.ProductionDate, &qty, &marks); err != nil {
 			return model.ReportSnapshot{}, fmt.Errorf("снимок документа, разбор строки: %w", err)
 		}
-		snap.Rows = append(snap.Rows, row)
+		if len(marks) == 0 {
+			row.Qty = qty
+			snap.Rows = append(snap.Rows, row)
+			continue
+		}
+		n, err := parseQty(qty)
+		if err != nil {
+			return model.ReportSnapshot{}, err
+		}
+		snap.Rows = append(snap.Rows, splitByMarks(row, n, marks)...)
 	}
 	return snap, rows.Err()
 }

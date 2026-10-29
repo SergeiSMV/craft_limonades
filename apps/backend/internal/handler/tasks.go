@@ -63,23 +63,38 @@ type taskItemResponse struct {
 }
 
 type taskResponse struct {
-	ID           string  `json:"id"`
-	Number       int64   `json:"number"`
-	Kind         string  `json:"kind"`
-	Status       string  `json:"status"` // как его видит запросивший: чужое зависшее — new
-	WarehouseID  string  `json:"warehouse_id"`
-	ReceiptID    *string `json:"receipt_id"`
-	Supplier     string  `json:"supplier"`    // пусто — без поставщика
-	ReceivedAt   *string `json:"received_at"` // RFC3339
-	DocNumber    *string `json:"doc_number"`  // накладная приёмки (ADHOC-23); null — нет
-	DocDate      *string `json:"doc_date"`    // DD-MM-YYYY
-	AssigneeName string  `json:"assignee_name"`
-	TakenAt      *string `json:"taken_at"`
-	CreatedAt    string  `json:"created_at"`
+	ID          string  `json:"id"`
+	Number      int64   `json:"number"`
+	Kind        string  `json:"kind"`
+	Status      string  `json:"status"` // как его видит запросивший: чужое зависшее — new
+	WarehouseID string  `json:"warehouse_id"`
+	ReceiptID   *string `json:"receipt_id"`
+	Supplier    string  `json:"supplier"`    // пусто — без поставщика
+	ReceivedAt  *string `json:"received_at"` // RFC3339
+	DocNumber   *string `json:"doc_number"`  // накладная приёмки (ADHOC-23); null — нет
+	DocDate     *string `json:"doc_date"`    // DD-MM-YYYY
+	// Проблема-основание размещения по решению «разместить» (ADHOC-55); нет — основание другое.
+	Problem      *taskProblemResponse `json:"problem,omitempty"`
+	AssigneeName string               `json:"assignee_name"`
+	TakenAt      *string              `json:"taken_at"`
+	CreatedAt    string               `json:"created_at"`
 	// Пересчёт задания вида stocktake (P10-03); null — у других видов.
 	StocktakeID *string                `json:"stocktake_id"`
 	Stocktake   *taskStocktakeResponse `json:"stocktake,omitempty"` // ход пересчёта (P10-04)
 	Items       []taskItemResponse     `json:"items"`
+}
+
+// taskProblemResponse — проблема-основание задания на размещение (ADHOC-55).
+type taskProblemResponse struct {
+	ID     string `json:"id"`
+	Number int64  `json:"number"`
+}
+
+func toTaskProblem(p *model.TaskProblemInfo) *taskProblemResponse {
+	if p == nil {
+		return nil
+	}
+	return &taskProblemResponse{ID: p.ID, Number: p.Number}
 }
 
 type taskStocktakeResponse struct {
@@ -136,6 +151,8 @@ type completedTaskResponse struct {
 	CompletedAt string             `json:"completed_at"` // RFC3339Nano — он же курсор подгрузки
 	Executors   []taskUserResponse `json:"executors"`
 	Sessions    int                `json:"sessions"`
+	// Проблема-основание размещения (ADHOC-55); нет — основание другое.
+	Problem *taskProblemResponse `json:"problem,omitempty"`
 }
 
 // Current: GET /api/v1/tasks — текущие задания: пул и свои взятые, с позициями.
@@ -259,6 +276,7 @@ func (h *TaskHandler) Completed(w http.ResponseWriter, r *http.Request) {
 			ID: c.ID, Number: c.Number, Kind: c.Kind, Supplier: c.SupplierName,
 			DocNumber: c.DocNumber, DocDate: formatProductionDate(c.DocDate),
 			CompletedAt: c.CompletedAt.Format(time.RFC3339Nano), Executors: ex, Sessions: c.Sessions,
+			Problem: toTaskProblem(c.Problem),
 		})
 	}
 	writeJSON(w, http.StatusOK, out)
@@ -283,7 +301,7 @@ func toTaskResponse(t model.Task) taskResponse {
 	out := taskResponse{
 		ID: t.ID, Number: t.Number, Kind: t.Kind, Status: t.Status, WarehouseID: t.WarehouseID,
 		ReceiptID: t.ReceiptID, Supplier: t.SupplierName, ReceivedAt: formatTimePtr(t.ReceivedAt),
-		DocNumber: t.DocNumber, DocDate: formatProductionDate(t.DocDate),
+		DocNumber: t.DocNumber, DocDate: formatProductionDate(t.DocDate), Problem: toTaskProblem(t.Problem),
 		AssigneeName: t.AssigneeName, TakenAt: formatTimePtr(t.TakenAt),
 		CreatedAt: t.CreatedAt.Format(time.RFC3339), StocktakeID: t.StocktakeID, Items: []taskItemResponse{},
 	}

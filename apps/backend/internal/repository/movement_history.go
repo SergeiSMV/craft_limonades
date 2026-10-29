@@ -30,7 +30,7 @@ func NewMovementHistoryRepository(pool *pgxpool.Pool) *MovementHistoryRepository
 // Строки считаются подзапросами, а не группировкой с JOIN: фильтр и курсор остаются условиями
 // по одной таблице movements и идут по индексу на posted_at.
 const movementRecordSelect = `
-	SELECT m.id::text, m.kind, m.posted_at, u.id::text, u.full_name,
+	SELECT m.id::text, m.number, m.kind, m.posted_at, u.id::text, u.full_name,
 	       (SELECT count(*) FROM movement_lines l WHERE l.movement_id = m.id AND l.load_unit_id IS NOT NULL),
 	       (SELECT count(*) FROM movement_lines l WHERE l.movement_id = m.id AND l.good_id IS NOT NULL)
 	FROM movements m
@@ -38,7 +38,7 @@ const movementRecordSelect = `
 
 func scanMovementRecord(row pgx.Row) (model.MovementRecord, error) {
 	var r model.MovementRecord
-	err := row.Scan(&r.ID, &r.Kind, &r.PostedAt, &r.Executor.ID, &r.Executor.FullName, &r.LoadUnits, &r.Goods)
+	err := row.Scan(&r.ID, &r.Number, &r.Kind, &r.PostedAt, &r.Executor.ID, &r.Executor.FullName, &r.LoadUnits, &r.Goods)
 	return r, err
 }
 

@@ -88,6 +88,40 @@ func TestProblem_looseToDefectAndMove(t *testing.T) {
 	}
 }
 
+// Россыпь с меткой в ячейке приёмки (ADHOC-55): задание на размещение её не берёт, поэтому
+// выносит её перемещение. «Основной» оттуда же и что угодно туда — по-прежнему отказ.
+func TestProblem_labelledLeavesReceivingCell(t *testing.T) {
+	mf := setupMove(t)
+	defect := mf.iwhByCode(t, "DEFECT")
+	mf.receive(t, nil, 5) // A: россыпь 5
+	if err := mf.problem(t, defect, mf.goodsProblem(2, mf.cellA, "")); err != nil {
+		t.Fatalf("россыпь в брак: %v", err)
+	}
+	// Ячейкой приёмки становится A — так выглядит брак, заведённый проводкой приёмки.
+	mf.setReceiving(t, mf.cellA)
+
+	if _, err := mf.move(t, uuid.NewString(), mf.goodsLine(1, mf.cellA, "", mf.cellC, "")); !errors.Is(err, repository.ErrReceivingCell) {
+		t.Errorf("«Основной» из ячейки приёмки: %v, ожидалась ErrReceivingCell", err)
+	}
+	intoReceiving := mf.goodsLine(1, mf.cellA, "", mf.cellR, "")
+	intoReceiving.InternalWarehouseID = defect
+	mf.setReceiving(t, mf.cellR)
+	mustNoErr(t, mf.problem(t, defect, mf.goodsProblem(1, mf.cellA, "")))
+	if _, err := mf.move(t, uuid.NewString(), intoReceiving); !errors.Is(err, repository.ErrReceivingCell) {
+		t.Errorf("брак в ячейку приёмки: %v, ожидалась ErrReceivingCell", err)
+	}
+	mf.setReceiving(t, mf.cellA)
+
+	out := mf.goodsLine(3, mf.cellA, "", mf.cellC, "")
+	out.InternalWarehouseID = defect
+	if _, err := mf.move(t, uuid.NewString(), out); err != nil {
+		t.Fatalf("брак из ячейки приёмки: %v", err)
+	}
+	if def, main := mf.qtyIn(t, mf.cellC, defect), mf.qtyIn(t, mf.cellA, mf.iwh); def != "3" || main != "2" {
+		t.Errorf("C: брак %s, A: основной %s — ожидалось 3 и 2", def, main)
+	}
+}
+
 // Короб целиком в брак: короб и его остаток меняют склад, россыпь «Основного» рядом не
 // задета; короб переезжает браком; основной товар в бракованный короб не кладётся.
 func TestProblem_wholeBox(t *testing.T) {

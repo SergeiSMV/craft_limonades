@@ -106,6 +106,65 @@ func createPutawayTaskForReceipt(ctx context.Context, q Querier, receiptID strin
 	return nil
 }
 
+// createPutawayTaskForProblem заводит задание на размещение по решению «разместить» (ADHOC-55).
+//
+// Что: позиции — то из товара проблемы, что лежит в ячейке приёмки: короб целиком или россыпь
+// по товару и партии. Товар в ячейках хранения задания не требует — он уже на месте.
+// Зачем: решение снимает метку на месте, и товар в ячейке приёмки становится «Основным» вне
+// задания приёмки; ячейку приёмки разносит только задание (P5-02-1), иначе товар застрянет.
+// Как: в транзакции решения после снятия метки; основание — проблема (problem_id). Если в
+// ячейке приёмки ничего нет, задания нет.
+func createPutawayTaskForProblem(ctx context.Context, q Querier, problemID, warehouseID string, lines []problemLine) error {
+	receiving, err := defaultCellID(ctx, q, warehouseID)
+	if errors.Is(err, ErrNotFound) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	var items []problemLine
+	seenBox := map[string]bool{}
+	for _, l := range lines {
+		if l.cell != receiving || (l.loadUnit != "" && seenBox[l.loadUnit]) {
+			continue
+		}
+		if l.loadUnit != "" {
+			seenBox[l.loadUnit] = true
+		}
+		items = append(items, l)
+	}
+	if len(items) == 0 {
+		return nil
+	}
+
+	var taskID string
+	if err := q.QueryRow(ctx, `
+		INSERT INTO warehouse_tasks (kind, warehouse_id, problem_id)
+		VALUES ('putaway', $1::uuid, $2::uuid)
+		RETURNING id::text`, warehouseID, problemID).Scan(&taskID); err != nil {
+		return fmt.Errorf("создать задание на размещение по проблеме: %w", err)
+	}
+	// Автора нет: задание заводит система по решению офиса.
+	if err := addTaskEvent(ctx, q, taskID, model.TaskEventCreated, "", "", ""); err != nil {
+		return err
+	}
+	for i, it := range items {
+		if it.loadUnit != "" {
+			_, err = q.Exec(ctx, `
+				INSERT INTO putaway_task_items (task_id, line_no, load_unit_id)
+				VALUES ($1::uuid, $2, $3::uuid)`, taskID, i+1, it.loadUnit)
+		} else {
+			_, err = q.Exec(ctx, `
+				INSERT INTO putaway_task_items (task_id, line_no, good_id, batch_id, qty)
+				VALUES ($1::uuid, $2, $3::uuid, $4::uuid, $5::numeric)`, taskID, i+1, it.good, it.batch, it.qty.String())
+		}
+		if err != nil {
+			return fmt.Errorf("позиция задания на размещение по проблеме: %w", err)
+		}
+	}
+	return nil
+}
+
 // excludeFromPutawayTask убирает из задания приёмки россыпь, которую проводка тут же увела
 // проблемой в «Изолятор» (CZ-05): размещение берёт россыпь только «Основного», и позиция
 // с изолированным товаром не закрылась бы никогда. Россыпь вне ячейки приёмки в задание не
@@ -306,9 +365,11 @@ const taskHeaderSQL = `
 	       CASE WHEN t.assignee_id = $1::uuid THEN t.assignee_id::text END,
 	       CASE WHEN t.assignee_id = $1::uuid THEN COALESCE(u.full_name, '') ELSE '' END,
 	       CASE WHEN t.assignee_id = $1::uuid THEN t.taken_at END,
-	       t.created_at, t.stocktake_id::text
+	       t.created_at, t.stocktake_id::text,
+	       wp.id::text, wp.number
 	FROM warehouse_tasks t
 	LEFT JOIN receipts r  ON r.id = t.receipt_id
+	LEFT JOIN warehouse_problems wp ON wp.id = t.problem_id
 	-- Поставщик: у размещения — поставщик приёмки, у возврата — кому везём (ADHOC-31).
 	LEFT JOIN suppliers s ON s.id = COALESCE(r.supplier_id, t.supplier_id)
 	LEFT JOIN users u     ON u.id = t.assignee_id`
@@ -352,16 +413,32 @@ func (r *TaskRepository) ByID(ctx context.Context, id, userID string) (model.Tas
 	return tasks[0], nil
 }
 
+// problemBasis — проблема-основание из LEFT JOIN шапки задания: поля пусты, если основание
+// другое.
+type problemBasis struct {
+	id     *string
+	number *int64
+}
+
+func (b problemBasis) info() *model.TaskProblemInfo {
+	if b.id == nil {
+		return nil
+	}
+	return &model.TaskProblemInfo{ID: *b.id, Number: *b.number}
+}
+
 func scanTasks(rows pgx.Rows) ([]model.Task, error) {
 	defer rows.Close()
 	out := []model.Task{}
 	for rows.Next() {
 		var t model.Task
+		var pr problemBasis
 		if err := rows.Scan(&t.ID, &t.Number, &t.Kind, &t.Status, &t.WarehouseID, &t.ReceiptID,
 			&t.SupplierName, &t.ReceivedAt, &t.DocNumber, &t.DocDate, &t.AssigneeID, &t.AssigneeName, &t.TakenAt, &t.CreatedAt,
-			&t.StocktakeID); err != nil {
+			&t.StocktakeID, &pr.id, &pr.number); err != nil {
 			return nil, fmt.Errorf("разобрать задание: %w", err)
 		}
+		t.Problem = pr.info()
 		out = append(out, t)
 	}
 	return out, rows.Err()
@@ -765,9 +842,11 @@ const taskSessionsSQL = `(
 func (r *TaskRepository) Completed(ctx context.Context, f model.CompletedTasksFilter) ([]model.CompletedTask, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT t.id::text, t.number, t.kind, COALESCE(s.name, ''), r.doc_number, r.doc_date, t.completed_at,
-		       (SELECT count(*) FROM `+taskSessionsSQL+` x WHERE x.task_id = t.id)
+		       (SELECT count(*) FROM `+taskSessionsSQL+` x WHERE x.task_id = t.id),
+		       wp.id::text, wp.number
 		FROM warehouse_tasks t
 		LEFT JOIN receipts r  ON r.id = t.receipt_id
+		LEFT JOIN warehouse_problems wp ON wp.id = t.problem_id
 		LEFT JOIN suppliers s ON s.id = COALESCE(r.supplier_id, t.supplier_id)
 		WHERE t.status = 'done'
 		  AND ($1::timestamptz IS NULL OR t.completed_at >= $1)
@@ -786,10 +865,13 @@ func (r *TaskRepository) Completed(ctx context.Context, f model.CompletedTasksFi
 	index := map[string]int{}
 	for rows.Next() {
 		var c model.CompletedTask
-		if err := rows.Scan(&c.ID, &c.Number, &c.Kind, &c.SupplierName, &c.DocNumber, &c.DocDate, &c.CompletedAt, &c.Sessions); err != nil {
+		var pr problemBasis
+		if err := rows.Scan(&c.ID, &c.Number, &c.Kind, &c.SupplierName, &c.DocNumber, &c.DocDate, &c.CompletedAt, &c.Sessions,
+			&pr.id, &pr.number); err != nil {
 			rows.Close()
 			return nil, fmt.Errorf("разобрать завершённое задание: %w", err)
 		}
+		c.Problem = pr.info()
 		index[c.ID] = len(out)
 		out = append(out, c)
 	}

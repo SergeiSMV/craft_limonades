@@ -29,6 +29,7 @@ func NewMovementHistoryHandler(svc *service.MovementHistoryService) *MovementHis
 // movementRecordResponse — запись ленты.
 type movementRecordResponse struct {
 	ID        string           `json:"id"`
+	Number    int64            `json:"number"`    // номер своего вида: ПМ | ПП (ADHOC-55)
 	Kind      string           `json:"kind"`      // move | replenish
 	PostedAt  string           `json:"posted_at"` // RFC3339Nano: и показ, и курсор подгрузки
 	Executor  taskUserResponse `json:"executor"`
@@ -61,7 +62,7 @@ type movementDetailResponse struct {
 
 func toMovementRecordResponse(r model.MovementRecord) movementRecordResponse {
 	return movementRecordResponse{
-		ID: r.ID, Kind: r.Kind, PostedAt: r.PostedAt.Format(time.RFC3339Nano),
+		ID: r.ID, Number: r.Number, Kind: r.Kind, PostedAt: r.PostedAt.Format(time.RFC3339Nano),
 		Executor: taskUserResponse(r.Executor), LoadUnits: r.LoadUnits, Goods: r.Goods,
 	}
 }

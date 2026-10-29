@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:craft_wms/core/constants/api_constants.dart';
 import 'package:craft_wms/core/error/failure.dart';
 import 'package:craft_wms/portal/data/documents_repository.dart';
+import 'package:craft_wms/portal/presentation/widgets/documents/doc_form.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -243,5 +244,23 @@ void main() {
     expect(move.operation, 'move');
     expect(move.taskNumber, 0);
     expect(move.executor, 'Иванов Иван');
+  });
+
+  // ADHOC-55: задание по решению «разместить» — основанием в колонке стоит проблема склада.
+  test('размещение по проблеме: основание — номер проблемы', () {
+    final doc = PortalDoc.fromJson({
+      'id': 'd6',
+      'kind': 'movement',
+      'operation': 'putaway',
+      'task_number': 2,
+      'problem_number': 1,
+      'created_at': '2026-10-29T12:17:00Z',
+      'status': 'new',
+    });
+    expect(doc.problemNumber, 1);
+    expect(DocForm.of('movement').party(doc), (
+      main: 'Задание ЗД-000002',
+      sub: 'Проблема ПБ-000001',
+    ));
   });
 }

@@ -1,9 +1,9 @@
 import '../../../../../core/gen/strings.g.dart';
 import '../../../../../core/utils/date_input.dart';
 import '../../../../../core/utils/date_time_format.dart';
+import '../../../../../core/utils/doc_number.dart';
 import '../../../../../core/utils/qty_format.dart';
 import '../../../../movement/presentation/widgets/move_format.dart';
-import '../../../domain/problem_models.dart';
 import '../../../domain/problem_records.dart';
 import '../problem_format.dart';
 
@@ -41,13 +41,16 @@ String outcomeLabel(ProblemRecord p) => switch (p.decision) {
 /// Подробности решения: у возврата — кому и каким заданием.
 List<String> decisionLines(ProblemRecord p) => [
   if (p.supplierName case final s?) t.problems.supplierLine(supplier: s),
-  if (p.returnTaskNumber case final n?) t.problems.taskLine(number: n),
+  if (p.returnTaskNumber case final n?)
+    t.problems.taskLine(number: docNumber(DocKind.task, n)),
 ];
 
-/// Подробности исполнения: у списания — документ 1С.
+/// Подробности исполнения: у списания — документ 1С, у возврата — номер отгрузки.
 List<String> executionLines(ProblemRecord p) => [
   if ((p.docNumber, p.docDate) case (final n?, final d?))
     t.problems.docLine(number: n, date: isoToDisplayDate(d)),
+  if (p.shipmentNumber case final n?)
+    t.problems.shipmentLine(number: docNumber(DocKind.returnShipment, n)),
 ];
 
 /// Кто и когда зафиксировал: своя неотправленная — «на этом терминале».
@@ -77,13 +80,19 @@ String? executedMeta(ProblemRecord p) {
   );
 }
 
-/// Причина по значению сервера; незнакомая — как есть.
-String reasonLabelOf(String wire) {
-  for (final r in ProblemReason.values) {
-    if (r.wire == wire) return reasonLabel(r);
-  }
-  return wire;
-}
+/// Номер проблемы: «Проблема ПБ-000009»; своя неотправленная номера ещё не имеет (ADHOC-55).
+String numberLabel(ProblemRecord p) => switch (p.number) {
+  final n? => t.problems.numberLine(number: docNumber(DocKind.problem, n)),
+  null => t.problems.numberPending,
+};
+
+/// Причина проблемы: название по справочнику (ADHOC-55), без него — прежняя подпись кода.
+String reasonText(ProblemRecord p) =>
+    p.reasonName.isNotEmpty ? p.reasonName : reasonLabelOf(p.reason);
+
+/// Решение офиса: название выбранного варианта (ADHOC-55), у старого сервера — по действию.
+String resolutionText(ProblemRecord p) =>
+    p.resolutionName.isNotEmpty ? p.resolutionName : decisionLabel(p.decision);
 
 /// Что помечали: короб целиком или товар.
 String subjectLabel(ProblemRecord p) {

@@ -105,6 +105,16 @@ abstract class TaskItem with _$TaskItem {
       _$TaskItemFromJson(json);
 }
 
+/// Проблема склада — основание задания на размещение по решению «разместить» (ADHOC-55).
+@freezed
+abstract class TaskProblem with _$TaskProblem {
+  const factory TaskProblem({required String id, required int number}) =
+      _TaskProblem;
+
+  factory TaskProblem.fromJson(Map<String, dynamic> json) =>
+      _$TaskProblemFromJson(json);
+}
+
 /// Задание для склада.
 @freezed
 abstract class WarehouseTask with _$WarehouseTask {
@@ -121,6 +131,9 @@ abstract class WarehouseTask with _$WarehouseTask {
     /// Документ поставщика приёмки-основания (ADHOC-23); дата — DD-MM-YYYY. `null` — нет.
     @JsonKey(name: 'doc_number') String? docNumber,
     @JsonKey(name: 'doc_date') String? docDate,
+
+    /// Проблема-основание размещения (ADHOC-55); `null` — основание другое.
+    TaskProblem? problem,
     @JsonKey(name: 'assignee_name') @Default('') String assigneeName,
     @JsonKey(name: 'taken_at') DateTime? takenAt,
     @JsonKey(name: 'created_at') required DateTime createdAt,
@@ -172,6 +185,9 @@ abstract class CompletedTask with _$CompletedTask {
     @JsonKey(name: 'completed_at') required String completedAt,
     @Default(<TaskUser>[]) List<TaskUser> executors,
     @Default(0) int sessions,
+
+    /// Проблема-основание размещения (ADHOC-55); `null` — основание другое.
+    TaskProblem? problem,
   }) = _CompletedTask;
 
   const CompletedTask._();

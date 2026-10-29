@@ -121,6 +121,18 @@ abstract final class ApiConst {
   /// Внутренний склад — переименовать, скрыть, удалить (ADHOC-29, admin).
   static String internalWarehouseById(String id) => 'internal-warehouses/$id';
 
+  /// Справочник причин проблем и вариантов решения (ADHOC-55): GET — весь, и неактивное.
+  static const String problemReasons = 'problem-reasons';
+
+  /// Правка причины по коду.
+  static String problemReasonByCode(String code) => 'problem-reasons/$code';
+
+  /// Варианты решения: POST — завести.
+  static const String problemResolutions = 'problem-resolutions';
+
+  /// Правка варианта по id.
+  static String problemResolutionById(String id) => 'problem-resolutions/$id';
+
   ///**GET** - «Проблемы склада» для офиса (P6-07-3, admin): открытые сверху.
   static const String problems = 'problems';
 

@@ -27,6 +27,7 @@ abstract final class Rights {
   static const problemsView = 'portal.problems.view';
   static const problemsResolve = 'portal.problems.resolve';
   static const settingsWarehouses = 'portal.settings.warehouses';
+  static const settingsProblemReasons = 'portal.settings.problem_reasons';
   static const settingsUsers = 'portal.settings.users';
 
   static const tsdReceipt = 'tsd.receipt';
@@ -135,6 +136,10 @@ List<RightNode> rightsTree() {
           r.settings,
           children: [
             RightNode(r.settingsWarehouses, code: Rights.settingsWarehouses),
+            RightNode(
+              r.settingsProblemReasons,
+              code: Rights.settingsProblemReasons,
+            ),
             RightNode(r.settingsUsers, code: Rights.settingsUsers),
           ],
         ),

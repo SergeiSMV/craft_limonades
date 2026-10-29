@@ -1,5 +1,6 @@
 import '../../../../../core/gen/strings.g.dart';
 import '../../../../../core/utils/date_time_format.dart';
+import '../../../../../core/utils/doc_number.dart';
 import '../../../../../core/utils/qty_format.dart';
 import '../../../data/tasks_models.dart';
 
@@ -19,10 +20,14 @@ String taskKindLabel(String kind) => switch (kind) {
 /// Основание задания: «Основание: документ № ТН-1042 от 01.10.2026 ИП Березин …» (ADHOC-23);
 /// у задания от приёмки до ADHOC-23 документа нет — «Основание: приёмка от 05.10.2026 …».
 ///
-/// У возврата поставщику основание — кому везём (ADHOC-31).
+/// У возврата поставщику основание — кому везём (ADHOC-31). У размещения по решению
+/// «разместить» — номер проблемы склада (ADHOC-55).
 String taskBasis(WarehouseTask task) {
   if (task.kind == TaskKind.supplierReturn) {
     return t.tasks.basisReturn(supplier: task.supplier);
+  }
+  if (task.problem case final p?) {
+    return t.tasks.basisProblem(number: docNumber(DocKind.problem, p.number));
   }
   final number = task.docNumber;
   final docDate = task.docDate;
@@ -53,10 +58,15 @@ String taskAuthor(WarehouseTask task) => t.tasks.author(
 );
 
 /// Поставщик-основание для ленты, где приёмки как объекта нет — только имя. У возврата —
-/// кому везли (ADHOC-31).
-String supplierBasis(String supplier, {String kind = TaskKind.putaway}) =>
-    kind == TaskKind.supplierReturn
+/// кому везли (ADHOC-31), у размещения по проблеме — её номер (ADHOC-55).
+String supplierBasis(
+  String supplier, {
+  String kind = TaskKind.putaway,
+  TaskProblem? problem,
+}) => kind == TaskKind.supplierReturn
     ? t.tasks.returnSupplier(supplier: supplier)
+    : problem != null
+    ? t.tasks.fromProblem(number: docNumber(DocKind.problem, problem.number))
     : supplier.isEmpty
     ? t.tasks.fromReceiptNoSupplier
     : t.tasks.fromReceipt(supplier: supplier);

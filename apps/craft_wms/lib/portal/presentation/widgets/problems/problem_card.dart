@@ -9,6 +9,7 @@ import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/theme/semibold_text.dart';
 import '../../../../core/utils/date_time_format.dart';
+import '../../../../core/utils/doc_number.dart';
 import '../../../../core/utils/qty_format.dart';
 import '../../../data/problems_repository.dart';
 import '../common/neumorphic_plate.dart';
@@ -60,8 +61,16 @@ class ProblemCard extends StatelessWidget {
                   runSpacing: AppSizes.kChipSpacing,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
+                    Text(
+                      t.portal.problems.number(
+                        number: docNumber(DocKind.problem, p.number),
+                      ),
+                      style: SemiboldTextStyles().semiboldInter14.copyWith(
+                        color: AppColors.kTextMain,
+                      ),
+                    ),
                     _Pill(
-                      label: reasonLabel(p.reason),
+                      label: reasonText(p),
                       bg: AppColors.kBadgeInfoBg,
                       fg: AppColors.kBadgeInfoText,
                     ),
@@ -149,6 +158,11 @@ class ProblemCard extends StatelessWidget {
           ],
           if (p.resolved) ...[
             AppBoxes.kHeight12,
+            if (p.resolutionName.isNotEmpty)
+              Text(
+                t.portal.problems.resolvedVariant(name: p.resolutionName),
+                style: muted,
+              ),
             Text(
               _decisionText(p),
               style: SemiboldTextStyles().semiboldInter14.copyWith(
@@ -189,7 +203,7 @@ class ProblemCard extends StatelessWidget {
     ProblemDecision.place => t.portal.problems.resolvedPlace,
     ProblemDecision.supplierReturn => t.portal.problems.resolvedReturn(
       supplier: p.supplierName,
-      number: p.returnTaskNumber,
+      number: docNumber(DocKind.task, p.returnTaskNumber),
     ),
     _ => p.decision,
   };

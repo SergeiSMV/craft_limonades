@@ -286,7 +286,11 @@ class LoadUnitReceiptInfo {
     required this.receivedBy,
     this.supplier,
     this.postedAt,
+    this.number = 0,
   });
+
+  /// Номер приёмки, ПР-… (ADHOC-55); 0 — сервер без номеров.
+  final int number;
 
   /// Документ поставщика (ADHOC-23): номер и дата DD-MM-YYYY; `null` — сервер до ADHOC-23.
   final String? docNumber;
@@ -331,7 +335,14 @@ class LoadUnitMove {
     required this.kind,
     this.userName,
     required this.at,
+    this.operation = '',
+    this.operationNumber = 0,
   });
+
+  /// Операция переноса и её номер (ADHOC-55): `receipt`, `putaway`, `move`, `replenish`,
+  /// `stocktake`; пусто и 0 — операция без номера.
+  final String operation;
+  final int operationNumber;
 
   /// `null` — первое размещение: короб появился на складе.
   final String? from;

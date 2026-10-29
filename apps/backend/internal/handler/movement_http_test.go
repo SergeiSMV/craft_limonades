@@ -119,8 +119,9 @@ func applyMovementFixture(t *testing.T, raw []byte, kind string) {
 		t.Fatalf("«Движение» в портале: %v", docs)
 	}
 	header, rows := e.movementXLSX(t, docs[0]["id"].(string))
-	title := map[string]string{"move": "Перемещение", "replenish": "Пополнение"}[kind]
-	if header["Операция"] != title || header["Задание"] != "" {
+	// Операция — с номером своего вида (ADHOC-55): первое перемещение — ПМ-000001.
+	title := map[string]string{"move": "Перемещение ПМ-000001", "replenish": "Пополнение ПП-000001"}[kind]
+	if header["Операция"] != title || header["Задание"] != "" || header["Движение"] != "ДД-000001" {
 		t.Errorf("шапка файла: %v", header)
 	}
 	got := ""

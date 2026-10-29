@@ -6,6 +6,7 @@ import 'package:craft_wms/core/gen/strings.g.dart';
 import 'package:craft_wms/core/outbox/outbox_operation.dart';
 import 'package:craft_wms/core/outbox/outbox_repository.dart';
 import 'package:craft_wms/core/theme/app_theme.dart';
+import 'package:craft_wms/core/problems/problem_reasons.dart';
 import 'package:craft_wms/core/warehouse/internal_warehouses.dart';
 import 'package:craft_wms/features/contents/data/contents_cache.dart';
 import 'package:craft_wms/features/problems/data/problem_records_repository_impl.dart';
@@ -115,6 +116,7 @@ void main() {
         catalog,
         ContentsCache(db),
         InternalWarehouses(Dio(), db),
+        ProblemReasons(Dio(), db),
       );
     });
 

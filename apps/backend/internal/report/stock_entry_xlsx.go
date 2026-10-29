@@ -15,7 +15,8 @@ import (
 // Лист и колонки отчёта «ввод остатков».
 const sheetName = "Ввод остатков"
 
-var headers = []string{"Склад", "Ячейка", "Код", "Наименование", "Дата выпуска", "Количество"}
+// «Марка» (ADHOC-55) — последней: прежние колонки остаются на своих местах.
+var headers = []string{"Склад", "Ячейка", "Код", "Наименование", "Дата выпуска", "Количество", "Марка"}
 
 // BuildStockEntryXLSX формирует .xlsx-отчёт «ввод остатков» по данным закрытой сессии: заголовок +
 // строки (склад · ячейка · код · наименование · дата дд.мм.гггг · количество).
@@ -26,10 +27,23 @@ func BuildStockEntryXLSX(rep model.StockEntryReport) ([]byte, error) {
 		return nil, fmt.Errorf("переименовать лист: %w", err)
 	}
 
-	// Заголовок.
+	// Шапка — номер документа и номер сессии ввода остатков (ADHOC-55), затем через строку
+	// таблица.
+	header := [][2]string{{"Ввод остатков", docNumber(model.DocPrefixStockEntryDoc, rep.Number)}}
+	if rep.SourceNumber > 0 {
+		header = append(header, [2]string{"Операция", model.DocNumber(model.DocPrefixStockEntry, rep.SourceNumber)})
+	}
+	for r, kv := range header {
+		_ = f.SetCellValue(sheetName, cellName(1, r+1), kv[0])
+		if kv[1] != "" {
+			_ = f.SetCellValue(sheetName, cellName(2, r+1), kv[1])
+		}
+	}
+	top := len(header) + 2
+
+	// Заголовок таблицы.
 	for i, h := range headers {
-		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
-		_ = f.SetCellValue(sheetName, cell, h)
+		_ = f.SetCellValue(sheetName, cellName(i+1, top), h)
 	}
 
 	// Строки.
@@ -45,10 +59,10 @@ func BuildStockEntryXLSX(rep model.StockEntryReport) ([]byte, error) {
 			row.GoodName,
 			formatDate(row.ProductionDate),
 			qtyValue(row.Qty),
+			row.Mark,
 		}
 		for i, v := range values {
-			cell, _ := excelize.CoordinatesToCellName(i+1, r+2)
-			_ = f.SetCellValue(sheetName, cell, v)
+			_ = f.SetCellValue(sheetName, cellName(i+1, top+1+r), v)
 		}
 	}
 

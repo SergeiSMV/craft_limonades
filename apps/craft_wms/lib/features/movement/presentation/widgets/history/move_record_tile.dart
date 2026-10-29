@@ -10,6 +10,7 @@ import '../../../../../core/gen/strings.g.dart';
 import '../../../../../core/theme/regular_text.dart';
 import '../../../../../core/theme/semibold_text.dart';
 import '../../../../../core/utils/date_time_format.dart';
+import '../../../../../core/utils/doc_number.dart';
 import '../../../domain/movement_history.dart';
 
 /// Вид перемещения для человека; незнакомый — как есть.
@@ -18,6 +19,16 @@ String moveKindLabel(String kind) => switch (kind) {
   'replenish' => t.movement.kindReplenish,
   _ => kind,
 };
+
+/// Заголовок записи: вид и номер операции — «Перемещение ПМ-000001» (ADHOC-55).
+String moveRecordTitle(MoveRecord record) {
+  final docKind = operationDocKind(record.kind);
+  if (docKind == null || record.number == 0) return moveKindLabel(record.kind);
+  return t.movement.recordTitle(
+    kind: moveKindLabel(record.kind),
+    number: docNumber(docKind, record.number),
+  );
+}
 
 /// Запись ленты «Завершённые» перемещения: вид, кто перемещал, сколько коробов и строк
 /// товара, время. Вид — как у записи «Завершённых» заданий.
@@ -60,7 +71,7 @@ class MoveRecordTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    moveKindLabel(record.kind),
+                    moveRecordTitle(record),
                     style: SemiboldTextStyles().semiboldInter14.copyWith(
                       color: AppColors.kSidebarHover,
                     ),

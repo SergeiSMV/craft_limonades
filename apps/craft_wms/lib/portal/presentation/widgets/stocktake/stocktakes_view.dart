@@ -15,6 +15,7 @@ import 'stocktake_card.dart';
 import 'stocktake_create_dialog.dart';
 import 'stocktake_dialogs.dart';
 import 'stocktake_labels.dart';
+import '../../../../core/utils/doc_number.dart';
 
 /// Пересчёты в портале (P10-05): открытые и закрытые, «Завести пересчёт», ход и закрытие.
 class StocktakesView extends StatefulWidget {
@@ -74,7 +75,7 @@ class _StocktakesViewState extends State<StocktakesView> {
     if (created == null || !mounted) return;
     _snack(
       t.portal.stocktake.createDone(
-        number: created.number,
+        number: docNumber(DocKind.stocktake, created.number),
         cells: created.cells,
       ),
     );

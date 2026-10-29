@@ -9,6 +9,7 @@ import '../../features/stock/data/catalog_cache.dart';
 import '../error/failure.dart';
 import '../outbox/outbox_effects.dart';
 import '../outbox/outbox_repository.dart';
+import '../problems/problem_reasons.dart';
 import '../warehouse/internal_warehouses.dart';
 
 /// Чем закончилась попытка обновить справочники (ADHOC-10).
@@ -39,6 +40,7 @@ class CatalogSyncService {
     this._cache,
     this._contents,
     this._warehouses,
+    this._reasons,
     this._outbox,
     this._effects,
     this._talker,
@@ -53,6 +55,9 @@ class CatalogSyncService {
 
   /// Внутренние склады (P6-07-2) — до снимка: им подписывается помеченный товар.
   final InternalWarehouses _warehouses;
+
+  /// Причины проблем (ADHOC-55) — выбор при пометке и подпись проблем.
+  final ProblemReasons _reasons;
 
   /// Очередь и её следствия — чтобы свежий справочник привязок не стёр то, что ещё не
   /// отправлено (ADHOC-36).
@@ -127,6 +132,11 @@ class CatalogSyncService {
       final warehouses = await _warehouses.refresh();
       if (warehouses.isLeft) {
         _talker.warning('Внутренние склады не загрузились: ${warehouses.left}');
+      }
+      // Тоже не останавливает: без справочника форма пометки берёт прежний список причин.
+      final reasons = await _reasons.refresh();
+      if (reasons.isLeft) {
+        _talker.warning('Причины проблем не загрузились: ${reasons.left}');
       }
 
       final contents = await _contents.refresh();

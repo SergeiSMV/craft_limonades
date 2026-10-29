@@ -18,6 +18,8 @@ func TestBuildStockEntryXLSX(t *testing.T) {
 		WarehouseCode: "SHB",
 		WarehouseName: "Шабулина",
 		CreatedAt:     time.Date(2026, 8, 14, 0, 0, 0, 0, time.UTC),
+		Number:        3,
+		SourceNumber:  7,
 		Rows: []model.StockEntryReportRow{
 			{CellAddress: "M1-1-1-1", GoodCode: &code, GoodName: "Кальмар", ProductionDate: "2026-01-15", Qty: "10.500"},
 			{CellAddress: "M1-1-2-1", GoodCode: nil, GoodName: "Весовой", ProductionDate: "bad", Qty: "3"},
@@ -42,9 +44,14 @@ func TestBuildStockEntryXLSX(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetRows: %v", err)
 	}
-	if len(rows) != 3 { // заголовок + 2 строки
-		t.Fatalf("ожидалось 3 строки (заголовок + 2), получено %d", len(rows))
+	// Шапка с номерами документа и операции (ADHOC-55), пустая строка, затем таблица.
+	if len(rows) != 6 {
+		t.Fatalf("ожидалось 6 строк (шапка 2, пустая, заголовок, 2 строки), получено %d", len(rows))
 	}
+	if rows[0][0] != "Ввод остатков" || rows[0][1] != "ДВ-000003" || rows[1][1] != "ВО-000007" {
+		t.Errorf("шапка: %v %v", rows[0], rows[1])
+	}
+	rows = rows[3:]
 	// Заголовок.
 	for i, h := range headers {
 		if rows[0][i] != h {

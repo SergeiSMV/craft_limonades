@@ -10,6 +10,7 @@ import 'package:craft_wms/features/problems/presentation/bloc/resolved_problems_
 import 'package:craft_wms/features/problems/presentation/pages/problem_record_page.dart';
 import 'package:craft_wms/features/problems/presentation/widgets/resolved/resolved_feed.dart';
 import 'package:craft_wms/features/problems/presentation/widgets/records/record_days.dart';
+import 'package:craft_wms/features/problems/presentation/widgets/problem_format.dart';
 import 'package:craft_wms/features/problems/presentation/widgets/records/record_format.dart';
 import 'package:craft_wms/features/tasks/data/tasks_models.dart';
 import 'package:either_dart/either.dart';
@@ -67,6 +68,8 @@ void main() {
     final p = problemRecordFromJson(raw.single as Map<String, dynamic>);
 
     expect(p.id, '7e000000-0000-4000-8000-000000000001');
+    expect(p.number, 1);
+    expect(numberLabel(p), t.problems.numberLine(number: 'ПБ-000001'));
     expect(
       (p.cellAddress, p.loadUnitId, p.reason),
       ('M1-1-1-1', null, 'breakage'),
@@ -103,7 +106,9 @@ void main() {
         contains('Петрова Анна'),
         reason: 'списание исполняет «Провести» — решивший',
       );
-      expect(reasonLabelOf(writeOff.reason), t.problems.reasonBreakage);
+      // Название причины и варианта — из справочника сервера (ADHOC-55).
+      expect(reasonText(writeOff), 'Бой');
+      expect(resolutionText(writeOff), 'Списать');
       expect(subjectLabel(writeOff), 'Кальмар');
       expect(
         subjectLines(writeOff),
@@ -121,7 +126,7 @@ void main() {
       );
       expect(decisionLines(ret), [
         t.problems.supplierLine(supplier: 'ИП Березин'),
-        t.problems.taskLine(number: 7),
+        t.problems.taskLine(number: 'ЗД-000007'),
       ]);
       expect(outcomeLabel(ret), t.problems.outcomeAwaiting);
       expect(executedMeta(ret), isNull, reason: 'возврат ещё не отгружен');
@@ -130,7 +135,7 @@ void main() {
       expect(
         reasonLabelOf('новая'),
         'новая',
-        reason: 'незнакомая причина — как есть',
+        reason: 'незнакомая причина без справочника — как есть',
       );
     },
   );
@@ -254,6 +259,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text(t.problems.outcomeAwaiting), findsOneWidget);
     expect(find.text('Кальмар'), findsOneWidget);
+    // Без номера — своя неотправленная: номер выдаёт сервер (ADHOC-55).
+    expect(find.text(t.problems.numberPending), findsOneWidget);
     expect(find.text(t.problems.placeLine(place: 'M1-1-1-1')), findsOneWidget);
 
     online = false;
@@ -312,7 +319,10 @@ void main() {
         find.text(t.problems.supplierLine(supplier: 'ИП Березин')),
         findsOneWidget,
       );
-      expect(find.text(t.problems.taskLine(number: 7)), findsOneWidget);
+      expect(
+        find.text(t.problems.taskLine(number: 'ЗД-000007')),
+        findsOneWidget,
+      );
       expect(
         find.text(t.problems.batchLine(date: '01.09.2026')),
         findsOneWidget,

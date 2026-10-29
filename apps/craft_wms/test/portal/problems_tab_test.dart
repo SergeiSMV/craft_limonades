@@ -1,6 +1,8 @@
 import 'package:craft_wms/core/di/injection.dart';
 import 'package:craft_wms/core/gen/strings.g.dart';
+import 'package:craft_wms/core/problems/problem_reasons.dart';
 import 'package:craft_wms/portal/data/problems_repository.dart';
+import 'package:craft_wms/portal/presentation/widgets/problems/problem_labels.dart';
 import 'package:craft_wms/portal/presentation/widgets/tabs/problems_tab.dart';
 import 'package:either_dart/either.dart';
 import 'package:flutter/material.dart';
@@ -16,6 +18,7 @@ PortalProblem problem(
   bool resolved = false,
 }) => PortalProblem(
   id: id,
+  number: 9,
   createdAt: DateTime.utc(2026, 10, 21, 8),
   createdBy: 'Иванов',
   cellAddress: 'A-1',
@@ -34,7 +37,11 @@ PortalProblem problem(
       cellAddress: 'A-1',
     ),
   ],
-  decisions: decisions,
+  // Вариант справочника на действие (ADHOC-55) — с прежней подписью действия.
+  resolutions: [
+    for (final d in decisions)
+      ResolutionVariant(id: 'r-$d', name: decisionLabel(d), action: d),
+  ],
   suggestedSupplierId: '',
   resolved: resolved,
   decision: resolved ? ProblemDecision.place : '',
@@ -52,6 +59,7 @@ void main() {
 
   setUpAll(() {
     registerFallbackValue((
+      resolutionId: '',
       decision: '',
       docNumber: '',
       docDate: '',
@@ -116,6 +124,11 @@ void main() {
     final captured = verify(() => repo.resolve('p1', captureAny())).captured;
     final r = captured.single as ProblemResolution;
     expect(r.decision, ProblemDecision.writeOff);
+    expect(
+      r.resolutionId,
+      'r-write_off',
+      reason: 'решение — вариантом справочника',
+    );
     expect(r.docNumber, 'СП-17');
     expect(r.docDate, matches(RegExp(r'^\d{4}-\d{2}-\d{2}$')));
     verify(() => repo.list()).called(2); // после проведения список перечитан

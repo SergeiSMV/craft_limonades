@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"slices"
 	"strconv"
 	"time"
 
@@ -37,11 +38,13 @@ type problemItemResponse struct {
 
 type problemResponse struct {
 	ID          string    `json:"id"`
+	Number      int64     `json:"number"` // номер для людей (ADHOC-55), префикс — у показа
 	CreatedAt   time.Time `json:"created_at"`
 	CreatedBy   string    `json:"created_by"`
 	CellAddress string    `json:"cell_address"`
 	LoadUnitID  string    `json:"load_unit_id,omitempty"`
 	Reason      string    `json:"reason"`
+	ReasonName  string    `json:"reason_name"` // название по справочнику (ADHOC-55)
 	Comment     string    `json:"comment"`
 	Mark        string    `json:"mark,omitempty"`
 	// Marks — КИ марок ЧЗ проблемы (ADHOC-52); нет марок — пустой список.
@@ -52,22 +55,28 @@ type problemResponse struct {
 	FromGood string                `json:"from_good,omitempty"`
 	Barcode  string                `json:"barcode,omitempty"`
 	Items    []problemItemResponse `json:"items"`
-	// Решения, допустимые при причине, в порядке показа: портал не держит свою копию таблицы.
+	// Варианты решения, которыми проблему можно решить сейчас, в порядке справочника (ADHOC-55).
+	Resolutions []problemResolutionResponse `json:"resolutions"`
+	// Decisions — действия этих вариантов: прежний бандл портала решает действием.
 	Decisions           []string `json:"decisions"`
 	SuggestedSupplierID string   `json:"suggested_supplier_id,omitempty"`
 
-	Status       string     `json:"status"`
-	Decision     string     `json:"decision,omitempty"`
-	DocNumber    string     `json:"doc_number,omitempty"`
-	DocDate      string     `json:"doc_date,omitempty"`
-	SupplierID   string     `json:"supplier_id,omitempty"`
-	SupplierName string     `json:"supplier_name,omitempty"`
-	ReturnTaskNo int64      `json:"return_task_number,omitempty"`
-	ResolvedBy   string     `json:"resolved_by,omitempty"`
-	ResolvedAt   *time.Time `json:"resolved_at,omitempty"`
+	Status   string `json:"status"`
+	Decision string `json:"decision,omitempty"`
+	// ResolutionName — выбранный вариант решения (ADHOC-55).
+	ResolutionName string     `json:"resolution_name,omitempty"`
+	DocNumber      string     `json:"doc_number,omitempty"`
+	DocDate        string     `json:"doc_date,omitempty"`
+	SupplierID     string     `json:"supplier_id,omitempty"`
+	SupplierName   string     `json:"supplier_name,omitempty"`
+	ReturnTaskNo   int64      `json:"return_task_number,omitempty"`
+	ResolvedBy     string     `json:"resolved_by,omitempty"`
+	ResolvedAt     *time.Time `json:"resolved_at,omitempty"`
 	// Исполнение возврата (ADHOC-34): кто и когда отгрузил поставщику; нет — ещё не отгружен.
 	ShippedBy string     `json:"shipped_by,omitempty"`
 	ShippedAt *time.Time `json:"shipped_at,omitempty"`
+	// ShipmentNumber — номер отгрузки возврата, «ВП» (ADHOC-55); нет — не отгружен.
+	ShipmentNumber int64 `json:"shipment_number,omitempty"`
 	// Photos — идентификаторы фото в порядке съёмки (ADHOC-45); снимок — отдельным запросом.
 	Photos []string `json:"photos"`
 }
@@ -77,17 +86,25 @@ func toProblemResponse(p model.Problem) problemResponse {
 	for _, it := range p.Items {
 		items = append(items, problemItemResponse(it))
 	}
+	resolutions := make([]problemResolutionResponse, 0, len(p.Resolutions))
+	decisions := []string{}
+	for _, x := range p.Resolutions {
+		resolutions = append(resolutions, problemResolutionResponse(x))
+		if !slices.Contains(decisions, x.Action) {
+			decisions = append(decisions, x.Action)
+		}
+	}
 	return problemResponse{
-		ID: p.ID, CreatedAt: p.CreatedAt, CreatedBy: p.CreatedByName, CellAddress: p.CellAddress,
-		LoadUnitID: p.LoadUnitID, Reason: p.Reason, Comment: p.Comment, Mark: p.Mark,
+		ID: p.ID, Number: p.Number, CreatedAt: p.CreatedAt, CreatedBy: p.CreatedByName, CellAddress: p.CellAddress,
+		LoadUnitID: p.LoadUnitID, Reason: p.Reason, ReasonName: p.ReasonName, Comment: p.Comment, Mark: p.Mark,
 		Marks:         orEmpty(p.Marks),
 		FromWarehouse: p.FromWarehouse, ToWarehouse: p.ToWarehouse, FromGood: p.FromGoodName,
 		Barcode: p.Barcode, Items: items,
-		Decisions: model.ProblemDecisionsFor(p.Reason), SuggestedSupplierID: p.SuggestedSupplierID,
-		Status: p.Status, Decision: p.Decision, DocNumber: p.DocNumber, DocDate: p.DocDate,
+		Resolutions: resolutions, Decisions: decisions, SuggestedSupplierID: p.SuggestedSupplierID,
+		Status: p.Status, Decision: p.Decision, ResolutionName: p.ResolutionName, DocNumber: p.DocNumber, DocDate: p.DocDate,
 		SupplierID: p.SupplierID, SupplierName: p.SupplierName, ReturnTaskNo: p.ReturnTaskNo,
 		ResolvedBy: p.ResolvedByName, ResolvedAt: p.ResolvedAt,
-		ShippedBy: p.ShippedByName, ShippedAt: p.ShippedAt, Photos: orEmpty(p.Photos),
+		ShippedBy: p.ShippedByName, ShippedAt: p.ShippedAt, ShipmentNumber: p.ShipmentNumber, Photos: orEmpty(p.Photos),
 	}
 }
 
@@ -160,14 +177,16 @@ func (h *ProblemHandler) Resolved(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// Resolve: POST /api/v1/problems/{id}/resolve {decision, doc_number?, doc_date?, supplier_id?} —
-// «Провести» решение офиса. 204 / 400 / 404 / 409.
+// Resolve: POST /api/v1/problems/{id}/resolve {resolution_id, doc_number?, doc_date?,
+// supplier_id?} — «Провести» решение офиса вариантом справочника (ADHOC-55). Прежний бандл
+// портала шлёт `decision` — действие без варианта. 204 / 400 / 404 / 409.
 func (h *ProblemHandler) Resolve(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Decision   string `json:"decision"`
-		DocNumber  string `json:"doc_number"`
-		DocDate    string `json:"doc_date"`
-		SupplierID string `json:"supplier_id"`
+		ResolutionID string `json:"resolution_id"`
+		Decision     string `json:"decision"`
+		DocNumber    string `json:"doc_number"`
+		DocDate      string `json:"doc_date"`
+		SupplierID   string `json:"supplier_id"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "неверное тело запроса")
@@ -176,7 +195,7 @@ func (h *ProblemHandler) Resolve(w http.ResponseWriter, r *http.Request) {
 	userID, _ := appmw.UserIDFromContext(r.Context())
 	err := h.svc.Resolve(r.Context(), model.ResolveProblemInput{
 		ProblemID: chi.URLParam(r, "id"), Decision: req.Decision, DocNumber: req.DocNumber,
-		DocDate: req.DocDate, SupplierID: req.SupplierID, ResolvedBy: userID,
+		DocDate: req.DocDate, SupplierID: req.SupplierID, ResolvedBy: userID, ResolutionID: req.ResolutionID,
 	})
 	if err != nil {
 		problemError(w, r, err)
@@ -193,7 +212,7 @@ func problemError(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, service.ErrInvalidDecision):
 		writeError(w, http.StatusBadRequest, "для списания нужны номер и дата документа 1С, для возврата — поставщик")
 	case errors.Is(err, repository.ErrDecisionNotAllowed):
-		writeError(w, http.StatusBadRequest, "это решение недоступно при такой причине")
+		writeError(w, http.StatusBadRequest, "этот вариант решения недоступен при такой причине")
 	case errors.Is(err, repository.ErrUnknownSupplier):
 		writeError(w, http.StatusBadRequest, "поставщик не найден")
 	case errors.Is(err, repository.ErrProblemResolved):

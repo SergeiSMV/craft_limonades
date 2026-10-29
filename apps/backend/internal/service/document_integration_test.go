@@ -92,9 +92,11 @@ func TestDocuments(t *testing.T) {
 	}
 	defer func() { _ = f.Close() }()
 	rows, err := f.GetRows("Ввод остатков")
-	if err != nil || len(rows) != 2 {
-		t.Fatalf("ожидалось 2 строки (заголовок + 1), получено %d (err %v)", len(rows), err)
+	// Шапка с номерами (ADHOC-55): документ и операция, пустая строка, затем таблица.
+	if err != nil || len(rows) != 5 || rows[0][1] != "ДВ-000001" || rows[1][1] != "ВО-000001" {
+		t.Fatalf("ожидалось 5 строк (шапка 2, пустая, заголовок, 1), получено %v (err %v)", rows, err)
 	}
+	rows = rows[3:]
 	want := []string{"Шабулина", "M1-1-1-1", "16121", "Кальмар", "15.01.2026", "10.5"}
 	for i, v := range want {
 		if rows[1][i] != v {

@@ -52,6 +52,14 @@ type ReportSnapshot struct {
 	CreatedAt     time.Time           `json:"created_at"`
 	Rows          []ReportSnapshotRow `json:"rows"`
 
+	// Number — номер самого документа (ADHOC-55), счётчик своей формы. В снимке не хранится:
+	// номер выдаёт база при вставке документа, уже после сборки снимка; читается из колонки.
+	Number int64 `json:"-"`
+	// SourceNumber — номер операции-источника (ADHOC-55): приёмки, сеанса размещения,
+	// перемещения или пополнения, сессии ввода остатков; у «Инвентаризации» — StocktakeNumber.
+	// 0 — снимок до ADHOC-55.
+	SourceNumber int64 `json:"source_number,omitempty"`
+
 	// Шапка «Поступления» (P4-10). У ввода остатков полей нет, и omitempty держит прежние
 	// снимки байт в байт такими, какими они были сохранены.
 	//
@@ -72,6 +80,9 @@ type ReportSnapshot struct {
 	// (MovementOperation*); TaskNumber — номер задания-основания, 0 — операция без задания.
 	Operation  string `json:"operation,omitempty"`
 	TaskNumber int64  `json:"task_number,omitempty"`
+	// ProblemNumber — проблема склада, решение по которой завело задание размещения
+	// (ADHOC-55); 0 — задание родилось из приёмки или его нет.
+	ProblemNumber int64 `json:"problem_number,omitempty"`
 
 	// Шапка «Инвентаризации» (P10-05): номер пересчёта и вид его области; Executor — кто закрыл.
 	StocktakeNumber int64  `json:"stocktake_number,omitempty"`
@@ -91,6 +102,9 @@ type ReportSnapshotRow struct {
 	GoodName        string  `json:"good_name"`
 	ProductionDate  string  `json:"production_date"`
 	Qty             string  `json:"qty"`
+	// Mark — КИ марки ЧЗ (ADHOC-55): маркируемый товар в документе — строка на марку с
+	// количеством 1 (у «Инвентаризации» — ожидалось и факт по 0 или 1). Пусто — строка без марки.
+	Mark string `json:"mark,omitempty"`
 
 	// Строка «Инвентаризации» (P10-05): склад WMS позиции, ожидалось, факт, расхождение (факт
 	// минус ожидалось) и пометка — «не найдено — проблема склада», «не считалась». Qty у неё пуст.
@@ -124,6 +138,9 @@ type DocumentListItem struct {
 	DocDate       string // её дата YYYY-MM-DD
 	Operation     string // операция «Движения» (P5-04); пусто — другая форма
 	TaskNumber    int64  // задание-основание «Движения»; 0 — нет
+	ProblemNumber int64  // проблема склада — основание задания (ADHOC-55); 0 — нет
+	Number        int64  // номер документа — счётчик формы (ADHOC-55)
+	SourceNumber  int64  // номер операции-источника (ADHOC-55); 0 — снимок до ADHOC-55
 	// StocktakeNumber — пересчёт «Инвентаризации» (P10-05); 0 — другая форма.
 	StocktakeNumber int64
 	Executor        string // кто выполнил операцию (ФИО из снимка); пусто — снимок без исполнителя

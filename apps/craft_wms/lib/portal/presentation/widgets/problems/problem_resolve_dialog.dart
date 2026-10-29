@@ -6,6 +6,7 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/gen/strings.g.dart';
+import '../../../../core/problems/problem_reasons.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/theme/semibold_text.dart';
 import '../../../../core/utils/date_time_format.dart';
@@ -15,11 +16,11 @@ import '../common/portal_date_picker.dart';
 import '../common/portal_dialog.dart';
 import '../common/portal_filter_chip.dart';
 import '../common/portal_text_field.dart';
-import 'problem_labels.dart';
 import 'supplier_picker.dart';
 
-/// Диалог «Решение по проблеме» (P6-07-3): выбор решения из допустимых при причине и поля
-/// своего вида — документ списания 1С (номер и дата) или поставщик возврата. Возвращает
+/// Диалог «Решение по проблеме» (P6-07-3): выбор варианта решения из допустимых при причине
+/// (справочник, ADHOC-55) и поля его действия — документ списания 1С (номер и дата) или
+/// поставщик возврата. Возвращает
 /// собранное решение; `null` — оператор передумал. Проводит решение вкладка.
 Future<ProblemResolution?> showProblemResolveDialog(
   BuildContext context,
@@ -41,10 +42,13 @@ class _ResolveDialog extends StatefulWidget {
 class _ResolveDialogState extends State<_ResolveDialog> {
   final _docNumber = TextEditingController();
 
-  /// Выбранное решение; единственное допустимое выбрано сразу.
-  late String? _decision = widget.problem.decisions.length == 1
-      ? widget.problem.decisions.first
+  /// Выбранный вариант; единственный допустимый выбран сразу.
+  late ResolutionVariant? _variant = widget.problem.resolutions.length == 1
+      ? widget.problem.resolutions.first
       : null;
+
+  /// Действие выбранного варианта — от него зависят поля.
+  String? get _decision => _variant?.action;
 
   /// Дата документа списания; по умолчанию — сегодня.
   DateTime _docDate = DateTime.now();
@@ -57,7 +61,9 @@ class _ResolveDialogState extends State<_ResolveDialog> {
   @override
   void initState() {
     super.initState();
-    if (widget.problem.decisions.contains(ProblemDecision.supplierReturn)) {
+    if (widget.problem.resolutions.any(
+      (r) => r.action == ProblemDecision.supplierReturn,
+    )) {
       loadSuppliers();
     }
   }
@@ -87,9 +93,9 @@ class _ResolveDialogState extends State<_ResolveDialog> {
     });
   }
 
-  /// Выбрать решение.
-  void choose(String decision) => setState(() {
-    _decision = decision;
+  /// Выбрать вариант решения.
+  void choose(ResolutionVariant variant) => setState(() {
+    _variant = variant;
     _error = null;
   });
 
@@ -108,7 +114,8 @@ class _ResolveDialogState extends State<_ResolveDialog> {
 
   /// «Провести»: решение собрано полностью — вернуть его вкладке; иначе — подсказка.
   void submit() {
-    final decision = _decision;
+    final variant = _variant;
+    final decision = variant?.action;
     final number = _docNumber.text.trim();
     final error = switch (decision) {
       null => t.portal.problems.needDecision,
@@ -119,12 +126,13 @@ class _ResolveDialogState extends State<_ResolveDialog> {
         t.portal.problems.needSupplier,
       _ => null,
     };
-    if (error != null || decision == null) {
+    if (error != null || variant == null) {
       setState(() => _error = error);
       return;
     }
     Navigator.of(context).pop((
-      decision: decision,
+      resolutionId: variant.id,
+      decision: variant.action,
       docNumber: number,
       docDate: _iso(_docDate),
       supplierId: _supplierId,
@@ -162,11 +170,11 @@ class _ResolveDialogState extends State<_ResolveDialog> {
                 spacing: AppSizes.kChipSpacing,
                 runSpacing: AppSizes.kChipSpacing,
                 children: [
-                  for (final d in widget.problem.decisions)
+                  for (final r in widget.problem.resolutions)
                     PortalFilterChip(
-                      label: decisionLabel(d),
-                      selected: _decision == d,
-                      onTap: () => choose(d),
+                      label: r.name,
+                      selected: _variant?.id == r.id,
+                      onTap: () => choose(r),
                     ),
                 ],
               ),

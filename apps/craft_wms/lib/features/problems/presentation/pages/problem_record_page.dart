@@ -65,6 +65,7 @@ class ProblemRecordPage extends StatelessWidget {
             children: [
               SectionTitle(title: t.problems.sectionProblem),
               _card([
+                _muted(numberLabel(p)),
                 _strong(subjectLabel(p)),
                 for (final line in subjectLines(p)) _text(line),
                 // У пересорта (ADHOC-53) ячейки и складов нет: он лежит, где лежал.
@@ -77,7 +78,7 @@ class ProblemRecordPage extends StatelessWidget {
                       to: p.toWarehouse,
                     ),
                   ),
-                _text(t.problems.reasonLine(reason: reasonLabelOf(p.reason))),
+                _text(t.problems.reasonLine(reason: reasonText(p))),
                 if (p.comment.isNotEmpty)
                   _text(t.problems.commentLine(comment: p.comment)),
                 if (p.mark != null) _text(t.problems.markLine(mark: p.mark!)),
@@ -96,7 +97,7 @@ class ProblemRecordPage extends StatelessWidget {
                 _card([_strong(outcomeLabel(p))])
               else ...[
                 _card([
-                  _strong(decisionLabel(p.decision)),
+                  _strong(resolutionText(p)),
                   for (final line in decisionLines(p)) _text(line),
                   _muted(
                     t.problems.resolvedMeta(

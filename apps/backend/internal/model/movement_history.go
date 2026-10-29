@@ -30,6 +30,7 @@ type MovementHistoryFilter struct {
 // кладовщик узнаёт запись в ленте, не открывая её.
 type MovementRecord struct {
 	ID        string
+	Number    int64  // номер документа своего вида: «ПМ» | «ПП» (ADHOC-55)
 	Kind      string // MovementMove | MovementReplenish
 	PostedAt  time.Time
 	Executor  TaskUser

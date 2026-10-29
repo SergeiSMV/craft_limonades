@@ -13,7 +13,8 @@ import (
 // Лист и колонки формы «Поступление» (P4-10).
 const receiptSheet = "Поступление"
 
-var receiptHeaders = []string{"Ячейка", "Код", "Наименование", "Дата выпуска", "Количество"}
+// «Марка» (ADHOC-55): маркируемый товар — строка на марку; колонка последней, прежние на местах.
+var receiptHeaders = []string{"Ячейка", "Код", "Наименование", "Дата выпуска", "Количество", "Марка"}
 
 // msk — московское время для даты документа. Фиксированный сдвиг, а не LoadLocation: в образе
 // бэкенда базы часовых поясов может не быть, а сервер работает в UTC — без перевода приёмка,
@@ -37,11 +38,15 @@ func BuildReceiptXLSX(s model.ReportSnapshot) ([]byte, error) {
 	if supplier == "" {
 		supplier = "без поставщика"
 	}
-	header := [][2]string{
-		{"Поступление", ""},
-		{"Склад", s.WarehouseName},
-		{"Поставщик", supplier},
+	// Номер документа — рядом с названием формы, номер приёмки — отдельной строкой (ADHOC-55).
+	header := [][2]string{{"Поступление", docNumber(model.DocPrefixReceiptDoc, s.Number)}}
+	if s.SourceNumber > 0 {
+		header = append(header, [2]string{"Приёмка", model.DocNumber(model.DocPrefixReceipt, s.SourceNumber)})
 	}
+	header = append(header,
+		[2]string{"Склад", s.WarehouseName},
+		[2]string{"Поставщик", supplier},
+	)
 	// Документ-основание (ADHOC-23) — сразу под поставщиком: оператор заносит в 1С именно его.
 	// Снимок до ADHOC-23 документа не несёт, и строки нет.
 	if s.DocNumber != "" {
@@ -76,6 +81,7 @@ func BuildReceiptXLSX(s model.ReportSnapshot) ([]byte, error) {
 			row.GoodName,
 			formatDate(row.ProductionDate),
 			qtyValue(row.Qty),
+			row.Mark,
 		}
 		for i, v := range values {
 			_ = f.SetCellValue(receiptSheet, cellName(i+1, top+1+r), v)

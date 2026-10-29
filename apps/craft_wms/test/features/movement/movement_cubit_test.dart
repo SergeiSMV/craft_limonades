@@ -86,13 +86,20 @@ void main() {
   final cell2 = cell('6d000000-0000-4000-8000-0000000000a4', 'M1-1-1-2');
   final cell3 = cell('6d000000-0000-4000-8000-0000000000a5', 'M1-1-1-3');
 
-  ContentLine line(double qty, {String d = date}) => ContentLine(
+  ContentLine line(
+    double qty, {
+    String d = date,
+    String? iwh,
+    String? iwhName,
+  }) => ContentLine(
     goodId: good,
     goodName: 'Кальмар',
     goodCode: '16121',
     uom: 'шт',
     productionDate: d,
     qty: qty,
+    internalWarehouseId: iwh,
+    internalWarehouseName: iwhName,
   );
 
   LoadUnitView box(String id, {double qty = 12, bool live = true}) =>
@@ -143,6 +150,37 @@ void main() {
         expected,
         reason: 'формат разошёлся с testdata/movement_submit.json',
       );
+      await c.close();
+    },
+  );
+
+  test(
+    'ячейка приёмки — источник только россыпи с меткой, приёмником не бывает',
+    () async {
+      const isolator = '6d000000-0000-4000-8000-0000000000e1';
+      final receiving = cell('r', 'С-Н-П', isDefault: true);
+      final c = await started();
+
+      c.onCell(
+        receiving,
+        loose: [
+          line(5),
+          line(2, iwh: isolator, iwhName: 'Изолятор'),
+        ],
+      );
+      final source = c.state.hold! as HoldSource;
+      expect(c.state.candidates(source).map((e) => e.$2), [2]);
+      expect(
+        c.state.candidates(source).single.$1.internalWarehouseId,
+        isolator,
+      );
+
+      c.takeGoods(c.state.candidates(source).single.$1, 2);
+      c.onCell(receiving);
+      expect(c.state.notice, isA<NoticeReceivingCell>());
+      c.onCell(cell1);
+      expect(c.state.lines.single.internalWarehouseId, isolator);
+      expect(c.state.lines.single.from.cellId, 'r');
       await c.close();
     },
   );
@@ -512,6 +550,18 @@ void main() {
         take(c, [m1], MovePlace(cellId: 'r', cellAddress: 'С-Н-П'), receiving);
         expect(c.state.notice, const MoveNotice.receivingCell());
         expect(c.state.hold, isNull);
+
+        // Марки с меткой склада ячейка приёмки отдаёт (ADHOC-55).
+        c.takeMarks(
+          marks: [m1],
+          good: beer,
+          productionDate: date,
+          from: MovePlace(cellId: 'r', cellAddress: 'С-Н-П'),
+          cell: receiving,
+          internalWarehouseId: '6e000000-0000-4000-8000-0000000000e1',
+          internalWarehouseName: 'Изолятор',
+        );
+        expect(c.state.hold, isA<HoldGoods>());
         await c.close();
       },
     );

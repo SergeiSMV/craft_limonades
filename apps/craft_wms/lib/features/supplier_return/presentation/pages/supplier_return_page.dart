@@ -29,6 +29,7 @@ import '../../../tasks/data/tasks_models.dart';
 import '../bloc/supplier_return_cubit.dart';
 import '../widgets/return_outcome_view.dart';
 import '../widgets/return_position_tile.dart';
+import '../../../../core/utils/doc_number.dart';
 
 /// Отгрузка возврата поставщику по заданию (ADHOC-31): отметить все позиции — сканом короба,
 /// ячейки и товара или касанием — и нажать «Отгружено». Задание отгружается целиком, сеанс
@@ -207,7 +208,7 @@ class _SupplierReturnViewState extends State<_SupplierReturnView>
               child: Assets.images.featuredSnacks.image(fit: BoxFit.cover),
             ),
             title: PageHeader(
-              title: t.supplierReturn.title(number: state.task.number),
+              title: t.supplierReturn.title(number: docNumber(DocKind.task, state.task.number)),
               goBack: goBack,
             ),
           ),

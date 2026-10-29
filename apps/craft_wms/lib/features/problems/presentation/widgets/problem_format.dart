@@ -1,24 +1,16 @@
 import '../../../../core/gen/strings.g.dart';
+import '../../../../core/problems/problem_reasons.dart';
 import '../../../../core/utils/date_time_format.dart';
 import '../../../../core/utils/qty_format.dart';
 import '../../../contents/domain/contents_entities.dart';
 import '../../../movement/presentation/widgets/move_format.dart';
-import '../../domain/problem_models.dart';
 import '../../../stock/data/catalog_models.dart';
 
 /// Подписи «Проблем склада» для человека.
 
-/// Причина.
-String reasonLabel(ProblemReason r) => switch (r) {
-  ProblemReason.breakage => t.problems.reasonBreakage,
-  ProblemReason.spoilage => t.problems.reasonSpoilage,
-  ProblemReason.expired => t.problems.reasonExpired,
-  ProblemReason.foreignMark => t.problems.reasonForeignMark,
-  ProblemReason.retired => t.problems.reasonRetired,
-  ProblemReason.notFound => t.problems.reasonNotFound,
-  ProblemReason.regrade => t.problems.reasonRegrade,
-  ProblemReason.other => t.problems.reasonOther,
-};
+/// Причина по коду, когда названия из справочника нет (ADHOC-55): прежняя подпись причины,
+/// заведённой миграцией; незнакомый код — как есть.
+String reasonLabelOf(String code) => fallbackReasonName(code) ?? code;
 
 /// Короб: «Короб D35F AE87 · Брак» — склад, если не «Основной».
 String boxLabel(LoadUnitView box) => withWarehouse(

@@ -3,7 +3,6 @@ package report
 import (
 	"bytes"
 	"fmt"
-	"strconv"
 
 	"github.com/xuri/excelize/v2"
 
@@ -13,7 +12,8 @@ import (
 // Лист и колонки формы «Движение» (P5-04).
 const movementSheet = "Движение"
 
-var movementHeaders = []string{"Откуда", "Куда", "Код", "Наименование", "Дата выпуска", "Количество"}
+// «Марка» (ADHOC-55): маркируемый товар — строка на марку; колонка последней, прежние на местах.
+var movementHeaders = []string{"Откуда", "Куда", "Код", "Наименование", "Дата выпуска", "Количество", "Марка"}
 
 // movementOperationTitle — операция «Движения» для человека. Незнакомое значение (снимок
 // формы из будущей версии) показывается как есть: документ важнее подписи.
@@ -43,15 +43,24 @@ func BuildMovementXLSX(s model.ReportSnapshot) ([]byte, error) {
 		return nil, fmt.Errorf("переименовать лист: %w", err)
 	}
 
+	// Номер документа — рядом с названием формы, номер операции — рядом с её видом (ADHOC-55).
+	operation := movementOperationTitle(s.Operation)
+	if s.SourceNumber > 0 {
+		operation += " " + model.DocNumber(model.OperationPrefix(s.Operation), s.SourceNumber)
+	}
 	header := [][2]string{
-		{"Движение", ""},
-		{"Операция", movementOperationTitle(s.Operation)},
+		{"Движение", docNumber(model.DocPrefixMovementDoc, s.Number)},
+		{"Операция", operation},
 		{"Склад", s.WarehouseName},
 	}
-	// Основание: задание и приёмка, из которой оно родилось. Каждая строка — только если есть:
-	// перемещению (P6) задание не обязательно, а приёмка бывает без поставщика.
+	// Основание: задание и то, из чего оно родилось, — приёмка или проблема склада (ADHOC-55).
+	// Каждая строка — только если есть: перемещению (P6) задание не обязательно, а приёмка
+	// бывает без поставщика.
 	if s.TaskNumber > 0 {
-		header = append(header, [2]string{"Задание", "№ " + strconv.FormatInt(s.TaskNumber, 10)})
+		header = append(header, [2]string{"Задание", model.DocNumber(model.DocPrefixTask, s.TaskNumber)})
+	}
+	if s.ProblemNumber > 0 {
+		header = append(header, [2]string{"Проблема склада", model.DocNumber(model.DocPrefixProblem, s.ProblemNumber)})
 	}
 	if s.Supplier != "" {
 		header = append(header, [2]string{"Поставщик", s.Supplier})
@@ -89,6 +98,7 @@ func BuildMovementXLSX(s model.ReportSnapshot) ([]byte, error) {
 			row.GoodName,
 			formatDate(row.ProductionDate),
 			qtyValue(row.Qty),
+			row.Mark,
 		}
 		for i, v := range values {
 			_ = f.SetCellValue(movementSheet, cellName(i+1, top+1+r), v)

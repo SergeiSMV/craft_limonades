@@ -1,6 +1,7 @@
 import 'package:either_dart/either.dart';
 
 import '../../../core/error/failure.dart';
+import '../../../core/problems/problem_reasons.dart';
 import '../../../core/warehouse/internal_warehouses.dart';
 
 /// Отправка проблемы склада и склады, куда её можно пометить (P6-07-2).
@@ -16,4 +17,8 @@ abstract interface class ProblemRepository {
 
   /// Склады, которыми можно пометить товар, — все, кроме «Основного» и скрытых в портале.
   Future<List<InternalWarehouse>> markWarehouses();
+
+  /// Причины, которые кладовщик выбирает при пометке (ADHOC-55): активные из справочника,
+  /// кроме тех, что ставит только программа.
+  Future<List<ProblemReason>> markReasons();
 }

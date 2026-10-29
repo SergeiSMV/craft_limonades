@@ -4,10 +4,10 @@ import 'package:injectable/injectable.dart';
 
 import '../../../../core/error/failure.dart';
 import '../../../../core/load_unit/load_unit_id_generator.dart';
+import '../../../../core/problems/problem_reasons.dart';
 import '../../../../core/warehouse/internal_warehouses.dart';
 import '../../../contents/domain/contents_entities.dart';
 import '../../../stock/data/catalog_models.dart';
-import '../../domain/problem_models.dart';
 import '../../domain/problem_photos.dart';
 import '../../domain/problem_repository.dart';
 import 'problem_state.dart';
@@ -31,9 +31,13 @@ class ProblemCubit extends Cubit<ProblemState> {
   /// Склады, которыми можно пометить, — для выбора на экране.
   List<InternalWarehouse> warehouses = const [];
 
-  /// Начать: новый идентификатор проблемы и склады для выбора.
+  /// Причины на выбор (ADHOC-55) — из справочника терминала.
+  List<ProblemReason> reasons = const [];
+
+  /// Начать: новый идентификатор проблемы, склады и причины для выбора.
   Future<void> init() async {
     warehouses = await _repo.markWarehouses();
+    reasons = await _repo.markReasons();
     if (isClosed) return;
     emit(ProblemState(problemId: _ids.newId()));
   }
@@ -292,7 +296,7 @@ class ProblemCubit extends Cubit<ProblemState> {
           },
       },
       'to_internal_warehouse_id': s.toWarehouseId,
-      'reason': s.reason!.wire,
+      'reason': s.reason!.code,
       if (s.comment.trim().isNotEmpty) 'comment': s.comment.trim(),
       if (mark.isNotEmpty) 'mark': mark,
     };

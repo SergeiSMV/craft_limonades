@@ -228,6 +228,7 @@ LoadUnitHistory historyFromJson(Map<String, dynamic> j) {
             receivedBy: receipt['received_by'] as String? ?? '',
             supplier: receipt['supplier'] as String?,
             postedAt: at(receipt['posted_at']),
+            number: (receipt['number'] as num?)?.toInt() ?? 0,
           ),
     moves: [
       for (final m in j['moves'] as List? ?? const [])
@@ -244,6 +245,8 @@ LoadUnitHistory historyFromJson(Map<String, dynamic> j) {
           },
           userName: m['user_name'] as String?,
           at: at(m['at']) ?? DateTime.fromMillisecondsSinceEpoch(0),
+          operation: m['operation'] as String? ?? '',
+          operationNumber: (m['operation_number'] as num?)?.toInt() ?? 0,
         ),
     ],
     // Сервер до ADHOC-32 состава в истории не отдаёт — пусто, а не ошибка.

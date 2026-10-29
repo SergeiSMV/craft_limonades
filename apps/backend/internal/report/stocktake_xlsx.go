@@ -3,7 +3,6 @@ package report
 import (
 	"bytes"
 	"fmt"
-	"strconv"
 
 	"github.com/xuri/excelize/v2"
 
@@ -18,7 +17,7 @@ const (
 
 var stocktakeHeaders = []string{
 	"Ячейка", "Код", "Наименование", "Дата выпуска", "Склад WMS",
-	"Ожидалось", "Факт", "Расхождение", "Пометка",
+	"Ожидалось", "Факт", "Расхождение", "Пометка", "Марка",
 }
 
 // stocktakeScopeNames — вид области пересчёта для шапки документа.
@@ -52,7 +51,8 @@ func BuildStocktakeXLSX(s model.ReportSnapshot) ([]byte, error) {
 		scope = s.ScopeKind
 	}
 	header := [][2]string{
-		{"Инвентаризация", "Пересчёт № " + strconv.FormatInt(s.StocktakeNumber, 10)},
+		{"Инвентаризация", docNumber(model.DocPrefixStocktakeDoc, s.Number)},
+		{"Пересчёт", model.DocNumber(model.DocPrefixStocktake, s.StocktakeNumber)},
 		{"Склад", s.WarehouseName},
 		{"Область", scope},
 		{"Закрыл", s.Executor},
@@ -92,6 +92,7 @@ func writeStocktakeSheet(f *excelize.File, sheet string, header [][2]string, row
 		values := []any{
 			row.CellAddress, code, row.GoodName, formatDate(row.ProductionDate), row.InternalWarehouse,
 			stocktakeQty(row.Expected), stocktakeQty(row.Fact), stocktakeQty(row.Diff), row.Note,
+			row.Mark,
 		}
 		for i, v := range values {
 			_ = f.SetCellValue(sheet, cellName(i+1, top+1+r), v)

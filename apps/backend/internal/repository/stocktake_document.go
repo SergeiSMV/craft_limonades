@@ -137,6 +137,10 @@ func buildStocktakeSnapshot(ctx context.Context, q Querier, stocktakeID string) 
 		return snap, fmt.Errorf("снимок инвентаризации, строки: %w", err)
 	}
 
+	marks, err := stocktakeMarks(ctx, q, stocktakeID)
+	if err != nil {
+		return snap, err
+	}
 	for _, k := range order {
 		a := byKey[k]
 		if a.skipped {
@@ -146,12 +150,85 @@ func buildStocktakeSnapshot(ctx context.Context, q Querier, stocktakeID string) 
 		if a.expected.IsZero() && a.fact.IsZero() {
 			continue
 		}
-		a.row.Expected, a.row.Fact = a.expected.String(), a.fact.String()
-		a.row.Diff = a.fact.Sub(a.expected).String()
-		if a.notFound {
+		// Маркируемый товар — строка на марку (ADHOC-55); что марками не покрыто — общей строкой.
+		expected, fact := a.expected, a.fact
+		for _, m := range marks[k] {
+			r := a.row
+			r.Mark = m.cis
+			e, f := markCount(m.expected), markCount(m.found)
+			r.Expected, r.Fact, r.Diff = e.String(), f.String(), f.Sub(e).String()
+			if a.notFound && m.expected && !m.found {
+				r.Note = stocktakeNoteNotFound
+			}
+			snap.Rows = append(snap.Rows, r)
+			expected, fact = expected.Sub(e), fact.Sub(f)
+		}
+		if len(marks[k]) > 0 && expected.IsZero() && fact.IsZero() {
+			continue
+		}
+		a.row.Expected, a.row.Fact = expected.String(), fact.String()
+		a.row.Diff = fact.Sub(expected).String()
+		if a.notFound && len(marks[k]) == 0 {
 			a.row.Note = stocktakeNoteNotFound
 		}
 		snap.Rows = append(snap.Rows, a.row)
 	}
 	return snap, nil
+}
+
+// stocktakeMark — марка строки «Инвентаризации»: ожидалась ли в ячейке и найдена ли.
+type stocktakeMark struct {
+	cis             string
+	expected, found bool
+}
+
+// markCount — марка в количестве: 1 или 0.
+func markCount(b bool) decimal.Decimal {
+	if b {
+		return decimal.NewFromInt(1)
+	}
+	return decimal.Zero
+}
+
+// stocktakeMarks — марки ЧЗ подсчитанных позиций по строке документа (ADHOC-55).
+//
+// Россыпь и вскрытый короб считаются марками (stocktake_marks): ожидалась — снимок при начале
+// подсчёта, найдена — скан. Короб, подтверждённый целиком, марок в пересчёте не несёт — его
+// марки берутся из состава короба: найдены, если позиция короба сошлась. Позиция короба, найденная частично, марки не делит — кто именно нашёлся, неизвестно,
+// и она остаётся общей строкой.
+func stocktakeMarks(ctx context.Context, q Querier, stocktakeID string) (map[stocktakeRowKey][]stocktakeMark, error) {
+	rows, err := q.Query(ctx, `
+		SELECT c.address, l.good_id::text, l.batch_id::text, l.internal_warehouse_id::text,
+		       m.cis, m.expected, m.found
+		FROM stocktake_marks m
+		JOIN stocktake_lines l  ON l.id = m.line_id
+		JOIN stocktake_cells sc ON sc.id = l.stocktake_cell_id AND sc.status = 'counted'
+		JOIN cells c            ON c.id = sc.cell_id
+		WHERE sc.stocktake_id = $1::uuid
+		UNION ALL
+		SELECT c.address, l.good_id::text, l.batch_id::text, l.internal_warehouse_id::text,
+		       cm.cis, true, COALESCE(l.fact_qty, 0) >= l.expected_qty
+		FROM stocktake_lines l
+		JOIN stocktake_cells sc ON sc.id = l.stocktake_cell_id AND sc.status = 'counted'
+		JOIN cells c            ON c.id = sc.cell_id
+		JOIN cz_marks cm        ON cm.load_unit_id = l.load_unit_id
+		                       AND cm.good_id = l.good_id AND cm.batch_id = l.batch_id
+		WHERE sc.stocktake_id = $1::uuid AND l.good_id IS NOT NULL
+		  AND (COALESCE(l.fact_qty, 0) = 0 OR l.fact_qty >= l.expected_qty)
+		  AND NOT EXISTS (SELECT 1 FROM stocktake_marks sm WHERE sm.line_id = l.id)
+		ORDER BY 5`, stocktakeID)
+	if err != nil {
+		return nil, fmt.Errorf("снимок инвентаризации, марки: %w", err)
+	}
+	defer rows.Close()
+	out := map[stocktakeRowKey][]stocktakeMark{}
+	for rows.Next() {
+		var k stocktakeRowKey
+		var m stocktakeMark
+		if err := rows.Scan(&k.cell, &k.good, &k.batch, &k.iwh, &m.cis, &m.expected, &m.found); err != nil {
+			return nil, fmt.Errorf("разобрать марку инвентаризации: %w", err)
+		}
+		out[k] = append(out[k], m)
+	}
+	return out, rows.Err()
 }
