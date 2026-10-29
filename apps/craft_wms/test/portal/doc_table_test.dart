@@ -34,6 +34,8 @@ void main() {
     createdAt: DateTime(2026, 10, 9, 19, 5),
     linesCount: 1,
     status: st,
+    number: int.parse(id),
+    sourceNumber: int.parse(id),
   );
 
   Future<void> pump(
@@ -233,7 +235,7 @@ void main() {
         reason: 'галочка у проведённого',
       );
       expect(
-        find.text('№ ТН-1 от 01.10.2026'),
+        find.text('ДП-000001 · Приёмка ПР-000001'),
         findsOneWidget,
         reason: 'документ первой строкой',
       );

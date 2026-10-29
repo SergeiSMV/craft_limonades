@@ -14,6 +14,7 @@ import '../../../../core/di/injection.dart';
 import '../../../../core/gen/assets.gen.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/load_unit/load_unit_code.dart';
+import '../../../../core/problems/problem_reasons.dart';
 import '../../../../core/scanner/hardware_scan_listener.dart';
 import '../../../../core/scanner/cz_code.dart';
 import '../../../../core/scanner/scan_code.dart';
@@ -34,7 +35,6 @@ import '../../../movement/presentation/widgets/move_qty_header.dart';
 import '../../../stock/data/catalog_models.dart';
 import '../../../stock/data/catalog_repository.dart';
 import '../../../stocktake/presentation/widgets/cell_count_warning.dart';
-import '../../domain/problem_models.dart';
 import '../bloc/current_problems_cubit.dart';
 import '../bloc/problem_cubit.dart';
 import '../bloc/problem_state.dart';
@@ -177,7 +177,7 @@ class _ProblemViewState extends State<_ProblemView>
         await onMarkScan(czMarkFrom(code)!);
         return;
       }
-      if (s.reason == ProblemReason.foreignMark) _mark.text = code;
+      if (s.reason?.code == ProblemReasonCodes.foreignMark) _mark.text = code;
       return;
     }
     switch (classifyScan(code)) {
@@ -462,6 +462,7 @@ class _ProblemViewState extends State<_ProblemView>
             child: ProblemForm(
               state: state,
               targets: cubit.targetsFor(subject),
+              reasons: cubit.reasons,
               comment: _comment,
               mark: _mark,
               onWarehouse: cubit.setWarehouse,

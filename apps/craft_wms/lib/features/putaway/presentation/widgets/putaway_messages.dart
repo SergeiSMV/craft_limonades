@@ -7,6 +7,7 @@ import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/theme/semibold_text.dart';
 import '../bloc/putaway_models.dart';
+import '../../../../core/utils/doc_number.dart';
 
 /// Итог сеанса: проведён, ушёл в очередь, отклонён. Одна кнопка — вернуться к заданию.
 class PutawayOutcomeView extends StatelessWidget {
@@ -101,7 +102,7 @@ class ForeignDraftView extends StatelessWidget {
             ),
             AppBoxes.kHeight8,
             Text(
-              t.putaway.foreignDraftBody(number: number),
+              t.putaway.foreignDraftBody(number: docNumber(DocKind.task, number)),
               textAlign: TextAlign.center,
               style: RegularTextStyles().regularInter14.copyWith(
                 color: AppColors.kTextMuted,

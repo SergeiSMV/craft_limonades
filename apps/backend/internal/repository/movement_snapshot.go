@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/shopspring/decimal"
+
 	"craftwms/internal/model"
 	"craftwms/internal/movement"
 )
@@ -45,28 +47,34 @@ func savePutawayDocument(ctx context.Context, q Querier, putawayID string) error
 // buildPutawaySnapshot собирает шапку и товарные строки «Движения» размещения. Возвращает
 // и автора сеанса — он нужен журналу документа.
 //
-// Основание — задание и приёмка, из которой оно родилось: поставщик и его накладная. Строки —
+// Основание — задание и то, из чего оно родилось: приёмка (поставщик и его накладная) или
+// решение «разместить» по проблеме склада (ADHOC-55) — тогда её номер. Строки —
 // разворот строк сеанса: короб раскладывается по составу, россыпь проходит как есть,
 // одинаковые товар · партия · откуда · куда складываются (пакет movement, P4-09-1).
 func buildPutawaySnapshot(ctx context.Context, q Querier, putawayID string) (model.ReportSnapshot, string, error) {
 	snap := model.ReportSnapshot{Operation: model.MovementOperationPutaway}
 	var author string
 	var supplier, docNumber, docDate *string
+	var problemNumber *int64
 	if err := q.QueryRow(ctx, `
 		SELECT w.code, w.name, u.full_name, p.created_by::text, p.posted_at, t.number,
-		       s.name, r.doc_number, to_char(r.doc_date, 'YYYY-MM-DD')
+		       s.name, r.doc_number, to_char(r.doc_date, 'YYYY-MM-DD'), wp.number, p.number
 		FROM putaways p
 		JOIN warehouses w      ON w.id = p.warehouse_id
 		JOIN users u           ON u.id = p.created_by
 		JOIN warehouse_tasks t ON t.id = p.task_id
 		LEFT JOIN receipts r   ON r.id = t.receipt_id
 		LEFT JOIN suppliers s  ON s.id = r.supplier_id
+		LEFT JOIN warehouse_problems wp ON wp.id = t.problem_id
 		WHERE p.id = $1::uuid`, putawayID).
 		Scan(&snap.WarehouseCode, &snap.WarehouseName, &snap.Executor, &author, &snap.CreatedAt,
-			&snap.TaskNumber, &supplier, &docNumber, &docDate); err != nil {
+			&snap.TaskNumber, &supplier, &docNumber, &docDate, &problemNumber, &snap.SourceNumber); err != nil {
 		return model.ReportSnapshot{}, "", fmt.Errorf("снимок движения, шапка: %w", err)
 	}
 	snap.Supplier, snap.DocNumber, snap.DocDate = deref(supplier), deref(docNumber), deref(docDate)
+	if problemNumber != nil {
+		snap.ProblemNumber = *problemNumber
+	}
 
 	moves, err := putawayMoves(ctx, q, putawayID)
 	if err != nil {
@@ -98,7 +106,10 @@ func sortMovementRows(rows []model.ReportSnapshotRow) {
 		if a.GoodName != b.GoodName {
 			return a.GoodName < b.GoodName
 		}
-		return a.ProductionDate < b.ProductionDate
+		if a.ProductionDate != b.ProductionDate {
+			return a.ProductionDate < b.ProductionDate
+		}
+		return a.Mark < b.Mark
 	})
 }
 
@@ -143,13 +154,13 @@ func buildMovementSnapshot(ctx context.Context, q Querier, movementID string, mo
 	var snap model.ReportSnapshot
 	var author string
 	if err := q.QueryRow(ctx, `
-		SELECT w.code, w.name, u.full_name, m.created_by::text, m.posted_at, m.kind
+		SELECT w.code, w.name, u.full_name, m.created_by::text, m.posted_at, m.kind, m.number
 		FROM movements m
 		JOIN warehouses w ON w.id = m.warehouse_id
 		JOIN users u      ON u.id = m.created_by
 		WHERE m.id = $1::uuid`, movementID).
 		Scan(&snap.WarehouseCode, &snap.WarehouseName, &snap.Executor, &author, &snap.CreatedAt,
-			&snap.Operation); err != nil {
+			&snap.Operation, &snap.SourceNumber); err != nil {
 		return model.ReportSnapshot{}, "", fmt.Errorf("снимок движения, шапка: %w", err)
 	}
 
@@ -177,7 +188,7 @@ func buildMovementSnapshot(ctx context.Context, q Querier, movementID string, mo
 func putawayMoves(ctx context.Context, q Querier, putawayID string) ([]movement.Move, error) {
 	rows, err := q.Query(ctx, `
 		SELECT load_unit_id::text, good_id::text, batch_id::text, qty::text,
-		       from_cell_id::text, to_cell_id::text
+		       from_cell_id::text, to_cell_id::text, marks
 		FROM putaway_lines WHERE putaway_id = $1::uuid ORDER BY line_no`, putawayID)
 	if err != nil {
 		return nil, fmt.Errorf("снимок движения, строки: %w", err)
@@ -187,7 +198,7 @@ func putawayMoves(ctx context.Context, q Querier, putawayID string) ([]movement.
 	for rows.Next() {
 		var lu, good, batch, qty *string
 		var m movement.Move
-		if err := rows.Scan(&lu, &good, &batch, &qty, &m.FromCellID, &m.ToCellID); err != nil {
+		if err := rows.Scan(&lu, &good, &batch, &qty, &m.FromCellID, &m.ToCellID, &m.Marks); err != nil {
 			return nil, fmt.Errorf("снимок движения, разбор строки: %w", err)
 		}
 		m.LoadUnitID, m.GoodID, m.BatchID = deref(lu), deref(good), deref(batch)
@@ -258,8 +269,26 @@ func movementSnapshotRows(ctx context.Context, q Querier, lines []movement.Line)
 			// Строка уже проведена по этим же ссылкам в этой транзакции — пропасть они не могут.
 			return nil, fmt.Errorf("снимок документа: нет справочных данных для строки %+v", l)
 		}
-		row.Qty = l.Qty.String()
-		out = append(out, row)
+		out = append(out, splitByMarks(row, l.Qty, l.Marks)...)
 	}
 	return out, nil
+}
+
+// splitByMarks делит товарную строку документа по маркам ЧЗ (ADHOC-55): строка на марку с
+// количеством 1, остаток без марок — одной строкой. Марки по порядку КИ: документ не зависит
+// от порядка сканов. Немаркируемый товар проходит одной строкой, как раньше.
+func splitByMarks(row model.ReportSnapshotRow, qty decimal.Decimal, marks []string) []model.ReportSnapshotRow {
+	sorted := append([]string(nil), marks...)
+	sort.Strings(sorted)
+	out := make([]model.ReportSnapshotRow, 0, len(sorted)+1)
+	for _, cis := range sorted {
+		r := row
+		r.Qty, r.Mark = "1", cis
+		out = append(out, r)
+	}
+	if rest := qty.Sub(decimal.NewFromInt(int64(len(sorted)))); rest.IsPositive() {
+		row.Qty = rest.String()
+		out = append(out, row)
+	}
+	return out
 }

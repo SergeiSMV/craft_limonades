@@ -1,9 +1,9 @@
 import 'package:craft_wms/core/gen/strings.g.dart';
+import 'package:craft_wms/core/problems/problem_reasons.dart';
 import 'package:craft_wms/core/theme/app_theme.dart';
 import 'package:craft_wms/core/warehouse/internal_warehouses.dart';
 import 'package:craft_wms/core/widgets/neumorphic_choice.dart';
 import 'package:craft_wms/features/contents/domain/contents_entities.dart';
-import 'package:craft_wms/features/problems/domain/problem_models.dart';
 import 'package:craft_wms/features/problems/presentation/bloc/problem_state.dart';
 import 'package:craft_wms/features/problems/presentation/widgets/problem_choice.dart';
 import 'package:craft_wms/features/problems/presentation/widgets/problem_form.dart';
@@ -107,16 +107,19 @@ void main() {
         tester,
         width,
         ProblemForm(
-          state: const ProblemState(
+          state: ProblemState(
             subject: ProblemSubject.goods(
               line: line,
               qty: 2,
               cell: cell,
               box: box,
             ),
-            reason: ProblemReason.foreignMark,
+            reason: fallbackProblemReasons().firstWhere(
+              (r) => r.code == ProblemReasonCodes.foreignMark,
+            ),
           ),
           targets: warehouses,
+          reasons: fallbackProblemReasons(),
           comment: TextEditingController(),
           mark: TextEditingController(),
           onWarehouse: (_) {},
@@ -128,13 +131,10 @@ void main() {
     }
     expect(find.text(t.problems.mark), findsOneWidget);
     // Варианты — неоморфные кнопки приложения, а не чипы Material; выбрана одна причина.
-    // Причины только те, что выбирает кладовщик: «выбыла» ставит приёмка (CZ-05).
+    // Причины — те, что переданы формой: справочник терминала (ADHOC-55).
     expect(
       find.byType(NeumorphicChoice),
-      findsNWidgets(
-        warehouses.length +
-            ProblemReason.values.where((r) => r.selectable).length,
-      ),
+      findsNWidgets(warehouses.length + fallbackProblemReasons().length),
     );
     expect(
       tester

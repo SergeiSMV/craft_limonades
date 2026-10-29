@@ -11,6 +11,7 @@ import '../../../data/stocktakes_repository.dart';
 import '../common/neumorphic_text_button.dart';
 import '../common/portal_dialog.dart';
 import 'stocktake_labels.dart';
+import '../../../../core/utils/doc_number.dart';
 
 /// Подтверждение закрытия пересчёта (P10-05): неподсчитанные ячейки называются числом.
 /// `true` — закрыть.
@@ -22,7 +23,7 @@ Future<bool> showStocktakeCloseDialog(
   final ok = await showDialog<bool>(
     context: context,
     builder: (ctx) => PortalDialog(
-      title: t.portal.stocktake.closeTitle(number: s.number),
+      title: t.portal.stocktake.closeTitle(number: docNumber(DocKind.stocktake, s.number)),
       content: Text(
         uncounted == 0
             ? t.portal.stocktake.closeBodyAll
@@ -55,7 +56,7 @@ Future<void> showStocktakeProgressDialog(
 ) => showDialog<void>(
   context: context,
   builder: (ctx) => PortalDialog(
-    title: t.portal.stocktake.progressTitle(number: s.number),
+    title: t.portal.stocktake.progressTitle(number: docNumber(DocKind.stocktake, s.number)),
     content: SizedBox(
       width: AppSizes.kPortalDialogWidth,
       child: _ProgressTable(stocktakeId: s.id),

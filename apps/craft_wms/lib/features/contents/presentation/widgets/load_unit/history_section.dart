@@ -11,6 +11,7 @@ import '../../../../../core/theme/regular_text.dart';
 import '../../../../../core/theme/semibold_text.dart';
 import '../../../../../core/printer/load_unit_label.dart';
 import '../../../../../core/utils/date_time_format.dart';
+import '../../../../../core/utils/doc_number.dart';
 import '../../../../../core/utils/qty_format.dart';
 import '../../../../../core/widgets/expandable_card.dart';
 import '../../../domain/contents_entities.dart';
@@ -90,6 +91,12 @@ class _History extends StatelessWidget {
             t.contents.historyCreated(time: fullDateTime(history.createdAt)),
           ),
           if (receipt != null) ...[
+            if (receipt.number > 0)
+              _muted(
+                t.contents.historyReceipt(
+                  number: docNumber(DocKind.receipt, receipt.number),
+                ),
+              ),
             if (receipt.docNumber != null && receipt.docDate != null)
               _muted(
                 t.contents.historyDoc(
@@ -155,8 +162,17 @@ class _History extends StatelessWidget {
         to: m.to,
       ),
     }),
+    if (_operationNumber(m) case final number?)
+      _muted(t.contents.moveNumber(number: number)),
     _by(m.userName, m.at),
   ];
+
+  /// Номер операции переноса, ПМ-… (ADHOC-55); `null` — номера нет.
+  static String? _operationNumber(LoadUnitMove m) {
+    final kind = operationDocKind(m.operation);
+    if (kind == null || m.operationNumber == 0) return null;
+    return docNumber(kind, m.operationNumber);
+  }
 
   /// Изменение состава: что произошло и сколько, построчно — товар с партией, кто и когда.
   List<Widget> _content(LoadUnitContentChange c) {

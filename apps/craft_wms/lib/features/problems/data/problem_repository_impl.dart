@@ -4,6 +4,7 @@ import 'package:injectable/injectable.dart';
 import '../../../core/error/failure.dart';
 import '../../../core/outbox/outbox_operation.dart';
 import '../../../core/outbox/outbox_repository.dart';
+import '../../../core/problems/problem_reasons.dart';
 import '../../../core/sync/sync_engine.dart';
 import '../../../core/warehouse/internal_warehouses.dart';
 import '../domain/problem_repository.dart';
@@ -14,11 +15,17 @@ import '../domain/problem_repository.dart';
 /// (`PendingOverlay`) — короб уже «Брак» и на терминале.
 @LazySingleton(as: ProblemRepository)
 class ProblemRepositoryImpl implements ProblemRepository {
-  ProblemRepositoryImpl(this._outbox, this._sync, this._warehouses);
+  ProblemRepositoryImpl(
+    this._outbox,
+    this._sync,
+    this._warehouses,
+    this._reasons,
+  );
 
   final OutboxRepository _outbox;
   final SyncEngine _sync;
   final InternalWarehouses _warehouses;
+  final ProblemReasons _reasons;
 
   @override
   Future<Either<Failure, void>> submit(Map<String, dynamic> payload) async {
@@ -35,5 +42,11 @@ class ProblemRepositoryImpl implements ProblemRepository {
   Future<List<InternalWarehouse>> markWarehouses() async => [
     for (final w in await _warehouses.all())
       if (!w.isDefault && w.isActive) w,
+  ];
+
+  @override
+  Future<List<ProblemReason>> markReasons() async => [
+    for (final r in await _reasons.all())
+      if (r.selectable) r,
   ];
 }

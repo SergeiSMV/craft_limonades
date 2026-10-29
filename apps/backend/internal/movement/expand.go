@@ -46,13 +46,17 @@ type Move struct {
 	GoodID  string
 	BatchID string
 	Qty     decimal.Decimal
+	// Marks — КИ марок ЧЗ россыпи (ADHOC-55): маркируемый товар движется марками, и документ
+	// 1С называет каждую. Пусто — товар немаркируемый.
+	Marks []string
 }
 
-// ContentLine — позиция состава ГЕ: товар · партия · количество.
+// ContentLine — позиция состава ГЕ: товар · партия · количество и марки этой позиции.
 type ContentLine struct {
 	GoodID  string
 	BatchID string
 	Qty     decimal.Decimal
+	Marks   []string
 }
 
 // ContentReader — источник состава ГЕ.
@@ -71,6 +75,8 @@ type Line struct {
 	FromCellID string
 	ToCellID   string
 	Qty        decimal.Decimal
+	// Marks — марки ЧЗ, которые прошли этой строкой: россыпью и в составе ГЕ.
+	Marks []string
 }
 
 // lineKey — грань агрегации: одинаковые товар, партия и ячейки складываются.
@@ -120,7 +126,7 @@ func Expand(ctx context.Context, moves []Move, content ContentReader) ([]Line, e
 	agg := newAggregator()
 	for _, m := range moves {
 		if m.LoadUnitID == "" {
-			agg.add(m.GoodID, m.BatchID, m.FromCellID, m.ToCellID, m.Qty)
+			agg.add(m.GoodID, m.BatchID, m.FromCellID, m.ToCellID, m.Qty, m.Marks)
 			continue
 		}
 		lines, ok := contents[m.LoadUnitID]
@@ -128,7 +134,7 @@ func Expand(ctx context.Context, moves []Move, content ContentReader) ([]Line, e
 			return nil, fmt.Errorf("%w: %s", ErrLoadUnitNotFound, m.LoadUnitID)
 		}
 		for _, c := range lines {
-			agg.add(c.GoodID, c.BatchID, m.FromCellID, m.ToCellID, c.Qty)
+			agg.add(c.GoodID, c.BatchID, m.FromCellID, m.ToCellID, c.Qty, c.Marks)
 		}
 	}
 	return agg.lines(), nil
@@ -150,22 +156,25 @@ func validate(m Move) error {
 	}
 }
 
-// aggregator складывает строки по грани, сохраняя порядок первого появления.
+// aggregator складывает строки по грани, сохраняя порядок первого появления; марки строк
+// одной грани собираются вместе.
 type aggregator struct {
 	order []lineKey
 	sums  map[lineKey]decimal.Decimal
+	marks map[lineKey][]string
 }
 
 func newAggregator() *aggregator {
-	return &aggregator{sums: map[lineKey]decimal.Decimal{}}
+	return &aggregator{sums: map[lineKey]decimal.Decimal{}, marks: map[lineKey][]string{}}
 }
 
-func (a *aggregator) add(good, batch, from, to string, qty decimal.Decimal) {
+func (a *aggregator) add(good, batch, from, to string, qty decimal.Decimal, marks []string) {
 	k := lineKey{good: good, batch: batch, from: from, to: to}
 	if _, ok := a.sums[k]; !ok {
 		a.order = append(a.order, k)
 	}
 	a.sums[k] = a.sums[k].Add(qty)
+	a.marks[k] = append(a.marks[k], marks...)
 }
 
 func (a *aggregator) lines() []Line {
@@ -175,7 +184,8 @@ func (a *aggregator) lines() []Line {
 		if q.IsZero() {
 			continue
 		}
-		out = append(out, Line{GoodID: k.good, BatchID: k.batch, FromCellID: k.from, ToCellID: k.to, Qty: q})
+		out = append(out, Line{GoodID: k.good, BatchID: k.batch, FromCellID: k.from, ToCellID: k.to, Qty: q,
+			Marks: a.marks[k]})
 	}
 	return out
 }

@@ -1,8 +1,8 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../../../../core/problems/problem_reasons.dart';
 import '../../../contents/domain/contents_entities.dart';
 import '../../../stock/data/catalog_models.dart';
-import '../../domain/problem_models.dart';
 import '../../domain/problem_photos.dart';
 
 part 'problem_state.freezed.dart';
@@ -118,12 +118,13 @@ abstract class ProblemState with _$ProblemState {
 
   const ProblemState._();
 
-  /// Можно фиксировать: выбрано что, куда и почему; у «прочего» есть комментарий.
+  /// Можно фиксировать: выбрано что, куда и почему; у причины с обязательным комментарием
+  /// (ADHOC-55) он есть.
   bool get canSubmit =>
       subject != null &&
       toWarehouseId != null &&
       reason != null &&
-      (reason != ProblemReason.other || comment.trim().isNotEmpty) &&
+      (!reason!.commentRequired || comment.trim().isNotEmpty) &&
       !busy &&
       outcome == null;
 }

@@ -91,6 +91,7 @@ MoveRecord recordFromJson(Map<String, dynamic> j) => MoveRecord(
   executor: userFromJson(j['executor'] as Map<String, dynamic>? ?? const {}),
   loadUnits: (j['load_units'] as num?)?.toInt() ?? 0,
   goods: (j['goods'] as num?)?.toInt() ?? 0,
+  number: (j['number'] as num?)?.toInt() ?? 0,
 );
 
 /// Строка записи — в строку сеанса перемещения: история показывается теми же словами.

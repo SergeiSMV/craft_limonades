@@ -79,7 +79,7 @@ username + паролю** (вход со смартфона/портала). Р�
 Обоснование argon2 — ADR-0005; выбор пути входа по устройству — ADR-0010. Роли `employee`/`admin`
 заменены должностями (ADHOC-49): права пользователя — права его должности.
 
-### 3.1.1 `positions` — должности и права (миграции `000033`, `000034`; ADHOC-49, ADHOC-50)
+### 3.1.1 `positions` — должности и права (миграции `000033`, `000034`, `000039`; ADHOC-49, ADHOC-50)
 
 | Колонка                   | Тип           | Ограничения / смысл                                                         |
 |---------------------------|---------------|-----------------------------------------------------------------------------|
@@ -92,10 +92,11 @@ username + паролю** (вход со смартфона/портала). Р�
 Права — действия по разделам, код «приложение.раздел.действие» (`000034`): портал —
 `portal.nomenclature.import`; `portal.receipt|movement|stocktake_doc|stock_entry_doc` +
 `.view|.download|.post`; `portal.stocktake.view|manage`; `portal.cells.import|labels`;
-`portal.problems.view|resolve`; `portal.settings.warehouses|users`. ТСД — `tsd.receipt`,
+`portal.problems.view|resolve`; `portal.settings.warehouses|problem_reasons|users`. ТСД — `tsd.receipt`,
 `tsd.movement`, `tsd.tasks.putaway|stocktake_count|stocktake_manage`,
-`tsd.stock.view|cz_marked|regrade`, `tsd.stock_entry`, `tsd.problems.view|mark`. Всего 32
-(`tsd.stock.regrade` — перепривязка ШК маркируемого товара, `000035`, ADHOC-53).
+`tsd.stock.view|cz_marked|regrade`, `tsd.stock_entry`, `tsd.problems.view|mark`. Всего 33
+(`tsd.stock.regrade` — перепривязка ШК маркируемого товара, `000035`, ADHOC-53;
+`portal.settings.problem_reasons` — справочник причин проблем, `000039`, ADHOC-55).
 
 Стартовые должности — с постоянными id: «Администратор» (`7a000000-…-000000000001`, системная,
 все действия; код не смотрит на её список) и «Кладовщик» (`7a000000-…-000000000002`, восемь
@@ -263,6 +264,7 @@ GS1 под внутреннее использование, но выгрузк�
 | Колонка        | Тип           | Ограничения / смысл                              |
 |----------------|---------------|--------------------------------------------------|
 | `id`           | `uuid`        | PK. Может прийти **с устройства** — см. ниже     |
+| `number`       | `bigint`      | identity, UNIQUE (ADHOC-55, `000038`) — номер для людей, показ «ВО-000001»; существующие пронумерованы по порядку |
 | `warehouse_id` | `uuid`        | FK → `warehouses(id)`; склад, по которому проход |
 | `created_by`   | `uuid`        | FK → `users(id)`; кто вводил                     |
 | `status`       | `text`        | `CHECK IN ('draft','closed')`; дефолт `draft`    |
@@ -338,6 +340,7 @@ Checkpoint ячейки **заменяет** её содержимое в сес
 |---------------|---------------|-----------------------------------------------------------|
 | `id`          | `uuid`        | PK, `gen_random_uuid()`                                    |
 | `kind`        | `text`        | форма отчёта: какой шаблон применять                       |
+| `number`      | `bigint`      | NOT NULL, UNIQUE `(kind, number)` (ADHOC-55, `000038`) — счётчик формы: последовательность на форму, ставит триггер `report_documents_set_number`; показ «ДП / ДД / ДВ / ДИ-…». Номер операции-источника снимок хранит в `source_number` |
 | `source_type` | `text`        | вид операции-источника                                     |
 | `source_id`   | `uuid`        | сама операция; `UNIQUE (source_type, source_id)`           |
 | `snapshot`    | `jsonb`       | содержимое документа: шапка + строки                       |
@@ -523,6 +526,7 @@ internal_warehouse_id)`. Без этого «основной» и «брак» 
 | Колонка        | Тип           | Ограничения / смысл                                     |
 |----------------|---------------|----------------------------------------------------------|
 | `id`           | `uuid`        | PK, **выдаёт устройство** (приёмка начинается на ТСД)    |
+| `number`       | `bigint`      | identity, UNIQUE (ADHOC-55, `000038`) — номер для людей, показ «ПР-000001»; существующие пронумерованы по порядку |
 | `warehouse_id` | `uuid`        | FK → `warehouses(id)`                                    |
 | `supplier_id`  | `uuid`        | FK → `suppliers(id)`; NULL — внутреннее поступление/возврат |
 | `status`       | `text`        | `draft` → `posted`; CHECK                                |
@@ -549,6 +553,7 @@ internal_warehouse_id)`. Без этого «основной» и «брак» 
 | `cell_id`      | `uuid`          | FK → `cells(id)` — куда кладём                          |
 | `load_unit_id` | `uuid`          | FK → `load_units(id)` `ON DELETE SET NULL`; NULL — россыпь |
 | `qty`          | `numeric(20,3)` | CHECK `> 0` — приход нулём смысла не имеет              |
+| `marks`        | `text[]`        | NOT NULL DEFAULT `'{}'` — КИ марок ЧЗ строки (ADHOC-55, миграция `000037`); повтор скана дописывает марки |
 
 Грань — `CONSTRAINT receipt_lines_grain_key UNIQUE NULLS NOT DISTINCT (receipt_id, good_id,
 batch_id, cell_id, load_unit_id)`. Повторный скан той же комбинации увеличивает количество,
@@ -608,6 +613,7 @@ batch_id, cell_id, load_unit_id)`. Повторный скан той же ко�
 | Колонка        | Тип           | Ограничения / смысл                                     |
 |----------------|---------------|----------------------------------------------------------|
 | `id`           | `uuid`        | PK, **выдаёт устройство**; повтор сеанса упирается в PK  |
+| `number`       | `bigint`      | identity, UNIQUE (ADHOC-55, `000038`) — номер для людей, показ «РЗ-000001»; существующие пронумерованы по порядку |
 | `task_id`      | `uuid`        | FK → `warehouse_tasks(id)`, NOT NULL — задание сеанса    |
 | `warehouse_id` | `uuid`        | FK → `warehouses(id)`                                    |
 | `created_by`   | `uuid`        | FK → `users(id)` — кто размещал                          |
@@ -626,6 +632,7 @@ batch_id, cell_id, load_unit_id)`. Повторный скан той же ко�
 | `qty`          | `numeric(20,3)` | россыпь: количество                                  |
 | `from_cell_id` | `uuid`          | FK → `cells(id)` — откуда взяли                      |
 | `to_cell_id`   | `uuid`          | FK → `cells(id)` — куда положили                     |
+| `marks`        | `text[]`        | NOT NULL DEFAULT `'{}'` — КИ марок россыпи (ADHOC-55, `000037`); у короба пусто |
 
 CHECK: строка — короб (только `load_unit_id`) **либо** россыпь (`good_id`, `batch_id`, `qty > 0`),
 не оба и не ничего; `from_cell_id <> to_cell_id`.
@@ -645,6 +652,7 @@ CHECK: строка — короб (только `load_unit_id`) **либо** р
 | `receipt_id`       | `uuid`        | FK → `receipts(id)` — основание; `UNIQUE (receipt_id, kind)` |
 | `supplier_id`      | `uuid`        | FK → `suppliers(id)` — кому возврат; есть ровно у `supplier_return` |
 | `stocktake_id`     | `uuid`        | FK → `stocktakes(id)` — пересчёт; есть ровно у `stocktake`, одно задание на пересчёт; ячейки из него берут разные работники, исполнителя у задания нет |
+| `problem_id`       | `uuid`        | FK → `warehouse_problems(id)` (`000036`) — основание размещения по решению «разместить»; только у `putaway` без `receipt_id`, одно задание на проблему |
 | `assignee_id`      | `uuid`        | FK → `users(id)` — кто держит; есть ровно у `in_progress` |
 | `taken_at`         | `timestamptz` | когда взято                                               |
 | `last_activity_at` | `timestamptz` | взятие или сеанс; от него считается «зависло» (8 ч)       |
@@ -658,6 +666,11 @@ CHECK: строка — короб (только `load_unit_id`) **либо** р
 уникальный индекс `(warehouse_id, supplier_id) WHERE kind = 'supplier_return' AND status <> 'done'`.
 Позиции — проблемы, решённые возвратом (`warehouse_problems.return_task_id`); отгружает их ТСД
 сеансом `supplier_return_shipments` (ADHOC-31).
+
+Размещение по проблеме (`000036`, ADHOC-55): решение «разместить» снимает метку на месте, и
+товар проблемы, лежащий в ячейке приёмки, становится «Основным» вне задания приёмки. Решение
+в той же транзакции заводит задание `putaway` с `problem_id`: позиции — короб или россыпь
+из ячейки приёмки; товар в ячейках хранения задания не требует.
 
 ### 3.25 `putaway_task_items` — позиции задания на размещение (миграция `000019`)
 
@@ -708,6 +721,7 @@ CHECK: короб **либо** россыпь. **Остаток не храни�
 |----------------|---------------|----------------------------------------------------------|
 | `id`           | `uuid`        | PK, **выдаёт устройство**; повтор упирается в PK         |
 | `kind`         | `text`        | `move` (перемещение) / `replenish` (пополнение); CHECK   |
+| `number`       | `bigint`      | NOT NULL, UNIQUE `(kind, number)` (ADHOC-55, `000038`) — счётчик своего вида: последовательность на вид, ставит триггер `movements_set_number`; показ «ПМ-…» / «ПП-…» |
 | `warehouse_id` | `uuid`        | FK → `warehouses(id)`                                    |
 | `created_by`   | `uuid`        | FK → `users(id)` — кто двигал                            |
 | `posted_at`    | `timestamptz` | момент проведения, время сервера                         |
@@ -730,6 +744,7 @@ CHECK: короб **либо** россыпь. **Остаток не храни�
 | `to_load_unit_id`       | `uuid`          | FK → `load_units(id)`; в короб, NULL — в россыпь      |
 | `from_cell_id`          | `uuid`          | FK → `cells(id)`, NOT NULL — откуда взяли             |
 | `to_cell_id`            | `uuid`          | FK → `cells(id)`, NOT NULL — куда положили            |
+| `marks`                 | `text[]`        | NOT NULL DEFAULT `'{}'` — КИ марок товара строки (ADHOC-55, `000037`); у ГЕ целиком пусто |
 
 CHECK:
 
@@ -755,7 +770,7 @@ CHECK:
 Индексы: `(movement_id, line_no)` — строки документа; `(from_cell_id)` и `(to_cell_id)` — что
 уезжало из ячейки и приезжало в неё (история ячейки, проверка пересчёта в P10).
 
-### 3.29 `warehouse_problems` — проблемы склада (миграции `000023`, `000024`, `000027`, `000035`)
+### 3.29 `warehouse_problems` — проблемы склада (миграции `000023`, `000024`, `000027`, `000035`, `000036`, `000039`)
 
 Пометка короба или товара другим внутренним складом — брак, изолятор. Брак — лишь метка:
 товар остаётся в той же ячейке и перемещается со своей меткой. Перевод остатка делается в той
@@ -764,6 +779,7 @@ CHECK:
 | Колонка                      | Тип             | Ограничения / смысл                               |
 |------------------------------|-----------------|----------------------------------------------------|
 | `id`                         | `uuid`          | PK, **выдаёт устройство**                          |
+| `number`                     | `bigint`        | identity, UNIQUE (`000036`) — номер для людей; выдаёт сервер при проводке, показ «ПБ-000009» |
 | `warehouse_id`               | `uuid`          | FK → `warehouses(id)`                              |
 | `cell_id`                    | `uuid`          | FK → `cells(id)`; где лежит помеченное; у пересорта NULL |
 | `load_unit_id`               | `uuid`          | FK → `load_units(id)`; короб целиком               |
@@ -775,13 +791,14 @@ CHECK:
 | `to_internal_warehouse_id`   | `uuid`          | FK; склад после; CHECK `<>` from; у пересорта NULL |
 | `from_good_id`               | `uuid`          | FK → `goods(id)`; пересорт — прежний товар марок (`000035`) |
 | `barcode`                    | `text`          | пересорт — перепривязанный ШК (`000035`)           |
-| `reason`                     | `text`          | `breakage` / `spoilage` / `expired` / `foreign_mark` / `retired` / `not_found` / `regrade` / `other`; CHECK |
-| `comment`                    | `text`          | NOT NULL DEFAULT `''`; у `other` обязателен (сервис) |
+| `reason`                     | `text`          | FK → `problem_reasons(code)` (`000039`; до него — CHECK восьми кодов) |
+| `comment`                    | `text`          | NOT NULL DEFAULT `''`; обязателен, если у причины `comment_required` (репозиторий) |
 | `mark`                       | `text`          | марка ЧЗ или код короба ЧЗ проблемы                |
 | `status`                     | `text`          | `open` / `resolved`; CHECK                         |
 | `created_by`                 | `uuid`          | FK → `users(id)`                                   |
 | `created_at`                 | `timestamptz`   | DEFAULT `now()`                                    |
-| `decision`                   | `text`          | `write_off` / `place` / `supplier_return` / `regrade`; CHECK (`000024`, `000035`) |
+| `decision`                   | `text`          | `write_off` / `place` / `supplier_return` / `regrade`; CHECK (`000024`, `000035`) — действие программы |
+| `resolution_id`              | `uuid`          | FK → `problem_resolutions(id)` (`000039`) — вариант, выбранный офисом; CHECK: есть ровно вместе с `decision`; решённые до `000039` — дозаполнены по действию |
 | `doc_number`, `doc_date`     | `text`, `date`  | документ 1С; ровно у `write_off` и `regrade`       |
 | `supplier_id`                | `uuid`          | FK → `suppliers(id)`; ровно у `supplier_return`    |
 | `return_task_id`             | `uuid`          | FK → `warehouse_tasks(id)`; ровно у `supplier_return` |
@@ -794,8 +811,8 @@ CHECK: короб целиком (только `load_unit_id`) **либо** то
 
 Индекс: `(status, created_at DESC)` — рабочий список офиса (P6-07-3).
 
-Решение офиса (P6-07-3) — целиком, кнопкой «Провести» в портале, допустимое при причине (таблица
-в коде, `model.ProblemDecisionsFor`): списание уменьшает остаток склада-метки, размещение
+Решение офиса (P6-07-3) — целиком, кнопкой «Провести» в портале, вариантом, допустимым при
+причине (справочник `problem_reason_resolutions`, `000039`; до него — таблица в коде): списание уменьшает остаток склада-метки, размещение
 возвращает товар в «Основной», возврат переводит его на склад возврата и кладёт проблему
 в открытое задание поставщика. Три CHECK держат поля решения согласованными с его видом.
 
@@ -844,6 +861,7 @@ CHECK: короб целиком (только `load_unit_id`) **либо** то
 | Колонка        | Тип           | Ограничения / смысл                       |
 |----------------|---------------|--------------------------------------------|
 | `id`           | `uuid`        | PK, **выдаёт устройство**                  |
+| `number`       | `bigint`      | identity, UNIQUE (ADHOC-55, `000038`) — номер для людей, показ «ВП-000001»; существующие пронумерованы по порядку |
 | `task_id`      | `uuid`        | FK → `warehouse_tasks(id)`                 |
 | `warehouse_id` | `uuid`        | FK → `warehouses(id)`                      |
 | `created_by`   | `uuid`        | FK → `users(id)` — кто отгрузил            |
@@ -1019,6 +1037,40 @@ PK `(stocktake_cell_id, cis)`; `line_id` FK → `stocktake_lines(id)` `ON DELETE
 Товар системных складов в снимок и факт не входит. Состав каждого короба снимка и найденного
 короба подсчёт пишет строками «товар в коробе» (ожидалось — если короб был в снимке, факт — если
 найден): документ «Инвентаризация» разворачивает короба в товар (P10-05).
+
+### 3.41 `problem_resolutions` — варианты решения проблем (миграция `000039`, ADHOC-55)
+
+| Колонка     | Тип       | Ограничения / смысл                                                       |
+|-------------|-----------|---------------------------------------------------------------------------|
+| `id`        | `uuid`    | PK; заведённые миграцией — `7b000000-0000-4000-8000-00000000000{1…4}`     |
+| `ord`       | `bigint`  | identity — порядок в справочнике                                          |
+| `name`      | `text`    | 1–100 символов без крайних пробелов; UNIQUE без регистра                  |
+| `action`    | `text`    | `write_off` / `place` / `supplier_return` / `regrade`; CHECK; после заведения не меняется (сервис) |
+| `is_active` | `boolean` | NOT NULL DEFAULT `true`; удаления нет — выключение                        |
+
+Заведены четыре варианта по действиям: «Списать», «Разместить в «Основной»», «Возврат
+поставщику», «Провести пересорт».
+
+### 3.42 `problem_reasons` — причины проблем (миграция `000039`, ADHOC-55)
+
+| Колонка            | Тип       | Ограничения / смысл                                                 |
+|--------------------|-----------|---------------------------------------------------------------------|
+| `code`             | `text`    | PK; заведённые — прежние коды, новая — `c<n>` из `problem_reasons_code_seq` |
+| `ord`              | `bigint`  | identity — порядок                                                  |
+| `name`             | `text`    | 1–100 символов; UNIQUE без регистра                                 |
+| `is_system`        | `boolean` | системная — `foreign_mark`, `retired`, `not_found`, `regrade`; CHECK `is_active OR NOT is_system` |
+| `manual`           | `boolean` | ставит кладовщик на ТСД; `retired`, `not_found`, `regrade` — только программа |
+| `comment_required` | `boolean` | комментарий обязателен; у `other` — `true`                          |
+| `is_active`        | `boolean` | выключенная не предлагается на ТСД; из очереди ТСД принимается       |
+
+### 3.43 `problem_reason_resolutions` — варианты причины (миграция `000039`, ADHOC-55)
+
+PK `(reason, resolution_id)`; `reason` FK → `problem_reasons(code)` `ON DELETE CASCADE`,
+`resolution_id` FK → `problem_resolutions(id)`. Заведены прежние сочетания причин и решений.
+Триггер `problem_reason_resolutions_check`: вариант с действием `regrade` — только у причины
+`regrade`, и у неё — только такие (`check_violation`). Правки справочника сериализует
+`pg_advisory_xact_lock(1030)`, каждая — строкой `audit_log`. Откат `000039` переводит проблемы
+своих причин в `other`.
 
 ---
 

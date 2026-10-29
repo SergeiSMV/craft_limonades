@@ -10,6 +10,7 @@ import '../../../data/stocktakes_repository.dart';
 import '../common/neumorphic_plate.dart';
 import '../common/neumorphic_text_button.dart';
 import 'stocktake_labels.dart';
+import '../../../../core/utils/doc_number.dart';
 
 /// Карточка пересчёта (P10-05): номер, статус, область, кто завёл, ход; кнопки «Ход» и
 /// «Закрыть» (у незакрытого). Каждый факт — своей строкой.
@@ -46,7 +47,7 @@ class StocktakeCard extends StatelessWidget {
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Text(
-                t.portal.stocktake.title(number: s.number),
+                t.portal.stocktake.title(number: docNumber(DocKind.stocktake, s.number)),
                 style: SemiboldTextStyles().semiboldInter16.copyWith(
                   color: AppColors.kTextMain,
                 ),

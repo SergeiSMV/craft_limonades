@@ -14,6 +14,8 @@ func movementSnap() model.ReportSnapshot {
 		WarehouseName: "Шабулина",
 		Operation:     model.MovementOperationPutaway,
 		TaskNumber:    57,
+		Number:        3,
+		SourceNumber:  12,
 		Supplier:      "ООО «Голсера»",
 		DocNumber:     "ТН-1042/2",
 		DocDate:       "2026-10-01",
@@ -43,10 +45,10 @@ func TestBuildMovementXLSX(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := map[string]string{
-		"A1": "Движение",
-		"A2": "Операция", "B2": "Размещение",
+		"A1": "Движение", "B1": "ДД-000003",
+		"A2": "Операция", "B2": "Размещение РЗ-000012",
 		"A3": "Склад", "B3": "Шабулина",
-		"A4": "Задание", "B4": "№ 57",
+		"A4": "Задание", "B4": "ЗД-000057",
 		"A5": "Поставщик", "B5": "ООО «Голсера»",
 		"A6": "Документ поставщика", "B6": "№ ТН-1042/2 от 01.10.2026",
 		"A7": "Исполнитель", "B7": "Иванов Иван",
@@ -72,6 +74,44 @@ func TestBuildMovementXLSX_noBasis(t *testing.T) {
 	}
 	if got := movementValue(t, raw, "A4"); got != "Исполнитель" {
 		t.Errorf("A4: %q, ожидалось «Исполнитель»", got)
+	}
+}
+
+// Задание по решению «разместить» (ADHOC-55): основание — проблема склада под её номером,
+// строк поставщика нет.
+func TestBuildMovementXLSX_problemBasis(t *testing.T) {
+	snap := movementSnap()
+	snap.Supplier, snap.DocNumber, snap.DocDate = "", "", ""
+	snap.ProblemNumber = 1
+	raw, err := BuildMovementXLSX(snap)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for cell, v := range map[string]string{
+		"A4": "Задание", "B4": "ЗД-000057",
+		"A5": "Проблема склада", "B5": "ПБ-000001",
+		"A6": "Исполнитель",
+	} {
+		if got := movementValue(t, raw, cell); got != v {
+			t.Errorf("%s: получили %q, ждали %q", cell, got, v)
+		}
+	}
+}
+
+// Марка (ADHOC-55) — последней колонкой; строка без марки оставляет её пустой.
+func TestBuildMovementXLSX_mark(t *testing.T) {
+	snap := movementSnap()
+	snap.Rows[0].Qty, snap.Rows[0].Mark = "1", "0104600000000017215L1"
+	raw, err := BuildMovementXLSX(snap)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for cell, v := range map[string]string{
+		"G10": "Марка", "G11": "0104600000000017215L1", "F11": "1", "G12": "",
+	} {
+		if got := movementValue(t, raw, cell); got != v {
+			t.Errorf("%s: получили %q, ждали %q", cell, got, v)
+		}
 	}
 }
 

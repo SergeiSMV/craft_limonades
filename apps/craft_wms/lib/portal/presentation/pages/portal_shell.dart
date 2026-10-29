@@ -69,7 +69,10 @@ class _PortalShellState extends State<PortalShell> {
     final stocktakes = p.can(Rights.stocktakeView, [Rights.stocktakeManage]);
     final cellsLabels = p.can(Rights.cellsLabels);
     final cellsUpload = p.can(Rights.cellsImport);
-    final settings = p.can(Rights.settingsWarehouses, [Rights.settingsUsers]);
+    final settings = p.can(Rights.settingsWarehouses, [
+      Rights.settingsProblemReasons,
+      Rights.settingsUsers,
+    ]);
     return [
       NavSection(
         title: t.portal.menu.operations,
@@ -154,6 +157,7 @@ class _PortalShellState extends State<PortalShell> {
               description: t.portal.settings.description,
               body: SettingsTab(
                 warehouses: p.can(Rights.settingsWarehouses),
+                problemReasons: p.can(Rights.settingsProblemReasons),
                 users: p.can(Rights.settingsUsers),
                 profile: p,
               ),

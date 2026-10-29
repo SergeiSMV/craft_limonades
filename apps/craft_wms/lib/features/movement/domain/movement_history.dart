@@ -23,9 +23,13 @@ class MoveRecord {
     required this.executor,
     required this.loadUnits,
     required this.goods,
+    this.number = 0,
   });
 
   final String id;
+
+  /// Номер операции в счётчике своего вида (ADHOC-55): ПМ-… или ПП-…; 0 — сервер без номеров.
+  final int number;
 
   /// Вид документа: `move` — перемещение, `replenish` — пополнение (заморожено).
   final String kind;

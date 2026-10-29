@@ -5,6 +5,7 @@ import 'package:craft_wms/core/error/failure.dart';
 import 'package:craft_wms/core/outbox/outbox_effects.dart';
 import 'package:craft_wms/core/outbox/outbox_operation.dart';
 import 'package:craft_wms/core/outbox/outbox_repository.dart';
+import 'package:craft_wms/core/problems/problem_reasons.dart';
 import 'package:craft_wms/core/sync/catalog_sync_service.dart';
 import 'package:craft_wms/core/warehouse/internal_warehouses.dart';
 import 'package:craft_wms/features/stock/data/catalog_api.dart';
@@ -22,6 +23,8 @@ import '../support/contents_stubs.dart';
 class _MockApi extends Mock implements CatalogApi {}
 
 class _MockWarehouses extends Mock implements InternalWarehouses {}
+
+class _MockReasons extends Mock implements ProblemReasons {}
 
 /// Обновление справочников (P2-02) и его наблюдаемое состояние (ADHOC-10).
 void main() {
@@ -42,6 +45,8 @@ void main() {
     contents = FakeContentsSnapshotSync();
     final warehouses = _MockWarehouses();
     when(warehouses.refresh).thenAnswer((_) async => const Right(null));
+    final reasons = _MockReasons();
+    when(reasons.refresh).thenAnswer((_) async => const Right(null));
     outbox = OutboxRepository(db, const Uuid());
     effects = OutboxEffects(cache, contents, FakeTasksSnapshotSync());
     sync = CatalogSyncService(
@@ -49,6 +54,7 @@ void main() {
       cache,
       contents,
       warehouses,
+      reasons,
       outbox,
       effects,
       Talker(),

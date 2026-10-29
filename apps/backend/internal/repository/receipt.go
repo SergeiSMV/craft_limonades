@@ -80,6 +80,16 @@ func (r *ReceiptRepository) AddLine(ctx context.Context, receiptID string, in mo
 	})
 }
 
+// receiptMarkCIS — КИ марок строки приёмки: строка хранит сами марки, а расхождения с ЧЗ
+// уже ушли проблемами склада.
+func receiptMarkCIS(marks []model.ReceiptMark) []string {
+	out := make([]string, len(marks)) // не nil: колонка NOT NULL
+	for i, m := range marks {
+		out[i] = m.CIS
+	}
+	return out
+}
+
 // insertReceiptLine — вставка строки в документ на Querier, без проверки статуса: её делает
 // вызывающий один раз на документ, а не на каждую строку.
 func insertReceiptLine(ctx context.Context, q Querier, receiptID string, in model.ReceiptLineInput) error {
@@ -98,11 +108,12 @@ func insertReceiptLine(ctx context.Context, q Querier, receiptID string, in mode
 		lu = in.LoadUnitID
 	}
 	_, err = q.Exec(ctx, `
-		INSERT INTO receipt_lines (receipt_id, good_id, batch_id, cell_id, load_unit_id, qty)
-		VALUES ($1::uuid, $2::uuid, $3::uuid, $4::uuid, $5::uuid, $6::numeric)
+		INSERT INTO receipt_lines (receipt_id, good_id, batch_id, cell_id, load_unit_id, qty, marks)
+		VALUES ($1::uuid, $2::uuid, $3::uuid, $4::uuid, $5::uuid, $6::numeric, $7::text[])
 		ON CONFLICT (receipt_id, good_id, batch_id, cell_id, load_unit_id)
-		DO UPDATE SET qty = receipt_lines.qty + EXCLUDED.qty`,
-		receiptID, in.GoodID, batchID, in.CellID, lu, in.Qty.String())
+		DO UPDATE SET qty = receipt_lines.qty + EXCLUDED.qty,
+		              marks = receipt_lines.marks || EXCLUDED.marks`,
+		receiptID, in.GoodID, batchID, in.CellID, lu, in.Qty.String(), receiptMarkCIS(in.Marks))
 	if err != nil {
 		return fmt.Errorf("добавить строку приёмки: %w", err)
 	}
@@ -262,7 +273,7 @@ func guardReceiptDraft(ctx context.Context, q Querier, receiptID string) error {
 // listReceiptLines читает строки документа для оприходования.
 func listReceiptLines(ctx context.Context, q Querier, receiptID string) ([]model.ReceiptLine, error) {
 	rows, err := q.Query(ctx, `
-		SELECT id::text, good_id::text, batch_id::text, cell_id::text, load_unit_id::text, qty::text
+		SELECT id::text, good_id::text, batch_id::text, cell_id::text, load_unit_id::text, qty::text, marks
 		FROM receipt_lines WHERE receipt_id = $1::uuid
 		ORDER BY created_at, id`, receiptID)
 	if err != nil {
@@ -274,7 +285,7 @@ func listReceiptLines(ctx context.Context, q Querier, receiptID string) ([]model
 	for rows.Next() {
 		var ln model.ReceiptLine
 		var qty string
-		if err := rows.Scan(&ln.ID, &ln.GoodID, &ln.BatchID, &ln.CellID, &ln.LoadUnitID, &qty); err != nil {
+		if err := rows.Scan(&ln.ID, &ln.GoodID, &ln.BatchID, &ln.CellID, &ln.LoadUnitID, &qty, &ln.Marks); err != nil {
 			return nil, fmt.Errorf("разбор строки приёмки: %w", err)
 		}
 		ln.Qty, err = parseQty(qty)

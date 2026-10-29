@@ -28,6 +28,16 @@ func (f *fakeProblemRepo) Resolve(_ context.Context, in model.ResolveProblemInpu
 	return nil
 }
 
+// fakeResolutionID — вариант «Списать» справочника в подделке; другие id — не найдены.
+const fakeResolutionID = "7b000000-0000-4000-8000-000000000001"
+
+func (f *fakeProblemRepo) Resolution(_ context.Context, id string) (model.ProblemResolution, error) {
+	if id != fakeResolutionID {
+		return model.ProblemResolution{}, model.ErrResolutionNotFound
+	}
+	return model.ProblemResolution{ID: id, Name: "Списать", Action: model.ProblemDecisionWriteOff, IsActive: true}, nil
+}
+
 // P6-07-3: форма решения проверяется до базы — у списания документ 1С, у возврата поставщик,
 // чужие поля и неизвестное решение отклоняются.
 func TestProblemService_resolveValidation(t *testing.T) {
@@ -71,15 +81,30 @@ func TestProblemService_resolveValidation(t *testing.T) {
 	}
 }
 
-// Таблица решений по причинам (решение 2026-10-21).
-func TestProblemDecisionsFor(t *testing.T) {
-	cases := map[string]int{
-		model.ProblemReasonBreakage: 1, model.ProblemReasonSpoilage: 2, model.ProblemReasonExpired: 2,
-		model.ProblemReasonForeignMark: 2, model.ProblemReasonOther: 3, "unknown": 0,
+// ADHOC-55: решение вариантом справочника — форма проверяется по действию варианта, а
+// действие подставляет сервис; неизвестный вариант и чужое действие отклоняются.
+func TestProblemService_resolveByResolution(t *testing.T) {
+	const id = "8f4c2b1e-0d3a-4c5b-9e6f-1a2b3c4d5e6f"
+	repo := &fakeProblemRepo{}
+	svc := NewProblemService(repo)
+	ctx := context.Background()
+
+	in := model.ResolveProblemInput{ProblemID: id, ResolutionID: fakeResolutionID, DocNumber: "СП-1", DocDate: "2026-10-29"}
+	if err := svc.Resolve(ctx, in); err != nil {
+		t.Fatal(err)
 	}
-	for reason, n := range cases {
-		if got := model.ProblemDecisionsFor(reason); len(got) != n {
-			t.Errorf("%s: %v", reason, got)
+	if got := repo.resolved[0]; got.Decision != model.ProblemDecisionWriteOff || got.ResolutionID != fakeResolutionID {
+		t.Errorf("до репозитория дошло %+v", got)
+	}
+	bad := []model.ResolveProblemInput{
+		{ProblemID: id, ResolutionID: fakeResolutionID}, // списание без документа
+		{ProblemID: id, ResolutionID: id},               // нет такого варианта
+		{ProblemID: id, ResolutionID: fakeResolutionID, Decision: model.ProblemDecisionPlace,
+			DocNumber: "СП-1", DocDate: "2026-10-29"}, // действие не варианта
+	}
+	for _, in := range bad {
+		if err := svc.Resolve(ctx, in); !errors.Is(err, ErrInvalidDecision) {
+			t.Errorf("%+v: %v", in, err)
 		}
 	}
 }

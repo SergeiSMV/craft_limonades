@@ -139,6 +139,8 @@ func main() {
 		// Справочник внутренних складов для пометки брака на ТСД (P6-07-1).
 		svc.InternalWarehouse = service.NewInternalWarehouseService(repository.NewInternalWarehouseRepository(pool))
 		svc.Problem = service.NewProblemService(repository.NewProblemRepository(pool))
+		// Справочник причин проблем и вариантов решения (ADHOC-55).
+		svc.ProblemReason = service.NewProblemReasonService(repository.NewProblemReasonRepository(pool))
 		svc.ProblemPhoto = service.NewProblemPhotoService(repository.NewProblemPhotoRepository(pool))
 		// Просмотр содержимого ячеек и коробов на ТСД (P5-05).
 		svc.Contents = service.NewContentsService(repository.NewContentsRepository(pool))

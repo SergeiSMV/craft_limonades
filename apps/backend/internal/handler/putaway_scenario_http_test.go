@@ -332,7 +332,7 @@ func TestPutawayHTTP_fullCycleInTwoSessions(t *testing.T) {
 		t.Fatalf("«Движение» после сеанса 1: %v", docs)
 	}
 	header, rows := e.movementXLSX(t, docs[0]["id"].(string))
-	if header["Операция"] != "Размещение" || header["Исполнитель"] != "Кладовщик" ||
+	if header["Операция"] != "Размещение РЗ-000001" || header["Задание"] != model.DocNumber(model.DocPrefixTask, task.Number) || header["Исполнитель"] != "Кладовщик" ||
 		header["Документ поставщика"] != "№ ТН-77 от 01.10.2026" {
 		t.Errorf("шапка «Движения»: %v", header)
 	}

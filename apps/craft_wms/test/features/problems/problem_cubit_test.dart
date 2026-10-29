@@ -4,9 +4,9 @@ import 'dart:typed_data';
 
 import 'package:craft_wms/core/error/failure.dart';
 import 'package:craft_wms/core/load_unit/load_unit_id_generator.dart';
+import 'package:craft_wms/core/problems/problem_reasons.dart';
 import 'package:craft_wms/core/warehouse/internal_warehouses.dart';
 import 'package:craft_wms/features/contents/domain/contents_entities.dart';
-import 'package:craft_wms/features/problems/domain/problem_models.dart';
 import 'package:craft_wms/features/problems/domain/problem_photos.dart';
 import 'package:craft_wms/features/problems/domain/problem_repository.dart';
 import 'package:craft_wms/features/problems/presentation/bloc/problem_cubit.dart';
@@ -39,11 +39,18 @@ class _FakeRepo implements ProblemRepository {
   ];
 
   @override
+  Future<List<ProblemReason>> markReasons() async => fallbackProblemReasons();
+
+  @override
   Future<Either<Failure, void>> submit(Map<String, dynamic> payload) async {
     sent.add(payload);
     return result;
   }
 }
+
+/// Причина справочника по коду — из прежнего списка, как до первой синхронизации.
+ProblemReason reason(String code) =>
+    fallbackProblemReasons().firstWhere((r) => r.code == code);
 
 class _Ids extends Mock implements LoadUnitIdGenerator {}
 
@@ -157,7 +164,7 @@ void main() {
     );
     c.chooseGoods(line(5), 2);
     c.setWarehouse('DEFECT');
-    c.setReason(ProblemReason.breakage);
+    c.setReason(reason('breakage'));
     c.setComment('разбита при снятии с полки');
     await c.submit();
     expect(c.state.outcome, ProblemOutcome.posted);
@@ -167,7 +174,7 @@ void main() {
     c.onBox(box(), cell);
     c.chooseWholeBox();
     c.setWarehouse('ISOLATOR');
-    c.setReason(ProblemReason.foreignMark);
+    c.setReason(reason(ProblemReasonCodes.foreignMark));
     c.setMark('0104600000000015215abcde');
     await c.submit();
 
@@ -207,7 +214,7 @@ void main() {
       c.back();
       c.chooseGoods(line(12, iwh: 'DEFECT'), 2);
       final payload = ProblemCubit.payload(
-        c.state.copyWith(reason: ProblemReason.expired),
+        c.state.copyWith(reason: reason('expired')),
       );
       expect(payload['from_load_unit_id'], boxId);
       expect(
@@ -234,7 +241,7 @@ void main() {
       c.chooseGoods(line(3, iwh: 'DEFECT'), 4);
       expect(c.state.subject, isNull, reason: 'больше, чем лежит, не берётся');
       c.chooseGoods(line(3, iwh: 'DEFECT'), 3);
-      c.setReason(ProblemReason.other);
+      c.setReason(reason(ProblemReasonCodes.other));
       expect(c.state.canSubmit, isFalse);
       c.setComment('  ');
       expect(c.state.canSubmit, isFalse);
@@ -250,15 +257,15 @@ void main() {
     c.onBox(box(), cell);
     c.chooseWholeBox();
     c.setWarehouse('DEFECT');
-    c.setReason(ProblemReason.spoilage);
+    c.setReason(reason('spoilage'));
     repo.result = const Left(Failure.network());
     await c.submit();
     expect(c.state.outcome, ProblemOutcome.queued);
 
     c.next();
     expect(
-      c.state.reason,
-      ProblemReason.spoilage,
+      c.state.reason?.code,
+      'spoilage',
       reason: 'причина остаётся для следующей',
     );
     c.onBox(box(), cell);
@@ -299,7 +306,7 @@ void main() {
       c.onBox(box(), cell);
       c.chooseWholeBox();
       c.setWarehouse('DEFECT');
-      c.setReason(ProblemReason.spoilage);
+      c.setReason(reason('spoilage'));
       await c.takePhoto();
       await c.takePhoto();
       final problem = c.state.problemId!;
@@ -347,7 +354,7 @@ void main() {
       expect(c.state.notice, const ProblemNotice.markOtherGoods());
 
       c.setWarehouse('DEFECT');
-      c.setReason(ProblemReason.breakage);
+      c.setReason(reason('breakage'));
       final p = ProblemCubit.payload(c.state);
       expect(p['from_load_unit_id'], boxId);
       expect(p['qty'], 2.0);

@@ -238,7 +238,11 @@ func TestTasks_migrationBackfillsReceipts(t *testing.T) {
 	lu := newLU(t, pf.stockFixture, model.LoadUnitBox)
 	pf.receive(t, []string{lu}, 5)
 
-	// Пересчёт (P10) ссылается на задания — его миграции снимаются первыми и встают последними.
+	// Пересчёт (P10) и задание по проблеме (ADHOC-55) ссылаются на задания — их миграции
+	// снимаются первыми и встают последними; справочник причин (ADHOC-55) заменил CHECK
+	// причины, который правят миграции пересчёта, — он снимается ещё раньше.
+	execMigration(t, pf.stockFixture, "000039_problem_reasons.down.sql")
+	execMigration(t, pf.stockFixture, "000036_problem_putaway_task.down.sql")
 	execMigration(t, pf.stockFixture, "000032_stocktake_count.down.sql")
 	execMigration(t, pf.stockFixture, "000031_stocktake_disrupt.down.sql")
 	execMigration(t, pf.stockFixture, "000030_stocktakes.down.sql")
@@ -253,6 +257,8 @@ func TestTasks_migrationBackfillsReceipts(t *testing.T) {
 	execMigration(t, pf.stockFixture, "000030_stocktakes.up.sql")
 	execMigration(t, pf.stockFixture, "000031_stocktake_disrupt.up.sql")
 	execMigration(t, pf.stockFixture, "000032_stocktake_count.up.sql")
+	execMigration(t, pf.stockFixture, "000036_problem_putaway_task.up.sql")
+	execMigration(t, pf.stockFixture, "000039_problem_reasons.up.sql")
 
 	repo := repository.NewTaskRepository(pf.pool)
 	tasks, err := repo.Current(context.Background(), pf.user, stale)

@@ -453,14 +453,14 @@ func (r *ContentsRepository) LoadUnitHistory(ctx context.Context, id string) (mo
 		// коробом в документе может быть несколько — документ один.
 		var rc model.LoadUnitReceipt
 		err = q.QueryRow(ctx, `
-			SELECT r.id::text, u.full_name, s.name, r.posted_at, r.doc_number, r.doc_date
+			SELECT r.id::text, r.number, u.full_name, s.name, r.posted_at, r.doc_number, r.doc_date
 			FROM receipt_lines rl
 			JOIN receipts r       ON r.id = rl.receipt_id
 			JOIN users u          ON u.id = r.created_by
 			LEFT JOIN suppliers s ON s.id = r.supplier_id
 			WHERE rl.load_unit_id = $1::uuid
 			ORDER BY r.created_at
-			LIMIT 1`, id).Scan(&rc.ReceiptID, &rc.ReceivedBy, &rc.SupplierName, &rc.PostedAt,
+			LIMIT 1`, id).Scan(&rc.ReceiptID, &rc.Number, &rc.ReceivedBy, &rc.SupplierName, &rc.PostedAt,
 			&rc.Doc.Number, &rc.Doc.Date)
 		switch {
 		case errors.Is(err, pgx.ErrNoRows):
@@ -471,11 +471,22 @@ func (r *ContentsRepository) LoadUnitHistory(ctx context.Context, id string) (mo
 		}
 
 		rows, err := q.Query(ctx, `
-			SELECT cf.address, ct.address, p.source, u.full_name, p.placed_at
+			SELECT cf.address, ct.address, p.source, u.full_name, p.placed_at,
+			       CASE WHEN m.id IS NOT NULL THEN m.kind
+			            WHEN pw.id IS NOT NULL THEN 'putaway'
+			            WHEN st.id IS NOT NULL THEN 'stocktake'
+			            WHEN r.id IS NOT NULL THEN 'receipt'
+			            ELSE '' END,
+			       COALESCE(m.number, pw.number, st.number, r.number, 0)
 			FROM placements p
 			LEFT JOIN cells cf ON cf.id = p.from_cell_id
 			JOIN cells ct      ON ct.id = p.to_cell_id
 			LEFT JOIN users u  ON u.id = p.user_id
+			LEFT JOIN movements m        ON m.id = p.movement_id
+			LEFT JOIN putaways pw        ON pw.id = p.putaway_id
+			LEFT JOIN receipts r         ON r.id = p.receipt_id
+			LEFT JOIN stocktake_cells sc ON sc.id = p.stocktake_cell_id
+			LEFT JOIN stocktakes st      ON st.id = sc.stocktake_id
 			WHERE p.load_unit_id = $1::uuid
 			ORDER BY p.placed_at, p.id`, id)
 		if err != nil {
@@ -484,7 +495,8 @@ func (r *ContentsRepository) LoadUnitHistory(ctx context.Context, id string) (mo
 		defer rows.Close()
 		for rows.Next() {
 			var m model.LoadUnitMove
-			if err := rows.Scan(&m.FromAddress, &m.ToAddress, &m.Source, &m.UserName, &m.At); err != nil {
+			if err := rows.Scan(&m.FromAddress, &m.ToAddress, &m.Source, &m.UserName, &m.At,
+				&m.Operation, &m.OperationNumber); err != nil {
 				return fmt.Errorf("разобрать перенос: %w", err)
 			}
 			h.Moves = append(h.Moves, m)

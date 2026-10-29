@@ -19,6 +19,15 @@ type markPlace struct {
 	iwh        string
 }
 
+// nonNilMarks — марки строки для колонки `marks` (ADHOC-55): nil-срез pgx пишет как NULL, а
+// колонка NOT NULL — строка без марок хранит пустой массив.
+func nonNilMarks(marks []string) []string {
+	if marks == nil {
+		return []string{}
+	}
+	return marks
+}
+
 // placeOf — место для строки товара: короб, если он есть, иначе россыпь ячейки.
 func placeOf(loadUnitID, cellID, iwh string) markPlace {
 	if loadUnitID != "" {

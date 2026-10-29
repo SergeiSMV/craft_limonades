@@ -52,10 +52,20 @@ type Task struct {
 
 	// StocktakeID — пересчёт задания вида stocktake (P10-03): ячейки берут из него.
 	StocktakeID *string
+	// Problem — проблема-основание задания на размещение по решению «разместить» (ADHOC-55);
+	// nil — основание другое.
+	Problem *TaskProblemInfo
 	// Stocktake — номер, область и ход пересчёта (P10-04); nil — у других видов.
 	Stocktake *TaskStocktakeInfo
 
 	Items []PutawayTaskItem
+}
+
+// TaskProblemInfo — проблема склада, по решению которой заведено задание на размещение
+// (ADHOC-55): основание называют её номером.
+type TaskProblemInfo struct {
+	ID     string
+	Number int64
 }
 
 // PutawayTaskItem — позиция задания: короб целиком ЛИБО россыпь. Та же форма у позиции
@@ -117,6 +127,8 @@ type CompletedTask struct {
 	// Исполнители — все, кто проводил по заданию сеансы, в порядке первого захода.
 	Executors []TaskUser
 	Sessions  int
+	// Problem — проблема-основание размещения (ADHOC-55); nil — основание другое.
+	Problem *TaskProblemInfo
 }
 
 // TaskUser — исполнитель задания.

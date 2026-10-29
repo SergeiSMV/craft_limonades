@@ -77,6 +77,24 @@ func TestBuildReceiptXLSX(t *testing.T) {
 	}
 }
 
+// ADHOC-55: номер документа — рядом с названием формы, номер приёмки — строкой под ним.
+func TestBuildReceiptXLSX_numbers(t *testing.T) {
+	snap := receiptSnap()
+	snap.Number, snap.SourceNumber = 5, 21
+	raw, err := BuildReceiptXLSX(snap)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := openSheet(t, raw)
+	for cell, v := range map[string]string{
+		"A1": "Поступление", "B1": "ДП-000005", "A2": "Приёмка", "B2": "ПР-000021", "A3": "Склад",
+	} {
+		if got := cellValue(t, f, cell); got != v {
+			t.Errorf("%s: получили %q, ждали %q", cell, got, v)
+		}
+	}
+}
+
 func TestBuildReceiptXLSX_noSupplier(t *testing.T) {
 	snap := receiptSnap()
 	snap.Supplier = ""

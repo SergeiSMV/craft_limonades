@@ -6,6 +6,7 @@ import 'package:injectable/injectable.dart';
 
 import '../../core/constants/api_constants.dart';
 import '../../core/error/failure.dart';
+import '../../core/problems/problem_reasons.dart';
 
 /// Решения офиса по проблеме (P6-07-3) — значения транспорта.
 abstract final class ProblemDecision {
@@ -58,20 +59,23 @@ class PortalProblemItem {
 class PortalProblem {
   const PortalProblem({
     required this.id,
+    required this.number,
     required this.createdAt,
     required this.createdBy,
     required this.cellAddress,
     required this.loadUnitId,
     required this.reason,
+    this.reasonName = '',
     required this.comment,
     required this.mark,
     required this.fromWarehouse,
     required this.toWarehouse,
     required this.items,
-    required this.decisions,
+    required this.resolutions,
     required this.suggestedSupplierId,
     required this.resolved,
     required this.decision,
+    this.resolutionName = '',
     required this.docNumber,
     required this.docDate,
     required this.supplierName,
@@ -86,11 +90,13 @@ class PortalProblem {
 
   factory PortalProblem.fromJson(Map<String, dynamic> j) => PortalProblem(
     id: j['id'] as String,
+    number: (j['number'] as num?)?.toInt() ?? 0,
     createdAt: DateTime.parse(j['created_at'] as String),
     createdBy: j['created_by'] as String? ?? '',
     cellAddress: j['cell_address'] as String? ?? '',
     loadUnitId: j['load_unit_id'] as String? ?? '',
     reason: j['reason'] as String? ?? '',
+    reasonName: j['reason_name'] as String? ?? '',
     comment: j['comment'] as String? ?? '',
     mark: j['mark'] as String? ?? '',
     fromWarehouse: j['from_warehouse'] as String? ?? '',
@@ -99,12 +105,14 @@ class PortalProblem {
       for (final e in j['items'] as List<dynamic>? ?? const [])
         PortalProblemItem.fromJson(e as Map<String, dynamic>),
     ],
-    decisions: [
-      for (final e in j['decisions'] as List<dynamic>? ?? const []) e as String,
+    resolutions: [
+      for (final e in j['resolutions'] as List<dynamic>? ?? const [])
+        ResolutionVariant.fromJson(e as Map<String, dynamic>),
     ],
     suggestedSupplierId: j['suggested_supplier_id'] as String? ?? '',
     resolved: j['status'] == 'resolved',
     decision: j['decision'] as String? ?? '',
+    resolutionName: j['resolution_name'] as String? ?? '',
     docNumber: j['doc_number'] as String? ?? '',
     docDate: j['doc_date'] as String? ?? '',
     supplierName: j['supplier_name'] as String? ?? '',
@@ -124,6 +132,9 @@ class PortalProblem {
   );
 
   final String id;
+
+  /// Номер проблемы (ADHOC-55); показ — `docNumber` с префиксом «ПБ».
+  final int number;
   final DateTime createdAt;
 
   /// Кто зафиксировал на ТСД.
@@ -135,8 +146,11 @@ class PortalProblem {
   /// Короб целиком; пусто — товар.
   final String loadUnitId;
 
-  /// Причина — значение транспорта (`breakage`, `spoilage` …).
+  /// Причина — код справочника (`breakage`, `spoilage` …).
   final String reason;
+
+  /// Название причины по справочнику (ADHOC-55).
+  final String reasonName;
   final String comment;
 
   /// Марка ЧЗ текстом, как её ввели при пометке (до CZ-06).
@@ -150,14 +164,20 @@ class PortalProblem {
   final String toWarehouse;
   final List<PortalProblemItem> items;
 
-  /// Решения, допустимые при причине, в порядке показа — таблицу держит сервер.
-  final List<String> decisions;
+  /// Варианты решения, которыми проблему можно решить сейчас, в порядке справочника
+  /// (ADHOC-55) — их держит сервер.
+  final List<ResolutionVariant> resolutions;
 
   /// Поставщик товара по справочнику — подсказка для возврата; пусто — разные или не указан.
   final String suggestedSupplierId;
 
   final bool resolved;
+
+  /// Действие принятого решения — [ProblemDecision].
   final String decision;
+
+  /// Название принятого варианта решения (ADHOC-55).
+  final String resolutionName;
 
   /// Документ 1С списания или пересортицы: номер и дата (ISO).
   final String docNumber;
@@ -195,6 +215,7 @@ class PortalSupplier {
 
 /// Решение, собранное в диалоге: вид и поля своего вида.
 typedef ProblemResolution = ({
+  String resolutionId,
   String decision,
   String docNumber,
   String docDate,
@@ -245,6 +266,7 @@ class ProblemsRepository {
         () => _dio.post<void>(
           ApiConst.problemResolve(id),
           data: {
+            'resolution_id': r.resolutionId,
             'decision': r.decision,
             if (ProblemDecision.withDoc(r.decision)) ...{
               'doc_number': r.docNumber,

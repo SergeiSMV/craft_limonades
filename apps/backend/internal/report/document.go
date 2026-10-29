@@ -48,12 +48,22 @@ func DocumentFilename(doc model.ReportDocument) string {
 	return fmt.Sprintf("%s-%s-%s.xlsx", prefix, doc.Snapshot.WarehouseCode, doc.CreatedAt.Format("20060102"))
 }
 
+// docNumber — номер для шапки документа; 0 — снимок до ADHOC-55, номера нет, ячейка пуста.
+func docNumber(prefix string, n int64) string {
+	if n == 0 {
+		return ""
+	}
+	return model.DocNumber(prefix, n)
+}
+
 // stockEntryReportFrom переводит снимок в модель шаблона «ввод остатков».
 func stockEntryReportFrom(s model.ReportSnapshot) model.StockEntryReport {
 	rep := model.StockEntryReport{
 		WarehouseCode: s.WarehouseCode,
 		WarehouseName: s.WarehouseName,
 		CreatedAt:     s.CreatedAt,
+		Number:        s.Number,
+		SourceNumber:  s.SourceNumber,
 		Rows:          make([]model.StockEntryReportRow, 0, len(s.Rows)),
 	}
 	for _, r := range s.Rows {
@@ -61,7 +71,7 @@ func stockEntryReportFrom(s model.ReportSnapshot) model.StockEntryReport {
 		// (ячейка-отправитель «Движения»), которых у ввода остатков нет.
 		rep.Rows = append(rep.Rows, model.StockEntryReportRow{
 			CellAddress: r.CellAddress, GoodCode: r.GoodCode, GoodName: r.GoodName,
-			ProductionDate: r.ProductionDate, Qty: r.Qty,
+			ProductionDate: r.ProductionDate, Qty: r.Qty, Mark: r.Mark,
 		})
 	}
 	return rep

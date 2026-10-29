@@ -51,17 +51,20 @@ class ProblemRecordItem {
 class ProblemRecord {
   const ProblemRecord({
     required this.id,
+    this.number,
     required this.createdAt,
     required this.createdBy,
     required this.cellAddress,
     this.loadUnitId,
     required this.reason,
+    this.reasonName = '',
     this.comment = '',
     this.mark,
     required this.fromWarehouse,
     required this.toWarehouse,
     this.items = const [],
     this.decision = '',
+    this.resolutionName = '',
     this.docNumber,
     this.docDate,
     this.supplierName,
@@ -70,11 +73,15 @@ class ProblemRecord {
     this.resolvedAt,
     this.shippedBy,
     this.shippedAt,
+    this.shipmentNumber,
     this.pending = false,
     this.photos = const [],
   });
 
   final String id;
+
+  /// Номер проблемы (ADHOC-55); `null` у своей неотправленной — номер выдаёт сервер.
+  final int? number;
   final DateTime createdAt;
 
   /// Кто зафиксировал; пусто у своей неотправленной — её зафиксировали на этом терминале.
@@ -86,8 +93,11 @@ class ProblemRecord {
   /// Короб целиком; `null` — товар.
   final String? loadUnitId;
 
-  /// Причина — значение сервера (`breakage`, …).
+  /// Причина — код справочника (`breakage`, …).
   final String reason;
+
+  /// Название причины по справочнику (ADHOC-55); пусто — справочника ещё нет.
+  final String reasonName;
   final String comment;
 
   /// Марка ЧЗ — у «не нашей марки».
@@ -100,8 +110,11 @@ class ProblemRecord {
 
   final List<ProblemRecordItem> items;
 
-  /// Решение — [ProblemDecision]; пусто — проблема открыта.
+  /// Решение — действие варианта, [ProblemDecision]; пусто — проблема открыта.
   final String decision;
+
+  /// Название варианта решения, выбранного офисом (ADHOC-55); пусто — у старого сервера.
+  final String resolutionName;
 
   /// Документ списания 1С: номер и дата YYYY-MM-DD.
   final String? docNumber;
@@ -122,6 +135,9 @@ class ProblemRecord {
   /// другое. У «списать» и «разместить» исполнение — само «Провести» в портале.
   final String? shippedBy;
   final DateTime? shippedAt;
+
+  /// Номер отгрузки возврата, ВП-… (ADHOC-55); `null` — не отгружен.
+  final int? shipmentNumber;
 
   /// Своя проблема из очереди терминала: сервер о ней ещё не знает (ADHOC-35).
   final bool pending;

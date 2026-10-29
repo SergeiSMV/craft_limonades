@@ -63,7 +63,7 @@ class _MovementRecordView extends StatelessWidget {
           ),
           title: PageHeader(
             title: state is RecordLoaded
-                ? moveKindLabel(state.detail.record.kind)
+                ? moveRecordTitle(state.detail.record)
                 : t.movement.title,
             goBack: () => goBack(context),
           ),

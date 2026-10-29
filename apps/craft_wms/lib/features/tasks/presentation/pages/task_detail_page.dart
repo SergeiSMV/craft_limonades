@@ -27,6 +27,7 @@ import '../widgets/common/tasks_message.dart';
 import '../widgets/detail/history_tile.dart';
 import '../widgets/detail/task_actions_bar.dart';
 import '../widgets/detail/task_item_tile.dart';
+import '../../../../core/utils/doc_number.dart';
 
 /// Карточка задания (P5-02-1): что разместить, заходы, «Взять» / «Отказаться».
 ///
@@ -142,7 +143,7 @@ class _TaskDetailView extends StatelessWidget {
               title: PageHeader(
                 title: task == null
                     ? t.tasks.title
-                    : t.tasks.number(number: task.number),
+                    : t.tasks.number(number: docNumber(DocKind.task, task.number)),
                 goBack: () => goBack(context),
               ),
             ),

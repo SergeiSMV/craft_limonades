@@ -550,8 +550,9 @@ func TestOperations_problemSubmitValidation(t *testing.T) {
 		{"id не UUID", body(map[string]any{"problem_id": "x"})},
 		{"нет склада", body(map[string]any{"warehouse_id": nil})},
 		{"нет склада назначения", body(map[string]any{"to_internal_warehouse_id": nil})},
-		{"причины нет в списке", body(map[string]any{"reason": "лень"})},
-		{"«прочее» без комментария", body(map[string]any{"reason": "other"})},
+		// Есть ли причина в справочнике и нужен ли ей комментарий, проверяет репозиторий
+		// (ADHOC-55) — интеграционный тест; здесь только пустая причина.
+		{"без причины", body(map[string]any{"reason": ""})},
 		{"комментарий длиннее предела", body(map[string]any{"comment": strings.Repeat("я", problemCommentMax+1)})},
 		{"короб с товаром", map[string]any{"problem_id": problem, "warehouse_id": warehouse,
 			"to_internal_warehouse_id": defect, "reason": "breakage", "load_unit_id": box, "good_id": good}},

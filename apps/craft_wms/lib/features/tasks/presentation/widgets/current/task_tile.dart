@@ -13,6 +13,7 @@ import '../../../../stocktake/presentation/widgets/stocktake_format.dart';
 import '../../../data/tasks_models.dart';
 import '../common/task_format.dart';
 import '../common/task_status_badge.dart';
+import '../../../../../core/utils/doc_number.dart';
 
 /// Текущее задание в списке — стандарт для любого вида задания, три строки:
 ///
@@ -80,9 +81,9 @@ class TaskTile extends StatelessWidget {
                   ),
                   Text(
                     task.stocktake == null
-                        ? t.tasks.number(number: task.number)
+                        ? t.tasks.number(number: docNumber(DocKind.task, task.number))
                         : t.stocktake.tileNumber(
-                            number: task.stocktake!.number,
+                            number: docNumber(DocKind.stocktake, task.stocktake!.number),
                           ),
                     style: muted,
                   ),

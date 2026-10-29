@@ -7,6 +7,7 @@ import '../../../../core/di/injection.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../domain/cell_count_check.dart';
+import '../../../../core/utils/doc_number.dart';
 
 /// Можно ли двигать товар через ячейку [cellId] (ADHOC-48): ячейку движения проверяют все
 /// потоки — перемещение, размещение, проблемы склада, возврат поставщику.
@@ -58,7 +59,7 @@ class _CellUnderCountDialog extends StatelessWidget {
                 style: text,
               ),
             Text(
-              t.stocktake.underCountNumber(number: count.stocktakeNumber),
+              t.stocktake.underCountNumber(number: docNumber(DocKind.stocktake, count.stocktakeNumber)),
               style: text,
             ),
             AppBoxes.kHeight8,

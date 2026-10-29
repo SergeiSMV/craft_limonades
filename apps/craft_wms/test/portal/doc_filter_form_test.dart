@@ -16,6 +16,8 @@ PortalDoc doc(
   int taskNumber = 0,
   String executor = '',
   int lines = 1,
+  int number = 0,
+  int sourceNumber = 0,
 }) => PortalDoc(
   id: id,
   kind: kind,
@@ -30,6 +32,8 @@ PortalDoc doc(
   createdAt: DateTime(2026, 10, 9, 19, 5),
   linesCount: lines,
   status: status,
+  number: number,
+  sourceNumber: sourceNumber,
 );
 
 void main() {
@@ -88,7 +92,7 @@ void main() {
   });
 
   group('колонки по форме', () {
-    test('поступление: накладная или прочерк, поставщик', () {
+    test('поступление: номер документа и приёмки; поставщик и накладная', () {
       final f = DocForm.of('receipt');
       expect(f.partyTitle, isNotNull);
       final withDoc = doc(
@@ -96,14 +100,24 @@ void main() {
         supplier: 'ИП Лапушкин',
         docNumber: '4562655Н',
         docDate: '07-10-2026',
+        number: 3,
+        sourceNumber: 12,
       );
-      expect(f.document(withDoc), (main: '4562655Н', sub: 'от 07.10.2026'));
-      expect(f.party(withDoc), (main: 'ИП Лапушкин', sub: ''));
-      expect(f.document(doc('b')).main, '—');
-      expect(f.party(doc('b')).main, t.portal.receipt.noSupplier);
+      expect(f.document(withDoc), (
+        main: 'ДП-000003',
+        sub: 'Приёмка ПР-000012',
+      ));
+      expect(f.party(withDoc), (
+        main: 'ИП Лапушкин',
+        sub: '№ 4562655Н от 07.10.2026',
+      ));
+      expect(f.party(doc('b')), (
+        main: t.portal.receipt.noSupplier,
+        sub: t.portal.documents.noSupplierDoc,
+      ));
     });
 
-    test('движение: задание и операция, основание — поставщик и накладная', () {
+    test('движение: номер документа и размещения, основание — задание', () {
       final f = DocForm.of('movement');
       final m = doc(
         'm',
@@ -113,63 +127,63 @@ void main() {
         supplier: 'ИП Лапушкин',
         docNumber: 'ТН-1',
         docDate: '01-10-2026',
+        number: 4,
+        sourceNumber: 9,
       );
-      expect(f.document(m), (main: 'Задание № 57', sub: 'Размещение'));
-      expect(f.party(m), (main: 'ИП Лапушкин', sub: '№ ТН-1 от 01.10.2026'));
-      expect(f.searchText(m), contains('Задание № 57'));
+      expect(f.document(m), (main: 'ДД-000004', sub: 'Размещение РЗ-000009'));
+      expect(f.party(m), (
+        main: 'Задание ЗД-000057',
+        sub: 'ИП Лапушкин · № ТН-1 от 01.10.2026',
+      ));
     });
 
-    // P6-07: перемещение идёт без задания — операция и исполнитель, основания нет.
-    test('перемещение: операция и исполнитель, без основания', () {
+    // P6-07: перемещение идёт без задания — основания нет, под этим исполнитель.
+    test('перемещение: номер операции, без основания, исполнитель', () {
       final f = DocForm.of('movement');
       final m = doc(
         'mv',
         kind: 'movement',
         operation: 'move',
         executor: 'Иванов Иван',
+        number: 2,
+        sourceNumber: 1,
       );
-      expect(f.document(m), (main: 'Перемещение', sub: 'Иванов Иван'));
-      expect(f.party(m), (main: t.portal.movement.noBasis, sub: ''));
-      expect(f.cardTitle(m), 'Перемещение');
+      expect(f.document(m), (main: 'ДД-000002', sub: 'Перемещение ПМ-000001'));
+      expect(f.party(m), (
+        main: t.portal.movement.noBasis,
+        sub: 'Иванов Иван',
+      ));
+      expect(f.cardTitle(m), 'ДД-000002 · Перемещение ПМ-000001');
       expect(f.searchText(m), contains('Иванов Иван'));
     });
 
-    test('ввод остатков: без колонки контрагента, позиции под названием', () {
-      final f = DocForm.of('stock_entry');
-      expect(f.partyTitle, isNull);
-      expect(f.document(doc('s', kind: 'stock_entry', lines: 214)), (
-        main: 'Ввод остатков',
-        sub: 'позиций: 214',
-      ));
+    test('поиск по номеру — полному и короткому', () {
+      final f = DocForm.of('movement');
+      final m = doc(
+        'mv',
+        kind: 'movement',
+        operation: 'move',
+        number: 2,
+        sourceNumber: 1,
+      );
+      final text = f.searchText(m).toLowerCase();
+      for (final q in ['пм-000001', 'пм-1', 'пм1', 'дд-2', 'дд2']) {
+        expect(text, contains(q), reason: q);
+      }
     });
 
-    test(
-      'заголовок карточки телефона — документ одной строкой, без позиций',
-      () {
-        expect(
-          DocForm.of(
-            'receipt',
-          ).cardTitle(doc('a', docNumber: '4562655Н', docDate: '07-10-2026')),
-          '№ 4562655Н от 07.10.2026',
-        );
-        expect(
-          DocForm.of('receipt').cardTitle(doc('b')),
-          t.portal.documents.noSupplierDoc,
-        );
-        expect(
-          DocForm.of('movement').cardTitle(
-            doc('m', kind: 'movement', taskNumber: 5, operation: 'putaway'),
-          ),
-          'Задание № 5 · Размещение',
-        );
-        expect(
-          DocForm.of(
-            'stock_entry',
-          ).cardTitle(doc('s', kind: 'stock_entry', lines: 150)),
-          'Ввод остатков',
-        );
-      },
-    );
+    test('ввод остатков: без колонки контрагента, номера документа и операции', () {
+      final f = DocForm.of('stock_entry');
+      expect(f.partyTitle, isNull);
+      expect(
+        f.document(doc('s', kind: 'stock_entry', number: 1, sourceNumber: 5)),
+        (main: 'ДВ-000001', sub: 'Ввод остатков ВО-000005'),
+      );
+    });
+
+    test('без номера операции — только её вид', () {
+      expect(DocForm.of('receipt').document(doc('a')).sub, 'Приёмка');
+    });
 
     test('время — дата и часы в локальной зоне', () {
       expect(DocForm.of('receipt').time(doc('t')), (

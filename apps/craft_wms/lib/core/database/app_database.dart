@@ -342,6 +342,25 @@ class CachedInternalWarehouses extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+/// Причины проблем склада (ADHOC-55): справочник офиса — выбрать причину при пометке без
+/// связи и подписать ею проблемы.
+class CachedProblemReasons extends Table {
+  TextColumn get code => text()();
+  TextColumn get name => text()();
+
+  /// Порядок справочника.
+  IntColumn get ord => integer()();
+
+  /// Кладовщик выбирает её на ТСД; нет — ставит только программа.
+  BoolColumn get manual => boolean().withDefault(const Constant(true))();
+  BoolColumn get commentRequired =>
+      boolean().withDefault(const Constant(false))();
+  BoolColumn get isActive => boolean().withDefault(const Constant(true))();
+
+  @override
+  Set<Column<Object>> get primaryKey => {code};
+}
+
 /// Очередь фото к проблемам склада (ADHOC-45): снимки, ещё не загруженные на сервер.
 ///
 /// Отдельно от очереди операций: снимок весит сотни килобайт, и в теле операции он задерживал
@@ -383,6 +402,7 @@ class ProblemPhotoUploads extends Table {
     CachedInternalWarehouses,
     ProblemPhotoUploads,
     CachedCzMarks,
+    CachedProblemReasons,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -392,7 +412,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 13;
 
   /// Миграции схемы.
   ///
@@ -426,6 +446,9 @@ class AppDatabase extends _$AppDatabase {
   ///
   /// 11 → 12: у коробов снимка — код короба ЧЗ и признак вскрытия, марки ЧЗ на складе
   /// [cachedCzMarks] (CZ-06).
+  ///
+  /// 12 → 13: справочник причин проблем [cachedProblemReasons] (ADHOC-55). Пуст до первой
+  /// синхронизации — до неё форма пометки берёт прежний список причин.
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) => m.createAll(),
@@ -514,6 +537,9 @@ class AppDatabase extends _$AppDatabase {
         await (delete(
           catalogSyncMarks,
         )..where((t) => t.catalog.equals('contents'))).go();
+      }
+      if (from < 13 && to >= 13) {
+        await m.createTable(cachedProblemReasons);
       }
     },
   );

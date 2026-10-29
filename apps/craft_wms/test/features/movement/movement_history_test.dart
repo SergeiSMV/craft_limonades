@@ -4,6 +4,7 @@ import 'package:craft_wms/features/movement/data/movement_history_repository_imp
 import 'package:craft_wms/features/movement/domain/movement_history.dart';
 import 'package:craft_wms/features/movement/domain/movement_models.dart';
 import 'package:craft_wms/features/movement/presentation/bloc/movement_history_cubit.dart';
+import 'package:craft_wms/features/movement/presentation/widgets/history/move_record_tile.dart';
 import 'package:craft_wms/features/movement/presentation/widgets/move_lines_list.dart';
 import 'package:craft_wms/features/tasks/data/tasks_models.dart';
 import 'package:either_dart/either.dart';
@@ -40,8 +41,14 @@ void main() {
         'executor': {'id': 'u1', 'full_name': 'Иванов Иван'},
         'load_units': 1,
         'goods': 2,
+        'number': 3,
       });
       expect(r.executor.fullName, 'Иванов Иван');
+      expect(
+        moveRecordTitle(r),
+        'Перемещение ПМ-000003',
+        reason: 'запись ищется по номеру (ADHOC-55)',
+      );
       expect((r.loadUnits, r.goods), (1, 2));
       expect(
         r.postedAt,

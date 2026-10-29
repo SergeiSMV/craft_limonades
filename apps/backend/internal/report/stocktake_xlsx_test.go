@@ -7,12 +7,12 @@ import (
 	"craftwms/internal/model"
 )
 
-// P10-05: «Инвентаризация» — шапка пересчёта, все позиции с ожидалось/факт/расхождение на первом
+// P10-05: «Инвентаризация» — шапка с номером документа и пересчёта (ADHOC-55), все позиции с ожидалось/факт/расхождение на первом
 // листе, на втором — только расхождения и пометки; «не считалась» — без чисел.
 func TestBuildStocktakeXLSX(t *testing.T) {
 	code := "16121"
 	raw, err := BuildStocktakeXLSX(model.ReportSnapshot{
-		WarehouseName: "Шабулина", StocktakeNumber: 12, ScopeKind: model.StocktakeScopeAll,
+		WarehouseName: "Шабулина", StocktakeNumber: 12, Number: 4, ScopeKind: model.StocktakeScopeAll,
 		Executor: "Петров Пётр", CreatedAt: time.Date(2026, 10, 26, 9, 0, 0, 0, time.UTC),
 		Rows: []model.ReportSnapshotRow{
 			{CellAddress: "A1", GoodCode: &code, GoodName: "Кальмар", ProductionDate: "2026-09-01",
@@ -34,20 +34,21 @@ func TestBuildStocktakeXLSX(t *testing.T) {
 		return v
 	}
 	for cell, want := range map[string]string{
-		"B1": "Пересчёт № 12", "B3": "весь склад", "B4": "Петров Пётр", "B5": "26.10.2026 12:00",
-		"A7": "Ячейка", "H7": "Расхождение",
-		"A8": "A1", "B8": "16121", "D8": "01.09.2026", "E8": "Основной", "F8": "10", "G8": "10", "H8": "0",
-		"A9": "A2", "H9": "-12", "I9": "не найдено — проблема склада",
-		"A10": "A3", "F10": "", "I10": "не считалась",
+		"A1": "Инвентаризация", "B1": "ДИ-000004", "A2": "Пересчёт", "B2": "ИН-000012",
+		"B4": "весь склад", "B5": "Петров Пётр", "B6": "26.10.2026 12:00",
+		"A8": "Ячейка", "H8": "Расхождение", "J8": "Марка",
+		"A9": "A1", "B9": "16121", "D9": "01.09.2026", "E9": "Основной", "F9": "10", "G9": "10", "H9": "0",
+		"A10": "A2", "H10": "-12", "I10": "не найдено — проблема склада",
+		"A11": "A3", "F11": "", "I11": "не считалась",
 	} {
 		if got := get(stocktakeSheet, cell); got != want {
 			t.Errorf("%s: %q, ожидалось %q", cell, got, want)
 		}
 	}
-	if a8, a9 := get(stocktakeDiffSheet, "A8"), get(stocktakeDiffSheet, "A9"); a8 != "A2" || a9 != "A3" {
-		t.Errorf("лист расхождений: %q, %q — ожидались A2 и A3", a8, a9)
+	if a9, a10 := get(stocktakeDiffSheet, "A9"), get(stocktakeDiffSheet, "A10"); a9 != "A2" || a10 != "A3" {
+		t.Errorf("лист расхождений: %q, %q — ожидались A2 и A3", a9, a10)
 	}
-	if got := get(stocktakeDiffSheet, "A10"); got != "" {
+	if got := get(stocktakeDiffSheet, "A11"); got != "" {
 		t.Errorf("на листе расхождений лишняя строка %q", got)
 	}
 }
