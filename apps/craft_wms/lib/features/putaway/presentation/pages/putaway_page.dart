@@ -34,6 +34,7 @@ import '../bloc/putaway_models.dart';
 import '../widgets/pick_card.dart';
 import '../widgets/putaway_lists.dart';
 import '../widgets/putaway_messages.dart';
+import '../../../../core/utils/doc_number.dart';
 
 /// Выполнение задания на размещение (P5-03): скан короба или товара → скан ячейки → … →
 /// «Завершить». Работает без связи: сеанс копится на терминале и уходит одной операцией.
@@ -324,7 +325,7 @@ class _PutawayViewState extends State<_PutawayView> with HardwareScanListener {
       NoticePlaced(:final address) => t.putaway.noticePlaced(cell: address),
       NoticeMarkTaken() => t.putaway.noticeMarkTaken,
       NoticeReleaseOffline(:final number) => t.putaway.noticeReleaseOffline(
-        number: number,
+        number: docNumber(DocKind.task, number),
       ),
     });
     cubit.clearNotice();
@@ -359,7 +360,7 @@ class _PutawayViewState extends State<_PutawayView> with HardwareScanListener {
               child: Assets.images.featuredSnacks.image(fit: BoxFit.cover),
             ),
             title: PageHeader(
-              title: t.putaway.title(number: state.task.number),
+              title: t.putaway.title(number: docNumber(DocKind.task, state.task.number)),
               goBack: goBack,
             ),
           ),

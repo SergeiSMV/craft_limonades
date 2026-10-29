@@ -1,9 +1,6 @@
 package model
 
-import (
-	"fmt"
-	"time"
-)
+import "time"
 
 // Проблемы склада (P6-07-1): пометка короба или товара другим внутренним складом — брак,
 // изолятор и т. п. (ADR-0016). Брак — лишь метка и программная изоляция: товар остаётся
@@ -77,13 +74,6 @@ var problemDecisions = map[string][]string{
 	// Не найдено (P10-03): списать по документу 1С или «нашлось» — вернуть в «Основной».
 	ProblemReasonNotFound: {ProblemDecisionWriteOff, ProblemDecisionPlace},
 	ProblemReasonRegrade:  {ProblemDecisionRegrade},
-}
-
-// ProblemDocNumber — номер проблемы склада для человека: префикс «ПБ» и шесть цифр,
-// «ПБ-000009» (ADHOC-55). Тот же вид, что у `docNumber` на ТСД и в портале: в документе 1С
-// оператор видит проблему под тем же номером, что и в карточке.
-func ProblemDocNumber(n int64) string {
-	return fmt.Sprintf("ПБ-%06d", n)
 }
 
 // ProblemDecisionsFor — решения, допустимые при причине; неизвестная причина — пусто.
@@ -175,6 +165,8 @@ type Problem struct {
 	// ещё ждёт отгрузки или решение другое. Исполнение решения для ленты склада (ADHOC-34).
 	ShippedByName string
 	ShippedAt     *time.Time
+	// ShipmentNumber — номер отгрузки возврата, «ВП» (ADHOC-55); 0 — не отгружен.
+	ShipmentNumber int64
 
 	// Photos — идентификаторы фото проблемы в порядке съёмки (ADHOC-45); сами снимки отдаются
 	// отдельным запросом, в список не кладутся.

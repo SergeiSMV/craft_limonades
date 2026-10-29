@@ -39,75 +39,73 @@ class DocForm {
     _ => t.portal.inventory.colTime,
   };
 
-  /// Колонка «Документ». Поступление — номер накладной и её дата; движение — задание
-  /// и операция, а без задания (перемещение, P6-07) — операция и исполнитель; ввод
-  /// остатков — название и число позиций.
-  CellText document(PortalDoc doc) => switch (kind) {
-    'receipt' =>
-      doc.docNumber.isEmpty
-          ? (main: '—', sub: t.portal.documents.noSupplierDoc)
-          : (
-              main: doc.docNumber,
-              sub: t.portal.documents.docDate(date: _date(doc.docDate)),
-            ),
-    'movement' when doc.taskNumber == 0 => (
-      main: _operation(doc.operation),
-      sub: doc.executor,
-    ),
-    'movement' => (
-      main: t.portal.movement.task(number: doc.taskNumber),
-      sub: _operation(doc.operation),
-    ),
-    // «Инвентаризация» (P10-05) — пересчёт и число позиций.
-    'stocktake' => (
-      main: t.portal.stocktake.doc(number: doc.stocktakeNumber),
-      sub: t.portal.documents.lines(count: doc.linesCount),
-    ),
-    _ => (
-      main: t.portal.inventory.mark,
-      sub: t.portal.documents.lines(count: doc.linesCount),
-    ),
-  };
+  /// Колонка «Документ» (ADHOC-55): номер документа и под ним операция с её номером —
+  /// «ДД-000003», «Перемещение ПМ-000001». По обоим номерам документ находит поиск.
+  CellText document(PortalDoc doc) => (main: docTitle(doc), sub: operation(doc));
 
-  /// Первая строка карточки на узком экране (ADHOC-26): документ одной строкой, без числа
-  /// позиций. Поступление — «№ … от …»; движение — задание и операция; ввод остатков — название.
-  String cardTitle(PortalDoc doc) => switch (kind) {
-    'receipt' =>
-      doc.docNumber.isEmpty
-          ? t.portal.documents.noSupplierDoc
-          : t.portal.receipt.doc(
-              number: doc.docNumber,
-              date: _date(doc.docDate),
-            ),
-    'movement' when doc.taskNumber == 0 => _operation(doc.operation),
-    'movement' => '${document(doc).main} · ${_operation(doc.operation)}',
-    'stocktake' => t.portal.stocktake.doc(number: doc.stocktakeNumber),
-    _ => t.portal.inventory.mark,
-  };
+  /// Номер документа — счётчик своей формы.
+  String docTitle(PortalDoc doc) => docNumber(switch (kind) {
+    'receipt' => DocKind.receiptDoc,
+    'movement' => DocKind.movementDoc,
+    'stocktake' => DocKind.stocktakeDoc,
+    _ => DocKind.stockEntryDoc,
+  }, doc.number);
 
-  /// Колонка контрагента. Поступление — поставщик; движение — поставщик и накладная приёмки,
-  /// из которой родилось задание, или проблема склада, решение по которой его завело
-  /// (ADHOC-55); у перемещения основания нет.
+  /// Операция-источник документа с её номером; номера нет — только вид операции.
+  String operation(PortalDoc doc) {
+    final (name, docKind, number) = switch (kind) {
+      'receipt' => (t.portal.receipt.op, DocKind.receipt, doc.sourceNumber),
+      'movement' => (
+        _operation(doc.operation),
+        operationDocKind(doc.operation),
+        doc.sourceNumber,
+      ),
+      'stocktake' => (
+        t.portal.stocktake.mark,
+        DocKind.stocktake,
+        doc.stocktakeNumber,
+      ),
+      _ => (t.portal.inventory.mark, DocKind.stockEntry, doc.sourceNumber),
+    };
+    if (docKind == null || number == 0) return name;
+    if (kind == 'stocktake') {
+      return t.portal.stocktake.doc(number: docNumber(docKind, number));
+    }
+    return t.portal.documents.operation(
+      name: name,
+      number: docNumber(docKind, number),
+    );
+  }
+
+  /// Первая строка карточки на узком экране (ADHOC-26): номер документа и операция.
+  String cardTitle(PortalDoc doc) => '${docTitle(doc)} · ${operation(doc)}';
+
+  /// Колонка контрагента. Поступление — поставщик и его накладная; движение размещения —
+  /// задание и то, из чего оно родилось: поставщик и накладная приёмки или проблема склада
+  /// (ADHOC-55); у перемещения основания нет — под этим его исполнитель.
   CellText party(PortalDoc doc) {
     if (kind == 'movement' && doc.taskNumber == 0) {
-      return (main: t.portal.movement.noBasis, sub: '');
-    }
-    if (kind == 'movement' && doc.problemNumber > 0) {
-      return (
-        main: t.portal.problems.number(
-          number: docNumber(DocKind.problem, doc.problemNumber),
-        ),
-        sub: '',
-      );
+      return (main: t.portal.movement.noBasis, sub: doc.executor);
     }
     final supplier = doc.supplier.isEmpty
         ? t.portal.receipt.noSupplier
         : doc.supplier;
-    if (kind != 'movement') return (main: supplier, sub: '');
     final ref = doc.docNumber.isEmpty
         ? t.portal.documents.noSupplierDoc
         : t.portal.receipt.doc(number: doc.docNumber, date: _date(doc.docDate));
-    return (main: supplier, sub: ref);
+    if (kind != 'movement') return (main: supplier, sub: ref);
+    final task = t.portal.movement.task(
+      number: docNumber(DocKind.task, doc.taskNumber),
+    );
+    if (doc.problemNumber > 0) {
+      return (
+        main: task,
+        sub: t.portal.problems.number(
+          number: docNumber(DocKind.problem, doc.problemNumber),
+        ),
+      );
+    }
+    return (main: task, sub: '$supplier · $ref');
   }
 
   /// Колонка времени: дата и время операции в локальной зоне.
@@ -121,6 +119,8 @@ class DocForm {
   }
 
   /// Текст, по которому ищет поиск: всё, что видно в строке.
+  ///
+  /// Номера — ещё и коротко, без ведущих нулей: «ПМ-1» и «ПМ1» находят «ПМ-000001».
   String searchText(PortalDoc doc) {
     final d = document(doc), p = party(doc), tm = time(doc);
     return [
@@ -128,6 +128,7 @@ class DocForm {
       d.sub,
       if (partyTitle != null) ...[p.main, p.sub],
       tm.main,
+      ...shortDocNumbers('${d.main} ${d.sub} ${p.main} ${p.sub}'),
     ].join(' ');
   }
 

@@ -3,7 +3,6 @@ package report
 import (
 	"bytes"
 	"fmt"
-	"strconv"
 
 	"github.com/xuri/excelize/v2"
 
@@ -52,7 +51,8 @@ func BuildStocktakeXLSX(s model.ReportSnapshot) ([]byte, error) {
 		scope = s.ScopeKind
 	}
 	header := [][2]string{
-		{"Инвентаризация", "Пересчёт № " + strconv.FormatInt(s.StocktakeNumber, 10)},
+		{"Инвентаризация", docNumber(model.DocPrefixStocktakeDoc, s.Number)},
+		{"Пересчёт", model.DocNumber(model.DocPrefixStocktake, s.StocktakeNumber)},
 		{"Склад", s.WarehouseName},
 		{"Область", scope},
 		{"Закрыл", s.Executor},

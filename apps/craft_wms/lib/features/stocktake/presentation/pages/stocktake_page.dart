@@ -26,6 +26,7 @@ import '../../domain/stocktake_models.dart';
 import '../bloc/stocktake_cells_cubit.dart';
 import '../widgets/stocktake_cells_list.dart';
 import '../widgets/stocktake_dialogs.dart';
+import '../../../../core/utils/doc_number.dart';
 
 /// Ячейки пересчёта (P10-04): свои и свободные; скан ячейки на месте начинает её подсчёт.
 /// Старшему смены — закрыть пересчёт. Без связи — только начатые подсчёты на терминале.
@@ -183,7 +184,7 @@ class _StocktakeViewState extends State<_StocktakeView>
               title: PageHeader(
                 title: number == null
                     ? t.stocktake.titlePlain
-                    : t.stocktake.title(number: number),
+                    : t.stocktake.title(number: docNumber(DocKind.stocktake, number)),
                 goBack: goBack,
               ),
             ),

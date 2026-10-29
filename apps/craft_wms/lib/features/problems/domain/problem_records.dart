@@ -71,6 +71,7 @@ class ProblemRecord {
     this.resolvedAt,
     this.shippedBy,
     this.shippedAt,
+    this.shipmentNumber,
     this.pending = false,
     this.photos = const [],
   });
@@ -126,6 +127,9 @@ class ProblemRecord {
   /// другое. У «списать» и «разместить» исполнение — само «Провести» в портале.
   final String? shippedBy;
   final DateTime? shippedAt;
+
+  /// Номер отгрузки возврата, ВП-… (ADHOC-55); `null` — не отгружен.
+  final int? shipmentNumber;
 
   /// Своя проблема из очереди терминала: сервер о ней ещё не знает (ADHOC-35).
   final bool pending;

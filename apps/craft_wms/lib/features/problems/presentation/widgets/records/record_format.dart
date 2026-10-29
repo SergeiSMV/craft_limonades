@@ -42,13 +42,16 @@ String outcomeLabel(ProblemRecord p) => switch (p.decision) {
 /// Подробности решения: у возврата — кому и каким заданием.
 List<String> decisionLines(ProblemRecord p) => [
   if (p.supplierName case final s?) t.problems.supplierLine(supplier: s),
-  if (p.returnTaskNumber case final n?) t.problems.taskLine(number: n),
+  if (p.returnTaskNumber case final n?)
+    t.problems.taskLine(number: docNumber(DocKind.task, n)),
 ];
 
-/// Подробности исполнения: у списания — документ 1С.
+/// Подробности исполнения: у списания — документ 1С, у возврата — номер отгрузки.
 List<String> executionLines(ProblemRecord p) => [
   if ((p.docNumber, p.docDate) case (final n?, final d?))
     t.problems.docLine(number: n, date: isoToDisplayDate(d)),
+  if (p.shipmentNumber case final n?)
+    t.problems.shipmentLine(number: docNumber(DocKind.returnShipment, n)),
 ];
 
 /// Кто и когда зафиксировал: своя неотправленная — «на этом терминале».

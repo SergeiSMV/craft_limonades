@@ -258,6 +258,9 @@ void main() {
       'status': 'new',
     });
     expect(doc.problemNumber, 1);
-    expect(DocForm.of('movement').party(doc), (main: 'Проблема ПБ-000001', sub: ''));
+    expect(DocForm.of('movement').party(doc), (
+      main: 'Задание ЗД-000002',
+      sub: 'Проблема ПБ-000001',
+    ));
   });
 }

@@ -123,7 +123,7 @@ void main() {
       );
       expect(decisionLines(ret), [
         t.problems.supplierLine(supplier: 'ИП Березин'),
-        t.problems.taskLine(number: 7),
+        t.problems.taskLine(number: 'ЗД-000007'),
       ]);
       expect(outcomeLabel(ret), t.problems.outcomeAwaiting);
       expect(executedMeta(ret), isNull, reason: 'возврат ещё не отгружен');
@@ -316,7 +316,7 @@ void main() {
         find.text(t.problems.supplierLine(supplier: 'ИП Березин')),
         findsOneWidget,
       );
-      expect(find.text(t.problems.taskLine(number: 7)), findsOneWidget);
+      expect(find.text(t.problems.taskLine(number: 'ЗД-000007')), findsOneWidget);
       expect(
         find.text(t.problems.batchLine(date: '01.09.2026')),
         findsOneWidget,

@@ -108,6 +108,7 @@ type ContentsMark struct {
 // LoadUnitReceipt — приёмка, которая завела короб (P5-05-1): кто, когда, от кого.
 type LoadUnitReceipt struct {
 	ReceiptID    string
+	Number       int64       // номер приёмки, «ПР» (ADHOC-55)
 	Doc          SupplierDoc // накладная поставщика (ADHOC-23)
 	ReceivedBy   string      // ФИО кладовщика
 	SupplierName *string     // nil — приёмка без поставщика
@@ -122,6 +123,11 @@ type LoadUnitMove struct {
 	Source      string  // PlacementReceipt | PlacementPutaway | PlacementMove
 	UserName    *string // nil — исполнитель неизвестен
 	At          time.Time
+	// Operation и OperationNumber — операция, перенёсшая короб, и её номер (ADHOC-55):
+	// receipt | putaway | move | replenish | stocktake; пусто и 0 — операция без номера
+	// (ввод остатков ссылки на сессию в журнале не хранит).
+	Operation       string
+	OperationNumber int64
 }
 
 // LoadUnitHistory — история короба: создание, переносы и изменения состава по порядку

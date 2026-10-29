@@ -238,6 +238,7 @@ func (h *ContentsHandler) SearchLoadUnits(w http.ResponseWriter, r *http.Request
 
 type loadUnitReceiptResponse struct {
 	ReceiptID  string  `json:"receipt_id"`
+	Number     int64   `json:"number"`     // номер приёмки, «ПР» (ADHOC-55)
 	DocNumber  string  `json:"doc_number"` // накладная поставщика (ADHOC-23)
 	DocDate    string  `json:"doc_date"`   // DD-MM-YYYY
 	ReceivedBy string  `json:"received_by"`
@@ -251,6 +252,10 @@ type loadUnitMoveResponse struct {
 	Source   string  `json:"source"` // receipt | putaway
 	UserName *string `json:"user_name"`
 	At       string  `json:"at"` // RFC3339
+	// Операция и её номер (ADHOC-55): receipt | putaway | move | replenish | stocktake;
+	// пусто и 0 — операция без номера.
+	Operation       string `json:"operation"`
+	OperationNumber int64  `json:"operation_number"`
 }
 
 // loadUnitContentEventResponse — изменение состава короба (ADHOC-32): kind — in | out | problem
@@ -300,7 +305,7 @@ func (h *ContentsHandler) LoadUnitHistory(w http.ResponseWriter, r *http.Request
 	}
 	if rc := hist.Receipt; rc != nil {
 		out.Receipt = &loadUnitReceiptResponse{
-			ReceiptID: rc.ReceiptID, ReceivedBy: rc.ReceivedBy, Supplier: rc.SupplierName,
+			ReceiptID: rc.ReceiptID, Number: rc.Number, ReceivedBy: rc.ReceivedBy, Supplier: rc.SupplierName,
 			DocNumber: rc.Doc.Number, DocDate: rc.Doc.Date.Format(productionDateLayout),
 		}
 		if rc.PostedAt != nil {
@@ -311,7 +316,7 @@ func (h *ContentsHandler) LoadUnitHistory(w http.ResponseWriter, r *http.Request
 	for _, m := range hist.Moves {
 		out.Moves = append(out.Moves, loadUnitMoveResponse{
 			From: m.FromAddress, To: m.ToAddress, Source: m.Source, UserName: m.UserName,
-			At: m.At.UTC().Format(time.RFC3339),
+			At: m.At.UTC().Format(time.RFC3339), Operation: m.Operation, OperationNumber: m.OperationNumber,
 		})
 	}
 	writeJSON(w, http.StatusOK, out)

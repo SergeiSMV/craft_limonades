@@ -46,6 +46,10 @@ type documentItemResponse struct {
 	TaskNumber int64  `json:"task_number"` // задание-основание «Движения»; 0 — нет
 	// ProblemNumber — проблема склада, по решению которой заведено задание (ADHOC-55); 0 — нет.
 	ProblemNumber int64 `json:"problem_number"`
+	// Number — номер документа, счётчик формы; SourceNumber — номер операции-источника
+	// (у «Инвентаризации» — stocktake_number), 0 — документ до ADHOC-55 (ADHOC-55).
+	Number       int64 `json:"number"`
+	SourceNumber int64 `json:"source_number"`
 	// Пересчёт «Инвентаризации» (P10-05); 0 — другая форма.
 	StocktakeNumber int64   `json:"stocktake_number"`
 	Executor        string  `json:"executor"`   // кто выполнил операцию; пусто — неизвестно
@@ -92,6 +96,8 @@ func (h *DocumentHandler) List(w http.ResponseWriter, r *http.Request) {
 			Operation:       d.Operation,
 			TaskNumber:      d.TaskNumber,
 			ProblemNumber:   d.ProblemNumber,
+			Number:          d.Number,
+			SourceNumber:    d.SourceNumber,
 			StocktakeNumber: d.StocktakeNumber,
 			Executor:        d.Executor,
 			CreatedAt:       d.CreatedAt.Format(time.RFC3339),

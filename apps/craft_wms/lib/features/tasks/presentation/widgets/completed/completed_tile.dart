@@ -11,6 +11,7 @@ import '../../../../../core/theme/regular_text.dart';
 import '../../../../../core/theme/semibold_text.dart';
 import '../../../data/tasks_models.dart';
 import '../common/task_format.dart';
+import '../../../../../core/utils/doc_number.dart';
 
 /// Запись ленты «Завершённые»: задание целиком — номер и вид, основание, исполнители, время.
 class CompletedTile extends StatelessWidget {
@@ -58,7 +59,7 @@ class CompletedTile extends StatelessWidget {
                       color: AppColors.kSidebarHover,
                     ),
                   ),
-                  Text(t.tasks.number(number: task.number), style: muted),
+                  Text(t.tasks.number(number: docNumber(DocKind.task, task.number)), style: muted),
                   Text(
                     supplierBasis(
                       task.supplier,

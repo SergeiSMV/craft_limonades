@@ -259,11 +259,11 @@ func finalizeSession(ctx context.Context, q Querier, sessionID string) (int, err
 func buildStockEntrySnapshot(ctx context.Context, q Querier, sessionID string) (model.ReportSnapshot, error) {
 	var snap model.ReportSnapshot
 	if err := q.QueryRow(ctx, `
-		SELECT w.code, w.name, s.created_at
+		SELECT w.code, w.name, s.created_at, s.number
 		FROM stock_entry_sessions s
 		JOIN warehouses w ON w.id = s.warehouse_id
 		WHERE s.id = $1::uuid`, sessionID).
-		Scan(&snap.WarehouseCode, &snap.WarehouseName, &snap.CreatedAt); err != nil {
+		Scan(&snap.WarehouseCode, &snap.WarehouseName, &snap.CreatedAt, &snap.SourceNumber); err != nil {
 		return model.ReportSnapshot{}, fmt.Errorf("снимок документа, шапка: %w", err)
 	}
 

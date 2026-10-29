@@ -198,7 +198,7 @@ class ProblemCard extends StatelessWidget {
     ProblemDecision.place => t.portal.problems.resolvedPlace,
     ProblemDecision.supplierReturn => t.portal.problems.resolvedReturn(
       supplier: p.supplierName,
-      number: p.returnTaskNumber,
+      number: docNumber(DocKind.task, p.returnTaskNumber),
     ),
     _ => p.decision,
   };

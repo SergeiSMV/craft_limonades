@@ -58,7 +58,7 @@ func buildPutawaySnapshot(ctx context.Context, q Querier, putawayID string) (mod
 	var problemNumber *int64
 	if err := q.QueryRow(ctx, `
 		SELECT w.code, w.name, u.full_name, p.created_by::text, p.posted_at, t.number,
-		       s.name, r.doc_number, to_char(r.doc_date, 'YYYY-MM-DD'), wp.number
+		       s.name, r.doc_number, to_char(r.doc_date, 'YYYY-MM-DD'), wp.number, p.number
 		FROM putaways p
 		JOIN warehouses w      ON w.id = p.warehouse_id
 		JOIN users u           ON u.id = p.created_by
@@ -68,7 +68,7 @@ func buildPutawaySnapshot(ctx context.Context, q Querier, putawayID string) (mod
 		LEFT JOIN warehouse_problems wp ON wp.id = t.problem_id
 		WHERE p.id = $1::uuid`, putawayID).
 		Scan(&snap.WarehouseCode, &snap.WarehouseName, &snap.Executor, &author, &snap.CreatedAt,
-			&snap.TaskNumber, &supplier, &docNumber, &docDate, &problemNumber); err != nil {
+			&snap.TaskNumber, &supplier, &docNumber, &docDate, &problemNumber, &snap.SourceNumber); err != nil {
 		return model.ReportSnapshot{}, "", fmt.Errorf("снимок движения, шапка: %w", err)
 	}
 	snap.Supplier, snap.DocNumber, snap.DocDate = deref(supplier), deref(docNumber), deref(docDate)
@@ -154,13 +154,13 @@ func buildMovementSnapshot(ctx context.Context, q Querier, movementID string, mo
 	var snap model.ReportSnapshot
 	var author string
 	if err := q.QueryRow(ctx, `
-		SELECT w.code, w.name, u.full_name, m.created_by::text, m.posted_at, m.kind
+		SELECT w.code, w.name, u.full_name, m.created_by::text, m.posted_at, m.kind, m.number
 		FROM movements m
 		JOIN warehouses w ON w.id = m.warehouse_id
 		JOIN users u      ON u.id = m.created_by
 		WHERE m.id = $1::uuid`, movementID).
 		Scan(&snap.WarehouseCode, &snap.WarehouseName, &snap.Executor, &author, &snap.CreatedAt,
-			&snap.Operation); err != nil {
+			&snap.Operation, &snap.SourceNumber); err != nil {
 		return model.ReportSnapshot{}, "", fmt.Errorf("снимок движения, шапка: %w", err)
 	}
 

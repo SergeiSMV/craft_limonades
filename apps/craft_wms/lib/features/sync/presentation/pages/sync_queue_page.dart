@@ -16,6 +16,7 @@ import '../../../putaway/data/putaway_repository.dart';
 import '../bloc/sync_status_cubit.dart';
 import '../widgets/operation_tile.dart';
 import '../widgets/sync_now_button.dart';
+import '../../../../core/utils/doc_number.dart';
 
 /// Экран несинхронизированных операций (P2-06).
 ///
@@ -165,7 +166,7 @@ class _SyncQueuePageState extends State<SyncQueuePage> {
       operation.operationId,
     );
     say(switch (outcome) {
-      ReopenOutcome.reopened => t.syncQueue.fixPutaway(number: number),
+      ReopenOutcome.reopened => t.syncQueue.fixPutaway(number: docNumber(DocKind.task, number)),
       ReopenOutcome.draftBusy => t.syncQueue.fixBusyPutaway,
       ReopenOutcome.lost => t.syncQueue.fixLost,
     });

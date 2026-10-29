@@ -221,6 +221,11 @@ func TestReportDocument_migrationBackfillsClosedSessions(t *testing.T) {
 	if err := m.Migrate(9); err != nil {
 		t.Fatalf("migrate to 9: %v", err)
 	}
+	// Читает документ репозиторий текущей схемы — доводим схему до конца: бэкофилл 9 уже
+	// лёг, последующие миграции снимок не меняют, а только дописывают номера (ADHOC-55).
+	if err := m.Up(); err != nil {
+		t.Fatalf("migrate up: %v", err)
+	}
 
 	docs := repository.NewReportDocumentRepository(pool)
 	doc, err := docs.BySource(ctx, model.SourceTypeStockEntrySession, session)

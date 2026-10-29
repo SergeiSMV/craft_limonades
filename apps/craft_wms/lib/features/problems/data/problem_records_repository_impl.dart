@@ -216,6 +216,7 @@ ProblemRecord problemRecordFromJson(Map<String, dynamic> j) {
       final v? => DateTime.parse(v),
       null => null,
     },
+    shipmentNumber: (j['shipment_number'] as num?)?.toInt(),
     photos: [for (final id in j['photos'] as List? ?? const []) id as String],
   );
 }

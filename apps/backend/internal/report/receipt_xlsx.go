@@ -38,11 +38,15 @@ func BuildReceiptXLSX(s model.ReportSnapshot) ([]byte, error) {
 	if supplier == "" {
 		supplier = "без поставщика"
 	}
-	header := [][2]string{
-		{"Поступление", ""},
-		{"Склад", s.WarehouseName},
-		{"Поставщик", supplier},
+	// Номер документа — рядом с названием формы, номер приёмки — отдельной строкой (ADHOC-55).
+	header := [][2]string{{"Поступление", docNumber(model.DocPrefixReceiptDoc, s.Number)}}
+	if s.SourceNumber > 0 {
+		header = append(header, [2]string{"Приёмка", model.DocNumber(model.DocPrefixReceipt, s.SourceNumber)})
 	}
+	header = append(header,
+		[2]string{"Склад", s.WarehouseName},
+		[2]string{"Поставщик", supplier},
+	)
 	// Документ-основание (ADHOC-23) — сразу под поставщиком: оператор заносит в 1С именно его.
 	// Снимок до ADHOC-23 документа не несёт, и строки нет.
 	if s.DocNumber != "" {

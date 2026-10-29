@@ -17,5 +17,7 @@ type StockEntryReport struct {
 	WarehouseCode string
 	WarehouseName string
 	CreatedAt     time.Time
+	Number        int64 // номер документа «Ввод остатков» (ADHOC-55); 0 — нет
+	SourceNumber  int64 // номер сессии ввода остатков (ADHOC-55); 0 — нет
 	Rows          []StockEntryReportRow
 }

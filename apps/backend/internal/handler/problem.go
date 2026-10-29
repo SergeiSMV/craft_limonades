@@ -69,6 +69,8 @@ type problemResponse struct {
 	// Исполнение возврата (ADHOC-34): кто и когда отгрузил поставщику; нет — ещё не отгружен.
 	ShippedBy string     `json:"shipped_by,omitempty"`
 	ShippedAt *time.Time `json:"shipped_at,omitempty"`
+	// ShipmentNumber — номер отгрузки возврата, «ВП» (ADHOC-55); нет — не отгружен.
+	ShipmentNumber int64 `json:"shipment_number,omitempty"`
 	// Photos — идентификаторы фото в порядке съёмки (ADHOC-45); снимок — отдельным запросом.
 	Photos []string `json:"photos"`
 }
@@ -88,7 +90,7 @@ func toProblemResponse(p model.Problem) problemResponse {
 		Status: p.Status, Decision: p.Decision, DocNumber: p.DocNumber, DocDate: p.DocDate,
 		SupplierID: p.SupplierID, SupplierName: p.SupplierName, ReturnTaskNo: p.ReturnTaskNo,
 		ResolvedBy: p.ResolvedByName, ResolvedAt: p.ResolvedAt,
-		ShippedBy: p.ShippedByName, ShippedAt: p.ShippedAt, Photos: orEmpty(p.Photos),
+		ShippedBy: p.ShippedByName, ShippedAt: p.ShippedAt, ShipmentNumber: p.ShipmentNumber, Photos: orEmpty(p.Photos),
 	}
 }
 

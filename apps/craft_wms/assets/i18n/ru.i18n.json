@@ -255,6 +255,7 @@
       "col_actions": "Действия",
       "not_found": "Ничего не найдено",
       "no_supplier_doc": "накладная не указана",
+      "operation": "${name} ${number}",
       "doc_date": "от ${date}",
       "xlsx": ".xlsx"
     },
@@ -263,7 +264,7 @@
       "mark": "Ввод остатков",
       "empty": "Пока нет документов",
       "col_time": "Завершён",
-      "search": "Поиск по дате…"
+      "search": "Поиск по номеру или дате…"
     },
     "stocktake": {
       "description": "Пересчёты склада: заведите пересчёт по области, следите за ходом и закройте его. При закрытии появляется документ «Инвентаризация» — скачайте .xlsx, занесите расхождения в 1С и отметьте выполненным.",
@@ -271,12 +272,12 @@
       "view_documents": "Инвентаризация",
       "view_stock_entry": "Ввод остатков",
       "mark": "Инвентаризация",
-      "doc": "Пересчёт №${number}",
+      "doc": "Пересчёт ${number}",
       "create": "Завести пересчёт",
       "filter_open": "Открытые",
       "filter_closed": "Закрытые",
       "empty": "Пересчётов пока нет",
-      "title": "Пересчёт №${number}",
+      "title": "Пересчёт ${number}",
       "scope": "Область: ${scope}",
       "created": "Завёл: ${name} · ${date}",
       "closed_at": "Закрыт: ${date}",
@@ -286,7 +287,7 @@
       "status_closed": "закрыт",
       "show_progress": "Ход",
       "close": "Закрыть",
-      "close_title": "Закрыть пересчёт №${number}?",
+      "close_title": "Закрыть пересчёт ${number}?",
       "close_body_all": "Все ячейки подсчитаны. Появится документ «Инвентаризация» для 1С.",
       "close_body_uncounted": "Не подсчитано ячеек: ${count}. Их остаток не изменится, в документе они будут «не считалась».",
       "close_yes": "Закрыть",
@@ -294,7 +295,7 @@
       "closed": "Пересчёт закрыт — документ «Инвентаризация» в списке документов",
       "error": "Ошибка: ${message}",
       "retry": "Повторить",
-      "progress_title": "Ход пересчёта №${number}",
+      "progress_title": "Ход пересчёта ${number}",
       "col_cell": "Ячейка",
       "col_status": "Статус",
       "col_who": "Кто",
@@ -321,7 +322,7 @@
       "nothing_found": "Ничего не найдено",
       "loading": "Загрузка…",
       "create_submit": "Завести",
-      "create_done": "Пересчёт №${number} заведён: ячеек ${cells}",
+      "create_done": "Пересчёт ${number} заведён: ячеек ${cells}",
       "no_warehouse": "Не удалось определить склад — в справочнике нет ячеек"
     },
     "receipt": {
@@ -331,7 +332,8 @@
       "doc": "№ ${number} от ${date}",
       "col_party": "Контрагент",
       "col_time": "Принято",
-      "search": "Поиск по поставщику или номеру документа…"
+      "op": "Приёмка",
+      "search": "Поиск по номеру, поставщику или накладной…"
     },
     "settings": {
       "description": "Справочники, которые ведёт офис."
@@ -415,14 +417,14 @@
     "movement": {
       "description": "Документы «Движение» — размещения и перемещения, проведённые на ТСД. Скачайте .xlsx, занесите в 1С и отметьте выполненным.",
       "empty": "Пока нет документов",
-      "task": "Задание № ${number}",
+      "task": "Задание ${number}",
       "op_putaway": "Размещение",
       "op_move": "Перемещение",
       "op_replenish": "Пополнение",
       "no_basis": "Без задания",
       "col_party": "Основание",
       "col_time": "Проведено на ТСД",
-      "search": "Поиск по заданию, поставщику или накладной…"
+      "search": "Поиск по номеру, заданию, поставщику или накладной…"
     },
     "problems": {
       "number": "Проблема ${number}",
@@ -450,7 +452,7 @@
       "regrade_from": "Товар до пересорта: ${name}",
       "regrade_barcode": "ШК: ${barcode}",
       "resolved_place": "Размещено в «Основной»",
-      "resolved_return": "Возврат поставщику: ${supplier} · задание № ${number}",
+      "resolved_return": "Возврат поставщику: ${supplier} · задание ${number}",
       "resolved_by": "${name} · ${time}",
       "decision_write_off": "Списать",
       "decision_place": "Разместить",
@@ -697,7 +699,7 @@
     "fix_busy_movement": "Сначала завершите или сбросьте текущее перемещение — потом исправляйте отклонённое",
     "fix_busy_putaway": "Сначала завершите незавершённое размещение — потом исправляйте отклонённое",
     "fix_lost": "Копия сеанса не сохранилась — его можно только повторить или отбросить",
-    "fix_putaway": "Сеанс вернулся в задание №${number} — откройте задание и исправьте строки"
+    "fix_putaway": "Сеанс вернулся в задание ${number} — откройте задание и исправьте строки"
   },
   "good_picker": {
     "title": "Выберите товар",
@@ -759,7 +761,7 @@
     "cancel": "Отмена"
   },
   "putaway": {
-    "title": "Размещение №${number}",
+    "title": "Размещение ${number}",
     "scan_hint": "Отсканируйте короб или товар",
     "scan_cell_hint": "Отсканируйте ячейку, куда положили",
     "in_hands": "В руках",
@@ -788,13 +790,13 @@
     "notice_mark_taken": "Эта марка уже взята",
     "scan_mark": "Маркируемый товар — сканируйте марку каждой единицы. Принят без марок — admin снимет признак «маркируемый» в карточке товара",
     "mark_not_here": "Марки нет в россыпи ячейки приёмки",
-    "notice_release_offline": "Нет связи: задание №${number} вернётся в общий список само через 8 часов",
+    "notice_release_offline": "Нет связи: задание ${number} вернётся в общий список само через 8 часов",
     "cell_not_found": "Ячейка ${address} не найдена",
     "barcode_unknown": "Штрихкод не узнан: ${code}",
     "barcode_offline": "Нет связи — штрихкод ${code} не проверить",
     "box_label_unsupported": "Ярлык новой версии — обновите приложение",
     "foreign_draft_title": "Есть незавершённое размещение",
-    "foreign_draft_body": "На терминале не завершено размещение по заданию №${number}. Начать это — значит отбросить ту работу.",
+    "foreign_draft_body": "На терминале не завершено размещение по заданию ${number}. Начать это — значит отбросить ту работу.",
     "foreign_draft_discard": "Отбросить и начать",
     "foreign_draft_back": "Назад",
     "outcome_posted": "Размещение проведено",
@@ -805,7 +807,7 @@
     "fix_reason": "Сервер отклонил размещение. Уберите или поправьте строки и завершите снова.\n${reason}"
   },
   "supplier_return": {
-    "title": "Возврат № ${number}",
+    "title": "Возврат ${number}",
     "supplier": "Поставщик: ${name}",
     "scan_hint": "Короб, ячейка или товар",
     "progress": "Отмечено ${done} из ${total}",
@@ -910,6 +912,7 @@
     "tab_completed": "Завершённые",
     "kind_move": "Перемещение",
     "kind_replenish": "Пополнение",
+    "record_title": "${kind} ${number}",
     "history_summary": "коробов: ${boxes} · строк товара: ${goods}",
     "history_empty": "Перемещений пока нет",
     "history_online_only": "История перемещений доступна только при связи",
@@ -920,7 +923,19 @@
     "fix_reason": "Сервер отклонил перемещение. Уберите или поправьте строки и завершите снова.\n${reason}"
   },
   "doc_number": {
-    "prefix_problem": "ПБ"
+    "prefix_receipt": "ПР",
+    "prefix_putaway": "РЗ",
+    "prefix_move": "ПМ",
+    "prefix_replenish": "ПП",
+    "prefix_stock_entry": "ВО",
+    "prefix_return_shipment": "ВП",
+    "prefix_task": "ЗД",
+    "prefix_stocktake": "ИН",
+    "prefix_problem": "ПБ",
+    "prefix_receipt_doc": "ДП",
+    "prefix_movement_doc": "ДД",
+    "prefix_stock_entry_doc": "ДВ",
+    "prefix_stocktake_doc": "ДИ"
   },
   "problems": {
     "title": "Проблемы склада",
@@ -992,7 +1007,8 @@
     "outcome_awaiting": "Ждёт отгрузки поставщику",
     "doc_line": "Документ 1С: № ${number} от ${date}",
     "supplier_line": "Поставщик: ${supplier}",
-    "task_line": "Задание №${number}",
+    "task_line": "Задание ${number}",
+    "shipment_line": "Отгрузка возврата: ${number}",
     "created_meta": "Зафиксировал: ${name}, ${time}",
     "resolved_meta": "Решил: ${name}, ${time}",
     "executed_meta": "Исполнил: ${name}, ${time}",
@@ -1009,7 +1025,7 @@
     "tab_current": "Текущие",
     "tab_completed": "Завершённые",
     "kind_putaway": "Размещение",
-    "number": "Задание №${number}",
+    "number": "Задание ${number}",
     "status_new": "новое",
     "status_in_progress": "в работе",
     "status_done": "выполнено",
@@ -1125,6 +1141,7 @@
     "history_failed": "Не удалось загрузить историю",
     "history_created": "Короб заведён ${time}",
     "history_received": "Принял: ${name}",
+    "history_receipt": "Приёмка: ${number}",
     "history_doc": "Документ № ${number} от ${date}",
     "history_supplier": "Поставщик: ${name}",
     "history_no_supplier": "Приёмка без поставщика",
@@ -1136,6 +1153,7 @@
     "move_stock_entry": "Ввод остатков → ${to}",
     "move_stocktake": "Пересчёт нашёл короб: ${from} → ${to}",
     "move_by": "${name} · ${time}",
+    "move_number": "Операция: ${number}",
     "move_by_unknown": "${time}",
     "placed_in": "Место размещения: ${address}",
     "history_title_count": "История (${count})",
@@ -1276,12 +1294,12 @@
     "tsd_problems_mark": "Помечать товар проблемой (с фото)"
   },
   "stocktake": {
-    "title": "Пересчёт №${number}",
+    "title": "Пересчёт ${number}",
     "title_plain": "Пересчёт",
     "under_count_title": "Ячейка на пересчёте",
     "under_count_cell": "Ячейка: ${cell}",
     "under_count_by": "Считает: ${name}",
-    "under_count_number": "Пересчёт: №${number}",
+    "under_count_number": "Пересчёт: ${number}",
     "under_count_body": "Движение собьёт подсчёт — ячейку посчитают заново.",
     "under_count_cancel": "Отмена",
     "under_count_go": "Всё равно",
@@ -1293,7 +1311,7 @@
     "scope_internal_warehouse": "внутренний склад",
     "scope_all": "весь склад",
     "progress": "Подсчитано: ${counted} из ${total} ячеек",
-    "tile_number": "№${number}",
+    "tile_number": "${number}",
     "scan_cell_hint": "Отсканируйте ячейку на месте",
     "section_mine": "Мои ячейки",
     "section_free": "Свободные ячейки",
@@ -1334,7 +1352,7 @@
     "create_all_hint": "Все ячейки склада, кроме ячейки приёмки, включая пустые",
     "create_portal_hint": "Группы, матрицы, поставщики и товары — в портале",
     "create_submit": "Завести",
-    "create_done": "Пересчёт №${number} заведён: ячеек ${cells}",
+    "create_done": "Пересчёт ${number} заведён: ячеек ${cells}",
     "create_failed": "Не удалось завести пересчёт: ${reason}",
     "create_no_warehouse": "Склад терминала неизвестен — обновите справочники",
     "cell_title": "Ячейка ${address}",

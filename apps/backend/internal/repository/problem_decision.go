@@ -52,7 +52,7 @@ const problemSelect = `
 		       COALESCE(p.barcode, ''), p.status, COALESCE(p.decision, ''), COALESCE(p.doc_number, ''),
 		       COALESCE(to_char(p.doc_date, 'YYYY-MM-DD'), ''), COALESCE(p.supplier_id::text, ''),
 		       COALESCE(s.name, ''), COALESCE(t.number, 0), COALESCE(ru.full_name, ''), p.resolved_at,
-		       COALESCE(su.full_name, ''), sh.posted_at,
+		       COALESCE(su.full_name, ''), sh.posted_at, COALESCE(sh.number, 0),
 		       ARRAY(SELECT ph.id::text FROM problem_photos ph
 		             WHERE ph.problem_id = p.id ORDER BY ph.created_at, ph.id)
 		FROM warehouse_problems p
@@ -114,7 +114,7 @@ func (r *ProblemRepository) query(ctx context.Context, sql string, args ...any) 
 			&p.Reason, &p.Comment, &p.Mark, &p.FromWarehouse, &p.ToWarehouse, &p.FromGoodName,
 			&p.Barcode, &p.Status, &p.Decision,
 			&p.DocNumber, &p.DocDate, &p.SupplierID, &p.SupplierName, &p.ReturnTaskNo,
-			&p.ResolvedByName, &p.ResolvedAt, &p.ShippedByName, &p.ShippedAt, &p.Photos); err != nil {
+			&p.ResolvedByName, &p.ResolvedAt, &p.ShippedByName, &p.ShippedAt, &p.ShipmentNumber, &p.Photos); err != nil {
 			rows.Close()
 			return nil, fmt.Errorf("разобрать проблему: %w", err)
 		}

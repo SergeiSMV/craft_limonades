@@ -56,14 +56,14 @@ func buildReceiptSnapshot(ctx context.Context, q Querier, receiptID string) (mod
 	var supplier *string
 	if err := q.QueryRow(ctx, `
 		SELECT w.code, w.name, s.name, u.full_name, r.created_by::text, COALESCE(r.posted_at, now()),
-		       r.doc_number, to_char(r.doc_date, 'YYYY-MM-DD')
+		       r.doc_number, to_char(r.doc_date, 'YYYY-MM-DD'), r.number
 		FROM receipts r
 		JOIN warehouses w ON w.id = r.warehouse_id
 		JOIN users u ON u.id = r.created_by
 		LEFT JOIN suppliers s ON s.id = r.supplier_id
 		WHERE r.id = $1::uuid`, receiptID).
 		Scan(&snap.WarehouseCode, &snap.WarehouseName, &supplier, &snap.Executor, &author, &snap.CreatedAt,
-			&snap.DocNumber, &snap.DocDate); err != nil {
+			&snap.DocNumber, &snap.DocDate, &snap.SourceNumber); err != nil {
 		return model.ReportSnapshot{}, "", fmt.Errorf("снимок поступления, шапка: %w", err)
 	}
 	if supplier != nil {

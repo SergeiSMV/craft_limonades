@@ -3,7 +3,6 @@ package report
 import (
 	"bytes"
 	"fmt"
-	"strconv"
 
 	"github.com/xuri/excelize/v2"
 
@@ -44,19 +43,24 @@ func BuildMovementXLSX(s model.ReportSnapshot) ([]byte, error) {
 		return nil, fmt.Errorf("переименовать лист: %w", err)
 	}
 
+	// Номер документа — рядом с названием формы, номер операции — рядом с её видом (ADHOC-55).
+	operation := movementOperationTitle(s.Operation)
+	if s.SourceNumber > 0 {
+		operation += " " + model.DocNumber(model.OperationPrefix(s.Operation), s.SourceNumber)
+	}
 	header := [][2]string{
-		{"Движение", ""},
-		{"Операция", movementOperationTitle(s.Operation)},
+		{"Движение", docNumber(model.DocPrefixMovementDoc, s.Number)},
+		{"Операция", operation},
 		{"Склад", s.WarehouseName},
 	}
 	// Основание: задание и то, из чего оно родилось, — приёмка или проблема склада (ADHOC-55).
 	// Каждая строка — только если есть: перемещению (P6) задание не обязательно, а приёмка
 	// бывает без поставщика.
 	if s.TaskNumber > 0 {
-		header = append(header, [2]string{"Задание", "№ " + strconv.FormatInt(s.TaskNumber, 10)})
+		header = append(header, [2]string{"Задание", model.DocNumber(model.DocPrefixTask, s.TaskNumber)})
 	}
 	if s.ProblemNumber > 0 {
-		header = append(header, [2]string{"Проблема склада", model.ProblemDocNumber(s.ProblemNumber)})
+		header = append(header, [2]string{"Проблема склада", model.DocNumber(model.DocPrefixProblem, s.ProblemNumber)})
 	}
 	if s.Supplier != "" {
 		header = append(header, [2]string{"Поставщик", s.Supplier})

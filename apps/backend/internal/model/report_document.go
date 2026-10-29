@@ -52,6 +52,14 @@ type ReportSnapshot struct {
 	CreatedAt     time.Time           `json:"created_at"`
 	Rows          []ReportSnapshotRow `json:"rows"`
 
+	// Number — номер самого документа (ADHOC-55), счётчик своей формы. В снимке не хранится:
+	// номер выдаёт база при вставке документа, уже после сборки снимка; читается из колонки.
+	Number int64 `json:"-"`
+	// SourceNumber — номер операции-источника (ADHOC-55): приёмки, сеанса размещения,
+	// перемещения или пополнения, сессии ввода остатков; у «Инвентаризации» — StocktakeNumber.
+	// 0 — снимок до ADHOC-55.
+	SourceNumber int64 `json:"source_number,omitempty"`
+
 	// Шапка «Поступления» (P4-10). У ввода остатков полей нет, и omitempty держит прежние
 	// снимки байт в байт такими, какими они были сохранены.
 	//
@@ -131,6 +139,8 @@ type DocumentListItem struct {
 	Operation     string // операция «Движения» (P5-04); пусто — другая форма
 	TaskNumber    int64  // задание-основание «Движения»; 0 — нет
 	ProblemNumber int64  // проблема склада — основание задания (ADHOC-55); 0 — нет
+	Number        int64  // номер документа — счётчик формы (ADHOC-55)
+	SourceNumber  int64  // номер операции-источника (ADHOC-55); 0 — снимок до ADHOC-55
 	// StocktakeNumber — пересчёт «Инвентаризации» (P10-05); 0 — другая форма.
 	StocktakeNumber int64
 	Executor        string // кто выполнил операцию (ФИО из снимка); пусто — снимок без исполнителя

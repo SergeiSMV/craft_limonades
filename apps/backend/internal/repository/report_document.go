@@ -66,11 +66,12 @@ func saveDocument(ctx context.Context, q Querier, doc model.ReportDocument) (str
 func documentBySource(ctx context.Context, q Querier, sourceType, sourceID string) (model.ReportDocument, error) {
 	var doc model.ReportDocument
 	var raw []byte
+	var number int64
 	err := q.QueryRow(ctx, `
-		SELECT id::text, kind, source_type, source_id::text, snapshot, created_at
+		SELECT id::text, kind, source_type, source_id::text, snapshot, created_at, number
 		FROM report_documents
 		WHERE source_type = $1 AND source_id = $2::uuid`, sourceType, sourceID).
-		Scan(&doc.ID, &doc.Kind, &doc.SourceType, &doc.SourceID, &raw, &doc.CreatedAt)
+		Scan(&doc.ID, &doc.Kind, &doc.SourceType, &doc.SourceID, &raw, &doc.CreatedAt, &number)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return model.ReportDocument{}, ErrDocumentNotFound
 	}
@@ -80,6 +81,7 @@ func documentBySource(ctx context.Context, q Querier, sourceType, sourceID strin
 	if err := json.Unmarshal(raw, &doc.Snapshot); err != nil {
 		return model.ReportDocument{}, fmt.Errorf("разобрать снимок документа: %w", err)
 	}
+	doc.Snapshot.Number = number
 	return doc, nil
 }
 
@@ -101,6 +103,7 @@ func (r *ReportDocumentRepository) List(ctx context.Context, kind string) ([]mod
 		       COALESCE(snapshot->>'doc_number', ''), COALESCE(snapshot->>'doc_date', ''),
 		       COALESCE(snapshot->>'operation', ''), COALESCE((snapshot->>'task_number')::bigint, 0),
 		       COALESCE((snapshot->>'problem_number')::bigint, 0),
+		       number, COALESCE((snapshot->>'source_number')::bigint, 0),
 		       COALESCE(snapshot->>'executor', ''), COALESCE((snapshot->>'stocktake_number')::bigint, 0),
 		       created_at,
 		       jsonb_array_length(COALESCE(snapshot->'rows', '[]'::jsonb)),
@@ -117,7 +120,7 @@ func (r *ReportDocumentRepository) List(ctx context.Context, kind string) ([]mod
 	for rows.Next() {
 		var d model.DocumentListItem
 		if err := rows.Scan(&d.ID, &d.Kind, &d.WarehouseCode, &d.WarehouseName, &d.Supplier,
-			&d.DocNumber, &d.DocDate, &d.Operation, &d.TaskNumber, &d.ProblemNumber, &d.Executor, &d.StocktakeNumber, &d.CreatedAt, &d.LinesCount, &d.Status, &d.DownloadedAt, &d.DoneAt); err != nil {
+			&d.DocNumber, &d.DocDate, &d.Operation, &d.TaskNumber, &d.ProblemNumber, &d.Number, &d.SourceNumber, &d.Executor, &d.StocktakeNumber, &d.CreatedAt, &d.LinesCount, &d.Status, &d.DownloadedAt, &d.DoneAt); err != nil {
 			return nil, fmt.Errorf("разбор строки списка документов: %w", err)
 		}
 		out = append(out, d)
@@ -144,10 +147,11 @@ func (r *ReportDocumentRepository) KindByID(ctx context.Context, id string) (str
 func (r *ReportDocumentRepository) ByID(ctx context.Context, id string) (model.ReportDocument, error) {
 	var doc model.ReportDocument
 	var raw []byte
+	var number int64
 	err := r.pool.QueryRow(ctx, `
-		SELECT id::text, kind, source_type, source_id::text, snapshot, created_at
+		SELECT id::text, kind, source_type, source_id::text, snapshot, created_at, number
 		FROM report_documents WHERE id = $1::uuid`, id).
-		Scan(&doc.ID, &doc.Kind, &doc.SourceType, &doc.SourceID, &raw, &doc.CreatedAt)
+		Scan(&doc.ID, &doc.Kind, &doc.SourceType, &doc.SourceID, &raw, &doc.CreatedAt, &number)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return model.ReportDocument{}, ErrDocumentNotFound
 	}
@@ -157,6 +161,7 @@ func (r *ReportDocumentRepository) ByID(ctx context.Context, id string) (model.R
 	if err := json.Unmarshal(raw, &doc.Snapshot); err != nil {
 		return model.ReportDocument{}, fmt.Errorf("разобрать снимок документа: %w", err)
 	}
+	doc.Snapshot.Number = number
 	return doc, nil
 }
 

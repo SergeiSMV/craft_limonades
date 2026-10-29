@@ -14,6 +14,8 @@ func movementSnap() model.ReportSnapshot {
 		WarehouseName: "Шабулина",
 		Operation:     model.MovementOperationPutaway,
 		TaskNumber:    57,
+		Number:        3,
+		SourceNumber:  12,
 		Supplier:      "ООО «Голсера»",
 		DocNumber:     "ТН-1042/2",
 		DocDate:       "2026-10-01",
@@ -43,10 +45,10 @@ func TestBuildMovementXLSX(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := map[string]string{
-		"A1": "Движение",
-		"A2": "Операция", "B2": "Размещение",
+		"A1": "Движение", "B1": "ДД-000003",
+		"A2": "Операция", "B2": "Размещение РЗ-000012",
 		"A3": "Склад", "B3": "Шабулина",
-		"A4": "Задание", "B4": "№ 57",
+		"A4": "Задание", "B4": "ЗД-000057",
 		"A5": "Поставщик", "B5": "ООО «Голсера»",
 		"A6": "Документ поставщика", "B6": "№ ТН-1042/2 от 01.10.2026",
 		"A7": "Исполнитель", "B7": "Иванов Иван",
@@ -86,7 +88,7 @@ func TestBuildMovementXLSX_problemBasis(t *testing.T) {
 		t.Fatal(err)
 	}
 	for cell, v := range map[string]string{
-		"A4": "Задание", "B4": "№ 57",
+		"A4": "Задание", "B4": "ЗД-000057",
 		"A5": "Проблема склада", "B5": "ПБ-000001",
 		"A6": "Исполнитель",
 	} {
