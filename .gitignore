@@ -25,6 +25,7 @@ infra/.env.prod
 # Тестовый стенд (ADHOC-27): снимки боевой базы (ФИО, логины, хеши паролей) и локальные настройки
 /deploy/test_stand/snapshots/
 /deploy/test_stand/stand.env
+/deploy/test_stand/cz/
 
 # IDE (корневой уровень; Flutter-подпапка имеет свой .gitignore)
 .idea/
