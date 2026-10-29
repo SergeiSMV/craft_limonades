@@ -77,7 +77,7 @@ func buildReceiptSnapshot(ctx context.Context, q Querier, receiptID string) (mod
 	moves := make([]movement.Move, 0, len(lines))
 	for _, ln := range lines {
 		moves = append(moves, movement.Move{
-			ToCellID: ln.CellID, GoodID: ln.GoodID, BatchID: ln.BatchID, Qty: ln.Qty,
+			ToCellID: ln.CellID, GoodID: ln.GoodID, BatchID: ln.BatchID, Qty: ln.Qty, Marks: ln.Marks,
 		})
 	}
 	// Состав ГЕ не нужен — движения россыпью, — но источник передаётся честный: если однажды
@@ -110,7 +110,10 @@ func receiptSnapshotRows(ctx context.Context, q Querier, lines []movement.Line) 
 		if a.GoodName != b.GoodName {
 			return a.GoodName < b.GoodName
 		}
-		return a.ProductionDate < b.ProductionDate
+		if a.ProductionDate != b.ProductionDate {
+			return a.ProductionDate < b.ProductionDate
+		}
+		return a.Mark < b.Mark
 	})
 	return out, nil
 }

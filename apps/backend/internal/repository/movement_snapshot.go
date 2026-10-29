@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/shopspring/decimal"
+
 	"craftwms/internal/model"
 	"craftwms/internal/movement"
 )
@@ -104,7 +106,10 @@ func sortMovementRows(rows []model.ReportSnapshotRow) {
 		if a.GoodName != b.GoodName {
 			return a.GoodName < b.GoodName
 		}
-		return a.ProductionDate < b.ProductionDate
+		if a.ProductionDate != b.ProductionDate {
+			return a.ProductionDate < b.ProductionDate
+		}
+		return a.Mark < b.Mark
 	})
 }
 
@@ -183,7 +188,7 @@ func buildMovementSnapshot(ctx context.Context, q Querier, movementID string, mo
 func putawayMoves(ctx context.Context, q Querier, putawayID string) ([]movement.Move, error) {
 	rows, err := q.Query(ctx, `
 		SELECT load_unit_id::text, good_id::text, batch_id::text, qty::text,
-		       from_cell_id::text, to_cell_id::text
+		       from_cell_id::text, to_cell_id::text, marks
 		FROM putaway_lines WHERE putaway_id = $1::uuid ORDER BY line_no`, putawayID)
 	if err != nil {
 		return nil, fmt.Errorf("снимок движения, строки: %w", err)
@@ -193,7 +198,7 @@ func putawayMoves(ctx context.Context, q Querier, putawayID string) ([]movement.
 	for rows.Next() {
 		var lu, good, batch, qty *string
 		var m movement.Move
-		if err := rows.Scan(&lu, &good, &batch, &qty, &m.FromCellID, &m.ToCellID); err != nil {
+		if err := rows.Scan(&lu, &good, &batch, &qty, &m.FromCellID, &m.ToCellID, &m.Marks); err != nil {
 			return nil, fmt.Errorf("снимок движения, разбор строки: %w", err)
 		}
 		m.LoadUnitID, m.GoodID, m.BatchID = deref(lu), deref(good), deref(batch)
@@ -264,8 +269,26 @@ func movementSnapshotRows(ctx context.Context, q Querier, lines []movement.Line)
 			// Строка уже проведена по этим же ссылкам в этой транзакции — пропасть они не могут.
 			return nil, fmt.Errorf("снимок документа: нет справочных данных для строки %+v", l)
 		}
-		row.Qty = l.Qty.String()
-		out = append(out, row)
+		out = append(out, splitByMarks(row, l.Qty, l.Marks)...)
 	}
 	return out, nil
+}
+
+// splitByMarks делит товарную строку документа по маркам ЧЗ (ADHOC-55): строка на марку с
+// количеством 1, остаток без марок — одной строкой. Марки по порядку КИ: документ не зависит
+// от порядка сканов. Немаркируемый товар проходит одной строкой, как раньше.
+func splitByMarks(row model.ReportSnapshotRow, qty decimal.Decimal, marks []string) []model.ReportSnapshotRow {
+	sorted := append([]string(nil), marks...)
+	sort.Strings(sorted)
+	out := make([]model.ReportSnapshotRow, 0, len(sorted)+1)
+	for _, cis := range sorted {
+		r := row
+		r.Qty, r.Mark = "1", cis
+		out = append(out, r)
+	}
+	if rest := qty.Sub(decimal.NewFromInt(int64(len(sorted)))); rest.IsPositive() {
+		row.Qty = rest.String()
+		out = append(out, row)
+	}
+	return out
 }

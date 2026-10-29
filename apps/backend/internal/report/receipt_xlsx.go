@@ -13,7 +13,8 @@ import (
 // Лист и колонки формы «Поступление» (P4-10).
 const receiptSheet = "Поступление"
 
-var receiptHeaders = []string{"Ячейка", "Код", "Наименование", "Дата выпуска", "Количество"}
+// «Марка» (ADHOC-55): маркируемый товар — строка на марку; колонка последней, прежние на местах.
+var receiptHeaders = []string{"Ячейка", "Код", "Наименование", "Дата выпуска", "Количество", "Марка"}
 
 // msk — московское время для даты документа. Фиксированный сдвиг, а не LoadLocation: в образе
 // бэкенда базы часовых поясов может не быть, а сервер работает в UTC — без перевода приёмка,
@@ -76,6 +77,7 @@ func BuildReceiptXLSX(s model.ReportSnapshot) ([]byte, error) {
 			row.GoodName,
 			formatDate(row.ProductionDate),
 			qtyValue(row.Qty),
+			row.Mark,
 		}
 		for i, v := range values {
 			_ = f.SetCellValue(receiptSheet, cellName(i+1, top+1+r), v)

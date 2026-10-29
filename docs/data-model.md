@@ -549,6 +549,7 @@ internal_warehouse_id)`. Без этого «основной» и «брак» 
 | `cell_id`      | `uuid`          | FK → `cells(id)` — куда кладём                          |
 | `load_unit_id` | `uuid`          | FK → `load_units(id)` `ON DELETE SET NULL`; NULL — россыпь |
 | `qty`          | `numeric(20,3)` | CHECK `> 0` — приход нулём смысла не имеет              |
+| `marks`        | `text[]`        | NOT NULL DEFAULT `'{}'` — КИ марок ЧЗ строки (ADHOC-55, миграция `000037`); повтор скана дописывает марки |
 
 Грань — `CONSTRAINT receipt_lines_grain_key UNIQUE NULLS NOT DISTINCT (receipt_id, good_id,
 batch_id, cell_id, load_unit_id)`. Повторный скан той же комбинации увеличивает количество,
@@ -626,6 +627,7 @@ batch_id, cell_id, load_unit_id)`. Повторный скан той же ко�
 | `qty`          | `numeric(20,3)` | россыпь: количество                                  |
 | `from_cell_id` | `uuid`          | FK → `cells(id)` — откуда взяли                      |
 | `to_cell_id`   | `uuid`          | FK → `cells(id)` — куда положили                     |
+| `marks`        | `text[]`        | NOT NULL DEFAULT `'{}'` — КИ марок россыпи (ADHOC-55, `000037`); у короба пусто |
 
 CHECK: строка — короб (только `load_unit_id`) **либо** россыпь (`good_id`, `batch_id`, `qty > 0`),
 не оба и не ничего; `from_cell_id <> to_cell_id`.
@@ -736,6 +738,7 @@ CHECK: короб **либо** россыпь. **Остаток не храни�
 | `to_load_unit_id`       | `uuid`          | FK → `load_units(id)`; в короб, NULL — в россыпь      |
 | `from_cell_id`          | `uuid`          | FK → `cells(id)`, NOT NULL — откуда взяли             |
 | `to_cell_id`            | `uuid`          | FK → `cells(id)`, NOT NULL — куда положили            |
+| `marks`                 | `text[]`        | NOT NULL DEFAULT `'{}'` — КИ марок товара строки (ADHOC-55, `000037`); у ГЕ целиком пусто |
 
 CHECK:
 

@@ -18,7 +18,7 @@ const (
 
 var stocktakeHeaders = []string{
 	"Ячейка", "Код", "Наименование", "Дата выпуска", "Склад WMS",
-	"Ожидалось", "Факт", "Расхождение", "Пометка",
+	"Ожидалось", "Факт", "Расхождение", "Пометка", "Марка",
 }
 
 // stocktakeScopeNames — вид области пересчёта для шапки документа.
@@ -92,6 +92,7 @@ func writeStocktakeSheet(f *excelize.File, sheet string, header [][2]string, row
 		values := []any{
 			row.CellAddress, code, row.GoodName, formatDate(row.ProductionDate), row.InternalWarehouse,
 			stocktakeQty(row.Expected), stocktakeQty(row.Fact), stocktakeQty(row.Diff), row.Note,
+			row.Mark,
 		}
 		for i, v := range values {
 			_ = f.SetCellValue(sheet, cellName(i+1, top+1+r), v)

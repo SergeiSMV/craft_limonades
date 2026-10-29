@@ -3,6 +3,7 @@ package movement
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/shopspring/decimal"
@@ -197,5 +198,25 @@ func assertLines(t *testing.T, got, want []Line) {
 			g.ToCellID != w.ToCellID || !g.Qty.Equal(w.Qty) {
 			t.Fatalf("строка %d: получили %+v, ждали %+v", i, g, w)
 		}
+	}
+}
+
+// ADHOC-55: марки ЧЗ идут со своей строкой — россыпью и из состава ГЕ; одинаковые строки
+// собирают марки вместе.
+func TestExpand_marksFollowLines(t *testing.T) {
+	fc := &fakeContents{byID: map[string][]ContentLine{
+		"lu1": {{GoodID: "g1", BatchID: "b1", Qty: d(2), Marks: []string{"m1", "m2"}}},
+	}}
+	moves := []Move{
+		{ToCellID: "c1", LoadUnitID: "lu1"},
+		{ToCellID: "c1", GoodID: "g1", BatchID: "b1", Qty: d(1), Marks: []string{"m3"}},
+		{ToCellID: "c2", GoodID: "g1", BatchID: "b1", Qty: d(4)},
+	}
+	got, err := Expand(context.Background(), moves, fc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 || strings.Join(got[0].Marks, ",") != "m1,m2,m3" || len(got[1].Marks) != 0 {
+		t.Fatalf("марки строк: %+v", got)
 	}
 }

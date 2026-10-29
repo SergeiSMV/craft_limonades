@@ -317,10 +317,16 @@ func movementLoadUnit(ctx context.Context, q Querier, in MovementSubmitInput, li
 		in.MovementID, lineNo, ln.LoadUnitID, from, ln.ToCellID); err != nil {
 		return nil, fmt.Errorf("записать строку движения: %w", err)
 	}
+	// Марки ЧЗ едут в коробе, строка их не несёт: документ берёт их из состава на этом шаге.
+	marks, err := loadUnitMarks(ctx, q, ln.LoadUnitID)
+	if err != nil {
+		return nil, err
+	}
 	moves := make([]movement.Move, 0, len(items))
 	for _, c := range items {
 		moves = append(moves, movement.Move{
 			FromCellID: from, ToCellID: ln.ToCellID, GoodID: c.good, BatchID: c.batch, Qty: c.qty,
+			Marks: marks[[2]string{c.good, c.batch}],
 		})
 	}
 	return moves, nil
@@ -443,15 +449,16 @@ func movementGoods(ctx context.Context, q Querier, in MovementSubmitInput, lineN
 	if _, err := q.Exec(ctx, `
 		INSERT INTO movement_lines
 			(movement_id, line_no, good_id, batch_id, qty, internal_warehouse_id,
-			 from_load_unit_id, to_load_unit_id, from_cell_id, to_cell_id)
+			 from_load_unit_id, to_load_unit_id, from_cell_id, to_cell_id, marks)
 		VALUES ($1::uuid, $2, $3::uuid, $4::uuid, $5::numeric, $6::uuid,
-		        NULLIF($7, '')::uuid, NULLIF($8, '')::uuid, $9::uuid, $10::uuid)`,
+		        NULLIF($7, '')::uuid, NULLIF($8, '')::uuid, $9::uuid, $10::uuid, $11::text[])`,
 		in.MovementID, lineNo, ln.GoodID, batchID, ln.Qty.String(), iwh,
-		ln.FromLoadUnitID, ln.ToLoadUnitID, fromCell, toCell); err != nil {
+		ln.FromLoadUnitID, ln.ToLoadUnitID, fromCell, toCell, nonNilMarks(ln.Marks)); err != nil {
 		return nil, fmt.Errorf("записать строку движения: %w", err)
 	}
 	return []movement.Move{{
 		FromCellID: fromCell, ToCellID: toCell, GoodID: ln.GoodID, BatchID: batchID, Qty: ln.Qty,
+		Marks: ln.Marks,
 	}}, nil
 }
 

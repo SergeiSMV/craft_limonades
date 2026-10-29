@@ -9,6 +9,7 @@ type StockEntryReportRow struct {
 	GoodName       string
 	ProductionDate string // ISO YYYY-MM-DD (из БД)
 	Qty            string // decimal как текст (точное значение)
+	Mark           string // КИ марки ЧЗ — строка на марку (ADHOC-55); пусто — без марки
 }
 
 // StockEntryReport — данные отчёта по сессии: шапка (склад, время) + строки.

@@ -96,6 +96,23 @@ func TestBuildMovementXLSX_problemBasis(t *testing.T) {
 	}
 }
 
+// Марка (ADHOC-55) — последней колонкой; строка без марки оставляет её пустой.
+func TestBuildMovementXLSX_mark(t *testing.T) {
+	snap := movementSnap()
+	snap.Rows[0].Qty, snap.Rows[0].Mark = "1", "0104600000000017215L1"
+	raw, err := BuildMovementXLSX(snap)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for cell, v := range map[string]string{
+		"G10": "Марка", "G11": "0104600000000017215L1", "F11": "1", "G12": "",
+	} {
+		if got := movementValue(t, raw, cell); got != v {
+			t.Errorf("%s: получили %q, ждали %q", cell, got, v)
+		}
+	}
+}
+
 // Развилка «форма → шаблон» и имя файла знают «Движение».
 func TestBuildDocumentXLSX_movement(t *testing.T) {
 	doc := model.ReportDocument{

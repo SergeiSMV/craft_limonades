@@ -38,7 +38,8 @@ type ReceiptLine struct {
 	CellID      string
 	LoadUnitID  *string
 	Qty         decimal.Decimal
-	GoodName    string // для чтения документа; при записи не используется
+	Marks       []string // КИ марок ЧЗ строки (ADHOC-55); пусто — без марок
+	GoodName    string   // для чтения документа; при записи не используется
 	CellAddress string
 }
 

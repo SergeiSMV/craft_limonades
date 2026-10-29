@@ -28,7 +28,8 @@ var _ movement.ContentReader = (*LoadUnitContents)(nil)
 // в ответе нет — так домен отличает «пусто» от «нет такой».
 //
 // Как: рекурсивный обход дерева по parent_id от каждой запрошенной ГЕ («корня»), затем
-// состав всех узлов дерева, сложенный по товару и партии внутри корня.
+// состав всех узлов дерева, сложенный по товару и партии внутри корня, с марками ЧЗ этой
+// позиции во всём дереве (ADHOC-55) — они уходят в документ 1С строкой на марку.
 //
 // ⚠ UNION, а не UNION ALL: схема запрещает ГЕ быть родителем самой себе, но не цикл через
 // две ГЕ (A в B, B в A). С UNION ALL такой цикл крутил бы рекурсию бесконечно; UNION
@@ -45,7 +46,11 @@ func (r *LoadUnitContents) Contents(ctx context.Context, loadUnitIDs []string) (
 			UNION
 			SELECT t.root, lu.id FROM load_units lu JOIN tree t ON lu.parent_id = t.node
 		)
-		SELECT t.root::text, c.good_id::text, c.batch_id::text, sum(c.qty)::text
+		SELECT t.root::text, c.good_id::text, c.batch_id::text, sum(c.qty)::text,
+		       COALESCE((SELECT array_agg(m.cis ORDER BY m.cis)
+		                 FROM tree mt JOIN cz_marks m ON m.load_unit_id = mt.node
+		                 WHERE mt.root = t.root AND m.good_id = c.good_id AND m.batch_id = c.batch_id),
+		                '{}')
 		FROM tree t
 		LEFT JOIN lu_content c ON c.load_unit_id = t.node
 		GROUP BY t.root, c.good_id, c.batch_id
@@ -58,7 +63,8 @@ func (r *LoadUnitContents) Contents(ctx context.Context, loadUnitIDs []string) (
 	for rows.Next() {
 		var root string
 		var good, batch, qty *string
-		if err := rows.Scan(&root, &good, &batch, &qty); err != nil {
+		var marks []string
+		if err := rows.Scan(&root, &good, &batch, &qty, &marks); err != nil {
 			return nil, fmt.Errorf("разбор состава ГЕ: %w", err)
 		}
 		if _, ok := out[root]; !ok {
@@ -72,7 +78,21 @@ func (r *LoadUnitContents) Contents(ctx context.Context, loadUnitIDs []string) (
 		if err != nil {
 			return nil, err
 		}
-		out[root] = append(out[root], movement.ContentLine{GoodID: *good, BatchID: *batch, Qty: q})
+		out[root] = append(out[root], movement.ContentLine{GoodID: *good, BatchID: *batch, Qty: q, Marks: marks})
 	}
 	return out, rows.Err()
+}
+
+// loadUnitMarks — марки ЧЗ в ГЕ и вложенных в неё по товару и партии (ADHOC-55): тот же
+// состав, что у Contents, но только марки.
+func loadUnitMarks(ctx context.Context, q Querier, loadUnitID string) (map[[2]string][]string, error) {
+	contents, err := NewLoadUnitContents(q).Contents(ctx, []string{loadUnitID})
+	if err != nil {
+		return nil, err
+	}
+	out := map[[2]string][]string{}
+	for _, c := range contents[loadUnitID] {
+		out[[2]string{c.GoodID, c.BatchID}] = c.Marks
+	}
+	return out, nil
 }

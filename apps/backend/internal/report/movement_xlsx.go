@@ -13,7 +13,8 @@ import (
 // Лист и колонки формы «Движение» (P5-04).
 const movementSheet = "Движение"
 
-var movementHeaders = []string{"Откуда", "Куда", "Код", "Наименование", "Дата выпуска", "Количество"}
+// «Марка» (ADHOC-55): маркируемый товар — строка на марку; колонка последней, прежние на местах.
+var movementHeaders = []string{"Откуда", "Куда", "Код", "Наименование", "Дата выпуска", "Количество", "Марка"}
 
 // movementOperationTitle — операция «Движения» для человека. Незнакомое значение (снимок
 // формы из будущей версии) показывается как есть: документ важнее подписи.
@@ -93,6 +94,7 @@ func BuildMovementXLSX(s model.ReportSnapshot) ([]byte, error) {
 			row.GoodName,
 			formatDate(row.ProductionDate),
 			qtyValue(row.Qty),
+			row.Mark,
 		}
 		for i, v := range values {
 			_ = f.SetCellValue(movementSheet, cellName(i+1, top+1+r), v)

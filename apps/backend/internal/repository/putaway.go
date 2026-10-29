@@ -205,6 +205,7 @@ type putawayLineRow struct {
 	qty        *string
 	fromCellID string
 	toCellID   string
+	marks      []string // КИ марок россыпи (ADHOC-55); у короба — пусто, его марки в составе
 }
 
 // putawayLoadUnit переносит короб задания целиком в ячейку хранения — общей функцией переноса
@@ -259,6 +260,7 @@ func putawayLoose(ctx context.Context, q Querier, ln PutawayLineInput, batchID, 
 	good, qty := ln.GoodID, ln.Qty.String()
 	return putawayLineRow{
 		goodID: &good, batchID: &batchID, qty: &qty, fromCellID: from, toCellID: ln.ToCellID,
+		marks: ln.Marks,
 	}, nil
 }
 
@@ -291,9 +293,10 @@ func guardCellOfWarehouse(ctx context.Context, q Querier, cellID, warehouseID st
 func insertPutawayLine(ctx context.Context, q Querier, putawayID string, lineNo int, row putawayLineRow) error {
 	_, err := q.Exec(ctx, `
 		INSERT INTO putaway_lines
-			(putaway_id, line_no, load_unit_id, good_id, batch_id, qty, from_cell_id, to_cell_id)
-		VALUES ($1::uuid, $2, $3::uuid, $4::uuid, $5::uuid, $6::numeric, $7::uuid, $8::uuid)`,
-		putawayID, lineNo, row.loadUnitID, row.goodID, row.batchID, row.qty, row.fromCellID, row.toCellID)
+			(putaway_id, line_no, load_unit_id, good_id, batch_id, qty, from_cell_id, to_cell_id, marks)
+		VALUES ($1::uuid, $2, $3::uuid, $4::uuid, $5::uuid, $6::numeric, $7::uuid, $8::uuid, $9::text[])`,
+		putawayID, lineNo, row.loadUnitID, row.goodID, row.batchID, row.qty, row.fromCellID, row.toCellID,
+		nonNilMarks(row.marks))
 	if err != nil {
 		return fmt.Errorf("записать строку размещения: %w", err)
 	}

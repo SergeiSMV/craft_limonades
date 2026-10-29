@@ -15,7 +15,8 @@ import (
 // Лист и колонки отчёта «ввод остатков».
 const sheetName = "Ввод остатков"
 
-var headers = []string{"Склад", "Ячейка", "Код", "Наименование", "Дата выпуска", "Количество"}
+// «Марка» (ADHOC-55) — последней: прежние колонки остаются на своих местах.
+var headers = []string{"Склад", "Ячейка", "Код", "Наименование", "Дата выпуска", "Количество", "Марка"}
 
 // BuildStockEntryXLSX формирует .xlsx-отчёт «ввод остатков» по данным закрытой сессии: заголовок +
 // строки (склад · ячейка · код · наименование · дата дд.мм.гггг · количество).
@@ -45,6 +46,7 @@ func BuildStockEntryXLSX(rep model.StockEntryReport) ([]byte, error) {
 			row.GoodName,
 			formatDate(row.ProductionDate),
 			qtyValue(row.Qty),
+			row.Mark,
 		}
 		for i, v := range values {
 			cell, _ := excelize.CoordinatesToCellName(i+1, r+2)

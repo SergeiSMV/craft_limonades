@@ -61,7 +61,7 @@ func stockEntryReportFrom(s model.ReportSnapshot) model.StockEntryReport {
 		// (ячейка-отправитель «Движения»), которых у ввода остатков нет.
 		rep.Rows = append(rep.Rows, model.StockEntryReportRow{
 			CellAddress: r.CellAddress, GoodCode: r.GoodCode, GoodName: r.GoodName,
-			ProductionDate: r.ProductionDate, Qty: r.Qty,
+			ProductionDate: r.ProductionDate, Qty: r.Qty, Mark: r.Mark,
 		})
 	}
 	return rep

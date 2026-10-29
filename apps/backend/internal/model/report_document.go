@@ -94,6 +94,9 @@ type ReportSnapshotRow struct {
 	GoodName        string  `json:"good_name"`
 	ProductionDate  string  `json:"production_date"`
 	Qty             string  `json:"qty"`
+	// Mark — КИ марки ЧЗ (ADHOC-55): маркируемый товар в документе — строка на марку с
+	// количеством 1 (у «Инвентаризации» — ожидалось и факт по 0 или 1). Пусто — строка без марки.
+	Mark string `json:"mark,omitempty"`
 
 	// Строка «Инвентаризации» (P10-05): склад WMS позиции, ожидалось, факт, расхождение (факт
 	// минус ожидалось) и пометка — «не найдено — проблема склада», «не считалась». Qty у неё пуст.
