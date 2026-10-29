@@ -41,6 +41,8 @@ const (
 	RightProblemsResolve    = "portal.problems.resolve" // Проблемы склада: решать и проводить
 	RightSettingsWarehouses = "portal.settings.warehouses"
 	RightSettingsUsers      = "portal.settings.users" // должности и пользователи
+	// RightSettingsProblemReasons — причины проблем и варианты решения (ADHOC-55).
+	RightSettingsProblemReasons = "portal.settings.problem_reasons"
 
 	RightTSDReceipt         = "tsd.receipt"
 	RightTSDMovement        = "tsd.movement"
@@ -71,7 +73,7 @@ var Rights = []string{
 	RightCellsImport, RightCellsLabels,
 	RightMovementView, RightMovementDownload, RightMovementPost,
 	RightProblemsView, RightProblemsResolve,
-	RightSettingsWarehouses, RightSettingsUsers,
+	RightSettingsWarehouses, RightSettingsProblemReasons, RightSettingsUsers,
 	RightTSDReceipt, RightTSDMovement,
 	RightTSDPutaway, RightTSDStocktakeCount, RightTSDStocktakeManage,
 	RightTSDStockView, RightTSDStockCZMarked, RightTSDStockRegrade, RightTSDStockEntry,

@@ -10,6 +10,7 @@ import 'package:craft_wms/features/problems/presentation/bloc/resolved_problems_
 import 'package:craft_wms/features/problems/presentation/pages/problem_record_page.dart';
 import 'package:craft_wms/features/problems/presentation/widgets/resolved/resolved_feed.dart';
 import 'package:craft_wms/features/problems/presentation/widgets/records/record_days.dart';
+import 'package:craft_wms/features/problems/presentation/widgets/problem_format.dart';
 import 'package:craft_wms/features/problems/presentation/widgets/records/record_format.dart';
 import 'package:craft_wms/features/tasks/data/tasks_models.dart';
 import 'package:either_dart/either.dart';
@@ -105,7 +106,9 @@ void main() {
         contains('Петрова Анна'),
         reason: 'списание исполняет «Провести» — решивший',
       );
-      expect(reasonLabelOf(writeOff.reason), t.problems.reasonBreakage);
+      // Название причины и варианта — из справочника сервера (ADHOC-55).
+      expect(reasonText(writeOff), 'Бой');
+      expect(resolutionText(writeOff), 'Списать');
       expect(subjectLabel(writeOff), 'Кальмар');
       expect(
         subjectLines(writeOff),
@@ -132,7 +135,7 @@ void main() {
       expect(
         reasonLabelOf('новая'),
         'новая',
-        reason: 'незнакомая причина — как есть',
+        reason: 'незнакомая причина без справочника — как есть',
       );
     },
   );
@@ -316,7 +319,10 @@ void main() {
         find.text(t.problems.supplierLine(supplier: 'ИП Березин')),
         findsOneWidget,
       );
-      expect(find.text(t.problems.taskLine(number: 'ЗД-000007')), findsOneWidget);
+      expect(
+        find.text(t.problems.taskLine(number: 'ЗД-000007')),
+        findsOneWidget,
+      );
       expect(
         find.text(t.problems.batchLine(date: '01.09.2026')),
         findsOneWidget,

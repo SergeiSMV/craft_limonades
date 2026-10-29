@@ -1,33 +1,30 @@
 package model
 
-import "time"
+import (
+	"errors"
+	"time"
+)
 
 // Проблемы склада (P6-07-1): пометка короба или товара другим внутренним складом — брак,
 // изолятор и т. п. (ADR-0016). Брак — лишь метка и программная изоляция: товар остаётся
 // в той же ячейке и перемещается как любой другой.
 
-// Причины проблемы — фиксированный список (решение 2026-10-14). Значения лежат в БД под CHECK —
-// менять только миграцией. Склад назначения причина не диктует: его выбирает кладовщик.
+// Коды причин, на которые опирается программа (ADHOC-55: прочие причины — справочник
+// `problem_reasons`, его ведёт офис). Склад назначения причина не диктует: его выбирает кладовщик.
 const (
 	ProblemReasonBreakage    = "breakage"     // бой
 	ProblemReasonSpoilage    = "spoilage"     // порча
 	ProblemReasonExpired     = "expired"      // просрок
 	ProblemReasonForeignMark = "foreign_mark" // не наша марка ЧЗ
 	ProblemReasonRetired     = "retired"      // марка ЧЗ выбыла из оборота (CZ-05)
-	ProblemReasonOther       = "other"        // прочее — с обязательным комментарием
+	ProblemReasonOther       = "other"        // прочее
 	// ProblemReasonNotFound — короб или марка не найдены пересчётом (P10-03). Заводит только
-	// программа при подсчёте ячейки, поэтому в ProblemReasons (выбор на ТСД) её нет.
+	// программа при подсчёте ячейки, на ТСД на выбор не предлагается.
 	ProblemReasonNotFound = "not_found"
 	// ProblemReasonRegrade — пересорт (ADHOC-53): ШК перепривязан к другому товару, и марки
 	// ЧЗ этого GTIN со склада перешли на него. Заводит только перепривязка ШК.
 	ProblemReasonRegrade = "regrade"
 )
-
-// ProblemReasons — все причины, в порядке показа.
-var ProblemReasons = []string{
-	ProblemReasonBreakage, ProblemReasonSpoilage, ProblemReasonExpired,
-	ProblemReasonForeignMark, ProblemReasonRetired, ProblemReasonOther,
-}
 
 // InternalWarehouse — внутренний склад: «Основной», «Брак», «Изолятор» … (ADR-0016).
 //
@@ -45,7 +42,8 @@ type InternalWarehouse struct {
 	SystemRole string
 }
 
-// Решения офиса по проблеме (P6-07-3). Значения лежат в БД под CHECK — менять только миграцией.
+// Действия решения офиса по проблеме (P6-07-3) — что программа делает с товаром. Значения лежат
+// в БД под CHECK — менять только миграцией; названия видит офис у вариантов справочника (ADHOC-55).
 const (
 	ProblemDecisionWriteOff       = "write_off"       // списать по документу 1С
 	ProblemDecisionPlace          = "place"           // разместить: вернуть в «Основной»
@@ -61,25 +59,55 @@ const (
 	ProblemStatusResolved = "resolved"
 )
 
-// problemDecisions — какие решения допустимы при какой причине (решение 2026-10-21), в порядке
-// показа. Причину определяет склад, решение — офис; лишнее решение отклоняется сервером.
-var problemDecisions = map[string][]string{
-	ProblemReasonBreakage:    {ProblemDecisionWriteOff},
-	ProblemReasonSpoilage:    {ProblemDecisionWriteOff, ProblemDecisionSupplierReturn},
-	ProblemReasonExpired:     {ProblemDecisionWriteOff, ProblemDecisionSupplierReturn},
-	ProblemReasonForeignMark: {ProblemDecisionPlace, ProblemDecisionSupplierReturn},
-	// Выбывшую марку продать нельзя — разместить обратно в «Основной» не даём (CZ-05).
-	ProblemReasonRetired: {ProblemDecisionWriteOff, ProblemDecisionSupplierReturn},
-	ProblemReasonOther:   {ProblemDecisionWriteOff, ProblemDecisionPlace, ProblemDecisionSupplierReturn},
-	// Не найдено (P10-03): списать по документу 1С или «нашлось» — вернуть в «Основной».
-	ProblemReasonNotFound: {ProblemDecisionWriteOff, ProblemDecisionPlace},
-	ProblemReasonRegrade:  {ProblemDecisionRegrade},
+// ProblemDecisions — все действия решения, в порядке показа (ADHOC-55): вариант решения
+// справочника выбирает одно из них.
+var ProblemDecisions = []string{
+	ProblemDecisionWriteOff, ProblemDecisionPlace, ProblemDecisionSupplierReturn, ProblemDecisionRegrade,
 }
 
-// ProblemDecisionsFor — решения, допустимые при причине; неизвестная причина — пусто.
-// Возвращается копия: список — справочник, а не рабочий срез вызывающего.
-func ProblemDecisionsFor(reason string) []string {
-	return append([]string(nil), problemDecisions[reason]...)
+// ProblemResolution — вариант решения проблемы (ADHOC-55): название для офиса и действие кода.
+// Действие после заведения не меняется; неактивный вариант в выбор не попадает.
+type ProblemResolution struct {
+	ID       string
+	Name     string
+	Action   string
+	IsActive bool
+}
+
+// ProblemReason — причина проблемы склада из справочника (ADHOC-55).
+//
+// Системную заводит программа (не наша марка, выбытие, «не найдено», пересорт): её не
+// выключить. Manual — кладовщик выбирает её на ТСД; нет — ставит только программа.
+// Resolutions — допустимые варианты решения, в порядке справочника, и неактивные тоже: портал
+// показывает их в настройке, а решение берёт только активные.
+type ProblemReason struct {
+	Code            string
+	Name            string
+	IsSystem        bool
+	Manual          bool
+	CommentRequired bool
+	IsActive        bool
+	Resolutions     []string
+}
+
+// ProblemReasonInput — правка причины из портала; nil — поле не меняется.
+type ProblemReasonInput struct {
+	Code            string // пусто — новая причина
+	Name            *string
+	CommentRequired *bool
+	IsActive        *bool
+	Resolutions     *[]string
+	By              string
+}
+
+// ProblemResolutionInput — правка варианта из портала; nil — поле не меняется. Action задаётся
+// только при заведении.
+type ProblemResolutionInput struct {
+	ID       string // пусто — новый вариант
+	Name     *string
+	Action   string
+	IsActive *bool
+	By       string
 }
 
 // InternalWarehouseRoleSupplierReturn — роль системного склада «Возврат поставщику» (P6-07-3):
@@ -97,6 +125,10 @@ type ResolveProblemInput struct {
 	DocDate    string // ISO 'YYYY-MM-DD'
 	SupplierID string
 	ResolvedBy string
+	// ResolutionID — вариант решения из справочника (ADHOC-55); Decision — его действие, его
+	// подставляет сервис. Прежний клиент шлёт одно действие — тогда берётся первый активный
+	// вариант причины с этим действием.
+	ResolutionID string
 }
 
 // ProblemFilter — отбор рабочего списка «Проблемы склада»: статус (пусто — все).
@@ -134,8 +166,12 @@ type Problem struct {
 	CellAddress   string
 	LoadUnitID    string // короб целиком; пусто — товар
 	Reason        string
-	Comment       string
-	Mark          string
+	// ReasonName — название причины из справочника (ADHOC-55).
+	ReasonName string
+	// Resolutions — активные варианты решения, допустимые при причине, в порядке справочника.
+	Resolutions []ProblemResolution
+	Comment     string
+	Mark        string
 	// Пересорт (ADHOC-53): товар, за которым марки числились до перепривязки, и перепривязанный
 	// ШК; у остальных причин пусто.
 	FromGoodName string
@@ -151,8 +187,10 @@ type Problem struct {
 	// проблемы поставщики разные или не указаны.
 	SuggestedSupplierID string
 
-	Status         string
-	Decision       string
+	Status   string
+	Decision string
+	// ResolutionName — название выбранного варианта решения (ADHOC-55).
+	ResolutionName string
 	DocNumber      string
 	DocDate        string // ISO
 	SupplierID     string
@@ -186,3 +224,15 @@ type RegradeResult struct {
 	ProblemID string
 	Marks     int
 }
+
+// Ошибки справочника причин и вариантов решения (ADHOC-55). Тексты — для экрана портала.
+var (
+	ErrInvalidProblemReason      = errors.New("причина задана неверно: нужно название до 100 символов и хотя бы один вариант решения")
+	ErrProblemReasonNotFound     = errors.New("причина не найдена")
+	ErrProblemReasonSystem       = errors.New("системную причину нельзя выключить")
+	ErrProblemReasonNameTaken    = errors.New("причина с таким названием уже есть")
+	ErrInvalidResolution         = errors.New("вариант решения задан неверно: нужно название до 100 символов и действие из списка")
+	ErrResolutionNotFound        = errors.New("вариант решения не найден")
+	ErrResolutionNameTaken       = errors.New("вариант решения с таким названием уже есть")
+	ErrResolutionRegradeMismatch = errors.New("вариант «Провести пересорт» допустим только у причины «Пересорт», а у неё — только такие варианты")
+)

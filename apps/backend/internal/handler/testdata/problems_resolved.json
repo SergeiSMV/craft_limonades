@@ -6,6 +6,7 @@
     "created_by": "Иванов Иван",
     "cell_address": "M1-1-1-1",
     "reason": "breakage",
+    "reason_name": "Бой",
     "comment": "разбита при снятии с полки",
     "from_warehouse": "Основной",
     "to_warehouse": "Брак",
@@ -20,9 +21,18 @@
         "cell_address": "M1-1-1-1"
       }
     ],
+    "resolutions": [
+      {
+        "id": "7b000000-0000-4000-8000-000000000001",
+        "name": "Списать",
+        "action": "write_off",
+        "is_active": true
+      }
+    ],
     "decisions": ["write_off"],
     "status": "resolved",
     "decision": "write_off",
+    "resolution_name": "Списать",
     "doc_number": "СП-17",
     "doc_date": "2026-10-21",
     "resolved_by": "Петрова Анна",

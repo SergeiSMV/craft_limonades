@@ -70,7 +70,7 @@ class ProblemCard extends StatelessWidget {
                       ),
                     ),
                     _Pill(
-                      label: reasonLabel(p.reason),
+                      label: reasonText(p),
                       bg: AppColors.kBadgeInfoBg,
                       fg: AppColors.kBadgeInfoText,
                     ),
@@ -158,6 +158,11 @@ class ProblemCard extends StatelessWidget {
           ],
           if (p.resolved) ...[
             AppBoxes.kHeight12,
+            if (p.resolutionName.isNotEmpty)
+              Text(
+                t.portal.problems.resolvedVariant(name: p.resolutionName),
+                style: muted,
+              ),
             Text(
               _decisionText(p),
               style: SemiboldTextStyles().semiboldInter14.copyWith(

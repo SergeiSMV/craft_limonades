@@ -5,22 +5,28 @@ import '../../../../core/constants/app_boxes.dart';
 import '../../../../core/constants/app_insets.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../settings/positions_section.dart';
+import '../settings/problem_reasons_section.dart';
 import '../settings/users_section.dart';
 import '../settings/warehouses_section.dart';
 
 /// Вкладка «Настройки» (ADHOC-29): справочники, которые ведёт офис. Разделы — по правам
-/// (ADHOC-50): внутренние склады — право «внутренние склады», должности и пользователи —
-/// право «пользователи и должности»; новые разделы встают сюда же, плашкой под предыдущей.
+/// (ADHOC-50): внутренние склады — право «внутренние склады», причины проблем и варианты
+/// решения — право «причины проблем» (ADHOC-55), должности и пользователи — право
+/// «пользователи и должности»; новые разделы встают сюда же, плашкой под предыдущей.
 class SettingsTab extends StatefulWidget {
   const SettingsTab({
     super.key,
     required this.warehouses,
+    this.problemReasons = false,
     required this.users,
     required this.profile,
   });
 
   /// Показать «Внутренние склады».
   final bool warehouses;
+
+  /// Показать «Причины проблем» и «Варианты решения».
+  final bool problemReasons;
 
   /// Показать «Должности» и «Пользователи».
   final bool users;
@@ -55,8 +61,13 @@ class _SettingsTabState extends State<SettingsTab> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               if (widget.warehouses) const WarehousesSection(),
-              if (widget.users) ...[
+              if (widget.problemReasons) ...[
                 if (widget.warehouses) AppBoxes.kHeight24,
+                const ProblemReasonsSection(),
+              ],
+              if (widget.users) ...[
+                if (widget.warehouses || widget.problemReasons)
+                  AppBoxes.kHeight24,
                 PositionsSection(changes: _accessChanges),
                 AppBoxes.kHeight24,
                 UsersSection(

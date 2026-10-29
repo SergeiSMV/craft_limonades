@@ -4,7 +4,6 @@ import '../../../../../core/utils/date_time_format.dart';
 import '../../../../../core/utils/doc_number.dart';
 import '../../../../../core/utils/qty_format.dart';
 import '../../../../movement/presentation/widgets/move_format.dart';
-import '../../../domain/problem_models.dart';
 import '../../../domain/problem_records.dart';
 import '../problem_format.dart';
 
@@ -87,13 +86,13 @@ String numberLabel(ProblemRecord p) => switch (p.number) {
   null => t.problems.numberPending,
 };
 
-/// Причина по значению сервера; незнакомая — как есть.
-String reasonLabelOf(String wire) {
-  for (final r in ProblemReason.values) {
-    if (r.wire == wire) return reasonLabel(r);
-  }
-  return wire;
-}
+/// Причина проблемы: название по справочнику (ADHOC-55), без него — прежняя подпись кода.
+String reasonText(ProblemRecord p) =>
+    p.reasonName.isNotEmpty ? p.reasonName : reasonLabelOf(p.reason);
+
+/// Решение офиса: название выбранного варианта (ADHOC-55), у старого сервера — по действию.
+String resolutionText(ProblemRecord p) =>
+    p.resolutionName.isNotEmpty ? p.resolutionName : decisionLabel(p.decision);
 
 /// Что помечали: короб целиком или товар.
 String subjectLabel(ProblemRecord p) {

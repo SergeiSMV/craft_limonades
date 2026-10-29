@@ -33,6 +33,7 @@ type problemRepo interface {
 	Resolved(ctx context.Context, f model.ResolvedProblemsFilter) ([]model.Problem, error)
 	Current(ctx context.Context) ([]model.Problem, error)
 	Resolve(ctx context.Context, in model.ResolveProblemInput) error
+	Resolution(ctx context.Context, id string) (model.ProblemResolution, error)
 }
 
 // ProblemService — «Проблемы склада» в портале (P6-07-3): рабочий список офиса и решение по
@@ -84,21 +85,37 @@ func (s *ProblemService) Resolved(ctx context.Context, q ResolvedQuery) ([]model
 
 // Resolve проверяет форму решения и проводит его.
 //
-// Всё, что проверяется без базы, проверяется здесь: идентификаторы, известное решение, у
-// списания и пересорта — номер и дата документа 1С (дата — ISO), у возврата — поставщик. Поля чужого
-// решения — противоречие, а не подсказка. Допустимость решения при причине проверяет
-// репозиторий: причину знает только запись.
+// Решение — вариант справочника (ADHOC-55): его действие определяет форму. Прежний клиент шлёт
+// одно действие без варианта — форма проверяется по нему. Дальше всё, что проверяется без
+// записи проблемы: идентификаторы, у списания и пересорта — номер и дата документа 1С (дата —
+// ISO), у возврата — поставщик. Поля чужого решения — противоречие, а не подсказка.
+// Допустимость варианта при причине проверяет репозиторий: причину знает только запись.
 func (s *ProblemService) Resolve(ctx context.Context, in model.ResolveProblemInput) error {
 	in.Decision = strings.TrimSpace(in.Decision)
 	in.DocNumber = strings.TrimSpace(in.DocNumber)
 	in.DocDate = strings.TrimSpace(in.DocDate)
 	in.SupplierID = strings.TrimSpace(in.SupplierID)
+	in.ResolutionID = strings.TrimSpace(in.ResolutionID)
 	if !isUUID(in.ProblemID) {
 		return ErrInvalidProblemID
 	}
-	known := []string{model.ProblemDecisionWriteOff, model.ProblemDecisionPlace,
-		model.ProblemDecisionSupplierReturn, model.ProblemDecisionRegrade}
-	if !slices.Contains(known, in.Decision) {
+	if in.ResolutionID != "" {
+		if !isUUID(in.ResolutionID) {
+			return ErrInvalidDecision
+		}
+		res, err := s.repo.Resolution(ctx, in.ResolutionID)
+		if errors.Is(err, model.ErrResolutionNotFound) {
+			return ErrInvalidDecision
+		}
+		if err != nil {
+			return err
+		}
+		if in.Decision != "" && in.Decision != res.Action {
+			return ErrInvalidDecision
+		}
+		in.Decision = res.Action
+	}
+	if !slices.Contains(model.ProblemDecisions, in.Decision) {
 		return ErrInvalidDecision
 	}
 

@@ -43,7 +43,9 @@ type Services struct {
 	MovementHistory *service.MovementHistoryService
 	// InternalWarehouse — справочник внутренних складов для ТСД (P6-07-1).
 	InternalWarehouse *service.InternalWarehouseService
-	Contents          *service.ContentsService
+	// ProblemReason — справочник причин проблем и вариантов решения (ADHOC-55).
+	ProblemReason *service.ProblemReasonService
+	Contents      *service.ContentsService
 	// Problem — «Проблемы склада» в портале: список и решение офиса (P6-07-3).
 	Problem *service.ProblemService
 	// ProblemPhoto — фото к проблемам склада (ADHOC-45): загрузка с ТСД, отдача ТСД и порталу.
@@ -336,6 +338,25 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 				r.Post("/internal-warehouses", iwH.Create)
 				r.Patch("/internal-warehouses/{id}", iwH.Update)
 				r.Delete("/internal-warehouses/{id}", iwH.Delete)
+			})
+		}
+
+		// Причины проблем и варианты решения (ADHOC-55). Читает сотрудник: ТСД выбирает причину при
+		// пометке и подписывает ею проблемы. Ведёт справочник право «причины проблем» из портала;
+		// удаления нет — только «неактивен».
+		if svc.ProblemReason != nil {
+			prH := NewProblemReasonHandler(svc.ProblemReason)
+			r.Group(func(r chi.Router) {
+				r.Use(appmw.Authenticator(tokens))
+				r.Get("/problem-reasons", prH.List) // причины и варианты, и неактивные
+			})
+			r.Group(func(r chi.Router) {
+				r.Use(appmw.Authenticator(tokens))
+				r.Use(need(model.RightSettingsProblemReasons))
+				r.Post("/problem-reasons", prH.CreateReason)
+				r.Patch("/problem-reasons/{code}", prH.UpdateReason)
+				r.Post("/problem-resolutions", prH.CreateResolution)
+				r.Patch("/problem-resolutions/{id}", prH.UpdateResolution)
 			})
 		}
 

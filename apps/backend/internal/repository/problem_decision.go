@@ -47,15 +47,28 @@ func NewProblemRepository(pool *pgxpool.Pool) *ProblemRepository {
 // problemSelect — поля проблемы для списков; порядок совпадает со сканом в [scanProblems].
 const problemSelect = `
 		SELECT p.id::text, p.number, p.created_at, COALESCE(cu.full_name, ''), COALESCE(c.address, ''),
-		       COALESCE(p.load_unit_id::text, ''), p.reason, p.comment, COALESCE(p.mark, ''),
+		       COALESCE(p.load_unit_id::text, ''), p.reason, pr.name, p.comment, COALESCE(p.mark, ''),
 		       COALESCE(fw.name, ''), COALESCE(tw.name, ''), COALESCE(fg.name, ''),
 		       COALESCE(p.barcode, ''), p.status, COALESCE(p.decision, ''), COALESCE(p.doc_number, ''),
 		       COALESCE(to_char(p.doc_date, 'YYYY-MM-DD'), ''), COALESCE(p.supplier_id::text, ''),
 		       COALESCE(s.name, ''), COALESCE(t.number, 0), COALESCE(ru.full_name, ''), p.resolved_at,
 		       COALESCE(su.full_name, ''), sh.posted_at, COALESCE(sh.number, 0),
 		       ARRAY(SELECT ph.id::text FROM problem_photos ph
-		             WHERE ph.problem_id = p.id ORDER BY ph.created_at, ph.id)
+		             WHERE ph.problem_id = p.id ORDER BY ph.created_at, ph.id),
+		       COALESCE(rs.name, ''),
+		       -- Варианты, которыми проблему можно решить сейчас (ADHOC-55): активные, по справочнику.
+		       ARRAY(SELECT x.id::text FROM problem_reason_resolutions l
+		             JOIN problem_resolutions x ON x.id = l.resolution_id
+		             WHERE l.reason = p.reason AND x.is_active ORDER BY x.ord),
+		       ARRAY(SELECT x.name FROM problem_reason_resolutions l
+		             JOIN problem_resolutions x ON x.id = l.resolution_id
+		             WHERE l.reason = p.reason AND x.is_active ORDER BY x.ord),
+		       ARRAY(SELECT x.action FROM problem_reason_resolutions l
+		             JOIN problem_resolutions x ON x.id = l.resolution_id
+		             WHERE l.reason = p.reason AND x.is_active ORDER BY x.ord)
 		FROM warehouse_problems p
+		JOIN problem_reasons pr          ON pr.code = p.reason
+		LEFT JOIN problem_resolutions rs ON rs.id = p.resolution_id
 		-- У пересорта (ADHOC-53) ячейки и пары складов нет — он лежит, где лежал.
 		LEFT JOIN cells c                ON c.id = p.cell_id
 		LEFT JOIN internal_warehouses fw ON fw.id = p.from_internal_warehouse_id
@@ -110,13 +123,20 @@ func (r *ProblemRepository) query(ctx context.Context, sql string, args ...any) 
 	index := map[string]int{}
 	for rows.Next() {
 		var p model.Problem
+		var resIDs, resNames, resActions []string
 		if err := rows.Scan(&p.ID, &p.Number, &p.CreatedAt, &p.CreatedByName, &p.CellAddress, &p.LoadUnitID,
-			&p.Reason, &p.Comment, &p.Mark, &p.FromWarehouse, &p.ToWarehouse, &p.FromGoodName,
+			&p.Reason, &p.ReasonName, &p.Comment, &p.Mark, &p.FromWarehouse, &p.ToWarehouse, &p.FromGoodName,
 			&p.Barcode, &p.Status, &p.Decision,
 			&p.DocNumber, &p.DocDate, &p.SupplierID, &p.SupplierName, &p.ReturnTaskNo,
-			&p.ResolvedByName, &p.ResolvedAt, &p.ShippedByName, &p.ShippedAt, &p.ShipmentNumber, &p.Photos); err != nil {
+			&p.ResolvedByName, &p.ResolvedAt, &p.ShippedByName, &p.ShippedAt, &p.ShipmentNumber, &p.Photos,
+			&p.ResolutionName, &resIDs, &resNames, &resActions); err != nil {
 			rows.Close()
 			return nil, fmt.Errorf("разобрать проблему: %w", err)
+		}
+		for i := range resIDs {
+			p.Resolutions = append(p.Resolutions, model.ProblemResolution{
+				ID: resIDs[i], Name: resNames[i], Action: resActions[i], IsActive: true,
+			})
 		}
 		index[p.ID] = len(out)
 		out = append(out, p)
@@ -264,8 +284,8 @@ func (r *ProblemRepository) Resolve(ctx context.Context, in model.ResolveProblem
 		if p.status != model.ProblemStatusOpen {
 			return ErrProblemResolved
 		}
-		if !slices.Contains(model.ProblemDecisionsFor(p.reason), in.Decision) {
-			return ErrDecisionNotAllowed
+		if in.ResolutionID, err = allowedResolution(ctx, q, p.reason, in.ResolutionID, in.Decision); err != nil {
+			return err
 		}
 
 		// Пересорт (ADHOC-53) уже перевёл товар при перепривязке и записал строки: решение только
@@ -314,16 +334,47 @@ func (r *ProblemRepository) Resolve(ctx context.Context, in model.ResolveProblem
 	})
 }
 
-// markResolved записывает решение офиса в проблему: что решили, документ, поставщик, задание.
+// allowedResolution — вариант решения, которым офис решает проблему с причиной reason
+// (ADHOC-55): активный и допустимый при причине по справочнику, с действием decision.
+//
+// Прежний клиент шлёт только действие (resolutionID пусто) — тогда берётся первый активный
+// вариант причины с этим действием. Нет подходящего — ErrDecisionNotAllowed.
+func allowedResolution(ctx context.Context, q Querier, reason, resolutionID, decision string) (string, error) {
+	var id string
+	err := q.QueryRow(ctx, `
+		SELECT x.id::text
+		FROM problem_reason_resolutions l
+		JOIN problem_resolutions x ON x.id = l.resolution_id
+		WHERE l.reason = $1 AND x.is_active AND x.action = $3
+		  AND ($2 = '' OR x.id = NULLIF($2, '')::uuid)
+		ORDER BY x.ord
+		LIMIT 1`, reason, resolutionID, decision).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", ErrDecisionNotAllowed
+	}
+	if err != nil {
+		return "", fmt.Errorf("вариант решения причины: %w", err)
+	}
+	return id, nil
+}
+
+// Resolution — вариант решения по id: сервису нужно его действие, чтобы проверить форму решения.
+func (r *ProblemRepository) Resolution(ctx context.Context, id string) (model.ProblemResolution, error) {
+	return resolutionByID(ctx, r.pool, id)
+}
+
+// markResolved записывает решение офиса в проблему: что решили (вариант и его действие),
+// документ, поставщик, задание.
 func markResolved(ctx context.Context, q Querier, in model.ResolveProblemInput, taskID string) error {
 	if _, err := q.Exec(ctx, `
 		UPDATE warehouse_problems
 		SET status = 'resolved', decision = $2, doc_number = NULLIF($3, ''),
 		    doc_date = NULLIF($4, '')::date, supplier_id = NULLIF($5, '')::uuid,
-		    return_task_id = NULLIF($6, '')::uuid, resolved_by = $7::uuid, resolved_at = now()
+		    return_task_id = NULLIF($6, '')::uuid, resolved_by = $7::uuid, resolved_at = now(),
+		    resolution_id = $8::uuid
 		WHERE id = $1::uuid`,
 		in.ProblemID, in.Decision, in.DocNumber, in.DocDate, in.SupplierID, taskID,
-		in.ResolvedBy); err != nil {
+		in.ResolvedBy, in.ResolutionID); err != nil {
 		return fmt.Errorf("записать решение: %w", err)
 	}
 	return nil

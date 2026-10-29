@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"slices"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -20,8 +19,11 @@ var (
 	ErrProblemPosted = errors.New("problem already posted")
 	// ErrEmptyProblem — в проблеме нет ни короба, ни товара с одним источником.
 	ErrEmptyProblem = errors.New("problem must have a load unit or goods from a cell or a load unit")
-	// ErrUnknownReason — причины нет в списке.
-	ErrUnknownReason = errors.New("unknown problem reason")
+	// ErrUnknownReason — причины нет в справочнике или её ставит только программа.
+	ErrUnknownReason = errors.New("неизвестная причина проблемы")
+	// ErrProblemCommentRequired — у причины с обязательным комментарием (ADHOC-55; так у
+	// «Прочее») комментария нет: без него офису нечего разбирать.
+	ErrProblemCommentRequired = errors.New("у этой причины нужен комментарий")
 	// ErrUnknownInternalWarehouse — склада назначения нет или он скрыт.
 	ErrUnknownInternalWarehouse = errors.New("unknown or inactive internal warehouse")
 	// ErrSystemInternalWarehouse — склад системный (возврат поставщику, P6-07-3): на него и с него
@@ -70,6 +72,34 @@ type ProblemSubmitInput struct {
 	fromStocktake bool
 }
 
+// checkProblemReason — причина проблемы по справочнику (ADHOC-55).
+//
+// «Не найдено» ставит только пересчёт, пересорт сюда не приходит вовсе (его заводит
+// перепривязка ШК), остальные причины программы (выбытие марки) — только приход. С ТСД — причина,
+// которую выбирает кладовщик; выключенная тоже годится: операция могла лежать в очереди
+// устройства, пока офис её выключал, и отказ заставил бы помечать товар заново.
+func checkProblemReason(ctx context.Context, q Querier, in ProblemSubmitInput) error {
+	var manual, commentRequired bool
+	err := q.QueryRow(ctx, `
+		SELECT manual, comment_required FROM problem_reasons WHERE code = $1`, in.Reason).
+		Scan(&manual, &commentRequired)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrUnknownReason
+	}
+	if err != nil {
+		return fmt.Errorf("причина проблемы: %w", err)
+	}
+	if in.fromStocktake != (in.Reason == model.ProblemReasonNotFound) ||
+		in.Reason == model.ProblemReasonRegrade ||
+		(!manual && !in.fromIntake && !in.fromStocktake) {
+		return ErrUnknownReason
+	}
+	if commentRequired && in.Comment == "" {
+		return ErrProblemCommentRequired
+	}
+	return nil
+}
+
 // problemSubmit фиксирует проблему и переводит остаток на склад назначения (P6-07-1).
 //
 // Что: короб целиком меняет склад вместе с остатком своего состава; товар переходит строкой
@@ -84,9 +114,8 @@ type ProblemSubmitInput struct {
 // Ячейка приёмки отклоняется, как в движении: её содержимое разносит задание на размещение,
 // и брак под заданием оставил бы задание с недостающим «Основным» товаром.
 func problemSubmit(ctx context.Context, q Querier, in ProblemSubmitInput) error {
-	if in.fromStocktake != (in.Reason == model.ProblemReasonNotFound) ||
-		(!in.fromStocktake && !slices.Contains(model.ProblemReasons, in.Reason)) {
-		return ErrUnknownReason
+	if err := checkProblemReason(ctx, q, in); err != nil {
+		return err
 	}
 	isBox := in.LoadUnitID != ""
 	isGoods := in.GoodID != ""

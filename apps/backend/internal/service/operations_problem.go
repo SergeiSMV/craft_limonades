@@ -4,13 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"slices"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/shopspring/decimal"
 
-	"craftwms/internal/model"
 	"craftwms/internal/repository"
 )
 
@@ -18,9 +16,9 @@ import (
 var (
 	// ErrInvalidProblemID — идентификатор проблемы не UUID.
 	ErrInvalidProblemID = errors.New("problem id must be a UUID")
-	// ErrProblemCommentRequired — у причины «прочее» нет комментария: без него офису нечего
-	// разбирать.
-	ErrProblemCommentRequired = errors.New("comment is required for the other reason")
+	// ErrProblemCommentRequired — у причины с обязательным комментарием его нет; проверяет
+	// репозиторий по справочнику причин (ADHOC-55).
+	ErrProblemCommentRequired = repository.ErrProblemCommentRequired
 )
 
 // problemCommentMax — предел комментария в символах: это пояснение кладовщика, не акт.
@@ -90,11 +88,9 @@ func (s *OperationsService) problemSubmit(ctx context.Context, userID, id string
 			return repository.Applied{}, ErrInvalidPayload
 		}
 	}
-	if !slices.Contains(model.ProblemReasons, in.Reason) {
+	// Причину и обязательность комментария знает справочник — их проверяет репозиторий.
+	if in.Reason == "" {
 		return repository.Applied{}, repository.ErrUnknownReason
-	}
-	if in.Reason == model.ProblemReasonOther && in.Comment == "" {
-		return repository.Applied{}, ErrProblemCommentRequired
 	}
 	if utf8.RuneCountInString(in.Comment) > problemCommentMax {
 		return repository.Applied{}, ErrInvalidPayload

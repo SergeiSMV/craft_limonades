@@ -6,6 +6,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_insets.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/gen/strings.g.dart';
+import '../../../../core/problems/problem_reasons.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/theme/semibold_text.dart';
 import '../../../../core/utils/date_time_format.dart';
@@ -13,7 +14,6 @@ import '../../../../core/warehouse/internal_warehouses.dart';
 import '../../../../core/widgets/neumorphic_choice.dart';
 import '../../../movement/presentation/widgets/move_format.dart'
     show withWarehouse;
-import '../../domain/problem_models.dart';
 import '../bloc/problem_state.dart';
 import '../bloc/problem_photo_view.dart';
 import 'photos/problem_photo_strip.dart';
@@ -27,6 +27,7 @@ class ProblemForm extends StatelessWidget {
     super.key,
     required this.state,
     required this.targets,
+    required this.reasons,
     required this.comment,
     required this.mark,
     required this.onWarehouse,
@@ -37,6 +38,9 @@ class ProblemForm extends StatelessWidget {
 
   final ProblemState state;
   final List<InternalWarehouse> targets;
+
+  /// Причины на выбор — из справочника терминала (ADHOC-55).
+  final List<ProblemReason> reasons;
   final TextEditingController comment;
   final TextEditingController mark;
   final ValueChanged<String> onWarehouse;
@@ -78,22 +82,22 @@ class ProblemForm extends StatelessWidget {
         Text(t.problems.reason, style: label),
         AppBoxes.kHeight8,
         _choices([
-          for (final r in ProblemReason.values.where((r) => r.selectable))
+          for (final r in reasons)
             NeumorphicChoice(
-              label: reasonLabel(r),
-              selected: state.reason == r,
+              label: r.name,
+              selected: state.reason?.code == r.code,
               onPressed: () => onReason(r),
             ),
         ]),
         AppBoxes.kHeight16,
         _field(
           controller: comment,
-          hint: state.reason == ProblemReason.other
+          hint: state.reason?.commentRequired ?? false
               ? t.problems.commentRequired
               : t.problems.comment,
           multiline: true,
         ),
-        if (state.reason == ProblemReason.foreignMark) ...[
+        if (state.reason?.code == ProblemReasonCodes.foreignMark) ...[
           AppBoxes.kHeight16,
           _field(controller: mark, hint: t.problems.mark),
         ],

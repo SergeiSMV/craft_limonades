@@ -117,7 +117,7 @@ func TestProblemHTTP_clientWireFormat(t *testing.T) {
 	// эталона testdata/problems_resolved.json; открытая (короб в «Изоляторе») туда не попадает,
 	// рабочий список офиса кладовщику закрыт.
 	if code, body := e.call(t, http.MethodPost, "/api/v1/problems/7e000000-0000-4000-8000-000000000001/resolve",
-		e.adminToken, `{"decision":"write_off","doc_number":"СП-17","doc_date":"2026-10-21"}`); code != http.StatusNoContent {
+		e.adminToken, `{"resolution_id":"7b000000-0000-4000-8000-000000000001","doc_number":"СП-17","doc_date":"2026-10-21"}`); code != http.StatusNoContent {
 		t.Fatalf("решение офиса: %d %s", code, body)
 	}
 	code, body = e.call(t, http.MethodGet, "/api/v1/problems/current", e.workerToken, "")

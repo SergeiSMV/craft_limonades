@@ -42,7 +42,7 @@ String _searchText(PortalProblem p) => [
   docNumber(DocKind.problem, p.number),
   p.cellAddress,
   p.loadUnitCode,
-  reasonLabel(p.reason),
+  reasonText(p),
   p.comment,
   p.mark,
   p.fromWarehouse,

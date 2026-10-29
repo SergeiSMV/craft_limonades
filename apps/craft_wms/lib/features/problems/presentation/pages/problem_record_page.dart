@@ -78,7 +78,7 @@ class ProblemRecordPage extends StatelessWidget {
                       to: p.toWarehouse,
                     ),
                   ),
-                _text(t.problems.reasonLine(reason: reasonLabelOf(p.reason))),
+                _text(t.problems.reasonLine(reason: reasonText(p))),
                 if (p.comment.isNotEmpty)
                   _text(t.problems.commentLine(comment: p.comment)),
                 if (p.mark != null) _text(t.problems.markLine(mark: p.mark!)),
@@ -97,7 +97,7 @@ class ProblemRecordPage extends StatelessWidget {
                 _card([_strong(outcomeLabel(p))])
               else ...[
                 _card([
-                  _strong(decisionLabel(p.decision)),
+                  _strong(resolutionText(p)),
                   for (final line in decisionLines(p)) _text(line),
                   _muted(
                     t.problems.resolvedMeta(
