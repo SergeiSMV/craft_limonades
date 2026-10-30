@@ -25,6 +25,12 @@ final class RegularTextStyles {
     fontWeight: FontWeight.w400,
   );
 
+  final TextStyle regularInter13 = const TextStyle(
+    fontFamily: FontFamily.inter,
+    fontSize: 13,
+    fontWeight: FontWeight.w400,
+  );
+
   final TextStyle regularInter14 = const TextStyle(
     fontFamily: FontFamily.inter,
     fontSize: 14,

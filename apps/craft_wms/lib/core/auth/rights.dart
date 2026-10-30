@@ -7,7 +7,9 @@ abstract final class Rights {
   static const portal = 'portal.'; // префикс: любое право портала
   static const tsd = 'tsd.'; // префикс: любое право ТСД
 
+  static const nomenclatureView = 'portal.nomenclature.view'; // ADHOC-56
   static const nomenclatureImport = 'portal.nomenclature.import';
+  static const stockView = 'portal.stock.view'; // ADHOC-56
   static const receiptView = 'portal.receipt.view';
   static const receiptDownload = 'portal.receipt.download';
   static const receiptPost = 'portal.receipt.post';
@@ -71,8 +73,13 @@ List<RightNode> rightsTree() {
         RightNode(
           r.nomenclature,
           children: [
+            RightNode(r.nomenclatureView, code: Rights.nomenclatureView),
             RightNode(r.nomenclatureImport, code: Rights.nomenclatureImport),
           ],
+        ),
+        RightNode(
+          r.stock,
+          children: [RightNode(r.stockView, code: Rights.stockView)],
         ),
         RightNode(
           r.receipt,

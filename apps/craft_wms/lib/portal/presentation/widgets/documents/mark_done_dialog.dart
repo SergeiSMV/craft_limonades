@@ -3,34 +3,29 @@ import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
-import '../common/neumorphic_text_button.dart';
-import '../common/portal_dialog.dart';
+import '../ui/portal_button.dart';
+import '../ui/portal_modal.dart';
 
-/// Подтверждение «Отметить выполненным» (P3-02, вид — ADHOC-25).
+/// Подтверждение «Провести» (P3-02, плоский стиль — ADHOC-56).
 ///
 /// Спрашиваем, потому что вернуть документ в работу нельзя. Возвращает `true`, только если
-/// оператор нажал «Отметить»; закрытие диалога — отказ.
+/// оператор нажал «Провести»; «Отмена», крестик и закрытие окна — отказ.
 Future<bool> showMarkDoneDialog(BuildContext context) async {
   final confirmed = await showDialog<bool>(
     context: context,
-    builder: (ctx) => PortalDialog(
+    builder: (ctx) => PortalModal(
       title: t.portal.documents.confirmTitle,
       content: Text(
         t.portal.documents.confirmBody,
-        style: RegularTextStyles().regularInter14.copyWith(color: AppColors.kTextMain),
+        style: RegularTextStyles().regularInter13.copyWith(
+          color: AppColors.kTextMain,
+        ),
       ),
       actions: [
-        // «Отмена» — текстом и нейтральным цветом: отказ не должен весить столько же, сколько
-        // действие, а цвет бренда остаётся только у действия — иначе «Отмена» и «Отметить»
-        // различаются лишь рамкой кнопки.
-        TextButton(
-          style: TextButton.styleFrom(foregroundColor: AppColors.kTextMuted),
-          onPressed: () => Navigator.of(ctx).pop(false),
-          child: Text(t.portal.documents.confirmNo),
-        ),
-        NeumorphicTextButton(
+        portalCancel(ctx, label: t.portal.documents.confirmNo, result: false),
+        PortalButton(
           label: t.portal.documents.confirmYes,
-          accent: true,
+          kind: PortalButtonKind.primary,
           onPressed: () => Navigator.of(ctx).pop(true),
         ),
       ],

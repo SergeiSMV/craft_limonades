@@ -6,11 +6,10 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../data/users_repository.dart';
-import '../common/neumorphic_text_button.dart';
-import '../common/portal_dialog.dart';
-import '../common/portal_filter_chip.dart';
-import '../common/portal_text_field.dart';
-import 'access_common.dart';
+import '../ui/portal_modal.dart';
+import '../ui/portal_input.dart';
+import '../ui/portal_button.dart';
+import '../ui/portal_choice.dart';
 
 /// ФИО и должность при правке пользователя.
 typedef UserEdit = ({String fullName, String positionId});
@@ -101,23 +100,23 @@ class _UserDialogState extends State<_UserDialog> {
   @override
   Widget build(BuildContext context) {
     final editing = widget.current != null;
-    return PortalDialog(
+    return PortalModal(
       title: editing ? t.portal.users.editTitle : t.portal.users.createTitle,
       content: _Body(
         children: [
-          PortalTextField(
+          PortalInput(
             controller: _name,
             hint: t.portal.users.nameHint,
             autofocus: !editing,
           ),
           AppBoxes.kHeight16,
-          AccessFieldLabel(t.portal.users.positionLabel),
+          PortalFieldLabel(t.portal.users.positionLabel),
           Wrap(
             spacing: AppSizes.kChipSpacing,
             runSpacing: AppSizes.kChipSpacing,
             children: [
               for (final p in widget.positions)
-                PortalFilterChip(
+                PortalChoice(
                   label: p.name,
                   selected: p.id == _positionId,
                   onTap: () => selectPosition(p.id),
@@ -126,16 +125,16 @@ class _UserDialogState extends State<_UserDialog> {
           ),
           if (!editing) ...[
             AppBoxes.kHeight16,
-            AccessFieldLabel(t.portal.users.loginLabel),
+            PortalFieldLabel(t.portal.users.loginLabel),
             Wrap(
               spacing: AppSizes.kChipSpacing,
               children: [
-                PortalFilterChip(
+                PortalChoice(
                   label: t.portal.users.byBadge,
                   selected: _byBadge,
                   onTap: () => selectBadge(true),
                 ),
-                PortalFilterChip(
+                PortalChoice(
                   label: t.portal.users.byPassword,
                   selected: !_byBadge,
                   onTap: () => selectBadge(false),
@@ -144,7 +143,7 @@ class _UserDialogState extends State<_UserDialog> {
             ),
             AppBoxes.kHeight16,
             if (_byBadge) ...[
-              PortalTextField(
+              PortalInput(
                 controller: _badge,
                 hint: t.portal.users.badgeHint,
                 onSubmitted: (_) => submit(),
@@ -152,12 +151,12 @@ class _UserDialogState extends State<_UserDialog> {
               AppBoxes.kHeight8,
               _Help(t.portal.users.badgeHelp),
             ] else ...[
-              PortalTextField(
+              PortalInput(
                 controller: _username,
                 hint: t.portal.users.usernameHint,
               ),
               AppBoxes.kHeight16,
-              PortalTextField(
+              PortalInput(
                 controller: _password,
                 hint: t.portal.users.passwordHint,
                 obscureText: true,
@@ -168,10 +167,10 @@ class _UserDialogState extends State<_UserDialog> {
         ],
       ),
       actions: [
-        accessCancel(context, label: t.portal.users.cancel),
-        NeumorphicTextButton(
+        portalCancel(context, label: t.portal.users.cancel),
+        PortalButton(
           label: editing ? t.portal.users.save : t.portal.users.create,
-          accent: true,
+          kind: PortalButtonKind.primary,
           onPressed: submit,
         ),
       ],
@@ -191,13 +190,13 @@ Future<String?> showNewSecretDialog(
     builder: (ctx) {
       void submit() =>
           Navigator.of(ctx).pop(badge ? value.text.trim() : value.text);
-      return PortalDialog(
+      return PortalModal(
         title: badge
             ? t.portal.users.newBadgeTitle
             : t.portal.users.newPasswordTitle,
         content: _Body(
           children: [
-            PortalTextField(
+            PortalInput(
               controller: value,
               hint: badge
                   ? t.portal.users.badgeHint
@@ -210,10 +209,10 @@ Future<String?> showNewSecretDialog(
           ],
         ),
         actions: [
-          accessCancel(ctx, label: t.portal.users.cancel),
-          NeumorphicTextButton(
+          portalCancel(ctx, label: t.portal.users.cancel),
+          PortalButton(
             label: t.portal.users.save,
-            accent: true,
+            kind: PortalButtonKind.primary,
             onPressed: submit,
           ),
         ],

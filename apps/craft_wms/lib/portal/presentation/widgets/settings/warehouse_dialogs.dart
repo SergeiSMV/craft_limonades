@@ -5,9 +5,9 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
-import '../common/neumorphic_text_button.dart';
-import '../common/portal_dialog.dart';
-import '../common/portal_text_field.dart';
+import '../ui/portal_modal.dart';
+import '../ui/portal_input.dart';
+import '../ui/portal_button.dart';
 
 /// Код и имя нового склада; `null` — оператор передумал.
 typedef WarehouseDraft = ({String code, String name});
@@ -22,17 +22,17 @@ Future<WarehouseDraft?> showCreateWarehouseDialog(BuildContext context) {
       void submit() => Navigator.of(
         ctx,
       ).pop((code: code.text.trim(), name: name.text.trim()));
-      return PortalDialog(
+      return PortalModal(
         title: t.portal.warehouses.createTitle,
         content: _DialogBody(
           children: [
-            PortalTextField(
+            PortalInput(
               controller: name,
               hint: t.portal.warehouses.nameHint,
               autofocus: true,
             ),
             AppBoxes.kHeight16,
-            PortalTextField(
+            PortalInput(
               controller: code,
               hint: t.portal.warehouses.codeHint,
               onSubmitted: (_) => submit(),
@@ -48,9 +48,9 @@ Future<WarehouseDraft?> showCreateWarehouseDialog(BuildContext context) {
         ),
         actions: [
           _cancel(ctx),
-          NeumorphicTextButton(
+          PortalButton(
             label: t.portal.warehouses.create,
-            accent: true,
+            kind: PortalButtonKind.primary,
             onPressed: submit,
           ),
         ],
@@ -69,11 +69,11 @@ Future<String?> showRenameWarehouseDialog(
     context: context,
     builder: (ctx) {
       void submit() => Navigator.of(ctx).pop(name.text.trim());
-      return PortalDialog(
+      return PortalModal(
         title: t.portal.warehouses.renameTitle,
         content: _DialogBody(
           children: [
-            PortalTextField(
+            PortalInput(
               controller: name,
               hint: t.portal.warehouses.nameHint,
               autofocus: true,
@@ -83,9 +83,9 @@ Future<String?> showRenameWarehouseDialog(
         ),
         actions: [
           _cancel(ctx),
-          NeumorphicTextButton(
+          PortalButton(
             label: t.portal.warehouses.save,
-            accent: true,
+            kind: PortalButtonKind.primary,
             onPressed: submit,
           ),
         ],
@@ -101,7 +101,7 @@ Future<bool> showDeleteWarehouseDialog(
 }) async {
   final ok = await showDialog<bool>(
     context: context,
-    builder: (ctx) => PortalDialog(
+    builder: (ctx) => PortalModal(
       title: t.portal.warehouses.deleteTitle,
       content: _DialogBody(
         children: [
@@ -115,9 +115,9 @@ Future<bool> showDeleteWarehouseDialog(
       ),
       actions: [
         _cancel(ctx, result: false),
-        NeumorphicTextButton(
+        PortalButton(
           label: t.portal.warehouses.delete,
-          accent: true,
+          kind: PortalButtonKind.primary,
           onPressed: () => Navigator.of(ctx).pop(true),
         ),
       ],
@@ -126,12 +126,9 @@ Future<bool> showDeleteWarehouseDialog(
   return ok ?? false;
 }
 
-/// «Отмена» — текстом и нейтральным цветом, как в подтверждении «Провести».
-Widget _cancel(BuildContext ctx, {Object? result}) => TextButton(
-  style: TextButton.styleFrom(foregroundColor: AppColors.kTextMuted),
-  onPressed: () => Navigator.of(ctx).pop(result),
-  child: Text(t.portal.warehouses.cancel),
-);
+/// «Отмена» — текстовая кнопка диалога.
+Widget _cancel(BuildContext ctx, {Object? result}) =>
+    portalCancel(ctx, label: t.portal.warehouses.cancel, result: result);
 
 /// Содержимое диалога — не шире половины колонки, как история документа.
 class _DialogBody extends StatelessWidget {

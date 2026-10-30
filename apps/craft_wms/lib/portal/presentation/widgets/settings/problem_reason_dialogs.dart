@@ -8,12 +8,12 @@ import '../../../../core/gen/strings.g.dart';
 import '../../../../core/problems/problem_reasons.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../data/problems_repository.dart';
-import '../common/neumorphic_text_button.dart';
-import '../common/portal_dialog.dart';
-import '../common/portal_filter_chip.dart';
-import '../common/portal_text_field.dart';
 import 'access_common.dart';
 import 'problem_reason_rows.dart';
+import '../ui/portal_modal.dart';
+import '../ui/portal_input.dart';
+import '../ui/portal_button.dart';
+import '../ui/portal_choice.dart';
 
 /// Диалоги справочника причин и вариантов решения (ADHOC-55).
 
@@ -106,7 +106,7 @@ class _ReasonDialogState extends State<_ReasonDialog> {
     final tr = t.portal.problemReasons;
     final editing = widget.current != null;
     final choices = _choices;
-    return PortalDialog(
+    return PortalModal(
       title: editing ? tr.editTitle : tr.createTitle,
       content: ConstrainedBox(
         constraints: const BoxConstraints(
@@ -118,7 +118,7 @@ class _ReasonDialogState extends State<_ReasonDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              PortalTextField(
+              PortalInput(
                 controller: _name,
                 hint: tr.nameHint,
                 autofocus: !editing,
@@ -130,7 +130,7 @@ class _ReasonDialogState extends State<_ReasonDialog> {
                 onTap: () => setState(() => _comment = !_comment),
               ),
               AppBoxes.kHeight16,
-              AccessFieldLabel(tr.resolutionsLabel),
+              PortalFieldLabel(tr.resolutionsLabel),
               if (choices.isEmpty)
                 Text(
                   tr.noResolutions,
@@ -138,33 +138,24 @@ class _ReasonDialogState extends State<_ReasonDialog> {
                     color: AppColors.kTextMuted,
                   ),
                 ),
-              Flexible(
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      for (final v in choices)
-                        _check(
-                          label: v.isActive
-                              ? v.name
-                              : '${v.name} · ${tr.markVariantInactive}',
-                          value: _selected.contains(v.id),
-                          onTap: () => toggle(v.id),
-                        ),
-                    ],
-                  ),
+              for (final v in choices)
+                _check(
+                  label: v.isActive
+                      ? v.name
+                      : '${v.name} · ${tr.markVariantInactive}',
+                  value: _selected.contains(v.id),
+                  onTap: () => toggle(v.id),
                 ),
-              ),
               if (_error != null) ...[AppBoxes.kHeight12, AccessError(_error!)],
             ],
           ),
         ),
       ),
       actions: [
-        accessCancel(context, label: tr.cancel),
-        NeumorphicTextButton(
+        portalCancel(context, label: tr.cancel),
+        PortalButton(
           label: editing ? tr.save : tr.create,
-          accent: true,
+          kind: PortalButtonKind.primary,
           onPressed: submit,
         ),
       ],
@@ -180,7 +171,7 @@ class _ReasonDialogState extends State<_ReasonDialog> {
     children: [
       Checkbox(
         value: value,
-        activeColor: AppColors.kPrimary,
+        activeColor: AppColors.kButtonPrimary,
         onChanged: (_) => onTap(),
       ),
       Expanded(
@@ -256,7 +247,7 @@ class _VariantDialogState extends State<_VariantDialog> {
   Widget build(BuildContext context) {
     final tr = t.portal.problemReasons;
     final editing = widget.current != null;
-    return PortalDialog(
+    return PortalModal(
       title: editing ? tr.variantEditTitle : tr.variantCreateTitle,
       content: ConstrainedBox(
         constraints: const BoxConstraints(
@@ -268,14 +259,14 @@ class _VariantDialogState extends State<_VariantDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              PortalTextField(
+              PortalInput(
                 controller: _name,
                 hint: tr.variantNameHint,
                 autofocus: true,
                 onSubmitted: (_) => submit(),
               ),
               AppBoxes.kHeight16,
-              AccessFieldLabel(tr.actionLabel),
+              PortalFieldLabel(tr.actionLabel),
               // Действие у существующего варианта не меняется — только показывается.
               if (editing)
                 Text(
@@ -295,7 +286,7 @@ class _VariantDialogState extends State<_VariantDialog> {
                       ProblemDecision.supplierReturn,
                       ProblemDecision.regrade,
                     ])
-                      PortalFilterChip(
+                      PortalChoice(
                         label: resolutionActionLabel(a),
                         selected: _action == a,
                         onTap: () => choose(a),
@@ -308,10 +299,10 @@ class _VariantDialogState extends State<_VariantDialog> {
         ),
       ),
       actions: [
-        accessCancel(context, label: tr.cancel),
-        NeumorphicTextButton(
+        portalCancel(context, label: tr.cancel),
+        PortalButton(
           label: editing ? tr.save : tr.create,
-          accent: true,
+          kind: PortalButtonKind.primary,
           onPressed: submit,
         ),
       ],

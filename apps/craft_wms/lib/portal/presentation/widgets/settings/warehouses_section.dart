@@ -1,18 +1,15 @@
 import 'package:either_dart/either.dart';
 import 'package:flutter/material.dart';
 
-import '../../../../core/constants/app_boxes.dart';
-import '../../../../core/constants/app_colors.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/gen/strings.g.dart';
-import '../../../../core/theme/regular_text.dart';
-import '../../../../core/theme/semibold_text.dart';
 import '../../../data/internal_warehouses_repository.dart';
-import '../common/neumorphic_plate.dart';
-import '../common/neumorphic_text_button.dart';
 import 'warehouse_dialogs.dart';
 import 'warehouse_row.dart';
+import '../ui/portal_annotated_section.dart';
+import '../ui/portal_button.dart';
+import 'access_common.dart';
 
 /// Раздел «Внутренние склады» в настройках портала (ADHOC-29).
 ///
@@ -115,64 +112,27 @@ class _WarehousesSectionState extends State<WarehousesSection> {
   @override
   Widget build(BuildContext context) {
     final items = _items;
-    return NeumorphicPlate(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      t.portal.warehouses.title,
-                      style: SemiboldTextStyles().semiboldInter20.copyWith(
-                        color: AppColors.kTextMain,
-                      ),
-                    ),
-                    AppBoxes.kHeight4,
-                    Text(
-                      t.portal.warehouses.description,
-                      style: RegularTextStyles().regularInter14.copyWith(
-                        color: AppColors.kTextMuted,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              AppBoxes.kWidth16,
-              NeumorphicTextButton(
-                label: t.portal.warehouses.add,
-                icon: Icons.add,
-                accent: true,
-                busy: _busyId == '',
-                onPressed: create,
-              ),
-            ],
-          ),
-          AppBoxes.kHeight16,
-          if (_loading && items == null)
-            const Center(child: CircularProgressIndicator())
-          else
-            for (final w in items ?? const <PortalWarehouse>[])
-              WarehouseRow(
-                warehouse: w,
-                busy: _busyId == w.id,
-                onRename: () => rename(w),
-                onToggle: () => toggle(w),
-                onDelete: () => delete(w),
-              ),
-          if (_error != null) ...[
-            AppBoxes.kHeight16,
-            Text(
-              _error!,
-              style: RegularTextStyles().regularInter14.copyWith(
-                color: AppColors.kDanger,
-              ),
+    return PortalAnnotatedSection(
+      title: t.portal.warehouses.title,
+      description: t.portal.warehouses.description,
+      action: PortalButton(
+        label: t.portal.warehouses.add,
+        icon: Icons.add,
+        busy: _busyId == '',
+        onPressed: create,
+      ),
+      child: SettingsListCard(
+        loading: _loading && items == null,
+        error: _error,
+        rows: [
+          for (final w in items ?? const <PortalWarehouse>[])
+            WarehouseRow(
+              warehouse: w,
+              busy: _busyId == w.id,
+              onRename: () => rename(w),
+              onToggle: () => toggle(w),
+              onDelete: () => delete(w),
             ),
-          ],
         ],
       ),
     );

@@ -1,4 +1,4 @@
-import 'package:flutter_neumorphic_plus/flutter_neumorphic.dart';
+import 'package:flutter/material.dart';
 
 import '../../../../core/auth/profile.dart';
 import '../../../../core/constants/app_boxes.dart';
@@ -9,11 +9,11 @@ import '../../../../core/gen/assets.gen.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/theme/semibold_text.dart';
-import '../common/neumorphic_plate.dart';
 import 'nav_item.dart';
 import 'sidebar_menu_item.dart';
 
-/// Сайдбар портала: логотип, меню по секциям, карточка пользователя внизу.
+/// Боковая панель портала (ADHOC-56, навигация Shopify Polaris): логотип, меню по секциям,
+/// пользователь внизу. Плоская: свой чуть более тёмный фон, без теней и плашек.
 class PortalSidebar extends StatelessWidget {
   const PortalSidebar({
     super.key,
@@ -53,24 +53,17 @@ class PortalSidebar extends StatelessWidget {
           ),
         );
       }
-      menuChildren.add(AppBoxes.kHeight16);
+      menuChildren.add(AppBoxes.kHeight8);
     }
 
-    // Светлый неоморфный сайдбар (ADHOC-25): фон рабочей области, карточка пользователя —
-    // выпуклая плашка, выбранный пункт — вдавленный, как поле поиска на ТСД.
     return Container(
       width: AppSizes.kSidebarWidth,
-      decoration: const BoxDecoration(
-        color: AppColors.kBg,
-        border: Border(right: BorderSide(color: AppColors.kBorder)),
-      ),
+      color: AppColors.kNavBg,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Логотип.
-          // Рукописный логотип (белый на прозрачном) перекрашен в цвет иконок неоморфных
-          // кнопок: srcIn кладёт цвет только на непрозрачные пиксели надписи. Лежит прямо
-          // на фоне сайдбара, без плашки и разделителя.
+          // Рукописный логотип (белый на прозрачном) перекрашен в приглушённый цвет текста:
+          // srcIn кладёт цвет только на непрозрачные пиксели надписи.
           Padding(
             padding: AppInsets.all24,
             child: Assets.images.logoAlpha.image(
@@ -80,59 +73,56 @@ class PortalSidebar extends StatelessWidget {
               semanticLabel: t.portal.brand,
             ),
           ),
-          // Меню.
           Expanded(
             child: SingleChildScrollView(
-              padding: AppInsets.menuList,
+              padding: AppInsets.navList,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: menuChildren,
               ),
             ),
           ),
-          // Карточка пользователя.
-          Container(
-            padding: AppInsets.all24,
-            decoration: const BoxDecoration(
-              border: Border(top: BorderSide(color: AppColors.kBorder)),
-            ),
-            child: NeumorphicPlate(
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: AppSizes.kAvatar / 2,
-                    backgroundColor: AppColors.kSecondary,
-                    child: Text(
-                      _initials,
-                      style: SemiboldTextStyles().semiboldInter16.copyWith(color: Colors.white),
+          const Divider(height: 1, thickness: 1, color: AppColors.kBorder),
+          Padding(
+            padding: AppInsets.all16,
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: AppSizes.kIcon16,
+                  backgroundColor: AppColors.kSecondary,
+                  child: Text(
+                    _initials,
+                    style: SemiboldTextStyles().semiboldInter12.copyWith(
+                      color: Colors.white,
                     ),
                   ),
-                  AppBoxes.kWidth12,
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          profile.fullName,
-                          overflow: TextOverflow.ellipsis,
-                          style: SemiboldTextStyles().semiboldInter14.copyWith(
-                            color: AppColors.kTextMain,
-                          ),
+                ),
+                AppBoxes.kWidth12,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        profile.fullName,
+                        overflow: TextOverflow.ellipsis,
+                        style: SemiboldTextStyles().semiboldInter13.copyWith(
+                          color: AppColors.kTextMain,
                         ),
-                        Text(
-                          // Должность (ADHOC-49); у сервера без должностей — роль.
-                          profile.position.isEmpty
-                              ? profile.role
-                              : profile.position,
-                          style: RegularTextStyles().regularInter12.copyWith(
-                            color: AppColors.kTextMuted,
-                          ),
+                      ),
+                      Text(
+                        // Должность (ADHOC-49); у сервера без должностей — роль.
+                        profile.position.isEmpty
+                            ? profile.role
+                            : profile.position,
+                        overflow: TextOverflow.ellipsis,
+                        style: RegularTextStyles().regularInter12.copyWith(
+                          color: AppColors.kTextMuted,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ],

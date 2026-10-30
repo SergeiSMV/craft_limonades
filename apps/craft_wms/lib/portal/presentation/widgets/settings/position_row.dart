@@ -8,9 +8,9 @@ import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/theme/semibold_text.dart';
 import '../../../data/users_repository.dart';
-import '../common/neumorphic_icon_button.dart';
-import 'access_common.dart';
 import 'rights_tree.dart';
+import '../ui/portal_badge.dart';
+import '../ui/portal_button.dart';
 
 /// Строка должности (ADHOC-50): название, разделы с правами по приложениям, сколько
 /// пользователей; изменить и удалить.
@@ -36,7 +36,7 @@ class PositionRow extends StatelessWidget {
       color: AppColors.kTextMuted,
     );
     return Padding(
-      padding: AppInsets.v8,
+      padding: AppInsets.cardRow,
       child: Row(
         children: [
           Expanded(
@@ -54,10 +54,9 @@ class PositionRow extends StatelessWidget {
                       ),
                     ),
                     if (p.isSystem)
-                      AccessMark(
-                        label: t.portal.positions.markSystem,
-                        bg: AppColors.kBadgeSuccessBg,
-                        fg: AppColors.kBadgeSuccessText,
+                      PortalBadge(
+                        t.portal.positions.markSystem,
+                        tone: PortalBadgeTone.success,
                       ),
                   ],
                 ),
@@ -77,7 +76,7 @@ class PositionRow extends StatelessWidget {
           ),
           if (!p.isSystem) ...[
             AppBoxes.kWidth8,
-            NeumorphicIconButton(
+            PortalIconButton(
               icon: Icons.edit_outlined,
               tooltip: t.portal.positions.edit,
               busy: busy,
@@ -85,8 +84,8 @@ class PositionRow extends StatelessWidget {
             ),
           ],
           if (p.canDelete) ...[
-            AppBoxes.kWidth12,
-            NeumorphicIconButton(
+            AppBoxes.kWidth4,
+            PortalIconButton(
               icon: Icons.delete_outline,
               tooltip: t.portal.positions.delete,
               busy: busy,

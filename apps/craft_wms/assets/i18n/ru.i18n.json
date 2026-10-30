@@ -144,7 +144,8 @@
     "brand": "Крафтовые лимонады",
     "common": {
       "cancel": "Отмена",
-      "choose": "Выбрать"
+      "choose": "Выбрать",
+      "close": "Закрыть"
     },
     "login": {
       "brand_title": "Умная логистика\nкаждой ячейки.",
@@ -164,12 +165,12 @@
       "menu": "меню"
     },
     "menu": {
-      "operations": "Операции",
       "warehouse": "Склад",
       "system": "Система"
     },
     "tabs": {
-      "nomenclature": "Номенклатура",
+      "nomenclature": "Номенклатура склада",
+      "stock": "Остатки склада",
       "receipt": "Приход",
       "picking": "Сборка",
       "stocktake": "Инвентаризация",
@@ -187,12 +188,60 @@
       "subtitle": "У вашей должности нет права входа в портал или ни одного раздела.",
       "logout": "Выйти"
     },
+    "goods": {
+      "description": "Все товары справочника - и те, которых нет на складе",
+      "search_hint": "Наименование или код",
+      "group": "Группа",
+      "supplier": "Поставщик",
+      "all": "Все",
+      "import": "Загрузить из 1С",
+      "col_name": "Наименование",
+      "col_code": "Код",
+      "col_group": "Группа",
+      "col_supplier": "Поставщик",
+      "col_uom": "Ед.",
+      "col_qty": "Остаток",
+      "qty_line": "Остаток: ${value}",
+      "code": "Код: ${value}",
+      "group_line": "Группа: ${value}",
+      "supplier_line": "Поставщик: ${value}",
+      "uom": "Единица: ${value}",
+      "cz": "ЧЗ",
+      "inactive": "Не активен",
+      "shown": "Показано ${shown} из ${total}",
+      "more": "Показать ещё",
+      "empty": "Ничего не найдено",
+      "error_code": "Сервер ответил ошибкой ${code}",
+      "card_props": "Реквизиты",
+      "card_full_name": "Полное наименование",
+      "card_code": "Код",
+      "card_uom": "Единица",
+      "card_group": "Группа",
+      "card_supplier": "Поставщик",
+      "card_barcodes": "Штрихкоды (${count})",
+      "card_barcodes_title": "Штрихкоды",
+      "card_no_barcodes": "Штрихкодов нет",
+      "card_places": "Наличие по местам хранения",
+      "card_no_places": "Нет остатков",
+      "card_unknown_cell": "Ячейка не в справочнике",
+      "card_box": "Короб: ${code}",
+      "card_batch": "Партия: ${date}",
+      "card_total": "Итого на складе"
+    },
+    "stock": {
+      "description": "Товары, которые есть на складе, с количеством",
+      "warehouse": "Склад",
+      "refresh": "Обновить",
+      "as_of": "Остатки на ${time}",
+      "qty": "${qty} ${uom}"
+    },
     "nomenclature": {
       "title": "Загрузка номенклатуры",
-      "description": "Импорт справочника товаров из Excel-выгрузки 1С. Повторная загрузка обновляет позиции по «Коду» — дубли не создаются.",
+      "description": "Импорт справочника товаров из Excel-выгрузки 1С. Повторная загрузка обновляет позиции по «Коду» - дубли не создаются.",
       "upload_prompt": "Нажмите, чтобы выбрать файл",
       "upload_hint": "Поддерживаемый формат: XLS",
       "upload_badge": "Excel-выгрузка 1С",
+      "drop_hint": "XLS - выгрузка номенклатуры из 1С",
       "selected_file": "${name}",
       "upload": "Загрузить",
       "uploading": "Загрузка…",
@@ -257,7 +306,8 @@
       "no_supplier_doc": "накладная не указана",
       "operation": "${name} ${number}",
       "doc_date": "от ${date}",
-      "xlsx": ".xlsx"
+      "xlsx": ".xlsx",
+      "line": "${label}: ${value}"
     },
     "inventory": {
       "description": "Документы «ввод остатков» - результаты проходов склада с ТСД. Скачайте .xlsx, занесите в 1С и отметьте выполненным.",
@@ -336,7 +386,10 @@
       "search": "Поиск по номеру, поставщику или накладной…"
     },
     "settings": {
-      "description": "Справочники, которые ведёт офис."
+      "description": "Справочники, которые ведёт офис.",
+      "group_warehouses": "Склады",
+      "group_problems": "Проблемы склада",
+      "group_access": "Доступ"
     },
     "warehouses": {
       "title": "Внутренние склады",
@@ -1297,8 +1350,11 @@
   "rights": {
     "portal": "Портал",
     "tsd": "ТСД",
-    "nomenclature": "Номенклатура",
+    "nomenclature": "Номенклатура склада",
+    "nomenclature_view": "Смотреть товары и карточки",
     "nomenclature_import": "Загружать номенклатуру из 1С",
+    "stock": "Остатки склада",
+    "stock_view": "Смотреть остатки",
     "receipt": "Приход",
     "movement": "Перемещение",
     "doc_view": "Смотреть документы и историю",

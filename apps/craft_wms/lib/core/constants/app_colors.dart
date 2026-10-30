@@ -63,6 +63,23 @@ abstract final class AppColors {
     0xFFEF4444,
   ); // ошибки, деструктивные действия
 
+  //* --- Портал: плоский стиль по Shopify Polaris (ADHOC-56) -------------- *//
+  // Светлые плоские поверхности, тонкие рамки, без объёмных теней. Фон области — kBg,
+  // карточки — kCardBg, рамки — kBorder.
+  static const Color kNavBg = Color(0xFFE8EDF3); // боковая панель
+  static const Color kNavHover = Color(0xFFDDE3EA); // пункт меню при наведении
+  static const Color kDivider = Color(0xFFEEF2F6); // разделитель строк в карточке
+  static const Color kInputBorder = Color(0xFFCBD5E1); // рамка поля ввода
+  static const Color kButtonPrimary = Color(0xFF1E293B); // главная кнопка
+  static const Color kButtonPrimaryHover = Color(0xFF0F172A);
+  static const Color kFocus = Color(0xFF2563EB); // рамка поля в фокусе
+  static const Color kCardShadow = Color(0x140F172A); // нижняя тень карточки
+  static const Color kPopoverBg = Color(0xFFF8FAFC); // выпадающее меню — чуть темнее карточки
+  static const Color kBadgeNeutralBg = Color(0xFFE2E8F0);
+  static const Color kBadgeNeutralText = Color(0xFF334155);
+  static const Color kBadgeCriticalBg = Color(0xFFFEE2E2);
+  static const Color kBadgeCriticalText = Color(0xFF991B1B);
+
   //* --- ТСД: плитки главного меню (по макету) ---------------------------- *//
   // Цветовое кодирование операций на устройстве: крупные плитки, белый текст/иконка.
   static const Color kTileReceipt = Color(0xFF7964A2); // ПРИХОД — сиреневый

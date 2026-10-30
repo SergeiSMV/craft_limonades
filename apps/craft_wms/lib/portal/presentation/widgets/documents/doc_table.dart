@@ -7,15 +7,15 @@ import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/theme/semibold_text.dart';
 import '../../../data/documents_repository.dart';
-import '../common/neumorphic_plate.dart';
+import '../ui/portal_card.dart';
 import 'doc_card.dart';
 import 'doc_filter.dart';
 import 'doc_form.dart';
 import 'doc_row_actions.dart';
 import 'doc_status_chip.dart';
 
-/// Таблица документов на выпуклой плашке (ADHOC-26): «Документ», контрагент (если он есть
-/// у формы), время операции, статус в 1С, действия.
+/// Таблица документов в карточке (ADHOC-26, плоский стиль — ADHOC-56): «Документ», контрагент
+/// (если он есть у формы), время операции, статус в 1С, действия.
 ///
 /// Каждое поле — в своей колонке: документы сравниваются взглядом сверху вниз. Склада нет —
 /// на пилоте он один.
@@ -23,7 +23,7 @@ import 'doc_status_chip.dart';
 /// Действия за край не уходят никогда: при нехватке места ужимаются «Документ» и контрагент
 /// (до своего минимума), а уже [AppSizes.kDocTableFullActionsWidth] кнопки «.xlsx» и «Провести»
 /// становятся иконками с подсказкой. Уже [AppSizes.kDocTableMinWidth] (телефон) вместо
-/// таблицы — карточки [DocCard].
+/// таблицы — строки [DocCard] в той же карточке.
 class DocTable extends StatelessWidget {
   const DocTable({
     super.key,
@@ -56,7 +56,7 @@ class DocTable extends StatelessWidget {
       builder: (context, constraints) {
         final width = constraints.maxWidth;
         if (width < AppSizes.kDocTableMinWidth) {
-          if (docs.isEmpty) return _notFound();
+          if (docs.isEmpty) return PortalCard(children: [_notFound()]);
           return DocCardList(
             form: form,
             docs: docs,
@@ -67,21 +67,24 @@ class DocTable extends StatelessWidget {
             onHistory: onHistory,
           );
         }
-        return NeumorphicPlate(
-          padding: AppInsets.tablePlate,
-          child: _table(width < AppSizes.kDocTableFullActionsWidth),
+        return PortalCard(
+          children: [
+            Padding(
+              padding: AppInsets.h8,
+              child: _table(width < AppSizes.kDocTableFullActionsWidth),
+            ),
+          ],
         );
       },
     );
   }
 
   /// «Ничего не найдено» — поиск и фильтр отсекли всё.
-  Widget _notFound() => Padding(
-    padding: AppInsets.all24,
+  Widget _notFound([EdgeInsets padding = AppInsets.cardRow]) => Padding(
+    padding: padding,
     child: Text(
       t.portal.documents.notFound,
-      textAlign: TextAlign.center,
-      style: RegularTextStyles().regularInter14.copyWith(
+      style: RegularTextStyles().regularInter13.copyWith(
         color: AppColors.kTextMuted,
       ),
     ),
@@ -119,26 +122,26 @@ class DocTable extends StatelessWidget {
               _row(docs[i], last: i == docs.length - 1, compact: compact),
           ],
         ),
-        if (docs.isEmpty) _notFound(),
+        // Под шапкой, по краю колонок: у таблицы уже есть поля h8.
+        if (docs.isEmpty) _notFound(AppInsets.tableCell),
       ],
     );
   }
 
-  /// Шапка таблицы: мелкие подписи капсом, линия под ней.
+  /// Шапка таблицы: мелкие приглушённые подписи, как у списка товаров, линия под ней.
   TableRow _header(bool hasParty) {
     Widget th(String text) => Padding(
-      padding: AppInsets.tableCell,
+      padding: AppInsets.tableHeadCell,
       child: Text(
-        text.toUpperCase(),
+        text,
         style: SemiboldTextStyles().semiboldInter12.copyWith(
           color: AppColors.kTextMuted,
-          letterSpacing: AppSizes.kSectionLetterSpacing,
         ),
       ),
     );
     return TableRow(
       decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.kBorder)),
+        border: Border(bottom: BorderSide(color: AppColors.kDivider)),
       ),
       children: [
         th(t.portal.documents.colDoc),
@@ -157,7 +160,7 @@ class DocTable extends StatelessWidget {
       decoration: last
           ? null
           : const BoxDecoration(
-              border: Border(bottom: BorderSide(color: AppColors.kBorder)),
+              border: Border(bottom: BorderSide(color: AppColors.kDivider)),
             ),
       children: [
         _cell(form.document(doc), posted),
@@ -191,10 +194,10 @@ class DocTable extends StatelessWidget {
     // Цифры одинаковой ширины: даты и время в колонке стоят ровно друг под другом.
     final figures = numeric ? const [FontFeature.tabularFigures()] : null;
     final main = posted || numeric
-        ? RegularTextStyles().regularInter12.copyWith(
+        ? RegularTextStyles().regularInter13.copyWith(
             color: AppColors.kTextSecondary,
           )
-        : SemiboldTextStyles().semiboldInter12.copyWith(
+        : SemiboldTextStyles().semiboldInter13.copyWith(
             color: AppColors.kTextMain,
           );
     return Padding(

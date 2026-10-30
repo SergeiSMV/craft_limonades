@@ -9,8 +9,8 @@ import '../../../../core/problems/problem_reasons.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/theme/semibold_text.dart';
 import '../../../data/problems_repository.dart';
-import '../common/neumorphic_icon_button.dart';
-import 'access_common.dart';
+import '../ui/portal_badge.dart';
+import '../ui/portal_button.dart';
 
 /// Строки справочника причин проблем и вариантов решения (ADHOC-55).
 
@@ -52,7 +52,7 @@ class ProblemReasonRow extends StatelessWidget {
       color: AppColors.kTextMuted,
     );
     return Padding(
-      padding: AppInsets.v8,
+      padding: AppInsets.cardRow,
       child: Row(
         children: [
           Expanded(
@@ -72,29 +72,17 @@ class ProblemReasonRow extends StatelessWidget {
                             : AppColors.kTextMuted,
                       ),
                     ),
-                    if (r.isSystem)
-                      AccessMark(
-                        label: tr.markSystem,
-                        bg: AppColors.kBorder,
-                        fg: AppColors.kTextMuted,
-                      ),
-                    if (!r.manual)
-                      AccessMark(
-                        label: tr.markProgram,
-                        bg: AppColors.kBorder,
-                        fg: AppColors.kTextMuted,
-                      ),
+                    if (r.isSystem) PortalBadge(tr.markSystem),
+                    if (!r.manual) PortalBadge(tr.markProgram),
                     if (r.commentRequired)
-                      AccessMark(
-                        label: tr.markComment,
-                        bg: AppColors.kBadgeSuccessBg,
-                        fg: AppColors.kBadgeSuccessText,
+                      PortalBadge(
+                        tr.markComment,
+                        tone: PortalBadgeTone.success,
                       ),
                     if (!r.isActive)
-                      AccessMark(
-                        label: tr.markInactive,
-                        bg: AppColors.kBadgeWarningBg,
-                        fg: AppColors.kBadgeWarningText,
+                      PortalBadge(
+                        tr.markInactive,
+                        tone: PortalBadgeTone.warning,
                       ),
                   ],
                 ),
@@ -109,15 +97,15 @@ class ProblemReasonRow extends StatelessWidget {
             ),
           ),
           AppBoxes.kWidth8,
-          NeumorphicIconButton(
+          PortalIconButton(
             icon: Icons.edit_outlined,
             tooltip: tr.edit,
             busy: busy,
             onPressed: onEdit,
           ),
           if (!r.isSystem) ...[
-            AppBoxes.kWidth12,
-            NeumorphicIconButton(
+            AppBoxes.kWidth4,
+            PortalIconButton(
               icon: r.isActive
                   ? Icons.visibility_off_outlined
                   : Icons.visibility_outlined,
@@ -152,7 +140,7 @@ class ResolutionVariantRow extends StatelessWidget {
     final v = variant;
     final tr = t.portal.problemReasons;
     return Padding(
-      padding: AppInsets.v8,
+      padding: AppInsets.cardRow,
       child: Row(
         children: [
           Expanded(
@@ -172,10 +160,9 @@ class ResolutionVariantRow extends StatelessWidget {
                       ),
                     ),
                     if (!v.isActive)
-                      AccessMark(
-                        label: tr.markVariantInactive,
-                        bg: AppColors.kBadgeWarningBg,
-                        fg: AppColors.kBadgeWarningText,
+                      PortalBadge(
+                        tr.markVariantInactive,
+                        tone: PortalBadgeTone.warning,
                       ),
                   ],
                 ),
@@ -190,14 +177,14 @@ class ResolutionVariantRow extends StatelessWidget {
             ),
           ),
           AppBoxes.kWidth8,
-          NeumorphicIconButton(
+          PortalIconButton(
             icon: Icons.edit_outlined,
             tooltip: tr.edit,
             busy: busy,
             onPressed: onEdit,
           ),
-          AppBoxes.kWidth12,
-          NeumorphicIconButton(
+          AppBoxes.kWidth4,
+          PortalIconButton(
             icon: v.isActive
                 ? Icons.visibility_off_outlined
                 : Icons.visibility_outlined,

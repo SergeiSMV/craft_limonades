@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/constants/app_borders.dart';
 import '../../../../core/constants/app_boxes.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_insets.dart';
@@ -9,7 +8,8 @@ import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/theme/semibold_text.dart';
 import '../../../data/internal_warehouses_repository.dart';
-import '../common/neumorphic_icon_button.dart';
+import '../ui/portal_badge.dart';
+import '../ui/portal_button.dart';
 
 /// Строка склада: имя и код, отметки («По умолчанию», «Скрыт», «Есть остаток») и действия —
 /// переименовать, скрыть или вернуть, удалить. Чего со складом сделать нельзя, того и нет.
@@ -35,7 +35,7 @@ class WarehouseRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final w = warehouse;
     return Padding(
-      padding: AppInsets.v8,
+      padding: AppInsets.cardRow,
       child: Row(
         children: [
           Expanded(
@@ -63,44 +63,33 @@ class WarehouseRow extends StatelessWidget {
                       ),
                     ),
                     if (w.isDefault)
-                      _Mark(
-                        label: t.portal.warehouses.markDefault,
-                        bg: AppColors.kBadgeSuccessBg,
-                        fg: AppColors.kBadgeSuccessText,
+                      PortalBadge(
+                        t.portal.warehouses.markDefault,
+                        tone: PortalBadgeTone.success,
                       ),
-                    if (w.isSystem)
-                      _Mark(
-                        label: t.portal.warehouses.markSystem,
-                        bg: AppColors.kBorder,
-                        fg: AppColors.kTextMuted,
-                      ),
+                    if (w.isSystem) PortalBadge(t.portal.warehouses.markSystem),
                     if (!w.isActive)
-                      _Mark(
-                        label: t.portal.warehouses.markHidden,
-                        bg: AppColors.kBadgeWarningBg,
-                        fg: AppColors.kBadgeWarningText,
+                      PortalBadge(
+                        t.portal.warehouses.markHidden,
+                        tone: PortalBadgeTone.warning,
                       ),
                     if (w.inUse && !w.isDefault && !w.isSystem)
-                      _Mark(
-                        label: t.portal.warehouses.markInUse,
-                        bg: AppColors.kBorder,
-                        fg: AppColors.kTextMuted,
-                      ),
+                      PortalBadge(t.portal.warehouses.markInUse),
                   ],
                 ),
               ],
             ),
           ),
           AppBoxes.kWidth8,
-          NeumorphicIconButton(
+          PortalIconButton(
             icon: Icons.edit_outlined,
             tooltip: t.portal.warehouses.rename,
             busy: busy,
             onPressed: onRename,
           ),
           if (w.canToggle) ...[
-            AppBoxes.kWidth12,
-            NeumorphicIconButton(
+            AppBoxes.kWidth4,
+            PortalIconButton(
               icon: w.isActive
                   ? Icons.visibility_off_outlined
                   : Icons.visibility_outlined,
@@ -112,8 +101,8 @@ class WarehouseRow extends StatelessWidget {
             ),
           ],
           if (w.canDelete) ...[
-            AppBoxes.kWidth12,
-            NeumorphicIconButton(
+            AppBoxes.kWidth4,
+            PortalIconButton(
               icon: Icons.delete_outline,
               tooltip: t.portal.warehouses.delete,
               busy: busy,
@@ -124,23 +113,4 @@ class WarehouseRow extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Отметка склада — пилюля, как статус документа.
-class _Mark extends StatelessWidget {
-  const _Mark({required this.label, required this.bg, required this.fg});
-
-  final String label;
-  final Color bg;
-  final Color fg;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: AppInsets.badge,
-    decoration: BoxDecoration(color: bg, borderRadius: AppBorders.kPill),
-    child: Text(
-      label,
-      style: SemiboldTextStyles().semiboldInter12.copyWith(color: fg),
-    ),
-  );
 }

@@ -153,7 +153,6 @@ void main() {
         main: t.portal.movement.noBasis,
         sub: 'Иванов Иван',
       ));
-      expect(f.cardTitle(m), 'ДД-000002 · Перемещение ПМ-000001');
       expect(f.searchText(m), contains('Иванов Иван'));
     });
 

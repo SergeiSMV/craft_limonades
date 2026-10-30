@@ -396,15 +396,18 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 			contentsH := NewContentsHandler(svc.Contents)
 			r.Group(func(r chi.Router) {
 				r.Use(appmw.Authenticator(tokens))
-				r.Use(need(model.RightsTSD))
-				r.With(chimw.Compress(5, "application/json")).
+				// Снимок — ещё и странице портала «Остатки склада» (ADHOC-56).
+				r.With(need(model.RightsTSD, model.RightStockView), chimw.Compress(5, "application/json")).
 					Get("/contents/snapshot", contentsH.Snapshot) // кэш ТСД: короба и россыпь
-				r.Get("/cells/{id}/contents", contentsH.CellContents)  // что лежит в ячейке
-				r.Get("/load-units/{id}/card", contentsH.LoadUnitCard) // что за короб и где
-				// P5-05-1: поиск по короткому коду с ярлыка и история — для перепечатки ярлыка.
-				r.Get("/load-units", contentsH.SearchLoadUnits)              // ?code=… — все короба
-				r.Get("/load-units/{id}/history", contentsH.LoadUnitHistory) // приёмка и переносы
-				r.Get("/load-units/cz/{code}", contentsH.LoadUnitByCZCode)   // короб ЧЗ по SSCC
+				r.Group(func(r chi.Router) {
+					r.Use(need(model.RightsTSD))
+					r.Get("/cells/{id}/contents", contentsH.CellContents)  // что лежит в ячейке
+					r.Get("/load-units/{id}/card", contentsH.LoadUnitCard) // что за короб и где
+					// P5-05-1: поиск по короткому коду с ярлыка и история — для перепечатки ярлыка.
+					r.Get("/load-units", contentsH.SearchLoadUnits)              // ?code=… — все короба
+					r.Get("/load-units/{id}/history", contentsH.LoadUnitHistory) // приёмка и переносы
+					r.Get("/load-units/cz/{code}", contentsH.LoadUnitByCZCode)   // короб ЧЗ по SSCC
+				})
 			})
 		}
 
