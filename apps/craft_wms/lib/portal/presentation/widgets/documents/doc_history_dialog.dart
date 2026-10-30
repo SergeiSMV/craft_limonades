@@ -2,39 +2,33 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_insets.dart';
-import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../data/documents_repository.dart';
-import '../common/neumorphic_text_button.dart';
-import '../common/portal_dialog.dart';
+import '../ui/portal_button.dart';
+import '../ui/portal_modal.dart';
 
-/// История документа (P3-03, вид — ADHOC-25): кто и когда его сформировал, скачал, отметил
-/// выполненным.
+/// История документа (P3-03, плоский стиль — ADHOC-56): кто и когда его сформировал, скачал,
+/// отметил выполненным.
 Future<void> showDocHistoryDialog(BuildContext context, List<DocEvent> events) {
   return showDialog<void>(
     context: context,
-    builder: (ctx) => PortalDialog(
+    builder: (ctx) => PortalModal(
       title: t.portal.documents.historyTitle,
-      // Не шире половины колонки и не шире экрана: на телефоне диалог сжимается по нему.
-      content: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: AppSizes.kContentMaxWidth / 2),
-        child: SizedBox(
-          width: double.maxFinite,
-          child: events.isEmpty
-            ? Text(
-                t.portal.documents.historyEmpty,
-                style: RegularTextStyles().regularInter14.copyWith(color: AppColors.kTextMuted),
-              )
-            : Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [for (final e in events) _HistoryRow(event: e)],
+      content: events.isEmpty
+          ? Text(
+              t.portal.documents.historyEmpty,
+              style: RegularTextStyles().regularInter13.copyWith(
+                color: AppColors.kTextMuted,
               ),
-        ),
-      ),
+            )
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [for (final e in events) _HistoryRow(event: e)],
+            ),
       actions: [
-        NeumorphicTextButton(
+        PortalButton(
           label: t.portal.documents.close,
           onPressed: () => Navigator.of(ctx).pop(),
         ),
@@ -52,12 +46,12 @@ class _HistoryRow extends StatelessWidget {
   /// Человекочитаемое название события. Незнакомое показываем как есть — лучше сырой код,
   /// чем пустая строка: журнал читают, когда разбираются в расхождении.
   String get _label => switch (event.event) {
-        'created' => t.portal.documents.eventCreated,
-        'downloaded' => t.portal.documents.eventDownloaded,
-        'done' => t.portal.documents.eventDone,
-        'generation_failed' => t.portal.documents.eventGenerationFailed,
-        _ => event.event,
-      };
+    'created' => t.portal.documents.eventCreated,
+    'downloaded' => t.portal.documents.eventDownloaded,
+    'done' => t.portal.documents.eventDone,
+    'generation_failed' => t.portal.documents.eventGenerationFailed,
+    _ => event.event,
+  };
 
   /// Формат отметки времени: `дд.мм.гггг чч:мм` в локальной зоне.
   String _at(DateTime dt) {
@@ -76,19 +70,25 @@ class _HistoryRow extends StatelessWidget {
         children: [
           Text(
             '${_at(event.createdAt)} · $_label',
-            style: RegularTextStyles().regularInter14.copyWith(
+            style: RegularTextStyles().regularInter13.copyWith(
               color: failed ? AppColors.kDanger : AppColors.kTextMain,
             ),
           ),
           Text(
             // Автор мог не сохраниться: события до появления журнала и системные записи.
-            event.userName.isEmpty ? t.portal.documents.eventSystem : event.userName,
-            style: RegularTextStyles().regularInter12.copyWith(color: AppColors.kTextMuted),
+            event.userName.isEmpty
+                ? t.portal.documents.eventSystem
+                : event.userName,
+            style: RegularTextStyles().regularInter12.copyWith(
+              color: AppColors.kTextMuted,
+            ),
           ),
           if (failed && event.details.isNotEmpty)
             Text(
               event.details,
-              style: RegularTextStyles().regularInter12.copyWith(color: AppColors.kDanger),
+              style: RegularTextStyles().regularInter12.copyWith(
+                color: AppColors.kDanger,
+              ),
             ),
         ],
       ),

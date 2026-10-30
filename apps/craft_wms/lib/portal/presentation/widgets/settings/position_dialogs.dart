@@ -6,11 +6,10 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
-import '../common/neumorphic_text_button.dart';
-import '../common/portal_dialog.dart';
-import '../common/portal_text_field.dart';
-import 'access_common.dart';
 import 'rights_tree.dart';
+import '../ui/portal_modal.dart';
+import '../ui/portal_input.dart';
+import '../ui/portal_button.dart';
 
 /// Название и права должности; `null` — оператор передумал.
 typedef PositionDraft = ({String name, List<String> rights});
@@ -65,7 +64,7 @@ class _PositionDialogState extends State<_PositionDialog> {
   @override
   Widget build(BuildContext context) {
     final editing = widget.current != null;
-    return PortalDialog(
+    return PortalModal(
       title: editing
           ? t.portal.positions.editTitle
           : t.portal.positions.createTitle,
@@ -79,28 +78,24 @@ class _PositionDialogState extends State<_PositionDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              PortalTextField(
+              PortalInput(
                 controller: _name,
                 hint: t.portal.positions.nameHint,
                 autofocus: !editing,
               ),
               AppBoxes.kHeight16,
-              AccessFieldLabel(t.portal.positions.rightsLabel),
-              // Дерево длинное — прокручивается внутри диалога, название и кнопки на месте.
-              Flexible(
-                child: SingleChildScrollView(
-                  child: RightsTree(selected: _rights, onChanged: onRights),
-                ),
-              ),
+              PortalFieldLabel(t.portal.positions.rightsLabel),
+              // Дерево длинное — прокручивается в окне, шапка и кнопки диалога на месте.
+              RightsTree(selected: _rights, onChanged: onRights),
             ],
           ),
         ),
       ),
       actions: [
-        accessCancel(context, label: t.portal.positions.cancel),
-        NeumorphicTextButton(
+        portalCancel(context, label: t.portal.positions.cancel),
+        PortalButton(
           label: editing ? t.portal.positions.save : t.portal.positions.create,
-          accent: true,
+          kind: PortalButtonKind.primary,
           onPressed: submit,
         ),
       ],
@@ -115,7 +110,7 @@ Future<bool> showDeletePositionDialog(
 }) async {
   final ok = await showDialog<bool>(
     context: context,
-    builder: (ctx) => PortalDialog(
+    builder: (ctx) => PortalModal(
       title: t.portal.positions.deleteTitle,
       content: Text(
         t.portal.positions.deleteBody(name: name),
@@ -124,10 +119,10 @@ Future<bool> showDeletePositionDialog(
         ),
       ),
       actions: [
-        accessCancel(ctx, label: t.portal.positions.cancel, result: false),
-        NeumorphicTextButton(
+        portalCancel(ctx, label: t.portal.positions.cancel, result: false),
+        PortalButton(
           label: t.portal.positions.delete,
-          accent: true,
+          kind: PortalButtonKind.primary,
           onPressed: () => Navigator.of(ctx).pop(true),
         ),
       ],

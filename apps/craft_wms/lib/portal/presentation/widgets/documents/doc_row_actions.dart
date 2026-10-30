@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_boxes.dart';
+import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/gen/strings.g.dart';
-import '../common/neumorphic_icon_button.dart';
-import '../common/neumorphic_text_button.dart';
+import '../ui/portal_button.dart';
 
-/// Действия строки таблицы документов (ADHOC-26): история, скачать .xlsx, провести —
-/// у проведённого кнопки «Провести» нет. [compact] — скачивание и проведение иконками
-/// с подсказкой вместо подписей: так ряд помещается на ширине ноутбука.
+/// Действия строки таблицы документов (ADHOC-26, плоский стиль — ADHOC-56): история, скачать
+/// .xlsx, провести — у проведённого кнопки «Провести» нет. [compact] — скачивание и
+/// проведение иконками с подсказкой вместо подписей: так ряд помещается на ширине ноутбука;
+/// на телефоне — тоже иконками.
 class DocRowActions extends StatelessWidget {
   const DocRowActions({
     super.key,
@@ -40,20 +41,20 @@ class DocRowActions extends StatelessWidget {
     final post = onPost;
     final buttons = <Widget>[
       if (history != null)
-        NeumorphicIconButton(
+        PortalIconButton(
           icon: Icons.schedule,
           tooltip: t.portal.documents.historyTitle,
           onPressed: history,
         ),
       if (download != null)
         compact
-            ? NeumorphicIconButton(
+            ? PortalIconButton(
                 icon: Icons.download,
                 tooltip: t.portal.documents.download,
                 busy: downloading,
                 onPressed: download,
               )
-            : NeumorphicTextButton(
+            : PortalButton(
                 label: t.portal.documents.xlsx,
                 icon: Icons.download,
                 busy: downloading,
@@ -61,23 +62,27 @@ class DocRowActions extends StatelessWidget {
               ),
       if (!posted && post != null)
         compact
-            ? NeumorphicIconButton(
+            ? PortalIconButton(
                 icon: Icons.check,
                 tooltip: t.portal.documents.post,
                 busy: posting,
                 onPressed: post,
               )
-            : NeumorphicTextButton(
+            : PortalButton(
                 label: t.portal.documents.post,
                 busy: posting,
                 onPressed: post,
               ),
+      // Иконками у проведённого — пустое место вместо «Провести»: в узком списке действия
+      // прижаты вправо, и «История» со «Скачать» иначе съезжали бы в строках проведённых.
+      if (posted && post != null && compact)
+        const SizedBox.square(dimension: AppSizes.kControlHeight),
     ];
     return Row(
-      mainAxisAlignment: MainAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
         for (var i = 0; i < buttons.length; i++) ...[
-          if (i > 0) AppBoxes.kWidth12,
+          if (i > 0) AppBoxes.kWidth8,
           buttons[i],
         ],
       ],

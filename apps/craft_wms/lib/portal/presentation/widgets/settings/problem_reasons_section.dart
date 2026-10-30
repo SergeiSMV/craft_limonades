@@ -7,11 +7,11 @@ import '../../../../core/error/failure.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/problems/problem_reasons.dart';
 import '../../../data/problem_reasons_repository.dart';
-import '../common/neumorphic_plate.dart';
-import '../common/neumorphic_text_button.dart';
 import 'access_common.dart';
 import 'problem_reason_dialogs.dart';
 import 'problem_reason_rows.dart';
+import '../ui/portal_annotated_section.dart';
+import '../ui/portal_button.dart';
 
 /// Разделы «Причины проблем» и «Варианты решения» в настройках портала (ADHOC-55).
 ///
@@ -162,64 +162,50 @@ class _ProblemReasonsSectionState extends State<ProblemReasonsSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        NeumorphicPlate(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              AccessSectionHeader(
-                title: tr.title,
-                description: tr.description,
-                action: NeumorphicTextButton(
-                  label: tr.add,
-                  icon: Icons.add,
-                  accent: true,
-                  busy: _busy == 'reason:',
-                  onPressed: createReason,
+        PortalAnnotatedSection(
+          title: tr.title,
+          description: tr.description,
+          action: PortalButton(
+            label: tr.add,
+            icon: Icons.add,
+            busy: _busy == 'reason:',
+            onPressed: createReason,
+          ),
+          child: SettingsListCard(
+            loading: loading,
+            error: _error,
+            rows: [
+              for (final r in dir?.reasons ?? const <ProblemReason>[])
+                ProblemReasonRow(
+                  reason: r,
+                  variantNames: [for (final id in r.resolutions) ?names[id]],
+                  busy: _busy == 'reason:${r.code}',
+                  onEdit: () => editReason(r),
+                  onToggle: () => toggleReason(r),
                 ),
-              ),
-              AppBoxes.kHeight16,
-              if (loading)
-                const Center(child: CircularProgressIndicator())
-              else
-                for (final r in dir?.reasons ?? const <ProblemReason>[])
-                  ProblemReasonRow(
-                    reason: r,
-                    variantNames: [for (final id in r.resolutions) ?names[id]],
-                    busy: _busy == 'reason:${r.code}',
-                    onEdit: () => editReason(r),
-                    onToggle: () => toggleReason(r),
-                  ),
-              if (_error != null) ...[AppBoxes.kHeight16, AccessError(_error!)],
             ],
           ),
         ),
-        AppBoxes.kHeight24,
-        NeumorphicPlate(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              AccessSectionHeader(
-                title: tr.variantsTitle,
-                description: tr.variantsDescription,
-                action: NeumorphicTextButton(
-                  label: tr.variantAdd,
-                  icon: Icons.add,
-                  accent: true,
-                  busy: _busy == 'variant:',
-                  onPressed: createVariant,
+        AppBoxes.kHeight32,
+        PortalAnnotatedSection(
+          title: tr.variantsTitle,
+          description: tr.variantsDescription,
+          action: PortalButton(
+            label: tr.variantAdd,
+            icon: Icons.add,
+            busy: _busy == 'variant:',
+            onPressed: createVariant,
+          ),
+          child: SettingsListCard(
+            loading: loading,
+            rows: [
+              for (final v in dir?.resolutions ?? const <ResolutionVariant>[])
+                ResolutionVariantRow(
+                  variant: v,
+                  busy: _busy == 'variant:${v.id}',
+                  onEdit: () => editVariant(v),
+                  onToggle: () => toggleVariant(v),
                 ),
-              ),
-              AppBoxes.kHeight16,
-              if (loading)
-                const Center(child: CircularProgressIndicator())
-              else
-                for (final v in dir?.resolutions ?? const <ResolutionVariant>[])
-                  ResolutionVariantRow(
-                    variant: v,
-                    busy: _busy == 'variant:${v.id}',
-                    onEdit: () => editVariant(v),
-                    onToggle: () => toggleVariant(v),
-                  ),
             ],
           ),
         ),

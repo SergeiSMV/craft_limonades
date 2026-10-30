@@ -4,8 +4,8 @@ import '../../../../core/constants/app_boxes.dart';
 import '../../../../core/constants/app_insets.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/gen/strings.g.dart';
-import '../common/portal_filter_chip.dart';
 import '../stocktake/stocktakes_view.dart';
+import '../ui/portal_choice.dart';
 import 'documents_tab.dart';
 
 /// Вкладка «Инвентаризация» (P10-05): пересчёты склада, их документы «Инвентаризация» для 1С
@@ -61,51 +61,73 @@ class _InventoryTabState extends State<InventoryTab> {
 
   @override
   Widget build(BuildContext context) {
-    final compact =
-        MediaQuery.sizeOf(context).width < AppSizes.kPortalCompactContentWidth;
-    final pad = compact ? AppInsets.all16 : AppInsets.all32;
     final views = _views;
     final view = views[_view.clamp(0, views.length - 1)];
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    // Переключатель видов в плоском стиле (ADHOC-56). У документов он закреплён над их панелью
+    // поиска — в общей раскладке страницы-списка; у пересчётов — сверху, на тех же полях.
+    final switcher = Wrap(
+      spacing: AppSizes.kChipSpacing,
+      runSpacing: AppSizes.kChipSpacing,
       children: [
-        Padding(
-          padding: pad.copyWith(bottom: 0),
-          child: Wrap(
-            spacing: AppSizes.kChipSpacing,
-            runSpacing: AppSizes.kChipSpacing,
-            children: [
-              for (var i = 0; i < views.length; i++)
-                PortalFilterChip(
-                  label: _label(views[i]),
-                  selected: views[i] == view,
-                  onTap: () => _select(i),
-                ),
-            ],
+        for (var i = 0; i < views.length; i++)
+          PortalChoice(
+            label: _label(views[i]),
+            selected: views[i] == view,
+            onTap: () => _select(i),
           ),
-        ),
-        AppBoxes.kHeight16,
-        Expanded(
-          child: switch (view) {
-            _View.stocktakes => StocktakesView(
-              padding: pad,
-              canManage: widget.canManage,
-            ),
-            _View.documents => DocumentsTab(
-              key: const ValueKey('stocktake'),
-              kind: 'stocktake',
-              empty: t.portal.inventory.empty,
-              rights: widget.stocktakeDocs!,
-            ),
-            _View.stockEntry => DocumentsTab(
-              key: const ValueKey('stock_entry'),
-              kind: 'stock_entry',
-              empty: t.portal.inventory.empty,
-              rights: widget.stockEntryDocs!,
-            ),
-          },
-        ),
       ],
     );
+    return switch (view) {
+      _View.stocktakes => _stocktakes(switcher),
+      _View.documents => DocumentsTab(
+        key: const ValueKey('stocktake'),
+        kind: 'stocktake',
+        empty: t.portal.inventory.empty,
+        rights: widget.stocktakeDocs!,
+        header: switcher,
+      ),
+      _View.stockEntry => DocumentsTab(
+        key: const ValueKey('stock_entry'),
+        kind: 'stock_entry',
+        empty: t.portal.inventory.empty,
+        rights: widget.stockEntryDocs!,
+        header: switcher,
+      ),
+    };
   }
+
+  /// Вид «Пересчёты»: переключатель на полях страницы-списка, под ним — пересчёты
+  /// (до своего шага ADHOC-56 — в прежнем виде).
+  Widget _stocktakes(Widget switcher) => LayoutBuilder(
+    builder: (context, constraints) {
+      final narrow = constraints.maxWidth < AppSizes.kPortalCompactWidth;
+      final page = narrow ? AppInsets.pageCompact : AppInsets.page;
+      final compact =
+          MediaQuery.sizeOf(context).width <
+          AppSizes.kPortalCompactContentWidth;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: page.copyWith(bottom: 0),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: AppSizes.kPortalListMaxWidth,
+                ),
+                child: SizedBox(width: double.infinity, child: switcher),
+              ),
+            ),
+          ),
+          AppBoxes.kHeight16,
+          Expanded(
+            child: StocktakesView(
+              padding: compact ? AppInsets.all16 : AppInsets.all32,
+              canManage: widget.canManage,
+            ),
+          ),
+        ],
+      );
+    },
+  );
 }

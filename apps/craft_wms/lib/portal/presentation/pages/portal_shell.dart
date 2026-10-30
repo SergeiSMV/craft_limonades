@@ -16,10 +16,11 @@ import '../widgets/tabs/inventory_tab.dart';
 import '../widgets/tabs/nomenclature_tab.dart';
 import '../widgets/tabs/problems_tab.dart';
 import '../widgets/tabs/settings_tab.dart';
+import '../widgets/tabs/stock_tab.dart';
 
 /// Оболочка портала после входа: сайдбар (меню по секциям + профиль), шапка с заголовком
-/// раздела и область вкладки. Светлая неоморфная (ADHOC-25); на узком экране меню уходит
-/// в выдвижную панель. Части — в `widgets/shell/`.
+/// раздела и область вкладки. Плоская, по Shopify Polaris (ADHOC-56); уже порога md
+/// ([AppSizes.kPortalCompactWidth]) меню уходит в выдвижную панель. Части — в `widgets/shell/`.
 class PortalShell extends StatefulWidget {
   const PortalShell({super.key, required this.profile});
 
@@ -74,18 +75,31 @@ class _PortalShellState extends State<PortalShell> {
       Rights.settingsUsers,
     ]);
     return [
+      // Всё, кроме настроек, — один раздел «Склад» (ADHOC-56).
       NavSection(
-        title: t.portal.menu.operations,
+        title: t.portal.menu.warehouse,
         items: [
-          /// Номенклатура
-          if (p.can(Rights.nomenclatureImport))
+          if (p.can(Rights.nomenclatureView, [Rights.nomenclatureImport]))
             NavItem(
               icon: Icons.inventory_2_outlined,
               label: t.portal.tabs.nomenclature,
-              body: const NomenclatureTab(),
+              // ADHOC-56: справочник товаров, загрузка из 1С — кнопкой на панели.
+              description: t.portal.goods.description,
+              body: NomenclatureTab(
+                canImport: p.can(Rights.nomenclatureImport),
+                canStock: p.can(Rights.stockView),
+              ),
             ),
 
           /// Приход
+          if (p.can(Rights.stockView))
+            NavItem(
+              icon: Icons.warehouse_outlined,
+              label: t.portal.tabs.stock,
+              // ADHOC-56: товары с остатком — из снимка склада, как «Остатки» на ТСД.
+              description: t.portal.stock.description,
+              body: const StockTab(),
+            ),
           if (receipt != null)
             NavItem(
               icon: Icons.local_shipping_outlined,
@@ -113,11 +127,6 @@ class _PortalShellState extends State<PortalShell> {
                 stockEntryDocs: stockEntryDocs,
               ),
             ),
-        ],
-      ),
-      NavSection(
-        title: t.portal.menu.warehouse,
-        items: [
           if (cellsLabels || cellsUpload)
             NavItem(
               icon: Icons.grid_view_outlined,
@@ -216,7 +225,7 @@ class _PortalShellState extends State<PortalShell> {
       drawer: compact
           ? Drawer(
               width: AppSizes.kSidebarWidth,
-              backgroundColor: AppColors.kBg,
+              backgroundColor: AppColors.kNavBg,
               shape: const RoundedRectangleBorder(),
               child: Builder(
                 builder: (drawerContext) => PortalSidebar(

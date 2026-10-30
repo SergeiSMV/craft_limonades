@@ -19,7 +19,7 @@ func TestUserAdminHTTP_positionRights(t *testing.T) {
 		t.Errorf("кладовщик смотрит должности: код %d, ожидался 403", code)
 	}
 	_, raw := e.call(t, http.MethodGet, "/api/v1/rights", e.adminToken, "")
-	if !strings.HasPrefix(string(raw), `{"rights":["portal.nomenclature.import","portal.receipt.view",`) ||
+	if !strings.HasPrefix(string(raw), `{"rights":["portal.nomenclature.view","portal.nomenclature.import","portal.stock.view",`) ||
 		strings.Count(string(raw), `"`)/2 != len(model.Rights)+1 {
 		t.Errorf("права: %s", raw)
 	}

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../../../core/constants/app_boxes.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_insets.dart';
-import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/gen/strings.g.dart';
@@ -16,6 +15,10 @@ import '../documents/doc_history_dialog.dart';
 import '../documents/doc_table.dart';
 import '../documents/doc_toolbar.dart';
 import '../documents/mark_done_dialog.dart';
+import '../settings/access_common.dart';
+import '../ui/portal_button.dart';
+import '../ui/portal_card.dart';
+import '../ui/portal_list_page.dart';
 
 /// Вкладка документов оператора (P-FS-09, статусы — P3-02, таблица — ADHOC-26): рабочий список
 /// документов одной формы. Оператор ищет документ, скачивает .xlsx, заносит в 1С и проводит;
@@ -31,6 +34,7 @@ class DocumentsTab extends StatefulWidget {
     required this.kind,
     required this.empty,
     this.rights = (view: true, download: true, post: true),
+    this.header,
   });
 
   /// Форма документов: `stock_entry` — ввод остатков, `receipt` — «Поступление»,
@@ -42,6 +46,9 @@ class DocumentsTab extends StatefulWidget {
 
   /// Действия с документами по правам должности (ADHOC-50): нет права — нет кнопки.
   final DocRights rights;
+
+  /// Над панелью поиска, закреплён вместе с ней: переключатель видов «Инвентаризации».
+  final Widget? header;
 
   @override
   State<DocumentsTab> createState() => _DocumentsTabState();
@@ -156,109 +163,76 @@ class _DocumentsTabState extends State<DocumentsTab> {
 
   @override
   Widget build(BuildContext context) {
-    // Плашка поиска и фильтров закреплена сверху, прокручивается только таблица под ней
-    // (ADHOC-26): поиск и фильтр нужны и в конце длинного списка. Колонка прижата влево.
-    // Заголовок раздела и пояснение — в шапке портала.
-    // На узкой области (телефон) поля по краям меньше — иначе на текст не хватает ширины.
-    final compact =
-        MediaQuery.sizeOf(context).width < AppSizes.kPortalCompactContentWidth;
-    final pad = compact ? AppInsets.all16 : AppInsets.all32;
-    final state = _state();
-    if (state != null) {
-      return SingleChildScrollView(padding: pad, child: _column(state));
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: pad.copyWith(bottom: 0),
-          child: _column(
-            DocToolbar(
-              hint: _form.searchHint,
-              onQuery: _onQuery,
-              filter: _filter,
-              counts: countByFilter(_docs),
-              onFilter: _onFilter,
-            ),
-          ),
-        ),
-        AppBoxes.kHeight8,
-        Expanded(
-          child: SingleChildScrollView(
-            padding: pad.copyWith(top: AppSizes.kDocListGap),
-            child: _column(
-              DocTable(
-                form: _form,
-                docs: applyFilter(
-                  _docs,
-                  filter: _filter,
-                  query: _query,
-                  searchText: _form.searchText,
-                ),
-                downloading: _downloading,
-                posting: _marking,
-                onDownload: widget.rights.download ? _download : null,
-                onPost: widget.rights.post ? _markDone : null,
-                onHistory: widget.rights.view ? _showHistory : null,
-              ),
-            ),
-          ),
-        ),
-      ],
+    // Панель поиска и фильтров закреплена сверху, прокручивается только таблица под ней
+    // (ADHOC-26): поиск и фильтр нужны и в конце длинного списка. Ширина и поля — как у
+    // остальных страниц-списков (ADHOC-56); заголовок раздела и пояснение — в шапке портала.
+    return PortalListPage(
+      header: widget.header,
+      toolbar: DocToolbar(
+        hint: _form.searchHint,
+        onQuery: _onQuery,
+        filter: _filter,
+        counts: countByFilter(_docs),
+        onFilter: _onFilter,
+      ),
+      body: _body(),
     );
   }
 
-  /// Колонка вкладки: прижата влево, во всю доступную ширину, но не шире таблицы.
-  ///
-  /// Ширина — точная, а не «не больше»: панель поиска и список лежат в разных блоках
-  /// (панель закреплена), и при свободной ширине панель сжималась бы по своему содержимому,
-  /// а таблица растягивалась бы на всю — края разошлись бы.
-  Widget _column(Widget child) => Align(
-    alignment: Alignment.topLeft,
-    child: ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: AppSizes.kDocTableMaxWidth),
-      child: SizedBox(width: double.infinity, child: child),
-    ),
-  );
-
-  /// Состояние вместо списка: загрузка / ошибка / пусто; `null` — есть документы.
-  Widget? _state() {
+  /// Список под панелью: таблица или вместо неё загрузка / ошибка / пусто.
+  Widget _body() {
     if (_loading) {
-      return const Padding(
-        padding: AppInsets.all32,
-        child: Center(child: CircularProgressIndicator()),
-      );
+      return const SettingsListCard(loading: true, rows: []);
     }
-    if (_error != null) {
-      return Column(
+    final error = _error;
+    if (error != null) {
+      return PortalCard(
         children: [
-          Text(
-            t.portal.documents.error(message: _errorText(_error!)),
-            style: RegularTextStyles().regularInter14.copyWith(
-              color: AppColors.kDanger,
+          Padding(
+            padding: AppInsets.cardRow,
+            child: Row(
+              children: [
+                Expanded(
+                  child: AccessError(
+                    t.portal.documents.error(message: _errorText(error)),
+                  ),
+                ),
+                AppBoxes.kWidth8,
+                PortalButton(label: t.portal.documents.retry, onPressed: _load),
+              ],
             ),
-          ),
-          AppBoxes.kHeight16,
-          OutlinedButton(
-            onPressed: _load,
-            child: Text(t.portal.documents.retry),
           ),
         ],
       );
     }
     if (_docs.isEmpty) {
-      return Padding(
-        padding: AppInsets.all32,
-        child: Center(
-          child: Text(
-            widget.empty,
-            style: RegularTextStyles().regularInter14.copyWith(
-              color: AppColors.kTextMuted,
+      return PortalCard(
+        children: [
+          Padding(
+            padding: AppInsets.cardRow,
+            child: Text(
+              widget.empty,
+              style: RegularTextStyles().regularInter13.copyWith(
+                color: AppColors.kTextMuted,
+              ),
             ),
           ),
-        ),
+        ],
       );
     }
-    return null;
+    return DocTable(
+      form: _form,
+      docs: applyFilter(
+        _docs,
+        filter: _filter,
+        query: _query,
+        searchText: _form.searchText,
+      ),
+      downloading: _downloading,
+      posting: _marking,
+      onDownload: widget.rights.download ? _download : null,
+      onPost: widget.rights.post ? _markDone : null,
+      onHistory: widget.rights.view ? _showHistory : null,
+    );
   }
 }

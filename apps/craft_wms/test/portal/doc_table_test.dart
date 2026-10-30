@@ -1,9 +1,9 @@
 import 'package:craft_wms/core/gen/strings.g.dart';
 import 'package:craft_wms/portal/data/documents_repository.dart';
-import 'package:craft_wms/portal/presentation/widgets/common/neumorphic_plate.dart';
 import 'package:craft_wms/portal/presentation/widgets/documents/doc_card.dart';
 import 'package:craft_wms/portal/presentation/widgets/documents/doc_form.dart';
 import 'package:craft_wms/portal/presentation/widgets/documents/doc_table.dart';
+import 'package:craft_wms/portal/presentation/widgets/ui/portal_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -81,20 +81,20 @@ void main() {
     expect(find.text(t.portal.documents.xlsx), findsNWidgets(2));
   });
 
-  // «Нет исключения» мало: Table не сообщает о переполнении, а плашка молча обрезает всё,
-  // что шире неё. Поэтому кнопки действий должны лежать внутри своей плашки — таблицы или
-  // карточки; иначе оператор их не видит (так было на ширине ноутбука).
+  // «Нет исключения» мало: Table не сообщает о переполнении, а карточка молча обрезает всё,
+  // что шире неё. Поэтому кнопки действий должны лежать внутри своей карточки — таблицы или
+  // узкого списка; иначе оператор их не видит (так было на ширине ноутбука).
   void expectActionsVisible(WidgetTester tester, [double? _]) {
     for (final icon in [Icons.schedule, Icons.download, Icons.check]) {
       for (final e in find.byIcon(icon).evaluate()) {
         final button = find.byWidget(e.widget).first;
         final plate = find
-            .ancestor(of: button, matching: find.byType(NeumorphicPlate))
+            .ancestor(of: button, matching: find.byType(PortalCard))
             .first;
         expect(
           tester.getRect(button).right,
           lessThanOrEqualTo(tester.getRect(plate).right),
-          reason: 'кнопка $icon за краем плашки',
+          reason: 'кнопка $icon за краем карточки',
         );
       }
     }
@@ -163,7 +163,7 @@ void main() {
     }
   });
 
-  testWidgets('на любой ширине действия внутри плашки — таблица или карточки', (
+  testWidgets('на любой ширине действия внутри карточки — таблица или строки', (
     tester,
   ) async {
     final docs = [
@@ -215,7 +215,7 @@ void main() {
   });
 
   testWidgets(
-    'телефон — карточки вместо таблицы, кнопки в экране, у проведённого галочка',
+    'телефон — строки вместо таблицы, кнопки в экране, у каждого статус',
     (tester) async {
       await pump(tester, [
         doc('1', DocStatus.isNew, 'ИП ЛАПУШКИН СЕРГЕЙ АНДРЕЕВИЧ'),
@@ -229,15 +229,17 @@ void main() {
         findsOneWidget,
         reason: '«Провести» только у ожидающего',
       );
+      expect(find.text(t.portal.documents.statusPosted), findsOneWidget);
+      expect(find.text(t.portal.documents.statusWaiting), findsOneWidget);
       expect(
-        find.byIcon(Icons.task_alt),
-        findsOneWidget,
-        reason: 'галочка у проведённого',
-      );
-      expect(
-        find.text('ДП-000001 · Приёмка ПР-000001'),
+        find.text('ДП-000001'),
         findsOneWidget,
         reason: 'документ первой строкой',
+      );
+      expect(
+        find.text('Приёмка ПР-000001'),
+        findsOneWidget,
+        reason: 'операция своей строкой',
       );
       expectActionsVisible(tester, 375);
     },

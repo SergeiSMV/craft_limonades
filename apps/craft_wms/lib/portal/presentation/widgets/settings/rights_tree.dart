@@ -89,7 +89,7 @@ class _RightsTreeState extends State<RightsTree> {
           Checkbox(
             value: value,
             tristate: true,
-            activeColor: AppColors.kPrimary,
+            activeColor: AppColors.kButtonPrimary,
             onChanged: (_) => toggle(node),
           ),
           Expanded(

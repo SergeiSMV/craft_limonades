@@ -59,9 +59,31 @@ abstract final class AppSizes {
   static const double kButtonHeight64 = 64;
 
   //* --- Web-портал (layout) ---------------------------------------------- *//
-  static const double kSidebarWidth = 280; // тёмный сайдбар портала
-  // Окно портала уже — меню уезжает в выдвижную панель (ADHOC-25): телефон, узкое окно.
-  static const double kPortalCompactWidth = 900;
+  static const double kSidebarWidth = 240; // боковая панель портала (ADHOC-56)
+  // Окно портала уже — меню уезжает в выдвижную панель (ADHOC-25); порог md Polaris (ADHOC-56).
+  static const double kPortalCompactWidth = 768;
+  // Плоский стиль портала (ADHOC-56).
+  static const double kControlHeight = 32; // кнопка, поле ввода
+  static const double kNavItemHeight = 36; // пункт бокового меню
+  // Подпись раздела слева от карточки — при ширине от этой; уже — над карточкой.
+  static const double kAnnotatedWidth = 720;
+  // Разделы настроек списком слева — при ширине от этой; уже — вкладками сверху.
+  static const double kSettingsNavWidth = 960;
+  static const double kSettingsNavColumn = 200; // колонка разделов настроек
+  static const double kSettingsMaxWidth = 1160; // предел ширины страницы настроек
+  // Меню фильтра списка (ADHOC-56): не шире и не выше — длинный справочник прокручивается.
+  static const double kPortalSelectMenuWidth = 440;
+  static const double kPortalSelectMenuMargin = 32; // меню уже экрана на поля по краям
+  // Подписи пункта меню не достаётся: отступы пункта (24), галочка (16) с зазором, поля меню.
+  static const double kPortalSelectItemReserve = 64;
+  static const double kPortalSelectMenuHeight = 360;
+  // Номенклатура склада (ADHOC-56): от этой ширины карточки — колонками, уже — строками.
+  static const double kGoodsColumnsWidth = 720;
+  static const double kGoodsColCode = 96; // колонка «Код»
+  static const double kGoodsColUom = 56; // колонка «Ед.»
+  static const double kGoodsColQty = 104; // колонка «Остаток» (с единицей)
+  static const double kGoodCardLabel = 184; // подпись реквизита в карточке товара
+  static const double kPortalListMaxWidth = 1200; // предел ширины страницы-списка
   // Область вкладки уже — меньше поля по краям, чтобы не терять ширину на телефоне.
   static const double kPortalCompactContentWidth = 600;
   // Строка документа уже — кнопки уходят под текст, иначе заголовку остаётся пара букв.
@@ -99,8 +121,6 @@ abstract final class AppSizes {
   static const double kFormWidth = 480; // правая панель формы входа
   static const double kFormHeight = 700; // высота правой панели формы входа
   static const double kBrandMaxWidth = 500; // бренд-текст на панели входа
-  static const double kAvatar = 40; // аватар пользователя в сайдбаре
-  static const double kActiveBarWidth = 4; // янтарная полоса активного пункта
 
   //* --- Неоморфизм ------------------------------------------------------- *//
   static const double kNeumorphicDepth = 3; // высота выпуклой кнопки над фоном
