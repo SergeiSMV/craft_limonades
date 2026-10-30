@@ -165,7 +165,6 @@
       "menu": "меню"
     },
     "menu": {
-      "operations": "Операции",
       "warehouse": "Склад",
       "system": "Система"
     },
@@ -1301,8 +1300,11 @@
   "rights": {
     "portal": "Портал",
     "tsd": "ТСД",
-    "nomenclature": "Номенклатура",
+    "nomenclature": "Номенклатура склада",
+    "nomenclature_view": "Смотреть товары и карточки",
     "nomenclature_import": "Загружать номенклатуру из 1С",
+    "stock": "Остатки склада",
+    "stock_view": "Смотреть остатки",
     "receipt": "Приход",
     "movement": "Перемещение",
     "doc_view": "Смотреть документы и историю",

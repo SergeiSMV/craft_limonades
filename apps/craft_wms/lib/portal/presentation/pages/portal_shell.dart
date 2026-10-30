@@ -74,8 +74,9 @@ class _PortalShellState extends State<PortalShell> {
       Rights.settingsUsers,
     ]);
     return [
+      // Всё, кроме настроек, — один раздел «Склад» (ADHOC-56).
       NavSection(
-        title: t.portal.menu.operations,
+        title: t.portal.menu.warehouse,
         items: [
           /// Номенклатура
           if (p.can(Rights.nomenclatureImport))
@@ -113,11 +114,6 @@ class _PortalShellState extends State<PortalShell> {
                 stockEntryDocs: stockEntryDocs,
               ),
             ),
-        ],
-      ),
-      NavSection(
-        title: t.portal.menu.warehouse,
-        items: [
           if (cellsLabels || cellsUpload)
             NavItem(
               icon: Icons.grid_view_outlined,

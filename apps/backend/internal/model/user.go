@@ -20,7 +20,9 @@ const (
 // «приложение.раздел.действие». Группы дерева (раздел, приложение) не хранятся: галочку раздела
 // рисует портал. Список совпадает с ограничением positions.rights.
 const (
+	RightNomenclatureView   = "portal.nomenclature.view"   // Номенклатура склада: смотреть (ADHOC-56)
 	RightNomenclatureImport = "portal.nomenclature.import" // Номенклатура: загружать из 1С
+	RightStockView          = "portal.stock.view"          // Остатки склада: смотреть (ADHOC-56)
 	RightReceiptView        = "portal.receipt.view"        // Приход: смотреть документы и историю
 	RightReceiptDownload    = "portal.receipt.download"    // Приход: скачивать
 	RightReceiptPost        = "portal.receipt.post"        // Приход: проводить
@@ -65,7 +67,8 @@ const (
 
 // Rights — все действия, в порядке дерева портала.
 var Rights = []string{
-	RightNomenclatureImport,
+	RightNomenclatureView, RightNomenclatureImport,
+	RightStockView,
 	RightReceiptView, RightReceiptDownload, RightReceiptPost,
 	RightStocktakeView, RightStocktakeManage,
 	RightStocktakeDocView, RightStocktakeDocLoad, RightStocktakeDocPost,

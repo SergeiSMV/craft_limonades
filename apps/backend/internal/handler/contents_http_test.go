@@ -8,9 +8,12 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 
+	"craftwms/internal/auth"
+	"craftwms/internal/model"
 	"craftwms/internal/service"
 )
 
@@ -309,5 +312,30 @@ func TestContentsHTTP_searchAndHistory(t *testing.T) {
 		if code, body := e.call(t, http.MethodGet, tc.path, e.workerToken, ""); code != tc.want {
 			t.Errorf("%s: код %d, ожидалось %d (%s)", tc.path, code, tc.want, body)
 		}
+	}
+}
+
+// Снимок склада — и странице портала «Остатки склада» (ADHOC-56): должность только с
+// «Остатки склада: смотреть» снимок получает, а содержимое ячейки (только ТСД) — нет.
+func TestContentsHTTP_snapshotForPortalStock(t *testing.T) {
+	e := newReceivingE2E(t, nil)
+	ctx := context.Background()
+	var user string
+	if err := e.pool.QueryRow(ctx, `WITH p AS (
+			INSERT INTO positions (name, rights) VALUES ('Офис', ARRAY['portal.stock.view']) RETURNING id)
+		INSERT INTO users (login,password_hash,full_name,position_id)
+		SELECT '90000043','x','Офис',id FROM p RETURNING id::text`).Scan(&user); err != nil {
+		t.Fatalf("пользователь портала: %v", err)
+	}
+	token, err := auth.NewTokenManager("test-secret", time.Hour, 24*time.Hour).
+		IssueAccess(user, string(model.RoleEmployee))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if code, body := e.call(t, http.MethodGet, "/api/v1/contents/snapshot", token, ""); code != http.StatusOK {
+		t.Errorf("снимок с правом портала: код %d (%s)", code, body)
+	}
+	if code, _ := e.call(t, http.MethodGet, "/api/v1/cells/"+uuid.NewString()+"/contents", token, ""); code != http.StatusForbidden {
+		t.Errorf("ячейка с правом портала: код %d, ожидалось 403", code)
 	}
 }
