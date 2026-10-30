@@ -81,6 +81,7 @@ abstract final class AppSizes {
   static const double kGoodsColumnsWidth = 720;
   static const double kGoodsColCode = 96; // колонка «Код»
   static const double kGoodsColUom = 56; // колонка «Ед.»
+  static const double kGoodsColQty = 104; // колонка «Остаток» (с единицей)
   static const double kGoodCardLabel = 184; // подпись реквизита в карточке товара
   static const double kPortalListMaxWidth = 1200; // предел ширины страницы-списка
   // Область вкладки уже — меньше поля по краям, чтобы не терять ширину на телефоне.

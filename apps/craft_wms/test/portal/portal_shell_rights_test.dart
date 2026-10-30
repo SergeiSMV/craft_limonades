@@ -70,6 +70,7 @@ void main() {
     expect(find.text(t.portal.tabs.problems), findsWidgets);
     for (final hidden in [
       t.portal.tabs.nomenclature,
+      t.portal.tabs.stock,
       t.portal.tabs.receipt,
       t.portal.tabs.stocktake,
       t.portal.tabs.cells,

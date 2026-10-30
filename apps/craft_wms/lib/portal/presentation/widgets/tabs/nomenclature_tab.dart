@@ -3,8 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_boxes.dart';
-import '../../../../core/constants/app_insets.dart';
-import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/gen/strings.g.dart';
@@ -15,6 +13,8 @@ import '../nomenclature/goods_list_card.dart';
 import '../nomenclature/goods_toolbar.dart';
 import '../nomenclature/import_goods_dialog.dart';
 import '../settings/access_common.dart';
+import '../ui/portal_button.dart';
+import '../ui/portal_list_page.dart';
 
 /// Вкладка «Номенклатура склада» (ADHOC-56): весь справочник товаров — и те, которых на складе
 /// нет, как «Номенклатура» на ТСД.
@@ -25,10 +25,17 @@ import '../settings/access_common.dart';
 /// наборе; ответ на устаревший запрос отбрасывается по номеру запроса — иначе медленный ответ
 /// на «ка» перекрыл бы уже пришедший ответ на «кальмар».
 class NomenclatureTab extends StatefulWidget {
-  const NomenclatureTab({super.key, required this.canImport});
+  const NomenclatureTab({
+    super.key,
+    required this.canImport,
+    this.canStock = false,
+  });
 
   /// Право «Загружать номенклатуру из 1С».
   final bool canImport;
+
+  /// Право «Остатки склада: смотреть» — в карточке товара видны места хранения.
+  final bool canStock;
 
   @override
   State<NomenclatureTab> createState() => _NomenclatureTabState();
@@ -163,84 +170,51 @@ class _NomenclatureTabState extends State<NomenclatureTab> {
   @override
   Widget build(BuildContext context) {
     final goods = _goods;
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final narrow = constraints.maxWidth < AppSizes.kPortalCompactWidth;
-        final padding = narrow ? AppInsets.pageCompact : AppInsets.page;
-        // Панель поиска закреплена над списком: прокручивается только список, поиск, фильтры
-        // и загрузка остаются под рукой и в конце длинного списка.
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: padding.copyWith(bottom: 0),
-              child: _Width(
-                child: Padding(
-                  padding: AppInsets.bottom16,
-                  child: GoodsToolbar(
-                    search: _search,
-                    onSearch: onSearch,
-                    groups: _groups,
-                    groupId: _groupId,
-                    onGroup: onGroup,
-                    suppliers: _suppliers,
-                    supplierId: _supplierId,
-                    onSupplier: onSupplier,
-                    onImport: widget.canImport ? import : null,
+    return PortalListPage(
+      toolbar: GoodsToolbar(
+        search: _search,
+        onSearch: onSearch,
+        groups: _groups,
+        groupId: _groupId,
+        onGroup: onGroup,
+        suppliers: _suppliers,
+        supplierId: _supplierId,
+        onSupplier: onSupplier,
+        trailing: [
+          if (widget.canImport)
+            PortalButton(
+              label: t.portal.goods.import,
+              icon: Icons.upload_file_outlined,
+              onPressed: import,
+            ),
+        ],
+      ),
+      body: goods == null
+          ? SettingsListCard(
+              loading: _error == null,
+              error: _error,
+              rows: const [],
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                GoodsListCard(
+                  goods: goods,
+                  total: _total,
+                  loadingMore: _loadingMore,
+                  onMore: loadMore,
+                  onOpen: (good) => showGoodCardDialog(
+                    context,
+                    good,
+                    withPlaces: widget.canStock,
                   ),
                 ),
-              ),
+                if (_error != null) ...[
+                  AppBoxes.kHeight8,
+                  AccessError(_error!),
+                ],
+              ],
             ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: padding.copyWith(top: 0),
-                child: _Width(
-                  child: goods == null
-                      ? SettingsListCard(
-                          loading: _error == null,
-                          error: _error,
-                          rows: const [],
-                        )
-                      : Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            GoodsListCard(
-                              goods: goods,
-                              total: _total,
-                              loadingMore: _loadingMore,
-                              onMore: loadMore,
-                              onOpen: (good) =>
-                                  showGoodCardDialog(context, good),
-                            ),
-                            if (_error != null) ...[
-                              AppBoxes.kHeight8,
-                              AccessError(_error!),
-                            ],
-                          ],
-                        ),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
     );
   }
-}
-
-/// Ширина страницы-списка: по центру, не шире [AppSizes.kPortalListMaxWidth]. Содержимое
-/// растянуто на всю эту ширину — панель поиска начинается от левого края таблицы, а не
-/// центрируется по своей ширине.
-class _Width extends StatelessWidget {
-  const _Width({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) => Center(
-    child: ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: AppSizes.kPortalListMaxWidth),
-      child: SizedBox(width: double.infinity, child: child),
-    ),
-  );
 }

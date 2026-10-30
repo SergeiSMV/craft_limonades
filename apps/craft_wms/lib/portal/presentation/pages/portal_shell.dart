@@ -16,6 +16,7 @@ import '../widgets/tabs/inventory_tab.dart';
 import '../widgets/tabs/nomenclature_tab.dart';
 import '../widgets/tabs/problems_tab.dart';
 import '../widgets/tabs/settings_tab.dart';
+import '../widgets/tabs/stock_tab.dart';
 
 /// Оболочка портала после входа: сайдбар (меню по секциям + профиль), шапка с заголовком
 /// раздела и область вкладки. Плоская, по Shopify Polaris (ADHOC-56); уже порога md
@@ -86,10 +87,19 @@ class _PortalShellState extends State<PortalShell> {
               description: t.portal.goods.description,
               body: NomenclatureTab(
                 canImport: p.can(Rights.nomenclatureImport),
+                canStock: p.can(Rights.stockView),
               ),
             ),
 
           /// Приход
+          if (p.can(Rights.stockView))
+            NavItem(
+              icon: Icons.warehouse_outlined,
+              label: t.portal.tabs.stock,
+              // ADHOC-56: товары с остатком — из снимка склада, как «Остатки» на ТСД.
+              description: t.portal.stock.description,
+              body: const StockTab(),
+            ),
           if (receipt != null)
             NavItem(
               icon: Icons.local_shipping_outlined,

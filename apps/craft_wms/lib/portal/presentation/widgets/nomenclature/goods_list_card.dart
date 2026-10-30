@@ -25,6 +25,7 @@ class GoodsListCard extends StatelessWidget {
     required this.loadingMore,
     required this.onMore,
     required this.onOpen,
+    this.qty,
   });
 
   final List<Good> goods;
@@ -37,6 +38,10 @@ class GoodsListCard extends StatelessWidget {
   /// Открыть карточку товара — нажатием на строку.
   final ValueChanged<Good> onOpen;
 
+  /// Остаток товара подписью («12 шт»); задан — последняя колонка «Остаток» вместо «Ед.»
+  /// (страница «Остатки склада»).
+  final String Function(Good)? qty;
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -44,7 +49,7 @@ class GoodsListCard extends StatelessWidget {
         final columns = constraints.maxWidth >= AppSizes.kGoodsColumnsWidth;
         return PortalCard(
           children: [
-            if (columns) const _HeaderRow(),
+            if (columns) _HeaderRow(stock: qty != null),
             if (goods.isEmpty)
               Padding(
                 padding: AppInsets.cardRow,
@@ -60,7 +65,9 @@ class GoodsListCard extends StatelessWidget {
               InkWell(
                 onTap: () => onOpen(g),
                 hoverColor: AppColors.kBg,
-                child: columns ? _ColumnsRow(good: g) : _StackedRow(good: g),
+                child: columns
+                    ? _ColumnsRow(good: g, qty: qty?.call(g))
+                    : _StackedRow(good: g, qty: qty?.call(g)),
               ),
             if (goods.isNotEmpty) _Footer(this),
           ],
@@ -72,7 +79,10 @@ class GoodsListCard extends StatelessWidget {
 
 /// Шапка колонок таблицы.
 class _HeaderRow extends StatelessWidget {
-  const _HeaderRow();
+  const _HeaderRow({required this.stock});
+
+  /// Последняя колонка — «Остаток», а не «Ед.».
+  final bool stock;
 
   @override
   Widget build(BuildContext context) {
@@ -87,7 +97,8 @@ class _HeaderRow extends StatelessWidget {
         code: Text(g.colCode, style: style),
         group: Text(g.colGroup, style: style),
         supplier: Text(g.colSupplier, style: style),
-        uom: Text(g.colUom, style: style),
+        uom: Text(stock ? g.colQty : g.colUom, style: style),
+        wide: stock,
       ),
     );
   }
@@ -95,9 +106,12 @@ class _HeaderRow extends StatelessWidget {
 
 /// Строка таблицы: наименование с отметками и реквизиты по колонкам.
 class _ColumnsRow extends StatelessWidget {
-  const _ColumnsRow({required this.good});
+  const _ColumnsRow({required this.good, this.qty});
 
   final Good good;
+
+  /// Остаток подписью; `null` — колонка «Ед.».
+  final String? qty;
 
   @override
   Widget build(BuildContext context) {
@@ -117,7 +131,15 @@ class _ColumnsRow extends StatelessWidget {
         code: cell(good.code),
         group: cell(good.groupName),
         supplier: cell(good.supplierName),
-        uom: cell(good.uom),
+        uom: qty == null
+            ? cell(good.uom)
+            : Text(
+                qty!,
+                style: SemiboldTextStyles().semiboldInter13.copyWith(
+                  color: AppColors.kTextMain,
+                ),
+              ),
+        wide: qty != null,
       ),
     );
   }
@@ -131,6 +153,7 @@ class _Columns extends StatelessWidget {
     required this.group,
     required this.supplier,
     required this.uom,
+    this.wide = false,
   });
 
   final Widget name;
@@ -138,6 +161,9 @@ class _Columns extends StatelessWidget {
   final Widget group;
   final Widget supplier;
   final Widget uom;
+
+  /// Последняя колонка шире — остаток с единицей, а не одна единица.
+  final bool wide;
 
   @override
   Widget build(BuildContext context) => Row(
@@ -151,16 +177,22 @@ class _Columns extends StatelessWidget {
       AppBoxes.kWidth16,
       Expanded(flex: 3, child: supplier),
       AppBoxes.kWidth16,
-      SizedBox(width: AppSizes.kGoodsColUom, child: uom),
+      SizedBox(
+        width: wide ? AppSizes.kGoodsColQty : AppSizes.kGoodsColUom,
+        child: uom,
+      ),
     ],
   );
 }
 
 /// Строка узкого списка: наименование, под ним реквизиты — каждый своей подписанной строкой.
 class _StackedRow extends StatelessWidget {
-  const _StackedRow({required this.good});
+  const _StackedRow({required this.good, this.qty});
 
   final Good good;
+
+  /// Остаток подписью; `null` — строка «Единица».
+  final String? qty;
 
   @override
   Widget build(BuildContext context) {
@@ -180,7 +212,15 @@ class _StackedRow extends StatelessWidget {
             Text(g.groupLine(value: good.groupName!), style: muted),
           if (good.supplierName != null)
             Text(g.supplierLine(value: good.supplierName!), style: muted),
-          Text(g.uom(value: good.uom), style: muted),
+          if (qty == null)
+            Text(g.uom(value: good.uom), style: muted)
+          else
+            Text(
+              g.qtyLine(value: qty!),
+              style: SemiboldTextStyles().semiboldInter12.copyWith(
+                color: AppColors.kTextMain,
+              ),
+            ),
         ],
       ),
     );

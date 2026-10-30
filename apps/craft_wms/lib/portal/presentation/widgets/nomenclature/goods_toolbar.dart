@@ -3,12 +3,12 @@ import 'package:flutter/material.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../features/stock/data/catalog_models.dart';
-import '../ui/portal_button.dart';
 import '../ui/portal_input.dart';
 import '../ui/portal_select.dart';
 
-/// Панель над списком «Номенклатуры склада» (ADHOC-56): поиск, фильтры по группе и поставщику
-/// и «Загрузить из 1С» (по праву загрузки).
+/// Панель над списком товаров (ADHOC-56): поиск, фильтры по группе и поставщику и действия
+/// страницы справа ([trailing]) — «Загрузить из 1С» в номенклатуре, склад и «Обновить»
+/// в остатках.
 ///
 /// Раскладка — переносом: в широком окне всё в строку, в узком поиск занимает строку целиком,
 /// фильтры и кнопка уходят под него.
@@ -23,7 +23,7 @@ class GoodsToolbar extends StatelessWidget {
     required this.suppliers,
     required this.supplierId,
     required this.onSupplier,
-    this.onImport,
+    this.trailing = const [],
   });
 
   final TextEditingController search;
@@ -35,8 +35,8 @@ class GoodsToolbar extends StatelessWidget {
   final String? supplierId;
   final ValueChanged<String?> onSupplier;
 
-  /// Открыть загрузку из 1С; `null` — права нет, кнопки нет.
-  final VoidCallback? onImport;
+  /// Фильтры и кнопки страницы после общих.
+  final List<Widget> trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -72,12 +72,7 @@ class GoodsToolbar extends StatelessWidget {
             value: supplierId,
             onChanged: onSupplier,
           ),
-          if (onImport != null)
-            PortalButton(
-              label: g.import,
-              icon: Icons.upload_file_outlined,
-              onPressed: onImport!,
-            ),
+          ...trailing,
         ],
       ),
     );

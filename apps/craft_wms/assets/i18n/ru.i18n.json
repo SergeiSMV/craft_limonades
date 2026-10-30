@@ -170,6 +170,7 @@
     },
     "tabs": {
       "nomenclature": "Номенклатура склада",
+      "stock": "Остатки склада",
       "receipt": "Приход",
       "picking": "Сборка",
       "stocktake": "Инвентаризация",
@@ -199,6 +200,8 @@
       "col_group": "Группа",
       "col_supplier": "Поставщик",
       "col_uom": "Ед.",
+      "col_qty": "Остаток",
+      "qty_line": "Остаток: ${value}",
       "code": "Код: ${value}",
       "group_line": "Группа: ${value}",
       "supplier_line": "Поставщик: ${value}",
@@ -217,7 +220,20 @@
       "card_supplier": "Поставщик",
       "card_barcodes": "Штрихкоды (${count})",
       "card_barcodes_title": "Штрихкоды",
-      "card_no_barcodes": "Штрихкодов нет"
+      "card_no_barcodes": "Штрихкодов нет",
+      "card_places": "Наличие по местам хранения",
+      "card_no_places": "Нет остатков",
+      "card_unknown_cell": "Ячейка не в справочнике",
+      "card_box": "Короб: ${code}",
+      "card_batch": "Партия: ${date}",
+      "card_total": "Итого на складе"
+    },
+    "stock": {
+      "description": "Товары, которые есть на складе, с количеством",
+      "warehouse": "Склад",
+      "refresh": "Обновить",
+      "as_of": "Остатки на ${time}",
+      "qty": "${qty} ${uom}"
     },
     "nomenclature": {
       "title": "Загрузка номенклатуры",
