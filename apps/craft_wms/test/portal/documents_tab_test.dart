@@ -4,16 +4,20 @@ import 'package:craft_wms/core/constants/api_constants.dart';
 import 'package:craft_wms/core/di/injection.dart';
 import 'package:craft_wms/core/gen/strings.g.dart';
 import 'package:craft_wms/portal/data/documents_repository.dart';
+import 'package:craft_wms/portal/presentation/widgets/documents/doc_card.dart';
 import 'package:craft_wms/portal/presentation/widgets/documents/doc_table.dart';
 import 'package:craft_wms/portal/presentation/widgets/documents/doc_toolbar.dart';
 import 'package:craft_wms/portal/presentation/widgets/tabs/documents_tab.dart';
+import 'package:craft_wms/portal/presentation/widgets/tabs/inventory_tab.dart';
+import 'package:craft_wms/portal/presentation/widgets/ui/portal_choice.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../support/fake_dio_adapter.dart';
 
-// ADHOC-26: панель поиска и фильтров закреплена — прокручивается только список под ней.
+// ADHOC-26: панель поиска и фильтров закреплена — прокручивается только список под ней;
+// ADHOC-56: узкая раскладка и переключатель видов «Инвентаризации».
 void main() {
   setUp(LocaleSettings.useDeviceLocale);
 
@@ -93,5 +97,69 @@ void main() {
       lessThan(rowBefore.top - 100),
       reason: 'список не прокрутился',
     );
+  });
+
+  /// Открыть [child] шириной [width] и дождаться загрузки списка.
+  Future<void> open(WidgetTester tester, Widget child, double width) async {
+    tester.view.physicalSize = Size(width, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.runAsync(() async {
+      await tester.pumpWidget(MaterialApp(home: Scaffold(body: child)));
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    });
+    await tester.pumpAndSettle();
+  }
+
+  // ADHOC-56: на телефоне вместо таблицы — строки, каждый факт своей подписанной строкой.
+  testWidgets('узко — строки вместо таблицы, без переполнения', (tester) async {
+    await open(
+      tester,
+      const DocumentsTab(kind: 'receipt', empty: 'пусто'),
+      400,
+    );
+    expect(tester.takeException(), isNull);
+    expect(find.byType(Table), findsNothing);
+    expect(find.byType(DocCard), findsWidgets);
+    expect(
+      find.text(
+        t.portal.documents.line(
+          label: t.portal.receipt.colParty,
+          value: 'Поставщик 0',
+        ),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  // ADHOC-56: переключатель видов «Инвентаризации» закреплён над панелью документов.
+  testWidgets('инвентаризация — переключатель над панелью, смена вида', (
+    tester,
+  ) async {
+    const rights = (view: true, download: true, post: true);
+    await open(
+      tester,
+      const InventoryTab(
+        stocktakes: false,
+        canManage: false,
+        stocktakeDocs: rights,
+        stockEntryDocs: rights,
+      ),
+      1200,
+    );
+    final entry = find.text(t.portal.stocktake.viewStockEntry);
+    expect(
+      tester.getRect(entry).bottom,
+      lessThan(tester.getRect(find.byType(DocToolbar)).top),
+      reason: 'переключатель не над панелью',
+    );
+    await tester.runAsync(() async {
+      await tester.tap(entry);
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    });
+    await tester.pumpAndSettle();
+    final tab = tester.widget<DocumentsTab>(find.byType(DocumentsTab));
+    expect(tab.kind, 'stock_entry');
+    expect(find.byType(PortalChoice), findsNWidgets(2 + 3)); // виды + фильтры
   });
 }

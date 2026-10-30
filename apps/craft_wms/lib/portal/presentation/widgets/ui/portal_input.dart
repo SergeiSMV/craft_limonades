@@ -61,6 +61,8 @@ class PortalInput extends StatelessWidget {
         fillColor: AppColors.kCardBg,
         contentPadding: icon == null ? AppInsets.input : AppInsets.inputSearch,
         hintText: hint,
+        // Длинная подсказка в узком поле — многоточием, а не второй строкой за рамкой.
+        hintMaxLines: 1,
         prefixIcon: icon == null
             ? null
             : Icon(icon, size: AppSizes.kIcon18, color: AppColors.kTextMuted),

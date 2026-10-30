@@ -79,11 +79,17 @@ abstract final class AppInsets {
   static const EdgeInsets page = EdgeInsets.symmetric(horizontal: 24, vertical: 24);
   static const EdgeInsets pageCompact = EdgeInsets.symmetric(horizontal: 12, vertical: 16);
   static const EdgeInsets dialogActions = EdgeInsets.fromLTRB(24, 8, 24, 24);
-  // Таблица документов (ADHOC-26): ячейка, фильтр-чип, поле поиска, поля плашки таблицы.
+  // Таблица документов (ADHOC-26, плоский стиль — ADHOC-56): ячейка и ячейка шапки; по краям
+  // таблицы ещё h8 — с ними крайние колонки отступают от рамки карточки на 16, как строки.
   static const EdgeInsets tableCell = EdgeInsets.symmetric(
-    horizontal: 12,
-    vertical: 14,
+    horizontal: 8,
+    vertical: 10,
   );
+  static const EdgeInsets tableHeadCell = EdgeInsets.symmetric(
+    horizontal: 8,
+    vertical: 8,
+  );
+  // Фильтр-чип, поле поиска (неоморфные).
   static const EdgeInsets filterChip = EdgeInsets.symmetric(
     horizontal: 14,
     vertical: 4,
@@ -94,7 +100,6 @@ abstract final class AppInsets {
     horizontal: 12,
     vertical: 12,
   );
-  static const EdgeInsets tablePlate = EdgeInsets.fromLTRB(20, 4, 20, 8);
   // Неоморфная кнопка с подписью (ADHOC-25/26).
   static const EdgeInsets h16v10 = EdgeInsets.symmetric(
     horizontal: 16,

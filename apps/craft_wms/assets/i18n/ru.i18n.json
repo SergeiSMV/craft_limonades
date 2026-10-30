@@ -306,7 +306,8 @@
       "no_supplier_doc": "накладная не указана",
       "operation": "${name} ${number}",
       "doc_date": "от ${date}",
-      "xlsx": ".xlsx"
+      "xlsx": ".xlsx",
+      "line": "${label}: ${value}"
     },
     "inventory": {
       "description": "Документы «ввод остатков» - результаты проходов склада с ТСД. Скачайте .xlsx, занесите в 1С и отметьте выполненным.",

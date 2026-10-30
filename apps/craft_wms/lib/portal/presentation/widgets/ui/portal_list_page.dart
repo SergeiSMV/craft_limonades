@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/constants/app_boxes.dart';
 import '../../../../core/constants/app_insets.dart';
 import '../../../../core/constants/app_sizes.dart';
 
@@ -8,11 +9,18 @@ import '../../../../core/constants/app_sizes.dart';
 ///
 /// Как: ширина — по центру, не шире [AppSizes.kPortalListMaxWidth]; панель и список растянуты
 /// на эту ширину и выровнены по одним краям. Уже [AppSizes.kPortalCompactWidth] — поля меньше.
+/// [header] — над панелью, тоже закреплён: переключатель видов страницы («Инвентаризация»).
 class PortalListPage extends StatelessWidget {
-  const PortalListPage({super.key, required this.toolbar, required this.body});
+  const PortalListPage({
+    super.key,
+    required this.toolbar,
+    required this.body,
+    this.header,
+  });
 
   final Widget toolbar;
   final Widget body;
+  final Widget? header;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
@@ -25,7 +33,16 @@ class PortalListPage extends StatelessWidget {
           Padding(
             padding: padding.copyWith(bottom: 0),
             child: _Width(
-              child: Padding(padding: AppInsets.bottom16, child: toolbar),
+              child: Padding(
+                padding: AppInsets.bottom16,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (header != null) ...[header!, AppBoxes.kHeight16],
+                    toolbar,
+                  ],
+                ),
+              ),
             ),
           ),
           Expanded(
