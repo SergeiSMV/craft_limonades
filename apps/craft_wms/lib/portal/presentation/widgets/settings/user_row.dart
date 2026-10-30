@@ -8,8 +8,8 @@ import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/theme/semibold_text.dart';
 import '../../../data/users_repository.dart';
-import '../common/neumorphic_icon_button.dart';
-import 'access_common.dart';
+import '../ui/portal_badge.dart';
+import '../ui/portal_button.dart';
 
 /// Строка пользователя (ADHOC-50): ФИО, должность, вход — каждый факт своей строкой; изменить,
 /// выдать новый бейдж или пароль, заблокировать. Себя заблокировать нельзя — кнопки нет.
@@ -40,7 +40,7 @@ class UserRow extends StatelessWidget {
       color: AppColors.kTextMuted,
     );
     return Padding(
-      padding: AppInsets.v8,
+      padding: AppInsets.cardRow,
       child: Row(
         children: [
           Expanded(
@@ -60,10 +60,9 @@ class UserRow extends StatelessWidget {
                       ),
                     ),
                     if (!u.isActive)
-                      AccessMark(
-                        label: t.portal.users.markBlocked,
-                        bg: AppColors.kBadgeWarningBg,
-                        fg: AppColors.kBadgeWarningText,
+                      PortalBadge(
+                        t.portal.users.markBlocked,
+                        tone: PortalBadgeTone.warning,
                       ),
                   ],
                 ),
@@ -82,14 +81,14 @@ class UserRow extends StatelessWidget {
             ),
           ),
           AppBoxes.kWidth8,
-          NeumorphicIconButton(
+          PortalIconButton(
             icon: Icons.edit_outlined,
             tooltip: t.portal.users.edit,
             busy: busy,
             onPressed: onEdit,
           ),
-          AppBoxes.kWidth12,
-          NeumorphicIconButton(
+          AppBoxes.kWidth4,
+          PortalIconButton(
             icon: u.byBadge ? Icons.badge_outlined : Icons.key_outlined,
             tooltip: u.byBadge
                 ? t.portal.users.newBadge
@@ -98,8 +97,8 @@ class UserRow extends StatelessWidget {
             onPressed: onNewSecret,
           ),
           if (!self) ...[
-            AppBoxes.kWidth12,
-            NeumorphicIconButton(
+            AppBoxes.kWidth4,
+            PortalIconButton(
               icon: u.isActive ? Icons.block : Icons.lock_open_outlined,
               tooltip: u.isActive
                   ? t.portal.users.block

@@ -61,6 +61,20 @@ abstract final class AppInsets {
   /// Поля вокруг диалога. Дефолтные 40 по бокам на экране ТСД (360dp) съедают ширину —
   /// подписи кнопок переносятся на вторую строку.
   // Действия диалога портала: запас под тени неоморфных кнопок (ADHOC-25).
+  // Плоский стиль портала (ADHOC-56).
+  static const EdgeInsets cardRow = EdgeInsets.symmetric(horizontal: 16, vertical: 12);
+  static const EdgeInsets button = EdgeInsets.symmetric(horizontal: 12);
+  static const EdgeInsets navItem = EdgeInsets.symmetric(horizontal: 10);
+  static const EdgeInsets navList = EdgeInsets.symmetric(horizontal: 12, vertical: 8);
+  static const EdgeInsets navSectionTitle = EdgeInsets.fromLTRB(10, 12, 10, 4);
+  static const EdgeInsets input = EdgeInsets.symmetric(horizontal: 12, vertical: 8);
+  static const EdgeInsets modalHeader = EdgeInsets.fromLTRB(20, 16, 12, 16);
+  static const EdgeInsets modalBody = EdgeInsets.all(20);
+  static const EdgeInsets modalFooter = EdgeInsets.symmetric(horizontal: 20, vertical: 12);
+  static const EdgeInsets tag = EdgeInsets.symmetric(horizontal: 8, vertical: 2);
+  static const EdgeInsets choice = EdgeInsets.symmetric(horizontal: 12, vertical: 6);
+  static const EdgeInsets page = EdgeInsets.symmetric(horizontal: 24, vertical: 24);
+  static const EdgeInsets pageCompact = EdgeInsets.symmetric(horizontal: 12, vertical: 16);
   static const EdgeInsets dialogActions = EdgeInsets.fromLTRB(24, 8, 24, 24);
   // Таблица документов (ADHOC-26): ячейка, фильтр-чип, поле поиска, поля плашки таблицы.
   static const EdgeInsets tableCell = EdgeInsets.symmetric(
@@ -88,25 +102,6 @@ abstract final class AppInsets {
     vertical: 24,
   );
 
-  //* --- Веб-портал (сайдбар) --------------------------------------------- *//
-  static const EdgeInsets menuList = EdgeInsets.symmetric(
-    vertical: 20,
-  ); // прокручиваемое меню
-  static const EdgeInsets menuItem = EdgeInsets.symmetric(
-    horizontal: 24,
-    vertical: 8,
-  ); // пункт меню
-  // Пункт меню портала: поля вокруг пилюли — запас под тени неоморфизма (ADHOC-25).
-  static const EdgeInsets menuItemOuter = EdgeInsets.symmetric(
-    horizontal: 16,
-    vertical: 2,
-  );
-  static const EdgeInsets sectionTitle = EdgeInsets.fromLTRB(
-    24,
-    0,
-    24,
-    12,
-  ); // заголовок секции
 
   //* --- Веб-портал (контент) --------------------------------------------- *//
   static const EdgeInsets uploadZone = EdgeInsets.symmetric(

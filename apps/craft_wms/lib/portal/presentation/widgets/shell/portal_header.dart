@@ -7,9 +7,10 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/theme/semibold_text.dart';
-import '../common/neumorphic_icon_button.dart';
+import '../ui/portal_button.dart';
 
-/// Верхняя панель контента: заголовок текущей вкладки + выход.
+/// Шапка страницы (ADHOC-56, заголовок страницы Shopify Polaris): название раздела, пояснение
+/// под ним и выход справа; на узком окне слева — кнопка меню.
 class PortalHeader extends StatelessWidget {
   const PortalHeader({
     super.key,
@@ -21,12 +22,11 @@ class PortalHeader extends StatelessWidget {
 
   final String title;
 
-  /// Пояснение к разделу под заголовком (ADHOC-25): в шапке, а не в теле вкладки —
-  /// заголовок раздела уже здесь, и повторять его в теле незачем.
+  /// Пояснение к разделу под заголовком; `null` — без пояснения.
   final String? description;
   final VoidCallback onLogout;
 
-  /// Узкий экран: меню в выдвижной панели, в шапке — кнопка, которая её открывает.
+  /// Узкое окно: меню в выдвижной панели, в шапке — кнопка, которая её открывает.
   final bool showMenu;
 
   /// Открыть выдвижное меню. Шапка лежит внутри каркаса, поэтому он находится по контексту.
@@ -35,12 +35,9 @@ class PortalHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      // Высота — не меньше прежней, но растёт под пояснение: на телефоне оно в несколько строк.
+      // Высота растёт под пояснение: на телефоне оно в несколько строк.
       constraints: const BoxConstraints(minHeight: AppSizes.kHeaderHeight),
-      padding: (showMenu ? AppInsets.h16 : AppInsets.h32) + AppInsets.v12,
-      // Цвет — внутри decoration (нельзя одновременно color и decoration у Container).
-      // Фон рабочей области, а не белый (ADHOC-25): неоморфные кнопки шапки «выдавливаются»
-      // только из своего цвета, на белом их тень не читается.
+      padding: (showMenu ? AppInsets.h16 : AppInsets.h24) + AppInsets.v12,
       decoration: const BoxDecoration(
         color: AppColors.kBg,
         border: Border(bottom: BorderSide(color: AppColors.kBorder)),
@@ -48,12 +45,12 @@ class PortalHeader extends StatelessWidget {
       child: Row(
         children: [
           if (showMenu) ...[
-            NeumorphicIconButton(
+            PortalIconButton(
               icon: Icons.menu,
               tooltip: t.portal.shell.menu,
               onPressed: () => openMenu(context),
             ),
-            AppBoxes.kWidth16,
+            AppBoxes.kWidth8,
           ],
           Expanded(
             child: Column(
@@ -62,18 +59,22 @@ class PortalHeader extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: SemiboldTextStyles().semiboldInter20.copyWith(color: AppColors.kTextMain),
+                  style: SemiboldTextStyles().semiboldInter20.copyWith(
+                    color: AppColors.kTextMain,
+                  ),
                 ),
                 if (description != null)
                   Text(
                     description!,
-                    style: RegularTextStyles().regularInter14.copyWith(color: AppColors.kTextMuted),
+                    style: RegularTextStyles().regularInter13.copyWith(
+                      color: AppColors.kTextMuted,
+                    ),
                   ),
               ],
             ),
           ),
           AppBoxes.kWidth16,
-          NeumorphicIconButton(
+          PortalIconButton(
             icon: Icons.logout,
             tooltip: t.portal.shell.logout,
             onPressed: onLogout,

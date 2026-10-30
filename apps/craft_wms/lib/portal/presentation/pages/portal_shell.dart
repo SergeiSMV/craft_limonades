@@ -18,8 +18,8 @@ import '../widgets/tabs/problems_tab.dart';
 import '../widgets/tabs/settings_tab.dart';
 
 /// Оболочка портала после входа: сайдбар (меню по секциям + профиль), шапка с заголовком
-/// раздела и область вкладки. Светлая неоморфная (ADHOC-25); на узком экране меню уходит
-/// в выдвижную панель. Части — в `widgets/shell/`.
+/// раздела и область вкладки. Плоская, по Shopify Polaris (ADHOC-56); уже порога md
+/// ([AppSizes.kPortalCompactWidth]) меню уходит в выдвижную панель. Части — в `widgets/shell/`.
 class PortalShell extends StatefulWidget {
   const PortalShell({super.key, required this.profile});
 
@@ -216,7 +216,7 @@ class _PortalShellState extends State<PortalShell> {
       drawer: compact
           ? Drawer(
               width: AppSizes.kSidebarWidth,
-              backgroundColor: AppColors.kBg,
+              backgroundColor: AppColors.kNavBg,
               shape: const RoundedRectangleBorder(),
               child: Builder(
                 builder: (drawerContext) => PortalSidebar(

@@ -1,16 +1,15 @@
 import 'package:either_dart/either.dart';
 import 'package:flutter/material.dart';
 
-import '../../../../core/constants/app_boxes.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../data/users_repository.dart';
-import '../common/neumorphic_plate.dart';
-import '../common/neumorphic_text_button.dart';
 import 'access_common.dart';
 import 'user_dialogs.dart';
 import 'user_row.dart';
+import '../ui/portal_annotated_section.dart';
+import '../ui/portal_button.dart';
 
 /// Раздел «Пользователи» в настройках портала (ADHOC-50).
 ///
@@ -133,35 +132,28 @@ class _UsersSectionState extends State<UsersSection> {
   @override
   Widget build(BuildContext context) {
     final items = _items;
-    return NeumorphicPlate(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          AccessSectionHeader(
-            title: t.portal.users.title,
-            description: t.portal.users.description,
-            action: NeumorphicTextButton(
-              label: t.portal.users.add,
-              icon: Icons.add,
-              accent: true,
-              busy: _busyId == '',
-              onPressed: create,
+    return PortalAnnotatedSection(
+      title: t.portal.users.title,
+      description: t.portal.users.description,
+      action: PortalButton(
+        label: t.portal.users.add,
+        icon: Icons.add,
+        busy: _busyId == '',
+        onPressed: create,
+      ),
+      child: SettingsListCard(
+        loading: _loading && items == null,
+        error: _error,
+        rows: [
+          for (final u in items ?? const <PortalUser>[])
+            UserRow(
+              user: u,
+              self: u.id == widget.selfId,
+              busy: _busyId == u.id,
+              onEdit: () => edit(u),
+              onNewSecret: () => newSecret(u),
+              onToggle: () => toggle(u),
             ),
-          ),
-          AppBoxes.kHeight16,
-          if (_loading && items == null)
-            const Center(child: CircularProgressIndicator())
-          else
-            for (final u in items ?? const <PortalUser>[])
-              UserRow(
-                user: u,
-                self: u.id == widget.selfId,
-                busy: _busyId == u.id,
-                onEdit: () => edit(u),
-                onNewSecret: () => newSecret(u),
-                onToggle: () => toggle(u),
-              ),
-          if (_error != null) ...[AppBoxes.kHeight16, AccessError(_error!)],
         ],
       ),
     );

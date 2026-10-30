@@ -2,7 +2,7 @@ import 'package:craft_wms/core/di/injection.dart';
 import 'package:craft_wms/core/error/failure.dart';
 import 'package:craft_wms/core/gen/strings.g.dart';
 import 'package:craft_wms/portal/data/internal_warehouses_repository.dart';
-import 'package:craft_wms/portal/presentation/widgets/common/neumorphic_icon_button.dart';
+import 'package:craft_wms/portal/presentation/widgets/ui/portal_button.dart';
 import 'package:craft_wms/portal/presentation/widgets/settings/warehouses_section.dart';
 import 'package:either_dart/either.dart';
 import 'package:flutter/material.dart';
@@ -69,7 +69,7 @@ void main() {
     expect(find.text(t.portal.warehouses.markInUse), findsOneWidget);
 
     Iterable<String> tooltips() => tester
-        .widgetList<NeumorphicIconButton>(find.byType(NeumorphicIconButton))
+        .widgetList<PortalIconButton>(find.byType(PortalIconButton))
         .map((b) => b.tooltip);
     // Основной — только переименовать; брак — переименовать и скрыть (удалить нельзя: остаток);
     // старый — переименовать, вернуть и удалить.

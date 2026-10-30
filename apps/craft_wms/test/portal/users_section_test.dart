@@ -2,7 +2,7 @@ import 'package:craft_wms/core/di/injection.dart';
 import 'package:craft_wms/core/error/failure.dart';
 import 'package:craft_wms/core/gen/strings.g.dart';
 import 'package:craft_wms/portal/data/users_repository.dart';
-import 'package:craft_wms/portal/presentation/widgets/common/neumorphic_icon_button.dart';
+import 'package:craft_wms/portal/presentation/widgets/ui/portal_button.dart';
 import 'package:craft_wms/portal/presentation/widgets/settings/users_section.dart';
 import 'package:either_dart/either.dart';
 import 'package:flutter/material.dart';
@@ -114,7 +114,7 @@ void main() {
     expect(find.text(t.portal.users.username(login: 'admin')), findsOneWidget);
 
     final tooltips = tester
-        .widgetList<NeumorphicIconButton>(find.byType(NeumorphicIconButton))
+        .widgetList<PortalIconButton>(find.byType(PortalIconButton))
         .map((b) => b.tooltip);
     // Себе — изменить и сменить пароль; работнику — изменить, новый бейдж, заблокировать.
     expect(tooltips, [

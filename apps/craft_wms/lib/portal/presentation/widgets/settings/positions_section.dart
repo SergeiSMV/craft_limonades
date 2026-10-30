@@ -1,16 +1,15 @@
 import 'package:either_dart/either.dart';
 import 'package:flutter/material.dart';
 
-import '../../../../core/constants/app_boxes.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../data/users_repository.dart';
-import '../common/neumorphic_plate.dart';
-import '../common/neumorphic_text_button.dart';
 import 'access_common.dart';
 import 'position_dialogs.dart';
 import 'position_row.dart';
+import '../ui/portal_annotated_section.dart';
+import '../ui/portal_button.dart';
 
 /// Раздел «Должности» в настройках портала (ADHOC-50).
 ///
@@ -113,33 +112,26 @@ class _PositionsSectionState extends State<PositionsSection> {
   @override
   Widget build(BuildContext context) {
     final items = _items;
-    return NeumorphicPlate(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          AccessSectionHeader(
-            title: t.portal.positions.title,
-            description: t.portal.positions.description,
-            action: NeumorphicTextButton(
-              label: t.portal.positions.add,
-              icon: Icons.add,
-              accent: true,
-              busy: _busyId == '',
-              onPressed: create,
+    return PortalAnnotatedSection(
+      title: t.portal.positions.title,
+      description: t.portal.positions.description,
+      action: PortalButton(
+        label: t.portal.positions.add,
+        icon: Icons.add,
+        busy: _busyId == '',
+        onPressed: create,
+      ),
+      child: SettingsListCard(
+        loading: _loading && items == null,
+        error: _error,
+        rows: [
+          for (final p in items ?? const <PortalPosition>[])
+            PositionRow(
+              position: p,
+              busy: _busyId == p.id,
+              onEdit: () => edit(p),
+              onDelete: () => delete(p),
             ),
-          ),
-          AppBoxes.kHeight16,
-          if (_loading && items == null)
-            const Center(child: CircularProgressIndicator())
-          else
-            for (final p in items ?? const <PortalPosition>[])
-              PositionRow(
-                position: p,
-                busy: _busyId == p.id,
-                onEdit: () => edit(p),
-                onDelete: () => delete(p),
-              ),
-          if (_error != null) ...[AppBoxes.kHeight16, AccessError(_error!)],
         ],
       ),
     );

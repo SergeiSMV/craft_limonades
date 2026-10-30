@@ -19,6 +19,12 @@ final class SemiboldTextStyles {
     fontWeight: FontWeight.w600,
   );
 
+  final TextStyle semiboldInter13 = const TextStyle(
+    fontFamily: FontFamily.inter,
+    fontSize: 13,
+    fontWeight: FontWeight.w600,
+  );
+
   final TextStyle semiboldInter14 = const TextStyle(
     fontFamily: FontFamily.inter,
     fontSize: 14,

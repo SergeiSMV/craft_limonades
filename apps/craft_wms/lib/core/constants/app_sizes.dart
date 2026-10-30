@@ -59,9 +59,18 @@ abstract final class AppSizes {
   static const double kButtonHeight64 = 64;
 
   //* --- Web-портал (layout) ---------------------------------------------- *//
-  static const double kSidebarWidth = 280; // тёмный сайдбар портала
-  // Окно портала уже — меню уезжает в выдвижную панель (ADHOC-25): телефон, узкое окно.
-  static const double kPortalCompactWidth = 900;
+  static const double kSidebarWidth = 240; // боковая панель портала (ADHOC-56)
+  // Окно портала уже — меню уезжает в выдвижную панель (ADHOC-25); порог md Polaris (ADHOC-56).
+  static const double kPortalCompactWidth = 768;
+  // Плоский стиль портала (ADHOC-56).
+  static const double kControlHeight = 32; // кнопка, поле ввода
+  static const double kNavItemHeight = 36; // пункт бокового меню
+  // Подпись раздела слева от карточки — при ширине от этой; уже — над карточкой.
+  static const double kAnnotatedWidth = 720;
+  // Разделы настроек списком слева — при ширине от этой; уже — вкладками сверху.
+  static const double kSettingsNavWidth = 960;
+  static const double kSettingsNavColumn = 200; // колонка разделов настроек
+  static const double kSettingsMaxWidth = 1160; // предел ширины страницы настроек
   // Область вкладки уже — меньше поля по краям, чтобы не терять ширину на телефоне.
   static const double kPortalCompactContentWidth = 600;
   // Строка документа уже — кнопки уходят под текст, иначе заголовку остаётся пара букв.
@@ -99,8 +108,6 @@ abstract final class AppSizes {
   static const double kFormWidth = 480; // правая панель формы входа
   static const double kFormHeight = 700; // высота правой панели формы входа
   static const double kBrandMaxWidth = 500; // бренд-текст на панели входа
-  static const double kAvatar = 40; // аватар пользователя в сайдбаре
-  static const double kActiveBarWidth = 4; // янтарная полоса активного пункта
 
   //* --- Неоморфизм ------------------------------------------------------- *//
   static const double kNeumorphicDepth = 3; // высота выпуклой кнопки над фоном
