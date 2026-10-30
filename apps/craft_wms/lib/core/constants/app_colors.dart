@@ -74,6 +74,7 @@ abstract final class AppColors {
   static const Color kButtonPrimaryHover = Color(0xFF0F172A);
   static const Color kFocus = Color(0xFF2563EB); // рамка поля в фокусе
   static const Color kCardShadow = Color(0x140F172A); // нижняя тень карточки
+  static const Color kPopoverBg = Color(0xFFF8FAFC); // выпадающее меню — чуть темнее карточки
   static const Color kBadgeNeutralBg = Color(0xFFE2E8F0);
   static const Color kBadgeNeutralText = Color(0xFF334155);
   static const Color kBadgeCriticalBg = Color(0xFFFEE2E2);

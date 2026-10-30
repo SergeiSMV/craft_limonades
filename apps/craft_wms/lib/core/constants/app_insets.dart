@@ -68,11 +68,14 @@ abstract final class AppInsets {
   static const EdgeInsets navList = EdgeInsets.symmetric(horizontal: 12, vertical: 8);
   static const EdgeInsets navSectionTitle = EdgeInsets.fromLTRB(10, 12, 10, 4);
   static const EdgeInsets input = EdgeInsets.symmetric(horizontal: 12, vertical: 8);
+  static const EdgeInsets inputSearch = EdgeInsets.symmetric(horizontal: 12);
   static const EdgeInsets modalHeader = EdgeInsets.fromLTRB(20, 16, 12, 16);
   static const EdgeInsets modalBody = EdgeInsets.all(20);
   static const EdgeInsets modalFooter = EdgeInsets.symmetric(horizontal: 20, vertical: 12);
   static const EdgeInsets tag = EdgeInsets.symmetric(horizontal: 8, vertical: 2);
   static const EdgeInsets choice = EdgeInsets.symmetric(horizontal: 12, vertical: 6);
+  static const EdgeInsets dropZone = EdgeInsets.symmetric(horizontal: 16, vertical: 24);
+  static const EdgeInsets tableHead = EdgeInsets.symmetric(horizontal: 16, vertical: 8);
   static const EdgeInsets page = EdgeInsets.symmetric(horizontal: 24, vertical: 24);
   static const EdgeInsets pageCompact = EdgeInsets.symmetric(horizontal: 12, vertical: 16);
   static const EdgeInsets dialogActions = EdgeInsets.fromLTRB(24, 8, 24, 24);

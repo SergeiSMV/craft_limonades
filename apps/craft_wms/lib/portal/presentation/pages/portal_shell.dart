@@ -78,12 +78,15 @@ class _PortalShellState extends State<PortalShell> {
       NavSection(
         title: t.portal.menu.warehouse,
         items: [
-          /// Номенклатура
-          if (p.can(Rights.nomenclatureImport))
+          if (p.can(Rights.nomenclatureView, [Rights.nomenclatureImport]))
             NavItem(
               icon: Icons.inventory_2_outlined,
               label: t.portal.tabs.nomenclature,
-              body: const NomenclatureTab(),
+              // ADHOC-56: справочник товаров, загрузка из 1С — кнопкой на панели.
+              description: t.portal.goods.description,
+              body: NomenclatureTab(
+                canImport: p.can(Rights.nomenclatureImport),
+              ),
             ),
 
           /// Приход

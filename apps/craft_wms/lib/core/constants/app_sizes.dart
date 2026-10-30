@@ -71,6 +71,18 @@ abstract final class AppSizes {
   static const double kSettingsNavWidth = 960;
   static const double kSettingsNavColumn = 200; // колонка разделов настроек
   static const double kSettingsMaxWidth = 1160; // предел ширины страницы настроек
+  // Меню фильтра списка (ADHOC-56): не шире и не выше — длинный справочник прокручивается.
+  static const double kPortalSelectMenuWidth = 440;
+  static const double kPortalSelectMenuMargin = 32; // меню уже экрана на поля по краям
+  // Подписи пункта меню не достаётся: отступы пункта (24), галочка (16) с зазором, поля меню.
+  static const double kPortalSelectItemReserve = 64;
+  static const double kPortalSelectMenuHeight = 360;
+  // Номенклатура склада (ADHOC-56): от этой ширины карточки — колонками, уже — строками.
+  static const double kGoodsColumnsWidth = 720;
+  static const double kGoodsColCode = 96; // колонка «Код»
+  static const double kGoodsColUom = 56; // колонка «Ед.»
+  static const double kGoodCardLabel = 184; // подпись реквизита в карточке товара
+  static const double kPortalListMaxWidth = 1200; // предел ширины страницы-списка
   // Область вкладки уже — меньше поля по краям, чтобы не терять ширину на телефоне.
   static const double kPortalCompactContentWidth = 600;
   // Строка документа уже — кнопки уходят под текст, иначе заголовку остаётся пара букв.
