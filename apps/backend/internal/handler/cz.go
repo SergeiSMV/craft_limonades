@@ -110,6 +110,9 @@ func czErrorResponse(err error) (int, string) {
 		return http.StatusBadRequest, "слишком много кодов за раз: " + err.Error()
 	case errors.Is(err, model.ErrCZGoodNotFound):
 		return http.StatusNotFound, "товар не найден"
+	case errors.Is(err, model.ErrCZGoodHasMarks):
+		return http.StatusConflict, "на складе есть марки этого товара: признак «маркируемый» не снять, " +
+			"пока марки не уйдут со склада"
 	case errors.Is(err, model.ErrCZNotConfigured):
 		return http.StatusServiceUnavailable, "Честный знак на этом сервере не настроен"
 	case errors.Is(err, model.ErrCZSignerUnavailable):

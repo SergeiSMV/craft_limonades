@@ -43,6 +43,7 @@ void main() {
     when(
       () => catalog.listSuppliers(),
     ).thenAnswer((_) async => const Right(<Supplier>[]));
+    when(() => catalog.goodsByIds(any())).thenAnswer((_) async => {});
     when(
       () => catalog.listGoods(
         query: any(named: 'query'),
