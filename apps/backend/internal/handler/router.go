@@ -149,13 +149,13 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 			})
 		}
 
-		// PDF-этикетки ячеек (P-FastStart) — «Ячейки: печатать этикетки».
+		// PDF этикеток ячеек и карточек на стойку (ADHOC-57) — «Ячейки: печатать этикетки».
 		if svc.Label != nil {
 			labelH := NewLabelHandler(svc.Label)
 			r.Group(func(r chi.Router) {
 				r.Use(appmw.Authenticator(tokens))
 				r.Use(need(model.RightCellsLabels))
-				r.Get("/cells/labels.pdf", labelH.CellLabelsPDF)
+				r.Post("/cells/labels.pdf", labelH.CellLabelsPDF)
 			})
 		}
 

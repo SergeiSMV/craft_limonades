@@ -122,7 +122,7 @@ func main() {
 		svc.Barcode = service.NewBarcodeService(repository.NewBarcodeRepository(pool))
 		// Сессия ввода остатков (P-FastStart, P-FS-04): старт/checkpoint/финал → stock.
 		svc.StockEntry = service.NewStockEntryService(repository.NewStockEntryRepository(pool))
-		// PDF-этикетки ячеек (P-FastStart, P-FS-05): склад по коду → ячейки → PDF.
+		// PDF этикеток ячеек и карточек на стойку (ADHOC-57): геометрия rack_labels.
 		svc.Label = service.NewLabelService(repository.NewWarehouseRepository(pool), cells)
 		// Страница «Ячейки» портала (ADHOC-57): стеллажи, галочки этикеток, выгрузка в .xlsx.
 		svc.CellSetup = service.NewCellSetupService(pool, repository.NewWarehouseRepository(pool), cells)

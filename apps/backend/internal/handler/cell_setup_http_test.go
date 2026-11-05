@@ -73,3 +73,33 @@ func TestCellSetupHTTP(t *testing.T) {
 		t.Errorf("разбор выгрузки: %v %+v", err, parsed)
 	}
 }
+
+// ADHOC-57: печать — POST с видом и выборкой; кладовщику без права «печатать» — 403.
+func TestCellLabelsHTTP(t *testing.T) {
+	e := newReceivingE2E(t, nil)
+	const path = "/api/v1/cells/labels.pdf?warehouse=SHB"
+	if code, _ := e.call(t, http.MethodPost, path, e.workerToken, `{"kind":"large"}`); code != http.StatusForbidden {
+		t.Errorf("кладовщик: %d, ждали 403", code)
+	}
+	code, body := e.call(t, http.MethodPost, path, e.adminToken, `{"kind":"large","cell_ids":["`+e.cell1+`"]}`)
+	if code != http.StatusOK || !bytes.HasPrefix(body, []byte("%PDF")) {
+		t.Fatalf("печать: %d %.200s", code, body)
+	}
+	for _, c := range []struct {
+		body string
+		want int
+	}{
+		{`{"kind":"huge"}`, http.StatusBadRequest},
+		{`не json`, http.StatusBadRequest},
+		{`{"kind":"large","cell_ids":["` + e.cellDefault + `"]}`, http.StatusConflict},
+		{`{"kind":"small"}`, http.StatusUnprocessableEntity}, // малых ячеек на складе нет
+		{`{"kind":"cards"}`, http.StatusUnprocessableEntity}, // и стеллажей с карточкой
+	} {
+		if code, body := e.call(t, http.MethodPost, path, e.adminToken, c.body); code != c.want {
+			t.Errorf("%s: %d %s, ждали %d", c.body, code, body, c.want)
+		}
+	}
+	if code, _ := e.call(t, http.MethodGet, path, e.adminToken, ""); code != http.StatusMethodNotAllowed {
+		t.Errorf("прежний GET: %d, ждали 405", code)
+	}
+}
