@@ -19,6 +19,8 @@
 ```mermaid
 erDiagram
     warehouses           ||--o{ cells                : "владеет"
+    warehouses           ||--o{ racks                : "владеет"
+    racks                |o--o{ cells                : "стоят на"
     cells                ||--o{ stock                : "хранит"
     goods                ||--o{ barcodes             : "1→N ШК"
     goods                ||--o{ batches              : "партии товара"
@@ -35,7 +37,7 @@ erDiagram
 | Область          | Таблицы                                                 | Миграция           |
 |------------------|---------------------------------------------------------|--------------------|
 | Учётки и аудит   | `users`, `positions`, `audit_log`                       | `000001`, `000002`, `000033`, `000034`, `000035` |
-| Склад и ячейки   | `warehouses`, `cells`                                   | `000003`, `000006`, `000015` |
+| Склад и ячейки   | `warehouses`, `cells`, `racks`                          | `000003`, `000006`, `000015`, `000041` |
 | Номенклатура     | `goods`, `barcodes`, `nomenclature_groups`, `suppliers` | `000003`, `000005`, `000016` |
 | Партии и остатки | `batches`, `stock`                                      | `000004`           |
 | Честный знак     | `cz_aggregates`, `cz_marks`                             | `000026`           |
@@ -91,7 +93,7 @@ username + паролю** (вход со смартфона/портала). Р�
 
 Права — действия по разделам, код «приложение.раздел.действие» (`000034`): портал —
 `portal.nomenclature.import`; `portal.receipt|movement|stocktake_doc|stock_entry_doc` +
-`.view|.download|.post`; `portal.stocktake.view|manage`; `portal.cells.import|labels`;
+`.view|.download|.post`; `portal.stocktake.view|manage`; `portal.cells.import|labels|edit`;
 `portal.problems.view|resolve`; `portal.settings.warehouses|problem_reasons|users`. ТСД — `tsd.receipt`,
 `tsd.movement`, `tsd.tasks.putaway|stocktake_count|stocktake_manage`,
 `tsd.stock.view|cz_marked|regrade`, `tsd.stock_entry`, `tsd.problems.view|mark`. Всего 33
@@ -134,7 +136,7 @@ Append-only «кто / что / когда»; по нему разбирают �
 
 > ⚠ «Внутренний склад» (основной/брак/…) — это **НЕ** `warehouses`, а измерение остатка (см. §6, ADR-0016).
 
-### 3.4 `cells` — ячейки хранения (миграции `000003`, `000006`, `000015`)
+### 3.4 `cells` — ячейки хранения (миграции `000003`, `000006`, `000015`, `000041`)
 
 Физические ячейки одного склада. **Зон нет** — ячейка ссылается на склад напрямую.
 
@@ -144,7 +146,10 @@ Append-only «кто / что / когда»; по нему разбирают �
 | `warehouse_id` | `uuid`    | FK → `warehouses(id)`; склад-владелец                                        |
 | `address`      | `text`    | адрес ячейки (латиница, напр. `M1-1-2-1`); уникален внутри склада            |
 | `type`         | `text`    | дефолт `'storage'`, **без CHECK** «на вырост» (storage/receiving/shipping/…) |
-| `is_floor`     | `boolean` | напольная ячейка (нижний ярус); из колонки `floor` файла импорта             |
+| `is_floor`     | `boolean` | нижняя (напольная) ячейка: стрелка вниз на этикетке; `arrow = down` в файле  |
+| `rack_id`      | `uuid`    | FK → `racks(id)`, `ON DELETE SET NULL`; NULL — ячейка без стеллажа           |
+| `label_small`  | `boolean` | малая балка: этикетка 190 × 46 мм вместо 190 × 69; `size = small` в файле    |
+| `label_barcode`| `boolean` | штрих-код Code128 на этикетке балки; `barcode` в файле                       |
 | `is_default`   | `boolean` | ячейка приёмки по умолчанию (`С-Н-П`); одна на склад                         |
 | `is_active`    | `boolean` | —                                                                            |
 
@@ -157,6 +162,19 @@ Append-only «кто / что / когда»; по нему разбирают �
 у `internal_warehouses.is_default`). Ячейку заводит тот, кто заводит склад, — сидер при
 развёртывании и импорт ячеек, — потому что склад без неё означал бы, что приёмка на нём
 невозможна. ШК у неё нет, из печати этикеток она исключается.
+
+### 3.4а `racks` — стеллажи (миграция `000041`, ADHOC-57)
+
+Стеллаж склада — для печати карточки на боковую опору со всеми адресами стеллажа и их
+штрих-кодами. Номер стеллажа из адреса не выводится (ячейка `B-1-1-12` стоит на `B-05`), поэтому
+ячейка ссылается на стеллаж явно; что стеллаж того же склада, что ячейка, гарантирует сервис.
+
+| Колонка        | Тип       | Ограничения / смысл                                   |
+|----------------|-----------|-------------------------------------------------------|
+| `id`           | `uuid`    | PK                                                    |
+| `warehouse_id` | `uuid`    | FK → `warehouses(id)`                                 |
+| `code`         | `text`    | код стеллажа (`B-01`); `UNIQUE (warehouse_id, code)`  |
+| `side_card`    | `boolean` | печатать карточку на стойку                           |
 
 ### 3.5 `nomenclature_groups` — группы номенклатуры (миграция `000005`)
 

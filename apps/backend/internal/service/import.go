@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"craftwms/internal/importer"
+	"craftwms/internal/model"
 	"craftwms/internal/repository"
 )
 
@@ -27,7 +28,8 @@ type (
 		Upsert(ctx context.Context, q repository.Querier, code, name string) (string, error)
 	}
 	cellRepo interface {
-		Upsert(ctx context.Context, q repository.Querier, warehouseID, address string, isFloor bool) (bool, error)
+		UpsertRack(ctx context.Context, q repository.Querier, warehouseID, code string, sideCard *bool) (string, bool, error)
+		UpsertSetup(ctx context.Context, q repository.Querier, warehouseID string, rackID *string, c model.CellSetup) (bool, error)
 		EnsureDefault(ctx context.Context, q repository.Querier, warehouseID string) (string, error)
 	}
 )
@@ -127,18 +129,24 @@ func (s *ImportService) ImportGoods(ctx context.Context, r io.ReadSeeker) (*Impo
 	return report, nil
 }
 
-// CellsImportReport — итог импорта ячеек склада (отдаётся клиенту).
+// CellsImportReport — итог загрузки ячеек склада (отдаётся клиенту).
 type CellsImportReport struct {
 	Warehouse    string              `json:"warehouse"`     // code физического склада, в который загрузили
 	CellsCreated int                 `json:"cells_created"` // новых ячеек
-	CellsUpdated int                 `json:"cells_updated"` // обновлённых (повторный импорт)
+	CellsUpdated int                 `json:"cells_updated"` // обновлённых (повторная загрузка)
+	RacksCreated int                 `json:"racks_created"` // новых стеллажей
+	RacksUpdated int                 `json:"racks_updated"` // уже заведённых стеллажей из файла
 	Skipped      []importer.RowError `json:"skipped"`       // пропущенные строки с причинами
 }
 
-// ImportCells разбирает .xlsx с физическими ячейками и загружает их в один физический склад
-// (warehouseCode/warehouseName — параметры импорта, т.к. склада в файле нет) в одной транзакции.
-// Внутренний склад (основной/брак) здесь не участвует — это измерение остатка, не ячейки (ADR-0016).
-// Проблемные строки не валят импорт — попадают в отчёт (Skipped).
+// ImportCells загружает .xlsx ячеек в формате rack_labels (листы cells и racks) в один
+// физический склад (warehouseCode/warehouseName — параметры, склада в файле нет) одной транзакцией.
+//
+// Как: сначала стеллажи листа racks — с признаком карточки; затем стеллажи, названные только в
+// листе cells (без листа racks), — без изменения карточки; затем ячейки со ссылкой на стеллаж и
+// настройками этикетки. Ячейки, которых нет в файле, не трогаются и не удаляются. Внутренний
+// склад (основной/брак) здесь не участвует — это измерение остатка, не ячейки (ADR-0016).
+// Проблемные строки не валят загрузку — попадают в отчёт (Skipped).
 func (s *ImportService) ImportCells(ctx context.Context, r io.Reader, warehouseCode, warehouseName string) (*CellsImportReport, error) {
 	parsed, err := importer.ParseCells(r)
 	if err != nil {
@@ -153,8 +161,41 @@ func (s *ImportService) ImportCells(ctx context.Context, r io.Reader, warehouseC
 		if err != nil {
 			return err
 		}
+		rackIDs := map[string]string{}
+		upsertRack := func(code string, sideCard *bool) error {
+			id, created, err := s.cells.UpsertRack(ctx, q, warehouseID, code, sideCard)
+			if err != nil {
+				return err
+			}
+			rackIDs[code] = id
+			if created {
+				report.RacksCreated++
+			} else {
+				report.RacksUpdated++
+			}
+			return nil
+		}
+		for _, rk := range parsed.Racks {
+			if err := upsertRack(rk.Code, &rk.SideCard); err != nil {
+				return err
+			}
+		}
 		for _, c := range parsed.Cells {
-			created, err := s.cells.Upsert(ctx, q, warehouseID, c.Address, c.IsFloor)
+			if c.RackCode == "" || rackIDs[c.RackCode] != "" {
+				continue
+			}
+			if err := upsertRack(c.RackCode, nil); err != nil {
+				return err
+			}
+		}
+		for _, c := range parsed.Cells {
+			var rackID *string
+			if id, ok := rackIDs[c.RackCode]; ok {
+				rackID = &id
+			}
+			created, err := s.cells.UpsertSetup(ctx, q, warehouseID, rackID, model.CellSetup{
+				Address: c.Address, IsFloor: c.IsFloor, LabelSmall: c.LabelSmall, LabelBarcode: c.LabelBarcode,
+			})
 			if err != nil {
 				return err
 			}

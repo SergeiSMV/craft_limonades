@@ -60,6 +60,26 @@ func TestImportCells_realFile(t *testing.T) {
 	if floors != 25 {
 		t.Errorf("напольных ячеек: ожидалось 25, получено %d", floors)
 	}
+	// Стеллажи (ADHOC-57): 12 из листа racks, у 6 — карточка на стойку; ячейка знает свой стеллаж.
+	if rep.RacksCreated != 12 || rep.RacksUpdated != 0 {
+		t.Errorf("стеллажи: ожидалось created=12 updated=0, получено %d и %d", rep.RacksCreated, rep.RacksUpdated)
+	}
+	var cards int
+	if err := pool.QueryRow(ctx, "SELECT count(*) FROM racks WHERE side_card").Scan(&cards); err != nil {
+		t.Fatal(err)
+	}
+	if cards != 6 {
+		t.Errorf("стеллажей с карточкой: ожидалось 6, получено %d", cards)
+	}
+	var rackCode string
+	if err := pool.QueryRow(ctx, `
+		SELECT r.code FROM cells c JOIN racks r ON r.id = c.rack_id
+		WHERE c.address = 'M1-12-1-1'`).Scan(&rackCode); err != nil {
+		t.Fatalf("стеллаж ячейки M1-12-1-1: %v", err)
+	}
+	if rackCode != "M1-12" {
+		t.Errorf("стеллаж ячейки M1-12-1-1: %q, ждали M1-12", rackCode)
+	}
 
 	// Ячейка принадлежит заведённому складу «Шабулина» (code SHB).
 	var whCode string
@@ -84,6 +104,10 @@ func TestImportCells_realFile(t *testing.T) {
 	}
 	if rep2.CellsCreated != 0 || rep2.CellsUpdated != 125 {
 		t.Errorf("повтор: ожидалось created=0 updated=125, получено created=%d updated=%d", rep2.CellsCreated, rep2.CellsUpdated)
+	}
+	if rep2.RacksCreated != 0 || rep2.RacksUpdated != 12 || countRows(t, pool, "racks") != 12 {
+		t.Errorf("повтор: стеллажи created=%d updated=%d (ждали 0 и 12), в базе %d",
+			rep2.RacksCreated, rep2.RacksUpdated, countRows(t, pool, "racks"))
 	}
 	if got := countRows(t, pool, "cells"); got != 126 {
 		t.Errorf("после повтора ячеек: ожидалось 126 (без дублей), получено %d", got)

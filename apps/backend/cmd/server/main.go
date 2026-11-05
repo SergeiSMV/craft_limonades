@@ -124,6 +124,8 @@ func main() {
 		svc.StockEntry = service.NewStockEntryService(repository.NewStockEntryRepository(pool))
 		// PDF-этикетки ячеек (P-FastStart, P-FS-05): склад по коду → ячейки → PDF.
 		svc.Label = service.NewLabelService(repository.NewWarehouseRepository(pool), cells)
+		// Страница «Ячейки» портала (ADHOC-57): стеллажи, галочки этикеток, выгрузка в .xlsx.
+		svc.CellSetup = service.NewCellSetupService(pool, repository.NewWarehouseRepository(pool), cells)
 		// Excel-отчёт «ввод остатков» по закрытой сессии (P-FastStart, P-FS-08).
 		svc.Document = service.NewDocumentService(repository.NewReportDocumentRepository(pool))
 		// Батч операций офлайн-очереди устройства (P2-05): дедуп по operation_id.
