@@ -21,8 +21,10 @@ String taskKindLabel(String kind) => switch (kind) {
 /// у задания от приёмки до ADHOC-23 документа нет — «Основание: приёмка от 05.10.2026 …».
 ///
 /// У возврата поставщику основание — кому везём (ADHOC-31). У размещения по решению
-/// «разместить» — номер проблемы склада (ADHOC-55).
+/// «разместить» — номер проблемы склада (ADHOC-55). У пересчёта — сам пересчёт (ADHOC-58):
+/// приёмки у него нет, и запасной ветке «приёмка от <дата создания>» он не подходит.
 String taskBasis(WarehouseTask task) {
+  if (task.stocktake case final st?) return stocktakeLine(st);
   if (task.kind == TaskKind.supplierReturn) {
     return t.tasks.basisReturn(supplier: task.supplier);
   }
@@ -57,13 +59,21 @@ String taskAuthor(WarehouseTask task) => t.tasks.author(
   },
 );
 
+/// «Пересчёт: ПС-000012» — строка пересчёта задания (ADHOC-58).
+String stocktakeLine(TaskStocktake st) =>
+    t.tasks.stocktakeLine(number: docNumber(DocKind.stocktake, st.number));
+
 /// Поставщик-основание для ленты, где приёмки как объекта нет — только имя. У возврата —
-/// кому везли (ADHOC-31), у размещения по проблеме — её номер (ADHOC-55).
+/// кому везли (ADHOC-31), у размещения по проблеме — её номер (ADHOC-55), у пересчёта —
+/// сам пересчёт (ADHOC-58).
 String supplierBasis(
   String supplier, {
   String kind = TaskKind.putaway,
   TaskProblem? problem,
-}) => kind == TaskKind.supplierReturn
+  TaskStocktake? stocktake,
+}) => stocktake != null
+    ? stocktakeLine(stocktake)
+    : kind == TaskKind.supplierReturn
     ? t.tasks.returnSupplier(supplier: supplier)
     : problem != null
     ? t.tasks.fromProblem(number: docNumber(DocKind.problem, problem.number))

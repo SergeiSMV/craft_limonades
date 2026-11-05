@@ -129,6 +129,9 @@ type CompletedTask struct {
 	Sessions  int
 	// Problem — проблема-основание размещения (ADHOC-55); nil — основание другое.
 	Problem *TaskProblemInfo
+	// Stocktake — пересчёт задания вида stocktake (ADHOC-58): номер, область, ход; nil — у других.
+	// У пересчёта «заход» — подсчитанная ячейка, исполнители — кто считал.
+	Stocktake *TaskStocktakeInfo
 }
 
 // TaskUser — исполнитель задания.
@@ -159,17 +162,22 @@ const (
 	TaskEventIntercepted = "intercepted"
 	TaskEventSession     = "session"
 	TaskEventCompleted   = "completed"
+	// TaskEventCellCounted — ячейка пересчёта подсчитана (ADHOC-58). В task_events не пишется:
+	// журнал задания дочитывает его из stocktake_cells, где факт подсчёта и так хранится.
+	TaskEventCellCounted = "cell_counted"
 )
 
 // TaskEvent — запись журнала задания: что случилось, кто, когда.
 //
 // UserName пуст у системных событий (задание заведено приёмкой). PrevUserName — у кого
-// перехвачено зависшее задание. PutawayID — заход, если событие о нём.
+// перехвачено зависшее задание. PutawayID — заход, если событие о нём. Cell — адрес
+// подсчитанной ячейки у события cell_counted (ADHOC-58), у прочих пуст.
 type TaskEvent struct {
 	Event        string
 	UserName     string
 	PrevUserName string
 	PutawayID    *string
+	Cell         string
 	At           time.Time
 }
 

@@ -40,6 +40,9 @@ class HistoryTile extends StatelessWidget {
             '${shortDateTime(event.at)} · ${_label()}',
             style: RegularTextStyles().regularInter12,
           ),
+          // Подсчёт ячейки пересчёта (ADHOC-58) — какую ячейку, своей строкой.
+          if (event.event == TaskEventKind.cellCounted && event.cell.isNotEmpty)
+            Text(t.tasks.cell(cell: event.cell), style: muted),
           if (session != null)
             for (final l in session!.lines) ...[
               Text(_what(l), style: muted),
@@ -74,6 +77,7 @@ class HistoryTile extends StatelessWidget {
           ? t.tasks.eventShipped(user: event.user)
           : t.tasks.eventSession(user: event.user),
     TaskEventKind.completed => t.tasks.eventCompleted,
+    TaskEventKind.cellCounted => t.tasks.eventCellCounted(user: event.user),
     _ => event.event,
   };
 

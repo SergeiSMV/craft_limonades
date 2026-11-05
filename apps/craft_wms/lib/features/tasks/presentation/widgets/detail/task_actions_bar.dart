@@ -7,7 +7,8 @@ import '../../../../../core/gen/strings.g.dart';
 import '../../../data/tasks_models.dart';
 
 /// Действия карточки: новое задание — «Взять в работу»; своё взятое — «Выполнить»
-/// и «Отказаться». У выполненного действий нет.
+/// и «Отказаться». У выполненного действий нет. Пересчёт (ADHOC-58) целиком не берут —
+/// работники берут из него ячейки, поэтому у него одна кнопка: открыть пересчёт.
 class TaskActionsBar extends StatelessWidget {
   const TaskActionsBar({
     super.key,
@@ -37,7 +38,12 @@ class TaskActionsBar extends StatelessWidget {
       top: false,
       child: Padding(
         padding: AppInsets.all16,
-        child: task.isMine
+        child: task.kind == TaskKind.stocktake
+            ? FilledButton(
+                onPressed: busy ? null : onExecute,
+                child: Text(t.tasks.execute),
+              )
+            : task.isMine
             ? Row(
                 children: [
                   Expanded(
