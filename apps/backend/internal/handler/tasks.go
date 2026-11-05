@@ -132,6 +132,7 @@ type taskEventResponse struct {
 	User      string  `json:"user"`
 	PrevUser  string  `json:"prev_user,omitempty"`
 	PutawayID *string `json:"putaway_id,omitempty"`
+	Cell      string  `json:"cell,omitempty"` // адрес подсчитанной ячейки пересчёта (ADHOC-58)
 	At        string  `json:"at"`
 }
 
@@ -153,6 +154,8 @@ type completedTaskResponse struct {
 	Sessions    int                `json:"sessions"`
 	// Проблема-основание размещения (ADHOC-55); нет — основание другое.
 	Problem *taskProblemResponse `json:"problem,omitempty"`
+	// Пересчёт задания вида stocktake (ADHOC-58); у пересчёта sessions — подсчитанные ячейки.
+	Stocktake *taskStocktakeResponse `json:"stocktake,omitempty"`
 }
 
 // Current: GET /api/v1/tasks — текущие задания: пул и свои взятые, с позициями.
@@ -193,7 +196,7 @@ func (h *TaskHandler) Get(w http.ResponseWriter, r *http.Request) {
 	for _, ev := range d.Events {
 		out.Events = append(out.Events, taskEventResponse{
 			Event: ev.Event, User: ev.UserName, PrevUser: ev.PrevUserName,
-			PutawayID: ev.PutawayID, At: ev.At.Format(time.RFC3339),
+			PutawayID: ev.PutawayID, Cell: ev.Cell, At: ev.At.Format(time.RFC3339),
 		})
 	}
 	for _, s := range d.Sessions {
@@ -276,7 +279,7 @@ func (h *TaskHandler) Completed(w http.ResponseWriter, r *http.Request) {
 			ID: c.ID, Number: c.Number, Kind: c.Kind, Supplier: c.SupplierName,
 			DocNumber: c.DocNumber, DocDate: formatProductionDate(c.DocDate),
 			CompletedAt: c.CompletedAt.Format(time.RFC3339Nano), Executors: ex, Sessions: c.Sessions,
-			Problem: toTaskProblem(c.Problem),
+			Problem: toTaskProblem(c.Problem), Stocktake: toTaskStocktake(c.Stocktake),
 		})
 	}
 	writeJSON(w, http.StatusOK, out)
@@ -297,6 +300,15 @@ func (h *TaskHandler) Executors(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
+// toTaskStocktake — пересчёт задания для ответа; nil — задание не пересчёт.
+func toTaskStocktake(st *model.TaskStocktakeInfo) *taskStocktakeResponse {
+	if st == nil {
+		return nil
+	}
+	return &taskStocktakeResponse{Number: st.Number, ScopeKind: st.ScopeKind,
+		CreatedBy: st.CreatedBy, Cells: st.Cells, Counted: st.Counted}
+}
+
 func toTaskResponse(t model.Task) taskResponse {
 	out := taskResponse{
 		ID: t.ID, Number: t.Number, Kind: t.Kind, Status: t.Status, WarehouseID: t.WarehouseID,
@@ -305,10 +317,7 @@ func toTaskResponse(t model.Task) taskResponse {
 		AssigneeName: t.AssigneeName, TakenAt: formatTimePtr(t.TakenAt),
 		CreatedAt: t.CreatedAt.Format(time.RFC3339), StocktakeID: t.StocktakeID, Items: []taskItemResponse{},
 	}
-	if st := t.Stocktake; st != nil {
-		out.Stocktake = &taskStocktakeResponse{Number: st.Number, ScopeKind: st.ScopeKind,
-			CreatedBy: st.CreatedBy, Cells: st.Cells, Counted: st.Counted}
-	}
+	out.Stocktake = toTaskStocktake(t.Stocktake)
 	for _, it := range t.Items {
 		ir := taskItemResponse{LineNo: it.LineNo, LoadUnitID: it.LoadUnitID, Placed: it.Placed,
 			ProblemID: it.ProblemID, Cell: it.CellAddress, CZCode: it.CZCode, Marks: it.Marks}

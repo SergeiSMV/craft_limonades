@@ -188,6 +188,10 @@ abstract class CompletedTask with _$CompletedTask {
 
     /// Проблема-основание размещения (ADHOC-55); `null` — основание другое.
     TaskProblem? problem,
+
+    /// Пересчёт задания вида `stocktake` (ADHOC-58); у пересчёта [sessions] — подсчитанные
+    /// ячейки, [executors] — кто считал.
+    TaskStocktake? stocktake,
   }) = _CompletedTask;
 
   const CompletedTask._();
@@ -237,6 +241,9 @@ abstract final class TaskEventKind {
   static const intercepted = 'intercepted';
   static const session = 'session';
   static const completed = 'completed';
+
+  /// Ячейка пересчёта подсчитана (ADHOC-58): кто и какую — [TaskEvent.cell].
+  static const cellCounted = 'cell_counted';
 }
 
 /// Запись журнала задания: что случилось, кто, когда. [user] пуст у системных событий.
@@ -247,6 +254,9 @@ abstract class TaskEvent with _$TaskEvent {
     @Default('') String user,
     @JsonKey(name: 'prev_user') @Default('') String prevUser,
     @JsonKey(name: 'putaway_id') String? putawayId,
+
+    /// Адрес подсчитанной ячейки у события [TaskEventKind.cellCounted] (ADHOC-58).
+    @Default('') String cell,
     required DateTime at,
   }) = _TaskEvent;
 

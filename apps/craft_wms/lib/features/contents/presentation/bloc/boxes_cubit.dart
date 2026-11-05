@@ -64,7 +64,18 @@ class BoxesState {
 /// видит склад на сейчас, без связи — снимок с подписью, на когда он.
 @injectable
 class BoxesCubit extends Cubit<BoxesState> {
-  BoxesCubit(this._repo, this._snapshot) : super(const BoxesState());
+  BoxesCubit(this._repo, this._snapshot) : super(const BoxesState()) {
+    // Снимок обновился по любому поводу (очередь, версии данных — ADHOC-60) — список
+    // перечитывается из кэша. Выдача поиска идёт с сервера и остаётся как есть.
+    _updates = _snapshot.updated.listen((_) {
+      if (state.status == BoxesStatus.ready && !state.searching) {
+        _refreshFailure = null;
+        unawaited(_show());
+      }
+    });
+  }
+
+  late final StreamSubscription<void> _updates;
 
   final ContentsRepository _repo;
   final ContentsSnapshotSync _snapshot;
@@ -136,6 +147,7 @@ class BoxesCubit extends Cubit<BoxesState> {
   @override
   Future<void> close() {
     _timer?.cancel();
+    _updates.cancel();
     return super.close();
   }
 }

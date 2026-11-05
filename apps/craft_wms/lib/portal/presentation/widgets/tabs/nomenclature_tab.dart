@@ -6,6 +6,8 @@ import '../../../../core/constants/app_boxes.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/gen/strings.g.dart';
+import '../../../../core/sync/data_versions.dart';
+import '../../../../core/widgets/data_versions_listener.dart';
 import '../../../../features/stock/data/catalog_api.dart';
 import '../../../../features/stock/data/catalog_models.dart';
 import '../nomenclature/good_card_dialog.dart';
@@ -47,6 +49,12 @@ class _NomenclatureTabState extends State<NomenclatureTab> {
   Timer? _debounce;
 
   static const _debounceDelay = Duration(milliseconds: 350);
+
+  /// Наибольшая страница, которую отдаёт сервер (`maxLimit` каталога).
+  static const _maxPage = 200;
+
+  /// Обычная страница списка — как у [CatalogApi.listGoods] по умолчанию.
+  static const _firstPage = 50;
 
   List<NomenclatureGroup> _groups = const [];
   List<Supplier> _suppliers = const [];
@@ -128,6 +136,49 @@ class _NomenclatureTabState extends State<NomenclatureTab> {
     });
   }
 
+  /// Номенклатура изменилась на сервере (ADHOC-60): перечитать фильтры и уже показанные
+  /// строки под текущие поиск и фильтры — тихо, без загрузки на весь экран.
+  ///
+  /// Как: столько строк, сколько уже показано (а не первую страницу) — иначе после «Показать
+  /// ещё» список укоротился бы и прокрутка уехала. Сервер отдаёт до [_maxPage] за раз, поэтому
+  /// длинный список собирается несколькими запросами. Ошибка тихого чтения не показывается:
+  /// на экране остаётся прежний список. Номер запроса — общий с [load]: смена поиска во время
+  /// перечитывания отбросит его ответ.
+  Future<void> refresh() async {
+    final shown = _goods?.length;
+    loadFilters();
+    if (shown == null) return load();
+    final seq = ++_seq;
+    final items = <Good>[];
+    var total = 0;
+    // Не меньше обычной страницы: пустой список после правки мог пополниться.
+    final want = shown < _firstPage ? _firstPage : shown;
+    while (items.length < want) {
+      final res = await _api.listGoods(
+        query: _query,
+        groupId: _groupId,
+        supplierId: _supplierId,
+        limit: (want - items.length).clamp(1, _maxPage),
+        offset: items.length,
+      );
+      if (!mounted || seq != _seq) return;
+      if (res.isLeft) {
+        setState(() => _loadingMore = false);
+        return;
+      }
+      items.addAll(res.right.items);
+      total = res.right.total;
+      if (res.right.items.isEmpty || items.length >= total) break;
+    }
+    setState(() {
+      // Подгрузка «Показать ещё», начатая до перечитывания, отброшена по номеру запроса.
+      _loadingMore = false;
+      _goods = items;
+      _total = total;
+      _error = null;
+    });
+  }
+
   String? get _query {
     final q = _search.text.trim();
     return q.isEmpty ? null : q;
@@ -170,6 +221,15 @@ class _NomenclatureTabState extends State<NomenclatureTab> {
   @override
   Widget build(BuildContext context) {
     final goods = _goods;
+    return DataVersionsListener(
+      domains: const {DataDomain.goods},
+      onChanged: refresh,
+      child: _listPage(goods),
+    );
+  }
+
+  /// Страница-список: панель поиска и фильтров, под ней — товары.
+  Widget _listPage(List<Good>? goods) {
     return PortalListPage(
       toolbar: GoodsToolbar(
         search: _search,

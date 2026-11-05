@@ -1093,6 +1093,28 @@ PK `(reason, resolution_id)`; `reason` FK → `problem_reasons(code)` `ON DELETE
 `pg_advisory_xact_lock(1030)`, каждая — строкой `audit_log`. Откат `000039` переводит проблемы
 своих причин в `other`.
 
+### 3.44 `data_versions` — версии областей данных (миграция `000043`, ADHOC-60)
+
+`domain text` PK, `version bigint` (с 1). Восемь строк: `goods`, `cells`, `settings`, `contents`,
+`tasks`, `problems`, `stocktakes`, `documents` — единицы перечитывания на клиентах
+([ADR-0018](adr/0018-data-versions-in-every-response.md)). Версию повышают триггеры уровня
+оператора `data_version_ins/upd/del` (функция `bump_data_version`, вешает
+`add_data_version_triggers(tbl, domains)`) с таблицей переходов `changed`: оператор, не изменивший
+строк, версию не трогает; откат транзакции откатывает и её. Таблицы по областям:
+
+| Область      | Таблицы                                                                                  |
+|--------------|------------------------------------------------------------------------------------------|
+| `goods`      | `goods`, `nomenclature_groups`, `suppliers`, `barcodes`                                   |
+| `cells`      | `warehouses`, `cells`, `racks`                                                            |
+| `settings`   | `internal_warehouses`, `problem_reasons`, `problem_reason_resolutions`, `positions`, `users` |
+| `contents`   | `stock`, `batches`, `load_units`, `lu_content`, `cz_marks`, `cz_aggregates`               |
+| `tasks`      | `warehouse_tasks`, `putaway_task_items`, `task_events`, `putaways`, `supplier_return_shipments`, `stocktakes`, `stocktake_cells` |
+| `problems`   | `warehouse_problems`, `warehouse_problem_lines`, `problem_resolutions`, `problem_photos`  |
+| `stocktakes` | `stocktakes`, `stocktake_cells`, `stocktake_scope`, `stocktake_lines`, `stocktake_marks`  |
+| `documents`  | `report_documents`, `report_document_events`, `stock_entry_sessions`                      |
+
+Новая таблица, которую показывает клиент, — строка `add_data_version_triggers` в миграции.
+
 ---
 
 ## 4. Инварианты и целостность

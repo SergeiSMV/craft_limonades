@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/gen/strings.g.dart';
+import '../../../../core/sync/data_versions.dart';
+import '../../../../core/widgets/data_versions_listener.dart';
 import '../../../data/users_repository.dart';
 import 'access_common.dart';
 import 'position_dialogs.dart';
@@ -109,30 +111,42 @@ class _PositionsSectionState extends State<PositionsSection> {
     widget.changes.value++;
   }
 
+  /// Настройки изменились на сервере (ADHOC-60): перечитать список. Пока идёт своё действие,
+  /// не перечитывать — оно само перечитает список по завершении. Правка в открытом окне не
+  /// страдает: окно держит свою копию данных, а список под ним остаётся на экране до ответа.
+  void onDataChanged() {
+    if (_busyId != null) return;
+    load();
+  }
+
   @override
   Widget build(BuildContext context) {
     final items = _items;
-    return PortalAnnotatedSection(
-      title: t.portal.positions.title,
-      description: t.portal.positions.description,
-      action: PortalButton(
-        label: t.portal.positions.add,
-        icon: Icons.add,
-        busy: _busyId == '',
-        onPressed: create,
-      ),
-      child: SettingsListCard(
-        loading: _loading && items == null,
-        error: _error,
-        rows: [
-          for (final p in items ?? const <PortalPosition>[])
-            PositionRow(
-              position: p,
-              busy: _busyId == p.id,
-              onEdit: () => edit(p),
-              onDelete: () => delete(p),
-            ),
-        ],
+    return DataVersionsListener(
+      domains: const {DataDomain.settings},
+      onChanged: onDataChanged,
+      child: PortalAnnotatedSection(
+        title: t.portal.positions.title,
+        description: t.portal.positions.description,
+        action: PortalButton(
+          label: t.portal.positions.add,
+          icon: Icons.add,
+          busy: _busyId == '',
+          onPressed: create,
+        ),
+        child: SettingsListCard(
+          loading: _loading && items == null,
+          error: _error,
+          rows: [
+            for (final p in items ?? const <PortalPosition>[])
+              PositionRow(
+                position: p,
+                busy: _busyId == p.id,
+                onEdit: () => edit(p),
+                onDelete: () => delete(p),
+              ),
+          ],
+        ),
       ),
     );
   }

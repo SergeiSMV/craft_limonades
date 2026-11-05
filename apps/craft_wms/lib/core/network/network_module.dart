@@ -7,7 +7,9 @@ import 'package:talker_flutter/talker_flutter.dart';
 import '../auth/token_storage.dart';
 import '../config/app_config.dart';
 import '../monitoring/error_reporting.dart';
+import '../sync/data_versions.dart';
 import 'auth_interceptor.dart';
+import 'data_versions_interceptor.dart';
 
 /// injectable-модуль: провайдит внешние объекты (Talker, Dio), которые нельзя пометить аннотацией.
 @module
@@ -44,21 +46,27 @@ abstract class NetworkModule {
   static const _receiveTimeout = Duration(seconds: 15);
 
   /// «Голый» Dio для refresh и повтора запроса — без AuthInterceptor, чтобы не зациклиться.
+  ///
+  /// Версии данных (ADHOC-60) читаются и здесь: повтор запроса после обновления токена идёт
+  /// через этот Dio, и его ответ перехватчики основного Dio не видят.
   @Named('tokenDio')
   @lazySingleton
-  Dio tokenDio() => Dio(
-    BaseOptions(
-      baseUrl: AppConfig.baseUrl,
-      connectTimeout: _connectTimeout,
-      receiveTimeout: _receiveTimeout,
-    ),
-  );
+  Dio tokenDio(DataVersions versions) =>
+      Dio(
+          BaseOptions(
+            baseUrl: AppConfig.baseUrl,
+            connectTimeout: _connectTimeout,
+            receiveTimeout: _receiveTimeout,
+          ),
+        )
+        ..interceptors.add(DataVersionsInterceptor(versions));
 
   /// Основной Dio: базовый URL + JWT-интерсептор + talker-логгер запросов/ответов.
   @lazySingleton
   Dio dio(
     TokenStorage storage,
     Talker talker,
+    DataVersions versions,
     @Named('tokenDio') Dio tokenDio,
   ) {
     final dio = Dio(
@@ -68,6 +76,9 @@ abstract class NetworkModule {
         receiveTimeout: _receiveTimeout,
       ),
     );
+    // Версии данных — первыми: ответ с ошибкой AuthInterceptor может подменить повтором, и
+    // заголовок исходного ответа иначе не дошёл бы до них (ADHOC-60).
+    dio.interceptors.add(DataVersionsInterceptor(versions));
     dio.interceptors.add(AuthInterceptor(storage, tokenDio));
     dio.interceptors.add(
       TalkerDioLogger(talker: talker, settings: _dioLoggerSettings),

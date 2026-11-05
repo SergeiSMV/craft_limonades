@@ -8,6 +8,8 @@ import '../../../../core/di/injection.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
+import '../../../../core/sync/data_versions.dart';
+import '../../../../core/widgets/data_versions_listener.dart';
 import '../../../data/stocktakes_repository.dart';
 import '../settings/access_common.dart';
 import '../ui/portal_button.dart';
@@ -44,25 +46,39 @@ class _StocktakesViewState extends State<StocktakesView> {
   bool _closedTab = false;
   final _closing = <String>{}; // id пересчётов, которые сейчас закрываются
 
+  /// Номер последнего запроса списка: ответ на более ранний — устарел.
+  int _seq = 0;
+
   @override
   void initState() {
     super.initState();
     _load();
   }
 
-  /// Загрузить пересчёты выбранного фильтра.
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  /// Загрузить пересчёты выбранного фильтра. [quiet] — перечитывание по версиям данных
+  /// (ADHOC-60): список остаётся на экране до ответа, а ошибка не подменяет его. Номер запроса
+  /// отбрасывает ответ, устаревший из-за смены фильтра во время чтения.
+  Future<void> _load({bool quiet = false}) async {
+    final seq = ++_seq;
+    if (!quiet) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     final res = await _repo.list(status: _closedTab ? 'closed' : 'open');
-    if (!mounted) return;
+    if (!mounted || seq != _seq || (quiet && res.isLeft)) return;
     setState(() {
       _loading = false;
-      res.fold((f) => _error = f, (list) => _items = list);
+      res.fold((f) => _error = f, (list) {
+        _items = list;
+        _error = null;
+      });
     });
   }
+
+  /// Пересчёты изменились на сервере (ADHOC-60): тихо перечитать под выбранный фильтр.
+  void _onDataChanged() => _load(quiet: true);
 
   /// Открытые / закрытые.
   void _onFilter(bool closed) {
@@ -112,33 +128,37 @@ class _StocktakesViewState extends State<StocktakesView> {
   @override
   Widget build(BuildContext context) {
     // Страница-список (ADHOC-56): переключатель видов и панель закреплены, список прокручивается.
-    return PortalListPage(
-      header: widget.header,
-      toolbar: Wrap(
-        spacing: AppSizes.kChipSpacing,
-        runSpacing: AppSizes.kChipSpacing,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          PortalChoice(
-            label: t.portal.stocktake.filterOpen,
-            selected: !_closedTab,
-            onTap: () => _onFilter(false),
-          ),
-          PortalChoice(
-            label: t.portal.stocktake.filterClosed,
-            selected: _closedTab,
-            onTap: () => _onFilter(true),
-          ),
-          if (widget.canManage)
-            PortalButton(
-              label: t.portal.stocktake.create,
-              icon: Icons.add,
-              kind: PortalButtonKind.primary,
-              onPressed: _create,
+    return DataVersionsListener(
+      domains: const {DataDomain.stocktakes},
+      onChanged: _onDataChanged,
+      child: PortalListPage(
+        header: widget.header,
+        toolbar: Wrap(
+          spacing: AppSizes.kChipSpacing,
+          runSpacing: AppSizes.kChipSpacing,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            PortalChoice(
+              label: t.portal.stocktake.filterOpen,
+              selected: !_closedTab,
+              onTap: () => _onFilter(false),
             ),
-        ],
+            PortalChoice(
+              label: t.portal.stocktake.filterClosed,
+              selected: _closedTab,
+              onTap: () => _onFilter(true),
+            ),
+            if (widget.canManage)
+              PortalButton(
+                label: t.portal.stocktake.create,
+                icon: Icons.add,
+                kind: PortalButtonKind.primary,
+                onPressed: _create,
+              ),
+          ],
+        ),
+        body: _list(),
       ),
-      body: _list(),
     );
   }
 

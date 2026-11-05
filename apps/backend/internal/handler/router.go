@@ -64,6 +64,9 @@ type Services struct {
 	Rights appmw.RightsSource
 	// Users — пользователи и должности в портале (ADHOC-49).
 	Users *service.UserAdminService
+	// DataVersions — версии данных по областям для заголовка каждого ответа API (ADHOC-60);
+	// nil — заголовка нет (урезанная сборка в тесте).
+	DataVersions appmw.VersionsSource
 }
 
 // NewRouter собирает HTTP-роутер сервиса: общие middleware + маршруты.
@@ -116,6 +119,11 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 	// Зачем: портал занимает корень домена, API уезжает в свой неймспейс (один origin, без CORS),
 	// а версия в пути даёт запас на эволюцию без ломки клиентов.
 	r.Route("/api/v1", func(r chi.Router) {
+		// Версии данных — в каждом ответе API (ADHOC-60): клиент перечитывает только
+		// изменившиеся области, без фонового опроса.
+		if svc.DataVersions != nil {
+			r.Use(appmw.DataVersions(svc.DataVersions))
+		}
 		// Аутентификация (только если есть БД).
 		if svc.Auth != nil {
 			authH := NewAuthHandler(svc.Auth)

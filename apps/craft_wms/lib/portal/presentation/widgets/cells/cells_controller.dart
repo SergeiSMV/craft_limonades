@@ -49,14 +49,33 @@ class CellsController extends ChangeNotifier {
   /// больше нет, из него выпадают.
   Future<void> load() async {
     final res = await _repo.loadSetup();
-    res.fold((f) => loadError = failureText(f), (setup) {
-      final v = CellsView(setup);
-      final ids = {for (final c in v.cells) c.id};
-      picked.retainWhere(ids.contains);
-      if (focusId != null && !ids.contains(focusId)) focusId = null;
-      view = v;
-      loadError = null;
-    });
+    res.fold((f) => loadError = failureText(f), _apply);
+    _notify();
+  }
+
+  /// Принять прочитанные ячейки: выбор без исчезнувших ячеек, ошибка чтения снята.
+  void _apply(CellsSetup setup) {
+    final v = CellsView(setup);
+    final ids = {for (final c in v.cells) c.id};
+    picked.retainWhere(ids.contains);
+    if (focusId != null && !ids.contains(focusId)) focusId = null;
+    view = v;
+    loadError = null;
+  }
+
+  /// Есть несохранённые галочки карточки или идёт их сохранение.
+  bool get hasUnsaved => draft.isNotEmpty || saving;
+
+  /// Ячейки изменились на сервере (ADHOC-60): перечитать, только если на странице нет
+  /// несохранённых галочек — иначе молча пропустить, чтобы не сбить правку (сохранение само
+  /// перечитает склад). Ошибка тихого чтения не показывается: список остаётся прежним.
+  /// Фильтр, число показанных строк и выбор сохраняются — их держит контроллер, [load] их
+  /// не сбрасывает.
+  Future<void> reloadIfClean() async {
+    if (hasUnsaved) return;
+    final res = await _repo.loadSetup();
+    if (res.isLeft || _disposed) return;
+    _apply(res.right);
     _notify();
   }
 

@@ -205,4 +205,24 @@ func TestCZGoodMarked(t *testing.T) {
 	if err != nil || !g.CZMarked {
 		t.Fatalf("товар по ШК: %+v, %v", g, err)
 	}
+
+	// ADHOC-59: пока марка товара на складе, признак не снять; ушла со склада — снимается.
+	const cis = "0104612728200172215Adhoc59"
+	if err := repo.SaveMarks(ctx, []model.CZMark{{CIS: cis, GoodID: fx.good, BatchID: fx.batch,
+		CellID: fx.cellA, InternalWarehouseID: fx.iwh}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.SetGoodCZMarked(ctx, fx.good, false); !errors.Is(err, model.ErrCZGoodHasMarks) || !marked() {
+		t.Fatalf("снятие при марке на складе: %v, marked=%v", err, marked())
+	}
+	if err := repo.SetGoodCZMarked(ctx, fx.good, true); err != nil || !marked() {
+		t.Fatalf("повторная пометка при марке на складе: %v", err)
+	}
+	if _, err := fx.pool.Exec(ctx, `UPDATE cz_marks SET status = $2, cell_id = NULL, internal_warehouse_id = NULL
+		WHERE cis = $1`, cis, model.CZMarkShipped); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.SetGoodCZMarked(ctx, fx.good, false); err != nil || marked() {
+		t.Fatalf("снятие после отгрузки марки: %v, marked=%v", err, marked())
+	}
 }

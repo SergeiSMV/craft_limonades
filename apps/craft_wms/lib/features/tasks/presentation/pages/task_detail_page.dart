@@ -19,6 +19,7 @@ import '../../../../core/widgets/expandable_card.dart';
 import '../../../../core/widgets/page_header.dart';
 import '../../../../core/widgets/system_ui_wrapper.dart';
 import '../../../stock/presentation/stock_navigation.dart';
+import '../../../stocktake/presentation/widgets/stocktake_format.dart';
 import '../../data/tasks_models.dart';
 import '../bloc/task_detail_cubit.dart';
 import '../widgets/common/task_format.dart';
@@ -29,7 +30,8 @@ import '../widgets/detail/task_actions_bar.dart';
 import '../widgets/detail/task_item_tile.dart';
 import '../../../../core/utils/doc_number.dart';
 
-/// Карточка задания (P5-02-1): что разместить, заходы, «Взять» / «Отказаться».
+/// Карточка задания (P5-02-1): что разместить, заходы, «Взять» / «Отказаться». У пересчёта
+/// (ADHOC-58) вместо позиций — область и ход, в истории — подсчитанные ячейки.
 ///
 /// Из «Текущих» задание передаётся целиком и открывается без связи; из ленты «Завершённые» —
 /// только [taskId], и задание дочитывается с сервера.
@@ -79,17 +81,25 @@ class _TaskDetailView extends StatelessWidget {
     if (ok == true) await cubit.release();
   }
 
-  /// Выполнить задание: размещение (P5-03) или отгрузку возврата (ADHOC-31); по возврату
-  /// карточка обновляется — задание могло быть выполнено или вернуться в пул.
+  /// Выполнить задание: размещение (P5-03), отгрузку возврата (ADHOC-31) или пересчёт —
+  /// список его ячеек (ADHOC-58). Маршрут выбирается по виду задания явно: неизвестный вид не
+  /// должен молча открывать размещение. По возврату карточка обновляется — задание могло быть
+  /// выполнено или вернуться в пул.
   Future<void> execute(BuildContext context) async {
     final cubit = context.read<TaskDetailCubit>();
     final task = cubit.state.task;
     if (task == null) return;
-    await context.router.push(
-      task.kind == TaskKind.supplierReturn
-          ? SupplierReturnRoute(task: task)
-          : PutawayRoute(task: task),
-    );
+    final PageRouteInfo? route = switch (task.kind) {
+      TaskKind.putaway => PutawayRoute(task: task),
+      TaskKind.supplierReturn => SupplierReturnRoute(task: task),
+      TaskKind.stocktake when task.stocktakeId != null => StocktakeRoute(
+        stocktakeId: task.stocktakeId!,
+        number: task.stocktake?.number,
+      ),
+      _ => null,
+    };
+    if (route == null) return;
+    await context.router.push(route);
     await cubit.refresh();
   }
 
@@ -234,26 +244,39 @@ class _TaskBody extends StatelessWidget {
         ),
         Text(taskAuthor(task), style: muted),
         Text(taskBasis(task), style: muted),
+        // Пересчёт (ADHOC-58) — область и ход; позиций у него нет: работники берут ячейки.
+        if (task.stocktake case final st?) ...[
+          Text(
+            t.stocktake.scope(scope: scopeLabel(st.scopeKind)),
+            style: muted,
+          ),
+          Text(
+            t.stocktake.progress(counted: st.counted, total: st.cells),
+            style: muted,
+          ),
+        ],
         if (task.isMine && task.assigneeName.isNotEmpty)
           Text(t.tasks.assignee(name: task.assigneeName), style: muted),
         AppBoxes.kHeight16,
-        Text(
-          task.kind == TaskKind.supplierReturn
-              ? t.tasks.detailItemsReturn
-              : t.tasks.detailItems,
-          style: section,
-        ),
-        AppBoxes.kHeight8,
-        // Вертикальный отступ у плашки — чтобы тень неоморфной плашки не слипалась с соседней.
-        for (final item in task.items)
-          Padding(
-            padding: AppInsets.v4,
-            child: TaskItemTile(
-              item: item,
-              onTap: () => openItem(context, item),
-            ),
+        if (task.kind != TaskKind.stocktake) ...[
+          Text(
+            task.kind == TaskKind.supplierReturn
+                ? t.tasks.detailItemsReturn
+                : t.tasks.detailItems,
+            style: section,
           ),
-        AppBoxes.kHeight16,
+          AppBoxes.kHeight8,
+          // Вертикальный отступ у плашки — чтобы тень неоморфной плашки не слипалась с соседней.
+          for (final item in task.items)
+            Padding(
+              padding: AppInsets.v4,
+              child: TaskItemTile(
+                item: item,
+                onTap: () => openItem(context, item),
+              ),
+            ),
+          AppBoxes.kHeight16,
+        ],
         // Раскрывающаяся плашка, свёрнутая по умолчанию, — как история короба (ADHOC-21):
         // у задания с несколькими заходами история длиннее позиций и оттесняла бы их вниз.
         ExpandableCard(
