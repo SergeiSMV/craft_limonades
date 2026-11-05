@@ -72,8 +72,10 @@ class PortalButton extends StatelessWidget {
           hoverColor: hover,
           child: Padding(
             padding: AppInsets.button,
+            // По центру: кнопка во всю ширину формы (вход) держит подпись посередине.
             child: Row(
               mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 if (busy)
                   SizedBox.square(
