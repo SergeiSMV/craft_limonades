@@ -36,6 +36,7 @@ const (
 	RightStockEntryDocPost  = "portal.stock_entry_doc.post"
 	RightCellsImport        = "portal.cells.import" // Ячейки: загружать
 	RightCellsLabels        = "portal.cells.labels" // Ячейки: печатать этикетки
+	RightCellsEdit          = "portal.cells.edit"   // Ячейки: изменять настройки этикеток (ADHOC-57)
 	RightMovementView       = "portal.movement.view"
 	RightMovementDownload   = "portal.movement.download"
 	RightMovementPost       = "portal.movement.post"
@@ -73,7 +74,7 @@ var Rights = []string{
 	RightStocktakeView, RightStocktakeManage,
 	RightStocktakeDocView, RightStocktakeDocLoad, RightStocktakeDocPost,
 	RightStockEntryDocView, RightStockEntryDocLoad, RightStockEntryDocPost,
-	RightCellsImport, RightCellsLabels,
+	RightCellsImport, RightCellsLabels, RightCellsEdit,
 	RightMovementView, RightMovementDownload, RightMovementPost,
 	RightProblemsView, RightProblemsResolve,
 	RightSettingsWarehouses, RightSettingsProblemReasons, RightSettingsUsers,

@@ -34,6 +34,8 @@ type Services struct {
 	Barcode    *service.BarcodeService
 	StockEntry *service.StockEntryService
 	Label      *service.LabelService
+	// CellSetup — страница «Ячейки» портала: стеллажи и настройки этикеток (ADHOC-57).
+	CellSetup  *service.CellSetupService
 	Document   *service.DocumentService
 	Operations *service.OperationsService
 	Receipt    *service.ReceiptService
@@ -147,13 +149,26 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 			})
 		}
 
-		// PDF-этикетки ячеек (P-FastStart) — «Ячейки: печатать этикетки».
+		// PDF этикеток ячеек и карточек на стойку (ADHOC-57) — «Ячейки: печатать этикетки».
 		if svc.Label != nil {
 			labelH := NewLabelHandler(svc.Label)
 			r.Group(func(r chi.Router) {
 				r.Use(appmw.Authenticator(tokens))
 				r.Use(need(model.RightCellsLabels))
-				r.Get("/cells/labels.pdf", labelH.CellLabelsPDF)
+				r.Post("/cells/labels.pdf", labelH.CellLabelsPDF)
+			})
+		}
+
+		// Страница «Ячейки» портала (ADHOC-57): смотреть и выгружать — с любым правом раздела,
+		// менять галочки — «Ячейки: изменять настройки».
+		if svc.CellSetup != nil {
+			setupH := NewCellSetupHandler(svc.CellSetup)
+			cellRights := []string{model.RightCellsImport, model.RightCellsLabels, model.RightCellsEdit}
+			r.Group(func(r chi.Router) {
+				r.Use(appmw.Authenticator(tokens))
+				r.With(need(cellRights...)).Get("/cells/setup", setupH.Setup)
+				r.With(need(cellRights...)).Get("/cells/export.xlsx", setupH.ExportXLSX)
+				r.With(need(model.RightCellsEdit)).Patch("/cells/setup", setupH.UpdateSettings)
 			})
 		}
 

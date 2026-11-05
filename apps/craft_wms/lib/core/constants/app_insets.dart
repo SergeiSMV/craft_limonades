@@ -97,10 +97,6 @@ abstract final class AppInsets {
 
 
   //* --- Веб-портал (контент) --------------------------------------------- *//
-  static const EdgeInsets uploadZone = EdgeInsets.symmetric(
-    horizontal: 40,
-    vertical: 48,
-  ); // зона загрузки
   static const EdgeInsets badge = EdgeInsets.symmetric(
     horizontal: 12,
     vertical: 4,

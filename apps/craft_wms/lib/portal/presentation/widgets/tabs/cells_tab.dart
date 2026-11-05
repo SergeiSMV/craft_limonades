@@ -1,303 +1,241 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_boxes.dart';
-import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_insets.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/di/injection.dart';
-import '../../../../core/error/failure.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../data/cells_repository.dart';
-import '../../../data/import_report.dart';
 import '../../../data/web_download.dart';
-import '../../../data/web_file_picker.dart';
-import '../common/upload_widgets.dart';
+import '../cells/cell_settings_card.dart';
+import '../cells/cell_settings_sheet.dart';
+import '../cells/cells_controller.dart';
+import '../cells/cells_import_dialog.dart';
+import '../cells/cells_list_card.dart';
+import '../cells/cells_print_dialog.dart';
+import '../cells/cells_toolbar.dart';
+import '../settings/access_common.dart';
+import '../ui/portal_button.dart';
 
-/// Вкладка «Ячейки» (P1-08): загрузка файла ячеек `.xlsx` → `POST /import/cells` (P1-05).
-/// По макету зеркалит вкладку «Номенклатура»: карточка с зоной загрузки, ниже — отчёт импорта.
+/// Страница «Ячейки» (ADHOC-57): полный список ячеек склада, справа — карточка ячейки с
+/// галочками этикетки, загрузка и выгрузка `.xlsx` в формате rack_labels, печать трёх PDF.
+///
+/// Раскладка — по ширине страницы: от [AppSizes.kCellsSideMinPage] карточка стоит справа от
+/// списка и прокручивается отдельно; уже — открывается окном по нажатию на строку.
+/// Права: загрузка — [canImport], печать — [canLabels], галочки — [canEdit]; список и выгрузку
+/// видит любой с правом раздела.
 class CellsTab extends StatefulWidget {
-  const CellsTab({super.key, this.labels = true, this.upload = true});
+  const CellsTab({
+    super.key,
+    required this.canImport,
+    required this.canLabels,
+    required this.canEdit,
+    this.save = downloadBytes,
+  });
 
-  /// Блоки по правам должности (ADHOC-50): печать этикеток и загрузка ячеек.
-  final bool labels;
-  final bool upload;
+  final bool canImport;
+  final bool canLabels;
+  final bool canEdit;
+
+  /// Сохранение файла в браузере.
+  final SaveFile save;
 
   @override
   State<CellsTab> createState() => _CellsTabState();
 }
 
 class _CellsTabState extends State<CellsTab> {
-  final _repo = getIt<CellsRepository>();
+  late final _c = CellsController(getIt<CellsRepository>());
+  final _search = TextEditingController();
+  Timer? _debounce;
+  bool _exporting = false;
 
-  /// Выбранный файл: имя и байты (на вебе файла на диске нет — работаем с байтами).
-  String? _filename;
-  List<int>? _bytes;
+  static const _debounceDelay = Duration(milliseconds: 250);
 
-  bool _hovering = false;
-  bool _uploading = false;
-  CellsImportReport? _report;
-  Failure? _error;
-
-  /// Состояние скачивания PDF-этикеток (независимо от импорта).
-  bool _downloadingLabels = false;
-  Failure? _labelsError;
-
-  /// Скачивание PDF-этикеток ячеек и запуск сохранения файла в браузере.
-  Future<void> downloadLabels() async {
-    if (_downloadingLabels) return;
-    setState(() {
-      _downloadingLabels = true;
-      _labelsError = null;
-    });
-
-    final result = await _repo.downloadCellLabels();
-    if (!mounted) return;
-    setState(() {
-      _downloadingLabels = false;
-      result.fold(
-        (f) => _labelsError = f,
-        (bytes) => downloadBytes(
-          bytes: bytes,
-          filename: 'cell-labels-SHB.pdf',
-          mime: 'application/pdf',
-        ),
-      );
-    });
-  }
-
-  /// Выбор `.xlsx`-файла через системный диалог браузера (имя + байты).
-  Future<void> pickFile() async {
-    final file = await pickFileFromBrowser(accept: '.xlsx');
-    if (file == null || !mounted) return;
-    setState(() {
-      _filename = file.name;
-      _bytes = file.bytes;
-      _report = null;
-      _error = null;
-    });
-  }
-
-  /// Загрузка выбранного файла на бэкенд и разбор результата в отчёт/ошибку.
-  Future<void> upload() async {
-    final bytes = _bytes;
-    final filename = _filename;
-    if (bytes == null || filename == null || _uploading) return;
-
-    setState(() {
-      _uploading = true;
-      _report = null;
-      _error = null;
-    });
-
-    final result = await _repo.importCells(bytes: bytes, filename: filename);
-    if (!mounted) return;
-    setState(() {
-      _uploading = false;
-      result.fold((f) => _error = f, (r) => _report = r);
-    });
-  }
-
-  /// Текст ошибки: для 422 показываем причину с бэкенда (нет колонки/не читается).
-  String _errorText(Failure failure) {
-    final message = switch (failure) {
-      ServerFailure(:final message, :final statusCode) => message ?? 'HTTP $statusCode',
-      NetworkFailure() => t.portal.login.errorNetwork,
-      _ => t.portal.login.errorUnknown,
-    };
-    return t.portal.cells.error(message: message);
+  @override
+  void initState() {
+    super.initState();
+    _c.load();
   }
 
   @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: AppInsets.all32,
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: AppSizes.kContentMaxWidth),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (widget.labels)
-              Card(
-                child: Padding(
-                  padding: AppInsets.all32,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        t.portal.cells.labelsTitle,
-                        style: const TextStyle(fontSize: AppSizes.kText24, fontWeight: FontWeight.w600),
-                      ),
-                      AppBoxes.kHeight8,
-                      Text(
-                        t.portal.cells.labelsDescription,
-                        style: const TextStyle(fontSize: AppSizes.kText14, color: AppColors.kTextMuted),
-                      ),
-                      AppBoxes.kHeight24,
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: FilledButton.icon(
-                          onPressed: _downloadingLabels ? null : downloadLabels,
-                          icon: _downloadingLabels
-                              ? const SizedBox(
-                                  width: AppSizes.kIcon18,
-                                  height: AppSizes.kIcon18,
-                                  child: CircularProgressIndicator(strokeWidth: AppSizes.kIcon2),
-                                )
-                              : const Icon(Icons.download, size: AppSizes.kIcon18),
-                          label: Text(
-                            _downloadingLabels
-                                ? t.portal.cells.labelsDownloading
-                                : t.portal.cells.labelsDownload,
-                          ),
-                        ),
-                      ),
-                      if (_labelsError != null) ...[
-                        AppBoxes.kHeight16,
-                        Text(
-                          _errorText(_labelsError!),
-                          style: const TextStyle(color: AppColors.kDanger, fontSize: AppSizes.kText15),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-              if (widget.labels && widget.upload) AppBoxes.kHeight24,
-              if (widget.upload)
-              Card(
-                child: Padding(
-                  padding: AppInsets.all32,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        t.portal.cells.title,
-                        style: const TextStyle(fontSize: AppSizes.kText24, fontWeight: FontWeight.w600),
-                      ),
-                      AppBoxes.kHeight8,
-                      Text(
-                        t.portal.cells.description,
-                        style: const TextStyle(fontSize: AppSizes.kText14, color: AppColors.kTextMuted),
-                      ),
-                      AppBoxes.kHeight24,
-                      PortalUploadZone(
-                        filename: _filename,
-                        hovering: _hovering,
-                        onTap: _uploading ? null : pickFile,
-                        onHover: (v) => setState(() => _hovering = v),
-                        prompt: t.portal.cells.uploadPrompt,
-                        hint: t.portal.cells.uploadHint,
-                        badge: t.portal.cells.uploadBadge,
-                        icon: Icons.grid_view_outlined,
-                      ),
-                      if (_filename != null && !_uploading) ...[
-                        AppBoxes.kHeight24,
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: FilledButton.icon(
-                            onPressed: upload,
-                            icon: const Icon(Icons.upload_file, size: AppSizes.kIcon18),
-                            label: Text(t.portal.cells.upload),
-                          ),
-                        ),
-                      ],
-                      if (_uploading) ...[
-                        AppBoxes.kHeight24,
-                        Row(
-                          children: [
-                            const SizedBox(
-                              width: AppSizes.kIcon24,
-                              height: AppSizes.kIcon24,
-                              child: CircularProgressIndicator(strokeWidth: AppSizes.kIcon2),
-                            ),
-                            AppBoxes.kWidth12,
-                            Text(t.portal.cells.uploading),
-                          ],
-                        ),
-                      ],
-                      if (_error != null) ...[
-                        AppBoxes.kHeight24,
-                        Text(
-                          _errorText(_error!),
-                          style: const TextStyle(color: AppColors.kDanger, fontSize: AppSizes.kText15),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-              if (_report != null) ...[
-                AppBoxes.kHeight24,
-                _ReportCard(report: _report!),
-              ],
-            ],
-          ),
-        ),
+  void dispose() {
+    _debounce?.cancel();
+    _search.dispose();
+    _c.dispose();
+    super.dispose();
+  }
+
+  /// Поиск по адресу — после паузы в наборе.
+  void onSearch(String text) {
+    _debounce?.cancel();
+    _debounce = Timer(
+      _debounceDelay,
+      () => _c.setFilter(_c.filter.copyWith(query: text)),
+    );
+  }
+
+  /// Уведомление внизу страницы.
+  void notify(String text) => ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(SnackBar(content: Text(text)));
+
+  /// Загрузка файла; ячейки обновлены — перечитать страницу.
+  Future<void> import() async {
+    if (await showCellsImportDialog(context)) await _c.load();
+  }
+
+  /// Выгрузка всего склада в формате rack_labels.
+  Future<void> export() async {
+    setState(() => _exporting = true);
+    final res = await getIt<CellsRepository>().exportCells();
+    if (!mounted) return;
+    setState(() => _exporting = false);
+    res.fold(
+      (f) => notify(t.portal.cells.exportFailed(message: failureText(f))),
+      (bytes) => widget.save(
+        bytes: bytes,
+        filename: 'cells-${CellsRepository.warehouse}.xlsx',
+        mime:
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       ),
     );
   }
-}
 
-/// Карточка результата импорта ячеек: склад, счётчики, список пропущенных строк.
-class _ReportCard extends StatelessWidget {
-  const _ReportCard({required this.report});
+  /// Окно печати PDF.
+  Future<void> printLabels() => showCellsPrintDialog(context, _c, widget.save);
 
-  final CellsImportReport report;
+  /// Карточка окном — на узкой странице.
+  Future<void> openSheet() => showCellSettingsSheet(
+    context,
+    _c,
+    canEdit: widget.canEdit,
+    onSaved: notify,
+  );
 
   @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: AppInsets.all32,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: _c,
+    builder: (context, _) => LayoutBuilder(
+      builder: (context, constraints) {
+        final narrow = constraints.maxWidth < AppSizes.kPortalCompactWidth;
+        final side = constraints.maxWidth >= AppSizes.kCellsSideMinPage;
+        final padding = narrow ? AppInsets.pageCompact : AppInsets.page;
+        final list = _list(side);
+        return Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxWidth: AppSizes.kPortalListMaxWidth,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Icon(Icons.check_circle, color: AppColors.kBadgeSuccessText),
-                AppBoxes.kWidth8,
-                Text(
-                  t.portal.cells.reportTitle,
-                  style: const TextStyle(fontSize: AppSizes.kText20, fontWeight: FontWeight.w600),
+                Padding(
+                  padding: padding.copyWith(bottom: AppInsets.bottom16.bottom),
+                  child: _toolbar(side),
+                ),
+                Expanded(
+                  child: side && _c.view != null
+                      ? Padding(
+                          padding: padding.copyWith(top: 0, bottom: 0),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(child: _scroll(list, padding)),
+                              AppBoxes.kWidth16,
+                              SizedBox(
+                                width: AppSizes.kCellsSideWidth,
+                                child: _scroll(
+                                  CellSettingsCard(
+                                    c: _c,
+                                    canEdit: widget.canEdit,
+                                    onSaved: notify,
+                                  ),
+                                  padding,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : SingleChildScrollView(
+                          padding: padding.copyWith(top: 0),
+                          child: list,
+                        ),
                 ),
               ],
             ),
-            AppBoxes.kHeight16,
-            Padding(
-              padding: AppInsets.v4,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(t.portal.cells.warehouse, style: const TextStyle(fontSize: AppSizes.kText16)),
-                  Text(
-                    report.warehouse,
-                    style: const TextStyle(fontSize: AppSizes.kText16, fontWeight: FontWeight.w600),
-                  ),
-                ],
-              ),
-            ),
-            PortalStatRow(label: t.portal.cells.created, value: report.cellsCreated),
-            PortalStatRow(label: t.portal.cells.updated, value: report.cellsUpdated),
-            if (report.skipped.isNotEmpty) ...[
-              AppBoxes.kHeight16,
-              Text(
-                t.portal.cells.skippedTitle(count: report.skipped.length),
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.kBadgeWarningText,
-                ),
-              ),
-              AppBoxes.kHeight8,
-              for (final row in report.skipped)
-                Text(
-                  t.portal.cells.skippedRow(row: row.row, message: row.message),
-                  style: const TextStyle(fontSize: AppSizes.kText14, color: AppColors.kTextMuted),
-                ),
-            ],
-          ],
+          ),
+        );
+      },
+    ),
+  );
+
+  /// Колонка с прокруткой и нижним полем страницы.
+  Widget _scroll(Widget child, EdgeInsets padding) => SingleChildScrollView(
+    padding: EdgeInsets.only(bottom: padding.bottom),
+    child: child,
+  );
+
+  Widget _toolbar(bool side) {
+    final s = t.portal.cells;
+    return CellsToolbar(
+      c: _c,
+      search: _search,
+      onSearch: onSearch,
+      trailing: [
+        if (!side && _c.picked.isNotEmpty)
+          PortalButton(
+            label: s.editPicked(count: _c.picked.length),
+            icon: Icons.tune,
+            onPressed: openSheet,
+          ),
+        if (widget.canImport)
+          PortalButton(
+            label: s.import,
+            icon: Icons.upload_file_outlined,
+            onPressed: import,
+          ),
+        PortalButton(
+          label: s.export,
+          icon: Icons.download,
+          busy: _exporting,
+          onPressed: export,
         ),
-      ),
+        if (widget.canLabels)
+          PortalButton(
+            label: s.print,
+            icon: Icons.print_outlined,
+            kind: PortalButtonKind.primary,
+            onPressed: _c.view == null ? null : printLabels,
+          ),
+      ],
+    );
+  }
+
+  Widget _list(bool side) {
+    if (_c.view == null) {
+      return SettingsListCard(
+        loading: _c.loadError == null,
+        error: _c.loadError,
+        rows: const [],
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        CellsListCard(
+          c: _c,
+          onOpen: (_) {
+            if (!side) openSheet();
+          },
+        ),
+        if (_c.loadError != null) ...[
+          AppBoxes.kHeight8,
+          AccessError(_c.loadError!),
+        ],
+      ],
     );
   }
 }

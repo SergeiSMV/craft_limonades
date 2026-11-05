@@ -15,7 +15,8 @@ enum PortalButtonKind { primary, secondary, plain }
 /// Что: «Добавить», «Сохранить», «Отмена» — высота 32, подпись 13.
 /// Как: главное действие экрана или диалога — [PortalButtonKind.primary], одно на место;
 ///      остальные — [PortalButtonKind.secondary]; отмена — [PortalButtonKind.plain]. Пока
-///      действие идёт ([busy]), вместо иконки — индикатор, и кнопка не нажимается.
+///      действие идёт ([busy]), вместо иконки — индикатор, и кнопка не нажимается. Без
+///      [onPressed] кнопка недоступна — бледная, как «Сохранить» без изменений.
 class PortalButton extends StatelessWidget {
   const PortalButton({
     super.key,
@@ -27,7 +28,9 @@ class PortalButton extends StatelessWidget {
   });
 
   final String label;
-  final VoidCallback onPressed;
+
+  /// `null` — кнопка недоступна.
+  final VoidCallback? onPressed;
   final PortalButtonKind kind;
 
   /// Иконка перед подписью; `null` — только подпись.
@@ -58,7 +61,7 @@ class PortalButton extends StatelessWidget {
         AppColors.kBg,
       ),
     };
-    return SizedBox(
+    final button = SizedBox(
       height: AppSizes.kControlHeight,
       child: Material(
         color: bg,
@@ -105,6 +108,9 @@ class PortalButton extends StatelessWidget {
         ),
       ),
     );
+    return onPressed == null
+        ? Opacity(opacity: AppSizes.kDisabledOpacity, child: button)
+        : button;
   }
 }
 

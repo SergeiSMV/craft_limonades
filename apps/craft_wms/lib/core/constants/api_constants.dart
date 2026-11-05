@@ -22,11 +22,18 @@ abstract final class ApiConst {
   ///**POST** - импорт номенклатуры из `.xls`-выгрузки 1С (multipart, admin-only)
   static const String importGoods = 'import/goods';
 
-  ///**POST** - импорт ячеек склада из `.xlsx` (multipart, admin-only)
+  ///**POST** - загрузка ячеек и стеллажей из `.xlsx` в формате rack_labels (multipart, ADHOC-57)
   static const String importCells = 'import/cells';
 
-  ///**GET** - PDF-этикетки ячеек склада (query `warehouse`, admin-only, ответ — bytes)
+  ///**POST** - PDF этикеток на балку или карточек на стойку: тело `{kind, cell_ids}`, query
+  /// `warehouse`, ответ — bytes (ADHOC-57)
   static const String cellLabelsPdf = 'cells/labels.pdf';
+
+  ///**GET**/**PATCH** - ячейки и стеллажи страницы «Ячейки», массовая правка галочек (ADHOC-57)
+  static const String cellsSetup = 'cells/setup';
+
+  ///**GET** - выгрузка ячеек `.xlsx` в формате rack_labels, ответ — bytes (ADHOC-57)
+  static const String cellsExport = 'cells/export.xlsx';
 
   ///**GET** - список/поиск товаров (q, group_id, supplier_id, limit, offset)
   static const String goods = 'goods';

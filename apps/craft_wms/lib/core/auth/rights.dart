@@ -23,6 +23,7 @@ abstract final class Rights {
   static const stockEntryDocPost = 'portal.stock_entry_doc.post';
   static const cellsImport = 'portal.cells.import';
   static const cellsLabels = 'portal.cells.labels';
+  static const cellsEdit = 'portal.cells.edit'; // ADHOC-57: галочки этикеток
   static const movementView = 'portal.movement.view';
   static const movementDownload = 'portal.movement.download';
   static const movementPost = 'portal.movement.post';
@@ -122,6 +123,7 @@ List<RightNode> rightsTree() {
           children: [
             RightNode(r.cellsImport, code: Rights.cellsImport),
             RightNode(r.cellsLabels, code: Rights.cellsLabels),
+            RightNode(r.cellsEdit, code: Rights.cellsEdit),
           ],
         ),
         RightNode(
