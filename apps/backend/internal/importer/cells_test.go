@@ -107,11 +107,12 @@ func TestParseCells_rejectedRows(t *testing.T) {
 	if len(res.Cells) != 2 || len(res.Racks) != 1 {
 		t.Fatalf("принято ячеек %d (ждали 2), стеллажей %d (ждали 1): %+v", len(res.Cells), len(res.Racks), res)
 	}
-	want := CellRow{Address: "A-1-1-1", RackCode: "A-01", IsFloor: true, LabelBarcode: true}
-	if res.Cells[0] != want {
+	// Карточка у стеллажа A-01 есть, но ячейка со штрих-кодом на неё по умолчанию не идёт.
+	want := CellRow{Address: "A-1-1-1", RackCode: "A-01", IsFloor: true, LabelBarcode: true, SideCard: boolPtr(false)}
+	if !sameRow(res.Cells[0], want) {
 		t.Errorf("первая ячейка: %+v, ждали %+v", res.Cells[0], want)
 	}
-	if want := (CellRow{Address: "A-1-7-1", LabelSmall: true}); res.Cells[1] != want {
+	if want := (CellRow{Address: "A-1-7-1", LabelSmall: true, SideCard: boolPtr(false)}); !sameRow(res.Cells[1], want) {
 		t.Errorf("ячейка без стеллажа: %+v, ждали %+v", res.Cells[1], want)
 	}
 	if !res.Racks[0].SideCard {
@@ -141,6 +142,105 @@ func TestParseCells_withoutRacksSheet(t *testing.T) {
 	if res.HasRacksSheet || len(res.Cells) != 1 || res.Cells[0].RackCode != "A-01" || len(res.Errors) != 0 {
 		t.Errorf("результат: %+v", res)
 	}
+	// Ни листа racks, ни колонки side_card — галочка карточки файлом не задана.
+	if res.Cells[0].SideCard != nil {
+		t.Errorf("side_card без листа racks: %v, ждали nil", *res.Cells[0].SideCard)
+	}
+}
+
+// TestParseCells_sideCard — галочка карточки у ячейки (решение 2026-11-05): по умолчанию — карточка
+// стеллажа с листа racks и ячейка без штрих-кода на балке; колонка side_card листа cells главнее;
+// карточка у ячейки без стеллажа и нераспознанное значение — в отчёт.
+func TestParseCells_sideCard(t *testing.T) {
+	data := buildXLSX(t,
+		[][]any{
+			{"cell_id", "rack_id", "size", "barcode", "side_card"},
+			{"A-1-1-1", "A-01", "large", false, ""},    // по умолчанию: карточка стеллажа, без кода → да
+			{"A-1-2-1", "A-01", "large", true, ""},     // по умолчанию: со штрих-кодом → нет
+			{"A-1-3-1", "A-01", "large", true, true},   // колонка главнее: со штрих-кодом, но да
+			{"A-1-4-1", "A-01", "large", false, false}, // колонка главнее: нет
+			{"B-1-1-1", "B-01", "large", false, ""},    // стеллаж без карточки → нет
+			{"B-1-2-1", "B-01", "large", false, "да"},  // колонка главнее стеллажа → да
+			{"C-1-1-1", "", "large", false, ""},        // без стеллажа → нет
+			{"C-1-2-1", "", "large", false, false},     // без стеллажа, явное «нет» — допустимо
+			{"C-1-3-1", "", "large", false, true},      // без стеллажа, «да» — противоречие
+			{"C-1-4-1", "A-01", "large", false, "может"},
+		},
+		[][]any{{"rack_id", "side_card"}, {"A-01", true}, {"B-01", false}})
+	res, err := ParseCells(bytes.NewReader(data))
+	if err != nil {
+		t.Fatalf("ParseCells: %v", err)
+	}
+	want := map[string]bool{
+		"A-1-1-1": true, "A-1-2-1": false, "A-1-3-1": true, "A-1-4-1": false,
+		"B-1-1-1": false, "B-1-2-1": true, "C-1-1-1": false, "C-1-2-1": false,
+	}
+	if len(res.Cells) != len(want) {
+		t.Fatalf("принято ячеек %d (ждали %d): %+v", len(res.Cells), len(want), res.Cells)
+	}
+	for _, c := range res.Cells {
+		if c.SideCard == nil || *c.SideCard != want[c.Address] {
+			t.Errorf("ячейка %s: side_card %v, ждали %v", c.Address, c.SideCard, want[c.Address])
+		}
+	}
+	if len(res.Errors) != 2 || !strings.Contains(res.Errors[0].Message, "без стеллажа") ||
+		!strings.Contains(res.Errors[1].Message, "может") {
+		t.Errorf("отчёт: %+v", res.Errors)
+	}
+
+	// Колонка side_card без листа racks: заданное значение берётся, пустое — не задано (nil).
+	data = buildXLSX(t, [][]any{
+		{"cell_id", "rack_id", "size", "side_card"},
+		{"A-1-1-1", "A-01", "large", true},
+		{"A-1-2-1", "A-01", "large", ""},
+	}, nil)
+	if res, err = ParseCells(bytes.NewReader(data)); err != nil {
+		t.Fatalf("ParseCells: %v", err)
+	}
+	if len(res.Cells) != 2 || res.Cells[0].SideCard == nil || !*res.Cells[0].SideCard || res.Cells[1].SideCard != nil {
+		t.Errorf("без листа racks: %+v", res.Cells)
+	}
+}
+
+// TestBuildCellsXLSX_roundTrip — выгрузка читается разбором обратно в те же ячейки: галочка
+// карточки из колонки листа cells главнее листа racks, так что ячейка стеллажа с карточкой без
+// галочки и ячейка со штрих-кодом с галочкой сохраняют своё значение.
+func TestBuildCellsXLSX_roundTrip(t *testing.T) {
+	cells := []ExportCell{
+		{Address: "A-1-1-1", RackCode: "A-01", SideCard: true, LabelBarcode: true},
+		{Address: "A-1-2-1", RackCode: "A-01"},
+		{Address: "B-1-1-1", RackCode: "B-01", LabelSmall: true, IsFloor: true},
+		{Address: "C-1-1-1"},
+	}
+	data, err := BuildCellsXLSX(cells, []RackRow{{Code: "A-01", SideCard: true}, {Code: "B-01"}})
+	if err != nil {
+		t.Fatalf("BuildCellsXLSX: %v", err)
+	}
+	res, err := ParseCells(bytes.NewReader(data))
+	if err != nil || len(res.Errors) != 0 || len(res.Cells) != len(cells) || len(res.Racks) != 2 {
+		t.Fatalf("разбор выгрузки: %v %+v", err, res)
+	}
+	for i, c := range cells {
+		want := CellRow{Address: c.Address, RackCode: c.RackCode, LabelSmall: c.LabelSmall, IsFloor: c.IsFloor,
+			LabelBarcode: c.LabelBarcode, SideCard: boolPtr(c.SideCard)}
+		if !sameRow(res.Cells[i], want) {
+			t.Errorf("строка %d: %+v, ждали %+v", i+2, res.Cells[i], want)
+		}
+	}
+	if !res.Racks[0].SideCard || res.Racks[1].SideCard {
+		t.Errorf("лист racks: %+v", res.Racks)
+	}
+}
+
+func boolPtr(v bool) *bool { return &v }
+
+// sameRow сравнивает строки ячеек по значениям (SideCard — указатель).
+func sameRow(a, b CellRow) bool {
+	if (a.SideCard == nil) != (b.SideCard == nil) || (a.SideCard != nil && *a.SideCard != *b.SideCard) {
+		return false
+	}
+	a.SideCard, b.SideCard = nil, nil
+	return a == b
 }
 
 // TestParseCells_badFile — не xlsx, нет листа cells, нет обязательной колонки → ошибка, а не

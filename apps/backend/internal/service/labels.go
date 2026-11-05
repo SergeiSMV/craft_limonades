@@ -69,7 +69,7 @@ func (s *LabelService) CellLabelsPDF(ctx context.Context, warehouseCode, kind st
 	if err != nil {
 		return nil, "", err
 	}
-	cells, racks, err := s.cells.Setup(ctx, whID)
+	cells, _, err := s.cells.Setup(ctx, whID)
 	if err != nil {
 		return nil, "", err
 	}
@@ -95,7 +95,7 @@ func (s *LabelService) CellLabelsPDF(ctx context.Context, warehouseCode, kind st
 	}
 
 	if kind == LabelKindCards {
-		pdf, err := labels.SideCards(sideCards(cells, racks, selected))
+		pdf, err := labels.SideCards(sideCards(cells, selected))
 		return pdf, "side_cards.pdf", err
 	}
 	small := kind == LabelKindSmall
@@ -118,20 +118,18 @@ func beamCell(c model.CellSetup) labels.Cell {
 	return labels.Cell{Address: c.Address, IsFloor: c.IsFloor, Barcode: c.LabelBarcode}
 }
 
-// sideCards — карточки стеллажей выбранных ячеек (только с галочкой «карточка») и адреса всех
-// карточек склада для единого кегля. Строки карточки — позиции убывают, ярусы сверху вниз:
-// так стеллаж выглядит из прохода, если клеить карточку на правую опору (как в rack_labels).
-func sideCards(cells []model.CellSetup, racks []model.Rack, selected []model.CellSetup) ([]labels.Card, []string) {
-	withCard := map[string]string{} // id стеллажа → код
-	for _, r := range racks {
-		if r.SideCard {
-			withCard[r.ID] = r.Code
-		}
-	}
+// sideCards — карточки стеллажей выбранных ячеек и адреса всех карточек склада для единого
+// кегля. Решение 2026-11-05: галочка «на карточке» — у ячейки, стеллаж только группирует. Карточку
+// печатает выбранная ячейка с галочкой и стеллажом; строки карточки — все ячейки её стеллажа с
+// галочкой (штрих-код на балке не учитывается — что сканировать с карточки, решает человек).
+// Строки карточки — позиции убывают, ярусы сверху вниз: так стеллаж выглядит из прохода, если
+// клеить карточку на правую опору (как в rack_labels).
+func sideCards(cells []model.CellSetup, selected []model.CellSetup) ([]labels.Card, []string) {
+	onCard := func(c model.CellSetup) bool { return c.SideCard && c.RackID != nil && c.RackCode != nil }
 	rows := map[string][]model.CellSetup{}
 	var set []string
 	for _, c := range cells {
-		if c.RackID != nil && withCard[*c.RackID] != "" {
+		if onCard(c) {
 			rows[*c.RackID] = append(rows[*c.RackID], c)
 			set = append(set, c.Address)
 		}
@@ -139,7 +137,7 @@ func sideCards(cells []model.CellSetup, racks []model.Rack, selected []model.Cel
 	var cards []labels.Card
 	seen := map[string]bool{}
 	for _, c := range selected { // порядок выборки — порядок стеллажей
-		if c.RackID == nil || seen[*c.RackID] || withCard[*c.RackID] == "" {
+		if !onCard(c) || seen[*c.RackID] {
 			continue
 		}
 		seen[*c.RackID] = true
@@ -152,7 +150,7 @@ func sideCards(cells []model.CellSetup, racks []model.Rack, selected []model.Cel
 			}
 			return ti > tj
 		})
-		card := labels.Card{Rack: withCard[*c.RackID]}
+		card := labels.Card{Rack: *c.RackCode}
 		for _, r := range rs {
 			_, pos := tierPos(r.Address)
 			card.Rows = append(card.Rows, labels.CardRow{Address: r.Address, Position: pos})

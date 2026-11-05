@@ -11,14 +11,16 @@ type CellSetup struct {
 	IsFloor      bool `json:"is_floor"`
 	LabelSmall   bool `json:"label_small"`   // малая балка: этикетка 190×46 мм вместо 190×69
 	LabelBarcode bool `json:"label_barcode"` // штрих-код Code128 на этикетке балки
+	// SideCard — строка на карточке своего стеллажа (полоса с адресами и штрих-кодами на боковой
+	// опоре). Решение 2026-11-05: галочка у ячейки; у ячейки без стеллажа всегда false.
+	SideCard bool `json:"side_card"`
 }
 
-// Rack — стеллаж склада: код и признак «карточка на стойку» (полоса со всеми адресами
-// стеллажа и их штрих-кодами на боковой опоре).
+// Rack — стеллаж склада: только группировка ячеек. Карточка на стойку печатается на стеллаж,
+// где есть ячейки с галочкой SideCard.
 type Rack struct {
-	ID       string `json:"id"`
-	Code     string `json:"code"`
-	SideCard bool   `json:"side_card"`
+	ID   string `json:"id"`
+	Code string `json:"code"`
 }
 
 // CellsSetup — всё для страницы «Ячейки»: ячейки склада (без ячейки приёмки) и его стеллажи.
@@ -28,8 +30,8 @@ type CellsSetup struct {
 	Racks     []Rack      `json:"racks"`
 }
 
-// CellSettingsPatch — массовое изменение галочек у ячеек. nil — поле не меняется. SideCard
-// относится к стеллажам выбранных ячеек: галочка одна на весь стеллаж.
+// CellSettingsPatch — массовое изменение галочек у ячеек. nil — поле не меняется. SideCard=true
+// ставится только ячейкам со стеллажом: у ячейки без стеллажа карточки нет.
 type CellSettingsPatch struct {
 	CellIDs      []string `json:"cell_ids"`
 	LabelSmall   *bool    `json:"label_small"`
@@ -43,8 +45,7 @@ func (p CellSettingsPatch) Empty() bool {
 	return p.LabelSmall == nil && p.IsFloor == nil && p.LabelBarcode == nil && p.SideCard == nil
 }
 
-// CellSettingsResult — сколько ячеек и стеллажей изменено.
+// CellSettingsResult — сколько ячеек реально изменено.
 type CellSettingsResult struct {
 	CellsUpdated int `json:"cells_updated"`
-	RacksUpdated int `json:"racks_updated"`
 }

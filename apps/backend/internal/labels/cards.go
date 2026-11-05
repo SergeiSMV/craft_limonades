@@ -2,6 +2,7 @@ package labels
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/go-pdf/fpdf"
 )
@@ -36,13 +37,12 @@ func SideCards(cards []Card, set []string) ([]byte, error) {
 	size, ok := fitSize(w, addrW, cardCapMax, cardCapMin, width)
 	var problems []string
 	if !ok {
-		problems = append(problems, fmt.Sprintf("адрес %s не влезает в карточку: высота букв меньше %g мм", w, cardCapMin))
+		problems = append(problems, fmt.Sprintf("адрес %s не влезает в карточку", w))
 	}
-	// Ширина кода в карточке постоянная, модуль — от числа модулей адреса. Пороги считывания
-	// проверяются по самому длинному коду набора склада — у него модуль самый узкий (как
-	// check_geometry в rack_labels: longest по всему файлу). У коротких кодов модуль крупнее,
-	// и защитная зона 3 мм может оказаться меньше 10 модулей: склад из одних семизначных адресов
-	// не печатается и у скрипта — тогда расширяют поле кода в геометрии.
+	// Код в карточке растягивается на поле cardBcW, но модуль не шире cardModuleMax — иначе у
+	// короткого адреса защитная зона 3 мм окажется меньше 10 модулей (у скрипта склад из одних
+	// семизначных адресов не печатался). Порог «штрих не уже 0,25 мм» проверяется по самому
+	// длинному коду набора склада — у него модуль самый узкий (check_geometry в rack_labels).
 	longest, most := "", 0
 	for _, a := range texts {
 		n, err := c128Modules(a)
@@ -55,7 +55,7 @@ func SideCards(cards []Card, set []string) ([]byte, error) {
 		}
 	}
 	if most > 0 {
-		problems = append(problems, moduleProblems(longest, (cardBcW-2*cardQuiet)/float64(most), cardQuiet)...)
+		problems = append(problems, moduleProblems(longest, cardModule(most), cardQuiet)...)
 	}
 	if len(problems) > 0 {
 		return nil, &FitError{Problems: problems}
@@ -142,11 +142,20 @@ func drawCard(pdf *fpdf.Fpdf, x, y float64, c Card, sizePt float64) error {
 		if err != nil {
 			return err
 		}
-		module := (cardBcW - 2*cardQuiet) / float64(n)
-		if err := drawBarcode(pdf, r.Address, x+cardW-cardPad-cardBcW+cardQuiet, cur+(cardRowH-cardBcH)/2, module, cardBcH); err != nil {
+		// Код прижат вправо: суженный короткий код стоит там же, где длинные, лишнее — в левую
+		// защитную зону.
+		module := cardModule(n)
+		bx := x + cardW - cardPad - cardQuiet - float64(n)*module
+		if err := drawBarcode(pdf, r.Address, bx, cur+(cardRowH-cardBcH)/2, module, cardBcH); err != nil {
 			return err
 		}
 		cur += cardRowH + step
 	}
 	return nil
+}
+
+// cardModule — модуль кода карточки из n модулей: на всё поле кода, но не шире
+// cardModuleMax (защитная зона cardQuiet — не меньше 10 модулей).
+func cardModule(n int) float64 {
+	return math.Min((cardBcW-2*cardQuiet)/float64(n), cardModuleMax)
 }

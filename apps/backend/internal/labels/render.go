@@ -121,7 +121,7 @@ func beamSizes(p beamProfile, set []Cell, width measurer) (map[bool]float64, []s
 		}
 		size, ok := fitSize(w, avail, p.capMax, p.capMin, width)
 		if !ok {
-			problems = append(problems, fmt.Sprintf("адрес %s не влезает: высота букв меньше %g мм", w, p.capMin))
+			problems = append(problems, fmt.Sprintf("адрес %s не влезает рядом со штрих-кодом и стрелкой", w))
 		}
 		sizes[bc] = size
 	}

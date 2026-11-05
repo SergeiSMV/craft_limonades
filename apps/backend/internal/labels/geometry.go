@@ -30,6 +30,7 @@ const (
 const (
 	minModule  = 0.25 // самый узкий штрих; уже — сканер промахивается
 	quietRatio = 10.0 // защитная зона ≥ 10 модулей
+	minFontPt  = 1.0  // меньше кегль адреса не уменьшается — тогда «не влезает»
 )
 
 // Стрелка «блоком»: стержень с головкой.
@@ -44,7 +45,7 @@ type beamProfile struct {
 	pad     float64 // внутреннее поле
 	gap     float64 // зазор между кодом, адресом и стрелкой
 	capMax  float64 // высота прописной, потолок
-	capMin  float64 // ниже не ужимать — ошибка
+	capMin  float64 // ниже — кегль уменьшается шагом 1 пт (fitSize)
 	module  float64 // ширина модуля штрих-кода
 	quiet   float64 // защитная зона кода с каждой стороны
 	bcH     float64 // высота штрих-кода
@@ -65,24 +66,25 @@ func init() {
 
 // Карточка на стойку (профиль side_card).
 const (
-	cardCols     = 2
-	cardW        = 95.0
-	cardH        = 277.0
-	cardPad      = 8.0 // рабочее поле 79 × 261
-	cardRadius   = 6.0
-	cardBorder   = 0.6
-	cardRowH     = 20.0
-	cardCapMax   = 6.0
-	cardCapMin   = 4.0
-	cardGap      = 3.0  // между адресом и кодом
-	cardBcW      = 42.0 // ширина кода вместе с защитными зонами
-	cardBcH      = 14.0
-	cardQuiet    = 3.0
-	sepH         = 6.0 // высота промежутка под пунктир между позициями
-	sepWidth     = 0.5
-	sepInset     = 6.0
-	sepDash      = 3.0
-	sepDashSpace = 2.0
+	cardCols      = 2
+	cardW         = 95.0
+	cardH         = 277.0
+	cardPad       = 8.0 // рабочее поле 79 × 261
+	cardRadius    = 6.0
+	cardBorder    = 0.6
+	cardRowH      = 20.0
+	cardCapMax    = 6.0
+	cardCapMin    = 4.0
+	cardGap       = 3.0  // между адресом и кодом
+	cardBcW       = 42.0 // ширина кода вместе с защитными зонами
+	cardBcH       = 14.0
+	cardQuiet     = 3.0
+	cardModuleMax = cardQuiet / quietRatio // 0,3 мм
+	sepH          = 6.0                    // высота промежутка под пунктир между позициями
+	sepWidth      = 0.5
+	sepInset      = 6.0
+	sepDash       = 3.0
+	sepDashSpace  = 2.0
 )
 
 // FitError — содержимое не помещается или штрих-код нечитаем: печатать такое нельзя,
@@ -102,14 +104,24 @@ var ErrNothingToPrint = errors.New("нечего печатать")
 // PDF — те же, что у reportlab, поэтому кегль совпадает с rack_labels.
 type measurer func(text string, sizePt float64) float64
 
-// fitSize — кегль (пт) строки: цель — capMax, ужимается по ширине avail. ok=false — даже на
-// capMin не влезает.
+// fitSize — кегль (пт) строки: цель — capMax, ужимается по ширине avail ровно до неё.
+// Если высота букв при этом ниже capMin, печать не останавливается: кегль берётся от capMin
+// и уменьшается на 1 пт, пока строка не влезет (решение 2026-11-05 — длинный адрес мельче,
+// но напечатан). ok=false — не влезает и на minFontPt: место съел штрих-код или стрелка.
 func fitSize(text string, avail, capMax, capMin float64, width measurer) (float64, bool) {
 	size := capMax / capRatio / ptToMM
 	if w := width(text, size); w > avail {
 		size *= avail / w
 	}
-	return size, size*capRatio*ptToMM >= capMin-1e-6
+	floor := capMin / capRatio / ptToMM
+	if size >= floor-1e-6 {
+		return size, true
+	}
+	size = floor
+	for width(text, size) > avail+1e-9 && size-1 >= minFontPt {
+		size--
+	}
+	return size, width(text, size) <= avail+1e-9
 }
 
 // widest — самая широкая строка набора: по ней считается единый кегль.

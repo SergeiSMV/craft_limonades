@@ -150,6 +150,7 @@ Append-only «кто / что / когда»; по нему разбирают �
 | `rack_id`      | `uuid`    | FK → `racks(id)`, `ON DELETE SET NULL`; NULL — ячейка без стеллажа           |
 | `label_small`  | `boolean` | малая балка: этикетка 190 × 46 мм вместо 190 × 69; `size = small` в файле    |
 | `label_barcode`| `boolean` | штрих-код Code128 на этикетке балки; `barcode` в файле                       |
+| `side_card`    | `boolean` | строка на карточке стеллажа на стойке (миграция `000042`); без стеллажа — `false` |
 | `is_default`   | `boolean` | ячейка приёмки по умолчанию (`С-Н-П`); одна на склад                         |
 | `is_active`    | `boolean` | —                                                                            |
 
@@ -174,7 +175,9 @@ Append-only «кто / что / когда»; по нему разбирают �
 | `id`           | `uuid`    | PK                                                    |
 | `warehouse_id` | `uuid`    | FK → `warehouses(id)`                                 |
 | `code`         | `text`    | код стеллажа (`B-01`); `UNIQUE (warehouse_id, code)`  |
-| `side_card`    | `boolean` | печатать карточку на стойку                           |
+
+Признак «карточка на стойку» с миграции `000042` — у ячейки (`cells.side_card`): ячейка строкой на
+карточке своего стеллажа; у ячейки без стеллажа всегда `false`.
 
 ### 3.5 `nomenclature_groups` — группы номенклатуры (миграция `000005`)
 

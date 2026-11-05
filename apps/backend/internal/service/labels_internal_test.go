@@ -22,7 +22,6 @@ func TestNaturalLess_ordersNumericSegments(t *testing.T) {
 	}
 }
 
-
 // Порядок наклейки: стеллаж натурально, без стеллажа — в конце; в стеллаже позиция слева
 // направо, в позиции ярусы сверху вниз (как первая страница labels_large у rack_labels).
 func TestCellBefore_stickingOrder(t *testing.T) {
@@ -43,19 +42,22 @@ func TestCellBefore_stickingOrder(t *testing.T) {
 	}
 }
 
-// Карточка — только стеллажи выбранных ячеек с галочкой, строки всего стеллажа: позиции
-// убывают, ярусы сверху вниз. Набор для кегля — все карточки склада.
+// Карточка — стеллажи выбранных ячеек с галочкой «на карточке» (решение 2026-11-05: галочка у
+// ячейки), строки — ячейки стеллажа с галочкой, штрих-код на балке не важен: позиции убывают,
+// ярусы сверху вниз. Набор для кегля — все ячейки склада с галочкой и стеллажом. Выбранная ячейка
+// без галочки и ячейка без стеллажа карточку не печатают.
 func TestSideCards_rowsOfWholeRack(t *testing.T) {
 	cells := []model.CellSetup{
-		{ID: "1", Address: "B-1-1-1", RackID: ptr("r1")},
-		{ID: "2", Address: "B-1-2-1", RackID: ptr("r1")},
-		{ID: "3", Address: "B-1-1-2", RackID: ptr("r1")},
-		{ID: "4", Address: "C-1-1-1", RackID: ptr("r2")},
-		{ID: "5", Address: "D-1-1-1", RackID: ptr("r3")},
-		{ID: "6", Address: "E-1-1-1"},
+		{ID: "1", Address: "B-1-1-1", RackID: ptr("r1"), RackCode: ptr("B-01"), SideCard: true},
+		{ID: "2", Address: "B-1-2-1", RackID: ptr("r1"), RackCode: ptr("B-01"), SideCard: true, LabelBarcode: true},
+		{ID: "3", Address: "B-1-1-2", RackID: ptr("r1"), RackCode: ptr("B-01"), SideCard: true},
+		{ID: "4", Address: "C-1-1-1", RackID: ptr("r2"), RackCode: ptr("C-01")},
+		{ID: "5", Address: "D-1-1-1", RackID: ptr("r3"), RackCode: ptr("D-01"), SideCard: true},
+		{ID: "6", Address: "E-1-1-1", SideCard: true}, // без стеллажа — карточки нет
+		{ID: "7", Address: "B-1-3-1", RackID: ptr("r1"), RackCode: ptr("B-01")},
+		{ID: "8", Address: "D-1-2-1", RackID: ptr("r3"), RackCode: ptr("D-01")},
 	}
-	racks := []model.Rack{{ID: "r1", Code: "B-01", SideCard: true}, {ID: "r2", Code: "C-01"}, {ID: "r3", Code: "D-01", SideCard: true}}
-	cards, set := sideCards(cells, racks, []model.CellSetup{cells[0], cells[3], cells[5]})
+	cards, set := sideCards(cells, []model.CellSetup{cells[0], cells[3], cells[5], cells[7], cells[2]})
 	if len(cards) != 1 || cards[0].Rack != "B-01" || len(set) != 4 {
 		t.Fatalf("карточки %+v, набор %v", cards, set)
 	}

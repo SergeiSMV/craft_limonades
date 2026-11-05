@@ -43,7 +43,7 @@ func TestCellSetupHTTP(t *testing.T) {
 
 	code, body = e.call(t, http.MethodPatch, "/api/v1/cells/setup", e.adminToken,
 		`{"cell_ids":["`+e.cell1+`"],"label_small":true,"side_card":true}`)
-	if code != http.StatusOK || string(bytes.TrimSpace(body)) != `{"cells_updated":1,"racks_updated":0}` {
+	if code != http.StatusOK || string(bytes.TrimSpace(body)) != `{"cells_updated":1}` {
 		t.Errorf("правка: %d %s", code, body)
 	}
 	for _, c := range []struct {

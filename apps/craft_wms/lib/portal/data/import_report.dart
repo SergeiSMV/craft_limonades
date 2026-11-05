@@ -18,13 +18,16 @@ abstract class ImportReport with _$ImportReport {
   factory ImportReport.fromJson(Map<String, dynamic> json) => _$ImportReportFromJson(json);
 }
 
-/// Итог импорта ячеек — ответ `POST /import/cells` (backend `CellsImportReport`).
+/// Итог загрузки ячеек и стеллажей — ответ `POST /import/cells` (backend `CellsImportReport`).
 @freezed
 abstract class CellsImportReport with _$CellsImportReport {
   const factory CellsImportReport({
     @Default('') String warehouse,
     @JsonKey(name: 'cells_created') required int cellsCreated,
     @JsonKey(name: 'cells_updated') required int cellsUpdated,
+    // ADHOC-57: стеллажи загружаются тем же файлом (лист racks и колонка rack_id).
+    @JsonKey(name: 'racks_created') @Default(0) int racksCreated,
+    @JsonKey(name: 'racks_updated') @Default(0) int racksUpdated,
     @Default(<SkippedRow>[]) List<SkippedRow> skipped,
   }) = _CellsImportReport;
 

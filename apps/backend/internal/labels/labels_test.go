@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"testing"
 )
@@ -68,7 +69,8 @@ func TestBeamLabels(t *testing.T) {
 
 // Длинный адрес со штрих-кодом не влезает, нечитаемый символ — тоже причина; PDF не строится.
 func TestBeamLabelsFitError(t *testing.T) {
-	long := Cell{Address: strings.Repeat("B-12-", 8) + "1", Barcode: true}
+	// Код такого адреса шире этикетки — кеглем не спасти.
+	long := Cell{Address: strings.Repeat("B-12-", 12) + "1", Barcode: true}
 	bad := Cell{Address: "Б-1-1-1", Barcode: true}
 	_, err := BeamLabels(false, []Cell{long, bad}, []Cell{long, bad})
 	var fe *FitError
@@ -95,15 +97,41 @@ func TestSideCards(t *testing.T) {
 	if _, err = SideCards([]Card{{Rack: "B-01", Rows: []CardRow{{Address: "Б-1"}}}}, nil); err == nil {
 		t.Error("кириллица: ждали ошибку")
 	}
-	// Модуль считается по самому длинному адресу склада: с ним короткие адреса печатаются,
-	// без него у кода B-1-1-1 модуль 0,321 мм и защитная зона 3 мм меньше 10 модулей.
+	// Склад из одних коротких адресов печатается: модуль кода B-1-1-1 был бы 0,321 мм, он
+	// ограничен 0,3 мм — защитная зона 3 мм остаётся в 10 модулях.
 	short := []Card{{Rack: "B-01", Rows: []CardRow{{Address: "B-1-1-1", Position: 1}}}}
-	if _, err = SideCards(short, []string{"B-1-1-12"}); err != nil {
-		t.Errorf("короткий адрес в складе с длинными: %v", err)
+	for _, set := range [][]string{{"B-1-1-12"}, nil} {
+		if _, err = SideCards(short, set); err != nil {
+			t.Errorf("короткий адрес, набор %v: %v", set, err)
+		}
 	}
-	var fe *FitError
-	if _, err = SideCards(short, nil); !errors.As(err, &fe) {
-		t.Errorf("склад из коротких адресов: ждали FitError, %v", err)
+	if m := cardModule(112); m != cardModuleMax {
+		t.Errorf("модуль короткого кода: %v", m)
+	}
+	if m := cardModule(134); math.Abs(m-36.0/134) > 1e-12 {
+		t.Errorf("модуль длинного кода как у скрипта: %v", m)
+	}
+}
+
+// Не влезающий адрес не останавливает печать: кегль от capMin уменьшается на 1 пт, пока
+// строка не влезет.
+func TestFitSizeStepsDown(t *testing.T) {
+	_, width := newPDF("t")
+	addr := strings.Repeat("B-12-", 6) + "1"
+	floor := largeBeam.capMin / capRatio / ptToMM
+	avail := width(addr, floor) * 0.6
+	size, ok := fitSize(addr, avail, largeBeam.capMax, largeBeam.capMin, width)
+	if !ok || width(addr, size) > avail {
+		t.Fatalf("ждали влезающий кегль: %v %v", size, ok)
+	}
+	if steps := floor - size; math.Abs(steps-math.Round(steps)) > 1e-9 || steps < 1 {
+		t.Errorf("кегль %v не на шаг 1 пт от %v", size, floor)
+	}
+	if width(addr, size+1) <= avail {
+		t.Errorf("кегль %v уменьшен лишний раз", size)
+	}
+	if _, ok := fitSize(addr, -1, largeBeam.capMax, largeBeam.capMin, width); ok {
+		t.Error("отрицательное место: ждали ok=false")
 	}
 }
 

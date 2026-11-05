@@ -70,6 +70,7 @@ class _PortalShellState extends State<PortalShell> {
     final stocktakes = p.can(Rights.stocktakeView, [Rights.stocktakeManage]);
     final cellsLabels = p.can(Rights.cellsLabels);
     final cellsUpload = p.can(Rights.cellsImport);
+    final cellsEdit = p.can(Rights.cellsEdit);
     final settings = p.can(Rights.settingsWarehouses, [
       Rights.settingsProblemReasons,
       Rights.settingsUsers,
@@ -127,11 +128,17 @@ class _PortalShellState extends State<PortalShell> {
                 stockEntryDocs: stockEntryDocs,
               ),
             ),
-          if (cellsLabels || cellsUpload)
+          if (cellsLabels || cellsUpload || cellsEdit)
             NavItem(
               icon: Icons.grid_view_outlined,
               label: t.portal.tabs.cells,
-              body: CellsTab(labels: cellsLabels, upload: cellsUpload),
+              // ADHOC-57: список ячеек, галочки этикеток, загрузка и печать по образцу rack_labels.
+              description: t.portal.cells.description,
+              body: CellsTab(
+                canImport: cellsUpload,
+                canLabels: cellsLabels,
+                canEdit: cellsEdit,
+              ),
             ),
           if (movement != null)
             NavItem(

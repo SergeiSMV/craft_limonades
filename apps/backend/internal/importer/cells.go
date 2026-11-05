@@ -23,7 +23,9 @@ const (
 	ColBarcodeValue = "barcode_value" // в WMS не хранится: сканер читает сам адрес
 	ColCopies       = "copies"        // в WMS не хранится: сколько печатать — решают при печати
 	ColPrint        = "print"         // в WMS не хранится: что печатать — решают при печати
-	ColSideCard     = "side_card"     // лист racks: печатать ли карточку на стойку
+	// ColSideCard — на листе racks: карточка стеллажа по умолчанию (ячейки без штрих-кода);
+	// на листе cells (необязательная): строка ячейки на карточке — главнее значения стеллажа.
+	ColSideCard = "side_card"
 
 	SizeLarge = "large"
 	SizeSmall = "small"
@@ -39,17 +41,20 @@ type CellRow struct {
 	LabelSmall   bool   // size = small
 	IsFloor      bool   // arrow = down — нижняя ячейка (стрелка вниз)
 	LabelBarcode bool
+	// SideCard — строка на карточке стеллажа. nil — файл её не задал (нет ни колонки у ячейки,
+	// ни листа racks): у заведённой ячейки галочка не меняется, у новой — false.
+	SideCard *bool
 }
 
-// RackRow — стеллаж из листа racks.
+// RackRow — стеллаж из листа racks. SideCard — значение по умолчанию для его ячеек.
 type RackRow struct {
 	Code     string
 	SideCard bool
 }
 
 // CellsParseResult — итог разбора файла ячеек: принятые ячейки и стеллажи, отклонённые строки.
-// HasRacksSheet — был ли в файле лист racks: без него признак «карточка на стойку» у уже
-// заведённых стеллажей не трогается.
+// HasRacksSheet — был ли в файле лист racks: без него и без колонки side_card у ячейки галочка
+// карточки у уже заведённых ячеек не трогается.
 type CellsParseResult struct {
 	Cells         []CellRow
 	Racks         []RackRow
@@ -62,9 +67,12 @@ type CellsParseResult struct {
 // Что: раскладывает строки в ячейки и стеллажи. Зачем: настройки этикеток (балка, стрелка,
 // штрих-код) и карточки на стойку загружаются тем же файлом, которым их печатал rack_labels.
 // Как: обязательные колонки — cell_id и size; остальные можно опустить, тогда берутся умолчания
-// rack_labels (arrow = none, barcode = false). Проблемная строка не валит загрузку, а уходит в
-// отчёт с причиной: дубль адреса, неизвестные size или arrow, стрелка вверх (в WMS её нет),
-// стеллаж, которого нет на листе racks. Ячейки сопоставляются по строке адреса как есть.
+// rack_labels (arrow = none, barcode = false). Галочка карточки у ячейки (решение 2026-11-05):
+// значение колонки side_card листа cells, если задано; иначе — как печатал rack_labels: карточка
+// стеллажа с листа racks и ячейка без штрих-кода на балке. Проблемная строка не валит загрузку,
+// а уходит в отчёт с причиной: дубль адреса, неизвестные size или arrow, стрелка вверх (в WMS её
+// нет), стеллаж, которого нет на листе racks, карточка у ячейки без стеллажа. Ячейки
+// сопоставляются по строке адреса как есть.
 func ParseCells(r io.Reader) (*CellsParseResult, error) {
 	f, err := excelize.OpenReader(r)
 	if err != nil {
@@ -78,7 +86,7 @@ func ParseCells(r io.Reader) (*CellsParseResult, error) {
 	}
 
 	res := &CellsParseResult{}
-	knownRacks := map[string]bool{}
+	knownRacks := map[string]bool{} // код стеллажа листа racks → его side_card
 	if racksSheet != "" {
 		res.HasRacksSheet = true
 		if err := parseRacks(f, racksSheet, res, knownRacks); err != nil {
@@ -91,7 +99,7 @@ func ParseCells(r io.Reader) (*CellsParseResult, error) {
 	return res, nil
 }
 
-// parseRacks разбирает лист racks: код стеллажа и признак карточки на стойку. Ошибки строк
+// parseRacks разбирает лист racks: код стеллажа и карточку по умолчанию для его ячеек. Ошибки строк
 // листа racks попадают в отчёт с префиксом листа — номера строк двух листов иначе путаются.
 func parseRacks(f *excelize.File, sheet string, res *CellsParseResult, known map[string]bool) error {
 	rows, err := f.GetRows(sheet)
@@ -117,7 +125,7 @@ func parseRacks(f *excelize.File, sheet string, res *CellsParseResult, known map
 		switch {
 		case code == "":
 			bad("стеллаж без кода — пропущен")
-		case known[code]:
+		case hasKey(known, code):
 			bad(fmt.Sprintf("стеллаж %q повторяется — пропущен", code))
 		default:
 			sideCard, ok := parseBool(raw)
@@ -125,16 +133,19 @@ func parseRacks(f *excelize.File, sheet string, res *CellsParseResult, known map
 				bad(fmt.Sprintf("стеллаж %q: не распознан side_card %q — пропущен", code, raw))
 				continue
 			}
-			known[code] = true
+			known[code] = sideCard
 			res.Racks = append(res.Racks, RackRow{Code: code, SideCard: sideCard})
 		}
 	}
 	return nil
 }
 
-// parseCellRows разбирает лист cells. knownRacks — стеллажи листа racks: ссылка на стеллаж
-// вне листа — опечатка (rack_labels останавливался на ней), строка уходит в отчёт. Без листа
-// racks стеллаж берётся из колонки как есть и заводится при загрузке.
+// parseCellRows разбирает лист cells. knownRacks — стеллажи листа racks с их карточкой: ссылка
+// на стеллаж вне листа — опечатка (rack_labels останавливался на ней), строка уходит в отчёт.
+// Без листа racks стеллаж берётся из колонки как есть и заводится при загрузке.
+//
+// Карточка у ячейки без стеллажа — противоречие в файле (строку некуда поставить), строка
+// уходит в отчёт, а не молча теряет галочку: человек мог просто забыть rack_id.
 func parseCellRows(f *excelize.File, sheet string, res *CellsParseResult, knownRacks map[string]bool) error {
 	rows, err := f.GetRows(sheet)
 	if err != nil {
@@ -155,7 +166,8 @@ func parseCellRows(f *excelize.File, sheet string, res *CellsParseResult, knownR
 		size := strings.ToLower(colValue(row, cols, ColSize))
 		arrow := strings.ToLower(colValue(row, cols, ColArrow))
 		barcodeRaw := colValue(row, cols, ColBarcode)
-		if address == "" && rack == "" && size == "" && arrow == "" && barcodeRaw == "" {
+		sideCardRaw := colValue(row, cols, ColSideCard)
+		if address == "" && rack == "" && size == "" && arrow == "" && barcodeRaw == "" && sideCardRaw == "" {
 			continue // пустая строка
 		}
 		bad := func(msg string) { res.Errors = append(res.Errors, RowError{Row: i + 1, Message: msg}) }
@@ -187,17 +199,41 @@ func parseCellRows(f *excelize.File, sheet string, res *CellsParseResult, knownR
 			bad(fmt.Sprintf("ячейка %q: не распознан barcode %q — пропущена", address, barcodeRaw))
 			continue
 		}
-		if rack != "" && res.HasRacksSheet && !knownRacks[rack] {
+		if rack != "" && res.HasRacksSheet && !hasKey(knownRacks, rack) {
 			bad(fmt.Sprintf("ячейка %q: стеллажа %q нет на листе racks — пропущена", address, rack))
 			continue
+		}
+		var sideCard *bool
+		switch {
+		case sideCardRaw != "":
+			v, ok := parseBool(sideCardRaw)
+			if !ok {
+				bad(fmt.Sprintf("ячейка %q: не распознан side_card %q — пропущена", address, sideCardRaw))
+				continue
+			}
+			if v && rack == "" {
+				bad(fmt.Sprintf("ячейка %q: side_card без стеллажа — карточки у ячейки нет; пропущена", address))
+				continue
+			}
+			sideCard = &v
+		case res.HasRacksSheet:
+			v := rack != "" && knownRacks[rack] && !barcode // прежнее правило rack_labels
+			sideCard = &v
 		}
 		seen[address] = true
 		res.Cells = append(res.Cells, CellRow{
 			Address: address, RackCode: rack,
 			LabelSmall: size == SizeSmall, IsFloor: arrow == ArrowDown, LabelBarcode: barcode,
+			SideCard: sideCard,
 		})
 	}
 	return nil
+}
+
+// hasKey — есть ли ключ в карте (значение может быть false).
+func hasKey(m map[string]bool, k string) bool {
+	_, ok := m[k]
+	return ok
 }
 
 // findSheet ищет лист по имени без учёта регистра; пусто — листа нет.

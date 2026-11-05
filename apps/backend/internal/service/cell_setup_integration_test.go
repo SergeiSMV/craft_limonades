@@ -56,7 +56,15 @@ func TestCellSetup_rackLabelsRoundTrip(t *testing.T) {
 	if len(setup.Cells) != 522 || len(setup.Racks) != 66 {
 		t.Fatalf("страница: ячеек %d/522, стеллажей %d/66", len(setup.Cells), len(setup.Racks))
 	}
-	var small, floors, barcode, cards int
+	// Карточка по умолчанию (лист racks, решение 2026-11-05): ячейки стеллажей с карточкой без
+	// штрих-кода на балке — как печатал rack_labels.
+	parsedFile := parseSample(t, rackLabelsSamplePath)
+	rackCard := map[string]bool{}
+	for _, r := range parsedFile.Racks {
+		rackCard[r.Code] = r.SideCard
+	}
+	cardRacks := map[string]bool{}
+	var small, floors, barcode int
 	for _, c := range setup.Cells {
 		if c.LabelSmall {
 			small++
@@ -68,16 +76,18 @@ func TestCellSetup_rackLabelsRoundTrip(t *testing.T) {
 			barcode++
 		}
 		if c.RackCode == nil {
-			t.Errorf("у ячейки %s нет стеллажа", c.Address)
+			t.Fatalf("у ячейки %s нет стеллажа", c.Address)
+		}
+		if want := rackCard[*c.RackCode] && !c.LabelBarcode; c.SideCard != want {
+			t.Errorf("ячейка %s: side_card %v, ждали %v", c.Address, c.SideCard, want)
+		}
+		if c.SideCard {
+			cardRacks[*c.RackCode] = true
 		}
 	}
-	for _, r := range setup.Racks {
-		if r.SideCard {
-			cards++
-		}
-	}
-	if small != 30 || floors != 177 || barcode != 129 || cards != 45 {
-		t.Errorf("итоги: малых %d/30, нижних %d/177, со штрих-кодом %d/129, с карточкой %d/45", small, floors, barcode, cards)
+	if small != 30 || floors != 177 || barcode != 129 || len(cardRacks) != 45 {
+		t.Errorf("итоги: малых %d/30, нижних %d/177, со штрих-кодом %d/129, стеллажей с карточкой %d/45",
+			small, floors, barcode, len(cardRacks))
 	}
 	// Натуральный порядок: B-1-2-9 раньше B-1-2-10, стеллаж B-02 раньше B-10.
 	if idx(setup.Cells, "B-1-2-9") > idx(setup.Cells, "B-1-2-10") {
@@ -96,7 +106,7 @@ func TestCellSetup_rackLabelsRoundTrip(t *testing.T) {
 	for i, c := range parsed.Cells {
 		s := setup.Cells[i]
 		if c.Address != s.Address || c.RackCode != *s.RackCode || c.LabelSmall != s.LabelSmall ||
-			c.IsFloor != s.IsFloor || c.LabelBarcode != s.LabelBarcode {
+			c.IsFloor != s.IsFloor || c.LabelBarcode != s.LabelBarcode || c.SideCard == nil || *c.SideCard != s.SideCard {
 			t.Fatalf("строка %d выгрузки %+v не совпадает с базой %+v", i+2, c, s)
 		}
 	}
@@ -115,10 +125,61 @@ func TestCellSetup_rackLabelsRoundTrip(t *testing.T) {
 			t.Fatalf("после обратной загрузки ячейка изменилась: %+v → %+v", setup.Cells[i], again.Cells[i])
 		}
 	}
+
+	// Галочка, не совпадающая с правилом по умолчанию (ячейка со штрих-кодом на карточке и ячейка
+	// стеллажа с карточкой без неё), переживает круг «выгрузка → загрузка»: колонка ячейки главнее.
+	var withCode, withoutCode model.CellSetup
+	for _, c := range again.Cells {
+		if c.LabelBarcode && !c.SideCard && withCode.ID == "" {
+			withCode = c
+		}
+		if !c.LabelBarcode && c.SideCard && withoutCode.ID == "" {
+			withoutCode = c
+		}
+	}
+	yes, no := true, false
+	if _, err := svc.UpdateSettings(ctx, "SHB", model.CellSettingsPatch{CellIDs: []string{withCode.ID}, SideCard: &yes}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.UpdateSettings(ctx, "SHB", model.CellSettingsPatch{CellIDs: []string{withoutCode.ID}, SideCard: &no}); err != nil {
+		t.Fatal(err)
+	}
+	edited := mustSetup(t, svc)
+	data, _, err = svc.ExportXLSX(ctx, "SHB")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := newImportSvc(pool).ImportCells(ctx, bytes.NewReader(data), "SHB", "Шабулина"); err != nil {
+		t.Fatal(err)
+	}
+	final := mustSetup(t, svc)
+	for i := range final.Cells {
+		if !sameCell(final.Cells[i], edited.Cells[i]) {
+			t.Fatalf("круг после правки галочек: %+v → %+v", edited.Cells[i], final.Cells[i])
+		}
+	}
+	if !byAddr(t, final, withCode.Address).SideCard || byAddr(t, final, withoutCode.Address).SideCard {
+		t.Error("галочки карточки не пережили выгрузку и загрузку")
+	}
+}
+
+func parseSample(t *testing.T, path string) *importer.CellsParseResult {
+	t.Helper()
+	f, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = f.Close() }()
+	res, err := importer.ParseCells(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return res
 }
 
 // TestCellSetup_updateSettings — массовая правка галочек: меняются только заданные поля и только
-// у выбранных ячеек; карточка — у их стеллажей; чужие ячейки и пустой патч отклоняются.
+// у выбранных ячеек, галочка карточки — тоже у ячеек и только со стеллажом; чужие ячейки и пустой
+// патч отклоняются.
 func TestCellSetup_updateSettings(t *testing.T) {
 	pool := testutil.StartPostgres(t)
 	ctx := context.Background()
@@ -141,8 +202,8 @@ func TestCellSetup_updateSettings(t *testing.T) {
 	if err != nil {
 		t.Fatalf("UpdateSettings: %v", err)
 	}
-	if res.CellsUpdated != 2 || res.RacksUpdated != 1 {
-		t.Errorf("изменено ячеек %d (ждали 2), стеллажей %d (ждали 1)", res.CellsUpdated, res.RacksUpdated)
+	if res.CellsUpdated != 2 {
+		t.Errorf("изменено ячеек %d (ждали 2)", res.CellsUpdated)
 	}
 	after, err := svc.Setup(ctx, "SHB")
 	if err != nil {
@@ -155,14 +216,27 @@ func TestCellSetup_updateSettings(t *testing.T) {
 	if other.LabelSmall || !other.LabelBarcode {
 		t.Errorf("невыбранная ячейка изменилась: %+v", other)
 	}
-	if !rackCard(t, after, "M1-7") {
-		t.Error("стеллаж M1-7: карточка не включилась")
+	if !a2.SideCard || !byAddr(t, after, "M1-7-1-3").SideCard || byAddr(t, after, "M1-7-1-4").SideCard {
+		t.Error("галочка карточки: включиться должна только у выбранных ячеек")
 	}
 
 	// Повтор того же — ничего не меняется, счётчики нулевые.
 	res, err = svc.UpdateSettings(ctx, "SHB", model.CellSettingsPatch{CellIDs: []string{a.ID, b.ID}, LabelSmall: &yes, SideCard: &yes})
-	if err != nil || res.CellsUpdated != 0 || res.RacksUpdated != 0 {
+	if err != nil || res.CellsUpdated != 0 {
 		t.Errorf("повтор: %+v %v", res, err)
+	}
+
+	// Ячейке без стеллажа галочка карточки не ставится: строки некуда поставить.
+	if _, err := pool.Exec(ctx, `UPDATE cells SET rack_id = NULL WHERE id = $1`, b.ID); err != nil {
+		t.Fatal(err)
+	}
+	res, err = svc.UpdateSettings(ctx, "SHB", model.CellSettingsPatch{CellIDs: []string{b.ID}, SideCard: &no})
+	if err != nil || res.CellsUpdated != 1 {
+		t.Fatalf("снять галочку у ячейки без стеллажа: %+v %v", res, err)
+	}
+	res, err = svc.UpdateSettings(ctx, "SHB", model.CellSettingsPatch{CellIDs: []string{b.ID}, SideCard: &yes})
+	if err != nil || res.CellsUpdated != 0 || byAddr(t, mustSetup(t, svc), "M1-7-1-3").SideCard {
+		t.Errorf("галочка ячейке без стеллажа: %+v %v", res, err)
 	}
 
 	// Ошибки до записи.
@@ -217,17 +291,6 @@ func byAddr(t *testing.T, s *model.CellsSetup, address string) model.CellSetup {
 	return model.CellSetup{}
 }
 
-func rackCard(t *testing.T, s *model.CellsSetup, code string) bool {
-	t.Helper()
-	for _, r := range s.Racks {
-		if r.Code == code {
-			return r.SideCard
-		}
-	}
-	t.Fatalf("нет стеллажа %s", code)
-	return false
-}
-
 func idx(cells []model.CellSetup, address string) int {
 	for i, c := range cells {
 		if c.Address == address {
@@ -240,5 +303,6 @@ func idx(cells []model.CellSetup, address string) int {
 // sameCell сравнивает ячейки по значениям (указатели на стеллаж — разные адреса памяти).
 func sameCell(a, b model.CellSetup) bool {
 	return a.ID == b.ID && a.Address == b.Address && *a.RackID == *b.RackID && *a.RackCode == *b.RackCode &&
-		a.IsFloor == b.IsFloor && a.LabelSmall == b.LabelSmall && a.LabelBarcode == b.LabelBarcode
+		a.IsFloor == b.IsFloor && a.LabelSmall == b.LabelSmall && a.LabelBarcode == b.LabelBarcode &&
+		a.SideCard == b.SideCard
 }

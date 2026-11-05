@@ -84,6 +84,20 @@ abstract final class AppSizes {
   static const double kGoodsColQty = 104; // колонка «Остаток» (с единицей)
   static const double kGoodCardLabel = 184; // подпись реквизита в карточке товара
   static const double kPortalListMaxWidth = 1200; // предел ширины страницы-списка
+  // Ячейки (ADHOC-57): карточка ячейки справа от списка — при ширине страницы от порога; уже —
+  // окном по нажатию на строку. Список колонками — от своей ширины карточки, уже — строками.
+  static const double kCellsSideWidth = 340;
+  static const double kCellsSearchWidth = 260; // поиск по адресу на панели
+  static const double kCellsSideMinPage = 960;
+  static const double kCellsColumnsWidth = 600;
+  static const double kCellsColRack = 72; // колонка «Стеллаж»
+  static const double kCellsColTier = 48; // колонка «Ярус»
+  static const double kCellsColPos = 64; // колонка «Позиция»
+  static const double kCellsColBeam = 96; // колонка «Балка»
+  static const int kCellsRackPreview = 4; // стеллажей выборки называем, остальные — числом
+  static const double kPortalCheckbox = 18; // галочка портала
+  static const double kPortalCheckboxMark = 14; // галочка или черта внутри
+  static const double kDisabledOpacity = 0.5; // недоступная кнопка портала
   // Строка документа уже — кнопки уходят под текст, иначе заголовку остаётся пара букв.
   // Таблица документов (ADHOC-26) — пороги по ширине самой таблицы: от «полных действий» —
   // кнопки с подписями, уже — иконками; уже минимума (телефон) — строки вместо таблицы.

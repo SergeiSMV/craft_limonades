@@ -50,7 +50,7 @@ func TestCellLabelsPDF(t *testing.T) {
 		if c.LabelSmall && small.ID == "" {
 			small = c
 		}
-		if !c.LabelSmall && large.ID == "" && c.RackCode != nil && hasCard(setup.Racks, *c.RackCode) {
+		if !c.LabelSmall && c.SideCard && large.ID == "" {
 			large = c
 		}
 	}
@@ -60,9 +60,17 @@ func TestCellLabelsPDF(t *testing.T) {
 	if pdf, _, err := svc.CellLabelsPDF(ctx, "SHB", service.LabelKindLarge, []string{large.ID, small.ID, large.ID}); err != nil || pdfPages(pdf) != 1 {
 		t.Errorf("выборка на большую балку: %v, листов %d", err, pdfPages(pdf))
 	}
-	// Карточка стеллажа выбранной ячейки печатается целиком — одна карточка, один лист.
+	// Карточка стеллажа выбранной ячейки — одна карточка, один лист.
 	if pdf, _, err := svc.CellLabelsPDF(ctx, "SHB", service.LabelKindCards, []string{large.ID}); err != nil || pdfPages(pdf) != 1 {
 		t.Errorf("карточка выборки: %v, листов %d", err, pdfPages(pdf))
+	}
+	// Ячейка без галочки «на карточке» карточку не печатает, даже если у её стеллажа карточка есть.
+	no := false
+	if _, err := newCellSetupSvc(pool).UpdateSettings(ctx, "SHB", model.CellSettingsPatch{CellIDs: []string{large.ID}, SideCard: &no}); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := svc.CellLabelsPDF(ctx, "SHB", service.LabelKindCards, []string{large.ID}); !errors.Is(err, labels.ErrNothingToPrint) {
+		t.Errorf("ячейка без галочки: %v, ждали ErrNothingToPrint", err)
 	}
 	if _, _, err := svc.CellLabelsPDF(ctx, "SHB", service.LabelKindSmall, []string{large.ID}); !errors.Is(err, labels.ErrNothingToPrint) {
 		t.Errorf("малых в выборке нет: %v", err)
@@ -90,13 +98,4 @@ func TestCellLabelsPDF(t *testing.T) {
 	if _, _, err := svc.CellLabelsPDF(ctx, "NOPE", service.LabelKindLarge, nil); !errors.Is(err, repository.ErrNotFound) {
 		t.Errorf("неизвестный склад: %v", err)
 	}
-}
-
-func hasCard(racks []model.Rack, code string) bool {
-	for _, r := range racks {
-		if r.Code == code {
-			return r.SideCard
-		}
-	}
-	return false
 }

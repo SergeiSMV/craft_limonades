@@ -117,12 +117,19 @@ func (s *CellSetupService) ExportXLSX(ctx context.Context, warehouseCode string)
 		}
 		cells = append(cells, importer.ExportCell{
 			Address: c.Address, RackCode: rack,
-			LabelSmall: c.LabelSmall, IsFloor: c.IsFloor, LabelBarcode: c.LabelBarcode,
+			LabelSmall: c.LabelSmall, IsFloor: c.IsFloor, LabelBarcode: c.LabelBarcode, SideCard: c.SideCard,
 		})
+	}
+	// Карточка стеллажа на листе racks — есть ли у него ячейки с галочкой (для rack_labels).
+	withCard := map[string]bool{}
+	for _, c := range setup.Cells {
+		if c.SideCard && c.RackID != nil {
+			withCard[*c.RackID] = true
+		}
 	}
 	racks := make([]importer.RackRow, 0, len(setup.Racks))
 	for _, r := range setup.Racks {
-		racks = append(racks, importer.RackRow{Code: r.Code, SideCard: r.SideCard})
+		racks = append(racks, importer.RackRow{Code: r.Code, SideCard: withCard[r.ID]})
 	}
 	data, err := importer.BuildCellsXLSX(cells, racks)
 	if err != nil {

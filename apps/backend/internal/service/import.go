@@ -28,8 +28,8 @@ type (
 		Upsert(ctx context.Context, q repository.Querier, code, name string) (string, error)
 	}
 	cellRepo interface {
-		UpsertRack(ctx context.Context, q repository.Querier, warehouseID, code string, sideCard *bool) (string, bool, error)
-		UpsertSetup(ctx context.Context, q repository.Querier, warehouseID string, rackID *string, c model.CellSetup) (bool, error)
+		UpsertRack(ctx context.Context, q repository.Querier, warehouseID, code string) (string, bool, error)
+		UpsertSetup(ctx context.Context, q repository.Querier, warehouseID string, rackID *string, c model.CellSetup, sideCard *bool) (bool, error)
 		EnsureDefault(ctx context.Context, q repository.Querier, warehouseID string) (string, error)
 	}
 )
@@ -135,16 +135,16 @@ type CellsImportReport struct {
 	CellsCreated int                 `json:"cells_created"` // новых ячеек
 	CellsUpdated int                 `json:"cells_updated"` // обновлённых (повторная загрузка)
 	RacksCreated int                 `json:"racks_created"` // новых стеллажей
-	RacksUpdated int                 `json:"racks_updated"` // уже заведённых стеллажей из файла
+	RacksUpdated int                 `json:"racks_updated"` // уже заведённых стеллажей, названных в файле
 	Skipped      []importer.RowError `json:"skipped"`       // пропущенные строки с причинами
 }
 
 // ImportCells загружает .xlsx ячеек в формате rack_labels (листы cells и racks) в один
 // физический склад (warehouseCode/warehouseName — параметры, склада в файле нет) одной транзакцией.
 //
-// Как: сначала стеллажи листа racks — с признаком карточки; затем стеллажи, названные только в
-// листе cells (без листа racks), — без изменения карточки; затем ячейки со ссылкой на стеллаж и
-// настройками этикетки. Ячейки, которых нет в файле, не трогаются и не удаляются. Внутренний
+// Как: сначала стеллажи листа racks, затем названные только в листе cells (без листа racks);
+// затем ячейки со ссылкой на стеллаж, настройками этикетки и галочкой карточки — её парсер уже
+// свёл из колонки ячейки и карточки стеллажа (у стеллажа своей галочки в базе нет). Ячейки, которых нет в файле, не трогаются и не удаляются. Внутренний
 // склад (основной/брак) здесь не участвует — это измерение остатка, не ячейки (ADR-0016).
 // Проблемные строки не валят загрузку — попадают в отчёт (Skipped).
 func (s *ImportService) ImportCells(ctx context.Context, r io.Reader, warehouseCode, warehouseName string) (*CellsImportReport, error) {
@@ -162,8 +162,8 @@ func (s *ImportService) ImportCells(ctx context.Context, r io.Reader, warehouseC
 			return err
 		}
 		rackIDs := map[string]string{}
-		upsertRack := func(code string, sideCard *bool) error {
-			id, created, err := s.cells.UpsertRack(ctx, q, warehouseID, code, sideCard)
+		upsertRack := func(code string) error {
+			id, created, err := s.cells.UpsertRack(ctx, q, warehouseID, code)
 			if err != nil {
 				return err
 			}
@@ -176,7 +176,7 @@ func (s *ImportService) ImportCells(ctx context.Context, r io.Reader, warehouseC
 			return nil
 		}
 		for _, rk := range parsed.Racks {
-			if err := upsertRack(rk.Code, &rk.SideCard); err != nil {
+			if err := upsertRack(rk.Code); err != nil {
 				return err
 			}
 		}
@@ -184,7 +184,7 @@ func (s *ImportService) ImportCells(ctx context.Context, r io.Reader, warehouseC
 			if c.RackCode == "" || rackIDs[c.RackCode] != "" {
 				continue
 			}
-			if err := upsertRack(c.RackCode, nil); err != nil {
+			if err := upsertRack(c.RackCode); err != nil {
 				return err
 			}
 		}
@@ -195,7 +195,7 @@ func (s *ImportService) ImportCells(ctx context.Context, r io.Reader, warehouseC
 			}
 			created, err := s.cells.UpsertSetup(ctx, q, warehouseID, rackID, model.CellSetup{
 				Address: c.Address, IsFloor: c.IsFloor, LabelSmall: c.LabelSmall, LabelBarcode: c.LabelBarcode,
-			})
+			}, c.SideCard)
 			if err != nil {
 				return err
 			}

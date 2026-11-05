@@ -48,7 +48,8 @@ func (h *CellSetupHandler) Setup(w http.ResponseWriter, r *http.Request) {
 
 // UpdateSettings: PATCH /api/v1/cells/setup?warehouse=SHB — галочки у выбранных ячеек.
 // Тело: {"cell_ids": [...], "label_small"?, "is_floor"?, "label_barcode"?, "side_card"?};
-// отсутствующее поле не меняется. 200 {cells_updated, racks_updated} / 400 / 404 / 409.
+// отсутствующее поле не меняется; side_card=true ячейке без стеллажа не ставится (карточки у неё
+// нет). 200 {cells_updated} / 400 / 404 / 409.
 func (h *CellSetupHandler) UpdateSettings(w http.ResponseWriter, r *http.Request) {
 	var req model.CellSettingsPatch
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, cellSetupMaxBody)).Decode(&req); err != nil {

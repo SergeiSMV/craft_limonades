@@ -61,15 +61,18 @@ func TestImportCells_realFile(t *testing.T) {
 		t.Errorf("напольных ячеек: ожидалось 25, получено %d", floors)
 	}
 	// Стеллажи (ADHOC-57): 12 из листа racks, у 6 — карточка на стойку; ячейка знает свой стеллаж.
+	// Галочка карточки — у ячеек этих стеллажей без штрих-кода на балке (умолчание листа racks).
 	if rep.RacksCreated != 12 || rep.RacksUpdated != 0 {
 		t.Errorf("стеллажи: ожидалось created=12 updated=0, получено %d и %d", rep.RacksCreated, rep.RacksUpdated)
 	}
-	var cards int
-	if err := pool.QueryRow(ctx, "SELECT count(*) FROM racks WHERE side_card").Scan(&cards); err != nil {
+	var cards, cardsWithCode int
+	if err := pool.QueryRow(ctx, `
+		SELECT count(DISTINCT rack_id), count(*) FILTER (WHERE label_barcode)
+		FROM cells WHERE side_card`).Scan(&cards, &cardsWithCode); err != nil {
 		t.Fatal(err)
 	}
-	if cards != 6 {
-		t.Errorf("стеллажей с карточкой: ожидалось 6, получено %d", cards)
+	if cards != 6 || cardsWithCode != 0 {
+		t.Errorf("стеллажей с карточкой: ожидалось 6, получено %d; ячеек карточки со штрих-кодом %d (ждали 0)", cards, cardsWithCode)
 	}
 	var rackCode string
 	if err := pool.QueryRow(ctx, `
