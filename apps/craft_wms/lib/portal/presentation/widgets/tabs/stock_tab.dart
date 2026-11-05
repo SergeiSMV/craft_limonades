@@ -5,10 +5,12 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/gen/strings.g.dart';
+import '../../../../core/sync/data_versions.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/utils/date_time_format.dart';
 import '../../../../core/utils/qty_format.dart';
 import '../../../../core/utils/search_text.dart';
+import '../../../../core/widgets/data_versions_listener.dart';
 import '../../../../features/stock/data/catalog_api.dart';
 import '../../../../features/stock/data/catalog_cache.dart';
 import '../../../../features/stock/data/catalog_models.dart';
@@ -81,6 +83,15 @@ class _StockTabState extends State<StockTab> {
     });
   }
 
+  /// Изменились остатки, товары, ячейки или внутренние склады (ADHOC-60): свежий снимок и
+  /// справочники фильтров. Поиск, фильтры и число показанных строк не сбрасываются; прежний
+  /// список виден, пока не придёт новый ([load] только крутит «Обновить»). [load] всегда
+  /// снимает склад заново (`refresh` по умолчанию), а не отдаёт запомненный результат.
+  void refresh() {
+    load();
+    loadFilters();
+  }
+
   /// Справочники фильтров; не загрузились — фильтр без вариантов.
   Future<void> loadFilters() async {
     final groups = await _catalog.listGroups();
@@ -133,6 +144,24 @@ class _StockTabState extends State<StockTab> {
     final stock = _stock;
     final found = stock == null ? const <PortalStockGood>[] : _filtered(stock);
     final qty = {for (final s in found) s.good.id: s.qtyOn(_warehouseId)};
+    return DataVersionsListener(
+      domains: const {
+        DataDomain.contents,
+        DataDomain.goods,
+        DataDomain.cells,
+        DataDomain.settings,
+      },
+      onChanged: refresh,
+      child: _listPage(stock, found, qty),
+    );
+  }
+
+  /// Страница-список: панель поиска и фильтров, под ней — товары с остатком.
+  Widget _listPage(
+    PortalStock? stock,
+    List<PortalStockGood> found,
+    Map<String, double> qty,
+  ) {
     return PortalListPage(
       toolbar: GoodsToolbar(
         search: _search,

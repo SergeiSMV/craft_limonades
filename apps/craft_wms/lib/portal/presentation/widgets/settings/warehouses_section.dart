@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/gen/strings.g.dart';
+import '../../../../core/sync/data_versions.dart';
+import '../../../../core/widgets/data_versions_listener.dart';
 import '../../../data/internal_warehouses_repository.dart';
 import 'warehouse_dialogs.dart';
 import 'warehouse_row.dart';
@@ -109,31 +111,43 @@ class _WarehousesSectionState extends State<WarehousesSection> {
     _ => t.portal.login.errorUnknown,
   };
 
+  /// Настройки изменились на сервере (ADHOC-60): перечитать список. Пока идёт своё действие,
+  /// не перечитывать — оно само перечитает список по завершении. Правка в открытом окне не
+  /// страдает: окно держит свою копию данных, а список под ним остаётся на экране до ответа.
+  void onDataChanged() {
+    if (_busyId != null) return;
+    load();
+  }
+
   @override
   Widget build(BuildContext context) {
     final items = _items;
-    return PortalAnnotatedSection(
-      title: t.portal.warehouses.title,
-      description: t.portal.warehouses.description,
-      action: PortalButton(
-        label: t.portal.warehouses.add,
-        icon: Icons.add,
-        busy: _busyId == '',
-        onPressed: create,
-      ),
-      child: SettingsListCard(
-        loading: _loading && items == null,
-        error: _error,
-        rows: [
-          for (final w in items ?? const <PortalWarehouse>[])
-            WarehouseRow(
-              warehouse: w,
-              busy: _busyId == w.id,
-              onRename: () => rename(w),
-              onToggle: () => toggle(w),
-              onDelete: () => delete(w),
-            ),
-        ],
+    return DataVersionsListener(
+      domains: const {DataDomain.settings},
+      onChanged: onDataChanged,
+      child: PortalAnnotatedSection(
+        title: t.portal.warehouses.title,
+        description: t.portal.warehouses.description,
+        action: PortalButton(
+          label: t.portal.warehouses.add,
+          icon: Icons.add,
+          busy: _busyId == '',
+          onPressed: create,
+        ),
+        child: SettingsListCard(
+          loading: _loading && items == null,
+          error: _error,
+          rows: [
+            for (final w in items ?? const <PortalWarehouse>[])
+              WarehouseRow(
+                warehouse: w,
+                busy: _busyId == w.id,
+                onRename: () => rename(w),
+                onToggle: () => toggle(w),
+                onDelete: () => delete(w),
+              ),
+          ],
+        ),
       ),
     );
   }

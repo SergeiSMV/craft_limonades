@@ -146,6 +146,8 @@ func main() {
 		svc.ProblemPhoto = service.NewProblemPhotoService(repository.NewProblemPhotoRepository(pool))
 		// Просмотр содержимого ячеек и коробов на ТСД (P5-05).
 		svc.Contents = service.NewContentsService(repository.NewContentsRepository(pool))
+		// Версии данных по областям — заголовок каждого ответа API (ADHOC-60).
+		svc.DataVersions = repository.NewDataVersionRepository(pool)
 	} else {
 		log.Warn("no database — auth, import and catalog endpoints disabled")
 	}

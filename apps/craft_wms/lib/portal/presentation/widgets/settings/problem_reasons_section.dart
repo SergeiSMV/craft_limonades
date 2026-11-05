@@ -5,6 +5,8 @@ import '../../../../core/constants/app_boxes.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/gen/strings.g.dart';
+import '../../../../core/sync/data_versions.dart';
+import '../../../../core/widgets/data_versions_listener.dart';
 import '../../../../core/problems/problem_reasons.dart';
 import '../../../data/problem_reasons_repository.dart';
 import 'access_common.dart';
@@ -153,63 +155,75 @@ class _ProblemReasonsSectionState extends State<ProblemReasonsSection> {
     _ => t.portal.login.errorUnknown,
   };
 
+  /// Настройки изменились на сервере (ADHOC-60): перечитать список. Пока идёт своё действие,
+  /// не перечитывать — оно само перечитает список по завершении. Правка в открытом окне не
+  /// страдает: окно держит свою копию данных, а список под ним остаётся на экране до ответа.
+  void onDataChanged() {
+    if (_busy != null) return;
+    load();
+  }
+
   @override
   Widget build(BuildContext context) {
     final tr = t.portal.problemReasons;
     final dir = _dir;
     final names = {for (final v in dir?.resolutions ?? const []) v.id: v.name};
     final loading = _loading && dir == null;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        PortalAnnotatedSection(
-          title: tr.title,
-          description: tr.description,
-          action: PortalButton(
-            label: tr.add,
-            icon: Icons.add,
-            busy: _busy == 'reason:',
-            onPressed: createReason,
+    return DataVersionsListener(
+      domains: const {DataDomain.settings},
+      onChanged: onDataChanged,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          PortalAnnotatedSection(
+            title: tr.title,
+            description: tr.description,
+            action: PortalButton(
+              label: tr.add,
+              icon: Icons.add,
+              busy: _busy == 'reason:',
+              onPressed: createReason,
+            ),
+            child: SettingsListCard(
+              loading: loading,
+              error: _error,
+              rows: [
+                for (final r in dir?.reasons ?? const <ProblemReason>[])
+                  ProblemReasonRow(
+                    reason: r,
+                    variantNames: [for (final id in r.resolutions) ?names[id]],
+                    busy: _busy == 'reason:${r.code}',
+                    onEdit: () => editReason(r),
+                    onToggle: () => toggleReason(r),
+                  ),
+              ],
+            ),
           ),
-          child: SettingsListCard(
-            loading: loading,
-            error: _error,
-            rows: [
-              for (final r in dir?.reasons ?? const <ProblemReason>[])
-                ProblemReasonRow(
-                  reason: r,
-                  variantNames: [for (final id in r.resolutions) ?names[id]],
-                  busy: _busy == 'reason:${r.code}',
-                  onEdit: () => editReason(r),
-                  onToggle: () => toggleReason(r),
-                ),
-            ],
+          AppBoxes.kHeight32,
+          PortalAnnotatedSection(
+            title: tr.variantsTitle,
+            description: tr.variantsDescription,
+            action: PortalButton(
+              label: tr.variantAdd,
+              icon: Icons.add,
+              busy: _busy == 'variant:',
+              onPressed: createVariant,
+            ),
+            child: SettingsListCard(
+              loading: loading,
+              rows: [
+                for (final v in dir?.resolutions ?? const <ResolutionVariant>[])
+                  ResolutionVariantRow(
+                    variant: v,
+                    busy: _busy == 'variant:${v.id}',
+                    onEdit: () => editVariant(v),
+                    onToggle: () => toggleVariant(v),
+                  ),
+              ],
+            ),
           ),
-        ),
-        AppBoxes.kHeight32,
-        PortalAnnotatedSection(
-          title: tr.variantsTitle,
-          description: tr.variantsDescription,
-          action: PortalButton(
-            label: tr.variantAdd,
-            icon: Icons.add,
-            busy: _busy == 'variant:',
-            onPressed: createVariant,
-          ),
-          child: SettingsListCard(
-            loading: loading,
-            rows: [
-              for (final v in dir?.resolutions ?? const <ResolutionVariant>[])
-                ResolutionVariantRow(
-                  variant: v,
-                  busy: _busy == 'variant:${v.id}',
-                  onEdit: () => editVariant(v),
-                  onToggle: () => toggleVariant(v),
-                ),
-            ],
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

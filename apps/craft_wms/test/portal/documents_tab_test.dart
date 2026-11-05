@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:craft_wms/core/constants/api_constants.dart';
 import 'package:craft_wms/core/di/injection.dart';
+import 'package:craft_wms/core/sync/data_versions.dart';
 import 'package:craft_wms/core/gen/strings.g.dart';
 import 'package:craft_wms/portal/data/documents_repository.dart';
 import 'package:craft_wms/portal/presentation/widgets/documents/doc_card.dart';
@@ -52,6 +53,10 @@ void main() {
       getIt.unregister<DocumentsRepository>();
     }
     getIt.registerSingleton<DocumentsRepository>(DocumentsRepository(dio));
+    // ADHOC-60: вкладки слушают версии данных сервера.
+    if (!getIt.isRegistered<DataVersions>()) {
+      getIt.registerSingleton(DataVersions());
+    }
   });
 
   testWidgets('прокрутка списка не уводит панель поиска и фильтров', (

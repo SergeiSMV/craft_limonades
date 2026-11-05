@@ -10,6 +10,8 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_insets.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/di/injection.dart';
+import '../../../../core/sync/data_versions.dart';
+import '../../../../core/widgets/data_versions_listener.dart';
 import '../../../../core/gen/assets.gen.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/router/app_router.dart';
@@ -40,7 +42,15 @@ class TasksPage extends StatelessWidget {
         BlocProvider(create: (_) => getIt<CurrentTasksCubit>()..load()),
         BlocProvider(create: (_) => getIt<CompletedTasksCubit>()),
       ],
-      child: const _TasksView(),
+      // Задания изменились на сервере (ADHOC-60) — «Текущие» перечитываются при ближайшем
+      // ответе сервера, без опроса.
+      child: Builder(
+        builder: (context) => DataVersionsListener(
+          domains: const {DataDomain.tasks},
+          onChanged: context.read<CurrentTasksCubit>().load,
+          child: const _TasksView(),
+        ),
+      ),
     );
   }
 }

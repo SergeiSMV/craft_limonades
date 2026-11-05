@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:craft_wms/core/error/failure.dart';
 import 'package:craft_wms/core/di/injection.dart';
 import 'package:craft_wms/core/warehouse/internal_warehouses.dart';
@@ -34,6 +36,14 @@ class FakeContentsSnapshotSync implements ContentsSnapshotSync {
 
   @override
   void requestRefresh() => requests++;
+
+  final _updated = StreamController<void>.broadcast();
+
+  @override
+  Stream<void> get updated => _updated.stream;
+
+  /// Снимок «обновился» (ADHOC-60): открытые экраны перечитывают себя.
+  void emitUpdated() => _updated.add(null);
 }
 
 /// Заглушка репозитория содержимого (P5-05) для экранов: ячейки ищутся в [cells] по адресу,
