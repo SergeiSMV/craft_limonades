@@ -1,5 +1,6 @@
 import 'package:craft_wms/core/constants/app_insets.dart';
 import 'package:craft_wms/core/di/injection.dart';
+import 'package:craft_wms/core/sync/data_versions.dart';
 import 'package:craft_wms/core/gen/strings.g.dart';
 import 'package:craft_wms/features/stock/data/catalog_api.dart';
 import 'package:craft_wms/features/stock/data/catalog_models.dart';
@@ -29,6 +30,10 @@ void main() {
   setUp(() async {
     LocaleSettings.useDeviceLocale();
     await getIt.reset();
+    // ADHOC-60: вкладки слушают версии данных сервера.
+    if (!getIt.isRegistered<DataVersions>()) {
+      getIt.registerSingleton(DataVersions());
+    }
     api = _MockApi();
     getIt.registerSingleton<CatalogApi>(api);
     when(() => api.listGroups()).thenAnswer((_) async => const Right([]));

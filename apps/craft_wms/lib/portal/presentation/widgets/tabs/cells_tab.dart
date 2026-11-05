@@ -7,6 +7,8 @@ import '../../../../core/constants/app_insets.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/gen/strings.g.dart';
+import '../../../../core/sync/data_versions.dart';
+import '../../../../core/widgets/data_versions_listener.dart';
 import '../../../data/cells_repository.dart';
 import '../../../data/web_download.dart';
 import '../cells/cell_settings_card.dart';
@@ -116,7 +118,15 @@ class _CellsTabState extends State<CellsTab> {
   );
 
   @override
-  Widget build(BuildContext context) => ListenableBuilder(
+  Widget build(BuildContext context) => DataVersionsListener(
+    // ADHOC-60: ячейки изменились на сервере — перечитать, если нет несохранённых галочек.
+    domains: const {DataDomain.cells},
+    onChanged: _c.reloadIfClean,
+    child: _page(),
+  );
+
+  /// Страница: панель, список и карточка ячейки — по ширине.
+  Widget _page() => ListenableBuilder(
     listenable: _c,
     builder: (context, _) => LayoutBuilder(
       builder: (context, constraints) {

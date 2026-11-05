@@ -9,6 +9,8 @@ import '../../../../core/gen/strings.g.dart';
 import '../../../data/documents_repository.dart';
 import '../../../data/web_download.dart';
 import '../../../../core/theme/regular_text.dart';
+import '../../../../core/sync/data_versions.dart';
+import '../../../../core/widgets/data_versions_listener.dart';
 import '../documents/doc_filter.dart';
 import '../documents/doc_form.dart';
 import '../documents/doc_history_dialog.dart';
@@ -83,19 +85,28 @@ class _DocumentsTabState extends State<DocumentsTab> {
     _load();
   }
 
-  /// Загрузить список документов.
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  /// Загрузить список документов. [quiet] — перечитывание по версиям данных (ADHOC-60):
+  /// таблица остаётся на экране до ответа, а ошибка не подменяет её — список просто прежний.
+  Future<void> _load({bool quiet = false}) async {
+    if (!quiet) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     final res = await _repo.listDocuments(kind: widget.kind);
-    if (!mounted) return;
+    if (!mounted || (quiet && res.isLeft)) return;
     setState(() {
       _loading = false;
-      res.fold((f) => _error = f, (docs) => _docs = docs);
+      res.fold((f) => _error = f, (docs) {
+        _docs = docs;
+        _error = null;
+      });
     });
   }
+
+  /// Документы изменились на сервере (ADHOC-60): тихо перечитать; поиск и фильтр не трогаются.
+  void _onDataChanged() => _load(quiet: true);
 
   /// Скачать .xlsx документа и сохранить в браузере. Сервер отмечает документ скачанным,
   /// поэтому после успеха список перечитывается — иначе статус на экране отстанет от факта.
@@ -166,16 +177,20 @@ class _DocumentsTabState extends State<DocumentsTab> {
     // Панель поиска и фильтров закреплена сверху, прокручивается только таблица под ней
     // (ADHOC-26): поиск и фильтр нужны и в конце длинного списка. Ширина и поля — как у
     // остальных страниц-списков (ADHOC-56); заголовок раздела и пояснение — в шапке портала.
-    return PortalListPage(
-      header: widget.header,
-      toolbar: DocToolbar(
-        hint: _form.searchHint,
-        onQuery: _onQuery,
-        filter: _filter,
-        counts: countByFilter(_docs),
-        onFilter: _onFilter,
+    return DataVersionsListener(
+      domains: const {DataDomain.documents},
+      onChanged: _onDataChanged,
+      child: PortalListPage(
+        header: widget.header,
+        toolbar: DocToolbar(
+          hint: _form.searchHint,
+          onQuery: _onQuery,
+          filter: _filter,
+          counts: countByFilter(_docs),
+          onFilter: _onFilter,
+        ),
+        body: _body(),
       ),
-      body: _body(),
     );
   }
 

@@ -7,6 +7,8 @@ import '../../../../core/di/injection.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
+import '../../../../core/sync/data_versions.dart';
+import '../../../../core/widgets/data_versions_listener.dart';
 import '../../../data/problems_repository.dart';
 import '../problems/problem_card.dart';
 import '../problems/problem_filter.dart';
@@ -54,19 +56,28 @@ class _ProblemsTabState extends State<ProblemsTab> {
   /// Запрос поиска изменился.
   void _onQuery(String q) => setState(() => _query = q);
 
-  /// Загрузить список проблем.
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  /// Загрузить список проблем. [quiet] — перечитывание по версиям данных (ADHOC-60): список
+  /// остаётся на экране до ответа, а ошибка не подменяет его.
+  Future<void> _load({bool quiet = false}) async {
+    if (!quiet) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     final res = await _repo.list();
-    if (!mounted) return;
+    if (!mounted || (quiet && res.isLeft)) return;
     setState(() {
       _loading = false;
-      res.fold((f) => _error = f, (list) => _problems = list);
+      res.fold((f) => _error = f, (list) {
+        _problems = list;
+        _error = null;
+      });
     });
   }
+
+  /// Проблемы изменились на сервере (ADHOC-60): тихо перечитать; поиск и фильтр не трогаются.
+  void _onDataChanged() => _load(quiet: true);
 
   /// Решить проблему: решение собирается в диалоге и проводится сразу — остаток меняется
   /// только здесь. После успеха список перечитывается: решённая уходит из открытых.
@@ -106,14 +117,18 @@ class _ProblemsTabState extends State<ProblemsTab> {
   Widget build(BuildContext context) {
     // Как у документов (ADHOC-56): панель поиска и фильтров закреплена, прокручивается только
     // список; ширина и поля — как у остальных страниц-списков.
-    return PortalListPage(
-      toolbar: ProblemToolbar(
-        onQuery: _onQuery,
-        filter: _filter,
-        counts: countProblems(_problems),
-        onFilter: _onFilter,
+    return DataVersionsListener(
+      domains: const {DataDomain.problems},
+      onChanged: _onDataChanged,
+      child: PortalListPage(
+        toolbar: ProblemToolbar(
+          onQuery: _onQuery,
+          filter: _filter,
+          counts: countProblems(_problems),
+          onFilter: _onFilter,
+        ),
+        body: _body(),
       ),
-      body: _body(),
     );
   }
 

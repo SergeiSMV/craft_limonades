@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:injectable/injectable.dart';
 
 import '../../../../core/error/failure.dart';
@@ -26,7 +28,15 @@ class StockGoodsCubit extends GoodsListCubit {
     this._contents,
     this._snapshot,
     this._warehouses,
-  );
+  ) {
+    // Снимок обновился по любому поводу (очередь, версии данных — ADHOC-60) — список
+    // перечитывается из кэша, без второй загрузки.
+    _updates = _snapshot.updated.listen((_) {
+      if (state.status == GoodsListStatus.loaded) unawaited(_read());
+    });
+  }
+
+  late final StreamSubscription<void> _updates;
 
   final ContentsRepository _contents;
   final ContentsSnapshotSync _snapshot;
@@ -121,6 +131,12 @@ class StockGoodsCubit extends GoodsListCubit {
         },
       ),
     );
+  }
+
+  @override
+  Future<void> close() {
+    _updates.cancel();
+    return super.close();
   }
 
   /// Подгрузки нет: список целиком в памяти.

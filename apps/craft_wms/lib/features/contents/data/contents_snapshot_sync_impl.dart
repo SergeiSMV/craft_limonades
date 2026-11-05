@@ -31,6 +31,11 @@ class ContentsSnapshotSyncImpl implements ContentsSnapshotSync {
   /// Идущая загрузка: параллельная вторая только удвоила бы трафик.
   Future<Either<Failure, void>>? _inFlight;
 
+  final _updated = StreamController<void>.broadcast();
+
+  @override
+  Stream<void> get updated => _updated.stream;
+
   @override
   Future<Either<Failure, void>> refresh() =>
       _inFlight ??= _load().whenComplete(() => _inFlight = null);
@@ -49,6 +54,7 @@ class ContentsSnapshotSyncImpl implements ContentsSnapshotSync {
       return Left(res.left);
     }
     await _cache.replace(res.right);
+    _updated.add(null);
     _talker.info(
       'Снимок содержимого склада за '
       '${DateTime.now().difference(started).inMilliseconds} мс: '

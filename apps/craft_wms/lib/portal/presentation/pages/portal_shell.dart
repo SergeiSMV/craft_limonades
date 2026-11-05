@@ -6,7 +6,9 @@ import '../../../core/auth/profile.dart';
 import '../../../core/auth/rights.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_sizes.dart';
+import '../../../core/di/injection.dart';
 import '../../../core/gen/strings.g.dart';
+import '../../../core/sync/data_versions.dart';
 import '../widgets/shell/nav_item.dart';
 import '../widgets/shell/portal_header.dart';
 import '../widgets/shell/portal_sidebar.dart';
@@ -199,6 +201,14 @@ class _PortalShellState extends State<PortalShell> {
 
   /// Выход из портала (чистит токены → PortalApp вернёт экран входа).
   void logout() => context.read<AuthCubit>().logout();
+
+  /// Оболочка уходит при выходе (ADHOC-60): забыть версии данных, чтобы следующий вход
+  /// запомнил их заново, а не принял первый же ответ за «всё изменилось».
+  @override
+  void dispose() {
+    getIt<DataVersions>().reset();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {

@@ -201,4 +201,18 @@ void main() {
     await cubit.refresh();
     expect(snapshot.refreshes, 2);
   });
+
+  test(
+    'снимок обновился в фоне по версиям данных - список перечитан без загрузки (ADHOC-60)',
+    () async {
+      await cubit.init();
+      contents.goods = [contents.goods.first];
+
+      snapshot.emitUpdated();
+      await pumpEventQueue();
+
+      expect(snapshot.refreshes, 1);
+      expect(shown(), {'g1': 12.0});
+    },
+  );
 }

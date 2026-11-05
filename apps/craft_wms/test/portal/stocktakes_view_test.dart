@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:craft_wms/core/constants/api_constants.dart';
 import 'package:craft_wms/core/di/injection.dart';
+import 'package:craft_wms/core/sync/data_versions.dart';
 import 'package:craft_wms/core/gen/strings.g.dart';
 import 'package:craft_wms/portal/data/stocktakes_repository.dart';
 import 'package:craft_wms/portal/presentation/widgets/stocktake/stocktake_card.dart';
@@ -61,6 +62,10 @@ void main() {
       getIt.unregister<StocktakesRepository>();
     }
     getIt.registerSingleton<StocktakesRepository>(StocktakesRepository(dio));
+    // ADHOC-60: вкладки слушают версии данных сервера.
+    if (!getIt.isRegistered<DataVersions>()) {
+      getIt.registerSingleton(DataVersions());
+    }
   });
 
   /// Открыть страницу шириной [width] и дождаться загрузки.

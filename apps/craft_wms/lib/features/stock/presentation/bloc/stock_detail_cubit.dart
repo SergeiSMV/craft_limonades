@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:injectable/injectable.dart';
@@ -41,7 +43,15 @@ abstract class StockDetailState with _$StockDetailState {
 @injectable
 class StockDetailCubit extends Cubit<StockDetailState> {
   StockDetailCubit(this._repo, this._contents, this._snapshot)
-    : super(const StockDetailState());
+    : super(const StockDetailState()) {
+    // Снимок обновился по любому поводу (очередь, версии данных — ADHOC-60) — места товара
+    // перечитываются из кэша, без второй загрузки.
+    _updates = _snapshot.updated.listen((_) {
+      if (state.status == StockDetailStatus.loaded) unawaited(_rereadPlaces());
+    });
+  }
+
+  late final StreamSubscription<void> _updates;
 
   final CatalogRepository _repo;
   final ContentsRepository _contents;
@@ -89,6 +99,26 @@ class StockDetailCubit extends Cubit<StockDetailState> {
     // прежний список и считает, что работа пропала.
     await _reloadBarcodes();
     return failure;
+  }
+
+  /// Перечитать места товара из свежего снимка — без загрузки и без индикатора (ADHOC-60).
+  Future<void> _rereadPlaces() async {
+    final places = await _contents.goodPlaces(_goodId);
+    if (isClosed) return;
+    final items = places.value ?? const <StockPlace>[];
+    emit(
+      state.copyWith(
+        items: items,
+        totalQty: _sum(items),
+        freshness: places.freshness,
+      ),
+    );
+  }
+
+  @override
+  Future<void> close() {
+    _updates.cancel();
+    return super.close();
   }
 
   /// Перечитать только список ШК, не трогая остатки.

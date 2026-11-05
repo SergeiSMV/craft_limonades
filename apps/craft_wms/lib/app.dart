@@ -6,6 +6,7 @@ import 'core/auth/auth_cubit.dart';
 import 'core/di/injection.dart';
 import 'core/router/app_router.dart';
 import 'core/sync/catalog_sync_service.dart';
+import 'core/sync/data_versions_sync.dart';
 import 'core/sync/sync_engine.dart';
 import 'core/theme/app_theme.dart';
 import 'core/widgets/printer_reconnect_banner.dart';
@@ -37,6 +38,8 @@ class CraftWmsApp extends StatelessWidget {
               // Движок очереди: разгребает всё, что не ушло раньше (P2-04). Тоже без await —
               // отправка идёт фоном и экрана не касается.
               getIt<SyncEngine>().start();
+              // Версии данных сервера (ADHOC-60): изменилась область — перечитать её кэш.
+              getIt<DataVersionsSync>().start();
               // Очередь фото проблем (ADHOC-45): снимки, снятые до перезапуска, — сразу; дальше
               // она сама идёт вслед за проходами очереди операций.
               getIt<ProblemPhotoRepository>().upload();
@@ -44,6 +47,7 @@ class CraftWmsApp extends StatelessWidget {
             case AuthUnauthenticated():
               // Очередь остаётся на диске и уйдёт под следующим входом — гасим только движок.
               getIt<SyncEngine>().stop();
+              getIt<DataVersionsSync>().stop();
               _router.replaceAll([const LoginRoute()]);
             // _router.replaceAll([const SplashRoute()]);
             case AuthUnknown():

@@ -1,4 +1,5 @@
 import 'package:craft_wms/core/di/injection.dart';
+import 'package:craft_wms/core/sync/data_versions.dart';
 import 'package:craft_wms/core/gen/strings.g.dart';
 import 'package:craft_wms/core/problems/problem_reasons.dart';
 import 'package:craft_wms/portal/data/problems_repository.dart';
@@ -71,6 +72,10 @@ void main() {
   setUp(() async {
     LocaleSettings.useDeviceLocale();
     await getIt.reset();
+    // ADHOC-60: вкладки слушают версии данных сервера.
+    if (!getIt.isRegistered<DataVersions>()) {
+      getIt.registerSingleton(DataVersions());
+    }
     repo = _MockRepo();
     getIt.registerSingleton<ProblemsRepository>(repo);
     when(() => repo.list()).thenAnswer(

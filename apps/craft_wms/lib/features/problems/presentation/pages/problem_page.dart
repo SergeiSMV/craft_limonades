@@ -11,6 +11,8 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_insets.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/di/injection.dart';
+import '../../../../core/sync/data_versions.dart';
+import '../../../../core/widgets/data_versions_listener.dart';
 import '../../../../core/gen/assets.gen.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/load_unit/load_unit_code.dart';
@@ -66,7 +68,15 @@ class ProblemPage extends StatelessWidget {
       BlocProvider(create: (_) => getIt<CurrentProblemsCubit>()..load()),
       BlocProvider(create: (_) => getIt<ResolvedProblemsCubit>()),
     ],
-    child: const _ProblemView(),
+    // Проблемы изменились на сервере (ADHOC-60) — «Текущие» перечитываются при ближайшем
+    // ответе сервера, без опроса.
+    child: Builder(
+      builder: (context) => DataVersionsListener(
+        domains: const {DataDomain.problems},
+        onChanged: context.read<CurrentProblemsCubit>().load,
+        child: const _ProblemView(),
+      ),
+    ),
   );
 }
 
