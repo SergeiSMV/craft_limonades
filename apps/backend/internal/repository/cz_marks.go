@@ -225,16 +225,33 @@ func scanCZAggregate(row pgx.Row) (model.CZAggregate, error) {
 
 // SetGoodCZMarked — признак «маркируемый» у товара (CZ-05, правка admin).
 // ErrCZGoodNotFound — товара нет (или id не UUID: такого товара тоже нет).
+// ErrCZGoodHasMarks — признак снимают, а марки товара лежат на складе (ADHOC-59).
+//
+// Как: проверка марок — в том же UPDATE, а не отдельным запросом перед ним: марку могут
+// принять между проверкой и правкой, и товар с маркой на складе остался бы немаркируемым.
+// Ставить признак можно всегда.
 func (r *CZMarkRepository) SetGoodCZMarked(ctx context.Context, goodID string, marked bool) error {
 	tag, err := r.pool.Exec(ctx, `
-		UPDATE goods SET cz_marked = $2 WHERE id::text = $1`, goodID, marked)
+		UPDATE goods g SET cz_marked = $2
+		WHERE g.id::text = $1
+		  AND ($2 OR NOT EXISTS (
+		      SELECT 1 FROM cz_marks m WHERE m.good_id = g.id AND m.status = $3))`,
+		goodID, marked, model.CZMarkInStock)
 	if err != nil {
 		return fmt.Errorf("признак маркируемого товара: %w", err)
 	}
-	if tag.RowsAffected() == 0 {
+	if tag.RowsAffected() > 0 {
+		return nil
+	}
+	var exists bool
+	if err := r.pool.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM goods WHERE id::text = $1)`, goodID).
+		Scan(&exists); err != nil {
+		return fmt.Errorf("признак маркируемого товара: %w", err)
+	}
+	if !exists {
 		return fmt.Errorf("%w: %s", model.ErrCZGoodNotFound, goodID)
 	}
-	return nil
+	return fmt.Errorf("%w: %s", model.ErrCZGoodHasMarks, goodID)
 }
 
 // markGoodsCZ ставит признак «маркируемый» товарам, у которых приняли марку или привязали ШК

@@ -76,6 +76,22 @@ void main() {
     when(
       () => catalog.listSuppliers(),
     ).thenAnswer((_) async => const Right([]));
+    // Справочник терминала знает только «Кальмар» — «Арахис» заведён после загрузки.
+    when(() => catalog.goodsByIds(any())).thenAnswer(
+      (_) async => {
+        'g1': const Good(
+          id: 'g1',
+          code: '16121',
+          name: 'Кальмар сушёный',
+          fullName: 'Кальмар сушёный, 100 г',
+          uom: 'шт',
+          groupId: 'fish',
+          supplierId: 's1',
+          supplierName: 'ООО «Море»',
+          czMarked: true,
+        ),
+      },
+    );
     cubit = StockGoodsCubit(
       catalog,
       contents,
@@ -101,6 +117,22 @@ void main() {
     expect(cubit.state.pendingGoods, {'g2'});
     expect(cubit.state.warehouses, warehouses);
   });
+
+  test(
+    'товар для карточки — из справочника целиком, с признаком «маркируемый» (ADHOC-59)',
+    () async {
+      await cubit.init();
+
+      final squid = cubit.state.goods.firstWhere((g) => g.id == 'g1');
+      expect(squid.czMarked, isTrue);
+      expect(squid.fullName, 'Кальмар сушёный, 100 г');
+      expect(squid.supplierName, 'ООО «Море»');
+      // Нет в справочнике — товар из строки снимка, карточка всё равно откроется.
+      final peanut = cubit.state.goods.firstWhere((g) => g.id == 'g2');
+      expect(peanut.name, 'Арахис');
+      expect(peanut.czMarked, isFalse);
+    },
+  );
 
   test(
     'без связи — список из прежнего снимка, исход передан репозиторию',

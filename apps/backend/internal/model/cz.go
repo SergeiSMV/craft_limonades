@@ -76,6 +76,9 @@ var (
 	ErrCZUnknownGTIN = errors.New("gtin not found in goods barcodes")
 	// ErrCZGoodNotFound — товара, которому правят признак «маркируемый», нет (CZ-05).
 	ErrCZGoodNotFound = errors.New("good not found")
+	// ErrCZGoodHasMarks — снять признак «маркируемый» нельзя: марки товара лежат на складе
+	// (ADHOC-59). Иначе товар с марками начал бы двигаться количеством, мимо правила CZ-06.
+	ErrCZGoodHasMarks = errors.New("good has chestny znak marks in stock")
 	// ErrCZMarkGoodMismatch — GTIN марки — ШК другого товара, не товара строки приёмки (CZ-05).
 	ErrCZMarkGoodMismatch = errors.New("chestny znak mark belongs to another good")
 	// ErrCZMarksExceedQty — марок в строке приёмки больше, чем её количество (CZ-05).

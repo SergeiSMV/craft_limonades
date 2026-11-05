@@ -117,6 +117,11 @@ class CatalogRepository {
   Future<Good?> goodById(String id) async =>
       await _ready(CatalogName.goods) ? _cache.goodById(id) : null;
 
+  /// Товары по идентификаторам из справочника терминала одним запросом (ADHOC-59); пусто —
+  /// справочник не загружен, товаров, заведённых после загрузки, в ответе нет.
+  Future<Map<String, Good>> goodsByIds(Iterable<String> ids) async =>
+      await _ready(CatalogName.goods) ? _cache.goodsByIds(ids) : {};
+
   /// Штрихкоды товара (секция «Штрихкоды» карточки). Пустой список — норма.
   Future<Either<Failure, List<Barcode>>> listGoodBarcodes(String goodId) async {
     if (!await _ready(CatalogName.barcodes)) {

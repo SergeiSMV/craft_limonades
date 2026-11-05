@@ -38,6 +38,10 @@ class StockGoodsCubit extends GoodsListCubit {
   /// Остатки из снимка — отбираются заново при каждой смене поиска или фильтра.
   List<GoodStock> _all = const [];
 
+  /// Товары остатков из справочника терминала (ADHOC-59): карточка открывается с товаром
+  /// целиком — с признаком «маркируемый», полным наименованием, поставщиком.
+  Map<String, Good> _catalogGoods = const {};
+
   @override
   Future<void> init() async {
     emit(state.copyWith(warehouses: await _warehouses.all()));
@@ -76,6 +80,7 @@ class StockGoodsCubit extends GoodsListCubit {
     if (isClosed) return;
     final viewed = await _contents.goodsStock(refreshFailure: _refreshFailure);
     _all = viewed.value ?? const [];
+    _catalogGoods = await catalog.goodsByIds(_all.map((s) => s.goodId));
     if (isClosed) return;
     emit(state.copyWith(freshness: viewed.freshness));
     await load();
@@ -122,9 +127,16 @@ class StockGoodsCubit extends GoodsListCubit {
   @override
   Future<void> loadMore() async {}
 
-  /// Строка остатков как товар — список и карточка работают с [Good]. Товара нет в справочнике
-  /// терминала — карточка всё равно откроется: остатки и ШК она читает по идентификатору.
-  static Good _good(GoodStock s) => Good(
+  /// Строка остатков как товар — список и карточка работают с [Good].
+  ///
+  /// Товар берётся из справочника терминала целиком (ADHOC-59): собранный из строки снимка, он
+  /// терял признак «маркируемый», и карточка из «Остатков» показывала любой маркируемый товар
+  /// «Без марки» — а по признаку блок «Штрихкоды» решает, проверять ли марки перед отвязкой ШК.
+  /// Товара нет в справочнике — карточка всё равно откроется с тем, что известно: остатки и ШК
+  /// она читает по идентификатору.
+  Good _good(GoodStock s) => _catalogGoods[s.goodId] ?? _fromStock(s);
+
+  static Good _fromStock(GoodStock s) => Good(
     id: s.goodId,
     code: s.code,
     name: s.name ?? '',
