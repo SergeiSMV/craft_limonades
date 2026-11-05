@@ -9,26 +9,27 @@ import '../../../../core/error/failure.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../data/stocktakes_repository.dart';
-import '../common/neumorphic_text_button.dart';
-import '../common/portal_filter_chip.dart';
+import '../settings/access_common.dart';
+import '../ui/portal_button.dart';
+import '../ui/portal_card.dart';
+import '../ui/portal_choice.dart';
+import '../ui/portal_list_page.dart';
 import 'stocktake_card.dart';
 import 'stocktake_create_dialog.dart';
 import 'stocktake_dialogs.dart';
 import 'stocktake_labels.dart';
 import '../../../../core/utils/doc_number.dart';
 
-/// Пересчёты в портале (P10-05): открытые и закрытые, «Завести пересчёт», ход и закрытие.
+/// Пересчёты в портале (P10-05, плоский стиль — ADHOC-56): открытые и закрытые,
+/// «Завести пересчёт», ход и закрытие.
 class StocktakesView extends StatefulWidget {
-  const StocktakesView({
-    super.key,
-    required this.padding,
-    this.canManage = true,
-  });
+  const StocktakesView({super.key, this.canManage = true, this.header});
 
   /// Право «Пересчёты: заводить и закрывать» (ADHOC-50); без него — только ход.
   final bool canManage;
 
-  final EdgeInsets padding;
+  /// Над панелью, закреплён вместе с ней: переключатель видов «Инвентаризации».
+  final Widget? header;
 
   @override
   State<StocktakesView> createState() => _StocktakesViewState();
@@ -110,97 +111,87 @@ class _StocktakesViewState extends State<StocktakesView> {
 
   @override
   Widget build(BuildContext context) {
-    final pad = widget.padding;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: pad.copyWith(top: 0, bottom: 0),
-          child: Wrap(
-            spacing: AppSizes.kChipSpacing,
-            runSpacing: AppSizes.kChipSpacing,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              if (widget.canManage)
-                NeumorphicTextButton(
-                  label: t.portal.stocktake.create,
-                  accent: true,
-                  onPressed: _create,
-                ),
-              PortalFilterChip(
-                label: t.portal.stocktake.filterOpen,
-                selected: !_closedTab,
-                onTap: () => _onFilter(false),
-              ),
-              PortalFilterChip(
-                label: t.portal.stocktake.filterClosed,
-                selected: _closedTab,
-                onTap: () => _onFilter(true),
-              ),
-            ],
+    // Страница-список (ADHOC-56): переключатель видов и панель закреплены, список прокручивается.
+    return PortalListPage(
+      header: widget.header,
+      toolbar: Wrap(
+        spacing: AppSizes.kChipSpacing,
+        runSpacing: AppSizes.kChipSpacing,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          PortalChoice(
+            label: t.portal.stocktake.filterOpen,
+            selected: !_closedTab,
+            onTap: () => _onFilter(false),
           ),
-        ),
-        AppBoxes.kHeight8,
-        Expanded(child: _list(pad)),
-      ],
+          PortalChoice(
+            label: t.portal.stocktake.filterClosed,
+            selected: _closedTab,
+            onTap: () => _onFilter(true),
+          ),
+          if (widget.canManage)
+            PortalButton(
+              label: t.portal.stocktake.create,
+              icon: Icons.add,
+              kind: PortalButtonKind.primary,
+              onPressed: _create,
+            ),
+        ],
+      ),
+      body: _list(),
     );
   }
 
-  Widget _list(EdgeInsets pad) {
-    final muted = RegularTextStyles().regularInter14.copyWith(
-      color: AppColors.kTextMuted,
-    );
+  /// Пересчёты строками одной карточки; вместо них — загрузка / ошибка / пусто.
+  Widget _list() {
     if (_loading) {
-      return const Padding(
-        padding: AppInsets.all32,
-        child: Center(child: CircularProgressIndicator()),
-      );
+      return const SettingsListCard(loading: true, rows: []);
     }
     if (_error case final e?) {
-      return Padding(
-        padding: pad,
-        child: Column(
-          children: [
-            Text(
-              t.portal.stocktake.error(message: stocktakeErrorText(e)),
-              style: muted.copyWith(color: AppColors.kDanger),
+      return PortalCard(
+        children: [
+          Padding(
+            padding: AppInsets.cardRow,
+            child: Row(
+              children: [
+                Expanded(
+                  child: AccessError(
+                    t.portal.stocktake.error(message: stocktakeErrorText(e)),
+                  ),
+                ),
+                AppBoxes.kWidth8,
+                PortalButton(label: t.portal.stocktake.retry, onPressed: _load),
+              ],
             ),
-            AppBoxes.kHeight16,
-            OutlinedButton(
-              onPressed: _load,
-              child: Text(t.portal.stocktake.retry),
-            ),
-          ],
-        ),
+          ),
+        ],
       );
     }
     if (_items.isEmpty) {
-      return Padding(
-        padding: pad,
-        child: Text(t.portal.stocktake.empty, style: muted),
-      );
-    }
-    return ListView.separated(
-      padding: pad.copyWith(top: AppSizes.kDocListGap),
-      itemCount: _items.length,
-      separatorBuilder: (_, _) => AppBoxes.kHeight16,
-      itemBuilder: (_, i) => Align(
-        alignment: Alignment.topLeft,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            maxWidth: AppSizes.kDocTableMaxWidth,
-          ),
-          child: SizedBox(
-            width: double.infinity,
-            child: StocktakeCard(
-              stocktake: _items[i],
-              busy: _closing.contains(_items[i].id),
-              onProgress: () => showStocktakeProgressDialog(context, _items[i]),
-              onClose: widget.canManage ? () => _close(_items[i]) : null,
+      return PortalCard(
+        children: [
+          Padding(
+            padding: AppInsets.cardRow,
+            child: Text(
+              t.portal.stocktake.empty,
+              style: RegularTextStyles().regularInter13.copyWith(
+                color: AppColors.kTextMuted,
+              ),
             ),
           ),
-        ),
-      ),
+        ],
+      );
+    }
+    return PortalCard(
+      children: [
+        for (final s in _items)
+          StocktakeCard(
+            stocktake: s,
+            busy: _closing.contains(s.id),
+            onProgress: () => showStocktakeProgressDialog(context, s),
+            onClose: widget.canManage ? () => _close(s) : null,
+          ),
+      ],
     );
   }
 }

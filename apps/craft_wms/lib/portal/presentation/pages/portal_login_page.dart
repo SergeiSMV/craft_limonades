@@ -12,7 +12,9 @@ import '../../../core/gen/assets.gen.dart';
 import '../../../core/gen/strings.g.dart';
 import '../../../core/theme/bold_text.dart';
 import '../../../core/theme/regular_text.dart';
-import '../../../core/theme/semibold_text.dart';
+import '../widgets/ui/portal_button.dart';
+import '../widgets/ui/portal_input.dart';
+import '../widgets/ui/portal_modal.dart';
 
 /// Экран входа в веб-портал по дизайн-макету: сплит-экран (тёмная бренд-панель слева,
 /// белая форма справа). Узкий экран → только форма. Вход по логину/паролю (admin/оператор).
@@ -163,7 +165,6 @@ class _FormPanel extends StatelessWidget {
             label: t.portal.login.usernameLabel,
             controller: usernameController,
             enabled: !loading,
-            icon: Icons.person_outline,
             autofocus: true,
             textInputAction: TextInputAction.next,
           ),
@@ -174,36 +175,19 @@ class _FormPanel extends StatelessWidget {
             label: t.portal.login.passwordLabel,
             controller: passwordController,
             enabled: !loading,
-            icon: Icons.lock_outline,
             obscure: true,
             textInputAction: TextInputAction.done,
             onSubmitted: (_) => onSubmit(),
           ),
-          AppBoxes.kHeight32,
+          AppBoxes.kHeight24,
 
-          /// кнопка входа
-          FilledButton(
-            onPressed: loading ? null : onSubmit,
-            style: FilledButton.styleFrom(
-              minimumSize: const Size.fromHeight(AppSizes.kIcon50),
-            ),
-            child: loading
-                ? const SizedBox(
-                    width: AppSizes.kIcon24,
-                    height: AppSizes.kIcon24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: AppSizes.kIcon2,
-                      color: Colors.white,
-                    ),
-                  )
-                : Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(t.portal.login.submit),
-                      AppBoxes.kWidth8,
-                      const Icon(Icons.arrow_forward, size: AppSizes.kIcon18),
-                    ],
-                  ),
+          /// кнопка входа — главная кнопка портала во всю ширину формы (ADHOC-56)
+          PortalButton(
+            label: t.portal.login.submit,
+            icon: Icons.login,
+            kind: PortalButtonKind.primary,
+            busy: loading,
+            onPressed: onSubmit,
           ),
         ],
       ),
@@ -211,12 +195,11 @@ class _FormPanel extends StatelessWidget {
   }
 }
 
-/// Поле ввода с меткой сверху (стиль макета: label 14 w600 + поле с иконкой).
+/// Поле ввода с подписью сверху — поле портала в плоском стиле (ADHOC-56), как в диалогах.
 class _LabeledField extends StatelessWidget {
   const _LabeledField({
     required this.label,
     required this.controller,
-    required this.icon,
     this.enabled = true,
     this.obscure = false,
     this.autofocus = false,
@@ -229,9 +212,6 @@ class _LabeledField extends StatelessWidget {
 
   /// контроллер
   final TextEditingController controller;
-
-  /// иконка
-  final IconData icon;
 
   /// флаг активности
   final bool enabled;
@@ -250,26 +230,18 @@ class _LabeledField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
+    crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      Text(
-        label,
-        style: SemiboldTextStyles().semiboldInter14.copyWith(
-          color: AppColors.kSidebarBg,
-        ),
-      ),
-      AppBoxes.kHeight8,
-      TextField(
+      PortalFieldLabel(label),
+      PortalInput(
+        height: AppSizes.kLoginFieldHeight,
         controller: controller,
+        hint: '',
         enabled: enabled,
         obscureText: obscure,
         autofocus: autofocus,
         textInputAction: textInputAction,
         onSubmitted: onSubmitted,
-        decoration: InputDecoration(
-          prefixIcon: Icon(icon, color: AppColors.kSidebarMuted),
-          border: const OutlineInputBorder(borderRadius: AppBorders.kCircular8),
-        ),
       ),
     ],
   );

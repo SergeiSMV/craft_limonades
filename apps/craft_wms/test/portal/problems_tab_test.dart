@@ -3,6 +3,7 @@ import 'package:craft_wms/core/gen/strings.g.dart';
 import 'package:craft_wms/core/problems/problem_reasons.dart';
 import 'package:craft_wms/portal/data/problems_repository.dart';
 import 'package:craft_wms/portal/presentation/widgets/problems/problem_labels.dart';
+import 'package:craft_wms/portal/presentation/widgets/problems/problem_toolbar.dart';
 import 'package:craft_wms/portal/presentation/widgets/tabs/problems_tab.dart';
 import 'package:either_dart/either.dart';
 import 'package:flutter/material.dart';
@@ -177,5 +178,59 @@ void main() {
             as ProblemResolution;
     expect(r.decision, ProblemDecision.supplierReturn);
     expect(r.supplierId, 's1');
+  });
+
+  // ADHOC-56: страница-список — панель закреплена, прокручиваются только карточки.
+  testWidgets('прокрутка не уводит панель поиска и фильтров', (tester) async {
+    when(() => repo.list()).thenAnswer(
+      (_) async => Right([
+        for (var i = 0; i < 8; i++)
+          problem(
+            'p$i',
+            reason: 'breakage',
+            decisions: [ProblemDecision.writeOff],
+          ),
+      ]),
+    );
+    tester.view.physicalSize = const Size(1200, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      const MaterialApp(home: Scaffold(body: ProblemsTab())),
+    );
+    await tester.pumpAndSettle();
+
+    final toolbar = find.byType(ProblemToolbar);
+    final before = tester.getRect(toolbar);
+    final first = find.text('Сыр жареный').first;
+    final rowBefore = tester.getRect(first);
+    await tester.drag(first, const Offset(0, -400));
+    await tester.pumpAndSettle();
+    expect(tester.getRect(toolbar), before, reason: 'панель уехала со списком');
+    expect(
+      tester.getRect(find.text('Сыр жареный').first).top,
+      lessThan(rowBefore.top - 100),
+      reason: 'список не прокрутился',
+    );
+  });
+
+  // ADHOC-56: на телефоне — без переполнения; решённая — решение отдельной строкой.
+  testWidgets('узко — без переполнения, решённая с решением', (tester) async {
+    tester.view.physicalSize = const Size(375, 812);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      const MaterialApp(home: Scaffold(body: ProblemsTab())),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(
+      find.textContaining(t.portal.problems.filterResolved, findRichText: true),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.text(t.portal.problems.resolvedPlace), findsOneWidget);
+    expect(find.text(t.portal.problems.resolve), findsNothing);
   });
 }

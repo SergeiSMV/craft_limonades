@@ -84,20 +84,28 @@ abstract final class AppSizes {
   static const double kGoodsColQty = 104; // колонка «Остаток» (с единицей)
   static const double kGoodCardLabel = 184; // подпись реквизита в карточке товара
   static const double kPortalListMaxWidth = 1200; // предел ширины страницы-списка
-  // Область вкладки уже — меньше поля по краям, чтобы не терять ширину на телефоне.
-  static const double kPortalCompactContentWidth = 600;
+  // Ячейки (ADHOC-57): карточка ячейки справа от списка — при ширине страницы от порога; уже —
+  // окном по нажатию на строку. Список колонками — от своей ширины карточки, уже — строками.
+  static const double kCellsSideWidth = 340;
+  static const double kCellsSearchWidth = 260; // поиск по адресу на панели
+  static const double kCellsSideMinPage = 960;
+  static const double kCellsColumnsWidth = 600;
+  static const double kCellsColRack = 72; // колонка «Стеллаж»
+  static const double kCellsColTier = 48; // колонка «Ярус»
+  static const double kCellsColPos = 64; // колонка «Позиция»
+  static const double kCellsColBeam = 96; // колонка «Балка»
+  static const int kCellsRackPreview = 4; // стеллажей выборки называем, остальные — числом
+  static const double kPortalCheckbox = 18; // галочка портала
+  static const double kPortalCheckboxMark = 14; // галочка или черта внутри
+  static const double kDisabledOpacity = 0.5; // недоступная кнопка портала
   // Строка документа уже — кнопки уходят под текст, иначе заголовку остаётся пара букв.
-  // Таблица документов (ADHOC-26) — пороги по ширине самой таблицы: не шире максимума —
-  // строки не растягиваются на весь монитор; от «полных действий» — кнопки с подписями,
-  // уже — иконками; уже минимума (телефон) — карточки вместо таблицы.
-  static const double kDocTableMaxWidth = 1200;
+  // Таблица документов (ADHOC-26) — пороги по ширине самой таблицы: от «полных действий» —
+  // кнопки с подписями, уже — иконками; уже минимума (телефон) — строки вместо таблицы.
   static const double kDocTableFullActionsWidth = 900;
   // Минимум — сумма минимумов колонок с компактными действиями (~780) с запасом: уже него таблица
   // шире своей плашки, и плашка молча обрезала бы действия.
   static const double kDocTableMinWidth = 840;
   static const double kDocSearchMaxWidth = 460; // поле поиска над таблицей
-  static const double kDocListGap =
-      24; // от закреплённой панели поиска до списка
   // Колонки: документ и контрагент делят остаток долями, но не уже минимума; время, статус
   // и действия — по содержимому.
   static const double kColDoc = 2;
@@ -121,13 +129,7 @@ abstract final class AppSizes {
   static const double kFormWidth = 480; // правая панель формы входа
   static const double kFormHeight = 700; // высота правой панели формы входа
   static const double kBrandMaxWidth = 500; // бренд-текст на панели входа
-
-  //* --- Неоморфизм ------------------------------------------------------- *//
-  static const double kNeumorphicDepth = 3; // высота выпуклой кнопки над фоном
-  static const double kNeumorphicInsetDepth =
-      -2; // вдавленное: поле поиска, выбранный пункт
-  static const double kSectionLetterSpacing =
-      0.5; // разрядка заголовков секций меню
+  static const double kLoginFieldHeight = 48; // поле логина и пароля — в рост прежних
 
   //* --- ТСД: главное меню (плитки) --------------------------------------- *//
   static const double kMenuTileSpacing = 12; // зазор между плитками сетки

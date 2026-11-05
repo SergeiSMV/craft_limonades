@@ -1,20 +1,21 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/constants/app_insets.dart';
 import '../../../../core/constants/app_colors.dart';
-import '../../../../core/constants/app_sizes.dart';
+import '../../../../core/constants/app_insets.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/theme/semibold_text.dart';
-import '../../../data/stocktakes_repository.dart';
-import '../common/neumorphic_text_button.dart';
-import '../common/portal_dialog.dart';
-import 'stocktake_labels.dart';
 import '../../../../core/utils/doc_number.dart';
+import '../../../data/stocktakes_repository.dart';
+import '../settings/access_common.dart';
+import '../ui/portal_badge.dart';
+import '../ui/portal_button.dart';
+import '../ui/portal_modal.dart';
+import 'stocktake_labels.dart';
 
-/// Подтверждение закрытия пересчёта (P10-05): неподсчитанные ячейки называются числом.
-/// `true` — закрыть.
+/// Подтверждение закрытия пересчёта (P10-05, плоский стиль — ADHOC-56): неподсчитанные
+/// ячейки называются числом. `true` — закрыть; «Отмена» и крестик — отказ.
 Future<bool> showStocktakeCloseDialog(
   BuildContext context,
   PortalStocktake s,
@@ -22,25 +23,23 @@ Future<bool> showStocktakeCloseDialog(
   final uncounted = s.cells - s.counted;
   final ok = await showDialog<bool>(
     context: context,
-    builder: (ctx) => PortalDialog(
-      title: t.portal.stocktake.closeTitle(number: docNumber(DocKind.stocktake, s.number)),
+    builder: (ctx) => PortalModal(
+      title: t.portal.stocktake.closeTitle(
+        number: docNumber(DocKind.stocktake, s.number),
+      ),
       content: Text(
         uncounted == 0
             ? t.portal.stocktake.closeBodyAll
             : t.portal.stocktake.closeBodyUncounted(count: uncounted),
-        style: RegularTextStyles().regularInter14.copyWith(
+        style: RegularTextStyles().regularInter13.copyWith(
           color: AppColors.kTextMain,
         ),
       ),
       actions: [
-        TextButton(
-          style: TextButton.styleFrom(foregroundColor: AppColors.kTextMuted),
-          onPressed: () => Navigator.of(ctx).pop(false),
-          child: Text(t.portal.stocktake.cancel),
-        ),
-        NeumorphicTextButton(
+        portalCancel(ctx, label: t.portal.stocktake.cancel, result: false),
+        PortalButton(
           label: t.portal.stocktake.closeYes,
-          accent: true,
+          kind: PortalButtonKind.primary,
           onPressed: () => Navigator.of(ctx).pop(true),
         ),
       ],
@@ -49,20 +48,20 @@ Future<bool> showStocktakeCloseDialog(
   return ok ?? false;
 }
 
-/// Ход пересчёта (P10-05): ячейки — адрес, статус, кто держит.
+/// Ход пересчёта (P10-05, плоский стиль — ADHOC-56): ячейки — адрес, статус, кто держит.
+/// Длинный список прокручивается в окне, шапка и подвал окна остаются на месте.
 Future<void> showStocktakeProgressDialog(
   BuildContext context,
   PortalStocktake s,
 ) => showDialog<void>(
   context: context,
-  builder: (ctx) => PortalDialog(
-    title: t.portal.stocktake.progressTitle(number: docNumber(DocKind.stocktake, s.number)),
-    content: SizedBox(
-      width: AppSizes.kPortalDialogWidth,
-      child: _ProgressTable(stocktakeId: s.id),
+  builder: (ctx) => PortalModal(
+    title: t.portal.stocktake.progressTitle(
+      number: docNumber(DocKind.stocktake, s.number),
     ),
+    content: _ProgressTable(stocktakeId: s.id),
     actions: [
-      NeumorphicTextButton(
+      PortalButton(
         label: t.portal.stocktake.closeDialog,
         onPressed: () => Navigator.of(ctx).pop(),
       ),
@@ -77,10 +76,10 @@ class _ProgressTable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final main = RegularTextStyles().regularInter14.copyWith(
+    final main = RegularTextStyles().regularInter13.copyWith(
       color: AppColors.kTextMain,
     );
-    final head = SemiboldTextStyles().semiboldInter14.copyWith(
+    final head = SemiboldTextStyles().semiboldInter12.copyWith(
       color: AppColors.kTextMuted,
     );
     return FutureBuilder(
@@ -88,51 +87,57 @@ class _ProgressTable extends StatelessWidget {
       builder: (context, snap) {
         final res = snap.data;
         if (res == null) {
-          return Text(t.portal.stocktake.loading, style: main);
-        }
-        if (res.isLeft) {
           return Text(
-            t.portal.stocktake.error(message: stocktakeErrorText(res.left)),
-            style: main.copyWith(color: AppColors.kDanger),
+            t.portal.stocktake.loading,
+            style: main.copyWith(color: AppColors.kTextMuted),
           );
         }
-        return ConstrainedBox(
-          constraints: const BoxConstraints(
-            maxHeight: AppSizes.kPortalPickListMaxHeight,
-          ),
-          child: SingleChildScrollView(
-            child: Table(
-              columnWidths: const {
-                0: FlexColumnWidth(2),
-                1: FlexColumnWidth(2),
-                2: FlexColumnWidth(3),
-              },
+        if (res.isLeft) {
+          return AccessError(
+            t.portal.stocktake.error(message: stocktakeErrorText(res.left)),
+          );
+        }
+        const line = BoxDecoration(
+          border: Border(bottom: BorderSide(color: AppColors.kDivider)),
+        );
+        Widget cell(Widget child) =>
+            Padding(padding: AppInsets.v8, child: child);
+        return Table(
+          defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+          columnWidths: const {
+            0: FlexColumnWidth(2),
+            1: FlexColumnWidth(2),
+            2: FlexColumnWidth(3),
+          },
+          children: [
+            TableRow(
+              decoration: line,
               children: [
-                TableRow(
-                  children: [
-                    Text(t.portal.stocktake.colCell, style: head),
-                    Text(t.portal.stocktake.colStatus, style: head),
-                    Text(t.portal.stocktake.colWho, style: head),
-                  ],
-                ),
-                for (final c in res.right)
-                  TableRow(
-                    children: [
-                      _cell(c.address, main),
-                      _cell(cellStatusLabel(c.status), main),
-                      _cell(c.takenBy, main),
-                    ],
-                  ),
+                cell(Text(t.portal.stocktake.colCell, style: head)),
+                cell(Text(t.portal.stocktake.colStatus, style: head)),
+                cell(Text(t.portal.stocktake.colWho, style: head)),
               ],
             ),
-          ),
+            for (final (i, c) in res.right.indexed)
+              TableRow(
+                decoration: i == res.right.length - 1 ? null : line,
+                children: [
+                  cell(Text(c.address, style: main)),
+                  cell(
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: PortalBadge(
+                        cellStatusLabel(c.status),
+                        tone: cellStatusTone(c.status),
+                      ),
+                    ),
+                  ),
+                  cell(Text(c.takenBy, style: main)),
+                ],
+              ),
+          ],
         );
       },
     );
   }
-
-  Widget _cell(String text, TextStyle style) => Padding(
-    padding: AppInsets.top8,
-    child: Text(text, style: style),
-  );
 }

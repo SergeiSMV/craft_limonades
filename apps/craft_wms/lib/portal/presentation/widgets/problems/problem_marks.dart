@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../core/constants/app_colors.dart';
-import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
+import '../../../../core/theme/semibold_text.dart';
+import '../ui/portal_button.dart';
 
-/// Марки ЧЗ проблемы склада (ADHOC-52): заголовок и марки построчно, каждая с копированием.
+/// Марки ЧЗ проблемы склада (ADHOC-52, плоский стиль — ADHOC-56): заголовок и марки построчно,
+/// каждая с копированием.
 ///
 /// Зачем копирование: «не наша марка» офис проверяет по самой марке — в ЛК ЧЗ или у
 /// поставщика, а набирать КИ вручную с экрана долго и с ошибками.
@@ -18,7 +20,7 @@ class ProblemMarks extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final main = RegularTextStyles().regularInter14.copyWith(
+    final main = RegularTextStyles().regularInter13.copyWith(
       color: AppColors.kTextMain,
     );
     return Column(
@@ -26,7 +28,7 @@ class ProblemMarks extends StatelessWidget {
       children: [
         Text(
           t.portal.problems.marksTitle,
-          style: RegularTextStyles().regularInter14.copyWith(
+          style: SemiboldTextStyles().semiboldInter12.copyWith(
             color: AppColors.kTextMuted,
           ),
         ),
@@ -34,11 +36,9 @@ class ProblemMarks extends StatelessWidget {
           Row(
             children: [
               Flexible(child: SelectableText(mark, style: main)),
-              IconButton(
+              PortalIconButton(
+                icon: Icons.copy,
                 tooltip: t.portal.problems.markCopy,
-                iconSize: AppSizes.kIcon18,
-                color: AppColors.kTextMuted,
-                icon: const Icon(Icons.copy),
                 onPressed: () => _copy(context, mark),
               ),
             ],
