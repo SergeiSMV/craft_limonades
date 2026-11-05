@@ -8,17 +8,17 @@ import '../../../../core/error/failure.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/problems/problem_reasons.dart';
 import '../../../../core/theme/regular_text.dart';
-import '../../../../core/theme/semibold_text.dart';
 import '../../../../core/utils/date_time_format.dart';
 import '../../../data/problems_repository.dart';
-import '../common/neumorphic_text_button.dart';
-import '../common/portal_date_picker.dart';
-import '../common/portal_dialog.dart';
-import '../common/portal_filter_chip.dart';
-import '../common/portal_text_field.dart';
+import '../settings/access_common.dart';
+import '../ui/portal_button.dart';
+import '../ui/portal_choice.dart';
+import '../ui/portal_date_picker.dart';
+import '../ui/portal_input.dart';
+import '../ui/portal_modal.dart';
 import 'supplier_picker.dart';
 
-/// Диалог «Решение по проблеме» (P6-07-3): выбор варианта решения из допустимых при причине
+/// Диалог «Решение по проблеме» (P6-07-3, плоский стиль — ADHOC-56): выбор варианта решения из допустимых при причине
 /// (справочник, ADHOC-55) и поля его действия — документ списания 1С (номер и дата) или
 /// поставщик возврата. Возвращает
 /// собранное решение; `null` — оператор передумал. Проводит решение вкладка.
@@ -144,64 +144,34 @@ class _ResolveDialogState extends State<_ResolveDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final muted = RegularTextStyles().regularInter14.copyWith(
-      color: AppColors.kTextMuted,
-    );
-    return PortalDialog(
+    return PortalModal(
       title: t.portal.problems.dialogTitle,
-      content: ConstrainedBox(
-        constraints: const BoxConstraints(
-          maxWidth: AppSizes.kContentMaxWidth / 2,
-        ),
-        child: SizedBox(
-          width: double.maxFinite,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          PortalFieldLabel(t.portal.problems.dialogDecision),
+          Wrap(
+            spacing: AppSizes.kChipSpacing,
+            runSpacing: AppSizes.kChipSpacing,
             children: [
-              Text(
-                t.portal.problems.dialogDecision,
-                style: SemiboldTextStyles().semiboldInter14.copyWith(
-                  color: AppColors.kTextMain,
+              for (final r in widget.problem.resolutions)
+                PortalChoice(
+                  label: r.name,
+                  selected: _variant?.id == r.id,
+                  onTap: () => choose(r),
                 ),
-              ),
-              AppBoxes.kHeight8,
-              Wrap(
-                spacing: AppSizes.kChipSpacing,
-                runSpacing: AppSizes.kChipSpacing,
-                children: [
-                  for (final r in widget.problem.resolutions)
-                    PortalFilterChip(
-                      label: r.name,
-                      selected: _variant?.id == r.id,
-                      onTap: () => choose(r),
-                    ),
-                ],
-              ),
-              AppBoxes.kHeight16,
-              ..._fields(muted),
-              if (_error != null) ...[
-                AppBoxes.kHeight12,
-                Text(
-                  _error!,
-                  style: RegularTextStyles().regularInter14.copyWith(
-                    color: AppColors.kDanger,
-                  ),
-                ),
-              ],
             ],
           ),
-        ),
+          if (_decision != null) ...[portalFieldGap, ..._fields()],
+          if (_error case final e?) ...[portalFieldGap, AccessError(e)],
+        ],
       ),
       actions: [
-        TextButton(
-          style: TextButton.styleFrom(foregroundColor: AppColors.kTextMuted),
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(t.portal.problems.cancel),
-        ),
-        NeumorphicTextButton(
+        portalCancel(context, label: t.portal.problems.cancel),
+        PortalButton(
           label: t.portal.problems.post,
-          accent: true,
+          kind: PortalButtonKind.primary,
           onPressed: submit,
         ),
       ],
@@ -209,51 +179,67 @@ class _ResolveDialogState extends State<_ResolveDialog> {
   }
 
   /// Поля выбранного решения.
-  List<Widget> _fields(TextStyle muted) => switch (_decision) {
-    // Пересорт (ADHOC-53) проводится документом пересортицы 1С — те же поля, что у списания.
-    ProblemDecision.writeOff || ProblemDecision.regrade => [
-      PortalTextField(
-        controller: _docNumber,
-        hint: _decision == ProblemDecision.regrade
-            ? t.portal.problems.docNumberRegrade
-            : t.portal.problems.docNumber,
-        autofocus: true,
-        onSubmitted: (_) => submit(),
-      ),
-      AppBoxes.kHeight8,
-      Row(
-        children: [
-          Expanded(
-            child: Text(
-              t.portal.problems.docDate(date: fullDate(_docDate)),
-              style: RegularTextStyles().regularInter14.copyWith(
-                color: AppColors.kTextMain,
+  List<Widget> _fields() {
+    final muted = RegularTextStyles().regularInter13.copyWith(
+      color: AppColors.kTextMuted,
+    );
+    return switch (_decision) {
+      // Пересорт (ADHOC-53) проводится документом пересортицы 1С — те же поля, что у списания.
+      ProblemDecision.writeOff || ProblemDecision.regrade => [
+        PortalFieldLabel(
+          _decision == ProblemDecision.regrade
+              ? t.portal.problems.docNumberRegrade
+              : t.portal.problems.docNumber,
+        ),
+        PortalInput(
+          controller: _docNumber,
+          hint: '',
+          autofocus: true,
+          onSubmitted: (_) => submit(),
+        ),
+        AppBoxes.kHeight8,
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                t.portal.problems.docDate(date: fullDate(_docDate)),
+                style: RegularTextStyles().regularInter13.copyWith(
+                  color: AppColors.kTextMain,
+                ),
               ),
             ),
-          ),
-          TextButton(
-            onPressed: pickDate,
-            child: Text(t.portal.problems.docDatePick),
-          ),
-        ],
-      ),
-    ],
-    ProblemDecision.place => [Text(t.portal.problems.placeHint, style: muted)],
-    ProblemDecision.supplierReturn => [
-      Text(t.portal.problems.returnHint, style: muted),
-      AppBoxes.kHeight12,
-      if (_suppliers == null && _error == null)
-        const Center(child: CircularProgressIndicator())
-      else if (_suppliers != null)
-        SupplierPicker(
-          suppliers: _suppliers!,
-          selectedId: _supplierId,
-          onSelected: (id) => setState(() {
-            _supplierId = id;
-            _error = null;
-          }),
+            PortalButton(
+              label: t.portal.problems.docDatePick,
+              icon: Icons.calendar_today_outlined,
+              onPressed: pickDate,
+            ),
+          ],
         ),
-    ],
-    _ => const [],
-  };
+      ],
+      ProblemDecision.place => [
+        Text(t.portal.problems.placeHint, style: muted),
+      ],
+      ProblemDecision.supplierReturn => [
+        Text(t.portal.problems.returnHint, style: muted),
+        AppBoxes.kHeight12,
+        if (_suppliers == null && _error == null)
+          const Center(
+            child: SizedBox.square(
+              dimension: AppSizes.kIcon20,
+              child: CircularProgressIndicator(strokeWidth: AppSizes.kIcon2),
+            ),
+          )
+        else if (_suppliers != null)
+          SupplierPicker(
+            suppliers: _suppliers!,
+            selectedId: _supplierId,
+            onSelected: (id) => setState(() {
+              _supplierId = id;
+              _error = null;
+            }),
+          ),
+      ],
+      _ => const [],
+    };
+  }
 }

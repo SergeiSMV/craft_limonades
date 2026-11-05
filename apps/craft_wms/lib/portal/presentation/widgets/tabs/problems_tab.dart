@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../../../core/constants/app_boxes.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_insets.dart';
-import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/gen/strings.g.dart';
@@ -13,6 +12,10 @@ import '../problems/problem_card.dart';
 import '../problems/problem_filter.dart';
 import '../problems/problem_resolve_dialog.dart';
 import '../problems/problem_toolbar.dart';
+import '../settings/access_common.dart';
+import '../ui/portal_button.dart';
+import '../ui/portal_card.dart';
+import '../ui/portal_list_page.dart';
 
 /// Вкладка «Проблемы склада» (P6-07-3): рабочий список офиса. Склад помечает брак, просрок,
 /// не нашу марку на ТСД; офис выбирает решение из допустимых при причине и проводит его —
@@ -101,99 +104,80 @@ class _ProblemsTabState extends State<ProblemsTab> {
 
   @override
   Widget build(BuildContext context) {
-    // Как у документов: панель поиска и фильтров закреплена, прокручивается только список.
-    final compact =
-        MediaQuery.sizeOf(context).width < AppSizes.kPortalCompactContentWidth;
-    final pad = compact ? AppInsets.all16 : AppInsets.all32;
-    final state = _state();
-    if (state != null) {
-      return SingleChildScrollView(padding: pad, child: _column(state));
-    }
-    final shown = applyProblemFilter(_problems, filter: _filter, query: _query);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: pad.copyWith(bottom: 0),
-          child: _column(
-            ProblemToolbar(
-              onQuery: _onQuery,
-              filter: _filter,
-              counts: countProblems(_problems),
-              onFilter: _onFilter,
-            ),
-          ),
-        ),
-        AppBoxes.kHeight8,
-        Expanded(
-          child: ListView.separated(
-            padding: pad.copyWith(top: AppSizes.kDocListGap),
-            itemCount: shown.isEmpty ? 1 : shown.length,
-            separatorBuilder: (_, _) => AppBoxes.kHeight16,
-            itemBuilder: (_, i) => _column(
-              shown.isEmpty
-                  ? _message(t.portal.problems.notFound)
-                  : ProblemCard(
-                      problem: shown[i],
-                      busy: _posting.contains(shown[i].id),
-                      onResolve: widget.canResolve
-                          ? () => _resolve(shown[i])
-                          : null,
-                    ),
-            ),
-          ),
-        ),
-      ],
+    // Как у документов (ADHOC-56): панель поиска и фильтров закреплена, прокручивается только
+    // список; ширина и поля — как у остальных страниц-списков.
+    return PortalListPage(
+      toolbar: ProblemToolbar(
+        onQuery: _onQuery,
+        filter: _filter,
+        counts: countProblems(_problems),
+        onFilter: _onFilter,
+      ),
+      body: _body(),
     );
   }
 
-  /// Колонка вкладки: прижата влево, не шире таблицы документов.
-  Widget _column(Widget child) => Align(
-    alignment: Alignment.topLeft,
-    child: ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: AppSizes.kDocTableMaxWidth),
-      child: SizedBox(width: double.infinity, child: child),
-    ),
-  );
-
-  Widget _message(String text) => Padding(
-    padding: AppInsets.all32,
-    child: Center(
-      child: Text(
-        text,
-        style: RegularTextStyles().regularInter14.copyWith(
-          color: AppColors.kTextMuted,
-        ),
-      ),
-    ),
-  );
-
-  /// Состояние вместо списка: загрузка / ошибка / пусто; `null` — есть проблемы.
-  Widget? _state() {
+  /// Проблемы карточками друг под другом; вместо них — загрузка / ошибка / пусто.
+  Widget _body() {
     if (_loading) {
-      return const Padding(
-        padding: AppInsets.all32,
-        child: Center(child: CircularProgressIndicator()),
-      );
+      return const SettingsListCard(loading: true, rows: []);
     }
-    if (_error != null) {
-      return Column(
+    final error = _error;
+    if (error != null) {
+      return PortalCard(
         children: [
-          Text(
-            t.portal.problems.error(message: _errorText(_error!)),
-            style: RegularTextStyles().regularInter14.copyWith(
-              color: AppColors.kDanger,
+          Padding(
+            padding: AppInsets.cardRow,
+            child: Row(
+              children: [
+                Expanded(
+                  child: AccessError(
+                    t.portal.problems.error(message: _errorText(error)),
+                  ),
+                ),
+                AppBoxes.kWidth8,
+                PortalButton(label: t.portal.problems.retry, onPressed: _load),
+              ],
             ),
-          ),
-          AppBoxes.kHeight16,
-          OutlinedButton(
-            onPressed: _load,
-            child: Text(t.portal.problems.retry),
           ),
         ],
       );
     }
-    if (_problems.isEmpty) return _message(t.portal.problems.empty);
-    return null;
+    final shown = applyProblemFilter(_problems, filter: _filter, query: _query);
+    if (shown.isEmpty) {
+      return _message(
+        _problems.isEmpty
+            ? t.portal.problems.empty
+            : t.portal.problems.notFound,
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var i = 0; i < shown.length; i++) ...[
+          if (i > 0) AppBoxes.kHeight12,
+          ProblemCard(
+            problem: shown[i],
+            busy: _posting.contains(shown[i].id),
+            onResolve: widget.canResolve ? () => _resolve(shown[i]) : null,
+          ),
+        ],
+      ],
+    );
   }
+
+  /// Сообщение вместо списка — карточкой под панелью.
+  Widget _message(String text) => PortalCard(
+    children: [
+      Padding(
+        padding: AppInsets.cardRow,
+        child: Text(
+          text,
+          style: RegularTextStyles().regularInter13.copyWith(
+            color: AppColors.kTextMuted,
+          ),
+        ),
+      ),
+    ],
+  );
 }
