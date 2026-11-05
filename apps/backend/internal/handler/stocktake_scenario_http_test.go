@@ -95,6 +95,47 @@ func TestStocktakeScenarioHTTP(t *testing.T) {
 		t.Errorf("пересчёт после закрытия: %s", raw)
 	}
 
+	// ADHOC-58: выполненное задание пересчёта в ленте «Завершённые» — с пересчётом, заходы —
+	// подсчитанные ячейки, исполнитель — кто считал; в журнале задания — подсчитанная ячейка.
+	_, raw = e.call(t, http.MethodGet, "/api/v1/tasks/completed?kind=stocktake", e.workerToken, "")
+	var done []struct {
+		ID        string `json:"id"`
+		Sessions  int    `json:"sessions"`
+		Executors []struct {
+			FullName string `json:"full_name"`
+		} `json:"executors"`
+		Stocktake *struct {
+			ScopeKind string `json:"scope_kind"`
+			Cells     int    `json:"cells"`
+			Counted   int    `json:"counted"`
+		} `json:"stocktake"`
+	}
+	mustJSON(t, raw, &done)
+	if len(done) != 1 || done[0].Stocktake == nil || done[0].Stocktake.ScopeKind != "good" ||
+		done[0].Stocktake.Counted != 1 || done[0].Sessions != 1 ||
+		len(done[0].Executors) != 1 || done[0].Executors[0].FullName != "Кладовщик" {
+		t.Fatalf("пересчёт в «Завершённых»: %s", raw)
+	}
+	_, raw = e.call(t, http.MethodGet, "/api/v1/tasks/"+done[0].ID, e.workerToken, "")
+	var detail struct {
+		Events []struct {
+			Event string `json:"event"`
+			User  string `json:"user"`
+			Cell  string `json:"cell"`
+		} `json:"events"`
+	}
+	mustJSON(t, raw, &detail)
+	var kinds []string
+	for _, ev := range detail.Events {
+		kinds = append(kinds, ev.Event)
+		if ev.Event == "cell_counted" && (ev.User != "Кладовщик" || ev.Cell != "M1-1-1-1") {
+			t.Errorf("подсчёт ячейки в журнале: %+v", ev)
+		}
+	}
+	if strings.Join(kinds, ",") != "created,cell_counted,completed" {
+		t.Errorf("журнал задания пересчёта: %v", kinds)
+	}
+
 	// P10-05: список пересчётов для портала и документ «Инвентаризация» для 1С.
 	if code, _ := e.call(t, http.MethodGet, "/api/v1/stocktakes", e.workerToken, ""); code != http.StatusForbidden {
 		t.Errorf("список пересчётов кладовщику: код %d, ожидался 403", code)

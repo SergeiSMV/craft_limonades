@@ -9,6 +9,7 @@ import '../../../../../core/constants/app_sizes.dart';
 import '../../../../../core/gen/strings.g.dart';
 import '../../../../../core/theme/regular_text.dart';
 import '../../../../../core/theme/semibold_text.dart';
+import '../../../../stocktake/presentation/widgets/stocktake_format.dart';
 import '../../../data/tasks_models.dart';
 import '../common/task_format.dart';
 import '../../../../../core/utils/doc_number.dart';
@@ -59,19 +60,40 @@ class CompletedTile extends StatelessWidget {
                       color: AppColors.kSidebarHover,
                     ),
                   ),
-                  Text(t.tasks.number(number: docNumber(DocKind.task, task.number)), style: muted),
+                  Text(
+                    t.tasks.number(
+                      number: docNumber(DocKind.task, task.number),
+                    ),
+                    style: muted,
+                  ),
                   Text(
                     supplierBasis(
                       task.supplier,
                       kind: task.kind,
                       problem: task.problem,
+                      stocktake: task.stocktake,
                     ),
                     style: muted,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
+                  // Пересчёт (ADHOC-58) — область и ход вместо заходов: его заходы — ячейки.
+                  if (task.stocktake case final st?) ...[
+                    Text(
+                      t.stocktake.scope(scope: scopeLabel(st.scopeKind)),
+                      style: muted,
+                    ),
+                    Text(
+                      t.stocktake.progress(
+                        counted: st.counted,
+                        total: st.cells,
+                      ),
+                      style: muted,
+                    ),
+                  ],
                   if (executors.isNotEmpty) Text(executors, style: muted),
-                  Text(t.tasks.sessions(count: task.sessions), style: muted),
+                  if (task.stocktake == null)
+                    Text(t.tasks.sessions(count: task.sessions), style: muted),
                 ],
               ),
             ),

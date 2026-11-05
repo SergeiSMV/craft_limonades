@@ -550,30 +550,65 @@ func (r *TaskRepository) attachStocktakes(ctx context.Context, tasks []model.Tas
 			index[*t.StocktakeID] = i
 		}
 	}
-	if len(ids) == 0 {
-		return nil
-	}
-	rows, err := r.pool.Query(ctx, `
-		SELECT st.id::text, st.number, st.scope_kind, COALESCE(u.full_name, ''),
-		       count(sc.id), count(sc.id) FILTER (WHERE sc.status = 'counted')
-		FROM stocktakes st
-		LEFT JOIN users u ON u.id = st.created_by
-		LEFT JOIN stocktake_cells sc ON sc.stocktake_id = st.id
-		WHERE st.id = ANY($1::text[]::uuid[])
-		GROUP BY st.id, u.full_name`, ids)
+	infos, err := r.loadStocktakeInfo(ctx, ids)
 	if err != nil {
-		return fmt.Errorf("пересчёты заданий: %w", err)
+		return err
+	}
+	for id, st := range infos {
+		tasks[index[id]].Stocktake = st
+	}
+	return nil
+}
+
+// stocktakeInfoSQL — номер, область, автор и ход пересчётов $1: сколько ячеек всего и
+// сколько подсчитано. Общий у текущих заданий и ленты «Завершённые».
+const stocktakeInfoSQL = `
+	SELECT st.id::text, st.number, st.scope_kind, COALESCE(u.full_name, ''),
+	       count(sc.id), count(sc.id) FILTER (WHERE sc.status = 'counted')
+	FROM stocktakes st
+	LEFT JOIN users u ON u.id = st.created_by
+	LEFT JOIN stocktake_cells sc ON sc.stocktake_id = st.id
+	WHERE st.id = ANY($1::text[]::uuid[])
+	GROUP BY st.id, u.full_name`
+
+// loadStocktakeInfo читает пересчёты по id — одним запросом на список.
+func (r *TaskRepository) loadStocktakeInfo(ctx context.Context, ids []string) (map[string]*model.TaskStocktakeInfo, error) {
+	out := map[string]*model.TaskStocktakeInfo{}
+	if len(ids) == 0 {
+		return out, nil
+	}
+	rows, err := r.pool.Query(ctx, stocktakeInfoSQL, ids)
+	if err != nil {
+		return nil, fmt.Errorf("пересчёты заданий: %w", err)
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var id string
 		var st model.TaskStocktakeInfo
 		if err := rows.Scan(&id, &st.Number, &st.ScopeKind, &st.CreatedBy, &st.Cells, &st.Counted); err != nil {
-			return fmt.Errorf("разобрать пересчёт задания: %w", err)
+			return nil, fmt.Errorf("разобрать пересчёт задания: %w", err)
 		}
-		tasks[index[id]].Stocktake = &st
+		out[id] = &st
 	}
-	return rows.Err()
+	return out, rows.Err()
+}
+
+// attachCompletedStocktakes дочитывает к записям ленты «Завершённые» пересчёт (ADHOC-58):
+// без него запись пересчёта показывалась бы как размещение «из приёмки».
+func (r *TaskRepository) attachCompletedStocktakes(ctx context.Context, out []model.CompletedTask,
+	index map[string]int, stocktakeIDs map[string]string) error {
+	ids := make([]string, 0, len(stocktakeIDs))
+	for id := range stocktakeIDs {
+		ids = append(ids, id)
+	}
+	infos, err := r.loadStocktakeInfo(ctx, ids)
+	if err != nil {
+		return err
+	}
+	for id, st := range infos {
+		out[index[stocktakeIDs[id]]].Stocktake = st
+	}
+	return nil
 }
 
 // boxCZCodes — коды коробов ЧЗ среди коробов заданий (CZ-06): ГЕ → `00`+SSCC.
@@ -808,14 +843,28 @@ func addTaskEvent(ctx context.Context, q Querier, taskID, event, userID, prevUse
 }
 
 // Events — журнал задания по порядку: что случилось, кто и когда.
+//
+// У пересчёта (ADHOC-58) в журнал вплетаются подсчитанные ячейки — кто и какую посчитал:
+// работники берут ячейки, а не задание, и без них история пересчёта — только «создано» и
+// «выполнено». Порядок — по времени; события одной транзакции — по seq журнала.
 func (r *TaskRepository) Events(ctx context.Context, taskID string) ([]model.TaskEvent, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT e.event, COALESCE(u.full_name, ''), COALESCE(pu.full_name, ''), e.putaway_id::text, e.at
-		FROM task_events e
-		LEFT JOIN users u  ON u.id = e.user_id
-		LEFT JOIN users pu ON pu.id = e.prev_user_id
-		WHERE e.task_id = $1::uuid
-		ORDER BY e.seq`, taskID)
+		SELECT event, user_name, prev_user_name, putaway_id, cell, at FROM (
+			SELECT e.event, COALESCE(u.full_name, '') AS user_name, COALESCE(pu.full_name, '') AS prev_user_name,
+			       e.putaway_id::text AS putaway_id, '' AS cell, e.at, e.seq
+			FROM task_events e
+			LEFT JOIN users u  ON u.id = e.user_id
+			LEFT JOIN users pu ON pu.id = e.prev_user_id
+			WHERE e.task_id = $1::uuid
+			UNION ALL
+			SELECT '`+model.TaskEventCellCounted+`', COALESCE(u.full_name, ''), '', NULL, c.address, sc.counted_at, 0
+			FROM warehouse_tasks t
+			JOIN stocktake_cells sc ON sc.stocktake_id = t.stocktake_id AND sc.status = 'counted'
+			JOIN cells c ON c.id = sc.cell_id
+			LEFT JOIN users u ON u.id = sc.counted_by
+			WHERE t.id = $1::uuid
+		) ev
+		ORDER BY at, seq, cell`, taskID)
 	if err != nil {
 		return nil, fmt.Errorf("журнал задания: %w", err)
 	}
@@ -823,7 +872,7 @@ func (r *TaskRepository) Events(ctx context.Context, taskID string) ([]model.Tas
 	out := []model.TaskEvent{}
 	for rows.Next() {
 		var ev model.TaskEvent
-		if err := rows.Scan(&ev.Event, &ev.UserName, &ev.PrevUserName, &ev.PutawayID, &ev.At); err != nil {
+		if err := rows.Scan(&ev.Event, &ev.UserName, &ev.PrevUserName, &ev.PutawayID, &ev.Cell, &ev.At); err != nil {
 			return nil, fmt.Errorf("разобрать событие задания: %w", err)
 		}
 		out = append(out, ev)
@@ -832,18 +881,23 @@ func (r *TaskRepository) Events(ctx context.Context, taskID string) ([]model.Tas
 }
 
 // taskSessionsSQL — заходы по заданиям всех видов: сеансы размещения и отгрузки возврата
-// (ADHOC-31). Лента «Завершённые» считает по ним заходы и исполнителей.
+// (ADHOC-31), у пересчёта — подсчитанные ячейки (ADHOC-58). Лента «Завершённые» считает по
+// ним заходы и исполнителей, по ним же работает фильтр по исполнителю.
 const taskSessionsSQL = `(
 	SELECT task_id, created_by, posted_at FROM putaways
 	UNION ALL
-	SELECT task_id, created_by, posted_at FROM supplier_return_shipments)`
+	SELECT task_id, created_by, posted_at FROM supplier_return_shipments
+	UNION ALL
+	SELECT wt.id, sc.counted_by, sc.counted_at
+	FROM stocktake_cells sc JOIN warehouse_tasks wt ON wt.stocktake_id = sc.stocktake_id
+	WHERE sc.status = 'counted')`
 
 // Completed — страница ленты «Завершённые»: свежие сверху, подгрузка курсором.
 func (r *TaskRepository) Completed(ctx context.Context, f model.CompletedTasksFilter) ([]model.CompletedTask, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT t.id::text, t.number, t.kind, COALESCE(s.name, ''), r.doc_number, r.doc_date, t.completed_at,
 		       (SELECT count(*) FROM `+taskSessionsSQL+` x WHERE x.task_id = t.id),
-		       wp.id::text, wp.number
+		       wp.id::text, wp.number, t.stocktake_id::text
 		FROM warehouse_tasks t
 		LEFT JOIN receipts r  ON r.id = t.receipt_id
 		LEFT JOIN warehouse_problems wp ON wp.id = t.problem_id
@@ -863,21 +917,29 @@ func (r *TaskRepository) Completed(ctx context.Context, f model.CompletedTasksFi
 	}
 	out := []model.CompletedTask{}
 	index := map[string]int{}
+	stocktakeIDs := map[string]string{} // id пересчёта → id задания
 	for rows.Next() {
 		var c model.CompletedTask
 		var pr problemBasis
+		var stocktakeID *string
 		if err := rows.Scan(&c.ID, &c.Number, &c.Kind, &c.SupplierName, &c.DocNumber, &c.DocDate, &c.CompletedAt, &c.Sessions,
-			&pr.id, &pr.number); err != nil {
+			&pr.id, &pr.number, &stocktakeID); err != nil {
 			rows.Close()
 			return nil, fmt.Errorf("разобрать завершённое задание: %w", err)
 		}
 		c.Problem = pr.info()
+		if stocktakeID != nil {
+			stocktakeIDs[*stocktakeID] = c.ID
+		}
 		index[c.ID] = len(out)
 		out = append(out, c)
 	}
 	rows.Close()
 	if err := rows.Err(); err != nil || len(out) == 0 {
 		return out, err
+	}
+	if err := r.attachCompletedStocktakes(ctx, out, index, stocktakeIDs); err != nil {
+		return nil, err
 	}
 
 	ids := make([]string, len(out))
