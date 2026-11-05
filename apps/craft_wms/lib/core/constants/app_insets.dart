@@ -60,7 +60,6 @@ abstract final class AppInsets {
   //* --- Диалоги ---------------------------------------------------------- *//
   /// Поля вокруг диалога. Дефолтные 40 по бокам на экране ТСД (360dp) съедают ширину —
   /// подписи кнопок переносятся на вторую строку.
-  // Действия диалога портала: запас под тени неоморфных кнопок (ADHOC-25).
   // Плоский стиль портала (ADHOC-56).
   static const EdgeInsets cardRow = EdgeInsets.symmetric(horizontal: 16, vertical: 12);
   static const EdgeInsets button = EdgeInsets.symmetric(horizontal: 12);
@@ -69,16 +68,18 @@ abstract final class AppInsets {
   static const EdgeInsets navSectionTitle = EdgeInsets.fromLTRB(10, 12, 10, 4);
   static const EdgeInsets input = EdgeInsets.symmetric(horizontal: 12, vertical: 8);
   static const EdgeInsets inputSearch = EdgeInsets.symmetric(horizontal: 12);
+  // Поле заданной высоты: слева отступ даёт пустой префикс, высоту — он же.
+  static const EdgeInsets inputTall = EdgeInsets.only(right: 12);
   static const EdgeInsets modalHeader = EdgeInsets.fromLTRB(20, 16, 12, 16);
   static const EdgeInsets modalBody = EdgeInsets.all(20);
   static const EdgeInsets modalFooter = EdgeInsets.symmetric(horizontal: 20, vertical: 12);
   static const EdgeInsets tag = EdgeInsets.symmetric(horizontal: 8, vertical: 2);
+  static const EdgeInsets pickRow = EdgeInsets.symmetric(horizontal: 8, vertical: 2); // строка списка выбора с галочкой
   static const EdgeInsets choice = EdgeInsets.symmetric(horizontal: 12, vertical: 6);
   static const EdgeInsets dropZone = EdgeInsets.symmetric(horizontal: 16, vertical: 24);
   static const EdgeInsets tableHead = EdgeInsets.symmetric(horizontal: 16, vertical: 8);
   static const EdgeInsets page = EdgeInsets.symmetric(horizontal: 24, vertical: 24);
   static const EdgeInsets pageCompact = EdgeInsets.symmetric(horizontal: 12, vertical: 16);
-  static const EdgeInsets dialogActions = EdgeInsets.fromLTRB(24, 8, 24, 24);
   // Таблица документов (ADHOC-26, плоский стиль — ADHOC-56): ячейка и ячейка шапки; по краям
   // таблицы ещё h8 — с ними крайние колонки отступают от рамки карточки на 16, как строки.
   static const EdgeInsets tableCell = EdgeInsets.symmetric(
@@ -88,22 +89,6 @@ abstract final class AppInsets {
   static const EdgeInsets tableHeadCell = EdgeInsets.symmetric(
     horizontal: 8,
     vertical: 8,
-  );
-  // Фильтр-чип, поле поиска (неоморфные).
-  static const EdgeInsets filterChip = EdgeInsets.symmetric(
-    horizontal: 14,
-    vertical: 4,
-  );
-  static const EdgeInsets searchBox = EdgeInsets.symmetric(vertical: 12);
-  // Поле ввода портала без иконки: текст и курсор не прижаты к краю плашки (ADHOC-30).
-  static const EdgeInsets textField = EdgeInsets.symmetric(
-    horizontal: 12,
-    vertical: 12,
-  );
-  // Неоморфная кнопка с подписью (ADHOC-25/26).
-  static const EdgeInsets h16v10 = EdgeInsets.symmetric(
-    horizontal: 16,
-    vertical: 10,
   );
   static const EdgeInsets dialogInset = EdgeInsets.symmetric(
     horizontal: 16,
@@ -116,12 +101,6 @@ abstract final class AppInsets {
     horizontal: 40,
     vertical: 48,
   ); // зона загрузки
-  /// Внутренний отступ неоморфной плашки списка — тот, что NeumorphicButton берёт по умолчанию:
-  /// нажимаемые и простые плашки одного списка должны быть одной высоты (P5-05-1).
-  static const EdgeInsets neumorphicTile = EdgeInsets.symmetric(
-    horizontal: 18,
-    vertical: 10,
-  );
   static const EdgeInsets badge = EdgeInsets.symmetric(
     horizontal: 12,
     vertical: 4,

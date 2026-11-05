@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/constants/app_boxes.dart';
-import '../../../../core/constants/app_insets.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../stocktake/stocktakes_view.dart';
@@ -63,8 +61,8 @@ class _InventoryTabState extends State<InventoryTab> {
   Widget build(BuildContext context) {
     final views = _views;
     final view = views[_view.clamp(0, views.length - 1)];
-    // Переключатель видов в плоском стиле (ADHOC-56). У документов он закреплён над их панелью
-    // поиска — в общей раскладке страницы-списка; у пересчётов — сверху, на тех же полях.
+    // Переключатель видов в плоском стиле (ADHOC-56): у каждого вида закреплён над его панелью
+    // в общей раскладке страницы-списка — на одном и том же месте.
     final switcher = Wrap(
       spacing: AppSizes.kChipSpacing,
       runSpacing: AppSizes.kChipSpacing,
@@ -78,7 +76,10 @@ class _InventoryTabState extends State<InventoryTab> {
       ],
     );
     return switch (view) {
-      _View.stocktakes => _stocktakes(switcher),
+      _View.stocktakes => StocktakesView(
+        canManage: widget.canManage,
+        header: switcher,
+      ),
       _View.documents => DocumentsTab(
         key: const ValueKey('stocktake'),
         kind: 'stocktake',
@@ -95,39 +96,4 @@ class _InventoryTabState extends State<InventoryTab> {
       ),
     };
   }
-
-  /// Вид «Пересчёты»: переключатель на полях страницы-списка, под ним — пересчёты
-  /// (до своего шага ADHOC-56 — в прежнем виде).
-  Widget _stocktakes(Widget switcher) => LayoutBuilder(
-    builder: (context, constraints) {
-      final narrow = constraints.maxWidth < AppSizes.kPortalCompactWidth;
-      final page = narrow ? AppInsets.pageCompact : AppInsets.page;
-      final compact =
-          MediaQuery.sizeOf(context).width <
-          AppSizes.kPortalCompactContentWidth;
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: page.copyWith(bottom: 0),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(
-                  maxWidth: AppSizes.kPortalListMaxWidth,
-                ),
-                child: SizedBox(width: double.infinity, child: switcher),
-              ),
-            ),
-          ),
-          AppBoxes.kHeight16,
-          Expanded(
-            child: StocktakesView(
-              padding: compact ? AppInsets.all16 : AppInsets.all32,
-              canManage: widget.canManage,
-            ),
-          ),
-        ],
-      );
-    },
-  );
 }

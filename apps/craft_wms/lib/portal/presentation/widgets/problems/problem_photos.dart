@@ -37,12 +37,15 @@ class _ProblemPhotosState extends State<ProblemPhotos> {
     for (final id in widget.photos) id: _repo.photo(widget.problemId, id),
   };
 
-  /// Открыть снимок целиком.
+  /// Открыть снимок целиком — в белом окне портала (ADHOC-56).
   void open(Uint8List content) => showDialog<void>(
     context: context,
     builder: (_) => Dialog(
-      backgroundColor: AppColors.kNeumorphicBg,
+      backgroundColor: AppColors.kCardBg,
+      surfaceTintColor: Colors.transparent,
       insetPadding: AppInsets.dialogInset,
+      shape: const RoundedRectangleBorder(borderRadius: AppBorders.kCircular12),
+      clipBehavior: Clip.antiAlias,
       child: InteractiveViewer(child: Image.memory(content)),
     ),
   );
@@ -89,7 +92,7 @@ class _ProblemPhotosState extends State<ProblemPhotos> {
         child: Container(
           width: AppSizes.kPhotoThumb,
           height: AppSizes.kPhotoThumb,
-          color: AppColors.kStockItemBg,
+          color: AppColors.kBg,
           child: child,
         ),
       ),

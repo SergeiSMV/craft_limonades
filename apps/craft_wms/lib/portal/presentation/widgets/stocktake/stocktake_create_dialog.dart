@@ -1,7 +1,6 @@
 import 'package:either_dart/either.dart';
 import 'package:flutter/material.dart';
 
-import '../../../../core/constants/app_boxes.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/di/injection.dart';
@@ -9,16 +8,17 @@ import '../../../../core/error/failure.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../data/stocktakes_repository.dart';
-import '../common/neumorphic_text_button.dart';
-import '../common/portal_dialog.dart';
-import '../common/portal_filter_chip.dart';
+import '../settings/access_common.dart';
+import '../ui/portal_button.dart';
+import '../ui/portal_choice.dart';
+import '../ui/portal_modal.dart';
 import 'scope_picker.dart';
 import 'stocktake_labels.dart';
 
 /// Заведённый пересчёт: номер и сколько ячеек дала область.
 typedef StocktakeCreated = ({int number, int cells});
 
-/// Новый пересчёт из портала (P10-05): вид области и её объекты — любые из шести видов.
+/// Новый пересчёт из портала (P10-05, плоский стиль — ADHOC-56): вид области и её объекты — любые из шести видов.
 /// Возвращает заведённый пересчёт; `null` — передумали.
 Future<StocktakeCreated?> showStocktakeCreateDialog(BuildContext context) =>
     showDialog<StocktakeCreated>(
@@ -92,51 +92,35 @@ class _CreateDialogState extends State<_CreateDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final muted = RegularTextStyles().regularInter14.copyWith(
-      color: AppColors.kTextMuted,
-    );
-    return PortalDialog(
+    return PortalModal(
       title: t.portal.stocktake.createTitle,
-      content: SizedBox(
-        width: AppSizes.kPortalDialogWidth,
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
+      content: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          PortalFieldLabel(t.portal.stocktake.createScope),
+          Wrap(
+            spacing: AppSizes.kChipSpacing,
+            runSpacing: AppSizes.kChipSpacing,
             children: [
-              Text(t.portal.stocktake.createScope, style: muted),
-              AppBoxes.kHeight8,
-              Wrap(
-                spacing: AppSizes.kChipSpacing,
-                runSpacing: AppSizes.kChipSpacing,
-                children: [
-                  for (final kind in kStocktakeScopes)
-                    PortalFilterChip(
-                      label: scopeLabel(kind),
-                      selected: _scope == kind,
-                      onTap: () => selectScope(kind),
-                    ),
-                ],
-              ),
-              AppBoxes.kHeight16,
-              _picker(muted),
-              if (_error case final e?) ...[
-                AppBoxes.kHeight8,
-                Text(e, style: muted.copyWith(color: AppColors.kDanger)),
-              ],
+              for (final kind in kStocktakeScopes)
+                PortalChoice(
+                  label: scopeLabel(kind),
+                  selected: _scope == kind,
+                  onTap: () => selectScope(kind),
+                ),
             ],
           ),
-        ),
+          portalFieldGap,
+          _picker(),
+          if (_error case final e?) ...[portalFieldGap, AccessError(e)],
+        ],
       ),
       actions: [
-        TextButton(
-          style: TextButton.styleFrom(foregroundColor: AppColors.kTextMuted),
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(t.portal.stocktake.cancel),
-        ),
-        NeumorphicTextButton(
+        portalCancel(context, label: t.portal.stocktake.cancel),
+        PortalButton(
           label: t.portal.stocktake.createSubmit,
-          accent: true,
+          kind: PortalButtonKind.primary,
           busy: _busy,
           onPressed: _ready ? create : () {},
         ),
@@ -145,7 +129,7 @@ class _CreateDialogState extends State<_CreateDialog> {
   }
 
   /// Выбор объектов вида области; у «всего склада» объектов нет — только пояснение.
-  Widget _picker(TextStyle muted) {
+  Widget _picker() {
     Future<Either<Failure, List<ScopeObject>>> Function(String) once(
       Future<Either<Failure, List<ScopeObject>>> Function() load,
     ) =>
@@ -188,7 +172,12 @@ class _CreateDialogState extends State<_CreateDialog> {
         selected: _selected,
         onToggle: toggle,
       ),
-      _ => Text(t.portal.stocktake.scopeAllHint, style: muted),
+      _ => Text(
+        t.portal.stocktake.scopeAllHint,
+        style: RegularTextStyles().regularInter13.copyWith(
+          color: AppColors.kTextMuted,
+        ),
+      ),
     };
   }
 }

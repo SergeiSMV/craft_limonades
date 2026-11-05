@@ -2,18 +2,20 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_boxes.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_insets.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/theme/semibold_text.dart';
-import '../../../data/stocktakes_repository.dart';
-import '../common/neumorphic_plate.dart';
-import '../common/neumorphic_text_button.dart';
-import 'stocktake_labels.dart';
 import '../../../../core/utils/doc_number.dart';
+import '../../../data/stocktakes_repository.dart';
+import '../ui/portal_badge.dart';
+import '../ui/portal_button.dart';
+import 'stocktake_labels.dart';
 
-/// Карточка пересчёта (P10-05): номер, статус, область, кто завёл, ход; кнопки «Ход» и
-/// «Закрыть» (у незакрытого). Каждый факт — своей строкой.
+/// Строка пересчёта в карточке списка (P10-05, плоский стиль — ADHOC-56): номер со статусом,
+/// область, кто завёл, когда закрыт, ход — каждый факт своей строкой; справа «Ход» и
+/// «Закрыть» (у незакрытого).
 class StocktakeCard extends StatelessWidget {
   const StocktakeCard({
     super.key,
@@ -35,60 +37,77 @@ class StocktakeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = stocktake;
-    final muted = RegularTextStyles().regularInter14.copyWith(
-      color: AppColors.kTextMuted,
+    final muted = RegularTextStyles().regularInter12.copyWith(
+      color: AppColors.kTextSecondary,
     );
-    return NeumorphicPlate(
-      child: Column(
+    return Padding(
+      padding: AppInsets.cardRow,
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Wrap(
-            spacing: AppSizes.kChipSpacing,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              Text(
-                t.portal.stocktake.title(number: docNumber(DocKind.stocktake, s.number)),
-                style: SemiboldTextStyles().semiboldInter16.copyWith(
-                  color: AppColors.kTextMain,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: AppSizes.kChipSpacing,
+                  runSpacing: AppSizes.kChipSpacing,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      t.portal.stocktake.title(
+                        number: docNumber(DocKind.stocktake, s.number),
+                      ),
+                      style: SemiboldTextStyles().semiboldInter13.copyWith(
+                        color: AppColors.kTextMain,
+                      ),
+                    ),
+                    PortalBadge(
+                      stocktakeStatusLabel(s.status),
+                      tone: stocktakeStatusTone(s.status),
+                    ),
+                  ],
                 ),
-              ),
-              Text(stocktakeStatusLabel(s.status), style: muted),
-            ],
-          ),
-          AppBoxes.kHeight8,
-          Text(
-            t.portal.stocktake.scope(scope: scopeLabel(s.scopeKind)),
-            style: muted,
-          ),
-          Text(
-            t.portal.stocktake.created(
-              name: s.createdBy,
-              date: portalDateTime(s.createdAt),
+                AppBoxes.kHeight4,
+                Text(
+                  t.portal.stocktake.scope(scope: scopeLabel(s.scopeKind)),
+                  style: muted,
+                ),
+                Text(
+                  t.portal.stocktake.created(
+                    name: s.createdBy,
+                    date: portalDateTime(s.createdAt),
+                  ),
+                  style: muted,
+                ),
+                if (s.closedAt case final at?)
+                  Text(
+                    t.portal.stocktake.closedAt(date: portalDateTime(at)),
+                    style: muted,
+                  ),
+                Text(
+                  t.portal.stocktake.progress(
+                    counted: s.counted,
+                    total: s.cells,
+                  ),
+                  style: muted,
+                ),
+              ],
             ),
-            style: muted,
           ),
-          if (s.closedAt case final at?)
-            Text(
-              t.portal.stocktake.closedAt(date: portalDateTime(at)),
-              style: muted,
-            ),
-          Text(
-            t.portal.stocktake.progress(counted: s.counted, total: s.cells),
-            style: muted,
-          ),
-          AppBoxes.kHeight16,
+          AppBoxes.kWidth8,
           Wrap(
             spacing: AppSizes.kChipSpacing,
             runSpacing: AppSizes.kChipSpacing,
+            alignment: WrapAlignment.end,
             children: [
-              NeumorphicTextButton(
+              PortalButton(
                 label: t.portal.stocktake.showProgress,
                 onPressed: onProgress,
               ),
               if (!s.closed && onClose != null)
-                NeumorphicTextButton(
+                PortalButton(
                   label: t.portal.stocktake.close,
-                  accent: true,
                   busy: busy,
                   onPressed: onClose!,
                 ),

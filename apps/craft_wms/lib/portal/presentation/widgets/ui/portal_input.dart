@@ -17,6 +17,9 @@ class PortalInput extends StatelessWidget {
     this.onSubmitted,
     this.onChanged,
     this.icon,
+    this.enabled = true,
+    this.textInputAction,
+    this.height,
   });
 
   final TextEditingController controller;
@@ -34,6 +37,15 @@ class PortalInput extends StatelessWidget {
   /// списком: оно в рост кнопок и фильтров панели (32), а не полей диалога.
   final IconData? icon;
 
+  /// Поле доступно для ввода; на время входа — нет.
+  final bool enabled;
+
+  /// Действие клавиши ввода: «дальше» у логина — переход к паролю.
+  final TextInputAction? textInputAction;
+
+  /// Высота поля без иконки; `null` — по отступам. Поля экрана входа выше полей диалогов.
+  final double? height;
+
   @override
   Widget build(BuildContext context) {
     OutlineInputBorder border(Color color, double width) => OutlineInputBorder(
@@ -41,34 +53,50 @@ class PortalInput extends StatelessWidget {
       borderSide: BorderSide(color: color, width: width),
     );
     final search = icon != null;
+    final style = RegularTextStyles().regularInter14.copyWith(
+      color: AppColors.kTextMain,
+    );
+    final fieldHeight = height;
     final field = TextField(
       controller: controller,
       autofocus: autofocus,
+      enabled: enabled,
+      textInputAction: textInputAction,
       obscureText: obscureText,
       onSubmitted: onSubmitted,
       onChanged: onChanged,
       // Поиск растягивается на всю высоту обёртки ниже — рамка рисуется ровно в 32.
       expands: search,
       maxLines: search ? null : 1,
-      style: RegularTextStyles().regularInter14.copyWith(
-        color: AppColors.kTextMain,
-      ),
+      style: style,
       cursorColor: AppColors.kTextMain,
       textAlignVertical: TextAlignVertical.center,
       decoration: InputDecoration(
         isDense: true,
         filled: true,
         fillColor: AppColors.kCardBg,
-        contentPadding: icon == null ? AppInsets.input : AppInsets.inputSearch,
+        contentPadding: search
+            ? AppInsets.inputSearch
+            : fieldHeight == null
+            ? AppInsets.input
+            : AppInsets.inputTall,
         hintText: hint,
         // Длинная подсказка в узком поле — многоточием, а не второй строкой за рамкой.
         hintMaxLines: 1,
-        prefixIcon: icon == null
+        // Заданная высота — пустым префиксом этой высоты: рамка вырастает до него при любой
+        // плотности (на вебе она компактная и срезает отступы), а растянуть поле нельзя —
+        // пароль однострочный. Ширина префикса — левый отступ текста.
+        prefixIcon: search
+            ? Icon(icon, size: AppSizes.kIcon18, color: AppColors.kTextMuted)
+            : fieldHeight == null
             ? null
-            : Icon(icon, size: AppSizes.kIcon18, color: AppColors.kTextMuted),
-        prefixIconConstraints: const BoxConstraints(
-          minWidth: AppSizes.kControlHeight,
-        ),
+            : const SizedBox.shrink(),
+        prefixIconConstraints: fieldHeight == null || search
+            ? const BoxConstraints(minWidth: AppSizes.kControlHeight)
+            : BoxConstraints.tightFor(
+                width: AppInsets.input.left,
+                height: fieldHeight,
+              ),
         hintStyle: RegularTextStyles().regularInter14.copyWith(
           color: AppColors.kSidebarMuted,
         ),
