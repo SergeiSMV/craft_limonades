@@ -1,5 +1,6 @@
 import '../../../../core/error/failure.dart';
 import '../../../../core/gen/strings.g.dart';
+import '../ui/portal_badge.dart';
 
 /// Подписи значений транспорта пересчёта в портале (P10-05).
 
@@ -32,6 +33,14 @@ String stocktakeStatusLabel(String status) => switch (status) {
   _ => status,
 };
 
+/// Цвет отметки статуса пересчёта (ADHOC-56): новый — справка, в работе — внимание,
+/// закрыт — нейтральный (работы по нему больше нет).
+PortalBadgeTone stocktakeStatusTone(String status) => switch (status) {
+  'new' => PortalBadgeTone.info,
+  'in_progress' => PortalBadgeTone.warning,
+  _ => PortalBadgeTone.neutral,
+};
+
 /// Статус ячейки пересчёта.
 String cellStatusLabel(String status) => switch (status) {
   'pending' => t.portal.stocktake.cellPending,
@@ -40,6 +49,15 @@ String cellStatusLabel(String status) => switch (status) {
   'counted' => t.portal.stocktake.cellCounted,
   'disrupted' => t.portal.stocktake.cellDisrupted,
   _ => status,
+};
+
+/// Цвет отметки статуса ячейки (ADHOC-56): подсчитана — успех, сбита движением — критичная,
+/// взята или на подсчёте — справка, свободна — нейтральная.
+PortalBadgeTone cellStatusTone(String status) => switch (status) {
+  'counted' => PortalBadgeTone.success,
+  'disrupted' => PortalBadgeTone.critical,
+  'taken' || 'counting' => PortalBadgeTone.info,
+  _ => PortalBadgeTone.neutral,
 };
 
 /// Дата и время в локальной зоне: «26.10.2026 12:00».

@@ -73,6 +73,7 @@ abstract final class AppInsets {
   static const EdgeInsets modalBody = EdgeInsets.all(20);
   static const EdgeInsets modalFooter = EdgeInsets.symmetric(horizontal: 20, vertical: 12);
   static const EdgeInsets tag = EdgeInsets.symmetric(horizontal: 8, vertical: 2);
+  static const EdgeInsets pickRow = EdgeInsets.symmetric(horizontal: 8, vertical: 2); // строка списка выбора с галочкой
   static const EdgeInsets choice = EdgeInsets.symmetric(horizontal: 12, vertical: 6);
   static const EdgeInsets dropZone = EdgeInsets.symmetric(horizontal: 16, vertical: 24);
   static const EdgeInsets tableHead = EdgeInsets.symmetric(horizontal: 16, vertical: 8);
