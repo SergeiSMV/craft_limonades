@@ -14,6 +14,9 @@ type CellSetup struct {
 	// SideCard — строка на карточке своего стеллажа (полоса с адресами и штрих-кодами на боковой
 	// опоре). Решение 2026-11-05: галочка у ячейки; у ячейки без стеллажа всегда false.
 	SideCard bool `json:"side_card"`
+	// IsFloorStorage — напольное хранение у стеллажа (адрес на «-Н-П», ADHOC-61): ведётся вручную,
+	// стеллажа и карточки у неё нет, на этикетке — QR вместо Code128 (кириллицу Code128 не кодирует).
+	IsFloorStorage bool `json:"is_floor_storage"`
 }
 
 // Rack — стеллаж склада: только группировка ячеек. Карточка на стойку печатается на стеллаж,
@@ -48,4 +51,15 @@ func (p CellSettingsPatch) Empty() bool {
 // CellSettingsResult — сколько ячеек реально изменено.
 type CellSettingsResult struct {
 	CellsUpdated int `json:"cells_updated"`
+}
+
+// FloorCellInput — адрес напольной ячейки при добавлении и переименовании (ADHOC-61).
+type FloorCellInput struct {
+	Address string `json:"address"`
+}
+
+// FloorCell — добавленная или переименованная напольная ячейка.
+type FloorCell struct {
+	ID      string `json:"id"`
+	Address string `json:"address"`
 }

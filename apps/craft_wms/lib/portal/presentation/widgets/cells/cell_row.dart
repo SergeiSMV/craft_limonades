@@ -150,6 +150,7 @@ class _Flags extends StatelessWidget {
       spacing: AppSizes.kChipSpacing / 2,
       runSpacing: AppSizes.kChipSpacing / 2,
       children: [
+        if (cell.isFloorStorage) PortalBadge(s.badgeFloorStorage),
         if (cell.isFloor) PortalBadge(s.badgeFloor),
         if (cell.labelBarcode)
           PortalBadge(s.badgeBarcode, tone: PortalBadgeTone.info),

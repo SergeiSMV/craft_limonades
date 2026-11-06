@@ -35,6 +35,11 @@ abstract final class ApiConst {
   ///**GET** - выгрузка ячеек `.xlsx` в формате rack_labels, ответ — bytes (ADHOC-57)
   static const String cellsExport = 'cells/export.xlsx';
 
+  ///**POST** - завести напольную ячейку «*-Н-П» (ADHOC-61): `cells/floor`;
+  ///**PATCH** / **DELETE** - переименовать / убрать: `cells/floor/{id}`.
+  static const String cellsFloor = 'cells/floor';
+  static String cellFloor(String id) => 'cells/floor/$id';
+
   ///**GET** - список/поиск товаров (q, group_id, supplier_id, limit, offset)
   static const String goods = 'goods';
 

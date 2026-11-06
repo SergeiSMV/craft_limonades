@@ -177,6 +177,10 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 				r.With(need(cellRights...)).Get("/cells/setup", setupH.Setup)
 				r.With(need(cellRights...)).Get("/cells/export.xlsx", setupH.ExportXLSX)
 				r.With(need(model.RightCellsEdit)).Patch("/cells/setup", setupH.UpdateSettings)
+				// ADHOC-61: напольные ячейки «*-Н-П» ведутся вручную.
+				r.With(need(model.RightCellsEdit)).Post("/cells/floor", setupH.CreateFloorCell)
+				r.With(need(model.RightCellsEdit)).Patch("/cells/floor/{id}", setupH.RenameFloorCell)
+				r.With(need(model.RightCellsEdit)).Delete("/cells/floor/{id}", setupH.DeleteFloorCell)
 			})
 		}
 

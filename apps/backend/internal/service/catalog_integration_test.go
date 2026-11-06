@@ -174,12 +174,12 @@ func TestCatalog_goodsCellsSuppliers(t *testing.T) {
 		t.Error("обычная ячейка помечена дефолтной")
 	}
 	// Дефолтная ячейка приходит с флагом: по нему терминал находит склад приёмки офлайн (P4-09).
-	def, err := cat.ListCells(ctx, service.CellsQuery{Query: "С-Н-П"})
+	def, err := cat.ListCells(ctx, service.CellsQuery{Query: model.DefaultCellAddress})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if def.Total != 1 || !def.Items[0].IsDefault {
-		t.Errorf("дефолтная ячейка С-Н-П: ожидалась 1 с флагом, получено total=%d %+v", def.Total, def.Items)
+		t.Errorf("ячейка приёмки: ожидалась 1 с флагом, получено total=%d %+v", def.Total, def.Items)
 	}
 }
 

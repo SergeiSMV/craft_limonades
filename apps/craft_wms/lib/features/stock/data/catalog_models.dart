@@ -63,7 +63,7 @@ abstract class Cell with _$Cell {
     @JsonKey(name: 'is_floor') @Default(false) bool isFloor,
     @JsonKey(name: 'is_active') @Default(true) bool isActive,
 
-    /// Ячейка приёмки по умолчанию («С-Н-П», одна на склад). По ней приёмка находит склад
+    /// Ячейка приёмки по умолчанию («ПРИЁМКА», одна на склад). По ней приёмка находит склад
     /// и показывает, куда ляжет товар, если место не выбрано (P4-09).
     @JsonKey(name: 'is_default') @Default(false) bool isDefault,
   }) = _Cell;

@@ -4,7 +4,7 @@ import 'cell_setup.dart';
 enum BeamFilter { all, large, small }
 
 /// Фильтр «Признак» панели.
-enum FlagFilter { floor, barcode, noBarcode, sideCard }
+enum FlagFilter { floor, barcode, noBarcode, sideCard, floorStorage }
 
 /// Фильтры списка ячеек: поиск по адресу, стеллаж, признак и балка.
 class CellsFilter {
@@ -67,6 +67,7 @@ class CellsView {
     FlagFilter.barcode => c.labelBarcode,
     FlagFilter.noBarcode => !c.labelBarcode,
     FlagFilter.sideCard => c.sideCard,
+    FlagFilter.floorStorage => c.isFloorStorage,
   };
 
   static bool _beam(CellSetup c, BeamFilter b) => switch (b) {

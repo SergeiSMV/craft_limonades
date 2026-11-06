@@ -12,6 +12,7 @@ class CellSetup {
     required this.labelSmall,
     required this.labelBarcode,
     this.sideCard = false,
+    this.isFloorStorage = false,
   }) : _numbers = _tail(address);
 
   final String id;
@@ -33,6 +34,10 @@ class CellSetup {
   /// Строка на карточке своего стеллажа на стойке; бывает только у ячейки со стеллажом.
   final bool sideCard;
 
+  /// Напольное хранение у стеллажа, адрес на «-Н-П» (ADHOC-61): ведётся вручную, без стеллажа;
+  /// на этикетке — QR с адресом вместо штрих-кода.
+  final bool isFloorStorage;
+
   final (int, int)? _numbers;
 
   int? get tier => _numbers?.$1;
@@ -49,6 +54,7 @@ class CellSetup {
         labelSmall: labelSmall ?? this.labelSmall,
         labelBarcode: labelBarcode ?? this.labelBarcode,
         sideCard: sideCard,
+        isFloorStorage: isFloorStorage,
       );
 
   /// Два последних числа адреса; меньше двух чисел в хвосте — `null`.

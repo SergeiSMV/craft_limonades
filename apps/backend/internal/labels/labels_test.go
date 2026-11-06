@@ -153,3 +153,39 @@ func TestSplitCard(t *testing.T) {
 		t.Errorf("частей %d, строк %d", len(parts), total)
 	}
 }
+
+// Напольная ячейка (ADHOC-61): адрес кириллицей печатается с QR и встроенным шрифтом, рядом с
+// обычными этикетками того же листа; QR квадратный и не пустой.
+func TestBeamLabelsFloorQR(t *testing.T) {
+	set := []Cell{{Address: "D-Н-П", QR: true}, {Address: "С-Н-П", QR: true, IsFloor: true}, {Address: "B-1-1-12", Barcode: true}}
+	for _, small := range []bool{false, true} {
+		pdf, err := BeamLabels(small, set, set)
+		if err != nil {
+			t.Fatalf("small=%v: %v", small, err)
+		}
+		if !bytes.Contains(pdf, []byte(cyrFontName)) && !bytes.Contains(pdf, []byte(strings.ToLower(cyrFontName))) {
+			t.Errorf("small=%v: в PDF нет шрифта кириллицы", small)
+		}
+	}
+	dark, err := qrMatrix("D-Н-П")
+	if err != nil {
+		t.Fatal(err)
+	}
+	on := 0
+	for _, row := range dark {
+		if len(row) != len(dark) {
+			t.Fatalf("QR не квадратный: %d × %d", len(row), len(dark))
+		}
+		for _, v := range row {
+			if v {
+				on++
+			}
+		}
+	}
+	if on == 0 {
+		t.Error("QR пустой")
+	}
+	if needsCyrFont("B-1-1-12") || !needsCyrFont("D-Н-П") {
+		t.Error("needsCyrFont: латиница — Helvetica, кириллица — встроенный шрифт")
+	}
+}

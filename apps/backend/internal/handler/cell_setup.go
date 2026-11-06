@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/go-chi/chi/v5"
+
 	"craftwms/internal/model"
 	"craftwms/internal/repository"
 	"craftwms/internal/service"
@@ -78,16 +80,76 @@ func (h *CellSetupHandler) ExportXLSX(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(data)
 }
 
+// floorCellMaxBody — потолок тела добавления и переименования напольной ячейки: один адрес.
+const floorCellMaxBody = 4 << 10
+
+// decodeFloorCell — тело {"address": "D-Н-П"}; ошибка разбора — 400 уже отправлен.
+func decodeFloorCell(w http.ResponseWriter, r *http.Request) (model.FloorCellInput, bool) {
+	var in model.FloorCellInput
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, floorCellMaxBody)).Decode(&in); err != nil {
+		writeError(w, http.StatusBadRequest, "ожидается {\"address\": \"D-Н-П\"}")
+		return in, false
+	}
+	return in, true
+}
+
+// CreateFloorCell: POST /api/v1/cells/floor?warehouse=SHB — завести напольную ячейку (ADHOC-61).
+// Тело {"address": "D-Н-П"}. 201 {id, address} / 400 (адрес) / 404 (склад) / 409 (адрес занят).
+func (h *CellSetupHandler) CreateFloorCell(w http.ResponseWriter, r *http.Request) {
+	in, ok := decodeFloorCell(w, r)
+	if !ok {
+		return
+	}
+	cell, err := h.svc.CreateFloorCell(r.Context(), cellsWarehouse(r), in)
+	if err != nil {
+		cellSetupError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, cell)
+}
+
+// RenameFloorCell: PATCH /api/v1/cells/floor/{id}?warehouse=SHB — новый адрес напольной ячейки.
+// 200 {id, address} / 400 / 404 (нет такой напольной ячейки) / 409 (адрес занят).
+func (h *CellSetupHandler) RenameFloorCell(w http.ResponseWriter, r *http.Request) {
+	in, ok := decodeFloorCell(w, r)
+	if !ok {
+		return
+	}
+	cell, err := h.svc.RenameFloorCell(r.Context(), cellsWarehouse(r), chi.URLParam(r, "id"), in)
+	if err != nil {
+		cellSetupError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, cell)
+}
+
+// DeleteFloorCell: DELETE /api/v1/cells/floor/{id}?warehouse=SHB — убрать пустую напольную
+// ячейку. 204 / 400 / 404 / 409 (в ячейке товар или короба).
+func (h *CellSetupHandler) DeleteFloorCell(w http.ResponseWriter, r *http.Request) {
+	if err := h.svc.DeleteFloorCell(r.Context(), cellsWarehouse(r), chi.URLParam(r, "id")); err != nil {
+		cellSetupError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // cellSetupError — ответ на ошибку страницы «Ячейки»; текст — для экрана портала.
 func cellSetupError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
 	case errors.Is(err, repository.ErrNotFound):
+		if chi.URLParam(r, "id") != "" {
+			writeError(w, http.StatusNotFound, "напольная ячейка не найдена - обновите страницу")
+			return
+		}
 		writeError(w, http.StatusNotFound, "склад не найден")
 	case errors.Is(err, service.ErrNoCellsSelected), errors.Is(err, service.ErrEmptyCellsPatch),
-		errors.Is(err, service.ErrTooManyCells), errors.Is(err, service.ErrInvalidCellIDs):
+		errors.Is(err, service.ErrTooManyCells), errors.Is(err, service.ErrInvalidCellIDs),
+		errors.Is(err, service.ErrInvalidFloorAddress):
 		writeError(w, http.StatusBadRequest, err.Error())
 	case errors.Is(err, repository.ErrForeignCells):
 		writeError(w, http.StatusConflict, "часть ячеек не найдена на складе — обновите страницу")
+	case errors.Is(err, repository.ErrCellExists), errors.Is(err, repository.ErrCellNotEmpty):
+		writeError(w, http.StatusConflict, err.Error())
 	default:
 		slog.ErrorContext(r.Context(), "cell setup failed", "error", err)
 		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")

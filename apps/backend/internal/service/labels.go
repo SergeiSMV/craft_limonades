@@ -114,7 +114,12 @@ func (s *LabelService) CellLabelsPDF(ctx context.Context, warehouseCode, kind st
 	return pdf, "labels_" + kind + ".pdf", err
 }
 
+// beamCell — этикетка ячейки. Напольная (ADHOC-61) — всегда с QR: адрес кириллицей Code128 не
+// кодирует, а без кода ячейку на ТСД не отсканировать; галочка штрих-кода её не касается.
 func beamCell(c model.CellSetup) labels.Cell {
+	if c.IsFloorStorage {
+		return labels.Cell{Address: c.Address, IsFloor: c.IsFloor, QR: true}
+	}
 	return labels.Cell{Address: c.Address, IsFloor: c.IsFloor, Barcode: c.LabelBarcode}
 }
 
