@@ -37,7 +37,9 @@ class CellLabelSample extends StatelessWidget {
           for (final x in c.view!.cells)
             if (x.id == cell.id) now else x,
         ].where(
+          // Напольные (ADHOC-61) печатаются с QR — своя группа кегля, как в PDF.
           (x) =>
+              !x.isFloorStorage &&
               x.labelSmall == now.labelSmall &&
               x.labelBarcode == now.labelBarcode,
         );

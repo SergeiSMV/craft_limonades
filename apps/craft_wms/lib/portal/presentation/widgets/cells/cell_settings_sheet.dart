@@ -30,7 +30,12 @@ Future<void> showCellSettingsSheet(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             CellSettingsHead(targets: targets, title: false),
-            ...cellSettingsBlocks(c, targets, canEdit: canEdit),
+            ...cellSettingsBlocks(
+              c,
+              targets,
+              canEdit: canEdit,
+              onDone: onSaved,
+            ),
           ],
         ),
         actions: [

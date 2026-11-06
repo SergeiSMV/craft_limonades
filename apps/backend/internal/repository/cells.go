@@ -32,6 +32,11 @@ func NewCellRepository(pool *pgxpool.Pool) *CellRepository {
 // Идемпотентно: ячейка с этим адресом уже есть — ей проставляется признак, второй не появляется.
 // DO UPDATE, а не DO NOTHING: только он возвращает строку, а нам нужен id и в этом случае тоже.
 func (r *CellRepository) EnsureDefault(ctx context.Context, q Querier, warehouseID string) (string, error) {
+	// Ячейка приёмки уже есть — какой бы ни был её адрес, вторую не заводим: частичный
+	// уникальный индекс допускает одну на склад, а переименованную искать по адресу нельзя.
+	if id, err := defaultCellID(ctx, q, warehouseID); err == nil || !errors.Is(err, ErrNotFound) {
+		return id, err
+	}
 	var id string
 	err := q.QueryRow(ctx, `
 		INSERT INTO cells (warehouse_id, address, is_default)
@@ -46,7 +51,7 @@ func (r *CellRepository) EnsureDefault(ctx context.Context, q Querier, warehouse
 
 // DefaultID возвращает ячейку приёмки по умолчанию для склада или ErrNotFound.
 //
-// Ищет ПО ФЛАГУ, а не по адресу: «С-Н-П» — имя ячейки, и переименование не должно ломать приёмку.
+// Ищет ПО ФЛАГУ, а не по адресу: «ПРИЁМКА» — имя ячейки, и переименование не должно ломать приёмку.
 func (r *CellRepository) DefaultID(ctx context.Context, warehouseID string) (string, error) {
 	return defaultCellID(ctx, r.pool, warehouseID)
 }

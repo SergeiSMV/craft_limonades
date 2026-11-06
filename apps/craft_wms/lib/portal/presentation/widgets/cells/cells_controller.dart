@@ -191,6 +191,32 @@ class CellsController extends ChangeNotifier {
     await load();
     return t.portal.cells.side.saved(cells: n);
   }
+
+  /// Завести напольную ячейку (ADHOC-61) и открыть её карточку. Возвращает текст уведомления:
+  /// об успехе или причину отказа сервера.
+  Future<String> addFloorCell(String address) async {
+    final res = await _repo.createFloorCell(address);
+    if (res.isLeft) return failureText(res.left);
+    await load();
+    focus(res.right.id);
+    return t.portal.cells.floor.created(address: res.right.address);
+  }
+
+  /// Новый адрес напольной ячейки; текст уведомления.
+  Future<String> renameFloorCell(String id, String address) async {
+    final res = await _repo.renameFloorCell(id, address);
+    if (res.isLeft) return failureText(res.left);
+    await load();
+    return t.portal.cells.floor.renamed(address: res.right.address);
+  }
+
+  /// Убрать пустую напольную ячейку; текст уведомления.
+  Future<String> deleteFloorCell(CellSetup cell) async {
+    final res = await _repo.deleteFloorCell(cell.id);
+    if (res.isLeft) return failureText(res.left);
+    await load();
+    return t.portal.cells.floor.deleted(address: cell.address);
+  }
 }
 
 /// Текст ошибки для оператора: текст сервера как есть (причины 409 и 422), иначе — общий.
