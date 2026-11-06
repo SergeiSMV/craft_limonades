@@ -14,6 +14,7 @@ import '../ui/portal_card.dart';
 import 'cell_label_sample.dart';
 import 'cell_settings_options.dart';
 import 'cells_controller.dart';
+import 'floor_cell_block.dart';
 
 /// Карточка ячейки справа от списка (ADHOC-57): адрес и место, галочки этикетки на балку и
 /// строки на карточке стеллажа, образец этикетки, «Отменить» и «Сохранить».
@@ -44,7 +45,7 @@ class CellSettingsCard extends StatelessWidget {
           padding: AppInsets.all16,
           child: CellSettingsHead(targets: targets),
         ),
-        ...cellSettingsBlocks(c, targets, canEdit: canEdit),
+        ...cellSettingsBlocks(c, targets, canEdit: canEdit, onDone: onSaved),
         Padding(
           padding: AppInsets.cardRow,
           child: CellSettingsActions(c: c, canEdit: canEdit, onSaved: onSaved),
@@ -55,13 +56,20 @@ class CellSettingsCard extends StatelessWidget {
 }
 
 /// Разделы карточки под шапкой: галочки, образец (у одной ячейки) и ошибка сохранения.
+///
+/// У одной напольной ячейки (ADHOC-61) вместо образца — блок «Напольное хранение»: на её
+/// этикетке QR, которого образец не рисует, и действия «Изменить адрес» и «Удалить».
 List<Widget> cellSettingsBlocks(
   CellsController c,
   List<CellSetup> targets, {
   required bool canEdit,
+  required ValueChanged<String> onDone,
 }) => [
   BeamOptions(c: c, canEdit: canEdit),
-  if (targets.length == 1) CellLabelSample(c: c, cell: targets.single),
+  if (targets.length == 1 && targets.single.isFloorStorage)
+    FloorCellBlock(c: c, cell: targets.single, canEdit: canEdit, onDone: onDone)
+  else if (targets.length == 1)
+    CellLabelSample(c: c, cell: targets.single),
   if (c.saveError != null)
     Padding(padding: AppInsets.cardRow, child: AccessError(c.saveError!)),
 ];

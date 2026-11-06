@@ -52,10 +52,10 @@ func TestReceiptDocument_createdOnPostWithAggregatedRows(t *testing.T) {
 	if snap.WarehouseCode != "SHB" || snap.Executor != "Кладовщик" || snap.Supplier != "Поставщик" {
 		t.Fatalf("шапка: %+v", snap)
 	}
-	// Строки отсортированы по ячейке: «M1-1-1-1» раньше «С-Н-П».
+	// Строки отсортированы по ячейке: «M1-1-1-1» раньше «ПРИЁМКА».
 	if len(snap.Rows) != 2 ||
 		snap.Rows[0].CellAddress != "M1-1-1-1" || snap.Rows[0].Qty != "15" || snap.Rows[0].ProductionDate != "2026-09-01" ||
-		snap.Rows[1].CellAddress != "С-Н-П" || snap.Rows[1].Qty != "1" {
+		snap.Rows[1].CellAddress != model.DefaultCellAddress || snap.Rows[1].Qty != "1" {
 		t.Fatalf("строки: %+v", snap.Rows)
 	}
 

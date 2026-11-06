@@ -26,7 +26,7 @@ var (
 	ErrEmptyMovement = errors.New("movement has no lines")
 	// ErrUnknownMovementKind — вид документа не перемещение и не пополнение.
 	ErrUnknownMovementKind = errors.New("unknown movement kind")
-	// ErrReceivingCell — ячейка приёмки (С-Н-П) в движении ни источник, ни приёмник: её
+	// ErrReceivingCell — ячейка приёмки («ПРИЁМКА») в движении ни источник, ни приёмник: её
 	// разносит задание на размещение (P5-02-1), иначе остаток задания разошёлся бы с ячейкой.
 	// Исключение — источник-россыпь с меткой склада (ADHOC-55): её в задании нет.
 	ErrReceivingCell = errors.New("receiving cell is emptied only by a putaway task")
@@ -473,7 +473,7 @@ func movementGoods(ctx context.Context, q Querier, in MovementSubmitInput, lineN
 //	приложения, ошибка в новом экране или другая операция пришлют такую строку мимо ТСД.
 //	Запрет — по ячейке, а не по заданию: размещённое по заданию дальше движется свободно.
 //
-// Как: ячейку ищем по флагу, а не по адресу «С-Н-П» — так же, как приёмка и размещение.
+// Как: ячейку ищем по флагу, а не по адресу «ПРИЁМКА» — так же, как приёмка и размещение.
 func guardNotReceivingCell(ctx context.Context, q Querier, cellID string) error {
 	var receiving bool
 	err := q.QueryRow(ctx, `SELECT is_default FROM cells WHERE id = $1::uuid`, cellID).Scan(&receiving)

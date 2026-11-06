@@ -16,7 +16,7 @@ class OverlayCells {
   /// терминала зовут его `null` (P6-07-2).
   final String? defaultInternalWarehouse;
 
-  /// Ячейка приёмки («С-Н-П») склада: туда приёмка кладёт строку без ячейки, оттуда
+  /// Ячейка приёмки («ПРИЁМКА») склада: туда приёмка кладёт строку без ячейки, оттуда
   /// размещение берёт россыпь (P5-02).
   final Map<String, String> defaultCellByWarehouse;
 }

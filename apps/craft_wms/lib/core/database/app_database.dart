@@ -73,7 +73,7 @@ class CachedCells extends Table {
   BoolColumn get isFloor => boolean().withDefault(const Constant(false))();
   BoolColumn get isActive => boolean().withDefault(const Constant(true))();
 
-  /// Ячейка приёмки по умолчанию («С-Н-П»), см. `Cell.isDefault` (P4-09).
+  /// Ячейка приёмки по умолчанию («ПРИЁМКА»), см. `Cell.isDefault` (P4-09).
   BoolColumn get isDefault => boolean().withDefault(const Constant(false))();
 
   /// Адрес в нижнем регистре — резолв по скану идёт регистронезависимо, а сравнивать

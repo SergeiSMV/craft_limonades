@@ -12,6 +12,27 @@ type Cell struct {
 	Address string
 	IsFloor bool // нижняя ячейка: стрелка вниз справа от адреса
 	Barcode bool // штрих-код слева от адреса
+	QR      bool // QR слева от адреса вместо штрих-кода — напольная ячейка (ADHOC-61)
+}
+
+// codeKind — что стоит слева от адреса: ничего, Code128 или QR. По нему этикетки делятся на
+// группы с общим кеглем: код отбирает ширину, и общий кегль срезал бы адрес там, где кода нет.
+type codeKind int
+
+const (
+	codeNone codeKind = iota
+	codeBar
+	codeQR
+)
+
+func (c Cell) code() codeKind {
+	switch {
+	case c.QR:
+		return codeQR
+	case c.Barcode:
+		return codeBar
+	}
+	return codeNone
 }
 
 // CardRow — строка карточки на стойку: адрес и позиция стеллажа (между позициями — пунктир).
@@ -32,9 +53,10 @@ func newPDF(title string) (*fpdf.Fpdf, measurer) {
 	pdf.SetMargins(0, 0, 0)
 	pdf.SetAutoPageBreak(false, 0)
 	pdf.SetTitle(title, true)
+	addCyrFont(pdf)
 	pdf.SetFont(fontName, fontStyle, 10)
 	return pdf, func(text string, sizePt float64) float64 {
-		pdf.SetFontSize(sizePt)
+		setAddressFont(pdf, text, sizePt)
 		return pdf.GetStringWidth(text)
 	}
 }
@@ -65,11 +87,11 @@ func BeamLabels(small bool, items, set []Cell) ([]byte, error) {
 	pdf, width := newPDF(title)
 	sizes, problems := beamSizes(p, set, width)
 	for _, c := range items {
-		if _, ok := sizes[c.Barcode]; !ok { // ячейка вне набора — считаем по ней самой
+		if _, ok := sizes[c.code()]; !ok { // ячейка вне набора — считаем по ней самой
 			s, pr := beamSizes(p, []Cell{c}, width)
-			sizes[c.Barcode], problems = s[c.Barcode], append(problems, pr...)
+			sizes[c.code()], problems = s[c.code()], append(problems, pr...)
 		}
-		if c.Barcode {
+		if c.code() == codeBar {
 			problems = append(problems, moduleProblems(c.Address, p.module, p.quiet)...)
 		}
 	}
@@ -83,22 +105,23 @@ func BeamLabels(small bool, items, set []Cell) ([]byte, error) {
 			pdf.AddPage()
 			cutMarks(pdf, 1, p.rows, workW, p.heightM)
 		}
-		if err := drawBeam(pdf, margin, margin+float64(k)*p.heightM, workW, c, p, sizes[c.Barcode], width); err != nil {
+		if err := drawBeam(pdf, margin, margin+float64(k)*p.heightM, workW, c, p, sizes[c.code()], width); err != nil {
 			return nil, err
 		}
 	}
 	return output(pdf)
 }
 
-// beamSizes — единый кегль (пт) по группам «со штрих-кодом / без» набора и причины, если не влезает.
-func beamSizes(p beamProfile, set []Cell, width measurer) (map[bool]float64, []string) {
-	sizes := map[bool]float64{}
+// beamSizes — единый кегль (пт) по группам «без кода / штрих-код / QR» набора и причины, если не
+// влезает.
+func beamSizes(p beamProfile, set []Cell, width measurer) (map[codeKind]float64, []string) {
+	sizes := map[codeKind]float64{}
 	var problems []string
-	for _, bc := range []bool{false, true} {
+	for _, bc := range []codeKind{codeNone, codeBar, codeQR} {
 		var texts []string
 		arrow := false
 		for _, c := range set {
-			if c.Barcode == bc {
+			if c.code() == bc {
 				texts = append(texts, c.Address)
 				arrow = arrow || c.IsFloor
 			}
@@ -111,13 +134,16 @@ func beamSizes(p beamProfile, set []Cell, width measurer) (map[bool]float64, []s
 		if arrow {
 			avail -= p.arrowW + p.gap
 		}
-		if bc {
+		switch bc {
+		case codeBar:
 			bw, err := barcodeWidth(w, p.module, p.quiet)
 			if err != nil {
 				problems = append(problems, err.Error())
 				continue
 			}
 			avail -= bw + p.gap
+		case codeQR:
+			avail -= qrWidth(p) + p.gap
 		}
 		size, ok := fitSize(w, avail, p.capMax, p.capMin, width)
 		if !ok {
@@ -164,12 +190,12 @@ func drawBeam(pdf *fpdf.Fpdf, x, y, w float64, c Cell, p beamProfile, sizePt flo
 	textW := width(c.Address, sizePt)
 	inner := w - 2*p.pad
 	text := func(tx float64) {
-		pdf.SetFont(fontName, fontStyle, sizePt)
+		setAddressFont(pdf, c.Address, sizePt)
 		pdf.Text(tx, cy+capH/2, c.Address)
 	}
 	pdf.SetFillColor(0, 0, 0)
 
-	if !c.Barcode {
+	if c.code() == codeNone {
 		band := textW
 		if c.IsFloor {
 			band += p.arrowW + p.gap
@@ -182,9 +208,12 @@ func drawBeam(pdf *fpdf.Fpdf, x, y, w float64, c Cell, p beamProfile, sizePt flo
 		return nil
 	}
 
-	bcW, err := barcodeWidth(c.Address, p.module, p.quiet)
-	if err != nil {
-		return err
+	bcW := qrWidth(p)
+	if c.code() == codeBar {
+		var err error
+		if bcW, err = barcodeWidth(c.Address, p.module, p.quiet); err != nil {
+			return err
+		}
 	}
 	type part struct {
 		kind string
@@ -210,7 +239,11 @@ func drawBeam(pdf *fpdf.Fpdf, x, y, w float64, c Cell, p beamProfile, sizePt flo
 		case "text":
 			text(cx)
 		case "bc":
-			if err := drawBarcode(pdf, c.Address, cx+p.quiet, cy-p.bcH/2, p.module, p.bcH); err != nil {
+			draw := func() error { return drawBarcode(pdf, c.Address, cx+p.quiet, cy-p.bcH/2, p.module, p.bcH) }
+			if c.code() == codeQR {
+				draw = func() error { return drawQR(pdf, c.Address, cx+p.quiet, cy-p.bcH/2, p.bcH) }
+			}
+			if err := draw(); err != nil {
 				return err
 			}
 		default:

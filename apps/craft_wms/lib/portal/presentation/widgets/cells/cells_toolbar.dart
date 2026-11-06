@@ -92,6 +92,7 @@ class CellsToolbar extends StatelessWidget {
                   (id: FlagFilter.barcode.name, label: s.flagBarcode),
                   (id: FlagFilter.noBarcode.name, label: s.flagNoBarcode),
                   (id: FlagFilter.sideCard.name, label: s.flagSideCard),
+                  (id: FlagFilter.floorStorage.name, label: s.flagFloorStorage),
                 ],
                 value: c.filter.flag?.name,
                 onChanged: onFlag,

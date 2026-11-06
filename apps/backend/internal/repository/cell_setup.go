@@ -39,17 +39,26 @@ func (r *CellRepository) UpsertRack(ctx context.Context, q Querier, warehouseID,
 //
 // sideCard nil — галочка карточки не задана файлом: у существующей ячейки не меняется, у новой
 // false. Ячейка без стеллажа на карточку не попадает — её side_card всегда false.
+//
+// Адрес на «-Н-П» — напольное хранение (ADHOC-61): признак ставится по адресу, стеллажа у такой
+// ячейки нет — пол у стеллажа на карточку стойки не попадает.
 func (r *CellRepository) UpsertSetup(ctx context.Context, q Querier, warehouseID string, rackID *string, c model.CellSetup, sideCard *bool) (bool, error) {
+	floor := IsFloorStorageAddress(c.Address)
+	if floor {
+		rackID = nil
+	}
 	var created bool
 	err := q.QueryRow(ctx, `
-		INSERT INTO cells (warehouse_id, address, rack_id, is_floor, label_small, label_barcode, side_card)
-		VALUES ($1::uuid, $2, $3::uuid, $4, $5, $6, $3::uuid IS NOT NULL AND COALESCE($7::boolean, false))
+		INSERT INTO cells (warehouse_id, address, rack_id, is_floor, label_small, label_barcode, side_card,
+		                   is_floor_storage)
+		VALUES ($1::uuid, $2, $3::uuid, $4, $5, $6, $3::uuid IS NOT NULL AND COALESCE($7::boolean, false), $8)
 		ON CONFLICT (warehouse_id, address) DO UPDATE
 		   SET rack_id = EXCLUDED.rack_id, is_floor = EXCLUDED.is_floor,
 		       label_small = EXCLUDED.label_small, label_barcode = EXCLUDED.label_barcode,
-		       side_card = EXCLUDED.rack_id IS NOT NULL AND COALESCE($7::boolean, cells.side_card)
+		       side_card = EXCLUDED.rack_id IS NOT NULL AND COALESCE($7::boolean, cells.side_card),
+		       is_floor_storage = EXCLUDED.is_floor_storage
 		RETURNING (xmax = 0)`,
-		warehouseID, c.Address, rackID, c.IsFloor, c.LabelSmall, c.LabelBarcode, sideCard).Scan(&created)
+		warehouseID, c.Address, rackID, c.IsFloor, c.LabelSmall, c.LabelBarcode, sideCard, floor).Scan(&created)
 	if err != nil {
 		return false, fmt.Errorf("ячейка %q: %w", c.Address, err)
 	}
@@ -59,12 +68,12 @@ func (r *CellRepository) UpsertSetup(ctx context.Context, q Querier, warehouseID
 // Setup возвращает ячейки склада со стеллажами и настройками этикеток и все стеллажи склада.
 //
 // Без пагинации: ячеек на складе сотни, а странице нужен весь набор — массовая отметка, счётчики
-// фильтров и выгрузка в файл работают по всему складу. Ячейка приёмки («С-Н-П») не входит: у неё
-// нет этикетки (адрес кириллицей Code128 не кодирует) и нет места на стеллаже. Порядок задаёт сервис.
+// фильтров и выгрузка в файл работают по всему складу. Ячейка приёмки («ПРИЁМКА») не входит: у неё
+// нет этикетки и нет места на стеллаже. Порядок задаёт сервис.
 func (r *CellRepository) Setup(ctx context.Context, warehouseID string) ([]model.CellSetup, []model.Rack, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT c.id::text, c.address, r.id::text, r.code, c.is_floor, c.label_small, c.label_barcode,
-		       c.side_card
+		       c.side_card, c.is_floor_storage
 		FROM cells c LEFT JOIN racks r ON r.id = c.rack_id
 		WHERE c.warehouse_id = $1::uuid AND c.is_active AND NOT c.is_default`, warehouseID)
 	if err != nil {
@@ -73,7 +82,7 @@ func (r *CellRepository) Setup(ctx context.Context, warehouseID string) ([]model
 	cells := make([]model.CellSetup, 0)
 	for rows.Next() {
 		var c model.CellSetup
-		if err := rows.Scan(&c.ID, &c.Address, &c.RackID, &c.RackCode, &c.IsFloor, &c.LabelSmall, &c.LabelBarcode, &c.SideCard); err != nil {
+		if err := rows.Scan(&c.ID, &c.Address, &c.RackID, &c.RackCode, &c.IsFloor, &c.LabelSmall, &c.LabelBarcode, &c.SideCard, &c.IsFloorStorage); err != nil {
 			rows.Close()
 			return nil, nil, fmt.Errorf("scan ячейки: %w", err)
 		}

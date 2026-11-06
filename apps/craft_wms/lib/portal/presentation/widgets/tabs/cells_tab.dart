@@ -18,6 +18,7 @@ import '../cells/cells_import_dialog.dart';
 import '../cells/cells_list_card.dart';
 import '../cells/cells_print_dialog.dart';
 import '../cells/cells_toolbar.dart';
+import '../cells/floor_cell_dialogs.dart';
 import '../settings/access_common.dart';
 import '../ui/portal_button.dart';
 
@@ -104,6 +105,14 @@ class _CellsTabState extends State<CellsTab> {
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       ),
     );
+  }
+
+  /// Новая напольная ячейка (ADHOC-61): адрес в окне, ответ сервера — уведомлением.
+  Future<void> addFloorCell() async {
+    final address = await showFloorCellAddressDialog(context);
+    if (address == null || !mounted) return;
+    final text = await _c.addFloorCell(address);
+    if (mounted) notify(text);
   }
 
   /// Окно печати PDF.
@@ -200,6 +209,12 @@ class _CellsTabState extends State<CellsTab> {
             label: s.editPicked(count: _c.picked.length),
             icon: Icons.tune,
             onPressed: openSheet,
+          ),
+        if (widget.canEdit)
+          PortalButton(
+            label: s.floor.add,
+            icon: Icons.add,
+            onPressed: _c.view == null ? null : addFloorCell,
           ),
         if (widget.canImport)
           PortalButton(

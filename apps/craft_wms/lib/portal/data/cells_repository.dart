@@ -93,6 +93,42 @@ class CellsRepository {
     return CellsImportReport.fromJson(resp.data!);
   });
 
+  /// Завести напольную ячейку (ADHOC-61): `POST /cells/floor`. Ответ — id и адрес, как его
+  /// записал сервер («d-h-п» → «D-Н-П»). 400 — адрес не вида «D-Н-П», 409 — адрес занят.
+  Future<Either<Failure, ({String id, String address})>> createFloorCell(
+    String address,
+  ) => _guard(() async {
+    final resp = await _dio.post<Map<String, dynamic>>(
+      ApiConst.cellsFloor,
+      queryParameters: _query,
+      data: {'address': address},
+    );
+    return _floorCell(resp.data!);
+  });
+
+  /// Новый адрес напольной ячейки: `PATCH /cells/floor/{id}`. 404 — ячейки уже нет, 409 — адрес
+  /// занят.
+  Future<Either<Failure, ({String id, String address})>> renameFloorCell(
+    String id,
+    String address,
+  ) => _guard(() async {
+    final resp = await _dio.patch<Map<String, dynamic>>(
+      ApiConst.cellFloor(id),
+      queryParameters: _query,
+      data: {'address': address},
+    );
+    return _floorCell(resp.data!);
+  });
+
+  /// Убрать пустую напольную ячейку: `DELETE /cells/floor/{id}`. 409 — в ячейке товар или
+  /// короба.
+  Future<Either<Failure, void>> deleteFloorCell(String id) => _guard(() async {
+    await _dio.delete<void>(ApiConst.cellFloor(id), queryParameters: _query);
+  });
+
+  static ({String id, String address}) _floorCell(Map<String, dynamic> d) =>
+      (id: d['id'] as String, address: d['address'] as String);
+
   static String _flagField(CellFlag f) => switch (f) {
     CellFlag.small => 'label_small',
     CellFlag.floor => 'is_floor',
@@ -114,6 +150,7 @@ class CellsRepository {
           labelSmall: c['label_small'] as bool? ?? false,
           labelBarcode: c['label_barcode'] as bool? ?? false,
           sideCard: c['side_card'] as bool? ?? false,
+          isFloorStorage: c['is_floor_storage'] as bool? ?? false,
         ),
     ],
     racks: [

@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"sort"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -20,7 +22,13 @@ var (
 	ErrEmptyCellsPatch = errors.New("нечего менять: не задана ни одна галочка")
 	ErrTooManyCells    = errors.New("слишком много ячеек за один раз")
 	ErrInvalidCellIDs  = errors.New("id ячейки должен быть UUID")
+	// ErrInvalidFloorAddress — адрес напольной ячейки не вида «D-Н-П» (ADHOC-61).
+	ErrInvalidFloorAddress = errors.New("адрес напольной ячейки - стеллаж и «-Н-П», например «D-Н-П»")
 )
+
+// floorAddressRe — адрес напольной ячейки после нормализации: сегменты букв и цифр через дефис,
+// последние два — «Н-П» кириллицей. Стеллаж — хоть один сегмент перед ними («D», «M1»).
+var floorAddressRe = regexp.MustCompile(`^[0-9A-ZА-ЯЁ]+(?:-[0-9A-ZА-ЯЁ]+)*-Н-П$`)
 
 // maxCellsPatch — потолок ячеек в одном изменении: склад целиком (сотни ячеек) с запасом,
 // но не бесконечный массив в одном запросе.
@@ -30,6 +38,9 @@ const maxCellsPatch = 5000
 type cellSetupRepo interface {
 	Setup(ctx context.Context, warehouseID string) ([]model.CellSetup, []model.Rack, error)
 	UpdateSettings(ctx context.Context, q repository.Querier, warehouseID string, p model.CellSettingsPatch) (model.CellSettingsResult, error)
+	CreateFloorCell(ctx context.Context, q repository.Querier, warehouseID, address string) (string, error)
+	RenameFloorCell(ctx context.Context, q repository.Querier, warehouseID, cellID, address string) error
+	DeleteFloorCell(ctx context.Context, q repository.Querier, warehouseID, cellID string) error
 }
 
 // CellSetupService — страница «Ячейки» портала (ADHOC-57): список ячеек со стеллажами и
@@ -136,4 +147,79 @@ func (s *CellSetupService) ExportXLSX(ctx context.Context, warehouseCode string)
 		return nil, "", err
 	}
 	return data, fmt.Sprintf("cells-%s.xlsx", warehouseCode), nil
+}
+
+// NormalizeFloorAddress приводит адрес напольной ячейки к виду справочника: без пробелов по краям,
+// заглавными, «Н» в окончании — кириллицей (латинскую H на клавиатуре не отличить). Неверный
+// адрес — ErrInvalidFloorAddress.
+func NormalizeFloorAddress(raw string) (string, error) {
+	a := strings.ToUpper(strings.TrimSpace(raw))
+	if strings.HasSuffix(a, "-H-П") {
+		a = strings.TrimSuffix(a, "-H-П") + model.FloorStorageSuffix
+	}
+	if !floorAddressRe.MatchString(a) {
+		return "", ErrInvalidFloorAddress
+	}
+	return a, nil
+}
+
+// CreateFloorCell заводит напольную ячейку склада (ADHOC-61). Адрес занят активной ячейкой —
+// repository.ErrCellExists; удалённая с тем же адресом возвращается в работу.
+func (s *CellSetupService) CreateFloorCell(ctx context.Context, warehouseCode string, in model.FloorCellInput) (model.FloorCell, error) {
+	address, err := NormalizeFloorAddress(in.Address)
+	if err != nil {
+		return model.FloorCell{}, err
+	}
+	whID, err := s.warehouses.IDByCode(ctx, warehouseCode)
+	if err != nil {
+		return model.FloorCell{}, err
+	}
+	var id string
+	err = repository.WithinTx(ctx, s.pool, func(q repository.Querier) error {
+		var txErr error
+		id, txErr = s.cells.CreateFloorCell(ctx, q, whID, address)
+		return txErr
+	})
+	if err != nil {
+		return model.FloorCell{}, err
+	}
+	return model.FloorCell{ID: id, Address: address}, nil
+}
+
+// RenameFloorCell меняет адрес напольной ячейки. Ячейку стеллажа или приёмки так не
+// переименовать — repository.ErrNotFound.
+func (s *CellSetupService) RenameFloorCell(ctx context.Context, warehouseCode, cellID string, in model.FloorCellInput) (model.FloorCell, error) {
+	if _, err := uuid.Parse(cellID); err != nil {
+		return model.FloorCell{}, ErrInvalidCellIDs
+	}
+	address, err := NormalizeFloorAddress(in.Address)
+	if err != nil {
+		return model.FloorCell{}, err
+	}
+	whID, err := s.warehouses.IDByCode(ctx, warehouseCode)
+	if err != nil {
+		return model.FloorCell{}, err
+	}
+	err = repository.WithinTx(ctx, s.pool, func(q repository.Querier) error {
+		return s.cells.RenameFloorCell(ctx, q, whID, cellID, address)
+	})
+	if err != nil {
+		return model.FloorCell{}, err
+	}
+	return model.FloorCell{ID: cellID, Address: address}, nil
+}
+
+// DeleteFloorCell убирает пустую напольную ячейку. Есть товар или короба —
+// repository.ErrCellNotEmpty.
+func (s *CellSetupService) DeleteFloorCell(ctx context.Context, warehouseCode, cellID string) error {
+	if _, err := uuid.Parse(cellID); err != nil {
+		return ErrInvalidCellIDs
+	}
+	whID, err := s.warehouses.IDByCode(ctx, warehouseCode)
+	if err != nil {
+		return err
+	}
+	return repository.WithinTx(ctx, s.pool, func(q repository.Querier) error {
+		return s.cells.DeleteFloorCell(ctx, q, whID, cellID)
+	})
 }
