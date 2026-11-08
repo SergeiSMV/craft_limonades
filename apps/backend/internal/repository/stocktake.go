@@ -119,7 +119,7 @@ func (r *StocktakeRepository) Create(ctx context.Context, in model.StocktakeCrea
 		tag, err := q.Exec(ctx, `
 			INSERT INTO stocktake_cells (stocktake_id, cell_id)
 			SELECT $1::uuid, c.id FROM cells c
-			WHERE c.warehouse_id = $2::uuid AND NOT c.is_default AND `+where+`
+			WHERE c.warehouse_id = $2::uuid AND NOT c.is_default AND NOT c.is_shipping AND `+where+`
 			ORDER BY c.address`, out.ID, in.WarehouseID)
 		if err != nil {
 			return fmt.Errorf("ячейки пересчёта: %w", err)
@@ -142,13 +142,13 @@ func (r *StocktakeRepository) Create(ctx context.Context, in model.StocktakeCrea
 	return out, nil
 }
 
-// guardStocktakeCells — выбранные ячейки есть на складе пересчёта, и среди них нет ячейки
-// приёмки. Существование уже проверил внешний ключ области; здесь — склад и приёмка.
+// guardStocktakeCells — выбранные ячейки есть на складе пересчёта, и среди них нет служебных:
+// приёмки и отгрузки. Существование уже проверил внешний ключ области; здесь — склад и служебные.
 func guardStocktakeCells(ctx context.Context, q Querier, warehouseID string, ids []string) error {
 	var foreign int
 	var receiving bool
 	if err := q.QueryRow(ctx, `
-		SELECT count(*) FILTER (WHERE warehouse_id <> $2::uuid), COALESCE(bool_or(is_default), false)
+		SELECT count(*) FILTER (WHERE warehouse_id <> $2::uuid), COALESCE(bool_or(is_default OR is_shipping), false)
 		FROM cells WHERE id = ANY($1::text[]::uuid[])`, ids, warehouseID).Scan(&foreign, &receiving); err != nil {
 		return fmt.Errorf("проверить ячейки пересчёта: %w", err)
 	}

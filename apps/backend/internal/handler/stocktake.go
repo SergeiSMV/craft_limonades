@@ -316,7 +316,7 @@ func stocktakeError(w http.ResponseWriter, r *http.Request, err error, action st
 	case errors.Is(err, model.ErrStocktakeUnknownObject):
 		writeError(w, http.StatusUnprocessableEntity, "объект области не найден или с другого склада")
 	case errors.Is(err, model.ErrStocktakeReceivingCell):
-		writeError(w, http.StatusUnprocessableEntity, "ячейка приёмки в пересчёт не входит")
+		writeError(w, http.StatusUnprocessableEntity, "служебная ячейка (приёмка, отгрузка) в пересчёт не входит")
 	case errors.Is(err, model.ErrStocktakeNoCells):
 		writeError(w, http.StatusUnprocessableEntity, "в области нет ни одной ячейки — считать нечего")
 	case errors.Is(err, model.ErrStocktakeNotFound):

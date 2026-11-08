@@ -31,6 +31,7 @@ type (
 		UpsertRack(ctx context.Context, q repository.Querier, warehouseID, code string) (string, bool, error)
 		UpsertSetup(ctx context.Context, q repository.Querier, warehouseID string, rackID *string, c model.CellSetup, sideCard *bool) (bool, error)
 		EnsureDefault(ctx context.Context, q repository.Querier, warehouseID string) (string, error)
+		EnsureShipping(ctx context.Context, q repository.Querier, warehouseID string) (string, error)
 	}
 )
 
@@ -210,6 +211,10 @@ func (s *ImportService) ImportCells(ctx context.Context, r io.Reader, warehouseC
 		// После цикла, а не до: если ячейка есть в самом файле, счётчики отчёта считают её строкой
 		// файла, а не нашей добавкой — отчёт обязан сходиться с тем, что человек загрузил.
 		if _, err := s.cells.EnsureDefault(ctx, q, warehouseID); err != nil {
+			return err
+		}
+		// Ячейка отгрузки (P9-02) — туда же и по той же причине: без неё не собрать заказ.
+		if _, err := s.cells.EnsureShipping(ctx, q, warehouseID); err != nil {
 			return err
 		}
 		return nil

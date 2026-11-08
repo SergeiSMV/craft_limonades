@@ -51,8 +51,8 @@ var (
 	ErrInvalidStocktake = errors.New("invalid stocktake")
 	// ErrStocktakeUnknownObject — объекта области нет в справочнике или ячейка чужого склада.
 	ErrStocktakeUnknownObject = errors.New("stocktake scope object not found")
-	// ErrStocktakeReceivingCell — в области ячейка приёмки: её товар ждёт размещения и в
-	// пересчёте не участвует.
+	// ErrStocktakeReceivingCell — в области служебная ячейка: в приёмке товар ждёт размещения, в
+	// отгрузке — короба собранных заказов (P9-02); в пересчёте они не участвуют.
 	ErrStocktakeReceivingCell = errors.New("receiving cell is not counted by stocktake")
 	// ErrStocktakeNoCells — область не дала ни одной ячейки: считать нечего.
 	ErrStocktakeNoCells = errors.New("stocktake scope has no cells")
