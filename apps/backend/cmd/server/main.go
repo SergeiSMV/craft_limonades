@@ -149,6 +149,8 @@ func main() {
 			repository.NewPickingRepository(pool), repository.NewWarehouseRepository(pool))
 		// Сборка на ТСД (P9-03, P9-04): заказ с подбором, взять, короб отгрузки, «не хватает».
 		svc.PickingTask = service.NewPickingTaskService(repository.NewPickingRepository(pool))
+		// «Сборка-отгрузка» в портале: заказы на дату, детали, Excel, снятие с исполнителя (P8-03).
+		svc.PickingPortal = service.NewPickingPortalService(repository.NewPickingRepository(pool), repository.NewWarehouseRepository(pool))
 		// Просмотр содержимого ячеек и коробов на ТСД (P5-05).
 		svc.Contents = service.NewContentsService(repository.NewContentsRepository(pool))
 		// Версии данных по областям — заголовок каждого ответа API (ADHOC-60).

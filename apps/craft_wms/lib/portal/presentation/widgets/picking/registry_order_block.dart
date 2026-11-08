@@ -13,6 +13,7 @@ import '../../../../core/utils/doc_number.dart';
 import '../../../../core/utils/qty_format.dart';
 import '../../../data/picking_repository.dart';
 import '../ui/portal_badge.dart';
+import 'picking_labels.dart';
 
 /// Заказ в предпросмотре реестра (P8-02): накладная, заказ и клиент — каждый своей строкой,
 /// отметки (вид правки, нераспознанное, нехватка, отгружен, дособор), правки против прошлой
@@ -143,29 +144,13 @@ class _RegistryOrderBlockState extends State<RegistryOrderBlock> {
   }
 
   /// Правка одной строкой: что и с каким количеством.
-  String _change(RegistryChange c) {
-    final p = t.portal.picking;
-    return switch (c.kind) {
-      'line_added' => p.changeAdded(
-        code: c.goodCode,
-        name: c.goodName,
-        qty: c.newQty ?? 0,
-      ),
-      'line_removed' => p.changeRemoved(
-        code: c.goodCode,
-        name: c.goodName,
-        qty: c.oldQty ?? 0,
-      ),
-      'qty_changed' => p.changeQty(
-        code: c.goodCode,
-        name: c.goodName,
-        old: c.oldQty ?? 0,
-        qty: c.newQty ?? 0,
-      ),
-      'order_deleted' => p.changeOrderDeleted,
-      _ => p.changeOrderRestored,
-    };
-  }
+  String _change(RegistryChange c) => pickingChangeText(
+    kind: c.kind,
+    goodCode: c.goodCode,
+    goodName: c.goodName,
+    oldQty: c.oldQty,
+    newQty: c.newQty,
+  );
 }
 
 /// Строка плана: товар, количество, партия, ячейка, остаток — каждый факт своей строкой;

@@ -52,6 +52,8 @@ type Services struct {
 	Picking *service.PickingLoadService
 	// PickingTask — сборка на ТСД: список, заказ с подбором, взять, короб, «не хватает» (P9-04).
 	PickingTask *service.PickingTaskService
+	// PickingPortal — «Сборка-отгрузка» в портале: заказы на дату, детали, Excel, снятие (P8-03).
+	PickingPortal *service.PickingPortalService
 	// Problem — «Проблемы склада» в портале: список и решение офиса (P6-07-3).
 	Problem *service.ProblemService
 	// ProblemPhoto — фото к проблемам склада (ADHOC-45): загрузка с ТСД, отдача ТСД и порталу.
@@ -418,6 +420,20 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 				r.Use(need(model.RightPickingLoad))
 				r.Post("/picking/registry/preview", pkH.PreviewRegistry)
 				r.Post("/picking/registry/load", pkH.LoadRegistry)
+			})
+		}
+
+		// «Сборка-отгрузка» (P8-03) — заказы на дату накладной и окно деталей: право «смотреть»
+		// или «снимать с исполнителя» (снять, не видя заказа, нельзя). Выгрузка Excel и снятие —
+		// свои права.
+		if svc.PickingPortal != nil {
+			ppH := NewPickingPortalHandler(svc.PickingPortal)
+			r.Group(func(r chi.Router) {
+				r.Use(appmw.Authenticator(tokens))
+				r.With(need(model.RightPickingView, model.RightPickingRelease)).Get("/picking/portal/orders", ppH.Orders)
+				r.With(need(model.RightPickingView, model.RightPickingRelease)).Get("/picking/portal/orders/{id}", ppH.Order)
+				r.With(need(model.RightPickingRelease)).Post("/picking/portal/orders/{id}/release", ppH.Release)
+				r.With(need(model.RightPickingDownload)).Get("/picking/portal/export.xlsx", ppH.ExportXLSX)
 			})
 		}
 

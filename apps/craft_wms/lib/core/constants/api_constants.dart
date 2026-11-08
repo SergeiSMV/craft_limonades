@@ -171,6 +171,19 @@ abstract final class ApiConst {
   static String pickingShortage(String id, String lineId) =>
       'picking/orders/$id/lines/$lineId/shortage';
 
+  ///**GET** - заказы «Сборка-отгрузка» на дату накладной для портала (P8-03): `?date=`.
+  static const String pickingPortalOrders = 'picking/portal/orders';
+
+  ///**GET** - заказ для окна деталей портала (P8-03): план/факт, короба, правки реестра.
+  static String pickingPortalOrder(String id) => 'picking/portal/orders/$id';
+
+  ///**POST** - снять заказ с исполнителя из портала (P8-03).
+  static String pickingPortalRelease(String id) =>
+      'picking/portal/orders/$id/release';
+
+  ///**GET** - выгрузка Excel всех заказов даты (P8-03): `?date=`.
+  static const String pickingPortalExport = 'picking/portal/export.xlsx';
+
   ///**GET** - «Проблемы склада» для офиса (P6-07-3, admin): открытые сверху.
   static const String problems = 'problems';
 

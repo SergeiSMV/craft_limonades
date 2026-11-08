@@ -32,6 +32,7 @@ abstract final class Rights {
   static const pickingView = 'portal.picking.view'; // P8-02: Сборка-отгрузка
   static const pickingLoad = 'portal.picking.load';
   static const pickingDownload = 'portal.picking.download';
+  static const pickingRelease = 'portal.picking.release'; // P8-03: снять с исполнителя
   static const settingsWarehouses = 'portal.settings.warehouses';
   static const settingsProblemReasons = 'portal.settings.problem_reasons';
   static const settingsUsers = 'portal.settings.users';
@@ -152,6 +153,7 @@ List<RightNode> rightsTree() {
             RightNode(r.pickingView, code: Rights.pickingView),
             RightNode(r.pickingLoad, code: Rights.pickingLoad),
             RightNode(r.pickingDownload, code: Rights.pickingDownload),
+            RightNode(r.pickingRelease, code: Rights.pickingRelease),
           ],
         ),
         RightNode(

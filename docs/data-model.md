@@ -81,7 +81,7 @@ username + паролю** (вход со смартфона/портала). Р�
 Обоснование argon2 — ADR-0005; выбор пути входа по устройству — ADR-0010. Роли `employee`/`admin`
 заменены должностями (ADHOC-49): права пользователя — права его должности.
 
-### 3.1.1 `positions` — должности и права (миграции `000033`, `000034`, `000039`, `000046`; ADHOC-49, ADHOC-50)
+### 3.1.1 `positions` — должности и права (миграции `000033`, `000034`, `000039`, `000046`, `000048`; ADHOC-49, ADHOC-50)
 
 | Колонка                   | Тип           | Ограничения / смысл                                                         |
 |---------------------------|---------------|-----------------------------------------------------------------------------|
@@ -94,14 +94,14 @@ username + паролю** (вход со смартфона/портала). Р�
 Права — действия по разделам, код «приложение.раздел.действие» (`000034`): портал —
 `portal.nomenclature.import`; `portal.receipt|movement|stocktake_doc|stock_entry_doc` +
 `.view|.download|.post`; `portal.stocktake.view|manage`; `portal.cells.import|labels|edit`;
-`portal.problems.view|resolve`; `portal.picking.view|load|download`;
+`portal.problems.view|resolve`; `portal.picking.view|load|download|release`;
 `portal.settings.warehouses|problem_reasons|users`. ТСД — `tsd.receipt`,
 `tsd.movement`, `tsd.tasks.putaway|stocktake_count|stocktake_manage`,
 `tsd.stock.view|cz_marked|regrade`, `tsd.stock_entry`, `tsd.problems.view|mark`,
-`tsd.picking`, `tsd.picking.reprint`. Всего 41
+`tsd.picking`, `tsd.picking.reprint`. Всего 42
 (`tsd.stock.regrade` — перепривязка ШК маркируемого товара, `000035`, ADHOC-53;
 `portal.settings.problem_reasons` — справочник причин проблем, `000039`, ADHOC-55; права сборки —
-`000046`, P8-02).
+`000046`, P8-02; `portal.picking.release` — снять заказ сборки с исполнителя, `000048`, P8-03).
 
 Стартовые должности — с постоянными id: «Администратор» (`7a000000-…-000000000001`, системная,
 все действия; код не смотрит на её список) и «Кладовщик» (`7a000000-…-000000000002`, восемь

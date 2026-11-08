@@ -45,6 +45,7 @@ const (
 	RightPickingView        = "portal.picking.view"     // Сборка-отгрузка: смотреть заказы и детали (P8-02)
 	RightPickingLoad        = "portal.picking.load"     // Сборка-отгрузка: загружать реестр 1С
 	RightPickingDownload    = "portal.picking.download" // Сборка-отгрузка: выгружать Excel
+	RightPickingRelease     = "portal.picking.release"  // Сборка-отгрузка: снимать заказ с исполнителя (P8-03)
 	RightSettingsWarehouses = "portal.settings.warehouses"
 	RightSettingsUsers      = "portal.settings.users" // должности и пользователи
 	// RightSettingsProblemReasons — причины проблем и варианты решения (ADHOC-55).
@@ -82,7 +83,7 @@ var Rights = []string{
 	RightCellsImport, RightCellsLabels, RightCellsEdit,
 	RightMovementView, RightMovementDownload, RightMovementPost,
 	RightProblemsView, RightProblemsResolve,
-	RightPickingView, RightPickingLoad, RightPickingDownload,
+	RightPickingView, RightPickingLoad, RightPickingDownload, RightPickingRelease,
 	RightSettingsWarehouses, RightSettingsProblemReasons, RightSettingsUsers,
 	RightTSDReceipt, RightTSDMovement,
 	RightTSDPutaway, RightTSDStocktakeCount, RightTSDStocktakeManage,

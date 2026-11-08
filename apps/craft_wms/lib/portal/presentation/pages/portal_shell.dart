@@ -158,13 +158,19 @@ class _PortalShellState extends State<PortalShell> {
           if (p.can(Rights.pickingView, [
             Rights.pickingLoad,
             Rights.pickingDownload,
+            Rights.pickingRelease,
           ]))
             NavItem(
               icon: Icons.inventory_2_outlined,
               label: t.portal.tabs.picking,
-              // P8-02: загрузка «Реестра» 1С; список по дате и детали — P8-03.
+              // P8-02: загрузка «Реестра» 1С; P8-03: заказы по дате, детали, Excel, снятие.
               description: t.portal.picking.description,
-              body: PickingTab(canLoad: p.can(Rights.pickingLoad)),
+              body: PickingTab(
+                canView: p.can(Rights.pickingView, [Rights.pickingRelease]),
+                canLoad: p.can(Rights.pickingLoad),
+                canDownload: p.can(Rights.pickingDownload),
+                canRelease: p.can(Rights.pickingRelease),
+              ),
             ),
           if (p.can(Rights.problemsView, [Rights.problemsResolve]))
             NavItem(
