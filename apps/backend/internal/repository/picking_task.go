@@ -81,7 +81,46 @@ func (r *PickingRepository) TaskOrder(ctx context.Context, orderID string) (mode
 		}
 		o.Boxes = append(o.Boxes, b)
 	}
-	return o, boxes.Err()
+	if err := boxes.Err(); err != nil {
+		return o, err
+	}
+	boxes.Close()
+
+	o.Picks, err = r.openPicks(ctx, orderID)
+	return o, err
+}
+
+// openPicks — открытые пики заказа с марками (P9-06), в порядке пика.
+func (r *PickingRepository) openPicks(ctx context.Context, orderID string) ([]model.PickingOpenPick, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT p.id::text, p.line_id::text, p.box_id::text, c.address,
+		       coalesce(p.source_load_unit_id::text, ''), b.production_date, p.qty::text,
+		       coalesce(array_agg(m.cis ORDER BY m.cis) FILTER (WHERE m.cis IS NOT NULL), '{}')
+		FROM picking_picks p
+		JOIN cells c ON c.id = p.source_cell_id
+		JOIN batches b ON b.id = p.batch_id
+		LEFT JOIN picking_pick_marks m ON m.pick_id = p.id
+		WHERE p.order_id = $1 AND p.state = 'picking'
+		GROUP BY p.id, c.address, b.production_date
+		ORDER BY p.picked_at, p.id`, orderID)
+	if err != nil {
+		return nil, fmt.Errorf("пики заказа сборки: %w", err)
+	}
+	defer rows.Close()
+	var out []model.PickingOpenPick
+	for rows.Next() {
+		var p model.PickingOpenPick
+		var qty string
+		if err := rows.Scan(&p.ID, &p.LineID, &p.BoxID, &p.CellAddress, &p.LoadUnitID,
+			&p.BatchDate, &qty, &p.Marks); err != nil {
+			return nil, fmt.Errorf("пик заказа сборки: %w", err)
+		}
+		if p.Qty, err = parseQty(qty); err != nil {
+			return nil, err
+		}
+		out = append(out, p)
+	}
+	return out, rows.Err()
 }
 
 // Sources — откуда можно собирать товары goodIDs на складе warehouseID (P9-03).

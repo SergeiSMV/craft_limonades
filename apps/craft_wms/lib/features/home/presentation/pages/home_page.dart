@@ -110,6 +110,10 @@ class HomePage extends StatelessWidget {
   void openMovement(BuildContext context) =>
       context.router.push(const MovementRoute());
 
+  /// «СБОРКА» (P9-06): заказы по реестру 1С.
+  void openPicking(BuildContext context) =>
+      context.router.push(const PickingListRoute());
+
   /// «Проблемы склада» (P6-07-2): пометка брака и изолятора.
   void openProblems(BuildContext context) =>
       context.router.push(const ProblemRoute());
@@ -335,6 +339,15 @@ class HomePage extends StatelessWidget {
                           showBadge: hasPass,
                           onTap: () => openStock(context),
                         ),
+                      ),
+                      // Своя иконка плитки - когда её выберет пользователь.
+                      if (can(Rights.tsdPicking))
+                      MenuTile(
+                        title: t.homeScreen.tiles.pickingTitle,
+                        subtitle: t.homeScreen.tiles.pickingSubtitle,
+                        imageIcon: Assets.icons.menuIcons.tasks,
+                        color: AppColors.kTilePicking,
+                        onTap: () => openPicking(context),
                       ),
                       if (can(Rights.tsdProblemsView, [Rights.tsdProblemsMark]))
                       MenuTile(

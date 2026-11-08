@@ -173,6 +173,9 @@ type PickingTaskOrder struct {
 	AssigneeID    *string
 	Lines         []PickingTaskLine
 	Boxes         []PickingBox
+	// Picks — открытые пики заказа («в сборке», P9-06): ТСД по ним показывает собранное и
+	// возвращает пик, сделанный с другого терминала или до переустановки приложения.
+	Picks []PickingOpenPick
 }
 
 // PickingTaskLine — строка плана заказа и сколько по ней уже взято.
@@ -196,6 +199,21 @@ type PickingTaskLine struct {
 	Taken        decimal.Decimal
 	Removed      bool
 	Shortage     bool
+}
+
+// PickingOpenPick — открытый пик заказа (P9-06): что, откуда и в какой короб взято.
+//
+// LoadUnitID — короб хранения-источник, пусто у россыпи; CellAddress — ячейка источника
+// (у короба — его ячейка в момент пика). Marks — КИ маркируемого товара.
+type PickingOpenPick struct {
+	ID          string
+	LineID      string
+	BoxID       string
+	CellAddress string
+	LoadUnitID  string
+	BatchDate   time.Time
+	Qty         decimal.Decimal
+	Marks       []string
 }
 
 // PickingBox — короб отгрузки заказа: «короб Seq» на ярлыке.

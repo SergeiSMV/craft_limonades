@@ -190,6 +190,25 @@ func TestPickingPick(t *testing.T) {
 		t.Fatalf("перемещение марки в сборке: %v", err)
 	}
 
+	// Открытые пики в заказе (P9-06): россыпь A-1, короб хранения уже в C-1, марка.
+	task, err := pk.TaskOrder(ctx, order)
+	if err != nil {
+		t.Fatalf("заказ с пиками: %v", err)
+	}
+	if len(task.Picks) != 3 {
+		t.Fatalf("открытых пиков %d, ждали 3", len(task.Picks))
+	}
+	if p := task.Picks[0]; p.ID != firstPick || p.CellAddress != "A-1" || p.LoadUnitID != "" ||
+		!p.Qty.Equal(five) || p.BoxID != box || len(p.Marks) != 0 {
+		t.Fatalf("пик россыпи: %+v", p)
+	}
+	if p := task.Picks[1]; p.LoadUnitID != storage || p.CellAddress != "C-1" {
+		t.Fatalf("пик из короба: %+v", p)
+	}
+	if p := task.Picks[2]; p.LineID != mline || len(p.Marks) != 1 || p.Marks[0] != mark1 {
+		t.Fatalf("пик марки: %+v", p)
+	}
+
 	// Возврат пика снимает «в сборке»: теперь из A-1 доступно 20.
 	if _, err := ops.PickingUnpick(ctx, uuid.NewString(), firstPick); err != nil {
 		t.Fatalf("вернуть пик: %v", err)

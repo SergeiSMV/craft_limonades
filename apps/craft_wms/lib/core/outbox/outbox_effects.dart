@@ -58,6 +58,8 @@ class OutboxEffects {
       case OutboxKind.problemSubmit:
       case OutboxKind.returnSubmit:
       case OutboxKind.stocktakeCellSubmit:
+      case OutboxKind.pickingPick:
+      case OutboxKind.pickingUnpick:
         break; // приёмка, размещение и движение справочник не меняют — следствий в кэше нет
       case OutboxKind.unbindBarcode:
         // Отвязка убирает запись сразу: кладовщик отвязал ошибочный код и не должен видеть
@@ -104,8 +106,11 @@ class OutboxEffects {
     }
     // Движение и пометка брака заданий не касаются — устаревает только содержимое склада
     // (P6-04, P6-07-2).
+    // Пик и его возврат (P9-06) меняют «в сборке» у россыпи - то же следствие.
     if (operation.kind == OutboxKind.movementSubmit ||
-        operation.kind == OutboxKind.problemSubmit) {
+        operation.kind == OutboxKind.problemSubmit ||
+        operation.kind == OutboxKind.pickingPick ||
+        operation.kind == OutboxKind.pickingUnpick) {
       _contents.requestRefresh();
       return;
     }
@@ -122,6 +127,8 @@ class OutboxEffects {
       case OutboxKind.problemSubmit:
       case OutboxKind.returnSubmit:
       case OutboxKind.stocktakeCellSubmit:
+      case OutboxKind.pickingPick:
+      case OutboxKind.pickingUnpick:
         break; // приёмка, размещение и движение в кэше справочников следа не оставляют
     }
   }
@@ -142,6 +149,8 @@ class OutboxEffects {
       case OutboxKind.problemSubmit:
       case OutboxKind.returnSubmit:
       case OutboxKind.stocktakeCellSubmit:
+      case OutboxKind.pickingPick:
+      case OutboxKind.pickingUnpick:
         break; // откатывать в кэше нечего: документ возвращается человеку на разбор
       case OutboxKind.unbindBarcode:
         // Операция старого формата, без товара в теле, — восстанавливать нечем.

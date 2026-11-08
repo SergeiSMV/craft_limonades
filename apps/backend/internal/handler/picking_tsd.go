@@ -88,6 +88,17 @@ type pickingBoxDTO struct {
 	Seq        int    `json:"seq"`
 }
 
+type pickingPickDTO struct {
+	ID             string          `json:"id"`
+	LineID         string          `json:"line_id"`
+	BoxID          string          `json:"box_id"`
+	CellAddress    string          `json:"cell_address"`
+	LoadUnitID     string          `json:"load_unit_id,omitempty"`
+	ProductionDate string          `json:"production_date"`
+	Qty            decimal.Decimal `json:"qty"`
+	Marks          []string        `json:"marks"`
+}
+
 type pickingOrderDTO struct {
 	ID            string           `json:"id"`
 	Number        int64            `json:"number"`
@@ -101,6 +112,7 @@ type pickingOrderDTO struct {
 	Mine          bool             `json:"mine"`
 	Lines         []pickingLineDTO `json:"lines"`
 	Boxes         []pickingBoxDTO  `json:"boxes"`
+	Picks         []pickingPickDTO `json:"picks"`
 }
 
 // Orders: GET /api/v1/picking/orders — список «СБОРКА»: несобранные заказы любой даты. 200.
@@ -222,6 +234,7 @@ func pickingOrderOut(task service.PickingTask, userID string) pickingOrderDTO {
 		Client: o.Client, Address: o.Address, Status: o.Status,
 		Mine:  o.AssigneeID != nil && *o.AssigneeID == userID,
 		Lines: make([]pickingLineDTO, 0, len(task.Lines)), Boxes: make([]pickingBoxDTO, 0, len(o.Boxes)),
+		Picks: make([]pickingPickDTO, 0, len(o.Picks)),
 	}
 	for _, tl := range task.Lines {
 		l := tl.Line
@@ -239,6 +252,18 @@ func pickingOrderOut(task service.PickingTask, userID string) pickingOrderDTO {
 	}
 	for _, b := range o.Boxes {
 		out.Boxes = append(out.Boxes, pickingBoxDTO{LoadUnitID: b.LoadUnitID, Seq: b.Seq})
+	}
+	// Дата партии - DD-MM-YYYY, как в теле пика и в снимке содержимого склада.
+	for _, p := range o.Picks {
+		marks := p.Marks
+		if marks == nil {
+			marks = []string{}
+		}
+		out.Picks = append(out.Picks, pickingPickDTO{
+			ID: p.ID, LineID: p.LineID, BoxID: p.BoxID, CellAddress: p.CellAddress,
+			LoadUnitID: p.LoadUnitID, ProductionDate: p.BatchDate.Format("02-01-2006"),
+			Qty: p.Qty, Marks: marks,
+		})
 	}
 	return out
 }

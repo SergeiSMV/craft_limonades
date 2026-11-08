@@ -33,7 +33,13 @@ enum OutboxKind {
   returnSubmit('return_submit'),
 
   /// Подсчёт ячейки пересчёта целиком: россыпь и найденные короба (P10-04).
-  stocktakeCellSubmit('stocktake_cell_submit');
+  stocktakeCellSubmit('stocktake_cell_submit'),
+
+  /// Пик сборки: товар из ячейки или короба хранения - «в сборку», в короб отгрузки (P9-06).
+  pickingPick('picking_pick'),
+
+  /// Возврат пика сборки до «Завершить сборку» (P9-06).
+  pickingUnpick('picking_unpick');
 
   const OutboxKind(this.wire);
 

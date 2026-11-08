@@ -152,6 +152,25 @@ abstract final class ApiConst {
   ///**POST** - загрузка «Реестра» 1С после подтверждения (P8-02): тот же файл.
   static const String pickingRegistryLoad = 'picking/registry/load';
 
+  ///**GET** - список «СБОРКА» на ТСД (P9-04): несобранные заказы любой даты.
+  static const String pickingOrders = 'picking/orders';
+
+  ///**GET** - заказ сборки с подбором, коробами и открытыми пиками (P9-04, P9-06).
+  static String pickingOrder(String id) => 'picking/orders/$id';
+
+  ///**POST** - взять заказ в работу (P9-04).
+  static String pickingTake(String id) => 'picking/orders/$id/take';
+
+  ///**POST** - отказаться от заказа (P9-04).
+  static String pickingRelease(String id) => 'picking/orders/$id/release';
+
+  ///**POST** - завести короб отгрузки `{load_unit_id}` (P9-04).
+  static String pickingBoxes(String id) => 'picking/orders/$id/boxes';
+
+  ///**POST** - отметка «не хватает» по строке `{shortage}` (P9-04).
+  static String pickingShortage(String id, String lineId) =>
+      'picking/orders/$id/lines/$lineId/shortage';
+
   ///**GET** - «Проблемы склада» для офиса (P6-07-3, admin): открытые сверху.
   static const String problems = 'problems';
 
