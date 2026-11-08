@@ -20,10 +20,13 @@ type pickingTaskRepo interface {
 	OpenOrders(ctx context.Context, userID string, staleAfter time.Duration) ([]model.PickingOrderListItem, error)
 	TakeOrder(ctx context.Context, orderID, userID string, staleAfter time.Duration) error
 	ReleaseOrder(ctx context.Context, orderID, userID string) error
+	ShippedOrders(ctx context.Context, userID string, date time.Time) ([]model.PickingOrderListItem, error)
 	AddBox(ctx context.Context, orderID, userID, loadUnitID string) (int, error)
+	DropBox(ctx context.Context, orderID, userID, loadUnitID string) error
 	MarkShortage(ctx context.Context, orderID, lineID, userID string, shortage bool) (model.PickingShortageResult, error)
 	CompleteOrder(ctx context.Context, orderID, userID string) (model.PickingShipment, error)
 	Shipment(ctx context.Context, orderID string) (model.PickingShipment, error)
+	ReturnView(ctx context.Context, orderID string) (model.PickingReturnView, error)
 	PrintLabels(ctx context.Context, orderID string, boxIDs []string, canReprint bool) (model.PickingShipment, error)
 	ShipOrder(ctx context.Context, orderID, userID string, boxIDs []string) (model.PickingShipment, error)
 }

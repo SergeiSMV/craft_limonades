@@ -93,6 +93,8 @@ class _OrderViewState extends State<_OrderView>
         goBack();
       case OrderNoticeBoxAdded(:final seq):
         snack(p.boxAdded(seq: seq));
+      case OrderNoticeBoxDropped(:final seq):
+        snack(p.boxDropped(seq: seq));
       case OrderNoticeDone(:final unpick, :final queued):
         snack(switch ((unpick, queued)) {
           (false, false) => p.picked,
@@ -136,6 +138,24 @@ class _OrderViewState extends State<_OrderView>
       no: t.picking.releaseNo,
     );
     if (ok && mounted) await cubit.release();
+    refocusScan();
+  }
+
+  /// Долгое нажатие на короб: убрать пустой, заведённый по ошибке, - с подтверждением. Короб с
+  /// товаром (и своими пиками в очереди) не убирается: сначала вернуть пики.
+  Future<void> dropBox(PickingOrderView view, PickingBox box) async {
+    if (view.picksIn(box.loadUnitId).isNotEmpty) {
+      snack(t.picking.boxNotEmpty(seq: box.seq));
+      return;
+    }
+    final ok = await confirmPicking(
+      context,
+      title: t.picking.dropBoxTitle(seq: box.seq),
+      body: t.picking.dropBoxBody,
+      yes: t.picking.dropBoxYes,
+      no: t.picking.dropBoxNo,
+    );
+    if (ok && mounted) await cubit.dropBox(box);
     refocusScan();
   }
 
@@ -205,6 +225,7 @@ class _OrderViewState extends State<_OrderView>
                     ? t.picking.title
                     : docNumber(DocKind.picking, number),
                 goBack: goBack,
+                trailing: _menu(state),
               ),
             ),
             body: SafeArea(top: false, child: _body(state)),
@@ -284,13 +305,19 @@ class _OrderViewState extends State<_OrderView>
                     runSpacing: 8,
                     children: [
                       for (final b in order.boxes)
-                        NeumorphicChoice(
-                          label: t.picking.boxLabel(
-                            seq: b.seq,
-                            count: view.picksIn(b.loadUnitId).length,
+                        // Долгое нажатие - убрать короб, заведённый по ошибке (без связи - нет).
+                        GestureDetector(
+                          onLongPress: view.fromCache || state.busy
+                              ? null
+                              : () => dropBox(view, b),
+                          child: NeumorphicChoice(
+                            label: t.picking.boxLabel(
+                              seq: b.seq,
+                              count: view.picksIn(b.loadUnitId).length,
+                            ),
+                            selected: b.loadUnitId == view.currentBoxId,
+                            onPressed: () => cubit.selectBox(b.loadUnitId),
                           ),
-                          selected: b.loadUnitId == view.currentBoxId,
-                          onPressed: () => cubit.selectBox(b.loadUnitId),
                         ),
                     ],
                   ),
@@ -302,7 +329,14 @@ class _OrderViewState extends State<_OrderView>
                   child: NeumorphicLineTile(
                     title: l.goodName,
                     subtitle: lineLines(view, l).join('\n'),
-                    trailing: view.done(l) ? t.picking.doneMark : null,
+                    // «Не хватает» - отметкой цветом, чтобы строка выделялась в списке.
+                    note: l.shortage ? t.picking.shortageMark : null,
+                    noteColor: AppColors.kBadgeCriticalText,
+                    trailing: view.done(l)
+                        ? t.picking.doneMark
+                        : l.shortage
+                        ? t.picking.shortageTrailing
+                        : null,
                     onTap: () => openLine(view, l),
                   ),
                 ),
@@ -320,28 +354,32 @@ class _OrderViewState extends State<_OrderView>
                   icon: MdiIcons.handBackRightOutline,
                   onPressed: state.busy ? () {} : cubit.take,
                 )
-              else ...[
-                // Завершить - только со связью: без неё сервер не знает всего взятого.
-                if (!view.fromCache)
-                  NeumorphicActionButton(
-                    label: t.picking.complete,
-                    icon: MdiIcons.packageVariantClosedCheck,
-                    onPressed: state.busy ? () {} : complete,
-                  ),
+              else
                 NeumorphicActionButton(
                   label: t.picking.newBox,
                   icon: MdiIcons.packageVariantPlus,
                   onPressed: state.busy ? () {} : cubit.addBox,
                 ),
-                NeumorphicActionButton(
-                  label: t.picking.release,
-                  icon: MdiIcons.close,
-                  onPressed: state.busy ? () {} : release,
-                ),
-              ],
             ],
           ),
         ),
+      ],
+    );
+  }
+
+  /// Меню шапки своего заказа: «Завершить сборку» и «Отказаться» - редкие действия, на экране
+  /// остаётся только «Новый короб».
+  Widget? _menu(PickingOrderState state) {
+    final view = state.view;
+    if (view == null || !view.order.mine) return null;
+    return PopupMenuButton<void>(
+      enabled: !state.busy,
+      icon: const Icon(Icons.more_vert, color: AppColors.kNeumorphicBg),
+      itemBuilder: (context) => [
+        // Завершить - только со связью: без неё сервер не знает всего взятого.
+        if (!view.fromCache)
+          PopupMenuItem<void>(onTap: complete, child: Text(t.picking.complete)),
+        PopupMenuItem<void>(onTap: release, child: Text(t.picking.release)),
       ],
     );
   }

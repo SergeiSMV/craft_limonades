@@ -109,6 +109,34 @@ func TestPickingTSD_flow(t *testing.T) {
 		t.Fatalf("короба в заказе: %+v, %v", task.Order.Boxes, err)
 	}
 
+	// Убрать пустой короб, заведённый по ошибке: остальные нумеруются заново, повтор — успех,
+	// чужой ярлык — нет такого короба, чужой исполнитель — отказ.
+	box3 := "44444444-4444-4444-8444-444444444444"
+	if seq, err := svc.AddBox(ctx, o1, ann, box3); err != nil || seq != 3 {
+		t.Fatalf("короб 3: %d, %v", seq, err)
+	}
+	if err := svc.DropBox(ctx, o1, bob, box3); !errors.Is(err, model.ErrPickingOrderNotYours) {
+		t.Fatalf("убрать короб в чужом заказе: %v", err)
+	}
+	if err := svc.DropBox(ctx, o1, ann, box1); err != nil {
+		t.Fatalf("убрать короб 1: %v", err)
+	}
+	if err := svc.DropBox(ctx, o1, ann, box1); err != nil {
+		t.Fatalf("повтор: %v", err)
+	}
+	if err := svc.DropBox(ctx, o1, ann, storage); !errors.Is(err, model.ErrPickingBoxNotInOrder) {
+		t.Fatalf("короб не из заказа: %v", err)
+	}
+	task, err = svc.Task(ctx, o1)
+	if err != nil || len(task.Order.Boxes) != 2 || task.Order.Boxes[0].LoadUnitID != box2 ||
+		task.Order.Boxes[0].Seq != 1 || task.Order.Boxes[1].Seq != 2 {
+		t.Fatalf("короба после удаления: %+v, %v", task.Order.Boxes, err)
+	}
+	// Ярлык убранного короба снова в деле — следующим номером.
+	if seq, err := svc.AddBox(ctx, o1, ann, box1); err != nil || seq != 3 {
+		t.Fatalf("короб 1 снова: %d, %v", seq, err)
+	}
+
 	// «Не хватает»: пересчёт товара в A-1 (там остаток) и R-1 (ячейка реестра), основание — заказ.
 	res, err := svc.MarkShortage(ctx, o1, line, ann, true)
 	if err != nil || !res.Created || res.StocktakeNumber == nil {

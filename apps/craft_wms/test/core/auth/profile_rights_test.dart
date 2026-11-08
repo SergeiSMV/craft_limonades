@@ -58,9 +58,9 @@ void main() {
     expect(worker.can(Rights.portal), isFalse);
   });
 
-  test('дерево: 42 действия без повторов, как на сервере', () {
+  test('дерево: 43 действия без повторов, как на сервере', () {
     final codes = allCodes();
-    expect(codes.length, 42);
-    expect(codes.toSet().length, 42);
+    expect(codes.length, 43);
+    expect(codes.toSet().length, 43);
   });
 }

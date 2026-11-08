@@ -24,6 +24,10 @@ abstract class PickingShipment with _$PickingShipment {
     @JsonKey(name: 'is_partial') @Default(false) bool isPartial,
     @Default(false) bool deleted,
     @QtyConverter() @Default(0) double qty,
+
+    /// Сколько ещё вернуть на места после правки реестра (P9-07-1): пока не ноль, отгрузка
+    /// закрыта.
+    @JsonKey(name: 'return_left') @QtyConverter() @Default(0) double returnLeft,
     @Default(<PickingShipmentBox>[]) List<PickingShipmentBox> boxes,
   }) = _PickingShipment;
 

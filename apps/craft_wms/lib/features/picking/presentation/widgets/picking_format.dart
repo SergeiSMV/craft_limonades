@@ -42,6 +42,9 @@ List<String> listItemLines(PickingListItem o) => [
   if (o.picked) ...[
     o.isPartial ? t.picking.statusPartial : t.picking.statusPicked,
     t.picking.boxes(count: o.boxes),
+  ] else if (o.status == PickingStatus.shipped) ...[
+    o.isPartial ? t.picking.statusShippedPartial : t.picking.statusShipped,
+    t.picking.boxes(count: o.boxes),
   ] else if (o.mine)
     t.picking.statusMine
   else if (o.busy)
@@ -81,7 +84,6 @@ List<String> lineLines(PickingOrderView view, PickingLine l) {
       if (sg.short > 0) p.short(qty: fmtQty(sg.short), uom: l.uom),
     ],
     if (l.czMarked) p.marked,
-    if (l.shortage) p.shortageMark,
   ];
 }
 

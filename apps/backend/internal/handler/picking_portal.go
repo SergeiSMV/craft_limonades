@@ -60,6 +60,7 @@ type pickingPortalOrderDTO struct {
 	PlanQty              int             `json:"plan_qty"`
 	FactQty              decimal.Decimal `json:"fact_qty"`
 	Boxes                int             `json:"boxes"`
+	ReturnLeft           decimal.Decimal `json:"return_left"` // вернуть на места (P9-07-1)
 }
 
 type pickingPortalFactDTO struct {
@@ -232,7 +233,7 @@ func pickingPortalOrderOut(o model.PickingPortalOrder) pickingPortalOrderDTO {
 		IsPartial: o.IsPartial, HasUnknown: o.HasUnknown, Deleted: o.Deleted,
 		ChangedAfterShipment: o.ChangedAfterShipment, AssigneeName: o.AssigneeName, TakenAt: o.TakenAt,
 		PickedByName: o.PickedByName, PickedAt: o.PickedAt, ShippedAt: o.ShippedAt,
-		Lines: o.Lines, PlanQty: o.PlanQty, FactQty: o.FactQty, Boxes: o.Boxes,
+		Lines: o.Lines, PlanQty: o.PlanQty, FactQty: o.FactQty, Boxes: o.Boxes, ReturnLeft: o.ReturnLeft,
 	}
 }
 

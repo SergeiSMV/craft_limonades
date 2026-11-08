@@ -7,6 +7,7 @@ import '../../../../core/auth/rights.dart';
 import '../../../../core/auth/session_rights.dart';
 import '../../../../core/constants/app_borders.dart';
 import '../../../../core/constants/app_boxes.dart';
+import '../../../../core/utils/qty_format.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_insets.dart';
 import '../../../../core/constants/app_sizes.dart';
@@ -140,6 +141,8 @@ class _ShipmentViewState extends State<_ShipmentView>
               ? p.boxAgain(seq: seq)
               : p.boxScanned(seq: seq),
         );
+      case ShipmentNoticeReturnLeft(:final qty):
+        snack(p.returnLeft(qty: fmtQty(qty)));
       case ShipmentNoticeShipped():
         snack(p.shipped);
         context.router.maybePop();
@@ -242,7 +245,11 @@ class _ShipmentViewState extends State<_ShipmentView>
                     : p.statusPicked,
                 style: muted,
               ),
-              if (!s.shipped)
+              if (!s.shipped && s.returnLeft > 0)
+                Text(p.returnLeft(qty: fmtQty(s.returnLeft)), style: muted),
+              if (!s.shipped && s.boxes.isEmpty)
+                Text(p.nothingToShip, style: muted)
+              else if (!s.shipped)
                 Text(
                   p.shipmentProgress(
                     done: state.scanned.length,
@@ -271,7 +278,21 @@ class _ShipmentViewState extends State<_ShipmentView>
             ],
           ),
         ),
-        if (!s.shipped && canPrint)
+        // Коробов нет - по всем позициям «не хватает»: заказ закрывается без отгрузки товара.
+        if (!s.shipped && s.boxes.isEmpty)
+          Padding(
+            padding: AppInsets.all16,
+            child: NeumorphicActionStack(
+              buttons: [
+                NeumorphicActionButton(
+                  label: p.closeEmpty,
+                  icon: MdiIcons.checkAll,
+                  onPressed: state.busy ? () {} : cubit.closeEmpty,
+                ),
+              ],
+            ),
+          )
+        else if (!s.shipped && canPrint)
           Padding(
             padding: AppInsets.all16,
             child: NeumorphicActionStack(

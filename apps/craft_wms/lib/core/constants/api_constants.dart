@@ -154,6 +154,7 @@ abstract final class ApiConst {
 
   ///**GET** - список «СБОРКА» на ТСД (P9-04): несобранные заказы любой даты.
   static const String pickingOrders = 'picking/orders';
+  static const String pickingShipped = 'picking/orders/shipped';
 
   ///**GET** - заказ сборки с подбором, коробами и открытыми пиками (P9-04, P9-06).
   static String pickingOrder(String id) => 'picking/orders/$id';
@@ -166,6 +167,8 @@ abstract final class ApiConst {
 
   ///**POST** - завести короб отгрузки `{load_unit_id}` (P9-04).
   static String pickingBoxes(String id) => 'picking/orders/$id/boxes';
+  static String pickingBox(String id, String boxId) =>
+      'picking/orders/$id/boxes/$boxId';
 
   ///**POST** - отметка «не хватает» по строке `{shortage}` (P9-04).
   static String pickingShortage(String id, String lineId) =>
@@ -182,6 +185,9 @@ abstract final class ApiConst {
 
   /// «Отгрузить»: ярлыки всех коробов отсканированы.
   static String pickingShip(String id) => 'picking/orders/$id/ship';
+
+  /// Что вернуть на места по заказу после правки реестра (P9-07-1).
+  static String pickingReturn(String id) => 'picking/orders/$id/return';
 
   ///**GET** - заказы «Сборка-отгрузка» на дату накладной для портала (P8-03): `?date=`.
   static const String pickingPortalOrders = 'picking/portal/orders';
@@ -244,6 +250,7 @@ abstract final class ApiConst {
 
   ///**GET** - пересчёт с ходом выполнения (P10-03): `stocktakes/{id}`.
   static String stocktakeById(String id) => 'stocktakes/$id';
+  static String stocktakeLines(String id) => 'stocktakes/$id/lines';
 
   ///**GET** - ячейки пересчёта, которые работник может считать (P10-03): `stocktakes/{id}/cells`.
   static String stocktakeCells(String id) => 'stocktakes/$id/cells';

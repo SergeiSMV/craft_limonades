@@ -42,8 +42,10 @@ func addPickingEvent(ctx context.Context, q Querier, orderID, userID string, ev 
 //
 // Что под блокировкой заказа (только у своего исполнителя):
 //   - строки: «в сборке» сверх плана — отказ (лишнее кладовщик возвращает пиком), взято меньше
-//     плана без «не хватает» — отказ; ничего не взято — отказ. Перенесённое сверх плана после
-//     правки реестра не мешает: его возвращает задание «вернуть на места» (P9-07-1);
+//     плана без «не хватает» — отказ; ничего не взято — отказ, кроме заказа, где «не хватает»
+//     по всем позициям: он собран частично без коробов. Перенесённое сверх плана после
+//     правки реестра не мешает: его возвращает задание «вернуть на места» (P9-07-1), а
+//     отгрузку до возврата не пустит ShipOrder;
 //   - пустые короба убираются, живые перенумеровываются 1…M по прежнему порядку; если состав
 //     коробов изменился с прошлого завершения (дособор), счётчик печати ярлыков сбрасывается —
 //     старые ярлыки «N из M» неверны, новые печатаются без права повтора;
@@ -68,7 +70,9 @@ func (r *PickingRepository) CompleteOrder(ctx context.Context, orderID, userID s
 		if err != nil {
 			return err
 		}
-		if boxes == 0 {
+		// Без коробов завершается только заказ, где по каждой позиции «не хватает»: он собран
+		// частично ни с чем, и отгрузка закроет его без коробов. Иначе завершать нечего.
+		if boxes == 0 && !partial {
 			return model.ErrPickingNothingTaken
 		}
 		var warehouseID string
@@ -167,44 +171,18 @@ func checkCompleteLines(ctx context.Context, q Querier, orderID string) (bool, e
 
 // renumberBoxes убирает пустые короба заказа и нумерует живые 1…M; возвращает M.
 //
-// Пустой — без открытых и перенесённых пиков. Номер переписывается в два шага (сначала вне
-// диапазона): уникальность номера у живых коробов проверяется на каждой строке. Счётчик печати
-// сбрасывается, если M или чей-то номер изменился с прошлого завершения: ярлык «N из M» устарел.
+// Счётчик печати сбрасывается, если M или чей-то номер изменился с прошлого завершения: ярлык
+// «N из M» устарел.
 func renumberBoxes(ctx context.Context, q Querier, orderID string) (int, error) {
-	if _, err := q.Exec(ctx, `
-		UPDATE picking_boxes b SET dropped_at = now()
-		WHERE b.order_id = $1::uuid AND b.dropped_at IS NULL
-		  AND NOT EXISTS (SELECT 1 FROM picking_picks p WHERE p.box_id = b.load_unit_id AND p.state <> 'returned')`,
-		orderID); err != nil {
-		return 0, fmt.Errorf("пустые короба отгрузки: %w", err)
+	if _, err := dropEmptyBoxes(ctx, q, orderID); err != nil {
+		return 0, err
 	}
-	var boxes int
-	var renumbered bool
-	if err := q.QueryRow(ctx, `
-		WITH n AS (
-			SELECT load_unit_id, seq, row_number() OVER (ORDER BY seq)::int AS new_seq
-			FROM picking_boxes WHERE order_id = $1::uuid AND dropped_at IS NULL
-		)
-		SELECT count(*)::int, coalesce(bool_or(seq <> new_seq), false) FROM n`, orderID).
-		Scan(&boxes, &renumbered); err != nil {
-		return 0, fmt.Errorf("номера коробов отгрузки: %w", err)
-	}
-	if renumbered {
-		if _, err := q.Exec(ctx, `
-			UPDATE picking_boxes SET seq = seq + 1000000
-			WHERE order_id = $1::uuid AND dropped_at IS NULL`, orderID); err != nil {
-			return 0, fmt.Errorf("номера коробов отгрузки: %w", err)
-		}
-		if _, err := q.Exec(ctx, `
-			UPDATE picking_boxes b SET seq = n.new_seq
-			FROM (SELECT load_unit_id, row_number() OVER (ORDER BY seq)::int AS new_seq
-			      FROM picking_boxes WHERE order_id = $1::uuid AND dropped_at IS NULL) n
-			WHERE b.load_unit_id = n.load_unit_id`, orderID); err != nil {
-			return 0, fmt.Errorf("номера коробов отгрузки: %w", err)
-		}
+	boxes, renumbered, err := renumberLiveBoxes(ctx, q, orderID)
+	if err != nil {
+		return 0, err
 	}
 	var prev *int
-	err := q.QueryRow(ctx, `
+	err = q.QueryRow(ctx, `
 		SELECT boxes FROM picking_order_events
 		WHERE order_id = $1::uuid AND kind = 'completed' ORDER BY seq DESC LIMIT 1`, orderID).Scan(&prev)
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
@@ -217,6 +195,66 @@ func renumberBoxes(ctx context.Context, q Querier, orderID string) (int, error) 
 		}
 	}
 	return boxes, nil
+}
+
+// dropEmptyBoxes убирает пустые короба заказа — без открытых и перенесённых пиков; возвращает,
+// сколько убрано. Короб, стоявший в `ОТГРУЗКЕ` (опустел возвратом на места, P9-07-1), снимается
+// с места: в ячейке отгрузки его больше нет.
+func dropEmptyBoxes(ctx context.Context, q Querier, orderID string) (int, error) {
+	rows, err := q.Query(ctx, `
+		UPDATE picking_boxes b SET dropped_at = now()
+		WHERE b.order_id = $1::uuid AND b.dropped_at IS NULL
+		  AND NOT EXISTS (SELECT 1 FROM picking_picks p WHERE p.box_id = b.load_unit_id AND p.state <> 'returned')
+		RETURNING b.load_unit_id::text`, orderID)
+	if err != nil {
+		return 0, fmt.Errorf("пустые короба отгрузки: %w", err)
+	}
+	ids, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	if err != nil {
+		return 0, fmt.Errorf("пустые короба отгрузки: %w", err)
+	}
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	if _, err := q.Exec(ctx, `
+		UPDATE load_units SET status = 'closed', cell_id = NULL, updated_at = now()
+		WHERE id = ANY($1::uuid[]) AND cell_id IS NOT NULL`, ids); err != nil {
+		return 0, fmt.Errorf("снять пустой короб с места: %w", err)
+	}
+	return len(ids), nil
+}
+
+// renumberLiveBoxes нумерует живые короба заказа 1…M по прежнему порядку; возвращает M и
+// изменился ли чей-то номер. Номер переписывается в два шага (сначала вне диапазона):
+// уникальность номера у живых коробов проверяется на каждой строке.
+func renumberLiveBoxes(ctx context.Context, q Querier, orderID string) (int, bool, error) {
+	var boxes int
+	var renumbered bool
+	if err := q.QueryRow(ctx, `
+		WITH n AS (
+			SELECT load_unit_id, seq, row_number() OVER (ORDER BY seq)::int AS new_seq
+			FROM picking_boxes WHERE order_id = $1::uuid AND dropped_at IS NULL
+		)
+		SELECT count(*)::int, coalesce(bool_or(seq <> new_seq), false) FROM n`, orderID).
+		Scan(&boxes, &renumbered); err != nil {
+		return 0, false, fmt.Errorf("номера коробов отгрузки: %w", err)
+	}
+	if !renumbered {
+		return boxes, false, nil
+	}
+	if _, err := q.Exec(ctx, `
+		UPDATE picking_boxes SET seq = seq + 1000000
+		WHERE order_id = $1::uuid AND dropped_at IS NULL`, orderID); err != nil {
+		return 0, false, fmt.Errorf("номера коробов отгрузки: %w", err)
+	}
+	if _, err := q.Exec(ctx, `
+		UPDATE picking_boxes b SET seq = n.new_seq
+		FROM (SELECT load_unit_id, row_number() OVER (ORDER BY seq)::int AS new_seq
+		      FROM picking_boxes WHERE order_id = $1::uuid AND dropped_at IS NULL) n
+		WHERE b.load_unit_id = n.load_unit_id`, orderID); err != nil {
+		return 0, false, fmt.Errorf("номера коробов отгрузки: %w", err)
+	}
+	return boxes, true, nil
 }
 
 // openPick — открытый пик под блокировкой: что, откуда, куда.
@@ -370,7 +408,15 @@ func (r *PickingRepository) Shipment(ctx context.Context, orderID string) (model
 		s.Qty = s.Qty.Add(b.Qty)
 		s.Boxes = append(s.Boxes, b)
 	}
-	return s, rows.Err()
+	if err := rows.Err(); err != nil {
+		return s, err
+	}
+	lines, err := returnLines(ctx, r.pool, orderID)
+	if err != nil {
+		return s, err
+	}
+	s.ReturnLeft = returnTotal(lines)
+	return s, nil
 }
 
 // PrintLabels отмечает печать ярлыков коробов собранного заказа (P9-07) и возвращает заказ для
@@ -417,6 +463,7 @@ func (r *PickingRepository) PrintLabels(ctx context.Context, orderID string, box
 // и их товар уходят со склада.
 //
 // Набор boxIDs обязан совпасть с живыми коробами заказа: не все или чужой — ErrPickingShipBoxes.
+// Есть что вернуть на места после правки реестра — ErrPickingReturnPending (P9-07-1).
 // Остаток уходит из `ОТГРУЗКИ` той же строкой склада, что лёг туда при завершении (по
 // перенесённым пикам); состав коробов обнуляется, короба — shipped без места, марки — shipped.
 // Отгруженный повторно — не ошибка (ответ мог не дойти).
@@ -433,6 +480,14 @@ func (r *PickingRepository) ShipOrder(ctx context.Context, orderID, userID strin
 		case st.status != model.PickingStatusPicked:
 			return model.ErrPickingNotPicked
 		}
+		// Лишнее сверх нового плана уехало бы клиенту и списалось со склада (P9-07-1).
+		lines, err := returnLines(ctx, q, orderID)
+		if err != nil {
+			return err
+		}
+		if returnTotal(lines).IsPositive() {
+			return model.ErrPickingReturnPending
+		}
 		var total, matched int
 		if err := q.QueryRow(ctx, `
 			SELECT count(*)::int, count(*) FILTER (WHERE load_unit_id = ANY($2::uuid[]))::int
@@ -440,7 +495,8 @@ func (r *PickingRepository) ShipOrder(ctx context.Context, orderID, userID strin
 			orderID, boxIDs).Scan(&total, &matched); err != nil {
 			return fmt.Errorf("короба отгрузки: %w", err)
 		}
-		if total == 0 || matched != total || len(uniqueStrings(boxIDs)) != total {
+		// Коробов нет (по всем позициям «не хватает») - отгрузка пустым набором закрывает заказ.
+		if matched != total || len(uniqueStrings(boxIDs)) != total {
 			return model.ErrPickingShipBoxes
 		}
 

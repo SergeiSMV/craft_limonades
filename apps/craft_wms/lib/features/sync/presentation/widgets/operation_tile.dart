@@ -94,6 +94,9 @@ class _OperationTileState extends State<OperationTile> {
         qty: '${operation.payload['qty'] ?? ''}',
       ),
       OutboxKind.pickingUnpick => t.syncQueue.opPickingUnpick,
+      OutboxKind.pickingReturn => t.syncQueue.opPickingReturn(
+        qty: '${operation.payload['qty'] ?? ''}',
+      ),
     };
     return Card(
       margin: AppInsets.bottom8,

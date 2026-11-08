@@ -42,6 +42,12 @@ final class ShipmentNoticeScanned extends ShipmentNotice {
   final bool again;
 }
 
+/// Отгрузка закрыта: сначала вернуть на места [qty] (P9-07-1).
+final class ShipmentNoticeReturnLeft extends ShipmentNotice {
+  const ShipmentNoticeReturnLeft(this.qty);
+  final double qty;
+}
+
 /// Заказ отгружен - экран закрывается.
 final class ShipmentNoticeShipped extends ShipmentNotice {
   const ShipmentNoticeShipped();
@@ -166,6 +172,10 @@ class PickingShipmentCubit extends Cubit<PickingShipmentState> {
   Future<void> scan(String raw) async {
     final s = state.shipment;
     if (s == null || s.shipped || state.busy) return;
+    if (s.returnLeft > 0) {
+      emit(state.copyWith(notice: ShipmentNoticeReturnLeft(s.returnLeft)));
+      return;
+    }
     final id = loadUnitIdFrom(raw);
     final box = s.boxes.where((b) => b.loadUnitId == id).firstOrNull;
     if (box == null) {
@@ -181,6 +191,13 @@ class PickingShipmentCubit extends Cubit<PickingShipmentState> {
       state.copyWith(scanned: scanned, notice: ShipmentNoticeScanned(box.seq)),
     );
     if (scanned.length == s.boxes.length) await _ship(scanned);
+  }
+
+  /// Закрыть заказ без коробов: по всем позициям «не хватает», отгружать нечего.
+  Future<void> closeEmpty() async {
+    final s = state.shipment;
+    if (s == null || s.shipped || s.boxes.isNotEmpty || state.busy) return;
+    await _ship(const {});
   }
 
   Future<void> _ship(Set<String> boxIds) async {

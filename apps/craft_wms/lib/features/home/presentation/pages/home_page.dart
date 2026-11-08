@@ -23,6 +23,7 @@ import '../../../../core/theme/regular_text.dart';
 import '../../../../core/widgets/pending_pass_badge.dart';
 import '../../../../core/widgets/system_ui_wrapper.dart';
 import '../../../tasks/presentation/widgets/common/current_tasks_count_builder.dart';
+import '../../../picking/presentation/widgets/picking_count_builder.dart';
 import '../widgets/menu_tile.dart';
 import '../../../movement/data/movement_repository_impl.dart';
 import '../../../receipt/data/receipt_draft_store.dart';
@@ -310,6 +311,7 @@ class HomePage extends StatelessWidget {
                       if (can(Rights.tsdPutaway, [
                         Rights.tsdStocktakeCount,
                         Rights.tsdStocktakeManage,
+                        Rights.tsdPickingReturn,
                       ]))
                       CurrentTasksCountBuilder(
                         builder: (context, count) => MenuTile(
@@ -341,13 +343,17 @@ class HomePage extends StatelessWidget {
                         ),
                       ),
                       // Своя иконка плитки - когда её выберет пользователь.
+                      // Бейдж - заказы, которые можно собирать: свои и свободные.
                       if (can(Rights.tsdPicking))
-                      MenuTile(
-                        title: t.homeScreen.tiles.pickingTitle,
-                        subtitle: t.homeScreen.tiles.pickingSubtitle,
-                        imageIcon: Assets.icons.menuIcons.tasks,
-                        color: AppColors.kTilePicking,
-                        onTap: () => openPicking(context),
+                      PickingCountBuilder(
+                        builder: (context, count) => MenuTile(
+                          title: t.homeScreen.tiles.pickingTitle,
+                          subtitle: t.homeScreen.tiles.pickingSubtitle,
+                          imageIcon: Assets.icons.menuIcons.tasks,
+                          color: AppColors.kTilePicking,
+                          badgeCount: count,
+                          onTap: () => openPicking(context),
+                        ),
                       ),
                       if (can(Rights.tsdProblemsView, [Rights.tsdProblemsMark]))
                       MenuTile(

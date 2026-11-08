@@ -67,6 +67,44 @@ func (r *StocktakeRepository) Get(ctx context.Context, id, userID string, staleA
 	return st, nil
 }
 
+// Lines — строки пересчёта для портала (окно «Ход»): по ячейкам — что ожидалось по снимку и что
+// посчитано. Подсчитанная ячейка без строк — по учёту там ничего не было и ничего не нашли.
+func (r *StocktakeRepository) Lines(ctx context.Context, id string) ([]model.StocktakeLine, error) {
+	var exists bool
+	if err := r.pool.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM stocktakes WHERE id = $1::uuid)`, id).
+		Scan(&exists); err != nil {
+		return nil, fmt.Errorf("пересчёт: %w", err)
+	}
+	if !exists {
+		return nil, model.ErrStocktakeNotFound
+	}
+	rows, err := r.pool.Query(ctx, `
+		SELECT c.address, sc.status, coalesce(sl.load_unit_id::text, ''),
+		       coalesce(g.code, ''), coalesce(g.name, ''), coalesce(g.uom, ''), b.production_date,
+		       sl.expected_qty, sl.fact_qty, sl.problem_id IS NOT NULL
+		FROM stocktake_lines sl
+		JOIN stocktake_cells sc ON sc.id = sl.stocktake_cell_id
+		JOIN cells c ON c.id = sc.cell_id
+		LEFT JOIN goods g ON g.id = sl.good_id
+		LEFT JOIN batches b ON b.id = sl.batch_id
+		WHERE sc.stocktake_id = $1::uuid
+		ORDER BY c.address, g.name NULLS FIRST, b.production_date`, id)
+	if err != nil {
+		return nil, fmt.Errorf("строки пересчёта: %w", err)
+	}
+	defer rows.Close()
+	var out []model.StocktakeLine
+	for rows.Next() {
+		var l model.StocktakeLine
+		if err := rows.Scan(&l.CellAddress, &l.CellStatus, &l.LoadUnitID, &l.GoodCode, &l.GoodName, &l.Uom,
+			&l.ProductionDate, &l.Expected, &l.Fact, &l.Problem); err != nil {
+			return nil, fmt.Errorf("строка пересчёта: %w", err)
+		}
+		out = append(out, l)
+	}
+	return out, rows.Err()
+}
+
 // Cells возвращает ячейки пересчёта, которые работник может считать: свободные (и зависшие
 // чужие) и свои — взятые, на подсчёте, сбитые. Подсчитанные и чужие в работе не показываются:
 // к ним не пойдут.

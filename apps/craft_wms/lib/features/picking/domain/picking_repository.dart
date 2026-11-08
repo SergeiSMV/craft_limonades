@@ -1,4 +1,5 @@
 import 'package:either_dart/either.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../../core/error/failure.dart';
 import 'picking_models.dart';
@@ -46,6 +47,16 @@ abstract interface class PickingRepository {
   /// Список «СБОРКА»: несобранные заказы, чужие - занятыми.
   Future<Either<Failure, List<PickingListItem>>> orders();
 
+  /// Сколько заказов можно собирать: свои в работе и свободные. Обновляется с каждым удачным
+  /// [orders] - бейдж плитки «СБОРКА» видит то же, что список; без связи - свои на терминале.
+  ValueListenable<int> get activeCount;
+
+  /// Перечитать [activeCount]: список с сервера, без связи - свои заказы на терминале.
+  Future<void> refreshActiveCount();
+
+  /// Отгруженные заказы с датой накладной [date] - раздел «Завершённые».
+  Future<Either<Failure, List<PickingListItem>>> shipped(DateTime date);
+
   /// Свои заказы со слепком на терминале - продолжить без связи.
   Future<List<PickingOrderView>> onTerminal();
 
@@ -53,8 +64,10 @@ abstract interface class PickingRepository {
   /// не удалось и слепка нет, либо сервер отказал (удалён в 1С, собран).
   Future<Either<Failure, PickingOrderView>> order(String id);
 
-  /// Заказ из слепка терминала, без сети: после своего пика или возврата.
-  Future<PickingOrderView?> cached(String id);
+  /// Заказ из слепка терминала, без сети: после своего пика или возврата. [offline] - пометка
+  /// «нет связи» на экране: слепок перечитали, потому что сервер не ответил. После удачного
+  /// запроса (короб, «не хватает») связь есть, и пометки нет.
+  Future<PickingOrderView?> cached(String id, {bool offline = true});
 
   /// Взять заказ в работу.
   Future<Either<Failure, void>> take(String id);
@@ -68,6 +81,10 @@ abstract interface class PickingRepository {
 
   /// Выбрать короб отгрузки, в который идёт пик.
   Future<void> selectBox(String orderId, String boxId);
+
+  /// Убрать пустой короб [boxId], заведённый по ошибке - со связью. Номера остальных меняет
+  /// сервер: заказ после этого перечитывается.
+  Future<Either<Failure, void>> dropBox(String orderId, String boxId);
 
   /// Пик операцией очереди. `Right` - сервер принял; `Left(RejectedFailure)` - отказ по
   /// существу, пик снят; другой `Left` - связи нет, пик в очереди и уйдёт сам.

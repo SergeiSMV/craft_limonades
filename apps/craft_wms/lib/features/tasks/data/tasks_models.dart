@@ -16,8 +16,30 @@ abstract final class TaskKind {
   /// Пересчёт (P10-04): задание общее, работники берут из него ячейки.
   static const stocktake = 'stocktake';
 
+  /// Вернуть на места товар заказа сборки после правки реестра (P9-07-1).
+  static const pickingReturn = 'picking_return';
+
   /// Все виды — варианты фильтра ленты «Завершённые».
-  static const all = [putaway, supplierReturn, stocktake];
+  static const all = [putaway, supplierReturn, stocktake, pickingReturn];
+}
+
+/// Заказ сборки задания «вернуть на места» (P9-07-1): номер сборки, накладная и заказ 1С,
+/// основание — удалён ли заказ или когда его изменил реестр, сколько осталось вернуть.
+@freezed
+abstract class TaskPicking with _$TaskPicking {
+  const factory TaskPicking({
+    @JsonKey(name: 'order_id') required String orderId,
+    required int number,
+    @JsonKey(name: 'invoice_number') @Default('') String invoiceNumber,
+    @JsonKey(name: 'order_number') @Default('') String orderNumber,
+    @Default('') String client,
+    @Default(false) bool deleted,
+    @JsonKey(name: 'changed_at') DateTime? changedAt,
+    @Default('0') String left,
+  }) = _TaskPicking;
+
+  factory TaskPicking.fromJson(Map<String, dynamic> json) =>
+      _$TaskPickingFromJson(json);
 }
 
 /// Пересчёт задания — номер, вид области и ход: сколько ячеек всего и сколько подсчитано.
@@ -141,6 +163,9 @@ abstract class WarehouseTask with _$WarehouseTask {
     /// Пересчёт задания вида `stocktake` (P10-04); `null` — у других видов.
     @JsonKey(name: 'stocktake_id') String? stocktakeId,
     TaskStocktake? stocktake,
+
+    /// Заказ сборки задания «вернуть на места» (P9-07-1); `null` — у других видов.
+    TaskPicking? picking,
     @Default(<TaskItem>[]) List<TaskItem> items,
   }) = _WarehouseTask;
 
@@ -192,6 +217,9 @@ abstract class CompletedTask with _$CompletedTask {
     /// Пересчёт задания вида `stocktake` (ADHOC-58); у пересчёта [sessions] — подсчитанные
     /// ячейки, [executors] — кто считал.
     TaskStocktake? stocktake,
+
+    /// Заказ сборки задания «вернуть на места» (P9-07-1).
+    TaskPicking? picking,
   }) = _CompletedTask;
 
   const CompletedTask._();

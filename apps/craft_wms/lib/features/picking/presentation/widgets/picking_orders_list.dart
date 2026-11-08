@@ -43,7 +43,7 @@ class PickingOrdersList extends StatelessWidget {
     return RefreshIndicator(
       onRefresh: onRetry,
       child: ListView(
-        padding: AppInsets.h8 + AppInsets.top16,
+        padding: AppInsets.h8,
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
           if (!loaded) ...[

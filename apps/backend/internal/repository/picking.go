@@ -185,7 +185,14 @@ func applyPickingPlan(ctx context.Context, q Querier, in model.PickingLoadInput,
 			WHERE id = $1`, p.ExistingID); err != nil {
 			return fmt.Errorf("удаление заказа сборки: %w", err)
 		}
-		return insertPickingChanges(ctx, q, p.ExistingID, loadID, p.Status, p.Changes)
+		if err := insertPickingChanges(ctx, q, p.ExistingID, loadID, p.Status, p.Changes); err != nil {
+			return err
+		}
+		// Взятое удалённого заказа — на возврат (P9-07-1); у отгруженного товар уже уехал.
+		if p.Frozen {
+			return nil
+		}
+		return syncPickingReturnTask(ctx, q, p.ExistingID)
 
 	case model.PickingOrderUnchanged:
 		// Шапка и ячейки могли поменяться и без правки строк: план берёт новые.
@@ -236,7 +243,15 @@ func applyPickingPlan(ctx context.Context, q Querier, in model.PickingLoadInput,
 	if err := upsertPickingLines(ctx, q, p.ExistingID, p.Lines); err != nil {
 		return err
 	}
-	return insertPickingChanges(ctx, q, p.ExistingID, loadID, p.Status, p.Changes)
+	if err := insertPickingChanges(ctx, q, p.ExistingID, loadID, p.Status, p.Changes); err != nil {
+		return err
+	}
+	// Перенесённое сверх нового плана — на возврат; план снова вырос или заказ восстановлен —
+	// задание уменьшается или снимается (P9-07-1).
+	if p.Kind == model.PickingOrderNew {
+		return nil
+	}
+	return syncPickingReturnTask(ctx, q, p.ExistingID)
 }
 
 // upsertPickingLines обновляет строки, что уже есть у заказа, и заводит новые в конце порядка.

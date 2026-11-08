@@ -72,6 +72,7 @@ class CompletedTile extends StatelessWidget {
                       kind: task.kind,
                       problem: task.problem,
                       stocktake: task.stocktake,
+                      picking: task.picking,
                     ),
                     style: muted,
                     maxLines: 1,

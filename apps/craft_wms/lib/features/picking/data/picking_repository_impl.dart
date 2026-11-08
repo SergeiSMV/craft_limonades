@@ -1,4 +1,5 @@
 import 'package:either_dart/either.dart';
+import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 import 'package:uuid/uuid.dart';
 
@@ -40,7 +41,34 @@ class PickingRepositoryImpl implements PickingRepository {
   final LoadUnitIdGenerator _boxIds;
 
   @override
-  Future<Either<Failure, List<PickingListItem>>> orders() => _api.orders();
+  Future<Either<Failure, List<PickingListItem>>> orders() async {
+    final res = await _api.orders();
+    if (res.isRight) {
+      _activeCount.value = res.right
+          .where((o) => !o.picked && (o.mine || !o.busy))
+          .length;
+    }
+    return res;
+  }
+
+  final _activeCount = ValueNotifier<int>(0);
+
+  @override
+  ValueListenable<int> get activeCount => _activeCount;
+
+  @override
+  Future<void> refreshActiveCount() async {
+    final res = await orders();
+    if (res.isLeft) _activeCount.value = (await onTerminal()).length;
+  }
+
+  @override
+  Future<Either<Failure, List<PickingListItem>>> shipped(DateTime date) =>
+      _api.shipped(
+        '${date.year.toString().padLeft(4, '0')}-'
+        '${date.month.toString().padLeft(2, '0')}-'
+        '${date.day.toString().padLeft(2, '0')}',
+      );
 
   @override
   Future<List<PickingOrderView>> onTerminal() async {
@@ -78,9 +106,9 @@ class PickingRepositoryImpl implements PickingRepository {
   }
 
   @override
-  Future<PickingOrderView?> cached(String id) async {
+  Future<PickingOrderView?> cached(String id, {bool offline = true}) async {
     final d = await _store.load(id);
-    return d == null ? null : _view(d, fromCache: true);
+    return d == null ? null : _view(d, fromCache: offline);
   }
 
   @override
@@ -114,6 +142,23 @@ class PickingRepositoryImpl implements PickingRepository {
         d.copyWith(
           order: d.order.copyWith(boxes: boxes),
           currentBoxId: box.loadUnitId,
+        ),
+      );
+    }
+    return res;
+  }
+
+  @override
+  Future<Either<Failure, void>> dropBox(String orderId, String boxId) async {
+    final res = await _api.dropBox(orderId, boxId);
+    if (res.isLeft) return res;
+    final d = await _store.load(orderId);
+    if (d != null) {
+      await _store.save(
+        d.copyWith(
+          order: d.order.copyWith(
+            boxes: d.order.boxes.where((b) => b.loadUnitId != boxId).toList(),
+          ),
         ),
       );
     }

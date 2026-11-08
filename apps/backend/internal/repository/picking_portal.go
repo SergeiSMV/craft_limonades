@@ -58,7 +58,8 @@ func (r *PickingRepository) portalOrders(ctx context.Context, cond string, args 
 		       CASE WHEN o.status = 'in_progress' THEN coalesce(ua.full_name, '') ELSE '' END,
 		       CASE WHEN o.status = 'in_progress' THEN o.taken_at END,
 		       coalesce(up.full_name, ''), o.picked_at, o.shipped_at,
-		       coalesce(l.cnt, 0), coalesce(l.plan, 0), coalesce(f.qty, 0)::text, coalesce(b.cnt, 0)
+		       coalesce(l.cnt, 0), coalesce(l.plan, 0), coalesce(f.qty, 0)::text, coalesce(b.cnt, 0),
+		       coalesce(rt.qty, 0)::text
 		FROM picking_orders o
 		LEFT JOIN users ua ON ua.id = o.assignee_id
 		LEFT JOIN users up ON up.id = o.picked_by
@@ -70,6 +71,18 @@ func (r *PickingRepository) portalOrders(ctx context.Context, cond string, args 
 			SELECT sum(qty) AS qty FROM picking_picks WHERE order_id = o.id AND state <> 'returned'
 		) f ON true
 		LEFT JOIN LATERAL (SELECT count(*) AS cnt FROM picking_boxes WHERE order_id = o.id AND dropped_at IS NULL) b ON true
+		-- Вернуть на места (P9-07-1) — то же правило, что returnLines, одним запросом на все
+		-- заказы: перенесённое сверх плана, у удалённого — и «в сборке»; у отгруженного — ничего.
+		LEFT JOIN LATERAL (
+			SELECT sum(greatest(x.moved - x.plan, 0) + x.open) AS qty FROM (
+				SELECT CASE WHEN o.deleted_at IS NOT NULL OR ln.removed_at IS NOT NULL THEN 0 ELSE ln.plan_qty END AS plan,
+				       coalesce(sum(p.qty) FILTER (WHERE p.state = 'moved'), 0) AS moved,
+				       CASE WHEN o.deleted_at IS NOT NULL
+				            THEN coalesce(sum(p.qty) FILTER (WHERE p.state = 'picking'), 0) ELSE 0 END AS open
+				FROM picking_order_lines ln LEFT JOIN picking_picks p ON p.line_id = ln.id
+				WHERE ln.order_id = o.id GROUP BY ln.id
+			) x
+		) rt ON o.status <> 'shipped'
 		WHERE `+cond+`
 		ORDER BY o.deleted_at IS NOT NULL, o.number`, args...)
 	if err != nil {
@@ -79,15 +92,18 @@ func (r *PickingRepository) portalOrders(ctx context.Context, cond string, args 
 	var out []model.PickingPortalOrder
 	for rows.Next() {
 		var o model.PickingPortalOrder
-		var fact string
+		var fact, back string
 		if err := rows.Scan(&o.ID, &o.Number, &o.RegistryDate, &o.InvoiceNumber, &o.OrderNumber, &o.OrderDate,
 			&o.Direction, &o.Client, &o.Address, &o.Status, &o.IsPartial, &o.HasUnknown,
 			&o.Deleted, &o.ChangedAfterShipment, &o.AssigneeName, &o.TakenAt,
 			&o.PickedByName, &o.PickedAt, &o.ShippedAt,
-			&o.Lines, &o.PlanQty, &fact, &o.Boxes); err != nil {
+			&o.Lines, &o.PlanQty, &fact, &o.Boxes, &back); err != nil {
 			return nil, fmt.Errorf("заказ сборки для портала: %w", err)
 		}
 		if o.FactQty, err = parseQty(fact); err != nil {
+			return nil, err
+		}
+		if o.ReturnLeft, err = parseQty(back); err != nil {
 			return nil, err
 		}
 		out = append(out, o)

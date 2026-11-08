@@ -42,6 +42,12 @@ final class OrderNoticeBoxAdded extends OrderNotice {
 }
 
 /// Пик или возврат: [queued] - ушёл в очередь, связи нет.
+/// Пустой короб [seq] убран.
+final class OrderNoticeBoxDropped extends OrderNotice {
+  const OrderNoticeBoxDropped(this.seq);
+  final int seq;
+}
+
 final class OrderNoticeDone extends OrderNotice {
   const OrderNoticeDone({required this.unpick, required this.queued});
   final bool unpick;
@@ -146,8 +152,10 @@ class PickingOrderCubit extends Cubit<PickingOrderState> {
     }
   }
 
-  Future<void> _fromCache() async {
-    final v = await _repo.cached(orderId);
+  /// Перечитать слепок терминала. [offline] - сервер не ответил («нет связи» на экране); после
+  /// удачного запроса - `false`, выбор короба пометку не меняет.
+  Future<void> _fromCache({bool offline = true}) async {
+    final v = await _repo.cached(orderId, offline: offline);
     if (isClosed || v == null) return;
     emit(state.copyWith(view: v));
   }
@@ -182,12 +190,30 @@ class PickingOrderCubit extends Cubit<PickingOrderState> {
             : OrderNoticeFailed(res.left),
       ),
     );
-    if (res.isRight) await _fromCache();
+    if (res.isRight) await _fromCache(offline: false);
+  }
+
+  /// Убрать пустой короб, заведённый по ошибке, - со связью; затем заказ заново: номера
+  /// коробов сдвинулись.
+  Future<void> dropBox(PickingBox box) async {
+    if (state.busy) return;
+    emit(state.copyWith(busy: true));
+    final res = await _repo.dropBox(orderId, box.loadUnitId);
+    if (isClosed) return;
+    emit(
+      state.copyWith(
+        busy: false,
+        notice: res.isRight
+            ? OrderNoticeBoxDropped(box.seq)
+            : OrderNoticeFailed(res.left),
+      ),
+    );
+    if (res.isRight) await load();
   }
 
   Future<void> selectBox(String boxId) async {
     await _repo.selectBox(orderId, boxId);
-    await _fromCache();
+    await _fromCache(offline: state.view?.fromCache ?? false);
   }
 
   /// Пик операцией очереди: без связи - в очереди, отказ по существу - причина.
@@ -212,7 +238,7 @@ class PickingOrderCubit extends Cubit<PickingOrderState> {
             : OrderNoticeFailed(res.left),
       ),
     );
-    if (res.isRight) await _fromCache();
+    if (res.isRight) await _fromCache(offline: false);
   }
 
   Future<void> _queued(

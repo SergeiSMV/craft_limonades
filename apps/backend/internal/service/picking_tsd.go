@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"time"
 
 	"craftwms/internal/model"
 )
@@ -19,6 +20,11 @@ func (s *PickingTaskService) Orders(ctx context.Context, userID string) ([]model
 	return s.repo.OpenOrders(ctx, userID, PickingStaleAfter)
 }
 
+// ShippedOrders — отгруженные заказы за дату накладной (раздел «Завершённые»).
+func (s *PickingTaskService) ShippedOrders(ctx context.Context, userID string, date time.Time) ([]model.PickingOrderListItem, error) {
+	return s.repo.ShippedOrders(ctx, userID, date)
+}
+
 // Take — взять заказ в работу.
 func (s *PickingTaskService) Take(ctx context.Context, orderID, userID string) error {
 	if !isUUID(orderID) {
@@ -33,6 +39,17 @@ func (s *PickingTaskService) Release(ctx context.Context, orderID, userID string
 		return model.ErrPickingOrderNotFound
 	}
 	return s.repo.ReleaseOrder(ctx, orderID, userID)
+}
+
+// DropBox — убрать пустой короб отгрузки, заведённый по ошибке.
+func (s *PickingTaskService) DropBox(ctx context.Context, orderID, userID, loadUnitID string) error {
+	if !isUUID(orderID) {
+		return model.ErrPickingOrderNotFound
+	}
+	if !isUUID(loadUnitID) {
+		return model.ErrPickingBoxID
+	}
+	return s.repo.DropBox(ctx, orderID, userID, loadUnitID)
 }
 
 // AddBox — завести короб отгрузки с ярлыком loadUnitID (UUID выдаёт ТСД, как у коробов приёмки);
@@ -95,6 +112,15 @@ func (s *PickingTaskService) Ship(ctx context.Context, orderID, userID string, b
 		return model.PickingShipment{}, model.ErrPickingShipBoxes
 	}
 	return s.repo.ShipOrder(ctx, orderID, userID, boxIDs)
+}
+
+// ReturnView — что вернуть на места по заказу (P9-07-1): строки с остатком возврата и пики,
+// из которых возвращают.
+func (s *PickingTaskService) ReturnView(ctx context.Context, orderID string) (model.PickingReturnView, error) {
+	if !isUUID(orderID) {
+		return model.PickingReturnView{}, model.ErrPickingOrderNotFound
+	}
+	return s.repo.ReturnView(ctx, orderID)
 }
 
 // allUUID — все идентификаторы в формате UUID: иначе короб точно не из заказа.

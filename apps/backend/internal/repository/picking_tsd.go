@@ -19,6 +19,18 @@ const pickingShortageLockKey = 1041
 // (P9-07) — «собран» любой даты, не удалённые в 1С. Заказ в работе у другого виден занятым, зависший (staleAfter без движения) —
 // свободным. Порядок — дата накладной, затем номер сборки: сначала то, что отгружать раньше.
 func (r *PickingRepository) OpenOrders(ctx context.Context, userID string, staleAfter time.Duration) ([]model.PickingOrderListItem, error) {
+	return r.listOrders(ctx, `o.status IN ('new', 'in_progress', 'picked') AND o.deleted_at IS NULL`,
+		userID, intervalOf(staleAfter))
+}
+
+// ShippedOrders — отгруженные заказы с датой накладной date: раздел «Завершённые» на ТСД.
+func (r *PickingRepository) ShippedOrders(ctx context.Context, userID string, date time.Time) ([]model.PickingOrderListItem, error) {
+	return r.listOrders(ctx, `o.status = 'shipped' AND o.registry_date = $3::date`,
+		userID, intervalOf(0), date)
+}
+
+// listOrders — строки списка «СБОРКА» по условию where ($1 — кто смотрит, $2 — срок зависания).
+func (r *PickingRepository) listOrders(ctx context.Context, where string, args ...any) ([]model.PickingOrderListItem, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT o.id::text, o.number, o.registry_date, o.invoice_number, o.order_number,
 		       o.direction, o.client, o.address, o.status, o.has_unknown,
@@ -30,8 +42,8 @@ func (r *PickingRepository) OpenOrders(ctx context.Context, userID string, stale
 		       (SELECT count(*) FROM picking_boxes b WHERE b.order_id = o.id AND b.dropped_at IS NULL)
 		FROM picking_orders o
 		LEFT JOIN users u ON u.id = o.assignee_id
-		WHERE o.status IN ('new', 'in_progress', 'picked') AND o.deleted_at IS NULL
-		ORDER BY o.registry_date, o.number`, userID, intervalOf(staleAfter))
+		WHERE `+where+`
+		ORDER BY o.registry_date, o.number`, args...)
 	if err != nil {
 		return nil, fmt.Errorf("заказы сборки для ТСД: %w", err)
 	}
@@ -204,6 +216,52 @@ func (r *PickingRepository) AddBox(ctx context.Context, orderID, userID, loadUni
 		return 0, err
 	}
 	return seq, nil
+}
+
+// DropBox убирает пустой короб отгрузки, заведённый по ошибке: `dropped_at`, как при «Завершить
+// сборку» (удалить нельзя — на короб ссылаются возвращённые пики); живые нумеруются заново 1…M.
+// Только исполнитель и только короб без пиков (кроме возвращённых). Повтор по убранному — успех.
+func (r *PickingRepository) DropBox(ctx context.Context, orderID, userID, loadUnitID string) error {
+	return WithinTx(ctx, r.pool, func(q Querier) error {
+		if err := heldOrder(ctx, q, orderID, userID); err != nil {
+			return err
+		}
+		var dropped, busy bool
+		err := q.QueryRow(ctx, `
+			SELECT b.dropped_at IS NOT NULL,
+			       EXISTS (SELECT 1 FROM picking_picks p WHERE p.box_id = b.load_unit_id AND p.state <> 'returned')
+			FROM picking_boxes b WHERE b.load_unit_id = $1::uuid AND b.order_id = $2::uuid
+			FOR UPDATE OF b`, loadUnitID, orderID).Scan(&dropped, &busy)
+		switch {
+		case errors.Is(err, pgx.ErrNoRows):
+			return model.ErrPickingBoxNotInOrder
+		case err != nil:
+			return fmt.Errorf("короб отгрузки: %w", err)
+		case dropped:
+			return nil
+		case busy:
+			return model.ErrPickingBoxNotEmpty
+		}
+		if _, err := q.Exec(ctx, `
+			UPDATE picking_boxes SET dropped_at = now() WHERE load_unit_id = $1::uuid`, loadUnitID); err != nil {
+			return fmt.Errorf("короб отгрузки: %w", err)
+		}
+		if _, err := q.Exec(ctx, `
+			UPDATE load_units SET status = 'closed', cell_id = NULL WHERE id = $1::uuid`, loadUnitID); err != nil {
+			return fmt.Errorf("короб отгрузки: %w", err)
+		}
+		_, renumbered, err := renumberLiveBoxes(ctx, q, orderID)
+		if err != nil {
+			return err
+		}
+		if renumbered {
+			if _, err := q.Exec(ctx, `
+				UPDATE picking_boxes SET labels_printed = 0 WHERE order_id = $1::uuid`, orderID); err != nil {
+				return fmt.Errorf("счётчик ярлыков: %w", err)
+			}
+		}
+		return nil
+	})
 }
 
 // MarkShortage ставит или снимает у строки заказа отметку «не хватает».

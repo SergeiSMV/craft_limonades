@@ -64,6 +64,7 @@ String pickingEventText(PickingOrderEvent e) {
     ),
     'completed' => p.eventCompleted(name: e.userName, boxes: boxes, qty: qty),
     'reopened' => p.eventReopened(name: e.userName, prev: e.prevName),
+    'returned' => p.eventReturned(name: e.userName, qty: qty),
     _ => p.eventShipped(name: e.userName, boxes: boxes, qty: qty),
   };
 }
@@ -97,6 +98,11 @@ class PickingStatusBadges extends StatelessWidget {
           PortalBadge(p.badgeUnknown, tone: PortalBadgeTone.warning),
         if (o.deleted)
           PortalBadge(p.badgeDeleted, tone: PortalBadgeTone.critical),
+        if (o.returnLeft > 0)
+          PortalBadge(
+            p.badgeReturnLeft(qty: fmtQty(o.returnLeft)),
+            tone: PortalBadgeTone.warning,
+          ),
         if (o.changedAfterShipment)
           PortalBadge(
             p.badgeChangedAfterShipment,

@@ -130,6 +130,8 @@ abstract final class AppSizes {
   static const double kPortalPickListMaxHeight = 220;
   static const double kPortalDialogWidth =
       520; // диалог с таблицей или выбором (пересчёт, P10-05)
+  static const double kPortalDialogWideWidth =
+      900; // диалог с широкой таблицей: ход пересчёта со строками (P9-07-1)
   static const double kPortalTreeIndent =
       16; // отступ уровня дерева групп в выборе (P10-05)
   static const double kContentMaxWidth =

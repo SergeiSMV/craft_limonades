@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
@@ -223,6 +224,69 @@ func TestPickingEvents(t *testing.T) {
 		FROM picking_order_events e JOIN users u ON u.id = e.user_id LEFT JOIN users pu ON pu.id = e.prev_user_id
 		WHERE e.order_id = $1`, order)
 	if want := "taken:Анна,released:Анна,taken:Анна,taken_over:Борис<Анна,released_by_lead:Старший<Борис"; got != want {
+		t.Fatalf("журнал: %s", got)
+	}
+}
+
+// TestPickingCompleteAllShort — «не хватает» по всем позициям: ничего не взято, завершение без
+// отметки - отказ «завершать нечего»; с отметкой - заказ собран частично без коробов (пустой короб
+// убран), отгрузка пустым набором закрывает его, короб с ярлыком - отказ.
+func TestPickingCompleteAllShort(t *testing.T) {
+	pool := testutil.StartPostgres(t)
+	ctx := context.Background()
+	scan := func(sql string, args ...any) string {
+		t.Helper()
+		var v string
+		mustScan(t, pool, sql, &v, args...)
+		return v
+	}
+	wh := scan(`INSERT INTO warehouses (code,name) VALUES ('SHB','Шабулина') RETURNING id::text`)
+	user := scan(`INSERT INTO users (login,password_hash,full_name) VALUES ('90000052','x','Кладовщик') RETURNING id::text`)
+	good := scan(`INSERT INTO goods (code,name,uom) VALUES ('16150','Чипсы','шт') RETURNING id::text`)
+	load := scan(`INSERT INTO picking_loads (warehouse_id,registry_date,file_name,uploaded_by)
+		VALUES ($1,'2026-11-09','Реестр.xlsx',$2) RETURNING id::text`, wh, user)
+	order := scan(`INSERT INTO picking_orders (warehouse_id,registry_date,invoice_number,order_number,created_load_id,updated_load_id)
+		VALUES ($1,'2026-11-09','21048','15787',$2,$2) RETURNING id::text`, wh, load)
+	line := scan(`INSERT INTO picking_order_lines (order_id,line_no,good_code,good_name,good_id,plan_qty)
+		VALUES ($1,1,'00000016150','Чипсы',$2,1) RETURNING id::text`, order, good)
+
+	pk := repository.NewPickingRepository(pool)
+	if err := pk.TakeOrder(ctx, order, user, 0); err != nil {
+		t.Fatalf("взять заказ: %v", err)
+	}
+	box := uuid.NewString()
+	if _, err := pk.AddBox(ctx, order, user, box); err != nil {
+		t.Fatalf("короб отгрузки: %v", err)
+	}
+	var lerr *model.PickingLinesError
+	if _, err := pk.CompleteOrder(ctx, order, user); !errors.As(err, &lerr) {
+		t.Fatalf("без отметки: %v", err)
+	}
+	if _, err := pk.MarkShortage(ctx, order, line, user, true); err != nil {
+		t.Fatalf("не хватает: %v", err)
+	}
+	s, err := pk.CompleteOrder(ctx, order, user)
+	if err != nil || s.Status != model.PickingStatusPicked || !s.IsPartial || len(s.Boxes) != 0 {
+		t.Fatalf("завершить без коробов: %+v, %v", s, err)
+	}
+	if _, err := pk.ShipOrder(ctx, order, user, []string{box}); !errors.Is(err, model.ErrPickingShipBoxes) {
+		t.Fatalf("отгрузка убранного короба: %v", err)
+	}
+	s, err = pk.ShipOrder(ctx, order, user, nil)
+	if err != nil || s.Status != model.PickingStatusShipped {
+		t.Fatalf("отгрузка без коробов: %+v, %v", s, err)
+	}
+	// «Завершённые» на ТСД: отгруженный - в списке своей даты накладной, другой даты - нет.
+	if list, err := pk.ShippedOrders(ctx, user, time.Date(2026, 11, 9, 0, 0, 0, 0, time.UTC)); err != nil ||
+		len(list) != 1 || list[0].ID != order || list[0].Status != model.PickingStatusShipped {
+		t.Fatalf("отгруженные за дату: %+v, %v", list, err)
+	}
+	if list, err := pk.ShippedOrders(ctx, user, time.Date(2026, 11, 10, 0, 0, 0, 0, time.UTC)); err != nil || len(list) != 0 {
+		t.Fatalf("отгруженные другой даты: %+v, %v", list, err)
+	}
+	got := scan(`SELECT string_agg(kind || ':' || coalesce(boxes::text, '-'), ',' ORDER BY seq)
+		FROM picking_order_events WHERE order_id = $1`, order)
+	if want := "taken:-,completed:0,shipped:0"; got != want {
 		t.Fatalf("журнал: %s", got)
 	}
 }

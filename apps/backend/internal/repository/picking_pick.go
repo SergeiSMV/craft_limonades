@@ -305,8 +305,9 @@ func guardNotShippingCell(ctx context.Context, q Querier, cellID string) error {
 }
 
 // pickingUnpick возвращает пик на место до «Завершить сборку»: «в сборке» уменьшается, остаток
-// и марки и так не двигались. Перенесённый в короб отгрузки — отказ: его возвращает задание
-// «вернуть на места» (P9-07). Уже возвращённый — не ошибка.
+// и марки и так не двигались. Перенесённый в короб отгрузки — отказ: его возвращает операция
+// picking_return (P9-07-1). Уже возвращённый — не ошибка. Взятое удалённого заказа возвращает
+// задание «вернуть на места» этой же операцией — после неё задание сверяется с остатком.
 func pickingUnpick(ctx context.Context, q Querier, pickID string) error {
 	var state, orderID string
 	err := q.QueryRow(ctx, `SELECT state, order_id::text FROM picking_picks WHERE id = $1::uuid FOR UPDATE`, pickID).
@@ -328,7 +329,7 @@ func pickingUnpick(ctx context.Context, q Querier, pickID string) error {
 	if _, err := q.Exec(ctx, `UPDATE picking_orders SET last_activity_at = now() WHERE id = $1::uuid`, orderID); err != nil {
 		return fmt.Errorf("движение по заказу сборки: %w", err)
 	}
-	return nil
+	return syncPickingReturnTask(ctx, q, orderID)
 }
 
 // PickingPick применяет пик под ключом идемпотентности: повтор операции второй раз не пикает.

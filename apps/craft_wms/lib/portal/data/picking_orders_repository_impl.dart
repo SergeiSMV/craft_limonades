@@ -109,6 +109,7 @@ PickingOrderSummary _summary(Map<String, dynamic> j) => PickingOrderSummary(
   planQty: j['plan_qty'] as int,
   factQty: _qty(j['fact_qty']),
   boxes: j['boxes'] as int,
+  returnLeft: _qty(j['return_left']),
 );
 
 PickingOrderDetail _detail(Map<String, dynamic> j) => PickingOrderDetail(

@@ -86,6 +86,41 @@ func (s *OperationsService) pickingUnpick(ctx context.Context, id string, raw js
 	return s.repo.PickingUnpick(ctx, id, strings.TrimSpace(p.PickID))
 }
 
+// pickingReturn разбирает возврат на место (P9-07-1):
+// {"return_id", "pick_id", "cell_id", "qty", "marks"}. return_id выдаёт устройство.
+func (s *OperationsService) pickingReturn(ctx context.Context, userID, id string, raw json.RawMessage) (repository.Applied, error) {
+	var p struct {
+		ReturnID string          `json:"return_id"`
+		PickID   string          `json:"pick_id"`
+		CellID   string          `json:"cell_id"`
+		Qty      decimal.Decimal `json:"qty"`
+		Marks    []string        `json:"marks"`
+	}
+	if err := json.Unmarshal(raw, &p); err != nil {
+		return repository.Applied{}, ErrInvalidPayload
+	}
+	in := repository.PickingReturnInput{
+		ReturnID: strings.TrimSpace(p.ReturnID),
+		PickID:   strings.TrimSpace(p.PickID),
+		CellID:   strings.TrimSpace(p.CellID),
+		Qty:      p.Qty,
+		UserID:   userID,
+	}
+	for _, v := range []string{in.ReturnID, in.PickID, in.CellID} {
+		if !isUUID(v) {
+			return repository.Applied{}, ErrInvalidPayload
+		}
+	}
+	if !in.Qty.IsPositive() {
+		return repository.Applied{}, ErrInvalidQuantity
+	}
+	var err error
+	if in.Marks, err = lineMarks(p.Marks); err != nil {
+		return repository.Applied{}, err
+	}
+	return s.repo.PickingReturn(ctx, id, in)
+}
+
 // pickingRejections — отказы сборки по существу (P9-03…P9-05): повтор их не исправит.
 var pickingRejections = []error{
 	model.ErrPickingOrderNotFound, model.ErrPickingOrderDeleted, model.ErrPickingOrderClosed,
@@ -93,4 +128,7 @@ var pickingRejections = []error{
 	model.ErrPickingBoxNotInOrder, model.ErrPickingSourceIsBox, model.ErrPickingPickExists,
 	model.ErrPickingPickNotFound, model.ErrPickingPickMoved, model.ErrPickingStockShort,
 	model.ErrPickingLoadUnitBusy, model.ErrPickingMarkInPicking, repository.ErrShippingCell,
+	// Возврат на места (P9-07-1).
+	model.ErrPickingReturnOverLeft, model.ErrPickingReturnCell, model.ErrPickingReturnMarks,
+	model.ErrPickingReturnNotMoved, model.ErrPickingReturnExists,
 }

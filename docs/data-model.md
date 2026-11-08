@@ -686,12 +686,13 @@ CHECK: строка — короб (только `load_unit_id`) **либо** р
 |--------------------|---------------|-----------------------------------------------------------|
 | `id`               | `uuid`        | PK                                                        |
 | `number`           | `bigint`      | identity, UNIQUE — короткий номер для людей               |
-| `kind`             | `text`        | `putaway` / `supplier_return` (`000024`) / `stocktake` (`000030`); CHECK |
+| `kind`             | `text`        | `putaway` / `supplier_return` (`000024`) / `stocktake` (`000030`) / `picking_return` (`000050`); CHECK |
 | `status`           | `text`        | `new` / `in_progress` / `done`; CHECK                     |
 | `warehouse_id`     | `uuid`        | FK → `warehouses(id)`                                     |
 | `receipt_id`       | `uuid`        | FK → `receipts(id)` — основание; `UNIQUE (receipt_id, kind)` |
 | `supplier_id`      | `uuid`        | FK → `suppliers(id)` — кому возврат; есть ровно у `supplier_return` |
 | `stocktake_id`     | `uuid`        | FK → `stocktakes(id)` — пересчёт; есть ровно у `stocktake`, одно задание на пересчёт; ячейки из него берут разные работники, исполнителя у задания нет |
+| `picking_order_id` | `uuid`        | FK → `picking_orders(id)` (`000050`, P9-07-1) — заказ, по которому вернуть на места; есть ровно у `picking_return`, одно открытое задание на заказ |
 | `problem_id`       | `uuid`        | FK → `warehouse_problems(id)` (`000036`) — основание размещения по решению «разместить»; только у `putaway` без `receipt_id`, одно задание на проблему |
 | `assignee_id`      | `uuid`        | FK → `users(id)` — кто держит; есть ровно у `in_progress` |
 | `taken_at`         | `timestamptz` | когда взято                                               |
@@ -1245,14 +1246,30 @@ internal_warehouse_id) WHERE state = 'picking'`). «Завершить сбор�
 | `id`           | `uuid`          | PK                                                                  |
 | `seq`          | `bigint`        | identity — порядок событий                                           |
 | `order_id`     | `uuid`          | FK → `picking_orders` ON DELETE CASCADE                              |
-| `kind`         | `text`          | `taken` / `taken_over` / `released` / `released_by_lead` / `completed` / `reopened` / `shipped`; CHECK |
+| `kind`         | `text`          | `taken` / `taken_over` / `released` / `released_by_lead` / `completed` / `reopened` / `shipped` / `returned` (`000050`); CHECK |
 | `user_id`      | `uuid`          | кто сделал; NOT NULL                                                 |
 | `prev_user_id` | `uuid`          | у кого перехвачен (`taken_over`), с кого снят (`released_by_lead`), кто собирал (`reopened`) |
-| `boxes`, `qty` | `int`, `numeric(20,3)` | коробов и штук — ровно у `completed` и `shipped` (CHECK)      |
+| `boxes`, `qty` | `int`, `numeric(20,3)` | коробов — ровно у `completed` и `shipped`, штук — у них и у `returned` (CHECK) |
 | `at`           | `timestamptz`   | когда                                                                |
 
 Индексы `(order_id, seq)` — история в окне заказа портала, `(user_id, at)` — будущие отчёты
 (топ работников, топ отгрузок). Пишется в той же транзакции, что и действие; область `picking`.
+
+### 3.52 `picking_returns` — возврат на места из короба отгрузки (миграция `000050`, P9-07-1)
+
+| Колонка       | Тип             | Ограничения / смысл                                          |
+|---------------|-----------------|---------------------------------------------------------------|
+| `id`          | `uuid`          | PK, выдаёт ТСД — одна операция очереди `picking_return`        |
+| `order_id`    | `uuid`          | FK → `picking_orders`                                          |
+| `task_id`     | `uuid`          | FK → `warehouse_tasks` — задание `picking_return`              |
+| `pick_id`     | `uuid`          | FK → `picking_picks` — из какого перенесённого пика            |
+| `cell_id`     | `uuid`          | FK → `cells` — куда вернули (россыпью)                         |
+| `qty`         | `numeric(20,3)` | `> 0`                                                          |
+| `returned_by`, `returned_at` | `uuid`, `timestamptz` | кто и когда                              |
+
+`picking_return_marks (return_id, cis)` — какие марки вернулись. Пик при возврате уменьшается
+(весь вернули — `returned`), поэтому «перенесено» у пиков равно содержимому коробов. Позиций у
+задания нет: что вернуть, считается по пикам и плану. Область `picking`.
 
 ---
 

@@ -299,7 +299,8 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 			taskH := NewTaskHandler(svc.Task)
 			r.Group(func(r chi.Router) {
 				r.Use(appmw.Authenticator(tokens))
-				r.Use(need(model.RightTSDPutaway, model.RightTSDStocktakeCount, model.RightTSDStocktakeManage))
+				r.Use(need(model.RightTSDPutaway, model.RightTSDStocktakeCount, model.RightTSDStocktakeManage,
+					model.RightTSDPickingReturn))
 				r.Get("/tasks", taskH.Current)               // текущие: пул и свои взятые
 				r.Get("/tasks/completed", taskH.Completed)   // лента «Завершённые»
 				r.Get("/tasks/executors", taskH.Executors)   // варианты фильтра по исполнителю
@@ -334,6 +335,8 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 				r.Use(appmw.Authenticator(tokens))
 				r.With(need(model.RightStocktakeView, model.RightStocktakeManage)).
 					Get("/stocktakes", stH.List) // список для портала (P10-05)
+				r.With(need(model.RightStocktakeView, model.RightStocktakeManage)).
+					Get("/stocktakes/{id}/lines", stH.Lines) // ожидалось и посчитано (окно «Ход»)
 				// Заводит и закрывает старший смены — из портала или с ТСД.
 				r.With(need(model.RightStocktakeManage, model.RightTSDStocktakeManage)).
 					Post("/stocktakes", stH.Create) // завести по области
@@ -445,15 +448,23 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 				r.Use(appmw.Authenticator(tokens))
 				r.Use(need(model.RightTSDPicking))
 				r.Get("/picking/orders", ptH.Orders)                                 // список «СБОРКА»
+				r.Get("/picking/orders/shipped", ptH.ShippedOrders)                  // «Завершённые» за дату
 				r.Get("/picking/orders/{id}", ptH.Order)                             // заказ с подбором
 				r.Post("/picking/orders/{id}/take", ptH.Take)                        // взять в работу
 				r.Post("/picking/orders/{id}/release", ptH.Release)                  // отказаться
 				r.Post("/picking/orders/{id}/boxes", ptH.AddBox)                     // короб отгрузки
+				r.Delete("/picking/orders/{id}/boxes/{boxId}", ptH.DropBox)          // убрать пустой короб
 				r.Post("/picking/orders/{id}/lines/{lineId}/shortage", ptH.Shortage) // «не хватает»
 				r.Post("/picking/orders/{id}/complete", ptH.Complete)                // «Завершить сборку» (P9-07)
 				r.Get("/picking/orders/{id}/shipment", ptH.Shipment)                 // короба «N из M»
 				r.Post("/picking/orders/{id}/labels", ptH.Labels)                    // печать ярлыков
 				r.Post("/picking/orders/{id}/ship", ptH.Ship)                        // «Отгрузить»
+			})
+			// Возврат на места (P9-07-1) — задание из «ЗАДАНИЙ», своё право.
+			r.Group(func(r chi.Router) {
+				r.Use(appmw.Authenticator(tokens))
+				r.Use(need(model.RightTSDPickingReturn))
+				r.Get("/picking/orders/{id}/return", ptH.Return) // что вернуть на места
 			})
 		}
 

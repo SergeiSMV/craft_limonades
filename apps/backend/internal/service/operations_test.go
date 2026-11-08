@@ -117,6 +117,10 @@ func (f *fakeOpsRepo) PickingUnpick(context.Context, string, string) (repository
 	return repository.Applied{}, nil
 }
 
+func (f *fakeOpsRepo) PickingReturn(context.Context, string, repository.PickingReturnInput) (repository.Applied, error) {
+	return repository.Applied{}, nil
+}
+
 func (f *fakeOpsRepo) StocktakeCellSubmit(_ context.Context, operationID string, in model.StocktakeCellSubmitInput) (repository.Applied, error) {
 	if f.seen[operationID] {
 		return repository.Applied{Result: json.RawMessage(`{}`), Duplicate: true}, nil

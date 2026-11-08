@@ -32,6 +32,8 @@ var (
 	ErrPickingBoxForeign = errors.New("этот ярлык уже занят другим коробом")
 	// ErrPickingBoxID — id короба от ТСД не UUID: ярлык не в формате ГЕ.
 	ErrPickingBoxID = errors.New("ярлык короба не распознан")
+	// ErrPickingBoxNotEmpty — удалить можно только пустой короб: в нём есть пики.
+	ErrPickingBoxNotEmpty = errors.New("в коробе есть товар: сначала верните его в источник")
 
 	// Пик (P9-05).
 	ErrPickingOverPlan      = errors.New("больше, чем осталось собрать по строке")
@@ -264,6 +266,8 @@ const (
 	PickingEventCompleted      = "completed"
 	PickingEventReopened       = "reopened"
 	PickingEventShipped        = "shipped"
+	// PickingEventReturned — вернул на место по заданию «вернуть на места» (P9-07-1).
+	PickingEventReturned = "returned"
 )
 
 // Отказы завершения сборки, ярлыков и отгрузки (P9-07).
@@ -277,6 +281,69 @@ var (
 	// ErrPickingReprintDenied — ярлык этого короба уже печатали, а права на повторную печать нет.
 	ErrPickingReprintDenied = errors.New("ярлык уже напечатан: повторную печать делает старший смены")
 )
+
+// Отказы возврата на места (P9-07-1).
+var (
+	// ErrPickingReturnPending — «Отгрузить» заказ, у которого есть что вернуть на места: лишнее
+	// уехало бы клиенту и списалось со склада.
+	ErrPickingReturnPending = errors.New("сначала верните лишнее на места: задание «Вернуть на места»")
+	// ErrPickingReturnOverLeft — вернуть больше, чем осталось вернуть по строке или есть в пике.
+	ErrPickingReturnOverLeft = errors.New("больше, чем осталось вернуть по позиции")
+	// ErrPickingReturnCell — вернуть можно только в ячейку хранения склада заказа.
+	ErrPickingReturnCell = errors.New("вернуть можно только в ячейку хранения этого склада")
+	// ErrPickingReturnMarks — марки не из этого пика или их число не равно количеству.
+	ErrPickingReturnMarks = errors.New("марки не из этого короба отгрузки или их число не равно количеству")
+	// ErrPickingReturnNotMoved — пик ещё «в сборке»: его возвращают пиком назад (picking_unpick).
+	ErrPickingReturnNotMoved = errors.New("товар ещё не перенесён в короб отгрузки: верните его в источник")
+	// ErrPickingReturnExists — возврат с этим идентификатором уже есть (другая операция).
+	ErrPickingReturnExists = errors.New("возврат с этим идентификатором уже есть")
+)
+
+// PickingReturnView — что вернуть на места по заказу (P9-07-1): шапка и позиции-пики.
+//
+// Left у строки — сколько вернуть по ней: перенесённое сверх плана; у удалённого заказа — всё
+// взятое, и «в сборке» тоже. Позиции — пики, из которых можно вернуть: перенесённые (из короба
+// отгрузки в любую ячейку хранения) и, у удалённого заказа, открытые (назад в источник).
+type PickingReturnView struct {
+	OrderID       string
+	Number        int64
+	InvoiceNumber string
+	OrderNumber   string
+	Client        string
+	Status        string
+	Deleted       bool
+	TaskID        *string
+	Lines         []PickingReturnLine
+	Picks         []PickingReturnPick
+}
+
+// PickingReturnLine — строка заказа, по которой есть что вернуть.
+type PickingReturnLine struct {
+	LineID   string
+	GoodName string
+	Left     decimal.Decimal
+}
+
+// PickingReturnPick — пик, из которого возвращают. Moved — в коробе отгрузки (BoxSeq — его
+// номер «N из M»), иначе ещё «в сборке» у источника.
+type PickingReturnPick struct {
+	PickID           string
+	LineID           string
+	Moved            bool
+	BoxID            string
+	BoxSeq           int
+	GoodID           string
+	GoodCode         string
+	GoodName         string
+	Uom              string
+	Marked           bool
+	ProductionDate   time.Time
+	Qty              decimal.Decimal
+	SourceCellID     string
+	SourceCell       string
+	SourceLoadUnitID *string
+	Marks            []string
+}
 
 // PickingLinesError — «Завершить сборку» отказано по строкам (P9-07): Incomplete — взято меньше
 // плана без отметки «не хватает», Excess — «в сборке» больше плана (лишнее вернуть пиком).
@@ -315,7 +382,10 @@ type PickingShipment struct {
 	IsPartial     bool
 	Deleted       bool
 	Qty           decimal.Decimal
-	Boxes         []PickingShipmentBox
+	// ReturnLeft — сколько вернуть на места после правки реестра (P9-07-1): пока не ноль,
+	// отгрузка закрыта.
+	ReturnLeft decimal.Decimal
+	Boxes      []PickingShipmentBox
 }
 
 // PickingShipmentBox — короб отгрузки: номер, сколько в нём штук, сколько раз печатали ярлык,

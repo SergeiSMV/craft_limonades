@@ -77,6 +77,7 @@ type operationsRepo interface {
 	StocktakeCellSubmit(ctx context.Context, operationID string, in model.StocktakeCellSubmitInput) (repository.Applied, error)
 	PickingPick(ctx context.Context, operationID string, in repository.PickingPickInput) (repository.Applied, error)
 	PickingUnpick(ctx context.Context, operationID, pickID string) (repository.Applied, error)
+	PickingReturn(ctx context.Context, operationID string, in repository.PickingReturnInput) (repository.Applied, error)
 }
 
 // OperationsService — приём батча операций из очереди устройства с дедупом по operation_id.
@@ -324,6 +325,9 @@ func (s *OperationsService) dispatch(ctx context.Context, userID, id string, op 
 
 	case repository.KindPickingUnpick:
 		return s.pickingUnpick(ctx, id, op.Payload)
+
+	case repository.KindPickingReturn:
+		return s.pickingReturn(ctx, userID, id, op.Payload)
 
 	default:
 		return repository.Applied{}, ErrUnknownKind

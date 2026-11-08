@@ -56,6 +56,7 @@ const (
 	RightTSDPutaway         = "tsd.tasks.putaway" // размещение и возврат поставщику
 	RightTSDStocktakeCount  = "tsd.tasks.stocktake_count"
 	RightTSDStocktakeManage = "tsd.tasks.stocktake_manage"
+	RightTSDPickingReturn   = "tsd.tasks.picking_return" // вернуть на места после правки реестра (P9-07-1)
 	RightTSDStockView       = "tsd.stock.view"
 	RightTSDStockCZMarked   = "tsd.stock.cz_marked" // признак «маркируемый (ЧЗ)»
 	RightTSDStockRegrade    = "tsd.stock.regrade"   // перепривязать ШК маркируемого товара (ADHOC-53)
@@ -86,7 +87,7 @@ var Rights = []string{
 	RightPickingView, RightPickingLoad, RightPickingDownload, RightPickingRelease,
 	RightSettingsWarehouses, RightSettingsProblemReasons, RightSettingsUsers,
 	RightTSDReceipt, RightTSDMovement,
-	RightTSDPutaway, RightTSDStocktakeCount, RightTSDStocktakeManage,
+	RightTSDPutaway, RightTSDStocktakeCount, RightTSDStocktakeManage, RightTSDPickingReturn,
 	RightTSDStockView, RightTSDStockCZMarked, RightTSDStockRegrade, RightTSDStockEntry,
 	RightTSDProblemsView, RightTSDProblemsMark,
 	RightTSDPicking, RightTSDPickingReprint,
@@ -152,8 +153,13 @@ func OperationRights(kind string) []string {
 		return []string{RightTSDProblemsMark}
 	case "stocktake_cell_submit":
 		return []string{RightTSDStocktakeCount}
-	case "picking_pick", "picking_unpick":
+	case "picking_pick":
 		return []string{RightTSDPicking}
+	case "picking_unpick":
+		// Взятое удалённого заказа «в работе» возвращает задание «вернуть на места» (P9-07-1).
+		return []string{RightTSDPicking, RightTSDPickingReturn}
+	case "picking_return":
+		return []string{RightTSDPickingReturn}
 	case "stock_entry_start", "stock_entry_checkpoint", "stock_entry_finalize":
 		return []string{RightTSDStockEntry}
 	default:

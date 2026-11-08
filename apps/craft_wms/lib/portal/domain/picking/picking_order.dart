@@ -42,6 +42,7 @@ class PickingOrderSummary {
     required this.planQty,
     required this.factQty,
     required this.boxes,
+    this.returnLeft = 0,
   });
 
   final String id;
@@ -68,6 +69,9 @@ class PickingOrderSummary {
 
   /// Реестр изменил или удалил уже отгруженный заказ.
   final bool changedAfterShipment;
+
+  /// Сколько ещё вернуть на места после правки реестра (P9-07-1); пока не ноль, отгрузка закрыта.
+  final double returnLeft;
 
   /// Кто держит заказ в работе; пусто — заказ не в работе.
   final String assigneeName;

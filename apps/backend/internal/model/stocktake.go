@@ -162,6 +162,22 @@ type StocktakeCell struct {
 	Mine        bool
 }
 
+// StocktakeLine — строка пересчёта для портала: что ожидалось по снимку и что посчитано.
+// GoodName пусто — строка короба (LoadUnitID): ожидался ли короб (0/1) и найден ли. Fact nil —
+// ячейку ещё не посчитали. Problem — недостача ушла проблемой «не найдено» (короб, марки).
+type StocktakeLine struct {
+	CellAddress    string
+	CellStatus     string
+	LoadUnitID     string
+	GoodCode       string
+	GoodName       string
+	Uom            string
+	ProductionDate *time.Time
+	Expected       decimal.Decimal
+	Fact           *decimal.Decimal
+	Problem        bool
+}
+
 // CellUnderCount — ячейка склада сейчас на подсчёте пересчёта (ADHOC-48): что ТСД
 // показывает кладовщику перед движением через неё — кто считает и какой пересчёт.
 type CellUnderCount struct {

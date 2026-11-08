@@ -36,6 +36,8 @@ type PickingPortalOrder struct {
 	PlanQty              int
 	FactQty              decimal.Decimal
 	Boxes                int
+	// ReturnLeft — сколько вернуть на места после правки реестра (P9-07-1).
+	ReturnLeft decimal.Decimal
 }
 
 // PickingPortalDetail — заказ в окне деталей портала и в выгрузке Excel (P8-03): обе стороны по

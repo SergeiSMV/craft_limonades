@@ -54,6 +54,7 @@ class TaskTile extends StatelessWidget {
               switch (task.kind) {
                 TaskKind.supplierReturn => MdiIcons.truckDeliveryOutline,
                 TaskKind.stocktake => MdiIcons.clipboardCheckOutline,
+                TaskKind.pickingReturn => MdiIcons.packageVariantRemove,
                 _ => MdiIcons.forklift,
               },
               size: AppSizes.kIcon25,
@@ -81,9 +82,14 @@ class TaskTile extends StatelessWidget {
                   ),
                   Text(
                     task.stocktake == null
-                        ? t.tasks.number(number: docNumber(DocKind.task, task.number))
+                        ? t.tasks.number(
+                            number: docNumber(DocKind.task, task.number),
+                          )
                         : t.stocktake.tileNumber(
-                            number: docNumber(DocKind.stocktake, task.stocktake!.number),
+                            number: docNumber(
+                              DocKind.stocktake,
+                              task.stocktake!.number,
+                            ),
                           ),
                     style: muted,
                   ),
@@ -111,6 +117,14 @@ class TaskTile extends StatelessWidget {
                       t.tasks.returnSupplier(supplier: task.supplier),
                       style: muted,
                     ),
+                  // Возврат на места (P9-07-1): какой заказ и сколько вернуть.
+                  if (task.picking case final p?) ...[
+                    Text(pickingReturnOrder(p), style: muted),
+                    Text(
+                      t.tasks.pickingLeft(qty: qtyText(p.left)),
+                      style: muted,
+                    ),
+                  ],
                   Text(taskAuthor(task), style: muted),
                 ],
               ),

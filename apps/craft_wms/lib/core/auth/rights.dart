@@ -32,7 +32,8 @@ abstract final class Rights {
   static const pickingView = 'portal.picking.view'; // P8-02: Сборка-отгрузка
   static const pickingLoad = 'portal.picking.load';
   static const pickingDownload = 'portal.picking.download';
-  static const pickingRelease = 'portal.picking.release'; // P8-03: снять с исполнителя
+  static const pickingRelease =
+      'portal.picking.release'; // P8-03: снять с исполнителя
   static const settingsWarehouses = 'portal.settings.warehouses';
   static const settingsProblemReasons = 'portal.settings.problem_reasons';
   static const settingsUsers = 'portal.settings.users';
@@ -42,6 +43,8 @@ abstract final class Rights {
   static const tsdPutaway = 'tsd.tasks.putaway';
   static const tsdStocktakeCount = 'tsd.tasks.stocktake_count';
   static const tsdStocktakeManage = 'tsd.tasks.stocktake_manage';
+  static const tsdPickingReturn =
+      'tsd.tasks.picking_return'; // P9-07-1: вернуть на места
   static const tsdStockView = 'tsd.stock.view';
   static const tsdStockCzMarked = 'tsd.stock.cz_marked';
   static const tsdStockRegrade = 'tsd.stock.regrade';
@@ -180,6 +183,7 @@ List<RightNode> rightsTree() {
             RightNode(r.tsdPutaway, code: Rights.tsdPutaway),
             RightNode(r.tsdStocktakeCount, code: Rights.tsdStocktakeCount),
             RightNode(r.tsdStocktakeManage, code: Rights.tsdStocktakeManage),
+            RightNode(r.tsdPickingReturn, code: Rights.tsdPickingReturn),
           ],
         ),
         RightNode(

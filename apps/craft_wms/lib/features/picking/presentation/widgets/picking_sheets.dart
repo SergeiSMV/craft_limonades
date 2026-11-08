@@ -32,7 +32,7 @@ Future<PickCandidate?> showCandidateSheet(
   builder: (ctx) => SafeArea(
     child: ListView(
       shrinkWrap: true,
-      padding: AppInsets.h8,
+      padding: AppInsets.h16,
       children: [
         SectionTitle(title: t.picking.chooseTitle),
         for (final c in candidates)
@@ -103,7 +103,7 @@ Future<void> showLineSheet(
     return SafeArea(
       child: ListView(
         shrinkWrap: true,
-        padding: AppInsets.h8,
+        padding: AppInsets.h16,
         children: [
           Text(
             line.goodName,
@@ -113,6 +113,13 @@ Future<void> showLineSheet(
           ),
           AppBoxes.kHeight4,
           for (final s in lineLines(view, line)) Text(s, style: muted),
+          if (line.shortage)
+            Text(
+              t.picking.shortageMark,
+              style: SemiboldTextStyles().semiboldInter14.copyWith(
+                color: AppColors.kBadgeCriticalText,
+              ),
+            ),
           if (picks.isNotEmpty) ...[
             SectionTitle(title: t.picking.sectionPicks),
             for (final vp in picks)

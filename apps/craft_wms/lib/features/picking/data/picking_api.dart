@@ -6,6 +6,7 @@ import '../../../core/constants/api_constants.dart';
 import '../../../core/error/dio_failure.dart';
 import '../../../core/error/failure.dart';
 import '../domain/picking_models.dart';
+import '../domain/picking_return.dart';
 import '../domain/picking_shipment.dart';
 
 /// Сетевой источник сборки на ТСД (P9-04): список, заказ, взять, отказаться, короб отгрузки,
@@ -23,6 +24,17 @@ class PickingApi {
         .toList(),
   );
 
+  /// Отгруженные заказы с датой накладной [date] (`ГГГГ-ММ-ДД`) - «Завершённые».
+  Future<Either<Failure, List<PickingListItem>>> shipped(String date) => _call(
+    () => _dio.get<Object?>(
+      ApiConst.pickingShipped,
+      queryParameters: {'date': date},
+    ),
+    (data) => (data as List? ?? const [])
+        .map((e) => PickingListItem.fromJson(e as Map<String, dynamic>))
+        .toList(),
+  );
+
   Future<Either<Failure, PickingOrder>> order(String id) => _call(
     () => _dio.get<Object?>(ApiConst.pickingOrder(id)),
     (data) => PickingOrder.fromJson(data as Map<String, dynamic>),
@@ -33,6 +45,10 @@ class PickingApi {
 
   Future<Either<Failure, void>> release(String id) =>
       _call(() => _dio.post<Object?>(ApiConst.pickingRelease(id)), (_) {});
+
+  /// Убрать пустой короб, заведённый по ошибке; остальные сервер нумерует заново.
+  Future<Either<Failure, void>> dropBox(String id, String boxId) =>
+      _call(() => _dio.delete<Object?>(ApiConst.pickingBox(id, boxId)), (_) {});
 
   /// Номер короба «короб N» - от сервера; повтор с тем же ярлыком отдаёт тот же номер.
   Future<Either<Failure, PickingBox>> addBox(String id, String loadUnitId) =>
@@ -89,6 +105,12 @@ class PickingApi {
     () =>
         _dio.post<Object?>(ApiConst.pickingShip(id), data: {'box_ids': boxIds}),
     _shipment,
+  );
+
+  /// Что вернуть на места по заказу после правки реестра (P9-07-1).
+  Future<Either<Failure, PickingReturnView>> returnView(String id) => _call(
+    () => _dio.get<Object?>(ApiConst.pickingReturn(id)),
+    (data) => PickingReturnView.fromJson(data as Map<String, dynamic>),
   );
 
   static PickingShipment _shipment(Object? data) =>
