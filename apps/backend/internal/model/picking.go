@@ -1,6 +1,10 @@
 package model
 
-import "time"
+import (
+	"time"
+
+	"github.com/shopspring/decimal"
+)
 
 // Статусы заказа сборки (P9-02): свои у WMS, статус из реестра 1С не берётся.
 const (
@@ -118,4 +122,46 @@ type PickingStock struct {
 	GoodID    string
 	BatchDate time.Time
 	Qty       float64
+}
+
+// PickingTaskOrder — заказ сборки с планом для подбора (P9-03): шапка, статус и строки, в том
+// числе убранные реестром (по ним взятое возвращается на места, подбора у них нет).
+type PickingTaskOrder struct {
+	ID            string
+	Number        int64
+	WarehouseID   string
+	RegistryDate  time.Time
+	InvoiceNumber string
+	OrderNumber   string
+	Direction     string
+	Client        string
+	Address       string
+	Status        string
+	HasUnknown    bool
+	Deleted       bool
+	AssigneeID    *string
+	Lines         []PickingTaskLine
+}
+
+// PickingTaskLine — строка плана заказа и сколько по ней уже взято.
+//
+// GoodID — nil у кода вне справочника. CellID и CellAddress — ячейка реестра, найденная в WMS;
+// RegistryCell — адрес как в файле. Taken — открытые и перенесённые в короб пики строки
+// (возвращённые на место не считаются).
+type PickingTaskLine struct {
+	ID           string
+	LineNo       int
+	GoodID       *string
+	GoodCode     string
+	GoodName     string
+	Uom          string
+	CZMarked     bool
+	BatchDate    *time.Time
+	RegistryCell string
+	CellID       *string
+	CellAddress  string
+	PlanQty      int
+	Taken        decimal.Decimal
+	Removed      bool
+	Shortage     bool
 }
