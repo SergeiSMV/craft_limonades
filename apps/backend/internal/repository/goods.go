@@ -5,6 +5,8 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"craftwms/internal/model"
 )
 
 // GoodsRepository — доступ к таблице goods (номенклатура). Пока — апсерт под импорт;
@@ -40,4 +42,34 @@ func (r *GoodsRepository) Upsert(ctx context.Context, q Querier, code, name, ful
 		return false, fmt.Errorf("upsert good %q: %w", code, err)
 	}
 	return inserted, nil
+}
+
+// ByCodes находит товары справочника по кодам 1С (формат справочника, model.NormalizeGoodCode).
+//
+// Что: код → товар. Зачем: сопоставление строк «Реестра» на сборку (P9-01) — одним запросом на
+// весь файл, а не запросом на строку (в реестре за день ~900 строк). Как: `code = ANY($1)` по
+// индексу goods_code_idx; код в goods уникален (ON CONFLICT (code) у Upsert). Признак
+// is_active не фильтруется: код — идентичность товара, а неактивный товар может лежать на
+// складе. Кодов, которых нет в справочнике, в ответе нет.
+func (r *GoodsRepository) ByCodes(ctx context.Context, codes []string) (map[string]model.RegistryGood, error) {
+	out := make(map[string]model.RegistryGood, len(codes))
+	if len(codes) == 0 {
+		return out, nil
+	}
+	rows, err := r.pool.Query(ctx, `
+		SELECT id::text, code, name, cz_marked
+		FROM goods
+		WHERE code = ANY($1)`, codes)
+	if err != nil {
+		return nil, fmt.Errorf("goods by codes: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var g model.RegistryGood
+		if err := rows.Scan(&g.ID, &g.Code, &g.Name, &g.CZMarked); err != nil {
+			return nil, fmt.Errorf("scan good: %w", err)
+		}
+		out[g.Code] = g
+	}
+	return out, rows.Err()
 }
