@@ -69,7 +69,8 @@ type RegistryParsed struct {
 func (s *PickingRegistryService) Parse(ctx context.Context, r io.Reader) (*RegistryParsed, error) {
 	parsed, err := importer.ParseRegistry(r)
 	if err != nil {
-		return nil, err
+		// Файл не принят целиком — ошибка ввода (ErrRegistryFile), хендлер отвечает 422.
+		return nil, fmt.Errorf("%w: %w", ErrRegistryFile, err)
 	}
 
 	codes := make([]string, 0, len(parsed.Rows))

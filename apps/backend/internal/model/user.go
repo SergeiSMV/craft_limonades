@@ -42,6 +42,9 @@ const (
 	RightMovementPost       = "portal.movement.post"
 	RightProblemsView       = "portal.problems.view"    // Проблемы склада: смотреть с фото
 	RightProblemsResolve    = "portal.problems.resolve" // Проблемы склада: решать и проводить
+	RightPickingView        = "portal.picking.view"     // Сборка-отгрузка: смотреть заказы и детали (P8-02)
+	RightPickingLoad        = "portal.picking.load"     // Сборка-отгрузка: загружать реестр 1С
+	RightPickingDownload    = "portal.picking.download" // Сборка-отгрузка: выгружать Excel
 	RightSettingsWarehouses = "portal.settings.warehouses"
 	RightSettingsUsers      = "portal.settings.users" // должности и пользователи
 	// RightSettingsProblemReasons — причины проблем и варианты решения (ADHOC-55).
@@ -58,6 +61,8 @@ const (
 	RightTSDStockEntry      = "tsd.stock_entry"
 	RightTSDProblemsView    = "tsd.problems.view"
 	RightTSDProblemsMark    = "tsd.problems.mark"
+	RightTSDPicking         = "tsd.picking"         // собирать и отгружать заказы (P8-02)
+	RightTSDPickingReprint  = "tsd.picking.reprint" // повторно печатать ярлык короба отгрузки
 )
 
 // Префиксы приложений: «любое право портала / ТСД».
@@ -77,11 +82,13 @@ var Rights = []string{
 	RightCellsImport, RightCellsLabels, RightCellsEdit,
 	RightMovementView, RightMovementDownload, RightMovementPost,
 	RightProblemsView, RightProblemsResolve,
+	RightPickingView, RightPickingLoad, RightPickingDownload,
 	RightSettingsWarehouses, RightSettingsProblemReasons, RightSettingsUsers,
 	RightTSDReceipt, RightTSDMovement,
 	RightTSDPutaway, RightTSDStocktakeCount, RightTSDStocktakeManage,
 	RightTSDStockView, RightTSDStockCZMarked, RightTSDStockRegrade, RightTSDStockEntry,
 	RightTSDProblemsView, RightTSDProblemsMark,
+	RightTSDPicking, RightTSDPickingReprint,
 }
 
 // DocumentAction — действие с документом для 1С.

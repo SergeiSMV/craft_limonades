@@ -16,7 +16,7 @@ func (f *fakeIwhRepo) Create(_ context.Context, code, name string) (model.Intern
 	f.created = append(f.created, code+"|"+name)
 	return model.InternalWarehouse{Code: code, Name: name}, nil
 }
-func (f *fakeIwhRepo) Update(_ context.Context, _ string, _ *string, _ *bool) (model.InternalWarehouse, error) {
+func (f *fakeIwhRepo) Update(_ context.Context, _ string, _ *string, _, _ *bool) (model.InternalWarehouse, error) {
 	return model.InternalWarehouse{}, nil
 }
 func (f *fakeIwhRepo) Delete(context.Context, string) error { return nil }
@@ -46,7 +46,7 @@ func TestInternalWarehouseService_validation(t *testing.T) {
 		}
 	}
 	blank := " "
-	if _, err := svc.Update(ctx, "11111111-1111-4111-8111-111111111111", &blank, nil); !errors.Is(err, ErrInvalidInternalWarehouse) {
+	if _, err := svc.Update(ctx, "11111111-1111-4111-8111-111111111111", &blank, nil, nil); !errors.Is(err, ErrInvalidInternalWarehouse) {
 		t.Errorf("переименовать в пустое: %v", err)
 	}
 	if err := svc.Delete(ctx, "x"); !errors.Is(err, ErrInvalidInternalWarehouse) {

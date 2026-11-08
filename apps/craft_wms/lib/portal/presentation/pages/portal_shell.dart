@@ -16,6 +16,7 @@ import '../widgets/tabs/cells_tab.dart';
 import '../widgets/tabs/documents_tab.dart';
 import '../widgets/tabs/inventory_tab.dart';
 import '../widgets/tabs/nomenclature_tab.dart';
+import '../widgets/tabs/picking_tab.dart';
 import '../widgets/tabs/problems_tab.dart';
 import '../widgets/tabs/settings_tab.dart';
 import '../widgets/tabs/stock_tab.dart';
@@ -153,6 +154,17 @@ class _PortalShellState extends State<PortalShell> {
                 empty: t.portal.movement.empty,
                 rights: movement,
               ),
+            ),
+          if (p.can(Rights.pickingView, [
+            Rights.pickingLoad,
+            Rights.pickingDownload,
+          ]))
+            NavItem(
+              icon: Icons.inventory_2_outlined,
+              label: t.portal.tabs.picking,
+              // P8-02: загрузка «Реестра» 1С; список по дате и детали — P8-03.
+              description: t.portal.picking.description,
+              body: PickingTab(canLoad: p.can(Rights.pickingLoad)),
             ),
           if (p.can(Rights.problemsView, [Rights.problemsResolve]))
             NavItem(

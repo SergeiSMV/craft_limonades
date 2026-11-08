@@ -48,6 +48,8 @@ type Services struct {
 	// ProblemReason — справочник причин проблем и вариантов решения (ADHOC-55).
 	ProblemReason *service.ProblemReasonService
 	Contents      *service.ContentsService
+	// Picking — «Сборка-отгрузка» в портале: загрузка «Реестра» 1С (P8-02).
+	Picking *service.PickingLoadService
 	// Problem — «Проблемы склада» в портале: список и решение офиса (P6-07-3).
 	Problem *service.ProblemService
 	// ProblemPhoto — фото к проблемам склада (ADHOC-45): загрузка с ТСД, отдача ТСД и порталу.
@@ -402,6 +404,18 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 					Get("/problems", prH.List) // открытые сверху
 				r.With(need(model.RightProblemsResolve)).
 					Post("/problems/{id}/resolve", prH.Resolve) // «Провести» решение
+			})
+		}
+
+		// «Сборка-отгрузка» (P8-02) — загрузка «Реестра» 1С из портала: предпросмотр ничего не
+		// пишет, загрузка — после подтверждения оператора. Оба шага — право «загружать реестр».
+		if svc.Picking != nil {
+			pkH := NewPickingHandler(svc.Picking)
+			r.Group(func(r chi.Router) {
+				r.Use(appmw.Authenticator(tokens))
+				r.Use(need(model.RightPickingLoad))
+				r.Post("/picking/registry/preview", pkH.PreviewRegistry)
+				r.Post("/picking/registry/load", pkH.LoadRegistry)
 			})
 		}
 

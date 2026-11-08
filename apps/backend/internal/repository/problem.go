@@ -375,7 +375,7 @@ func NewInternalWarehouseRepository(pool *pgxpool.Pool) *InternalWarehouseReposi
 // это история), короб этого склада или запись проблемы. Внешние ключи этих таблиц и так не
 // дадут его удалить; признак нужен порталу, чтобы не предлагать удаление заведомо зря.
 const internalWarehouseSelect = `
-	SELECT w.id::text, w.code, w.name, w.is_default, w.is_active, COALESCE(w.system_role, ''),
+	SELECT w.id::text, w.code, w.name, w.is_default, w.is_active, COALESCE(w.system_role, ''), w.allow_picking,
 	       EXISTS (SELECT 1 FROM stock s WHERE s.internal_warehouse_id = w.id)
 	       OR EXISTS (SELECT 1 FROM load_units lu WHERE lu.internal_warehouse_id = w.id)
 	       OR EXISTS (SELECT 1 FROM warehouse_problems p
@@ -385,7 +385,7 @@ const internalWarehouseSelect = `
 
 func scanInternalWarehouse(row pgx.Row) (model.InternalWarehouse, error) {
 	var w model.InternalWarehouse
-	err := row.Scan(&w.ID, &w.Code, &w.Name, &w.IsDefault, &w.IsActive, &w.SystemRole, &w.InUse)
+	err := row.Scan(&w.ID, &w.Code, &w.Name, &w.IsDefault, &w.IsActive, &w.SystemRole, &w.AllowPicking, &w.InUse)
 	return w, err
 }
 
@@ -425,9 +425,10 @@ func (r *InternalWarehouseRepository) Create(ctx context.Context, code, name str
 	return r.byID(ctx, id)
 }
 
-// Update переименовывает склад и (или) скрывает его или возвращает в выбор. nil — поле не
-// меняется. Склад по умолчанию не скрывается.
-func (r *InternalWarehouseRepository) Update(ctx context.Context, id string, name *string, active *bool) (model.InternalWarehouse, error) {
+// Update переименовывает склад, скрывает его или возвращает в выбор, разрешает или запрещает
+// сборку из него. nil — поле не меняется. Склад по умолчанию не скрывается; системный склад
+// не скрывается и в сборку не разрешается: товар на нём уже не продаётся (возврат, «не найдено»).
+func (r *InternalWarehouseRepository) Update(ctx context.Context, id string, name *string, active, allowPicking *bool) (model.InternalWarehouse, error) {
 	current, err := r.byID(ctx, id)
 	if err != nil {
 		return model.InternalWarehouse{}, err
@@ -435,13 +436,14 @@ func (r *InternalWarehouseRepository) Update(ctx context.Context, id string, nam
 	if current.IsDefault && active != nil && !*active {
 		return model.InternalWarehouse{}, ErrDefaultInternalWarehouse
 	}
-	if current.SystemRole != "" && active != nil && !*active {
+	if current.SystemRole != "" && (active != nil && !*active || allowPicking != nil && *allowPicking) {
 		return model.InternalWarehouse{}, ErrSystemInternalWarehouse
 	}
 	if _, err := r.pool.Exec(ctx, `
 		UPDATE internal_warehouses
-		SET name = COALESCE($2, name), is_active = COALESCE($3, is_active)
-		WHERE id = $1::uuid`, id, name, active); err != nil {
+		SET name = COALESCE($2, name), is_active = COALESCE($3, is_active),
+		    allow_picking = COALESCE($4, allow_picking)
+		WHERE id = $1::uuid`, id, name, active, allowPicking); err != nil {
 		return model.InternalWarehouse{}, fmt.Errorf("изменить внутренний склад: %w", err)
 	}
 	return r.byID(ctx, id)

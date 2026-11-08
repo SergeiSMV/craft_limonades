@@ -145,6 +145,13 @@ abstract final class ApiConst {
   /// Правка варианта по id.
   static String problemResolutionById(String id) => 'problem-resolutions/$id';
 
+  ///**POST** - предпросмотр «Реестра» 1С на сборку (P8-02): multipart, поле `file`, ничего
+  ///не пишет.
+  static const String pickingRegistryPreview = 'picking/registry/preview';
+
+  ///**POST** - загрузка «Реестра» 1С после подтверждения (P8-02): тот же файл.
+  static const String pickingRegistryLoad = 'picking/registry/load';
+
   ///**GET** - «Проблемы склада» для офиса (P6-07-3, admin): открытые сверху.
   static const String problems = 'problems';
 

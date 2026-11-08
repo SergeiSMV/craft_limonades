@@ -33,6 +33,8 @@ type internalWarehouseResponse struct {
 	InUse     bool   `json:"in_use"`    // есть остаток или история — удалить нельзя, только скрыть
 	// Роль системного склада (P6-07-3): не скрыть, не удалить, при пометке не выбрать.
 	SystemRole string `json:"system_role,omitempty"`
+	// AllowPicking — галочка «разрешить сборку» (P8-02): из товара склада собирают заказы.
+	AllowPicking bool `json:"allow_picking"`
 }
 
 func toInternalWarehouseResponse(w model.InternalWarehouse) internalWarehouseResponse {
@@ -72,18 +74,19 @@ func (h *InternalWarehouseHandler) Create(w http.ResponseWriter, r *http.Request
 	writeJSON(w, http.StatusCreated, toInternalWarehouseResponse(created))
 }
 
-// Update: PATCH /api/v1/internal-warehouses/{id} {name?, is_active?} — переименовать, скрыть
-// или вернуть в выбор. 200 / 400 / 404 / 409.
+// Update: PATCH /api/v1/internal-warehouses/{id} {name?, is_active?, allow_picking?} —
+// переименовать, скрыть или вернуть в выбор, разрешить или запретить сборку. 200 / 400 / 404 / 409.
 func (h *InternalWarehouseHandler) Update(w http.ResponseWriter, r *http.Request) {
 	var req struct {
-		Name     *string `json:"name"`
-		IsActive *bool   `json:"is_active"`
+		Name         *string `json:"name"`
+		IsActive     *bool   `json:"is_active"`
+		AllowPicking *bool   `json:"allow_picking"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, http.StatusBadRequest, "неверное тело запроса")
 		return
 	}
-	updated, err := h.svc.Update(r.Context(), chi.URLParam(r, "id"), req.Name, req.IsActive)
+	updated, err := h.svc.Update(r.Context(), chi.URLParam(r, "id"), req.Name, req.IsActive, req.AllowPicking)
 	if err != nil {
 		internalWarehouseError(w, r, err)
 		return
@@ -113,7 +116,7 @@ func internalWarehouseError(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, repository.ErrDefaultInternalWarehouse):
 		writeError(w, http.StatusConflict, "склад по умолчанию нельзя скрыть или удалить")
 	case errors.Is(err, repository.ErrSystemInternalWarehouse):
-		writeError(w, http.StatusConflict, "системный склад нельзя скрыть или удалить")
+		writeError(w, http.StatusConflict, "системный склад нельзя скрыть, удалить или разрешить к сборке")
 	case errors.Is(err, repository.ErrInternalWarehouseInUse):
 		writeError(w, http.StatusConflict, "на складе есть остаток или история — его можно только скрыть")
 	default:

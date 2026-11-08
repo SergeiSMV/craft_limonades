@@ -29,6 +29,9 @@ abstract final class Rights {
   static const movementPost = 'portal.movement.post';
   static const problemsView = 'portal.problems.view';
   static const problemsResolve = 'portal.problems.resolve';
+  static const pickingView = 'portal.picking.view'; // P8-02: Сборка-отгрузка
+  static const pickingLoad = 'portal.picking.load';
+  static const pickingDownload = 'portal.picking.download';
   static const settingsWarehouses = 'portal.settings.warehouses';
   static const settingsProblemReasons = 'portal.settings.problem_reasons';
   static const settingsUsers = 'portal.settings.users';
@@ -44,6 +47,8 @@ abstract final class Rights {
   static const tsdStockEntry = 'tsd.stock_entry';
   static const tsdProblemsView = 'tsd.problems.view';
   static const tsdProblemsMark = 'tsd.problems.mark';
+  static const tsdPicking = 'tsd.picking'; // P8-02: собирать и отгружать
+  static const tsdPickingReprint = 'tsd.picking.reprint';
 }
 
 /// Узел дерева прав: группа ([children]) или действие ([code]).
@@ -142,6 +147,14 @@ List<RightNode> rightsTree() {
           ],
         ),
         RightNode(
+          r.picking,
+          children: [
+            RightNode(r.pickingView, code: Rights.pickingView),
+            RightNode(r.pickingLoad, code: Rights.pickingLoad),
+            RightNode(r.pickingDownload, code: Rights.pickingDownload),
+          ],
+        ),
+        RightNode(
           r.settings,
           children: [
             RightNode(r.settingsWarehouses, code: Rights.settingsWarehouses),
@@ -181,6 +194,13 @@ List<RightNode> rightsTree() {
           children: [
             RightNode(r.tsdProblemsView, code: Rights.tsdProblemsView),
             RightNode(r.tsdProblemsMark, code: Rights.tsdProblemsMark),
+          ],
+        ),
+        RightNode(
+          r.tsdPicking,
+          children: [
+            RightNode(r.tsdPickingWork, code: Rights.tsdPicking),
+            RightNode(r.tsdPickingReprint, code: Rights.tsdPickingReprint),
           ],
         ),
       ],

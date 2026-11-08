@@ -47,8 +47,9 @@ func (r *GoodsRepository) Upsert(ctx context.Context, q Querier, code, name, ful
 // ByCodes находит товары справочника по кодам 1С (формат справочника, model.NormalizeGoodCode).
 //
 // Что: код → товар. Зачем: сопоставление строк «Реестра» на сборку (P9-01) — одним запросом на
-// весь файл, а не запросом на строку (в реестре за день ~900 строк). Как: `code = ANY($1)` по
-// индексу goods_code_idx; код в goods уникален (ON CONFLICT (code) у Upsert). Признак
+// весь файл, а не запросом на строку (в реестре за день ~900 строк). Как: код справочника,
+// дополненный нулями до 11 знаков, `= ANY($1)` (P8-02: в справочнике коды без ведущих нулей);
+// код в goods уникален (ON CONFLICT (code) у Upsert). Признак
 // is_active не фильтруется: код — идентичность товара, а неактивный товар может лежать на
 // складе. Кодов, которых нет в справочнике, в ответе нет.
 func (r *GoodsRepository) ByCodes(ctx context.Context, codes []string) (map[string]model.RegistryGood, error) {
@@ -56,20 +57,25 @@ func (r *GoodsRepository) ByCodes(ctx context.Context, codes []string) (map[stri
 	if len(codes) == 0 {
 		return out, nil
 	}
+	// Импорт номенклатуры берёт «Код» из .xls числом — ведущие нули теряются («13657», а не
+	// «00000013657»). Поэтому сравнение — по коду, дополненному нулями до model.GoodCodeLen, и
+	// ключ ответа — он же, а Code в ответе — код справочника как есть. Индекса по выражению нет:
+	// справочник — сотни строк, запрос на реестр один.
 	rows, err := r.pool.Query(ctx, `
-		SELECT id::text, code, name, cz_marked
+		SELECT id::text, code, name, cz_marked, lpad(code, $2, '0')
 		FROM goods
-		WHERE code = ANY($1)`, codes)
+		WHERE lpad(code, $2, '0') = ANY($1)`, codes, model.GoodCodeLen)
 	if err != nil {
 		return nil, fmt.Errorf("goods by codes: %w", err)
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var g model.RegistryGood
-		if err := rows.Scan(&g.ID, &g.Code, &g.Name, &g.CZMarked); err != nil {
+		var key string
+		if err := rows.Scan(&g.ID, &g.Code, &g.Name, &g.CZMarked, &key); err != nil {
 			return nil, fmt.Errorf("scan good: %w", err)
 		}
-		out[g.Code] = g
+		out[key] = g
 	}
 	return out, rows.Err()
 }
