@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"craftwms/internal/model"
 	"craftwms/internal/repository"
 	"craftwms/internal/testutil"
 )
@@ -147,18 +148,18 @@ func TestPickingTask_live(t *testing.T) {
 
 	// Отказы по состоянию заказа.
 	exec(`UPDATE picking_orders SET has_unknown=true WHERE id=$1`, target)
-	if _, err := svc.Task(ctx, target); !errors.Is(err, ErrPickingOrderUnknown) {
+	if _, err := svc.Task(ctx, target); !errors.Is(err, model.ErrPickingOrderUnknown) {
 		t.Errorf("нераспознанные позиции: %v", err)
 	}
 	exec(`UPDATE picking_orders SET has_unknown=false, deleted_at=now() WHERE id=$1`, target)
-	if _, err := svc.Task(ctx, target); !errors.Is(err, ErrPickingOrderDeleted) {
+	if _, err := svc.Task(ctx, target); !errors.Is(err, model.ErrPickingOrderDeleted) {
 		t.Errorf("удалённый заказ: %v", err)
 	}
 	exec(`UPDATE picking_orders SET deleted_at=NULL, status='picked', picked_by=$2, picked_at=now() WHERE id=$1`, target, user)
-	if _, err := svc.Task(ctx, target); !errors.Is(err, ErrPickingOrderClosed) {
+	if _, err := svc.Task(ctx, target); !errors.Is(err, model.ErrPickingOrderClosed) {
 		t.Errorf("собранный заказ: %v", err)
 	}
-	if _, err := svc.Task(ctx, "00000000-0000-0000-0000-000000000000"); !errors.Is(err, ErrPickingOrderNotFound) {
+	if _, err := svc.Task(ctx, "00000000-0000-0000-0000-000000000000"); !errors.Is(err, model.ErrPickingOrderNotFound) {
 		t.Errorf("нет заказа: %v", err)
 	}
 }

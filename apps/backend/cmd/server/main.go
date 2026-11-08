@@ -147,6 +147,8 @@ func main() {
 		// Загрузка «Реестра» 1С на сборку в портале (P8-02): разбор P9-01, сверка с загруженным.
 		svc.Picking = service.NewPickingLoadService(service.NewPickingRegistryService(goods),
 			repository.NewPickingRepository(pool), repository.NewWarehouseRepository(pool))
+		// Сборка на ТСД (P9-03, P9-04): заказ с подбором, взять, короб отгрузки, «не хватает».
+		svc.PickingTask = service.NewPickingTaskService(repository.NewPickingRepository(pool))
 		// Просмотр содержимого ячеек и коробов на ТСД (P5-05).
 		svc.Contents = service.NewContentsService(repository.NewContentsRepository(pool))
 		// Версии данных по областям — заголовок каждого ответа API (ADHOC-60).

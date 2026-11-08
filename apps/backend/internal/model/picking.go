@@ -1,6 +1,7 @@
 package model
 
 import (
+	"errors"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -12,6 +13,24 @@ const (
 	PickingStatusInProgress = "in_progress"
 	PickingStatusPicked     = "picked"
 	PickingStatusShipped    = "shipped"
+)
+
+// Отказы в сборке заказа (P9-03, P9-04): ошибки состояния заказа, а не сбои. Текст — по-русски:
+// ТСД показывает его кладовщику дословно.
+var (
+	ErrPickingOrderNotFound = errors.New("заказ сборки не найден")
+	ErrPickingOrderDeleted  = errors.New("заказ удалён в 1С")
+	ErrPickingOrderUnknown  = errors.New("в заказе есть нераспознанные позиции: обновите номенклатуру и загрузите реестр повторно")
+	ErrPickingOrderClosed   = errors.New("заказ уже собран или отгружен")
+	ErrPickingOrderTaken    = errors.New("заказ уже взял другой сотрудник")
+	// ErrPickingOrderNotYours — действие по заказу, который не в работе у этого кладовщика:
+	// его сняли, он завис и его перехватили, или он ещё не взят.
+	ErrPickingOrderNotYours = errors.New("заказ не у вас в работе: возьмите его заново")
+	ErrPickingLineNotFound  = errors.New("строки нет в заказе или она убрана реестром")
+	// ErrPickingBoxForeign — ярлык с этим кодом уже принадлежит другому коробу.
+	ErrPickingBoxForeign = errors.New("этот ярлык уже занят другим коробом")
+	// ErrPickingBoxID — id короба от ТСД не UUID: ярлык не в формате ГЕ.
+	ErrPickingBoxID = errors.New("ярлык короба не распознан")
 )
 
 // Что загрузка реестра делает с заказом (P8-02): так предпросмотр подписывает заказ и так
@@ -141,6 +160,7 @@ type PickingTaskOrder struct {
 	Deleted       bool
 	AssigneeID    *string
 	Lines         []PickingTaskLine
+	Boxes         []PickingBox
 }
 
 // PickingTaskLine — строка плана заказа и сколько по ней уже взято.
@@ -164,4 +184,39 @@ type PickingTaskLine struct {
 	Taken        decimal.Decimal
 	Removed      bool
 	Shortage     bool
+}
+
+// PickingBox — короб отгрузки заказа: «короб Seq» на ярлыке.
+type PickingBox struct {
+	LoadUnitID string
+	Seq        int
+}
+
+// PickingOrderListItem — заказ в списке «СБОРКА» на ТСД (P9-04).
+//
+// Mine — заказ в работе у этого кладовщика. Busy — в работе у другого и не завис: взять нельзя;
+// зависший (8 ч без движения) считается свободным. AssigneeName — у занятого и своего.
+type PickingOrderListItem struct {
+	ID            string
+	Number        int64
+	RegistryDate  time.Time
+	InvoiceNumber string
+	OrderNumber   string
+	Direction     string
+	Client        string
+	Address       string
+	Status        string
+	HasUnknown    bool
+	Lines         int
+	Mine          bool
+	Busy          bool
+	AssigneeName  string
+}
+
+// PickingShortageResult — итог отметки «не хватает» (P9-04). StocktakeNumber — пересчёт позиции:
+// заведённый этой отметкой (Created) или уже открытый по товару; nil — считать негде (товара нет
+// ни в одной ячейке, и ячейки реестра нет в WMS).
+type PickingShortageResult struct {
+	StocktakeNumber *int64
+	Created         bool
 }

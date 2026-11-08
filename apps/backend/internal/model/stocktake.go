@@ -69,11 +69,16 @@ var (
 //
 // ObjectIDs — идентификаторы объектов вида ScopeKind (ячейки, группы, поставщики, товары или
 // внутренние склады); у «всего склада» пусто.
+//
+// PickingOrderID и ExtraCellIDs — у пересчёта позиции по нехватке при сборке (P9-04): основание —
+// заказ сборки, к ячейкам области добавляется ячейка реестра, где товара по учёту нет.
 type StocktakeCreateInput struct {
-	WarehouseID string
-	ScopeKind   string
-	ObjectIDs   []string
-	CreatedBy   string
+	WarehouseID    string
+	ScopeKind      string
+	ObjectIDs      []string
+	CreatedBy      string
+	PickingOrderID string
+	ExtraCellIDs   []string
 }
 
 // StocktakeCreated — заведённый пересчёт: документ, его задание и сколько ячеек дала область.

@@ -50,6 +50,8 @@ type Services struct {
 	Contents      *service.ContentsService
 	// Picking — «Сборка-отгрузка» в портале: загрузка «Реестра» 1С (P8-02).
 	Picking *service.PickingLoadService
+	// PickingTask — сборка на ТСД: список, заказ с подбором, взять, короб, «не хватает» (P9-04).
+	PickingTask *service.PickingTaskService
 	// Problem — «Проблемы склада» в портале: список и решение офиса (P6-07-3).
 	Problem *service.ProblemService
 	// ProblemPhoto — фото к проблемам склада (ADHOC-45): загрузка с ТСД, отдача ТСД и порталу.
@@ -416,6 +418,22 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 				r.Use(need(model.RightPickingLoad))
 				r.Post("/picking/registry/preview", pkH.PreviewRegistry)
 				r.Post("/picking/registry/load", pkH.LoadRegistry)
+			})
+		}
+
+		// Сборка на ТСД (P9-04) — право «собирать и отгружать». Онлайн: заказ закрепляется за
+		// одним кладовщиком на сервере.
+		if svc.PickingTask != nil {
+			ptH := NewPickingTSDHandler(svc.PickingTask)
+			r.Group(func(r chi.Router) {
+				r.Use(appmw.Authenticator(tokens))
+				r.Use(need(model.RightTSDPicking))
+				r.Get("/picking/orders", ptH.Orders)                                 // список «СБОРКА»
+				r.Get("/picking/orders/{id}", ptH.Order)                             // заказ с подбором
+				r.Post("/picking/orders/{id}/take", ptH.Take)                        // взять в работу
+				r.Post("/picking/orders/{id}/release", ptH.Release)                  // отказаться
+				r.Post("/picking/orders/{id}/boxes", ptH.AddBox)                     // короб отгрузки
+				r.Post("/picking/orders/{id}/lines/{lineId}/shortage", ptH.Shortage) // «не хватает»
 			})
 		}
 

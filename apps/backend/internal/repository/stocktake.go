@@ -76,16 +76,31 @@ const stocktakeCellsWithAreaGoods = `EXISTS (
 // Как: одной транзакцией. Ячейка приёмки в пересчёт не входит — её товар ждёт размещения;
 // выбранная явно — отказ. Область без ячеек — отказ: пустой пересчёт ничего не считает.
 func (r *StocktakeRepository) Create(ctx context.Context, in model.StocktakeCreateInput) (model.StocktakeCreated, error) {
+	var out model.StocktakeCreated
+	err := WithinTx(ctx, r.pool, func(q Querier) error {
+		var err error
+		out, err = createStocktake(ctx, q, in)
+		return err
+	})
+	if err != nil {
+		return model.StocktakeCreated{}, err
+	}
+	return out, nil
+}
+
+// createStocktake — тело Create внутри чужой транзакции: пересчёт позиции по нехватке при сборке
+// (P9-04) заводится в одной транзакции с отметкой «не хватает».
+func createStocktake(ctx context.Context, q Querier, in model.StocktakeCreateInput) (model.StocktakeCreated, error) {
 	where, ok := stocktakeCellsSQL[in.ScopeKind]
 	if !ok {
 		return model.StocktakeCreated{}, model.ErrInvalidStocktake
 	}
 	var out model.StocktakeCreated
-	err := WithinTx(ctx, r.pool, func(q Querier) error {
+	err := func() error {
 		if err := q.QueryRow(ctx, `
-			INSERT INTO stocktakes (warehouse_id, scope_kind, created_by)
-			VALUES ($1::uuid, $2, $3::uuid)
-			RETURNING id::text, number`, in.WarehouseID, in.ScopeKind, in.CreatedBy).
+			INSERT INTO stocktakes (warehouse_id, scope_kind, created_by, picking_order_id)
+			VALUES ($1::uuid, $2, $3::uuid, NULLIF($4, '')::uuid)
+			RETURNING id::text, number`, in.WarehouseID, in.ScopeKind, in.CreatedBy, in.PickingOrderID).
 			Scan(&out.ID, &out.Number); err != nil {
 			return stocktakeRefErr(err, "завести пересчёт")
 		}
@@ -124,7 +139,22 @@ func (r *StocktakeRepository) Create(ctx context.Context, in model.StocktakeCrea
 		if err != nil {
 			return fmt.Errorf("ячейки пересчёта: %w", err)
 		}
-		if out.Cells = int(tag.RowsAffected()); out.Cells == 0 {
+		out.Cells = int(tag.RowsAffected())
+		if len(in.ExtraCellIDs) > 0 {
+			// Ячейки сверх области (ячейка реестра при нехватке): служебные не входят и тут,
+			// уже попавшие из области не дублируются.
+			tag, err := q.Exec(ctx, `
+				INSERT INTO stocktake_cells (stocktake_id, cell_id)
+				SELECT $1::uuid, c.id FROM cells c
+				WHERE c.id = ANY($2::text[]::uuid[]) AND c.warehouse_id = $3::uuid
+				  AND NOT c.is_default AND NOT c.is_shipping
+				ON CONFLICT (stocktake_id, cell_id) DO NOTHING`, out.ID, in.ExtraCellIDs, in.WarehouseID)
+			if err != nil {
+				return fmt.Errorf("ячейки пересчёта сверх области: %w", err)
+			}
+			out.Cells += int(tag.RowsAffected())
+		}
+		if out.Cells == 0 {
 			return model.ErrStocktakeNoCells
 		}
 
@@ -135,7 +165,7 @@ func (r *StocktakeRepository) Create(ctx context.Context, in model.StocktakeCrea
 			return fmt.Errorf("задание на пересчёт: %w", err)
 		}
 		return addTaskEvent(ctx, q, out.TaskID, model.TaskEventCreated, in.CreatedBy, "", "")
-	})
+	}()
 	if err != nil {
 		return model.StocktakeCreated{}, err
 	}

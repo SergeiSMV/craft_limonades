@@ -63,7 +63,25 @@ func (r *PickingRepository) TaskOrder(ctx context.Context, orderID string) (mode
 		}
 		o.Lines = append(o.Lines, l)
 	}
-	return o, rows.Err()
+	if err := rows.Err(); err != nil {
+		return o, err
+	}
+	rows.Close()
+
+	boxes, err := r.pool.Query(ctx, `
+		SELECT load_unit_id::text, seq FROM picking_boxes WHERE order_id = $1 ORDER BY seq`, orderID)
+	if err != nil {
+		return o, fmt.Errorf("короба заказа сборки: %w", err)
+	}
+	defer boxes.Close()
+	for boxes.Next() {
+		var b model.PickingBox
+		if err := boxes.Scan(&b.LoadUnitID, &b.Seq); err != nil {
+			return o, fmt.Errorf("короб заказа сборки: %w", err)
+		}
+		o.Boxes = append(o.Boxes, b)
+	}
+	return o, boxes.Err()
 }
 
 // Sources — откуда можно собирать товары goodIDs на складе warehouseID (P9-03).

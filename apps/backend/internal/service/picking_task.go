@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/shopspring/decimal"
 
@@ -12,19 +13,15 @@ import (
 	"craftwms/internal/repository"
 )
 
-// Отказы в сборке заказа (P9-03): ошибки состояния заказа, а не сбои — на них ТСД (P9-04)
-// показывает причину по-русски.
-var (
-	ErrPickingOrderNotFound = errors.New("заказ сборки не найден")
-	ErrPickingOrderDeleted  = errors.New("заказ удалён в 1С")
-	ErrPickingOrderUnknown  = errors.New("в заказе есть нераспознанные позиции: обновите номенклатуру и загрузите реестр повторно")
-	ErrPickingOrderClosed   = errors.New("заказ уже собран или отгружен")
-)
-
 // pickingTaskRepo — узкий интерфейс хранилища сборки для подбора.
 type pickingTaskRepo interface {
 	TaskOrder(ctx context.Context, orderID string) (model.PickingTaskOrder, error)
 	Sources(ctx context.Context, warehouseID string, goodIDs []string) ([]picking.Source, error)
+	OpenOrders(ctx context.Context, userID string, staleAfter time.Duration) ([]model.PickingOrderListItem, error)
+	TakeOrder(ctx context.Context, orderID, userID string, staleAfter time.Duration) error
+	ReleaseOrder(ctx context.Context, orderID, userID string) error
+	AddBox(ctx context.Context, orderID, userID, loadUnitID string) (int, error)
+	MarkShortage(ctx context.Context, orderID, lineID, userID string, shortage bool) (model.PickingShortageResult, error)
 }
 
 // PickingTaskService — задание на сборку (P9-03): заказ с планом и подбором источников.
@@ -61,9 +58,12 @@ type PickingTaskLine struct {
 // пока не обновят номенклатуру и не загрузят реестр повторно) или он уже собран/отгружен —
 // дособор после правки реестра возвращает заказ в «в работе» сам (P8-02).
 func (s *PickingTaskService) Task(ctx context.Context, orderID string) (PickingTask, error) {
+	if !isUUID(orderID) {
+		return PickingTask{}, model.ErrPickingOrderNotFound
+	}
 	o, err := s.repo.TaskOrder(ctx, orderID)
 	if errors.Is(err, repository.ErrNotFound) {
-		return PickingTask{}, ErrPickingOrderNotFound
+		return PickingTask{}, model.ErrPickingOrderNotFound
 	}
 	if err != nil {
 		return PickingTask{}, err
@@ -91,11 +91,11 @@ func (s *PickingTaskService) Task(ctx context.Context, orderID string) (PickingT
 func pickable(o model.PickingTaskOrder) error {
 	switch {
 	case o.Deleted:
-		return ErrPickingOrderDeleted
+		return model.ErrPickingOrderDeleted
 	case o.HasUnknown:
-		return ErrPickingOrderUnknown
+		return model.ErrPickingOrderUnknown
 	case o.Status != model.PickingStatusNew && o.Status != model.PickingStatusInProgress:
-		return ErrPickingOrderClosed
+		return model.ErrPickingOrderClosed
 	}
 	return nil
 }
