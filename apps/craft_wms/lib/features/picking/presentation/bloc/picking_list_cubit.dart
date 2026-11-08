@@ -26,15 +26,19 @@ abstract class PickingListState with _$PickingListState {
   const PickingListState._();
 
   /// В работе у этого кладовщика.
-  List<PickingListItem> get mine => orders.where((o) => o.mine).toList();
+  List<PickingListItem> get mine =>
+      orders.where((o) => !o.picked && o.mine).toList();
 
   /// Свободные: никто не держит, зависший - тоже свободный.
   List<PickingListItem> get free =>
-      orders.where((o) => !o.mine && !o.busy).toList();
+      orders.where((o) => !o.picked && !o.mine && !o.busy).toList();
 
   /// У других кладовщиков.
   List<PickingListItem> get busy =>
-      orders.where((o) => !o.mine && o.busy).toList();
+      orders.where((o) => !o.picked && !o.mine && o.busy).toList();
+
+  /// Собраны и ждут отгрузки (P9-07).
+  List<PickingListItem> get picked => orders.where((o) => o.picked).toList();
 }
 
 @injectable

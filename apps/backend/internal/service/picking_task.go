@@ -22,6 +22,10 @@ type pickingTaskRepo interface {
 	ReleaseOrder(ctx context.Context, orderID, userID string) error
 	AddBox(ctx context.Context, orderID, userID, loadUnitID string) (int, error)
 	MarkShortage(ctx context.Context, orderID, lineID, userID string, shortage bool) (model.PickingShortageResult, error)
+	CompleteOrder(ctx context.Context, orderID, userID string) (model.PickingShipment, error)
+	Shipment(ctx context.Context, orderID string) (model.PickingShipment, error)
+	PrintLabels(ctx context.Context, orderID string, boxIDs []string, canReprint bool) (model.PickingShipment, error)
+	ShipOrder(ctx context.Context, orderID, userID string, boxIDs []string) (model.PickingShipment, error)
 }
 
 // PickingTaskService — задание на сборку (P9-03): заказ с планом и подбором источников.

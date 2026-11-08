@@ -144,6 +144,24 @@ void main() {
     },
   );
 
+  test(
+    'завершить сборку с неотправленным пиком - сначала очередь, без связи отказ',
+    () async {
+      serverReturns(_order());
+      await repo.order(_orderId);
+      await repo.pick(_request);
+      when(() => sync.drain()).thenAnswer(
+        (_) async => const SyncResult(sent: 0, rejected: 0, remaining: 1),
+      );
+
+      final res = await repo.complete(_orderId);
+
+      expect(res.left, isA<NetworkFailure>());
+      verify(() => sync.drain()).called(1);
+      verifyNever(() => api.complete(any()));
+    },
+  );
+
   test('подтверждённый пик в ответе сервера не задваивается', () async {
     serverReturns(_order());
     await repo.order(_orderId);

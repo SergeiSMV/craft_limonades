@@ -619,7 +619,7 @@ batch_id, cell_id, load_unit_id)`. Повторный скан той же ко�
 | `load_unit_id` | `uuid`        | FK → `load_units(id)` `ON DELETE CASCADE`                     |
 | `from_cell_id` | `uuid`        | FK → `cells(id)`; NULL — первое размещение (приёмка)          |
 | `to_cell_id`   | `uuid`        | FK → `cells(id)`, NOT NULL                                    |
-| `source`       | `text`        | `receipt` / `putaway` / `move` / `stock_entry` / `stocktake`; CHECK |
+| `source`       | `text`        | `receipt` / `putaway` / `move` / `stock_entry` / `stocktake` / `picking` (короб отгрузки в `ОТГРУЗКУ`, `000049`); CHECK |
 | `receipt_id`   | `uuid`        | FK → `receipts(id)`; заполнен, если перенос сделала приёмка   |
 | `putaway_id`   | `uuid`        | FK → `putaways(id)`; заполнен, если перенёс сеанс размещения  |
 | `movement_id`  | `uuid`        | FK → `movements(id)`; заполнен, если перенесло перемещение    |
@@ -1137,7 +1137,7 @@ PK `(reason, resolution_id)`; `reason` FK → `problem_reasons(code)` `ON DELETE
 | `problems`   | `warehouse_problems`, `warehouse_problem_lines`, `problem_resolutions`, `problem_photos`  |
 | `stocktakes` | `stocktakes`, `stocktake_cells`, `stocktake_scope`, `stocktake_lines`, `stocktake_marks`  |
 | `documents`  | `report_documents`, `report_document_events`, `stock_entry_sessions`                      |
-| `picking`    | `picking_loads`, `picking_orders`, `picking_order_lines`, `picking_order_changes`, `picking_boxes`, `picking_picks`, `picking_pick_marks` |
+| `picking`    | `picking_loads`, `picking_orders`, `picking_order_lines`, `picking_order_changes`, `picking_boxes`, `picking_picks`, `picking_pick_marks`, `picking_order_events` |
 
 Новая таблица, которую показывает клиент, — строка `add_data_version_triggers` в миграции.
 
@@ -1210,6 +1210,11 @@ batch_date)`): по ней сверяются повторные загрузк�
 `labels_printed` — сколько раз печатали ярлык (повтор — по праву), `shipped_by`/`shipped_at` —
 ярлык отсканирован на отгрузке.
 
+`dropped_at` (`000049`, P9-07) — короб без товара убран при «Завершить сборку»: удалить нельзя,
+на него ссылаются возвращённые пики. Номер `seq` уникален только у живых коробов (частичный
+индекс `picking_boxes_order_seq_uq ... WHERE dropped_at IS NULL`); живые короба заказа
+нумеруются 1..M при каждом завершении. Новый короб с тем же ярлыком оживляет убранный.
+
 ### 3.50 `picking_picks` — факт сборки (миграция `000045`)
 
 | Колонка                 | Тип             | Ограничения / смысл                                      |
@@ -1232,6 +1237,22 @@ internal_warehouse_id) WHERE state = 'picking'`). «Завершить сбор�
 
 `picking_pick_marks` — марки маркируемой позиции: `(pick_id, cis)` PK, `cis` FK → `cz_marks`;
 количество пика — число его марок.
+
+### 3.51 `picking_order_events` — журнал заказа сборки (миграция `000049`, P9-07)
+
+| Колонка        | Тип             | Ограничения / смысл                                                |
+|----------------|-----------------|---------------------------------------------------------------------|
+| `id`           | `uuid`          | PK                                                                  |
+| `seq`          | `bigint`        | identity — порядок событий                                           |
+| `order_id`     | `uuid`          | FK → `picking_orders` ON DELETE CASCADE                              |
+| `kind`         | `text`          | `taken` / `taken_over` / `released` / `released_by_lead` / `completed` / `reopened` / `shipped`; CHECK |
+| `user_id`      | `uuid`          | кто сделал; NOT NULL                                                 |
+| `prev_user_id` | `uuid`          | у кого перехвачен (`taken_over`), с кого снят (`released_by_lead`), кто собирал (`reopened`) |
+| `boxes`, `qty` | `int`, `numeric(20,3)` | коробов и штук — ровно у `completed` и `shipped` (CHECK)      |
+| `at`           | `timestamptz`   | когда                                                                |
+
+Индексы `(order_id, seq)` — история в окне заказа портала, `(user_id, at)` — будущие отчёты
+(топ работников, топ отгрузок). Пишется в той же транзакции, что и действие; область `picking`.
 
 ---
 

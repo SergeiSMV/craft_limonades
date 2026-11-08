@@ -171,6 +171,18 @@ abstract final class ApiConst {
   static String pickingShortage(String id, String lineId) =>
       'picking/orders/$id/lines/$lineId/shortage';
 
+  /// «Завершить сборку» (P9-07).
+  static String pickingComplete(String id) => 'picking/orders/$id/complete';
+
+  /// Собранный заказ с коробами «N из M».
+  static String pickingShipment(String id) => 'picking/orders/$id/shipment';
+
+  /// Отметить печать ярлыков коробов.
+  static String pickingLabels(String id) => 'picking/orders/$id/labels';
+
+  /// «Отгрузить»: ярлыки всех коробов отсканированы.
+  static String pickingShip(String id) => 'picking/orders/$id/ship';
+
   ///**GET** - заказы «Сборка-отгрузка» на дату накладной для портала (P8-03): `?date=`.
   static const String pickingPortalOrders = 'picking/portal/orders';
 

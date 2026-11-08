@@ -39,6 +39,15 @@ class _ListView extends StatelessWidget {
     await cubit.load();
   }
 
+  /// Открыть собранный заказ: ярлыки и отгрузка; по возврату - список заново.
+  Future<void> openPicked(BuildContext context, String id, int number) async {
+    final cubit = context.read<PickingListCubit>();
+    await context.router.push(
+      PickingShipmentRoute(orderId: id, number: number),
+    );
+    await cubit.load();
+  }
+
   @override
   Widget build(BuildContext context) {
     return SystemUiWrapper(
@@ -66,6 +75,7 @@ class _ListView extends StatelessWidget {
               state: state,
               onRetry: context.read<PickingListCubit>().load,
               onOpen: (id, number) => open(context, id, number),
+              onOpenPicked: (id, number) => openPicked(context, id, number),
             ),
           ),
         ),

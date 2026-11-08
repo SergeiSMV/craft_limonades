@@ -69,7 +69,7 @@ func (r *PickingRepository) TaskOrder(ctx context.Context, orderID string) (mode
 	rows.Close()
 
 	boxes, err := r.pool.Query(ctx, `
-		SELECT load_unit_id::text, seq FROM picking_boxes WHERE order_id = $1 ORDER BY seq`, orderID)
+		SELECT load_unit_id::text, seq FROM picking_boxes WHERE order_id = $1 AND dropped_at IS NULL ORDER BY seq`, orderID)
 	if err != nil {
 		return o, fmt.Errorf("короба заказа сборки: %w", err)
 	}

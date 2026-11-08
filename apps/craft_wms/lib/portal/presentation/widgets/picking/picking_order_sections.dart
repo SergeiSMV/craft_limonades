@@ -150,6 +150,32 @@ class PickingChangesSection extends StatelessWidget {
   }
 }
 
+/// Журнал событий заказа (P9-07): кто брал, отказывался, был снят, собрал и отгрузил.
+class PickingEventsSection extends StatelessWidget {
+  const PickingEventsSection({super.key, required this.events});
+
+  final List<PickingOrderEvent> events;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = t.portal.picking;
+    return _Section(
+      title: p.sectionEvents,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (events.isEmpty) Text(p.noEvents, style: _muted),
+          for (final e in events)
+            Text(
+              p.changeAt(time: fullDateTime(e.at), text: pickingEventText(e)),
+              style: _muted,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Раздел окна: заголовок и содержимое под ним.
 class _Section extends StatelessWidget {
   const _Section({required this.title, required this.child});

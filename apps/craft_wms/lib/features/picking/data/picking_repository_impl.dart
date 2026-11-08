@@ -10,6 +10,7 @@ import '../../../core/outbox/outbox_retry.dart';
 import '../../../core/sync/sync_engine.dart';
 import '../domain/picking_models.dart';
 import '../domain/picking_repository.dart';
+import '../domain/picking_shipment.dart';
 import '../domain/picking_view.dart';
 import 'picking_api.dart';
 import 'picking_store.dart';
@@ -253,6 +254,43 @@ class PickingRepositoryImpl implements PickingRepository {
       }
     }
     return res;
+  }
+
+  @override
+  Future<Either<Failure, PickingShipment>> complete(String orderId) async {
+    // Свои пики и возвраты в очереди - сначала отправить: завершение считает взятое по серверу.
+    if (await _hasPending(orderId)) {
+      await _sync.drain();
+      if (await _hasPending(orderId)) return const Left(Failure.network());
+    }
+    final res = await _api.complete(orderId);
+    // Заказ собран - слепок больше не нужен: пикать в него уже нельзя.
+    if (res.isRight) await _store.remove(orderId);
+    return res;
+  }
+
+  @override
+  Future<Either<Failure, PickingShipment>> shipment(String orderId) =>
+      _api.shipment(orderId);
+
+  @override
+  Future<Either<Failure, PickingShipment>> labels(
+    String orderId,
+    List<String> boxIds,
+  ) => _api.labels(orderId, boxIds);
+
+  @override
+  Future<Either<Failure, PickingShipment>> ship(
+    String orderId,
+    List<String> boxIds,
+  ) => _api.ship(orderId, boxIds);
+
+  /// Есть ли по заказу свои пики или возвраты, ещё не ушедшие на сервер.
+  Future<bool> _hasPending(String orderId) async {
+    final d = await _store.load(orderId);
+    if (d == null) return false;
+    final view = await _view(d);
+    return view.picks.any((p) => p.pending || p.returnPending);
   }
 
   /// Отправить операцию очереди сразу.

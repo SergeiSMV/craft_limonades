@@ -115,10 +115,10 @@ func TestPickingPortal_live(t *testing.T) {
 
 	// Снятие: заказ «новый» без исполнителя, пик и короб на месте; повтор — не ошибка; Анна на
 	// следующем действии узнаёт, что заказ не у неё.
-	if err := svc.Release(ctx, o1); err != nil {
+	if err := svc.Release(ctx, o1, ann); err != nil {
 		t.Fatalf("снять: %v", err)
 	}
-	if err := svc.Release(ctx, o1); err != nil {
+	if err := svc.Release(ctx, o1, ann); err != nil {
 		t.Fatalf("повтор снятия: %v", err)
 	}
 	if st := scan(`SELECT status || coalesce(assignee_id::text, '-') FROM picking_orders WHERE id = $1`, o1); st != "new-" {
@@ -131,7 +131,7 @@ func TestPickingPortal_live(t *testing.T) {
 		t.Fatalf("прежний кладовщик: %v", err)
 	}
 	exec(`UPDATE picking_orders SET status = 'picked', picked_by = $2, picked_at = now() WHERE id = $1`, o1, ann)
-	if err := svc.Release(ctx, o1); !errors.Is(err, model.ErrPickingOrderClosed) {
+	if err := svc.Release(ctx, o1, ann); !errors.Is(err, model.ErrPickingOrderClosed) {
 		t.Fatalf("снять собранный: %v", err)
 	}
 

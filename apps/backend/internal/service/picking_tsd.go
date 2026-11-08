@@ -57,3 +57,52 @@ func (s *PickingTaskService) MarkShortage(ctx context.Context, orderID, lineID, 
 	}
 	return s.repo.MarkShortage(ctx, orderID, lineID, userID, shortage)
 }
+
+// Complete — «Завершить сборку» (P9-07): остаток из ячеек в короба отгрузки, короба — в
+// `ОТГРУЗКУ`, заказ — «собран». Возвращает заказ с коробами «N из M» для ярлыков.
+func (s *PickingTaskService) Complete(ctx context.Context, orderID, userID string) (model.PickingShipment, error) {
+	if !isUUID(orderID) {
+		return model.PickingShipment{}, model.ErrPickingOrderNotFound
+	}
+	return s.repo.CompleteOrder(ctx, orderID, userID)
+}
+
+// Shipment — собранный заказ с коробами для ярлыков и отгрузки.
+func (s *PickingTaskService) Shipment(ctx context.Context, orderID string) (model.PickingShipment, error) {
+	if !isUUID(orderID) {
+		return model.PickingShipment{}, model.ErrPickingOrderNotFound
+	}
+	return s.repo.Shipment(ctx, orderID)
+}
+
+// PrintLabels — отметить печать ярлыков коробов; уже печатавшийся — только с правом повтора.
+func (s *PickingTaskService) PrintLabels(ctx context.Context, orderID string, boxIDs []string, canReprint bool) (model.PickingShipment, error) {
+	if !isUUID(orderID) {
+		return model.PickingShipment{}, model.ErrPickingOrderNotFound
+	}
+	if !allUUID(boxIDs) {
+		return model.PickingShipment{}, model.ErrPickingShipBoxes
+	}
+	return s.repo.PrintLabels(ctx, orderID, boxIDs, canReprint)
+}
+
+// Ship — «Отгрузить»: отсканированы ярлыки всех коробов заказа.
+func (s *PickingTaskService) Ship(ctx context.Context, orderID, userID string, boxIDs []string) (model.PickingShipment, error) {
+	if !isUUID(orderID) {
+		return model.PickingShipment{}, model.ErrPickingOrderNotFound
+	}
+	if !allUUID(boxIDs) {
+		return model.PickingShipment{}, model.ErrPickingShipBoxes
+	}
+	return s.repo.ShipOrder(ctx, orderID, userID, boxIDs)
+}
+
+// allUUID — все идентификаторы в формате UUID: иначе короб точно не из заказа.
+func allUUID(ids []string) bool {
+	for _, id := range ids {
+		if !isUUID(id) {
+			return false
+		}
+	}
+	return true
+}

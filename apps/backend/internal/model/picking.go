@@ -2,6 +2,7 @@ package model
 
 import (
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -241,6 +242,8 @@ type PickingOrderListItem struct {
 	Mine          bool
 	Busy          bool
 	AssigneeName  string
+	IsPartial     bool // у собранного: «собран частично»
+	Boxes         int  // живых коробов отгрузки
 }
 
 // PickingShortageResult — итог отметки «не хватает» (P9-04). StocktakeNumber — пересчёт позиции:
@@ -249,4 +252,78 @@ type PickingOrderListItem struct {
 type PickingShortageResult struct {
 	StocktakeNumber *int64
 	Created         bool
+}
+
+// События заказа сборки (P9-07, picking_order_events.kind): журнал для отчётов — кто брал,
+// отказывался, был снят, собрал и отгрузил.
+const (
+	PickingEventTaken          = "taken"
+	PickingEventTakenOver      = "taken_over"
+	PickingEventReleased       = "released"
+	PickingEventReleasedByLead = "released_by_lead"
+	PickingEventCompleted      = "completed"
+	PickingEventReopened       = "reopened"
+	PickingEventShipped        = "shipped"
+)
+
+// Отказы завершения сборки, ярлыков и отгрузки (P9-07).
+var (
+	// ErrPickingNothingTaken — «Завершить сборку» по заказу, в котором ничего не взято: отгружать
+	// нечего, коробов нет.
+	ErrPickingNothingTaken = errors.New("в заказе ничего не взято: завершать нечего")
+	ErrPickingNotPicked    = errors.New("заказ ещё не собран")
+	// ErrPickingShipBoxes — отсканированы не все короба заказа или чужой короб.
+	ErrPickingShipBoxes = errors.New("отсканированы не все короба заказа")
+	// ErrPickingReprintDenied — ярлык этого короба уже печатали, а права на повторную печать нет.
+	ErrPickingReprintDenied = errors.New("ярлык уже напечатан: повторную печать делает старший смены")
+)
+
+// PickingLinesError — «Завершить сборку» отказано по строкам (P9-07): Incomplete — взято меньше
+// плана без отметки «не хватает», Excess — «в сборке» больше плана (лишнее вернуть пиком).
+// Текст — по-русски со списком товаров: ТСД показывает его дословно.
+type PickingLinesError struct {
+	Incomplete []string
+	Excess     []string
+}
+
+func (e *PickingLinesError) Error() string {
+	msg := ""
+	if len(e.Excess) > 0 {
+		msg = "взято больше плана, верните лишнее: " + strings.Join(e.Excess, ", ")
+	}
+	if len(e.Incomplete) > 0 {
+		if msg != "" {
+			msg += ". "
+		}
+		msg += "не собрано - соберите или отметьте «не хватает»: " + strings.Join(e.Incomplete, ", ")
+	}
+	return msg
+}
+
+// PickingShipment — собранный заказ для ярлыков и отгрузки (P9-07): шапка реестра, короба
+// «N из M» и итог. Boxes — живые короба по номеру, M = len(Boxes).
+type PickingShipment struct {
+	ID            string
+	Number        int64
+	RegistryDate  time.Time
+	InvoiceNumber string
+	OrderNumber   string
+	Direction     string
+	Client        string
+	Address       string
+	Status        string
+	IsPartial     bool
+	Deleted       bool
+	Qty           decimal.Decimal
+	Boxes         []PickingShipmentBox
+}
+
+// PickingShipmentBox — короб отгрузки: номер, сколько в нём штук, сколько раз печатали ярлык,
+// отгружен ли.
+type PickingShipmentBox struct {
+	LoadUnitID    string
+	Seq           int
+	Qty           decimal.Decimal
+	LabelsPrinted int
+	Shipped       bool
 }

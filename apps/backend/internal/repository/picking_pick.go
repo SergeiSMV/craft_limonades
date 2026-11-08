@@ -100,7 +100,10 @@ func pickingPick(ctx context.Context, q Querier, in PickingPickInput) error {
 	}
 
 	var boxOrder string
-	err = q.QueryRow(ctx, `SELECT order_id::text FROM picking_boxes WHERE load_unit_id = $1::uuid`, in.BoxID).Scan(&boxOrder)
+	// Пустой короб, убранный при «Завершить сборку» (P9-07), — уже не короб заказа.
+	err = q.QueryRow(ctx, `
+		SELECT order_id::text FROM picking_boxes WHERE load_unit_id = $1::uuid AND dropped_at IS NULL`,
+		in.BoxID).Scan(&boxOrder)
 	if errors.Is(err, pgx.ErrNoRows) || (err == nil && boxOrder != in.OrderID) {
 		return model.ErrPickingBoxNotInOrder
 	}

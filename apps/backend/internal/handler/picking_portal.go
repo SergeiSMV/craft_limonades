@@ -12,6 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/shopspring/decimal"
 
+	appmw "craftwms/internal/middleware"
 	"craftwms/internal/model"
 	"craftwms/internal/repository"
 )
@@ -20,7 +21,7 @@ import (
 type pickingPortal interface {
 	Orders(ctx context.Context, warehouseCode string, date time.Time) ([]model.PickingPortalOrder, error)
 	Order(ctx context.Context, orderID string) (model.PickingPortalDetail, error)
-	Release(ctx context.Context, orderID string) error
+	Release(ctx context.Context, orderID, leadID string) error
 	ExportXLSX(ctx context.Context, warehouseCode string, date time.Time) ([]byte, string, error)
 }
 
@@ -105,11 +106,21 @@ type pickingPortalChangeDTO struct {
 	At          time.Time `json:"at"`
 }
 
+type pickingPortalEventDTO struct {
+	Kind     string           `json:"kind"`
+	UserName string           `json:"user_name"`
+	PrevName string           `json:"prev_name"`
+	Boxes    *int             `json:"boxes"`
+	Qty      *decimal.Decimal `json:"qty"`
+	At       time.Time        `json:"at"`
+}
+
 type pickingPortalDetailDTO struct {
 	pickingPortalOrderDTO
 	Items   []pickingPortalLineDTO   `json:"items"`
 	BoxList []pickingPortalBoxDTO    `json:"box_list"`
 	Changes []pickingPortalChangeDTO `json:"changes"`
+	Events  []pickingPortalEventDTO  `json:"events"`
 }
 
 // Orders: GET /api/v1/picking/portal/orders?date=YYYY-MM-DD[&warehouse=SHB] — заказы склада на
@@ -145,7 +156,8 @@ func (h *PickingPortalHandler) Order(w http.ResponseWriter, r *http.Request) {
 // Release: POST /api/v1/picking/portal/orders/{id}/release — снять заказ с исполнителя: снова
 // «новый», собранное остаётся в коробах. 204 / 404 / 409 (собран или отгружен).
 func (h *PickingPortalHandler) Release(w http.ResponseWriter, r *http.Request) {
-	if err := h.svc.Release(r.Context(), chi.URLParam(r, "id")); err != nil {
+	leadID, _ := appmw.UserIDFromContext(r.Context())
+	if err := h.svc.Release(r.Context(), chi.URLParam(r, "id"), leadID); err != nil {
 		h.fail(w, r, err, "release")
 		return
 	}
@@ -230,6 +242,10 @@ func pickingPortalDetailOut(d model.PickingPortalDetail) pickingPortalDetailDTO 
 		Items:                 make([]pickingPortalLineDTO, 0, len(d.Lines)),
 		BoxList:               make([]pickingPortalBoxDTO, 0, len(d.Boxes)),
 		Changes:               make([]pickingPortalChangeDTO, 0, len(d.Changes)),
+		Events:                make([]pickingPortalEventDTO, 0, len(d.Events)),
+	}
+	for _, e := range d.Events {
+		out.Events = append(out.Events, pickingPortalEventDTO(e))
 	}
 	for _, l := range d.Lines {
 		facts := make([]pickingPortalFactDTO, 0, len(l.Facts))

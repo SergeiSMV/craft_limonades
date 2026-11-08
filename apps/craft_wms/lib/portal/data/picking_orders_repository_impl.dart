@@ -124,6 +124,19 @@ PickingOrderDetail _detail(Map<String, dynamic> j) => PickingOrderDetail(
   changes: [
     for (final c in j['changes'] as List) _change(c as Map<String, dynamic>),
   ],
+  events: [
+    for (final e in j['events'] as List? ?? const [])
+      _event(e as Map<String, dynamic>),
+  ],
+);
+
+PickingOrderEvent _event(Map<String, dynamic> j) => PickingOrderEvent(
+  kind: j['kind'] as String,
+  userName: j['user_name'] as String,
+  prevName: j['prev_name'] as String,
+  boxes: j['boxes'] as int?,
+  qty: j['qty'] == null ? null : _qty(j['qty']),
+  at: DateTime.parse(j['at'] as String),
 );
 
 PickingOrderLine _line(Map<String, dynamic> j) => PickingOrderLine(

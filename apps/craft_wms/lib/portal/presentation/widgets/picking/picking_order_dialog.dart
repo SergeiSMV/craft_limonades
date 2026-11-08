@@ -164,6 +164,8 @@ class _PickingOrderDialogState extends State<_PickingOrderDialog> {
         PickingBoxesSection(boxes: detail.boxes),
         AppBoxes.kHeight16,
         PickingChangesSection(changes: detail.changes),
+        AppBoxes.kHeight16,
+        PickingEventsSection(events: detail.events),
       ],
     );
   }

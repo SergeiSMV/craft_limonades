@@ -13,7 +13,7 @@ type pickingPortalRepo interface {
 	PortalOrders(ctx context.Context, warehouseID string, date time.Time) ([]model.PickingPortalOrder, error)
 	PortalOrder(ctx context.Context, orderID string) (model.PickingPortalDetail, error)
 	PortalDetails(ctx context.Context, warehouseID string, date time.Time) ([]model.PickingPortalDetail, error)
-	ForceReleaseOrder(ctx context.Context, orderID string) error
+	ForceReleaseOrder(ctx context.Context, orderID, leadID string) error
 }
 
 // PickingPortalService — раздел портала «Сборка-отгрузка» (P8-03): заказы на дату накладной,
@@ -48,12 +48,13 @@ func (s *PickingPortalService) Order(ctx context.Context, orderID string) (model
 	return s.repo.PortalOrder(ctx, orderID)
 }
 
-// Release — снять заказ с исполнителя: снова «новый», собранное остаётся в коробах.
-func (s *PickingPortalService) Release(ctx context.Context, orderID string) error {
+// Release — снять заказ с исполнителя: снова «новый», собранное остаётся в коробах. leadID —
+// кто снял (журнал событий заказа).
+func (s *PickingPortalService) Release(ctx context.Context, orderID, leadID string) error {
 	if !isUUID(orderID) {
 		return model.ErrPickingOrderNotFound
 	}
-	return s.repo.ForceReleaseOrder(ctx, orderID)
+	return s.repo.ForceReleaseOrder(ctx, orderID, leadID)
 }
 
 // ExportXLSX — выгрузка всех заказов даты на момент нажатия: файл и его имя.

@@ -9,6 +9,7 @@ import '../../../../core/error/failure.dart';
 import '../../../../core/outbox/outbox_repository.dart';
 import '../../domain/picking_models.dart';
 import '../../domain/picking_repository.dart';
+import '../../domain/picking_shipment.dart';
 import '../../domain/picking_view.dart';
 
 part 'picking_order_cubit.freezed.dart';
@@ -58,6 +59,12 @@ final class OrderNoticeShortage extends OrderNotice {
   const OrderNoticeShortage({required this.set, required this.result});
   final bool set;
   final ShortageResult result;
+}
+
+/// Сборка завершена (P9-07): заказ с коробами «N из M» - экран переходит к ярлыкам.
+final class OrderNoticeCompleted extends OrderNotice {
+  const OrderNoticeCompleted(this.shipment);
+  final PickingShipment shipment;
 }
 
 enum PickingOrderStatus { loading, loaded, error }
@@ -247,6 +254,23 @@ class PickingOrderCubit extends Cubit<PickingOrderState> {
       ),
     );
     await load();
+  }
+
+  /// «Завершить сборку» (P9-07) - со связью: свои пики сначала уходят из очереди.
+  Future<void> complete() async {
+    if (state.busy) return;
+    emit(state.copyWith(busy: true));
+    final res = await _repo.complete(orderId);
+    if (isClosed) return;
+    emit(
+      state.copyWith(
+        busy: false,
+        notice: res.isRight
+            ? OrderNoticeCompleted(res.right)
+            : OrderNoticeFailed(res.left),
+      ),
+    );
+    if (res.isLeft) await load();
   }
 
   void clearNotice() => emit(state.copyWith(notice: null));

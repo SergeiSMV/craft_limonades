@@ -43,7 +43,16 @@ abstract class PickingListItem with _$PickingListItem {
     @Default(false) bool mine,
     @Default(false) bool busy,
     @JsonKey(name: 'assignee_name') @Default('') String assigneeName,
+
+    /// У собранного: «собран частично» и сколько коробов (P9-07).
+    @JsonKey(name: 'is_partial') @Default(false) bool isPartial,
+    @Default(0) int boxes,
   }) = _PickingListItem;
+
+  const PickingListItem._();
+
+  /// Собран и ждёт отгрузки.
+  bool get picked => status == PickingStatus.picked;
 
   factory PickingListItem.fromJson(Map<String, dynamic> json) =>
       _$PickingListItemFromJson(json);

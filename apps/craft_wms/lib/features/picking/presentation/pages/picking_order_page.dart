@@ -13,6 +13,7 @@ import '../../../../core/error/failure.dart';
 import '../../../../core/error/failure_reason.dart';
 import '../../../../core/gen/assets.gen.dart';
 import '../../../../core/gen/strings.g.dart';
+import '../../../../core/router/app_router.dart';
 import '../../../../core/scanner/hardware_scan_listener.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/utils/doc_number.dart';
@@ -101,6 +102,16 @@ class _OrderViewState extends State<_OrderView>
         });
       case OrderNoticeRejected(:final reason):
         snack(p.rejected(reason: reason));
+      case OrderNoticeCompleted(:final shipment):
+        snack(p.completed);
+        context.router.replace(
+          PickingShipmentRoute(
+            orderId: shipment.id,
+            number: shipment.number,
+            shipment: shipment,
+            printNow: true,
+          ),
+        );
       case OrderNoticeShortage(:final set, :final result):
         final number = result.stocktakeNumber;
         snack(
@@ -125,6 +136,19 @@ class _OrderViewState extends State<_OrderView>
       no: t.picking.releaseNo,
     );
     if (ok && mounted) await cubit.release();
+    refocusScan();
+  }
+
+  /// «Завершить сборку» - с подтверждением: товар уходит из ячеек в короба отгрузки.
+  Future<void> complete() async {
+    final ok = await confirmPicking(
+      context,
+      title: t.picking.completeTitle,
+      body: t.picking.completeBody,
+      yes: t.picking.completeYes,
+      no: t.picking.completeNo,
+    );
+    if (ok && mounted) await cubit.complete();
     refocusScan();
   }
 
@@ -297,6 +321,13 @@ class _OrderViewState extends State<_OrderView>
                   onPressed: state.busy ? () {} : cubit.take,
                 )
               else ...[
+                // Завершить - только со связью: без неё сервер не знает всего взятого.
+                if (!view.fromCache)
+                  NeumorphicActionButton(
+                    label: t.picking.complete,
+                    icon: MdiIcons.packageVariantClosedCheck,
+                    onPressed: state.busy ? () {} : complete,
+                  ),
                 NeumorphicActionButton(
                   label: t.picking.newBox,
                   icon: MdiIcons.packageVariantPlus,

@@ -15,8 +15,8 @@ import (
 // ключ — товар. Две отметки «не хватает» по одному товару не заводят два пересчёта.
 const pickingShortageLockKey = 1041
 
-// OpenOrders — список «СБОРКА» на ТСД (P9-04): все заказы «новый» и «в работе» любой даты, не
-// удалённые в 1С. Заказ в работе у другого виден занятым, зависший (staleAfter без движения) —
+// OpenOrders — список «СБОРКА» на ТСД (P9-04): все заказы «новый», «в работе» и — для отгрузки
+// (P9-07) — «собран» любой даты, не удалённые в 1С. Заказ в работе у другого виден занятым, зависший (staleAfter без движения) —
 // свободным. Порядок — дата накладной, затем номер сборки: сначала то, что отгружать раньше.
 func (r *PickingRepository) OpenOrders(ctx context.Context, userID string, staleAfter time.Duration) ([]model.PickingOrderListItem, error) {
 	rows, err := r.pool.Query(ctx, `
@@ -26,10 +26,11 @@ func (r *PickingRepository) OpenOrders(ctx context.Context, userID string, stale
 		       o.status = 'in_progress' AND o.assignee_id = $1::uuid,
 		       o.status = 'in_progress' AND o.assignee_id <> $1::uuid
 		           AND NOT coalesce(o.last_activity_at < now() - $2::interval, false),
-		       coalesce(u.full_name, '')
+		       coalesce(u.full_name, ''), o.is_partial,
+		       (SELECT count(*) FROM picking_boxes b WHERE b.order_id = o.id AND b.dropped_at IS NULL)
 		FROM picking_orders o
 		LEFT JOIN users u ON u.id = o.assignee_id
-		WHERE o.status IN ('new', 'in_progress') AND o.deleted_at IS NULL
+		WHERE o.status IN ('new', 'in_progress', 'picked') AND o.deleted_at IS NULL
 		ORDER BY o.registry_date, o.number`, userID, intervalOf(staleAfter))
 	if err != nil {
 		return nil, fmt.Errorf("заказы сборки для ТСД: %w", err)
@@ -40,7 +41,7 @@ func (r *PickingRepository) OpenOrders(ctx context.Context, userID string, stale
 		var it model.PickingOrderListItem
 		if err := rows.Scan(&it.ID, &it.Number, &it.RegistryDate, &it.InvoiceNumber, &it.OrderNumber,
 			&it.Direction, &it.Client, &it.Address, &it.Status, &it.HasUnknown,
-			&it.Lines, &it.Mine, &it.Busy, &it.AssigneeName); err != nil {
+			&it.Lines, &it.Mine, &it.Busy, &it.AssigneeName, &it.IsPartial, &it.Boxes); err != nil {
 			return nil, fmt.Errorf("заказ сборки для ТСД: %w", err)
 		}
 		out = append(out, it)
@@ -102,7 +103,12 @@ func (r *PickingRepository) TakeOrder(ctx context.Context, orderID, userID strin
 			WHERE id = $1::uuid`, orderID, userID); err != nil {
 			return fmt.Errorf("взять заказ сборки: %w", err)
 		}
-		return nil
+		// Зависший у другого — перехват: в журнале видно, у кого забрали.
+		ev := pickingEvent{kind: model.PickingEventTaken}
+		if st.status == model.PickingStatusInProgress {
+			ev.kind, ev.prevUser = model.PickingEventTakenOver, st.assignee
+		}
+		return addPickingEvent(ctx, q, orderID, userID, ev)
 	})
 }
 
@@ -126,7 +132,7 @@ func (r *PickingRepository) ReleaseOrder(ctx context.Context, orderID, userID st
 			WHERE id = $1::uuid`, orderID); err != nil {
 			return fmt.Errorf("отказаться от заказа сборки: %w", err)
 		}
-		return nil
+		return addPickingEvent(ctx, q, orderID, userID, pickingEvent{kind: model.PickingEventReleased})
 	})
 }
 
@@ -162,11 +168,20 @@ func (r *PickingRepository) AddBox(ctx context.Context, orderID, userID, loadUni
 		}
 		var owner *string
 		var existing *int
+		var dropped bool
 		err := q.QueryRow(ctx, `
-			SELECT pb.order_id::text, pb.seq FROM load_units lu
+			SELECT pb.order_id::text, pb.seq, pb.dropped_at IS NOT NULL FROM load_units lu
 			LEFT JOIN picking_boxes pb ON pb.load_unit_id = lu.id
-			WHERE lu.id = $1::uuid`, loadUnitID).Scan(&owner, &existing)
+			WHERE lu.id = $1::uuid`, loadUnitID).Scan(&owner, &existing, &dropped)
 		switch {
+		case err == nil && owner != nil && *owner == orderID && dropped:
+			// Пустой короб, убранный при «Завершить сборку» (P9-07), снова в деле при дособоре:
+			// номер — следующий за живыми.
+			return q.QueryRow(ctx, `
+				UPDATE picking_boxes SET dropped_at = NULL, labels_printed = 0,
+				       seq = (SELECT coalesce(max(seq), 0) + 1 FROM picking_boxes
+				              WHERE order_id = $2::uuid AND dropped_at IS NULL)
+				WHERE load_unit_id = $1::uuid RETURNING seq`, loadUnitID, orderID).Scan(&seq)
 		case err == nil && owner != nil && *owner == orderID:
 			seq = *existing
 			return nil
@@ -182,7 +197,7 @@ func (r *PickingRepository) AddBox(ctx context.Context, orderID, userID, loadUni
 		return q.QueryRow(ctx, `
 			INSERT INTO picking_boxes (load_unit_id, order_id, seq, created_by)
 			SELECT $1::uuid, $2::uuid, coalesce(max(seq), 0) + 1, $3::uuid
-			FROM picking_boxes WHERE order_id = $2::uuid
+			FROM picking_boxes WHERE order_id = $2::uuid AND dropped_at IS NULL
 			RETURNING seq`, loadUnitID, orderID, userID).Scan(&seq)
 	})
 	if err != nil {

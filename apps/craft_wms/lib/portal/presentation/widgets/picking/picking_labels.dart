@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/gen/strings.g.dart';
+import '../../../../core/utils/qty_format.dart';
 import '../../../domain/picking/picking_order.dart';
 import '../ui/portal_badge.dart';
 
@@ -45,6 +46,25 @@ String pickingChangeText({
     ),
     'order_deleted' => p.changeOrderDeleted,
     _ => p.changeOrderRestored,
+  };
+}
+
+/// Событие журнала заказа одной строкой (P9-07): кто и что сделал.
+String pickingEventText(PickingOrderEvent e) {
+  final p = t.portal.picking;
+  final boxes = e.boxes ?? 0;
+  final qty = fmtQty(e.qty ?? 0);
+  return switch (e.kind) {
+    'taken' => p.eventTaken(name: e.userName),
+    'taken_over' => p.eventTakenOver(name: e.userName, prev: e.prevName),
+    'released' => p.eventReleased(name: e.userName),
+    'released_by_lead' => p.eventReleasedByLead(
+      name: e.userName,
+      prev: e.prevName,
+    ),
+    'completed' => p.eventCompleted(name: e.userName, boxes: boxes, qty: qty),
+    'reopened' => p.eventReopened(name: e.userName, prev: e.prevName),
+    _ => p.eventShipped(name: e.userName, boxes: boxes, qty: qty),
   };
 }
 

@@ -219,6 +219,13 @@ func applyPickingPlan(ctx context.Context, q Querier, in model.PickingLoadInput,
 		h.HasUnknown, loadID, p.Reopen); err != nil {
 		return fmt.Errorf("заказ сборки %s: %w", h.OrderNumber, err)
 	}
+	// Дособор — событие заказа: его снова держит собравший, вернул в работу загрузивший реестр.
+	if p.Reopen {
+		if err := addPickingEvent(ctx, q, p.ExistingID, in.UploadedBy,
+			pickingEvent{kind: model.PickingEventReopened, prevUser: p.PickedBy}); err != nil {
+			return err
+		}
+	}
 	if len(p.RemovedLineIDs) > 0 {
 		if _, err := q.Exec(ctx, `
 			UPDATE picking_order_lines SET removed_at = now() WHERE id = ANY($1::uuid[])`,

@@ -43,6 +43,8 @@ type pickingListItemDTO struct {
 	Mine          bool   `json:"mine"`
 	Busy          bool   `json:"busy"`
 	AssigneeName  string `json:"assignee_name,omitempty"`
+	IsPartial     bool   `json:"is_partial"`
+	Boxes         int    `json:"boxes"`
 }
 
 type pickingTakeDTO struct {
@@ -130,6 +132,7 @@ func (h *PickingTSDHandler) Orders(w http.ResponseWriter, r *http.Request) {
 			InvoiceNumber: it.InvoiceNumber, OrderNumber: it.OrderNumber, Direction: it.Direction,
 			Client: it.Client, Address: it.Address, Status: it.Status, HasUnknown: it.HasUnknown,
 			Lines: it.Lines, Mine: it.Mine, Busy: it.Busy, AssigneeName: it.AssigneeName,
+			IsPartial: it.IsPartial, Boxes: it.Boxes,
 		})
 	}
 	writeJSON(w, http.StatusOK, out)
@@ -208,9 +211,109 @@ func (h *PickingTSDHandler) Shortage(w http.ResponseWriter, r *http.Request) {
 	}{res.StocktakeNumber, res.Created})
 }
 
+type pickingShipmentBoxDTO struct {
+	LoadUnitID    string          `json:"load_unit_id"`
+	Seq           int             `json:"seq"`
+	Qty           decimal.Decimal `json:"qty"`
+	LabelsPrinted int             `json:"labels_printed"`
+	Shipped       bool            `json:"shipped"`
+}
+
+type pickingShipmentDTO struct {
+	ID            string                  `json:"id"`
+	Number        int64                   `json:"number"`
+	RegistryDate  string                  `json:"registry_date"`
+	InvoiceNumber string                  `json:"invoice_number"`
+	OrderNumber   string                  `json:"order_number"`
+	Direction     string                  `json:"direction"`
+	Client        string                  `json:"client"`
+	Address       string                  `json:"address"`
+	Status        string                  `json:"status"`
+	IsPartial     bool                    `json:"is_partial"`
+	Deleted       bool                    `json:"deleted"`
+	Qty           decimal.Decimal         `json:"qty"`
+	Boxes         []pickingShipmentBoxDTO `json:"boxes"`
+}
+
+// Shipment: GET /api/v1/picking/orders/{id}/shipment — собранный заказ с коробами «N из M» для
+// ярлыков и отгрузки (P9-07). 200 / 404.
+func (h *PickingTSDHandler) Shipment(w http.ResponseWriter, r *http.Request) {
+	s, err := h.svc.Shipment(r.Context(), chi.URLParam(r, "id"))
+	h.shipmentOut(w, r, s, err, "shipment")
+}
+
+// Complete: POST /api/v1/picking/orders/{id}/complete — «Завершить сборку»: остаток в короба
+// отгрузки, короба в `ОТГРУЗКУ`, заказ «собран». 200 (заказ с коробами) / 404 / 409 (не у вас,
+// строки не собраны или взято лишнее — текст со списком товаров).
+func (h *PickingTSDHandler) Complete(w http.ResponseWriter, r *http.Request) {
+	userID, _ := appmw.UserIDFromContext(r.Context())
+	s, err := h.svc.Complete(r.Context(), chi.URLParam(r, "id"), userID)
+	h.shipmentOut(w, r, s, err, "complete")
+}
+
+// boxIDsRequest — тело ярлыков и отгрузки: короба заказа.
+type boxIDsRequest struct {
+	BoxIDs []string `json:"box_ids"`
+}
+
+// Labels: POST /api/v1/picking/orders/{id}/labels {"box_ids": [...]} — отметить печать ярлыков и
+// получить данные для них. Уже печатавшийся ярлык — только с правом tsd.picking.reprint.
+// 200 / 400 / 403 (повтор без права) / 404 / 409.
+func (h *PickingTSDHandler) Labels(w http.ResponseWriter, r *http.Request) {
+	var req boxIDsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "ожидается JSON с полем box_ids")
+		return
+	}
+	access, _ := appmw.AccessFromContext(r.Context())
+	s, err := h.svc.PrintLabels(r.Context(), chi.URLParam(r, "id"), req.BoxIDs, access.Can(model.RightTSDPickingReprint))
+	h.shipmentOut(w, r, s, err, "labels")
+}
+
+// Ship: POST /api/v1/picking/orders/{id}/ship {"box_ids": [...]} — «Отгрузить»: отсканированы
+// ярлыки всех коробов, товар уходит со склада. 200 / 400 / 404 / 409.
+func (h *PickingTSDHandler) Ship(w http.ResponseWriter, r *http.Request) {
+	var req boxIDsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "ожидается JSON с полем box_ids")
+		return
+	}
+	userID, _ := appmw.UserIDFromContext(r.Context())
+	s, err := h.svc.Ship(r.Context(), chi.URLParam(r, "id"), userID, req.BoxIDs)
+	h.shipmentOut(w, r, s, err, "ship")
+}
+
+// shipmentOut — заказ с коробами в ответ или отказ.
+func (h *PickingTSDHandler) shipmentOut(w http.ResponseWriter, r *http.Request, s model.PickingShipment, err error, action string) {
+	if err != nil {
+		h.fail(w, r, err, action)
+		return
+	}
+	out := pickingShipmentDTO{
+		ID: s.ID, Number: s.Number, RegistryDate: s.RegistryDate.Format(time.DateOnly),
+		InvoiceNumber: s.InvoiceNumber, OrderNumber: s.OrderNumber, Direction: s.Direction,
+		Client: s.Client, Address: s.Address, Status: s.Status, IsPartial: s.IsPartial,
+		Deleted: s.Deleted, Qty: s.Qty, Boxes: make([]pickingShipmentBoxDTO, 0, len(s.Boxes)),
+	}
+	for _, b := range s.Boxes {
+		out.Boxes = append(out.Boxes, pickingShipmentBoxDTO{
+			LoadUnitID: b.LoadUnitID, Seq: b.Seq, Qty: b.Qty, LabelsPrinted: b.LabelsPrinted, Shipped: b.Shipped,
+		})
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
 // fail — отказ по состоянию заказа текстом для кладовщика, остальное — 500.
 func (h *PickingTSDHandler) fail(w http.ResponseWriter, r *http.Request, err error, action string) {
+	var lines *model.PickingLinesError
 	switch {
+	case errors.As(err, &lines):
+		writeError(w, http.StatusConflict, err.Error())
+	case errors.Is(err, model.ErrPickingReprintDenied):
+		writeError(w, http.StatusForbidden, err.Error())
+	case errors.Is(err, model.ErrPickingNothingTaken), errors.Is(err, model.ErrPickingNotPicked),
+		errors.Is(err, model.ErrPickingShipBoxes), errors.Is(err, model.ErrPickingStockShort):
+		writeError(w, http.StatusConflict, err.Error())
 	case errors.Is(err, model.ErrPickingOrderNotFound), errors.Is(err, model.ErrPickingLineNotFound):
 		writeError(w, http.StatusNotFound, err.Error())
 	case errors.Is(err, model.ErrPickingBoxID):

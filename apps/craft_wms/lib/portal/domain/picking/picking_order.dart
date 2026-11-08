@@ -192,19 +192,43 @@ class PickingOrderChange {
   final DateTime at;
 }
 
-/// Заказ в окне деталей: шапка, строки план/факт, короба, правки реестра.
+/// Событие журнала заказа (P9-07): взял, отказался, снят старшим, перехватил зависший,
+/// завершил, дособор, отгрузил. [prevName] - у кого перехватили или с кого сняли; [boxes] и
+/// [qty] - итог завершения и отгрузки.
+class PickingOrderEvent {
+  const PickingOrderEvent({
+    required this.kind,
+    required this.userName,
+    required this.prevName,
+    required this.boxes,
+    required this.qty,
+    required this.at,
+  });
+
+  /// taken, taken_over, released, released_by_lead, completed, reopened, shipped.
+  final String kind;
+  final String userName;
+  final String prevName;
+  final int? boxes;
+  final double? qty;
+  final DateTime at;
+}
+
+/// Заказ в окне деталей: шапка, строки план/факт, короба, правки реестра, журнал событий.
 class PickingOrderDetail {
   const PickingOrderDetail({
     required this.order,
     required this.lines,
     required this.boxes,
     required this.changes,
+    this.events = const [],
   });
 
   final PickingOrderSummary order;
   final List<PickingOrderLine> lines;
   final List<PickingBoxInfo> boxes;
   final List<PickingOrderChange> changes;
+  final List<PickingOrderEvent> events;
 }
 
 /// Выгрузка Excel: байты и имя файла от сервера.

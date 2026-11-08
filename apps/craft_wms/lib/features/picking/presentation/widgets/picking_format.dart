@@ -1,8 +1,11 @@
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/load_unit/box_code.dart';
+import '../../../../core/printer/picking_box_label.dart';
+import '../../../../core/utils/doc_number.dart';
 import '../../../../core/utils/date_time_format.dart';
 import '../../../../core/utils/qty_format.dart';
 import '../../domain/picking_models.dart';
+import '../../domain/picking_shipment.dart';
 import '../../domain/picking_sources.dart';
 import '../../domain/picking_view.dart';
 
@@ -36,7 +39,10 @@ List<String> listItemLines(PickingListItem o) => [
     registryDate: o.registryDate,
   ),
   t.picking.lines(count: o.lines),
-  if (o.mine)
+  if (o.picked) ...[
+    o.isPartial ? t.picking.statusPartial : t.picking.statusPicked,
+    t.picking.boxes(count: o.boxes),
+  ] else if (o.mine)
     t.picking.statusMine
   else if (o.busy)
     t.picking.statusBusy(name: o.assigneeName)
@@ -95,5 +101,36 @@ List<String> pickLines(PickingOrderView view, ViewPick vp, String uom) {
     if (pick.marks.isNotEmpty) p.pickMarks(count: pick.marks.length),
     if (vp.pending) p.pickPending,
     if (vp.returnPending) p.pickReturning,
+  ];
+}
+
+/// Ярлык короба отгрузки (P9-07): номер сборки, накладная, заказ, дата, «Короб N из M»;
+/// под QR - клиент, направление, адрес. Вес не печатается (долг 36).
+PickingBoxLabel pickingBoxLabel(PickingShipment s, PickingShipmentBox box) {
+  final p = t.picking;
+  return PickingBoxLabel(
+    loadUnitId: box.loadUnitId,
+    title: docNumber(DocKind.picking, s.number),
+    side: [
+      if (s.invoiceNumber.isNotEmpty) p.invoice(number: s.invoiceNumber),
+      if (s.orderNumber.isNotEmpty) p.order(number: s.orderNumber),
+      batchDate(transportDate(s.registryDate)),
+    ],
+    boxLine: p.labelBox(seq: box.seq, count: s.boxes.length),
+    body: [
+      if (s.client.isNotEmpty) p.client(name: s.client),
+      if (s.direction.isNotEmpty) p.direction(name: s.direction),
+      if (s.address.isNotEmpty) p.labelAddress(address: s.address),
+    ],
+  );
+}
+
+/// Строки короба на экране отгрузки: количество, ярлык, скан.
+List<String> shipmentBoxLines(PickingShipmentBox box, {required bool scanned}) {
+  final p = t.picking;
+  return [
+    p.shipmentQty(qty: fmtQty(box.qty)),
+    box.labelsPrinted > 0 ? p.shipmentLabelPrinted : p.shipmentLabelNone,
+    if (scanned) p.shipmentScanned,
   ];
 }

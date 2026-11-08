@@ -450,6 +450,10 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 				r.Post("/picking/orders/{id}/release", ptH.Release)                  // отказаться
 				r.Post("/picking/orders/{id}/boxes", ptH.AddBox)                     // короб отгрузки
 				r.Post("/picking/orders/{id}/lines/{lineId}/shortage", ptH.Shortage) // «не хватает»
+				r.Post("/picking/orders/{id}/complete", ptH.Complete)                // «Завершить сборку» (P9-07)
+				r.Get("/picking/orders/{id}/shipment", ptH.Shipment)                 // короба «N из M»
+				r.Post("/picking/orders/{id}/labels", ptH.Labels)                    // печать ярлыков
+				r.Post("/picking/orders/{id}/ship", ptH.Ship)                        // «Отгрузить»
 			})
 		}
 

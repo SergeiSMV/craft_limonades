@@ -69,7 +69,7 @@ func (r *PickingRepository) portalOrders(ctx context.Context, cond string, args 
 		LEFT JOIN LATERAL (
 			SELECT sum(qty) AS qty FROM picking_picks WHERE order_id = o.id AND state <> 'returned'
 		) f ON true
-		LEFT JOIN LATERAL (SELECT count(*) AS cnt FROM picking_boxes WHERE order_id = o.id) b ON true
+		LEFT JOIN LATERAL (SELECT count(*) AS cnt FROM picking_boxes WHERE order_id = o.id AND dropped_at IS NULL) b ON true
 		WHERE `+cond+`
 		ORDER BY o.deleted_at IS NOT NULL, o.number`, args...)
 	if err != nil {
@@ -120,6 +120,9 @@ func (r *PickingRepository) portalDetails(ctx context.Context, orders []model.Pi
 		return nil, err
 	}
 	if err := r.portalChanges(ctx, ids, byOrder); err != nil {
+		return nil, err
+	}
+	if err := r.portalEvents(ctx, ids, byOrder); err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -207,7 +210,7 @@ func (r *PickingRepository) portalFacts(ctx context.Context, ids []string, byOrd
 func (r *PickingRepository) portalBoxes(ctx context.Context, ids []string, byOrder map[string]*model.PickingPortalDetail) error {
 	rows, err := r.pool.Query(ctx, `
 		SELECT order_id::text, seq, shipped_at FROM picking_boxes
-		WHERE order_id = ANY($1::uuid[]) ORDER BY order_id, seq`, ids)
+		WHERE order_id = ANY($1::uuid[]) AND dropped_at IS NULL ORDER BY order_id, seq`, ids)
 	if err != nil {
 		return fmt.Errorf("короба сборки для портала: %w", err)
 	}
@@ -251,8 +254,8 @@ func (r *PickingRepository) portalChanges(ctx context.Context, ids []string, byO
 // того же места; прежний на следующем действии получит «заказ не у вас в работе».
 //
 // Заказ уже «новый» — не ошибка (повтор, или кладовщик успел отказаться сам); собранный и
-// отгруженный — ErrPickingOrderClosed.
-func (r *PickingRepository) ForceReleaseOrder(ctx context.Context, orderID string) error {
+// отгруженный — ErrPickingOrderClosed. В журнал — кто снял (leadID) и с кого.
+func (r *PickingRepository) ForceReleaseOrder(ctx context.Context, orderID, leadID string) error {
 	return WithinTx(ctx, r.pool, func(q Querier) error {
 		st, err := lockPickingOrder(ctx, q, orderID, 0)
 		switch {
@@ -268,6 +271,39 @@ func (r *PickingRepository) ForceReleaseOrder(ctx context.Context, orderID strin
 			WHERE id = $1::uuid`, orderID); err != nil {
 			return fmt.Errorf("снять заказ сборки с исполнителя: %w", err)
 		}
-		return nil
+		return addPickingEvent(ctx, q, orderID, leadID,
+			pickingEvent{kind: model.PickingEventReleasedByLead, prevUser: st.assignee})
 	})
+}
+
+// portalEvents — журнал событий заказов (P9-07) в порядке записи.
+func (r *PickingRepository) portalEvents(ctx context.Context, ids []string, byOrder map[string]*model.PickingPortalDetail) error {
+	rows, err := r.pool.Query(ctx, `
+		SELECT e.order_id::text, e.kind, coalesce(u.full_name, ''), coalesce(pu.full_name, ''),
+		       e.boxes, e.qty::text, e.at
+		FROM picking_order_events e
+		LEFT JOIN users u ON u.id = e.user_id
+		LEFT JOIN users pu ON pu.id = e.prev_user_id
+		WHERE e.order_id = ANY($1::uuid[]) ORDER BY e.seq`, ids)
+	if err != nil {
+		return fmt.Errorf("события заказов для портала: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var orderID string
+		var qty *string
+		var e model.PickingPortalEvent
+		if err := rows.Scan(&orderID, &e.Kind, &e.UserName, &e.PrevName, &e.Boxes, &qty, &e.At); err != nil {
+			return fmt.Errorf("событие заказа для портала: %w", err)
+		}
+		if qty != nil {
+			v, err := parseQty(*qty)
+			if err != nil {
+				return err
+			}
+			e.Qty = &v
+		}
+		byOrder[orderID].Events = append(byOrder[orderID].Events, e)
+	}
+	return rows.Err()
 }

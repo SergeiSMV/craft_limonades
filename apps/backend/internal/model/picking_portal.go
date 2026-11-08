@@ -45,6 +45,18 @@ type PickingPortalDetail struct {
 	Lines   []PickingPortalLine
 	Boxes   []PickingPortalBox
 	Changes []PickingPortalChange
+	Events  []PickingPortalEvent
+}
+
+// PickingPortalEvent — событие журнала заказа (P9-07): вид (PickingEvent*), кто сделал и с кого
+// снят или у кого перехвачен заказ; у завершения и отгрузки — коробов и штук.
+type PickingPortalEvent struct {
+	Kind     string
+	UserName string
+	PrevName string
+	Boxes    *int
+	Qty      *decimal.Decimal
+	At       time.Time
 }
 
 // PickingPortalLine — строка плана и факт по ней.

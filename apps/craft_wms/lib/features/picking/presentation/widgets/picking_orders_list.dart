@@ -21,11 +21,15 @@ class PickingOrdersList extends StatelessWidget {
     required this.state,
     required this.onRetry,
     required this.onOpen,
+    required this.onOpenPicked,
   });
 
   final PickingListState state;
   final Future<void> Function() onRetry;
   final void Function(String id, int number) onOpen;
+
+  /// Открыть собранный заказ - ярлыки и отгрузка (P9-07).
+  final void Function(String id, int number) onOpenPicked;
 
   @override
   Widget build(BuildContext context) {
@@ -80,6 +84,10 @@ class PickingOrdersList extends StatelessWidget {
               SectionTitle(title: t.picking.sectionBusy),
               for (final o in state.busy) _item(o),
             ],
+            if (state.picked.isNotEmpty) ...[
+              SectionTitle(title: t.picking.sectionPicked),
+              for (final o in state.picked) _item(o),
+            ],
           ],
           AppBoxes.kHeight8,
         ],
@@ -90,7 +98,8 @@ class PickingOrdersList extends StatelessWidget {
   Widget _item(PickingListItem o) => _tile(
     number: o.number,
     lines: listItemLines(o),
-    onTap: () => onOpen(o.id, o.number),
+    onTap: () =>
+        o.picked ? onOpenPicked(o.id, o.number) : onOpen(o.id, o.number),
   );
 
   Widget _tile({

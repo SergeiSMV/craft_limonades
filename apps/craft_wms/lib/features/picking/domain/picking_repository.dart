@@ -2,6 +2,7 @@ import 'package:either_dart/either.dart';
 
 import '../../../core/error/failure.dart';
 import 'picking_models.dart';
+import 'picking_shipment.dart';
 import 'picking_view.dart';
 
 /// Что взять в короб отгрузки: строка, источник, партия, количество, марки.
@@ -82,4 +83,23 @@ abstract interface class PickingRepository {
     String lineId, {
     required bool shortage,
   });
+
+  /// «Завершить сборку» (P9-07) - со связью. Свои пики заказа сначала уходят из очереди;
+  /// не ушли - `Left(NetworkFailure)`: сервер ещё не знает всего взятого.
+  Future<Either<Failure, PickingShipment>> complete(String orderId);
+
+  /// Собранный заказ с коробами - для ярлыков и отгрузки.
+  Future<Either<Failure, PickingShipment>> shipment(String orderId);
+
+  /// Отметить печать ярлыков коробов [boxIds]; ответ - заказ для печати.
+  Future<Either<Failure, PickingShipment>> labels(
+    String orderId,
+    List<String> boxIds,
+  );
+
+  /// «Отгрузить»: отсканированы ярлыки всех коробов [boxIds].
+  Future<Either<Failure, PickingShipment>> ship(
+    String orderId,
+    List<String> boxIds,
+  );
 }

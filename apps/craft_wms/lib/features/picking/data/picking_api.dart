@@ -6,6 +6,7 @@ import '../../../core/constants/api_constants.dart';
 import '../../../core/error/dio_failure.dart';
 import '../../../core/error/failure.dart';
 import '../domain/picking_models.dart';
+import '../domain/picking_shipment.dart';
 
 /// Сетевой источник сборки на ТСД (P9-04): список, заказ, взять, отказаться, короб отгрузки,
 /// «не хватает». Всё - только со связью: за кем заказ, решает сервер.
@@ -60,6 +61,38 @@ class PickingApi {
       );
     },
   );
+
+  /// «Завершить сборку» (P9-07): заказ с коробами «N из M».
+  Future<Either<Failure, PickingShipment>> complete(String id) =>
+      _call(() => _dio.post<Object?>(ApiConst.pickingComplete(id)), _shipment);
+
+  Future<Either<Failure, PickingShipment>> shipment(String id) =>
+      _call(() => _dio.get<Object?>(ApiConst.pickingShipment(id)), _shipment);
+
+  /// Отметить печать ярлыков [boxIds]; уже печатавшийся - только с правом повтора (403).
+  Future<Either<Failure, PickingShipment>> labels(
+    String id,
+    List<String> boxIds,
+  ) => _call(
+    () => _dio.post<Object?>(
+      ApiConst.pickingLabels(id),
+      data: {'box_ids': boxIds},
+    ),
+    _shipment,
+  );
+
+  /// «Отгрузить»: [boxIds] - все короба заказа.
+  Future<Either<Failure, PickingShipment>> ship(
+    String id,
+    List<String> boxIds,
+  ) => _call(
+    () =>
+        _dio.post<Object?>(ApiConst.pickingShip(id), data: {'box_ids': boxIds}),
+    _shipment,
+  );
+
+  static PickingShipment _shipment(Object? data) =>
+      PickingShipment.fromJson(data as Map<String, dynamic>);
 
   Future<Either<Failure, T>> _call<T>(
     Future<Response<Object?>> Function() send,
