@@ -75,6 +75,8 @@ type operationsRepo interface {
 	ProblemSubmit(ctx context.Context, operationID string, in repository.ProblemSubmitInput) (repository.Applied, error)
 	ReturnSubmit(ctx context.Context, operationID string, in repository.ReturnSubmitInput) (repository.Applied, error)
 	StocktakeCellSubmit(ctx context.Context, operationID string, in model.StocktakeCellSubmitInput) (repository.Applied, error)
+	PickingPick(ctx context.Context, operationID string, in repository.PickingPickInput) (repository.Applied, error)
+	PickingUnpick(ctx context.Context, operationID, pickID string) (repository.Applied, error)
 }
 
 // OperationsService — приём батча операций из очереди устройства с дедупом по operation_id.
@@ -317,6 +319,12 @@ func (s *OperationsService) dispatch(ctx context.Context, userID, id string, op 
 	case repository.KindStocktakeCellSubmit:
 		return s.stocktakeCellSubmit(ctx, userID, id, op.Payload)
 
+	case repository.KindPickingPick:
+		return s.pickingPick(ctx, userID, id, op.Payload)
+
+	case repository.KindPickingUnpick:
+		return s.pickingUnpick(ctx, id, op.Payload)
+
 	default:
 		return repository.Applied{}, ErrUnknownKind
 	}
@@ -334,6 +342,11 @@ func isRejection(err error) bool {
 	var lines *repository.DocumentLinesError
 	if errors.As(err, &lines) {
 		return true
+	}
+	for _, target := range pickingRejections {
+		if errors.Is(err, target) {
+			return true
+		}
 	}
 	return errors.Is(err, repository.ErrBarcodeConflict) ||
 		// Привязки при марках ЧЗ на складе (ADHOC-53): отвязать ШК с марками, привязать ШК к

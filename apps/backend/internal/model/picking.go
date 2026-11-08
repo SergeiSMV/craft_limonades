@@ -31,6 +31,18 @@ var (
 	ErrPickingBoxForeign = errors.New("этот ярлык уже занят другим коробом")
 	// ErrPickingBoxID — id короба от ТСД не UUID: ярлык не в формате ГЕ.
 	ErrPickingBoxID = errors.New("ярлык короба не распознан")
+
+	// Пик (P9-05).
+	ErrPickingOverPlan      = errors.New("больше, чем осталось собрать по строке")
+	ErrPickingSourceDenied  = errors.New("из этой ячейки или склада собирать нельзя")
+	ErrPickingBoxNotInOrder = errors.New("короб отгрузки не из этого заказа")
+	ErrPickingSourceIsBox   = errors.New("короб отгрузки не источник сборки")
+	ErrPickingPickExists    = errors.New("пик с этим идентификатором уже есть")
+	ErrPickingPickNotFound  = errors.New("пик не найден")
+	ErrPickingPickMoved     = errors.New("сборка заказа уже завершена: товар в коробе отгрузки")
+	ErrPickingStockShort    = errors.New("в источнике не хватает товара: часть уже в сборке или перемещена")
+	ErrPickingLoadUnitBusy  = errors.New("из короба идёт сборка: сначала завершите или верните пики")
+	ErrPickingMarkInPicking = errors.New("марка уже взята в сборку")
 )
 
 // Что загрузка реестра делает с заказом (P8-02): так предпросмотр подписывает заказ и так

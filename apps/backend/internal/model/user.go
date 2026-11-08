@@ -151,6 +151,8 @@ func OperationRights(kind string) []string {
 		return []string{RightTSDProblemsMark}
 	case "stocktake_cell_submit":
 		return []string{RightTSDStocktakeCount}
+	case "picking_pick", "picking_unpick":
+		return []string{RightTSDPicking}
 	case "stock_entry_start", "stock_entry_checkpoint", "stock_entry_finalize":
 		return []string{RightTSDStockEntry}
 	default:

@@ -212,6 +212,11 @@ func problemLoadUnit(ctx context.Context, q Querier, in ProblemSubmitInput) (pro
 	if err := guardProblemPlace(ctx, q, box.cell, box.iwh, in); err != nil {
 		return problemRow{}, err
 	}
+	// Из короба идёт сборка (P9-05): пикнутое числится в нём, но склад пика — прежний. Сменить
+	// метку всего короба значило бы перевести в брак уже собранный товар.
+	if err := guardLoadUnitNotInPicking(ctx, q, in.LoadUnitID); err != nil {
+		return problemRow{}, err
+	}
 	items, err := loadUnitStock(ctx, q, in.LoadUnitID)
 	if err != nil {
 		return problemRow{}, err

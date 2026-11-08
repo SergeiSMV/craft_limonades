@@ -361,11 +361,14 @@ func (s *stocktakeSnapshot) take(ctx context.Context) error {
 		return err
 	}
 	for _, ln := range loose {
-		if !s.inArea(ln.GoodID) || s.system[ln.InternalWarehouseID] {
+		// «В сборке» (P9-05) уже в коробе отгрузки: ячейка ожидает доступное — 20 с 5 в сборке
+		// дают 15. Расхождение пересчёт применяет к той же доступной россыпи (looseQty).
+		expected := ln.Qty.Sub(ln.InPicking)
+		if !s.inArea(ln.GoodID) || s.system[ln.InternalWarehouseID] || !expected.IsPositive() {
 			continue
 		}
 		if _, err := s.looseLine(ctx, stocktakeLineKey{ln.GoodID, ln.BatchID, ln.InternalWarehouseID},
-			ln.Qty.String()); err != nil {
+			expected.String()); err != nil {
 			return err
 		}
 	}
@@ -426,8 +429,11 @@ func (s *stocktakeSnapshot) looseLine(ctx context.Context, key stocktakeLineKey,
 func (s *stocktakeSnapshot) marks(ctx context.Context) error {
 	rows, err := s.q.Query(ctx, `
 		SELECT cis, good_id::text, batch_id::text, internal_warehouse_id::text
-		FROM cz_marks
+		FROM cz_marks m
 		WHERE status = $1 AND cell_id = $2::uuid
+		  -- марка в сборке (P9-05) уже в коробе отгрузки: на полке её не ждут
+		  AND NOT EXISTS (SELECT 1 FROM picking_pick_marks pm JOIN picking_picks p ON p.id = pm.pick_id
+		                  WHERE pm.cis = m.cis AND p.state = 'picking')
 		ORDER BY cis`, model.CZMarkInStock, s.cell)
 	if err != nil {
 		return fmt.Errorf("марки ячейки: %w", err)
