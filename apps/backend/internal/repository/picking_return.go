@@ -277,6 +277,10 @@ func pickingReturn(ctx context.Context, q Querier, in PickingReturnInput) error 
 			WHERE cis = ANY($1::text[])`, in.Marks, in.CellID, iwh); err != nil {
 			return fmt.Errorf("марки в ячейку: %w", err)
 		}
+		// Целый короб ЧЗ, доживший до отгрузки нетронутым (CZ-07), вынутой из него маркой вскрыт.
+		if err := openTouchedAggregates(ctx, q, in.Marks); err != nil {
+			return err
+		}
 		if _, err := q.Exec(ctx, `
 			DELETE FROM picking_pick_marks WHERE pick_id = $1::uuid AND cis = ANY($2::text[])`,
 			in.PickID, in.Marks); err != nil {

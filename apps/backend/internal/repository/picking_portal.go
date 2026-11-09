@@ -151,6 +151,9 @@ func (r *PickingRepository) portalDetails(ctx context.Context, orders []model.Pi
 	if err := r.portalEvents(ctx, ids, byOrder); err != nil {
 		return nil, err
 	}
+	if err := r.portalCZBoxes(ctx, ids, byOrder); err != nil {
+		return nil, err
+	}
 	for i := range out {
 		model.ClassifyPickingChanges(&out[i])
 	}
@@ -233,6 +236,77 @@ func (r *PickingRepository) portalFacts(ctx context.Context, ids []string, byOrd
 		d.Lines[ref.index].Facts = append(d.Lines[ref.index].Facts, f)
 	}
 	return rows.Err()
+}
+
+// portalCZBoxes — целые упаковки ЧЗ в коробах отгрузки заказов (CZ-07).
+//
+// Что: упаковка (своя или над ней — короб с групповой внутри) целая, если она и вложенные в неё
+// не вскрыты, все её марки — в перенесённых пиках этого заказа и в одном коробе отгрузки.
+// Зачем проверять состав, а не только opened_at: признак ставится по факту перемещений, а
+// здесь — документ для УПД; марка короба, отгруженная другим заказом или не собранная, делает
+// его россыпью наверняка. Как: кандидаты — упаковка марки и её родитель; из целых родителя и
+// вложенной остаётся родитель (вложенность — один уровень, CZ-01).
+func (r *PickingRepository) portalCZBoxes(ctx context.Context, ids []string, byOrder map[string]*model.PickingPortalDetail) error {
+	rows, err := r.pool.Query(ctx, `
+		WITH picked AS (
+			SELECT p.order_id, pm.cis, p.box_id, m.aggregate_code AS code, a.parent_code AS parent
+			FROM picking_picks p
+			JOIN picking_pick_marks pm ON pm.pick_id = p.id
+			JOIN cz_marks m ON m.cis = pm.cis
+			JOIN cz_aggregates a ON a.code = m.aggregate_code
+			WHERE p.order_id = ANY($1::uuid[]) AND p.state = 'moved'
+		), cand AS (
+			SELECT order_id, cis, box_id, code FROM picked
+			UNION ALL
+			SELECT order_id, cis, box_id, parent FROM picked WHERE parent IS NOT NULL
+		), agg AS (
+			SELECT order_id, code, count(*) AS n, count(DISTINCT box_id) AS boxes,
+			       array_agg(cis ORDER BY cis) AS marks
+			FROM cand GROUP BY order_id, code
+		)
+		SELECT agg.order_id::text, agg.code, a.kind, coalesce(a.parent_code, ''), agg.marks
+		FROM agg
+		JOIN cz_aggregates a ON a.code = agg.code
+		WHERE agg.boxes = 1 AND a.opened_at IS NULL
+		  AND NOT EXISTS (SELECT 1 FROM cz_aggregates g WHERE g.parent_code = a.code AND g.opened_at IS NOT NULL)
+		  AND agg.n = (SELECT count(*) FROM cz_marks m
+		               WHERE m.aggregate_code = a.code
+		                  OR m.aggregate_code IN (SELECT g.code FROM cz_aggregates g WHERE g.parent_code = a.code))
+		ORDER BY agg.order_id, agg.marks[1]`, ids)
+	if err != nil {
+		return fmt.Errorf("целые упаковки ЧЗ заказов: %w", err)
+	}
+	defer rows.Close()
+	type found struct {
+		box    model.PickingCZBox
+		parent string
+	}
+	perOrder := map[string][]found{}
+	for rows.Next() {
+		var orderID string
+		var f found
+		if err := rows.Scan(&orderID, &f.box.Code, &f.box.Kind, &f.parent, &f.box.Marks); err != nil {
+			return fmt.Errorf("целая упаковка ЧЗ: %w", err)
+		}
+		perOrder[orderID] = append(perOrder[orderID], f)
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for orderID, list := range perOrder {
+		whole := make(map[string]bool, len(list))
+		for _, f := range list {
+			whole[f.box.Code] = true
+		}
+		d := byOrder[orderID]
+		for _, f := range list {
+			if f.parent != "" && whole[f.parent] {
+				continue
+			}
+			d.CZBoxes = append(d.CZBoxes, f.box)
+		}
+	}
+	return nil
 }
 
 // portalBoxes — короба отгрузки заказов по номеру.
