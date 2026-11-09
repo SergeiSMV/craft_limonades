@@ -2,6 +2,7 @@ import 'package:either_dart/either.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../../core/error/failure.dart';
+import 'picking_card.dart';
 import 'picking_models.dart';
 import 'picking_shipment.dart';
 import 'picking_view.dart';
@@ -113,6 +114,9 @@ abstract interface class PickingRepository {
     String orderId,
     List<String> boxIds,
   );
+
+  /// Карточка заказа (ADHOC-62) - со связью: позиции план/факт, короба с составом, журнал.
+  Future<Either<Failure, PickingCard>> card(String orderId);
 
   /// «Отгрузить»: отсканированы ярлыки всех коробов [boxIds].
   Future<Either<Failure, PickingShipment>> ship(

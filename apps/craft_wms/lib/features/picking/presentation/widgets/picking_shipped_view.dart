@@ -15,7 +15,7 @@ import '../bloc/picking_shipped_cubit.dart';
 import 'picking_format.dart';
 
 /// Вкладка «Завершённые» «СБОРКИ»: дата накладной сверху (касание - календарь), под ней
-/// отгруженные заказы этой даты. Касание заказа - его короба ([onOpen]).
+/// отгруженные заказы этой даты. Касание заказа - его карточка ([onOpen]).
 class PickingShippedView extends StatelessWidget {
   const PickingShippedView({super.key, required this.onOpen});
 

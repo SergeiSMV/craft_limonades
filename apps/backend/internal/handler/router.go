@@ -438,6 +438,14 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 				r.With(need(model.RightPickingRelease)).Post("/picking/portal/orders/{id}/release", ppH.Release)
 				r.With(need(model.RightPickingDownload)).Get("/picking/portal/export.xlsx", ppH.ExportXLSX)
 			})
+			// Карточка заказа на ТСД (ADHOC-62) — те же данные, что окно деталей портала, только
+			// чтение: «Завершённые» в «СБОРКЕ» показывают план/факт, короба и журнал. Право
+			// кладовщика сборки, а не портала.
+			r.Group(func(r chi.Router) {
+				r.Use(appmw.Authenticator(tokens))
+				r.Use(need(model.RightTSDPicking))
+				r.Get("/picking/orders/{id}/card", ppH.Order)
+			})
 		}
 
 		// Сборка на ТСД (P9-04) — право «собирать и отгружать». Онлайн: заказ закрепляется за

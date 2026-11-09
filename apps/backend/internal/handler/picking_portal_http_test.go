@@ -37,6 +37,11 @@ func TestPickingPortalHTTP_rights(t *testing.T) {
 			t.Errorf("кладовщик %s %s: %d, ждали 403", c.method, c.path, rec.Code)
 		}
 	}
+	// ADHOC-62: карточка заказа на ТСД - только с правом сборки.
+	if rec := czCall(router, worker, http.MethodGet,
+		"/api/v1/picking/orders/22222222-2222-4222-8222-222222222222/card", ""); rec.Code != http.StatusForbidden {
+		t.Errorf("кладовщик без tsd.picking, карточка: %d, ждали 403", rec.Code)
+	}
 	for _, path := range []string{
 		"/api/v1/picking/portal/orders",
 		"/api/v1/picking/portal/orders?date=09.11.2026",

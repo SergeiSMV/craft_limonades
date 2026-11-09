@@ -11,6 +11,7 @@ import '../../../core/outbox/outbox_retry.dart';
 import '../../../core/sync/sync_engine.dart';
 import '../domain/picking_models.dart';
 import '../domain/picking_repository.dart';
+import '../domain/picking_card.dart';
 import '../domain/picking_shipment.dart';
 import '../domain/picking_view.dart';
 import 'picking_api.dart';
@@ -323,6 +324,10 @@ class PickingRepositoryImpl implements PickingRepository {
     String orderId,
     List<String> boxIds,
   ) => _api.labels(orderId, boxIds);
+
+  @override
+  Future<Either<Failure, PickingCard>> card(String orderId) =>
+      _api.card(orderId);
 
   @override
   Future<Either<Failure, PickingShipment>> ship(

@@ -5,6 +5,7 @@ import 'package:injectable/injectable.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/error/dio_failure.dart';
 import '../../../core/error/failure.dart';
+import '../domain/picking_card.dart';
 import '../domain/picking_models.dart';
 import '../domain/picking_return.dart';
 import '../domain/picking_shipment.dart';
@@ -111,6 +112,12 @@ class PickingApi {
   Future<Either<Failure, PickingReturnView>> returnView(String id) => _call(
     () => _dio.get<Object?>(ApiConst.pickingReturn(id)),
     (data) => PickingReturnView.fromJson(data as Map<String, dynamic>),
+  );
+
+  /// Карточка заказа (ADHOC-62): план/факт, короба, журнал - только чтение.
+  Future<Either<Failure, PickingCard>> card(String id) => _call(
+    () => _dio.get<Object?>(ApiConst.pickingCard(id)),
+    (data) => PickingCard.fromJson(data as Map<String, dynamic>),
   );
 
   static PickingShipment _shipment(Object? data) =>

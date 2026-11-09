@@ -189,6 +189,9 @@ abstract final class ApiConst {
   /// Что вернуть на места по заказу после правки реестра (P9-07-1).
   static String pickingReturn(String id) => 'picking/orders/$id/return';
 
+  /// Карточка заказа на ТСД (ADHOC-62): план/факт, короба, журнал - только чтение.
+  static String pickingCard(String id) => 'picking/orders/$id/card';
+
   ///**GET** - заказы «Сборка-отгрузка» на дату накладной для портала (P8-03): `?date=`.
   static const String pickingPortalOrders = 'picking/portal/orders';
 

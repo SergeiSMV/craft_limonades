@@ -55,9 +55,9 @@ class _ListViewState extends State<_ListView> {
     }
   }
 
-  /// Отгруженный заказ: его короба, отгрузка уже отмечена.
+  /// Отгруженный заказ: карточка только для чтения - позиции, короба, журнал (ADHOC-62).
   Future<void> openShipped(String id, int number) =>
-      context.router.push(PickingShipmentRoute(orderId: id, number: number));
+      context.router.push(PickingCardRoute(orderId: id, number: number));
 
   /// Открыть заказ; по возврату список обновляется - заказ могли взять или отпустить.
   Future<void> open(BuildContext context, String id, int number) async {

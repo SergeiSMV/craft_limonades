@@ -16,6 +16,7 @@ import '../../features/movement/presentation/pages/movement_record_page.dart';
 import '../../features/problems/domain/problem_records.dart'; // аргумент ProblemRecordRoute
 import '../../features/problems/presentation/pages/problem_page.dart';
 import '../../features/problems/presentation/pages/problem_record_page.dart';
+import '../../features/picking/presentation/pages/picking_card_page.dart';
 import '../../features/picking/presentation/pages/picking_list_page.dart';
 import '../../features/picking/presentation/pages/picking_order_page.dart';
 import '../../features/picking/domain/picking_shipment.dart';
@@ -95,6 +96,7 @@ class AppRouter extends RootStackRouter {
     AutoRoute(page: PickingListRoute.page, guards: [_authGuard]),
     AutoRoute(page: PickingOrderRoute.page, guards: [_authGuard]),
     AutoRoute(page: PickingShipmentRoute.page, guards: [_authGuard]),
+    AutoRoute(page: PickingCardRoute.page, guards: [_authGuard]),
     AutoRoute(page: PickingReturnRoute.page, guards: [_authGuard]),
     // Содержимое ячейки и короба по скану (P5-05).
     AutoRoute(page: CellContentsRoute.page, guards: [_authGuard]),
