@@ -50,6 +50,20 @@ class PortalStocktake {
 /// Ячейка пересчёта в ходе выполнения: адрес, статус, кто держит.
 typedef PortalStocktakeCell = ({String address, String status, String takenBy});
 
+/// Строка пересчёта для окна «Ход»: в какой ячейке, что (товар с партией или короб), сколько
+/// ожидалось по снимку и сколько посчитано (`fact == null` - ячейку не считали); `problem` -
+/// недостача ушла проблемой «не найдено».
+typedef PortalStocktakeLine = ({
+  String cell,
+  String loadUnitId,
+  String goodName,
+  String uom,
+  String productionDate,
+  double expected,
+  double? fact,
+  bool problem,
+});
+
 /// Объект области для выбора: id для сервера, подпись для человека, глубина — у дерева групп.
 typedef ScopeObject = ({String id, String label, int depth});
 
@@ -86,6 +100,26 @@ class StocktakesRepository {
               address: (e as Map<String, dynamic>)['address'] as String? ?? '',
               status: e['status'] as String? ?? '',
               takenBy: e['taken_by'] as String? ?? '',
+            ),
+        ];
+      });
+
+  /// Что ожидалось и что посчитано по ячейкам (только портал: на ТСД счёт слепой).
+  Future<Either<Failure, List<PortalStocktakeLine>>> lines(String id) =>
+      _call(() async {
+        final resp = await _dio.get<List<dynamic>>(ApiConst.stocktakeLines(id));
+        double? qty(Object? v) => v == null ? null : double.tryParse('$v');
+        return [
+          for (final e in resp.data ?? const [])
+            (
+              cell: (e as Map<String, dynamic>)['cell'] as String? ?? '',
+              loadUnitId: e['load_unit_id'] as String? ?? '',
+              goodName: e['good_name'] as String? ?? '',
+              uom: e['uom'] as String? ?? '',
+              productionDate: e['production_date'] as String? ?? '',
+              expected: qty(e['expected']) ?? 0,
+              fact: qty(e['fact']),
+              problem: e['problem'] as bool? ?? false,
             ),
         ];
       });

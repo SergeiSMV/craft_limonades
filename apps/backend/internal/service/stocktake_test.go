@@ -36,6 +36,9 @@ func (f *fakeStocktakeRepo) Close(context.Context, string, string, bool) (int, e
 func (f *fakeStocktakeRepo) List(context.Context, string) ([]model.StocktakeListItem, error) {
 	return nil, nil
 }
+func (f *fakeStocktakeRepo) Lines(context.Context, string) ([]model.StocktakeLine, error) {
+	return nil, nil
+}
 func (f *fakeStocktakeRepo) CountingInCell(context.Context, string) (*model.CellUnderCount, error) {
 	return nil, nil
 }

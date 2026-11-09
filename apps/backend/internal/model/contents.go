@@ -62,10 +62,14 @@ type LoadUnitCard struct {
 //
 // Россыпь не хранится отдельно — это остаток ячейки за вычетом содержимого лежащих в ней
 // коробов (см. ContentsRepository).
+//
+// InPicking — сколько из Qty «в сборке» (P9-05): пикнуто в короб отгрузки, но ещё числится в
+// ячейке до «Завершить сборку». Доступно для движения и пересчёта — Qty минус InPicking.
 type LooseLine struct {
 	CellID              string
 	InternalWarehouseID string
 	ContentLine
+	InPicking decimal.Decimal
 }
 
 // CellContents — что лежит в ячейке: живые короба и россыпь (P5-05).

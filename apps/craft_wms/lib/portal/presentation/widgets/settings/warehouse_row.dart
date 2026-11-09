@@ -10,6 +10,7 @@ import '../../../../core/theme/semibold_text.dart';
 import '../../../data/internal_warehouses_repository.dart';
 import '../ui/portal_badge.dart';
 import '../ui/portal_button.dart';
+import '../ui/portal_checkbox.dart';
 
 /// Строка склада: имя и код, отметки («По умолчанию», «Скрыт», «Есть остаток») и действия —
 /// переименовать, скрыть или вернуть, удалить. Чего со складом сделать нельзя, того и нет.
@@ -20,6 +21,7 @@ class WarehouseRow extends StatelessWidget {
     required this.busy,
     required this.onRename,
     required this.onToggle,
+    required this.onTogglePicking,
     required this.onDelete,
   });
 
@@ -29,6 +31,9 @@ class WarehouseRow extends StatelessWidget {
   final bool busy;
   final VoidCallback onRename;
   final VoidCallback onToggle;
+
+  /// Разрешить или запретить сборку из склада (P8-02).
+  final VoidCallback onTogglePicking;
   final VoidCallback onDelete;
 
   @override
@@ -77,6 +82,29 @@ class WarehouseRow extends StatelessWidget {
                       PortalBadge(t.portal.warehouses.markInUse),
                   ],
                 ),
+                // Галочка «разрешить сборку» (P8-02): у системного склада её нет — из него не
+                // собирают. Своей строкой под отметками: в узком окне строка не переполняется.
+                if (w.canTogglePicking) ...[
+                  AppBoxes.kHeight8,
+                  Row(
+                    children: [
+                      PortalCheckbox(
+                        value: w.allowPicking,
+                        onChanged: busy ? null : onTogglePicking,
+                        semanticLabel: t.portal.warehouses.allowPicking,
+                      ),
+                      AppBoxes.kWidth8,
+                      Flexible(
+                        child: Text(
+                          t.portal.warehouses.allowPicking,
+                          style: RegularTextStyles().regularInter13.copyWith(
+                            color: AppColors.kTextMain,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),

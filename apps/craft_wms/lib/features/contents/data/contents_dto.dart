@@ -23,6 +23,7 @@ ContentLine contentLineFromJson(
   uom: j['uom'] as String?,
   productionDate: j['production_date'] as String,
   qty: _qty(j['qty']),
+  inPicking: _qty(j['in_picking']),
   internalWarehouseId: warehouseId ?? j['internal_warehouse_id'] as String?,
 );
 
@@ -166,17 +167,22 @@ class SnapshotLoose {
     required this.cellId,
     required this.internalWarehouseId,
     required this.line,
+    this.inPicking = 0,
   });
 
   factory SnapshotLoose.fromJson(Map<String, dynamic> j) => SnapshotLoose(
     cellId: j['cell_id'] as String,
     internalWarehouseId: j['internal_warehouse_id'] as String,
     line: SnapshotLine.fromJson(j),
+    inPicking: _qty(j['in_picking']),
   );
 
   final String cellId;
   final String internalWarehouseId;
   final SnapshotLine line;
+
+  /// Сколько из остатка уже в сборке (P9-05); сервер до P9-05 поля не шлёт - ноль.
+  final double inPicking;
 }
 
 /// Снимок содержимого склада целиком.

@@ -240,16 +240,27 @@ func looseStock(ctx context.Context, q Querier, cellID *string) ([]model.LooseLi
 			WHERE lu.cell_id IS NOT NULL
 			  AND ($1::uuid IS NULL OR lu.cell_id = $1::uuid)
 			GROUP BY lu.cell_id, lu.internal_warehouse_id, c.good_id, c.batch_id
+		),
+		-- «В сборке» россыпью (P9-05): открытые пики без короба-источника.
+		in_picking AS (
+			SELECT source_cell_id AS cell_id, internal_warehouse_id, good_id, batch_id, sum(qty) AS qty
+			FROM picking_picks
+			WHERE state = 'picking' AND source_load_unit_id IS NULL
+			  AND ($1::uuid IS NULL OR source_cell_id = $1::uuid)
+			GROUP BY source_cell_id, internal_warehouse_id, good_id, batch_id
 		)
 		SELECT s.cell_id::text, s.internal_warehouse_id::text,
 		       g.id::text, g.code, g.name, g.uom,
-		       b.id::text, b.production_date, (s.qty - COALESCE(bx.qty, 0))::text
+		       b.id::text, b.production_date, (s.qty - COALESCE(bx.qty, 0))::text,
+		       COALESCE(ip.qty, 0)::text
 		FROM stock s
 		JOIN goods g   ON g.id = s.good_id
 		JOIN batches b ON b.id = s.batch_id
 		JOIN cells c   ON c.id = s.cell_id
 		LEFT JOIN boxed bx ON bx.cell_id = s.cell_id AND bx.good_id = s.good_id AND bx.batch_id = s.batch_id
 		                  AND bx.internal_warehouse_id = s.internal_warehouse_id
+		LEFT JOIN in_picking ip ON ip.cell_id = s.cell_id AND ip.good_id = s.good_id AND ip.batch_id = s.batch_id
+		                       AND ip.internal_warehouse_id = s.internal_warehouse_id
 		WHERE ($1::uuid IS NULL OR s.cell_id = $1::uuid)
 		  AND s.qty - COALESCE(bx.qty, 0) > 0
 		ORDER BY c.address, g.name, b.production_date`, cellID)
@@ -262,13 +273,16 @@ func looseStock(ctx context.Context, q Querier, cellID *string) ([]model.LooseLi
 	for rows.Next() {
 		var ln model.LooseLine
 		var code *string
-		var qty string
+		var qty, inPicking string
 		if err := rows.Scan(&ln.CellID, &ln.InternalWarehouseID,
-			&ln.GoodID, &code, &ln.GoodName, &ln.Uom, &ln.BatchID, &ln.ProductionDate, &qty); err != nil {
+			&ln.GoodID, &code, &ln.GoodName, &ln.Uom, &ln.BatchID, &ln.ProductionDate, &qty, &inPicking); err != nil {
 			return nil, fmt.Errorf("разобрать россыпь: %w", err)
 		}
 		ln.GoodCode = deref(code)
 		if ln.Qty, err = parseQty(qty); err != nil {
+			return nil, err
+		}
+		if ln.InPicking, err = parseQty(inPicking); err != nil {
 			return nil, err
 		}
 		out = append(out, ln)

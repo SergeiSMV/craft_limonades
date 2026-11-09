@@ -318,6 +318,9 @@ class CachedLooseStock extends Table {
   TextColumn get productionDate => text()();
   RealColumn get qty => real()();
 
+  /// Сколько из [qty] уже в сборке (P9-06): показ «20 шт. (5 шт. в сборке)».
+  RealColumn get inPicking => real().withDefault(const Constant(0))();
+
   @override
   Set<Column<Object>> get primaryKey => {
     cellId,
@@ -412,7 +415,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 13;
+  int get schemaVersion => 14;
 
   /// Миграции схемы.
   ///
@@ -449,6 +452,8 @@ class AppDatabase extends _$AppDatabase {
   ///
   /// 12 → 13: справочник причин проблем [cachedProblemReasons] (ADHOC-55). Пуст до первой
   /// синхронизации — до неё форма пометки берёт прежний список причин.
+  ///
+  /// 13 → 14: у россыпи снимка — «в сборке» (P9-06).
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) => m.createAll(),
@@ -540,6 +545,18 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 13 && to >= 13) {
         await m.createTable(cachedProblemReasons);
+      }
+      if (from < 14 && to >= 14) {
+        // Колонку — только базе, где таблица россыпи уже была (версия 7 и выше): с более
+        // ранних её только что создал шаг «< 7» по текущей схеме.
+        if (from >= 7) {
+          await m.addColumn(cachedLooseStock, cachedLooseStock.inPicking);
+        }
+        // Встаёт нулём у всей россыпи - взятое в сборку не было бы видно до новой загрузки.
+        // Снимаем отметку снимка: до следующей загрузки содержимое читается с сервера.
+        await (delete(
+          catalogSyncMarks,
+        )..where((t) => t.catalog.equals('contents'))).go();
       }
     },
   );

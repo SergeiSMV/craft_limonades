@@ -15,6 +15,8 @@ class NeumorphicLineTile extends StatelessWidget {
     required this.title,
     this.subtitle,
     this.trailing,
+    this.note,
+    this.noteColor,
     required this.onTap,
   });
 
@@ -23,6 +25,11 @@ class NeumorphicLineTile extends StatelessWidget {
 
   /// Число справа — количество.
   final String? trailing;
+
+  /// Отметка строки под подписью - заметнее подписи, цветом [noteColor] (например, «не хватает»
+  /// в сборке).
+  final String? note;
+  final Color? noteColor;
   final VoidCallback onTap;
 
   @override
@@ -56,6 +63,13 @@ class NeumorphicLineTile extends StatelessWidget {
                     s,
                     style: RegularTextStyles().regularInter10.copyWith(
                       color: AppColors.kTextMuted,
+                    ),
+                  ),
+                if (note case final n?)
+                  Text(
+                    n,
+                    style: SemiboldTextStyles().semiboldInter12.copyWith(
+                      color: noteColor ?? AppColors.kTextMain,
                     ),
                   ),
               ],

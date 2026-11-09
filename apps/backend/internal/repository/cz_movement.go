@@ -88,6 +88,9 @@ func moveMarks(ctx context.Context, q Querier, goodID, batchID string, marks []s
 			return model.ErrCZMarkNotAtSource
 		}
 	}
+	if err := guardMarksNotInPicking(ctx, q, marks); err != nil {
+		return err
+	}
 	if _, err := q.Exec(ctx, `
 		UPDATE cz_marks
 		SET load_unit_id = NULLIF($2, '')::uuid, cell_id = NULLIF($3, '')::uuid,

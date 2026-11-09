@@ -18,8 +18,10 @@ bool sessionCan(
 }
 
 /// Права на виды заданий склада (ADHOC-51): размещение и возврат — «Задания: размещение и
-/// возврат поставщику», пересчёт — считать ячейки или заводить и закрывать.
+/// возврат поставщику», пересчёт — считать ячейки или заводить и закрывать, возврат на места
+/// после правки реестра (P9-07-1) — своё право.
 List<String> taskKindRights(String kind) => switch (kind) {
   'stocktake' => const [Rights.tsdStocktakeCount, Rights.tsdStocktakeManage],
+  'picking_return' => const [Rights.tsdPickingReturn],
   _ => const [Rights.tsdPutaway],
 };

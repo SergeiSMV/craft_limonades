@@ -24,7 +24,7 @@ const internalWarehouseNameMax = 100
 type internalWarehouseRepo interface {
 	All(ctx context.Context) ([]model.InternalWarehouse, error)
 	Create(ctx context.Context, code, name string) (model.InternalWarehouse, error)
-	Update(ctx context.Context, id string, name *string, active *bool) (model.InternalWarehouse, error)
+	Update(ctx context.Context, id string, name *string, active, allowPicking *bool) (model.InternalWarehouse, error)
 	Delete(ctx context.Context, id string) error
 }
 
@@ -55,8 +55,9 @@ func (s *InternalWarehouseService) Create(ctx context.Context, code, name string
 	return s.repo.Create(ctx, code, name)
 }
 
-// Update переименовывает склад и (или) скрывает его или возвращает в выбор. nil — не меняется.
-func (s *InternalWarehouseService) Update(ctx context.Context, id string, name *string, active *bool) (model.InternalWarehouse, error) {
+// Update переименовывает склад, скрывает его или возвращает в выбор, разрешает или запрещает
+// сборку из него. nil — не меняется.
+func (s *InternalWarehouseService) Update(ctx context.Context, id string, name *string, active, allowPicking *bool) (model.InternalWarehouse, error) {
 	if !isUUID(id) {
 		return model.InternalWarehouse{}, ErrInvalidInternalWarehouse
 	}
@@ -67,7 +68,7 @@ func (s *InternalWarehouseService) Update(ctx context.Context, id string, name *
 		}
 		name = &trimmed
 	}
-	return s.repo.Update(ctx, id, name, active)
+	return s.repo.Update(ctx, id, name, active, allowPicking)
 }
 
 // Delete удаляет склад без остатка и истории.

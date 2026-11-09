@@ -22,11 +22,15 @@ class PortalModal extends StatelessWidget {
     required this.title,
     required this.content,
     required this.actions,
+    this.maxWidth = AppSizes.kPortalDialogWidth,
   });
 
   final String title;
   final Widget content;
   final List<Widget> actions;
+
+  /// Предел ширины окна; шире - для таблиц со многими колонками.
+  final double maxWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -37,9 +41,7 @@ class PortalModal extends StatelessWidget {
       shape: const RoundedRectangleBorder(borderRadius: AppBorders.kCircular12),
       clipBehavior: Clip.antiAlias,
       child: ConstrainedBox(
-        constraints: const BoxConstraints(
-          maxWidth: AppSizes.kPortalDialogWidth,
-        ),
+        constraints: BoxConstraints(maxWidth: maxWidth),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,

@@ -58,6 +58,8 @@ var lineRejections = []error{
 	// Марки ЧЗ строки (CZ-06).
 	model.ErrCZMarksRequired, model.ErrCZMarksQtyMismatch, model.ErrCZMarkNotAtSource,
 	model.ErrCZMarkBatchMismatch,
+	// Сборка (P9-05): ячейка отгрузки в движении, марка в сборке.
+	ErrShippingCell, model.ErrPickingMarkInPicking,
 }
 
 // isLineRejection — отказ ли это одной строки.
@@ -111,6 +113,8 @@ func lineReason(err error) string {
 		return "товар кладут туда же, откуда взяли"
 	case errors.Is(err, ErrWarehouseMismatch):
 		return "товар и короб — с разных внутренних складов"
+	case errors.Is(err, model.ErrPickingMarkInPicking):
+		return "марка уже взята в сборку: она в коробе отгрузки"
 	case errors.Is(err, ErrReceivingCell):
 		return "ячейку приёмки разносит только задание на размещение"
 	case errors.Is(err, ErrForeignCell):

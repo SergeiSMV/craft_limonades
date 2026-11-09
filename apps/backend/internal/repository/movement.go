@@ -125,6 +125,13 @@ func transferLoadUnit(ctx context.Context, q Querier, in loadUnitTransfer) (stri
 		}
 	}
 
+	// «В сборке» из этого короба (P9-05) едет вместе с ним: источник пика — короб, его ячейка —
+	// текущее место короба, иначе «в сборке» осталось бы висеть на прежней ячейке.
+	if _, err := q.Exec(ctx, `
+		UPDATE picking_picks SET source_cell_id = $2::uuid
+		WHERE source_load_unit_id = $1::uuid AND state = 'picking'`, in.LoadUnitID, in.ToCellID); err != nil {
+		return "", nil, fmt.Errorf("«в сборке» вслед за коробом: %w", err)
+	}
 	if err := placeLoadUnit(ctx, q, model.PlaceLoadUnitInput{
 		LoadUnitID: in.LoadUnitID,
 		CellID:     in.ToCellID,
@@ -297,6 +304,9 @@ func movementLoadUnit(ctx context.Context, q Querier, in MovementSubmitInput, li
 	if err := guardNotReceivingCell(ctx, q, ln.ToCellID); err != nil {
 		return nil, err
 	}
+	if err := guardNotShippingCell(ctx, q, ln.ToCellID); err != nil {
+		return nil, err
+	}
 	from, items, err := transferLoadUnit(ctx, q, loadUnitTransfer{
 		LoadUnitID:  ln.LoadUnitID,
 		ToCellID:    ln.ToCellID,
@@ -309,6 +319,9 @@ func movementLoadUnit(ctx context.Context, q Querier, in MovementSubmitInput, li
 		return nil, err
 	}
 	if err := guardNotReceivingCell(ctx, q, from); err != nil {
+		return nil, err
+	}
+	if err := guardNotShippingCell(ctx, q, from); err != nil {
 		return nil, err
 	}
 	if _, err := q.Exec(ctx, `
@@ -397,6 +410,14 @@ func movementGoods(ctx context.Context, q Querier, in MovementSubmitInput, lineN
 		return nil, err
 	}
 	if err := guardNotReceivingCell(ctx, q, toCell); err != nil {
+		return nil, err
+	}
+	// Ячейка отгрузки (P9-05) — ни источник, ни приёмник: короба собранных заказов уходят из неё
+	// только отгрузкой.
+	if err := guardNotShippingCell(ctx, q, toCell); err != nil {
+		return nil, err
+	}
+	if err := guardNotShippingCell(ctx, q, fromCell); err != nil {
 		return nil, err
 	}
 	// Россыпь с меткой («Брак», «Изолятор» …) задание на размещение не берёт (CZ-05) — из
@@ -549,10 +570,14 @@ func lockPlacedLoadUnits(ctx context.Context, q Querier, ids ...string) (map[str
 
 // takeFromLoadUnit уменьшает состав короба на qty, если товара этой партии в нём хватает.
 // Строка состава остаётся и с нулём — как строка остатка: пустая позиция короба не удаляется.
+// «В сборке» из этого короба (P9-05) не доступно: товар уже в коробе отгрузки.
 func takeFromLoadUnit(ctx context.Context, q Querier, loadUnitID, goodID, batchID string, qty decimal.Decimal) error {
 	tag, err := q.Exec(ctx, `
 		UPDATE lu_content SET qty = qty - $4::numeric
-		WHERE load_unit_id = $1::uuid AND good_id = $2::uuid AND batch_id = $3::uuid AND qty >= $4::numeric`,
+		WHERE load_unit_id = $1::uuid AND good_id = $2::uuid AND batch_id = $3::uuid
+		  AND qty - COALESCE((SELECT sum(p.qty) FROM picking_picks p
+		                      WHERE p.state = 'picking' AND p.source_load_unit_id = $1::uuid
+		                        AND p.good_id = $2::uuid AND p.batch_id = $3::uuid), 0) >= $4::numeric`,
 		loadUnitID, goodID, batchID, qty.String())
 	if err != nil {
 		return fmt.Errorf("взять товар из короба: %w", err)
@@ -568,6 +593,10 @@ func takeFromLoadUnit(ctx context.Context, q Querier, loadUnitID, goodID, batchI
 // «Брака» вычитается из строки «Брака», а не «Основного».
 // Строка остатка блокируется до подсчёта: иначе два документа увидели бы одну и ту же россыпь
 // и вместе забрали бы товар из-под короба. Её же считает размещение россыпи (P5-02).
+//
+// «В сборке» (P9-05) вычитается: пикнутое россыпью уже в коробе отгрузки, хотя до «Завершить
+// сборку» числится в ячейке. Поэтому движение, проблема и пересчёт видят доступное — 20 шт.
+// с 5 в сборке дают 15; сам пик считает доступное этой же функцией.
 func looseQty(ctx context.Context, q Querier, cellID, goodID, batchID, iwh string) (decimal.Decimal, error) {
 	var loose decimal.Decimal
 	err := q.QueryRow(ctx, `
@@ -581,7 +610,11 @@ func looseQty(ctx context.Context, q Querier, cellID, goodID, batchID, iwh strin
 		     - COALESCE((SELECT sum(c.qty) FROM lu_content c
 		                 JOIN load_units lu ON lu.id = c.load_unit_id
 		                 WHERE lu.cell_id = $1::uuid AND c.good_id = $2::uuid
-		                   AND c.batch_id = $3::uuid AND lu.internal_warehouse_id = $4::uuid), 0)`,
+		                   AND c.batch_id = $3::uuid AND lu.internal_warehouse_id = $4::uuid), 0)
+		     - COALESCE((SELECT sum(p.qty) FROM picking_picks p
+		                 WHERE p.state = 'picking' AND p.source_load_unit_id IS NULL
+		                   AND p.source_cell_id = $1::uuid AND p.good_id = $2::uuid
+		                   AND p.batch_id = $3::uuid AND p.internal_warehouse_id = $4::uuid), 0)`,
 		cellID, goodID, batchID, iwh).Scan(&loose)
 	if err != nil {
 		return decimal.Zero, fmt.Errorf("посчитать россыпь: %w", err)

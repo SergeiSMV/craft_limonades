@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/shopspring/decimal"
 
 	appmw "craftwms/internal/middleware"
 	"craftwms/internal/model"
@@ -25,6 +26,7 @@ type stocktakes interface {
 	CellView(ctx context.Context, id, userID string) (model.StocktakeCellView, error)
 	Close(ctx context.Context, id, userID string, force bool) (int, error)
 	List(ctx context.Context, status string) ([]model.StocktakeListItem, error)
+	Lines(ctx context.Context, id string) ([]model.StocktakeLine, error)
 	CountingInCell(ctx context.Context, cellID string) (*model.CellUnderCount, error)
 }
 
@@ -200,6 +202,43 @@ func (h *StocktakeHandler) Get(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
+// stocktakeLineResponse — строка пересчёта в окне «Ход» портала. fact null — ячейку не считали.
+type stocktakeLineResponse struct {
+	Cell           string           `json:"cell"`
+	CellStatus     string           `json:"cell_status"`
+	LoadUnitID     string           `json:"load_unit_id"`
+	GoodCode       string           `json:"good_code"`
+	GoodName       string           `json:"good_name"`
+	Uom            string           `json:"uom"`
+	ProductionDate string           `json:"production_date"`
+	Expected       decimal.Decimal  `json:"expected"`
+	Fact           *decimal.Decimal `json:"fact"`
+	Problem        bool             `json:"problem"`
+}
+
+// Lines: GET /api/v1/stocktakes/{id}/lines — что ожидалось и что посчитано по ячейкам (портал;
+// ТСД не получает: счёт слепой). 200 / 404.
+func (h *StocktakeHandler) Lines(w http.ResponseWriter, r *http.Request) {
+	lines, err := h.svc.Lines(r.Context(), chi.URLParam(r, "id"))
+	if err != nil {
+		stocktakeError(w, r, err, "lines")
+		return
+	}
+	out := make([]stocktakeLineResponse, 0, len(lines))
+	for _, l := range lines {
+		d := ""
+		if l.ProductionDate != nil {
+			d = l.ProductionDate.Format(time.DateOnly)
+		}
+		out = append(out, stocktakeLineResponse{
+			Cell: l.CellAddress, CellStatus: l.CellStatus, LoadUnitID: l.LoadUnitID, GoodCode: l.GoodCode,
+			GoodName: l.GoodName, Uom: l.Uom, ProductionDate: d, Expected: l.Expected, Fact: l.Fact,
+			Problem: l.Problem,
+		})
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
 // Cells: GET /api/v1/stocktakes/{id}/cells — ячейки, которые работник может считать:
 // свободные и свои.
 func (h *StocktakeHandler) Cells(w http.ResponseWriter, r *http.Request) {
@@ -316,7 +355,7 @@ func stocktakeError(w http.ResponseWriter, r *http.Request, err error, action st
 	case errors.Is(err, model.ErrStocktakeUnknownObject):
 		writeError(w, http.StatusUnprocessableEntity, "объект области не найден или с другого склада")
 	case errors.Is(err, model.ErrStocktakeReceivingCell):
-		writeError(w, http.StatusUnprocessableEntity, "ячейка приёмки в пересчёт не входит")
+		writeError(w, http.StatusUnprocessableEntity, "служебная ячейка (приёмка, отгрузка) в пересчёт не входит")
 	case errors.Is(err, model.ErrStocktakeNoCells):
 		writeError(w, http.StatusUnprocessableEntity, "в области нет ни одной ячейки — считать нечего")
 	case errors.Is(err, model.ErrStocktakeNotFound):

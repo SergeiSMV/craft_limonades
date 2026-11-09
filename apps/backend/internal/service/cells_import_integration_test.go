@@ -12,7 +12,7 @@ import (
 const cellsSamplePath = "../importer/testdata/cells_sample.xlsx"
 
 // TestImportCells_realFile — полный импорт реального файла ячеек в живой Postgres:
-// заводится физический склад + 125 ячеек с признаком floor и дефолтная ячейка приёмки;
+// заводится физический склад + 125 ячеек с признаком floor, дефолтная ячейка приёмки и ячейка отгрузки;
 // повторный импорт идемпотентен.
 func TestImportCells_realFile(t *testing.T) {
 	pool := testutil.StartPostgres(t)
@@ -36,12 +36,12 @@ func TestImportCells_realFile(t *testing.T) {
 	if len(rep.Skipped) != 0 {
 		t.Errorf("ожидалось 0 пропущенных, получено %d: %+v", len(rep.Skipped), rep.Skipped)
 	}
-	// В БД: 1 склад, 125 ячеек из файла + дефолтная ячейка приёмки, 25 напольных.
+	// В БД: 1 склад, 125 ячеек из файла + ячейки приёмки и отгрузки (P9-02), 25 напольных.
 	if got := countRows(t, pool, "warehouses"); got != 1 {
 		t.Errorf("складов: ожидалось 1, получено %d", got)
 	}
-	if got := countRows(t, pool, "cells"); got != 126 {
-		t.Errorf("ячеек: ожидалось 126 (125 из файла + дефолтная), получено %d", got)
+	if got := countRows(t, pool, "cells"); got != 127 {
+		t.Errorf("ячеек: ожидалось 127 (125 из файла + приёмка и отгрузка), получено %d", got)
 	}
 	// Дефолтная ячейка заводится импортом, а не человеком: склад без неё означал бы,
 	// что приёмка на нём невозможна (P4-03). В отчёт она не попадает — отчёт про файл.
@@ -52,6 +52,15 @@ func TestImportCells_realFile(t *testing.T) {
 	}
 	if dfltAddress != model.DefaultCellAddress {
 		t.Errorf("дефолтная ячейка: %q, ожидалась %q", dfltAddress, model.DefaultCellAddress)
+	}
+	// Ячейка отгрузки (P9-02) — по той же причине: без неё на складе не собрать заказ.
+	var shipAddress string
+	if err := pool.QueryRow(ctx,
+		`SELECT address FROM cells WHERE is_shipping`).Scan(&shipAddress); err != nil {
+		t.Fatalf("ячейка отгрузки после импорта: %v", err)
+	}
+	if shipAddress != model.ShippingCellAddress {
+		t.Errorf("ячейка отгрузки: %q, ожидалась %q", shipAddress, model.ShippingCellAddress)
 	}
 	var floors int
 	if err := pool.QueryRow(ctx, "SELECT count(*) FROM cells WHERE is_floor").Scan(&floors); err != nil {
@@ -112,8 +121,8 @@ func TestImportCells_realFile(t *testing.T) {
 		t.Errorf("повтор: стеллажи created=%d updated=%d (ждали 0 и 12), в базе %d",
 			rep2.RacksCreated, rep2.RacksUpdated, countRows(t, pool, "racks"))
 	}
-	if got := countRows(t, pool, "cells"); got != 126 {
-		t.Errorf("после повтора ячеек: ожидалось 126 (без дублей), получено %d", got)
+	if got := countRows(t, pool, "cells"); got != 127 {
+		t.Errorf("после повтора ячеек: ожидалось 127 (без дублей), получено %d", got)
 	}
 	// Дефолтная ячейка тоже не двоится: повторный импорт лишь проставляет ей признак.
 	var defaults int

@@ -62,6 +62,7 @@ class ContentsCache {
             batchId: l.line.batchId,
             productionDate: l.line.productionDate,
             qty: l.line.qty,
+            inPicking: Value(l.inPicking),
           ),
       ]);
       b.insertAll(_db.cachedCzMarks, [
@@ -162,13 +163,17 @@ class ContentsCache {
         goodId: r.goodId,
         productionDate: r.productionDate,
         qty: r.qty,
+        inPicking: r.inPicking,
         internalWarehouseId: r.internalWarehouseId,
       );
       final i = out.indexWhere(line.sameBatch);
       if (i < 0) {
         out.add(line);
       } else {
-        out[i] = out[i].copyWith(qty: out[i].qty + line.qty);
+        out[i] = out[i].copyWith(
+          qty: out[i].qty + line.qty,
+          inPicking: out[i].inPicking + line.inPicking,
+        );
       }
     }
     return out;
@@ -183,13 +188,17 @@ class ContentsCache {
         goodId: r.goodId,
         productionDate: r.productionDate,
         qty: r.qty,
+        inPicking: r.inPicking,
         internalWarehouseId: r.internalWarehouseId,
       );
       final i = lines.indexWhere(line.sameBatch);
       if (i < 0) {
         lines.add(line);
       } else {
-        lines[i] = lines[i].copyWith(qty: lines[i].qty + line.qty);
+        lines[i] = lines[i].copyWith(
+          qty: lines[i].qty + line.qty,
+          inPicking: lines[i].inPicking + line.inPicking,
+        );
       }
     }
     return out;

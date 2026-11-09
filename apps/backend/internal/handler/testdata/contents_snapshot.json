@@ -25,7 +25,8 @@
       "good_id": "a7b8c9d0-e1f2-4a3b-8c4d-5e6f70819203",
       "batch_id": "b0000000-0000-4000-8000-000000000002",
       "production_date": "02-09-2026",
-      "qty": "3"
+      "qty": "3",
+      "in_picking": "0"
     }
   ],
   "marks": [

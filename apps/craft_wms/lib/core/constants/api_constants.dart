@@ -145,6 +145,66 @@ abstract final class ApiConst {
   /// Правка варианта по id.
   static String problemResolutionById(String id) => 'problem-resolutions/$id';
 
+  ///**POST** - предпросмотр «Реестра» 1С на сборку (P8-02): multipart, поле `file`, ничего
+  ///не пишет.
+  static const String pickingRegistryPreview = 'picking/registry/preview';
+
+  ///**POST** - загрузка «Реестра» 1С после подтверждения (P8-02): тот же файл.
+  static const String pickingRegistryLoad = 'picking/registry/load';
+
+  ///**GET** - список «СБОРКА» на ТСД (P9-04): несобранные заказы любой даты.
+  static const String pickingOrders = 'picking/orders';
+  static const String pickingShipped = 'picking/orders/shipped';
+
+  ///**GET** - заказ сборки с подбором, коробами и открытыми пиками (P9-04, P9-06).
+  static String pickingOrder(String id) => 'picking/orders/$id';
+
+  ///**POST** - взять заказ в работу (P9-04).
+  static String pickingTake(String id) => 'picking/orders/$id/take';
+
+  ///**POST** - отказаться от заказа (P9-04).
+  static String pickingRelease(String id) => 'picking/orders/$id/release';
+
+  ///**POST** - завести короб отгрузки `{load_unit_id}` (P9-04).
+  static String pickingBoxes(String id) => 'picking/orders/$id/boxes';
+  static String pickingBox(String id, String boxId) =>
+      'picking/orders/$id/boxes/$boxId';
+
+  ///**POST** - отметка «не хватает» по строке `{shortage}` (P9-04).
+  static String pickingShortage(String id, String lineId) =>
+      'picking/orders/$id/lines/$lineId/shortage';
+
+  /// «Завершить сборку» (P9-07).
+  static String pickingComplete(String id) => 'picking/orders/$id/complete';
+
+  /// Собранный заказ с коробами «N из M».
+  static String pickingShipment(String id) => 'picking/orders/$id/shipment';
+
+  /// Отметить печать ярлыков коробов.
+  static String pickingLabels(String id) => 'picking/orders/$id/labels';
+
+  /// «Отгрузить»: ярлыки всех коробов отсканированы.
+  static String pickingShip(String id) => 'picking/orders/$id/ship';
+
+  /// Что вернуть на места по заказу после правки реестра (P9-07-1).
+  static String pickingReturn(String id) => 'picking/orders/$id/return';
+
+  /// Карточка заказа на ТСД (ADHOC-62): план/факт, короба, журнал - только чтение.
+  static String pickingCard(String id) => 'picking/orders/$id/card';
+
+  ///**GET** - заказы «Сборка-отгрузка» на дату накладной для портала (P8-03): `?date=`.
+  static const String pickingPortalOrders = 'picking/portal/orders';
+
+  ///**GET** - заказ для окна деталей портала (P8-03): план/факт, короба, правки реестра.
+  static String pickingPortalOrder(String id) => 'picking/portal/orders/$id';
+
+  ///**POST** - снять заказ с исполнителя из портала (P8-03).
+  static String pickingPortalRelease(String id) =>
+      'picking/portal/orders/$id/release';
+
+  ///**GET** - выгрузка Excel всех заказов даты (P8-03): `?date=`.
+  static const String pickingPortalExport = 'picking/portal/export.xlsx';
+
   ///**GET** - «Проблемы склада» для офиса (P6-07-3, admin): открытые сверху.
   static const String problems = 'problems';
 
@@ -193,6 +253,7 @@ abstract final class ApiConst {
 
   ///**GET** - пересчёт с ходом выполнения (P10-03): `stocktakes/{id}`.
   static String stocktakeById(String id) => 'stocktakes/$id';
+  static String stocktakeLines(String id) => 'stocktakes/$id/lines';
 
   ///**GET** - ячейки пересчёта, которые работник может считать (P10-03): `stocktakes/{id}/cells`.
   static String stocktakeCells(String id) => 'stocktakes/$id/cells';

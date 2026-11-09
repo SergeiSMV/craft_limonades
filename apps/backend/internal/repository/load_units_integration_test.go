@@ -158,7 +158,7 @@ func TestLoadUnits_guards(t *testing.T) {
 	}
 	lu := newLU(t, fx, "box")
 	if _, err := fx.pool.Exec(ctx,
-		`UPDATE load_units SET status='shipped' WHERE id=$1::uuid`, lu); err == nil {
+		`UPDATE load_units SET status='lost' WHERE id=$1::uuid`, lu); err == nil {
 		t.Error("статус вне списка прошёл")
 	}
 	if _, err := fx.pool.Exec(ctx, `

@@ -81,7 +81,31 @@ type taskResponse struct {
 	// Пересчёт задания вида stocktake (P10-03); null — у других видов.
 	StocktakeID *string                `json:"stocktake_id"`
 	Stocktake   *taskStocktakeResponse `json:"stocktake,omitempty"` // ход пересчёта (P10-04)
-	Items       []taskItemResponse     `json:"items"`
+	// Заказ сборки задания «вернуть на места» (P9-07-1); нет — у других видов.
+	Picking *taskPickingResponse `json:"picking,omitempty"`
+	Items   []taskItemResponse   `json:"items"`
+}
+
+// taskPickingResponse — заказ-основание возврата на места: номер сборки, накладная и заказ 1С,
+// удалён ли, когда изменён реестром, сколько осталось вернуть.
+type taskPickingResponse struct {
+	OrderID       string          `json:"order_id"`
+	Number        int64           `json:"number"`
+	InvoiceNumber string          `json:"invoice_number"`
+	OrderNumber   string          `json:"order_number"`
+	Client        string          `json:"client"`
+	Deleted       bool            `json:"deleted"`
+	ChangedAt     *string         `json:"changed_at"` // RFC3339
+	Left          decimal.Decimal `json:"left"`
+}
+
+func toTaskPicking(p *model.TaskPickingInfo) *taskPickingResponse {
+	if p == nil {
+		return nil
+	}
+	return &taskPickingResponse{OrderID: p.OrderID, Number: p.Number, InvoiceNumber: p.InvoiceNumber,
+		OrderNumber: p.OrderNumber, Client: p.Client, Deleted: p.Deleted,
+		ChangedAt: formatTimePtr(p.ChangedAt), Left: p.Left}
 }
 
 // taskProblemResponse — проблема-основание задания на размещение (ADHOC-55).
@@ -156,6 +180,8 @@ type completedTaskResponse struct {
 	Problem *taskProblemResponse `json:"problem,omitempty"`
 	// Пересчёт задания вида stocktake (ADHOC-58); у пересчёта sessions — подсчитанные ячейки.
 	Stocktake *taskStocktakeResponse `json:"stocktake,omitempty"`
+	// Заказ сборки задания «вернуть на места» (P9-07-1).
+	Picking *taskPickingResponse `json:"picking,omitempty"`
 }
 
 // Current: GET /api/v1/tasks — текущие задания: пул и свои взятые, с позициями.
@@ -280,6 +306,7 @@ func (h *TaskHandler) Completed(w http.ResponseWriter, r *http.Request) {
 			DocNumber: c.DocNumber, DocDate: formatProductionDate(c.DocDate),
 			CompletedAt: c.CompletedAt.Format(time.RFC3339Nano), Executors: ex, Sessions: c.Sessions,
 			Problem: toTaskProblem(c.Problem), Stocktake: toTaskStocktake(c.Stocktake),
+			Picking: toTaskPicking(c.Picking),
 		})
 	}
 	writeJSON(w, http.StatusOK, out)
@@ -318,6 +345,7 @@ func toTaskResponse(t model.Task) taskResponse {
 		CreatedAt: t.CreatedAt.Format(time.RFC3339), StocktakeID: t.StocktakeID, Items: []taskItemResponse{},
 	}
 	out.Stocktake = toTaskStocktake(t.Stocktake)
+	out.Picking = toTaskPicking(t.Picking)
 	for _, it := range t.Items {
 		ir := taskItemResponse{LineNo: it.LineNo, LoadUnitID: it.LoadUnitID, Placed: it.Placed,
 			ProblemID: it.ProblemID, Cell: it.CellAddress, CZCode: it.CZCode, Marks: it.Marks}

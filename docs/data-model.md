@@ -81,7 +81,7 @@ username + паролю** (вход со смартфона/портала). Р�
 Обоснование argon2 — ADR-0005; выбор пути входа по устройству — ADR-0010. Роли `employee`/`admin`
 заменены должностями (ADHOC-49): права пользователя — права его должности.
 
-### 3.1.1 `positions` — должности и права (миграции `000033`, `000034`, `000039`; ADHOC-49, ADHOC-50)
+### 3.1.1 `positions` — должности и права (миграции `000033`, `000034`, `000039`, `000046`, `000048`; ADHOC-49, ADHOC-50)
 
 | Колонка                   | Тип           | Ограничения / смысл                                                         |
 |---------------------------|---------------|-----------------------------------------------------------------------------|
@@ -94,11 +94,14 @@ username + паролю** (вход со смартфона/портала). Р�
 Права — действия по разделам, код «приложение.раздел.действие» (`000034`): портал —
 `portal.nomenclature.import`; `portal.receipt|movement|stocktake_doc|stock_entry_doc` +
 `.view|.download|.post`; `portal.stocktake.view|manage`; `portal.cells.import|labels|edit`;
-`portal.problems.view|resolve`; `portal.settings.warehouses|problem_reasons|users`. ТСД — `tsd.receipt`,
+`portal.problems.view|resolve`; `portal.picking.view|load|download|release`;
+`portal.settings.warehouses|problem_reasons|users`. ТСД — `tsd.receipt`,
 `tsd.movement`, `tsd.tasks.putaway|stocktake_count|stocktake_manage`,
-`tsd.stock.view|cz_marked|regrade`, `tsd.stock_entry`, `tsd.problems.view|mark`. Всего 33
+`tsd.stock.view|cz_marked|regrade`, `tsd.stock_entry`, `tsd.problems.view|mark`,
+`tsd.picking`, `tsd.picking.reprint`. Всего 42
 (`tsd.stock.regrade` — перепривязка ШК маркируемого товара, `000035`, ADHOC-53;
-`portal.settings.problem_reasons` — справочник причин проблем, `000039`, ADHOC-55).
+`portal.settings.problem_reasons` — справочник причин проблем, `000039`, ADHOC-55; права сборки —
+`000046`, P8-02; `portal.picking.release` — снять заказ сборки с исполнителя, `000048`, P8-03).
 
 Стартовые должности — с постоянными id: «Администратор» (`7a000000-…-000000000001`, системная,
 все действия; код не смотрит на её список) и «Кладовщик» (`7a000000-…-000000000002`, восемь
@@ -136,7 +139,7 @@ Append-only «кто / что / когда»; по нему разбирают �
 
 > ⚠ «Внутренний склад» (основной/брак/…) — это **НЕ** `warehouses`, а измерение остатка (см. §6, ADR-0016).
 
-### 3.4 `cells` — ячейки хранения (миграции `000003`, `000006`, `000015`, `000041`)
+### 3.4 `cells` — ячейки хранения (миграции `000003`, `000006`, `000015`, `000041`, `000044`, `000045`)
 
 Физические ячейки одного склада. **Зон нет** — ячейка ссылается на склад напрямую.
 
@@ -153,6 +156,7 @@ Append-only «кто / что / когда»; по нему разбирают �
 | `side_card`    | `boolean` | строка на карточке стеллажа на стойке (миграция `000042`); без стеллажа — `false` |
 | `is_floor_storage` | `boolean` | напольное хранение у стеллажа, адрес на `-Н-П` (миграция `000044`)    |
 | `is_default`   | `boolean` | ячейка приёмки по умолчанию (`ПРИЁМКА`); одна на склад                       |
+| `is_shipping`  | `boolean` | ячейка отгрузки (`ОТГРУЗКА`, миграция `000045`); одна на склад, не приёмка   |
 | `is_active`    | `boolean` | —                                                                            |
 
 Ключи: `UNIQUE (warehouse_id, address)`; частичный `UNIQUE (warehouse_id) WHERE is_default` —
@@ -165,6 +169,12 @@ Append-only «кто / что / когда»; по нему разбирают �
 у `internal_warehouses.is_default`). Ячейку заводит тот, кто заводит склад, — сидер при
 развёртывании и импорт ячеек, — потому что склад без неё означал бы, что приёмка на нём
 невозможна. ШК у неё нет, из печати этикеток она исключается.
+
+**`ОТГРУЗКА` (`is_shipping`, P9-02)** — служебная ячейка, как `ПРИЁМКА`: в ней числятся короба
+собранных заказов до отгрузки. Одна на склад (частичный `UNIQUE (warehouse_id) WHERE
+is_shipping`), ячейкой приёмки быть не может (`CHECK cells_shipping_not_default`). Заводят её
+сидер и импорт ячеек (`EnsureShipping`), складам до P9-02 — миграция. На странице «Ячейки»,
+в печати этикеток и в пересчёте её нет, как и `ПРИЁМКИ`.
 
 **Напольная ячейка (`is_floor_storage`)** — пол у стеллажа, адрес `<стеллаж>-Н-П` (`D-Н-П`): так
 пол адресует 1С в реестре на сборку. Это не `is_floor` — тот означает нижний ярус стеллажа.
@@ -465,7 +475,7 @@ Checkpoint ячейки **заменяет** её содержимое в сес
 | `kind`       | `text`        | `box` / `pallet`; CHECK                                       |
 | `parent_id`  | `uuid`        | self-FK `ON DELETE SET NULL`, вложенность; CHECK `<> id`      |
 | `cell_id`    | `uuid`        | FK → `cells(id)`; текущее место; NULL — ещё не размещена      |
-| `status`     | `text`        | `open` → `closed` → `placed`; CHECK                           |
+| `status`     | `text`        | `open` → `closed` → `placed`; `shipped` — короб отгрузки уехал (`000045`); CHECK |
 | `internal_warehouse_id` | `uuid` | FK → `internal_warehouses(id)`, NOT NULL; склад короба целиком (`000023`) |
 | `created_at` / `updated_at` | `timestamptz` | триггер `set_updated_at`                       |
 
@@ -523,6 +533,7 @@ Checkpoint ячейки **заменяет** её содержимое в сес
 | `is_default` | `boolean`     | куда приходовать, если склад не выбран; **ровно один**     |
 | `is_active`  | `boolean`     | скрыт из выбора; остатки на нём сохраняются                |
 | `system_role`| `text`        | UNIQUE; `supplier_return` / `not_found`; CHECK; NULL — обычный (`000024`, `000032`) |
+| `allow_picking` | `boolean`  | из товара склада можно собирать заказы (`000045`); по умолчанию `false`, у склада по умолчанию — `true` |
 
 Справочник, а не enum: число складов произвольно и пополняется из интерфейса. Стартовый состав
 (`MAIN` «Основной» по умолчанию, `DEFECT` «Брак») заводится миграцией — без склада по умолчанию
@@ -608,7 +619,7 @@ batch_id, cell_id, load_unit_id)`. Повторный скан той же ко�
 | `load_unit_id` | `uuid`        | FK → `load_units(id)` `ON DELETE CASCADE`                     |
 | `from_cell_id` | `uuid`        | FK → `cells(id)`; NULL — первое размещение (приёмка)          |
 | `to_cell_id`   | `uuid`        | FK → `cells(id)`, NOT NULL                                    |
-| `source`       | `text`        | `receipt` / `putaway` / `move` / `stock_entry` / `stocktake`; CHECK |
+| `source`       | `text`        | `receipt` / `putaway` / `move` / `stock_entry` / `stocktake` / `picking` (короб отгрузки в `ОТГРУЗКУ`, `000049`); CHECK |
 | `receipt_id`   | `uuid`        | FK → `receipts(id)`; заполнен, если перенос сделала приёмка   |
 | `putaway_id`   | `uuid`        | FK → `putaways(id)`; заполнен, если перенёс сеанс размещения  |
 | `movement_id`  | `uuid`        | FK → `movements(id)`; заполнен, если перенесло перемещение    |
@@ -675,12 +686,13 @@ CHECK: строка — короб (только `load_unit_id`) **либо** р
 |--------------------|---------------|-----------------------------------------------------------|
 | `id`               | `uuid`        | PK                                                        |
 | `number`           | `bigint`      | identity, UNIQUE — короткий номер для людей               |
-| `kind`             | `text`        | `putaway` / `supplier_return` (`000024`) / `stocktake` (`000030`); CHECK |
+| `kind`             | `text`        | `putaway` / `supplier_return` (`000024`) / `stocktake` (`000030`) / `picking_return` (`000050`); CHECK |
 | `status`           | `text`        | `new` / `in_progress` / `done`; CHECK                     |
 | `warehouse_id`     | `uuid`        | FK → `warehouses(id)`                                     |
 | `receipt_id`       | `uuid`        | FK → `receipts(id)` — основание; `UNIQUE (receipt_id, kind)` |
 | `supplier_id`      | `uuid`        | FK → `suppliers(id)` — кому возврат; есть ровно у `supplier_return` |
 | `stocktake_id`     | `uuid`        | FK → `stocktakes(id)` — пересчёт; есть ровно у `stocktake`, одно задание на пересчёт; ячейки из него берут разные работники, исполнителя у задания нет |
+| `picking_order_id` | `uuid`        | FK → `picking_orders(id)` (`000050`, P9-07-1) — заказ, по которому вернуть на места; есть ровно у `picking_return`, одно открытое задание на заказ |
 | `problem_id`       | `uuid`        | FK → `warehouse_problems(id)` (`000036`) — основание размещения по решению «разместить»; только у `putaway` без `receipt_id`, одно задание на проблему |
 | `assignee_id`      | `uuid`        | FK → `users(id)` — кто держит; есть ровно у `in_progress` |
 | `taken_at`         | `timestamptz` | когда взято                                               |
@@ -989,7 +1001,7 @@ FK `(batch_id, good_id) → batches(id, good_id)`, как у `stock` и `lu_cont
 Индекс `(problem_id, created_at)`. **До трёх фото на проблему и только к открытой** — держит сервис
 под блокировкой строки проблемы (CHECK одной строки соседей не видит).
 
-### 3.36 `stocktakes` — документ пересчёта (миграция `000030`, P10-01)
+### 3.36 `stocktakes` — документ пересчёта (миграции `000030`, `000047`, P10-01)
 
 | Колонка        | Тип           | Ограничения / смысл                                        |
 |----------------|---------------|-------------------------------------------------------------|
@@ -1002,6 +1014,12 @@ FK `(batch_id, good_id) → batches(id, good_id)`, как у `stock` и `lu_cont
 | `created_at`   | `timestamptz` | DEFAULT `now()`                                             |
 | `closed_by`    | `uuid`        | FK → `users(id)`                                            |
 | `closed_at`    | `timestamptz` | есть ровно у `closed`                                       |
+| `picking_order_id` | `uuid`    | FK → `picking_orders(id)`; пересчёт позиции по нехватке при сборке (`000047`, P9-04); NULL — завёл старший смены |
+
+**Пересчёт по нехватке (P9-04).** Отметка «не хватает» по строке заказа сборки заводит пересчёт с
+областью `good` (товар строки) и основанием `picking_order_id`; к ячейкам области добавляется
+ячейка реестра, даже если товара в ней по учёту нет. Открытый пересчёт по нехватке того же товара
+(`status <> 'closed'`) второй не заводит.
 
 ### 3.37 `stocktake_scope` — область пересчёта (миграция `000030`)
 
@@ -1103,8 +1121,8 @@ PK `(reason, resolution_id)`; `reason` FK → `problem_reasons(code)` `ON DELETE
 
 ### 3.44 `data_versions` — версии областей данных (миграция `000043`, ADHOC-60)
 
-`domain text` PK, `version bigint` (с 1). Восемь строк: `goods`, `cells`, `settings`, `contents`,
-`tasks`, `problems`, `stocktakes`, `documents` — единицы перечитывания на клиентах
+`domain text` PK, `version bigint` (с 1). Девять строк: `goods`, `cells`, `settings`, `contents`,
+`tasks`, `problems`, `stocktakes`, `documents`, `picking` (`000045`) — единицы перечитывания на клиентах
 ([ADR-0018](adr/0018-data-versions-in-every-response.md)). Версию повышают триггеры уровня
 оператора `data_version_ins/upd/del` (функция `bump_data_version`, вешает
 `add_data_version_triggers(tbl, domains)`) с таблицей переходов `changed`: оператор, не изменивший
@@ -1115,13 +1133,143 @@ PK `(reason, resolution_id)`; `reason` FK → `problem_reasons(code)` `ON DELETE
 | `goods`      | `goods`, `nomenclature_groups`, `suppliers`, `barcodes`                                   |
 | `cells`      | `warehouses`, `cells`, `racks`                                                            |
 | `settings`   | `internal_warehouses`, `problem_reasons`, `problem_reason_resolutions`, `positions`, `users` |
-| `contents`   | `stock`, `batches`, `load_units`, `lu_content`, `cz_marks`, `cz_aggregates`               |
+| `contents`   | `stock`, `batches`, `load_units`, `lu_content`, `cz_marks`, `cz_aggregates`, `picking_picks`, `picking_pick_marks` |
 | `tasks`      | `warehouse_tasks`, `putaway_task_items`, `task_events`, `putaways`, `supplier_return_shipments`, `stocktakes`, `stocktake_cells` |
 | `problems`   | `warehouse_problems`, `warehouse_problem_lines`, `problem_resolutions`, `problem_photos`  |
 | `stocktakes` | `stocktakes`, `stocktake_cells`, `stocktake_scope`, `stocktake_lines`, `stocktake_marks`  |
 | `documents`  | `report_documents`, `report_document_events`, `stock_entry_sessions`                      |
+| `picking`    | `picking_loads`, `picking_orders`, `picking_order_lines`, `picking_order_changes`, `picking_boxes`, `picking_picks`, `picking_pick_marks`, `picking_order_events` |
 
 Новая таблица, которую показывает клиент, — строка `add_data_version_triggers` в миграции.
+
+### 3.45 `picking_loads` — загрузка «Реестра» 1С (миграция `000045`, P9-02)
+
+Строка на загрузку файла: склад, `registry_date` (дата накладных файла — в одном файле одна
+дата), `file_name`, `uploaded_by`, `uploaded_at`. От неё отсчитываются правки заказов
+(«изменение в реестре от <дата загрузки>»). Индекс `(warehouse_id, registry_date, uploaded_at)`.
+
+### 3.46 `picking_orders` — документ сборки: заказ (миграция `000045`)
+
+Пара «накладная + заказ» реестра; задание сборки — заказ (`docs/picking.md`).
+
+| Колонка            | Тип           | Ограничения / смысл                                          |
+|--------------------|---------------|---------------------------------------------------------------|
+| `id`               | `uuid`        | PK                                                            |
+| `number`           | `bigint`      | identity, UNIQUE — номер сборки «СБ-000001»                   |
+| `warehouse_id`     | `uuid`        | FK → `warehouses(id)`                                         |
+| `registry_date`    | `date`        | дата накладной = дата сборки; по ней календарь портала         |
+| `invoice_number`, `order_number` | `text` | номера 1С; `UNIQUE (warehouse_id, registry_date, order_number)` |
+| `order_date`       | `date`        | дата заказа, для показа                                       |
+| `direction`, `client`, `address` | `text` | шапка из реестра, для портала и ярлыка                 |
+| `status`           | `text`        | `new` / `in_progress` / `picked` / `shipped`; CHECK            |
+| `is_partial`       | `boolean`     | «собран частично» — была отметка «не хватает»                  |
+| `has_unknown`      | `boolean`     | есть строки без товара в справочнике                          |
+| `changed_after_shipment` | `boolean` | реестр изменил или удалил отгруженный заказ; только у `shipped` |
+| `deleted_at`       | `timestamptz` | заказ пропал из реестра своей даты; строка остаётся            |
+| `created_load_id`, `updated_load_id` | `uuid` | FK → `picking_loads(id)`: первая и последняя загрузка |
+| `assignee_id`      | `uuid`        | FK → `users(id)`; есть ровно у `in_progress`                  |
+| `taken_at`, `last_activity_at` | `timestamptz` | взятие и последнее движение (зависание 8 ч)        |
+| `picked_by`, `picked_at` | | последнее «Завершить сборку»; `picked_at` обязателен у `picked`/`shipped` |
+| `shipped_by`, `shipped_at` | | отгрузка; `shipped_at` есть ровно у `shipped`                 |
+
+Статусы — свои у WMS, статус из реестра не берётся. Дособор после правки реестра возвращает
+заказ в `in_progress`. Частичный индекс `(warehouse_id, status) WHERE status IN ('new',
+'in_progress') AND deleted_at IS NULL` — список ТСД, `(warehouse_id, registry_date)` — портал.
+
+### 3.47 `picking_order_lines` — строки плана (миграция `000045`)
+
+Строка — тройка «заказ + код товара + партия» (`UNIQUE NULLS NOT DISTINCT (order_id, good_code,
+batch_date)`): по ней сверяются повторные загрузки. Тройка, повторённая в файле, сводится в одну
+строку: количество суммируется, ячейка — первая.
+
+| Колонка         | Тип           | Ограничения / смысл                                       |
+|-----------------|---------------|------------------------------------------------------------|
+| `order_id`      | `uuid`        | FK → `picking_orders(id)` `ON DELETE CASCADE`              |
+| `line_no`       | `int`         | порядок в файле; `UNIQUE (order_id, line_no)`              |
+| `good_code`     | `text`        | код в формате справочника (11 цифр)                        |
+| `good_name`     | `text`        | наименование из 1С, для показа                             |
+| `good_id`       | `uuid`        | FK → `goods(id)`; NULL — кода нет в справочнике            |
+| `batch_date`    | `date`        | партия реестра; NULL — FEFO                                |
+| `registry_cell` | `text`        | ячейка реестра как в файле                                 |
+| `cell_id`       | `uuid`        | FK → `cells(id)`; ячейка WMS по адресу реестра             |
+| `plan_qty`      | `int`         | `> 0`                                                      |
+| `removed_at`    | `timestamptz` | строка пропала из реестра: план — ноль, строка остаётся     |
+| `shortage`      | `boolean`     | кладовщик отметил «не хватает»                             |
+
+### 3.48 `picking_order_changes` — история правок реестром (миграция `000045`)
+
+Только дописывается, порядок — `seq`. `kind`: `line_added` / `line_removed` / `qty_changed` (с
+товаром строки: `good_code`, `good_name`, `batch_date`, `old_qty`, `new_qty`) и `order_deleted` /
+`order_restored` (без товара — `CHECK picking_order_changes_line`); `load_id` — загрузка,
+`order_status` — статус заказа в момент правки. Даёт окно деталей портала и пометку
+«изменён в 1С после отгрузки».
+
+### 3.49 `picking_boxes` — короба отгрузки (миграция `000045`)
+
+Короб отгрузки — грузовая единица: `load_unit_id` PK и FK → `load_units(id)`, ярлык с QR в
+формате ГЕ. `order_id`, `seq` — «короб N из M» (`UNIQUE (order_id, seq)`), `created_by`,
+`labels_printed` — сколько раз печатали ярлык (повтор — по праву), `shipped_by`/`shipped_at` —
+ярлык отсканирован на отгрузке.
+
+`dropped_at` (`000049`, P9-07) — короб без товара убран при «Завершить сборку»: удалить нельзя,
+на него ссылаются возвращённые пики. Номер `seq` уникален только у живых коробов (частичный
+индекс `picking_boxes_order_seq_uq ... WHERE dropped_at IS NULL`); живые короба заказа
+нумеруются 1..M при каждом завершении. Новый короб с тем же ярлыком оживляет убранный.
+
+### 3.50 `picking_picks` — факт сборки (миграция `000045`)
+
+| Колонка                 | Тип             | Ограничения / смысл                                      |
+|-------------------------|-----------------|-----------------------------------------------------------|
+| `order_id`, `line_id`   | `uuid`          | заказ и строка плана                                       |
+| `box_id`                | `uuid`          | FK → `picking_boxes` — в какой короб взято                 |
+| `good_id`, `batch_id`   | `uuid`          | составной FK → `batches(id, good_id)`                      |
+| `source_cell_id`        | `uuid`          | FK → `cells(id)` — откуда; у короба — его место в момент пика |
+| `source_load_unit_id`   | `uuid`          | FK → `load_units(id)` — из короба хранения; NULL — россыпь |
+| `internal_warehouse_id` | `uuid`          | FK → `internal_warehouses(id)`                             |
+| `qty`                   | `numeric(20,3)` | `> 0`                                                      |
+| `state`                 | `text`          | `picking` / `moved` / `returned`; CHECK                    |
+| `picked_by`, `picked_at`, `moved_at`, `returned_at` | | кто и когда; `moved_at` — у `moved`, `returned_at` — ровно у `returned` |
+
+**Резерва нет, «в сборке» — открытые пики.** Пока `state = picking`, товар числится в остатке
+ячейки-источника («20 шт. (5 шт. в сборке)»), доступное для перемещения, проблемы и пересчёта —
+остаток минус открытые пики (частичный индекс `(source_cell_id, good_id, batch_id,
+internal_warehouse_id) WHERE state = 'picking'`). «Завершить сборку» переносит остаток в короб
+отгрузки (`moved`), возврат на место — `returned`.
+
+`picking_pick_marks` — марки маркируемой позиции: `(pick_id, cis)` PK, `cis` FK → `cz_marks`;
+количество пика — число его марок.
+
+### 3.51 `picking_order_events` — журнал заказа сборки (миграция `000049`, P9-07)
+
+| Колонка        | Тип             | Ограничения / смысл                                                |
+|----------------|-----------------|---------------------------------------------------------------------|
+| `id`           | `uuid`          | PK                                                                  |
+| `seq`          | `bigint`        | identity — порядок событий                                           |
+| `order_id`     | `uuid`          | FK → `picking_orders` ON DELETE CASCADE                              |
+| `kind`         | `text`          | `taken` / `taken_over` / `released` / `released_by_lead` / `completed` / `reopened` / `shipped` / `returned` (`000050`); CHECK |
+| `user_id`      | `uuid`          | кто сделал; NOT NULL                                                 |
+| `prev_user_id` | `uuid`          | у кого перехвачен (`taken_over`), с кого снят (`released_by_lead`), кто собирал (`reopened`) |
+| `boxes`, `qty` | `int`, `numeric(20,3)` | коробов — ровно у `completed` и `shipped`, штук — у них и у `returned` (CHECK) |
+| `at`           | `timestamptz`   | когда                                                                |
+
+Индексы `(order_id, seq)` — история в окне заказа портала, `(user_id, at)` — будущие отчёты
+(топ работников, топ отгрузок). Пишется в той же транзакции, что и действие; область `picking`.
+
+### 3.52 `picking_returns` — возврат на места из короба отгрузки (миграция `000050`, P9-07-1)
+
+| Колонка       | Тип             | Ограничения / смысл                                          |
+|---------------|-----------------|---------------------------------------------------------------|
+| `id`          | `uuid`          | PK, выдаёт ТСД — одна операция очереди `picking_return`        |
+| `order_id`    | `uuid`          | FK → `picking_orders`                                          |
+| `task_id`     | `uuid`          | FK → `warehouse_tasks` — задание `picking_return`              |
+| `pick_id`     | `uuid`          | FK → `picking_picks` — из какого перенесённого пика            |
+| `cell_id`     | `uuid`          | FK → `cells` — куда вернули (россыпью)                         |
+| `qty`         | `numeric(20,3)` | `> 0`                                                          |
+| `returned_by`, `returned_at` | `uuid`, `timestamptz` | кто и когда                              |
+
+`picking_return_marks (return_id, cis)` — какие марки вернулись. Пик при возврате уменьшается
+(весь вернули — `returned`), поэтому «перенесено» у пиков равно содержимому коробов. Позиций у
+задания нет: что вернуть, считается по пикам и плану. Область `picking`.
 
 ---
 

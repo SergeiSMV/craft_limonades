@@ -85,7 +85,10 @@ func main() {
 		if err != nil {
 			return err
 		}
-		_, err = cells.EnsureDefault(ctx, q, warehouseID)
+		if _, err = cells.EnsureDefault(ctx, q, warehouseID); err != nil {
+			return err
+		}
+		_, err = cells.EnsureShipping(ctx, q, warehouseID)
 		return err
 	})
 	if err != nil {

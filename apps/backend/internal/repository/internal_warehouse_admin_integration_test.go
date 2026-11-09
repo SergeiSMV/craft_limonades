@@ -29,20 +29,35 @@ func TestInternalWarehouses_createUpdate(t *testing.T) {
 	}
 
 	name, hidden := "Возврат поставщику", false
-	updated, err := repo.Update(ctx, created.ID, &name, &hidden)
+	updated, err := repo.Update(ctx, created.ID, &name, &hidden, nil)
 	mustNoErr(t, err)
 	if updated.Name != name || updated.IsActive {
 		t.Errorf("переименован и скрыт: %+v", updated)
 	}
 	shown := true
-	if updated, err = repo.Update(ctx, created.ID, nil, &shown); err != nil || !updated.IsActive || updated.Name != name {
+	if updated, err = repo.Update(ctx, created.ID, nil, &shown, nil); err != nil || !updated.IsActive || updated.Name != name {
 		t.Errorf("возвращён в выбор: %+v (%v)", updated, err)
 	}
 
-	if _, err := repo.Update(ctx, mf.iwh, nil, &hidden); !errors.Is(err, repository.ErrDefaultInternalWarehouse) {
+	// Галочка «разрешить сборку» (P8-02): новый склад запрещён, разрешается и снимается правкой;
+	// остальные поля при этом не трогаются. Системному складу сборку не разрешить.
+	if created.AllowPicking {
+		t.Error("новый склад сразу разрешён к сборке")
+	}
+	allow := true
+	if updated, err = repo.Update(ctx, created.ID, nil, nil, &allow); err != nil || !updated.AllowPicking || !updated.IsActive {
+		t.Errorf("разрешить сборку: %+v (%v)", updated, err)
+	}
+	var system string
+	mustScan(t, mf.pool, `SELECT id::text FROM internal_warehouses WHERE system_role IS NOT NULL LIMIT 1`, &system)
+	if _, err := repo.Update(ctx, system, nil, nil, &allow); !errors.Is(err, repository.ErrSystemInternalWarehouse) {
+		t.Errorf("сборка из системного склада: %v", err)
+	}
+
+	if _, err := repo.Update(ctx, mf.iwh, nil, &hidden, nil); !errors.Is(err, repository.ErrDefaultInternalWarehouse) {
 		t.Errorf("скрыть склад по умолчанию: %v", err)
 	}
-	if _, err := repo.Update(ctx, uuid.NewString(), &name, nil); !errors.Is(err, repository.ErrUnknownInternalWarehouse) {
+	if _, err := repo.Update(ctx, uuid.NewString(), &name, nil, nil); !errors.Is(err, repository.ErrUnknownInternalWarehouse) {
 		t.Errorf("несуществующий склад: %v", err)
 	}
 

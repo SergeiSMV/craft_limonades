@@ -9,6 +9,7 @@ import 'label_geometry.dart';
 import 'label_language.dart';
 import 'good_label.dart';
 import 'load_unit_label.dart';
+import 'picking_box_label.dart';
 import 'printer_device.dart';
 import 'printer_settings.dart';
 import 'printer_transport.dart';
@@ -158,6 +159,11 @@ class PrinterService {
   }) async => printRaw(
     LoadUnitLabel(loadUnitId, trialMark: trialMark).tspl(await geometry()),
   );
+
+  /// Напечатать ярлык короба отгрузки заказа сборки (P9-07). Сколько раз его печатают, решает
+  /// сервер (повтор - по праву), сюда приходит уже разрешённая печать.
+  Future<void> printPickingBoxLabel(PickingBoxLabel label) async =>
+      printRaw(label.tspl(await geometry()));
 
   /// Напечатать товарный ярлык: штрихкод и наименование (P4-08).
   ///

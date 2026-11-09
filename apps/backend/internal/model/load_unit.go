@@ -46,6 +46,8 @@ const (
 	// PlacementStocktake — пересчёт нашёл учётный короб в другой ячейке и перенёс его туда
 	// (P10-03).
 	PlacementStocktake = "stocktake"
+	// PlacementPicking — «Завершить сборку» поставила короб отгрузки в ячейку `ОТГРУЗКА` (P9-07).
+	PlacementPicking = "picking"
 )
 
 // Placement — одна строка журнала размещений: ГЕ перенесли из ячейки в ячейку (P5-01).

@@ -74,6 +74,10 @@ class _WarehousesSectionState extends State<WarehousesSection> {
   Future<void> toggle(PortalWarehouse w) =>
       _run(w.id, () => _repo.update(w.id, isActive: !w.isActive));
 
+  /// Разрешить или запретить сборку из склада (P8-02).
+  Future<void> togglePicking(PortalWarehouse w) =>
+      _run(w.id, () => _repo.update(w.id, allowPicking: !w.allowPicking));
+
   /// Удалить склад без остатка и истории — после подтверждения.
   Future<void> delete(PortalWarehouse w) async {
     if (!await showDeleteWarehouseDialog(context, name: w.name) || !mounted) {
@@ -144,6 +148,7 @@ class _WarehousesSectionState extends State<WarehousesSection> {
                 busy: _busyId == w.id,
                 onRename: () => rename(w),
                 onToggle: () => toggle(w),
+                onTogglePicking: () => togglePicking(w),
                 onDelete: () => delete(w),
               ),
           ],

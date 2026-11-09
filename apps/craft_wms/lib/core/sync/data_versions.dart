@@ -27,6 +27,9 @@ abstract final class DataDomain {
 
   /// Документы для 1С.
   static const documents = 'documents';
+
+  /// Сборка по реестру 1С: заказы, строки, пики, короба (P9-02).
+  static const picking = 'picking';
 }
 
 /// Версии данных сервера, известные клиенту (ADHOC-60, ADR-0018).

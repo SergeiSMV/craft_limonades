@@ -366,7 +366,7 @@ const taskHeaderSQL = `
 	       CASE WHEN t.assignee_id = $1::uuid THEN COALESCE(u.full_name, '') ELSE '' END,
 	       CASE WHEN t.assignee_id = $1::uuid THEN t.taken_at END,
 	       t.created_at, t.stocktake_id::text,
-	       wp.id::text, wp.number
+	       wp.id::text, wp.number, t.picking_order_id::text
 	FROM warehouse_tasks t
 	LEFT JOIN receipts r  ON r.id = t.receipt_id
 	LEFT JOIN warehouse_problems wp ON wp.id = t.problem_id
@@ -433,12 +433,16 @@ func scanTasks(rows pgx.Rows) ([]model.Task, error) {
 	for rows.Next() {
 		var t model.Task
 		var pr problemBasis
+		var pickingOrderID *string
 		if err := rows.Scan(&t.ID, &t.Number, &t.Kind, &t.Status, &t.WarehouseID, &t.ReceiptID,
 			&t.SupplierName, &t.ReceivedAt, &t.DocNumber, &t.DocDate, &t.AssigneeID, &t.AssigneeName, &t.TakenAt, &t.CreatedAt,
-			&t.StocktakeID, &pr.id, &pr.number); err != nil {
+			&t.StocktakeID, &pr.id, &pr.number, &pickingOrderID); err != nil {
 			return nil, fmt.Errorf("разобрать задание: %w", err)
 		}
 		t.Problem = pr.info()
+		if pickingOrderID != nil {
+			t.Picking = &model.TaskPickingInfo{OrderID: *pickingOrderID}
+		}
 		out = append(out, t)
 	}
 	return out, rows.Err()
@@ -460,6 +464,9 @@ func (r *TaskRepository) attachItems(ctx context.Context, tasks []model.Task) er
 		return err
 	}
 	if err := r.attachStocktakes(ctx, tasks); err != nil {
+		return err
+	}
+	if err := r.attachPickingReturns(ctx, tasks); err != nil {
 		return err
 	}
 	rows, err := r.pool.Query(ctx, `
@@ -535,6 +542,57 @@ func (r *TaskRepository) attachItems(ctx context.Context, tasks []model.Task) er
 				}
 			}
 		}
+	}
+	return nil
+}
+
+// attachPickingReturns дочитывает к заданиям «вернуть на места» (P9-07-1) заказ-основание и
+// сколько осталось вернуть. Основание — удаление заказа или загрузка реестра, последней его
+// изменившая.
+func (r *TaskRepository) attachPickingReturns(ctx context.Context, tasks []model.Task) error {
+	var ids []string
+	for _, t := range tasks {
+		if t.Picking != nil {
+			ids = append(ids, t.Picking.OrderID)
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	rows, err := r.pool.Query(ctx, `
+		SELECT o.id::text, o.number, o.invoice_number, o.order_number, o.client,
+		       o.deleted_at IS NOT NULL, coalesce(o.deleted_at, l.uploaded_at)
+		FROM picking_orders o
+		LEFT JOIN picking_loads l ON l.id = o.updated_load_id
+		WHERE o.id = ANY($1::uuid[])`, ids)
+	if err != nil {
+		return fmt.Errorf("заказы возврата на места: %w", err)
+	}
+	infos := map[string]model.TaskPickingInfo{}
+	for rows.Next() {
+		var p model.TaskPickingInfo
+		if err := rows.Scan(&p.OrderID, &p.Number, &p.InvoiceNumber, &p.OrderNumber, &p.Client,
+			&p.Deleted, &p.ChangedAt); err != nil {
+			rows.Close()
+			return fmt.Errorf("заказ возврата на места: %w", err)
+		}
+		infos[p.OrderID] = p
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("заказы возврата на места: %w", err)
+	}
+	left, err := returnLeftOf(ctx, r.pool, ids)
+	if err != nil {
+		return err
+	}
+	for i := range tasks {
+		if tasks[i].Picking == nil {
+			continue
+		}
+		info := infos[tasks[i].Picking.OrderID]
+		info.Left = left[info.OrderID]
+		tasks[i].Picking = &info
 	}
 	return nil
 }
@@ -888,6 +946,9 @@ const taskSessionsSQL = `(
 	UNION ALL
 	SELECT task_id, created_by, posted_at FROM supplier_return_shipments
 	UNION ALL
+	-- Возврат на места (P9-07-1): заход — каждый возврат из короба отгрузки.
+	SELECT task_id, returned_by, returned_at FROM picking_returns
+	UNION ALL
 	SELECT wt.id, sc.counted_by, sc.counted_at
 	FROM stocktake_cells sc JOIN warehouse_tasks wt ON wt.stocktake_id = sc.stocktake_id
 	WHERE sc.status = 'counted')`
@@ -897,11 +958,13 @@ func (r *TaskRepository) Completed(ctx context.Context, f model.CompletedTasksFi
 	rows, err := r.pool.Query(ctx, `
 		SELECT t.id::text, t.number, t.kind, COALESCE(s.name, ''), r.doc_number, r.doc_date, t.completed_at,
 		       (SELECT count(*) FROM `+taskSessionsSQL+` x WHERE x.task_id = t.id),
-		       wp.id::text, wp.number, t.stocktake_id::text
+		       wp.id::text, wp.number, t.stocktake_id::text,
+		       po.id::text, po.number, po.invoice_number, po.order_number, po.client, po.deleted_at IS NOT NULL
 		FROM warehouse_tasks t
 		LEFT JOIN receipts r  ON r.id = t.receipt_id
 		LEFT JOIN warehouse_problems wp ON wp.id = t.problem_id
 		LEFT JOIN suppliers s ON s.id = COALESCE(r.supplier_id, t.supplier_id)
+		LEFT JOIN picking_orders po ON po.id = t.picking_order_id
 		WHERE t.status = 'done'
 		  AND ($1::timestamptz IS NULL OR t.completed_at >= $1)
 		  AND ($2::timestamptz IS NULL OR t.completed_at <  $2)
@@ -922,12 +985,21 @@ func (r *TaskRepository) Completed(ctx context.Context, f model.CompletedTasksFi
 		var c model.CompletedTask
 		var pr problemBasis
 		var stocktakeID *string
+		var po struct {
+			id, invoice, order, client *string
+			number                     *int64
+			deleted                    *bool
+		}
 		if err := rows.Scan(&c.ID, &c.Number, &c.Kind, &c.SupplierName, &c.DocNumber, &c.DocDate, &c.CompletedAt, &c.Sessions,
-			&pr.id, &pr.number, &stocktakeID); err != nil {
+			&pr.id, &pr.number, &stocktakeID, &po.id, &po.number, &po.invoice, &po.order, &po.client, &po.deleted); err != nil {
 			rows.Close()
 			return nil, fmt.Errorf("разобрать завершённое задание: %w", err)
 		}
 		c.Problem = pr.info()
+		if po.id != nil {
+			c.Picking = &model.TaskPickingInfo{OrderID: *po.id, Number: *po.number, InvoiceNumber: *po.invoice,
+				OrderNumber: *po.order, Client: *po.client, Deleted: *po.deleted}
+		}
 		if stocktakeID != nil {
 			stocktakeIDs[*stocktakeID] = c.ID
 		}

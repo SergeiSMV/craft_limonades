@@ -14,6 +14,7 @@ class PortalWarehouse {
     required this.isDefault,
     required this.isActive,
     required this.inUse,
+    this.allowPicking = false,
     this.systemRole = '',
   });
 
@@ -24,6 +25,7 @@ class PortalWarehouse {
     isDefault: j['is_default'] as bool? ?? false,
     isActive: j['is_active'] as bool? ?? true,
     inUse: j['in_use'] as bool? ?? false,
+    allowPicking: j['allow_picking'] as bool? ?? false,
     systemRole: j['system_role'] as String? ?? '',
   );
 
@@ -40,6 +42,9 @@ class PortalWarehouse {
   /// Есть остаток или история — удалить нельзя, только скрыть.
   final bool inUse;
 
+  /// Галочка «разрешить сборку» (P8-02): из товара склада можно собирать заказы.
+  final bool allowPicking;
+
   /// Роль системного склада (P6-07-3, «Возврат поставщику»); пусто — обычный склад.
   final String systemRole;
 
@@ -52,6 +57,9 @@ class PortalWarehouse {
 
   /// Можно ли удалить: не по умолчанию, не системный, без остатка и истории.
   bool get canDelete => canToggle && !inUse;
+
+  /// Можно ли менять галочку «разрешить сборку»: системному складу сборка запрещена всегда.
+  bool get canTogglePicking => !isSystem;
 }
 
 /// Справочник внутренних складов в портале (ADHOC-29): список и ведение — только admin.
@@ -85,15 +93,20 @@ class InternalWarehousesRepository {
     return PortalWarehouse.fromJson(resp.data!);
   });
 
-  /// Переименовать и (или) скрыть или вернуть в выбор.
+  /// Переименовать, скрыть или вернуть в выбор, разрешить или запретить сборку.
   Future<Either<Failure, PortalWarehouse>> update(
     String id, {
     String? name,
     bool? isActive,
+    bool? allowPicking,
   }) => _call(() async {
     final resp = await _dio.patch<Map<String, dynamic>>(
       ApiConst.internalWarehouseById(id),
-      data: {'name': ?name, 'is_active': ?isActive},
+      data: {
+        'name': ?name,
+        'is_active': ?isActive,
+        'allow_picking': ?allowPicking,
+      },
     );
     return PortalWarehouse.fromJson(resp.data!);
   });

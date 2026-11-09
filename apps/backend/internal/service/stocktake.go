@@ -23,6 +23,7 @@ type stocktakeRepo interface {
 	CellView(ctx context.Context, id, userID string) (model.StocktakeCellView, error)
 	Close(ctx context.Context, id, userID string, force bool) (int, error)
 	List(ctx context.Context, status string) ([]model.StocktakeListItem, error)
+	Lines(ctx context.Context, id string) ([]model.StocktakeLine, error)
 	CountingInCell(ctx context.Context, cellID string) (*model.CellUnderCount, error)
 }
 
@@ -69,6 +70,14 @@ func (s *StocktakeService) Get(ctx context.Context, id, userID string) (model.St
 		return model.Stocktake{}, model.ErrStocktakeNotFound
 	}
 	return s.repo.Get(ctx, id, userID, StocktakeCellStaleAfter)
+}
+
+// Lines — строки пересчёта для портала: ожидалось и посчитано по ячейкам.
+func (s *StocktakeService) Lines(ctx context.Context, id string) ([]model.StocktakeLine, error) {
+	if !isUUID(id) {
+		return nil, model.ErrStocktakeNotFound
+	}
+	return s.repo.Lines(ctx, id)
 }
 
 // Cells — ячейки пересчёта, которые работник может считать: свободные и свои (P10-03).

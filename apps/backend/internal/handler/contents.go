@@ -66,6 +66,7 @@ type loadUnitCardResponse struct {
 type looseLineResponse struct {
 	InternalWarehouseID string `json:"internal_warehouse_id"`
 	contentLineResponse
+	InPicking decimal.Decimal `json:"in_picking"` // «в сборке» из qty (P9-05)
 }
 
 type cellContentsResponse struct {
@@ -102,6 +103,7 @@ type snapshotLooseResponse struct {
 	CellID              string `json:"cell_id"`
 	InternalWarehouseID string `json:"internal_warehouse_id"`
 	snapshotLineResponse
+	InPicking decimal.Decimal `json:"in_picking"` // «в сборке» из qty (P9-05)
 }
 
 // snapshotMarkResponse — марка ЧЗ на складе (CZ-06): в коробе (load_unit_id) или россыпью
@@ -160,6 +162,7 @@ func (h *ContentsHandler) Snapshot(w http.ResponseWriter, r *http.Request) {
 		out.Loose = append(out.Loose, snapshotLooseResponse{
 			CellID: l.CellID, InternalWarehouseID: l.InternalWarehouseID,
 			snapshotLineResponse: toSnapshotLine(l.ContentLine),
+			InPicking:            l.InPicking,
 		})
 	}
 	for _, m := range snap.Marks {
@@ -194,6 +197,7 @@ func (h *ContentsHandler) CellContents(w http.ResponseWriter, r *http.Request) {
 		out.Loose = append(out.Loose, looseLineResponse{
 			InternalWarehouseID: l.InternalWarehouseID,
 			contentLineResponse: toContentLine(l.ContentLine),
+			InPicking:           l.InPicking,
 		})
 	}
 	writeJSON(w, http.StatusOK, out)

@@ -16,6 +16,12 @@ import '../../features/movement/presentation/pages/movement_record_page.dart';
 import '../../features/problems/domain/problem_records.dart'; // аргумент ProblemRecordRoute
 import '../../features/problems/presentation/pages/problem_page.dart';
 import '../../features/problems/presentation/pages/problem_record_page.dart';
+import '../../features/picking/presentation/pages/picking_card_page.dart';
+import '../../features/picking/presentation/pages/picking_list_page.dart';
+import '../../features/picking/presentation/pages/picking_order_page.dart';
+import '../../features/picking/domain/picking_shipment.dart';
+import '../../features/picking/presentation/pages/picking_shipment_page.dart';
+import '../../features/picking/presentation/pages/picking_return_page.dart';
 import '../../features/putaway/presentation/pages/putaway_page.dart';
 import '../../features/supplier_return/presentation/pages/supplier_return_page.dart';
 import '../../features/receipt/presentation/bloc/receipt_cubit.dart'; // ReceiptCubit — аргумент ReceiptBoxRoute
@@ -86,6 +92,12 @@ class AppRouter extends RootStackRouter {
     AutoRoute(page: StocktakeRoute.page, guards: [_authGuard]),
     AutoRoute(page: StocktakeCountRoute.page, guards: [_authGuard]),
     AutoRoute(page: StocktakeCreateRoute.page, guards: [_authGuard]),
+    // Сборка (P9-06): список «СБОРКА» и заказ.
+    AutoRoute(page: PickingListRoute.page, guards: [_authGuard]),
+    AutoRoute(page: PickingOrderRoute.page, guards: [_authGuard]),
+    AutoRoute(page: PickingShipmentRoute.page, guards: [_authGuard]),
+    AutoRoute(page: PickingCardRoute.page, guards: [_authGuard]),
+    AutoRoute(page: PickingReturnRoute.page, guards: [_authGuard]),
     // Содержимое ячейки и короба по скану (P5-05).
     AutoRoute(page: CellContentsRoute.page, guards: [_authGuard]),
     AutoRoute(page: LoadUnitRoute.page, guards: [_authGuard]),
