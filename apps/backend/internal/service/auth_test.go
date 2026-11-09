@@ -59,6 +59,16 @@ func (f *fakeUserRepo) GetByID(_ context.Context, id string) (model.User, error)
 	return u, nil
 }
 
+func (f *fakeUserRepo) SaveBadgeSecret(_ context.Context, id, login string, sealed []byte) error {
+	u := f.byID[id]
+	if u.Login != login {
+		return nil
+	}
+	u.BadgeSecretEnc = sealed
+	f.add(u)
+	return nil
+}
+
 // Тестовый бейдж: логин "10000000" + секрет "23456781".
 const (
 	testBadge  = "1000000023456781"
@@ -112,7 +122,7 @@ func newService(t *testing.T, addUser bool) (*AuthService, *auth.TokenManager, *
 			IsActive:       true,
 		})
 	}
-	return NewAuthService(repo, tm), tm, repo
+	return NewAuthService(repo, tm, nil), tm, repo
 }
 
 // Успешный вход: валидный бейдж активного пользователя → пара токенов,
@@ -343,5 +353,29 @@ func TestProfile(t *testing.T) {
 	}
 	if u.Login != testLogin {
 		t.Errorf("login = %q, want %q", u.Login, testLogin)
+	}
+}
+
+// ADHOC-65: вход по бейджу запоминает номер для печати — зашифрованным, логином-связанными
+// данными; повторный вход тем же бейджем номер не перезаписывает.
+func TestLoginRemembersBadge(t *testing.T) {
+	_, tm, repo := newService(t, true)
+	badges, err := auth.NewBadgeCipher("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f")
+	if err != nil {
+		t.Fatalf("ключ: %v", err)
+	}
+	svc := NewAuthService(repo, tm, badges)
+	if _, err := svc.Login(context.Background(), testBadge); err != nil {
+		t.Fatalf("Login: %v", err)
+	}
+	sealed := repo.byID[testUserID].BadgeSecretEnc
+	if got, err := badges.Open(testLogin, sealed); err != nil || got != testSecret {
+		t.Fatalf("сохранённый номер: %q, %v", got, err)
+	}
+	if _, err := svc.Login(context.Background(), testBadge); err != nil {
+		t.Fatalf("повторный Login: %v", err)
+	}
+	if string(repo.byID[testUserID].BadgeSecretEnc) != string(sealed) {
+		t.Error("повторный вход перезаписал номер")
 	}
 }

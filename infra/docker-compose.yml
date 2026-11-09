@@ -37,6 +37,8 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       ACCESS_TTL: ${ACCESS_TTL:-12h}
       REFRESH_TTL: ${REFRESH_TTL:-720h}
+      # Ключ номеров бейджей для печати на ТСД (ADHOC-65); пусто — печать бейджей выключена.
+      BADGE_KEY: ${BADGE_KEY:-}
     depends_on:
       db:
         condition: service_healthy   # стартуем только после «живой» БД
