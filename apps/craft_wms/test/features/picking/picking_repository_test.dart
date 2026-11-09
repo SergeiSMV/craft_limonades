@@ -82,7 +82,21 @@ void main() {
     when(
       () => sync.sendOne(any()),
     ).thenAnswer((_) async => const Left(Failure.network()));
+    // Без связи: проход очереди ничего не отправил.
+    when(() => sync.drain()).thenAnswer(
+      (_) async => const SyncResult(sent: 0, rejected: 0, remaining: 1),
+    );
+    when(() => sync.whenIdle()).thenAnswer((_) async {});
   });
+
+  /// Проход очереди доводит каждую ждущую операцию до статуса [settle].
+  void drainSettles(Future<void> Function(String operationId) settle) =>
+      when(() => sync.drain()).thenAnswer((_) async {
+        for (final op in await outbox.pending()) {
+          await settle(op.operationId);
+        }
+        return const SyncResult(sent: 1, rejected: 0, remaining: 0);
+      });
 
   tearDown(() => db.close());
 
@@ -120,7 +134,10 @@ void main() {
 
       final res = await repo.pick(_request);
 
-      expect(res.left, isA<NetworkFailure>());
+      // Принят на терминале сразу, отправка - фоном проходом очереди.
+      expect(res.isRight, isTrue);
+      verify(() => sync.drain()).called(1);
+      verifyNever(() => sync.sendOne(any()));
       final op = (await outbox.pending()).single;
       expect(op.kind.wire, 'picking_pick');
       expect(op.payload['order_id'], _orderId);
@@ -150,14 +167,13 @@ void main() {
       serverReturns(_order());
       await repo.order(_orderId);
       await repo.pick(_request);
-      when(() => sync.drain()).thenAnswer(
-        (_) async => const SyncResult(sent: 0, rejected: 0, remaining: 1),
-      );
+      clearInteractions(sync);
 
       final res = await repo.complete(_orderId);
 
       expect(res.left, isA<NetworkFailure>());
-      verify(() => sync.drain()).called(1);
+      // Сначала дождаться фонового прохода, затем отправить очередь самому.
+      verifyInOrder([() => sync.whenIdle(), () => sync.drain()]);
       verifyNever(() => api.complete(any()));
     },
   );
@@ -165,11 +181,7 @@ void main() {
   test('подтверждённый пик в ответе сервера не задваивается', () async {
     serverReturns(_order());
     await repo.order(_orderId);
-    when(() => sync.sendOne(any())).thenAnswer((inv) async {
-      final op = inv.positionalArguments.first as OutboxOperation;
-      await outbox.markSent(op.operationId);
-      return const Right(null);
-    });
+    drainSettles(outbox.markSent);
 
     await repo.pick(_request);
     final pickId = (await repo.cached(_orderId))!.picks.single.pick.id;
@@ -194,16 +206,17 @@ void main() {
     expect(view.picksOf(_lineId), hasLength(1));
   });
 
-  test('отклонённый пик снимается с экрана', () async {
+  test('пик, отклонённый сервером в фоне, снимается с экрана', () async {
     serverReturns(_order());
     await repo.order(_orderId);
-    when(() => sync.sendOne(any())).thenAnswer(
-      (_) async => const Left(Failure.rejected('больше, чем осталось собрать')),
+    drainSettles(
+      (id) => outbox.markRejected(id, 'больше, чем осталось собрать'),
     );
 
     final res = await repo.pick(_request);
+    await sync.drain();
 
-    expect(res.left, isA<RejectedFailure>());
+    expect(res.isRight, isTrue);
     final view = (await repo.cached(_orderId))!;
     expect(view.taken(view.order.lines.single), 0);
     expect(view.picksOf(_lineId), isEmpty);
@@ -244,6 +257,33 @@ void main() {
     expect(view.taken(view.order.lines.single), 0);
     expect(view.picksOf(_lineId).single.returnPending, isTrue);
   });
+
+  test(
+    'сканы подряд и перечитывание заказа не затирают свои пики (ADHOC-63)',
+    () async {
+      serverReturns(_order());
+      await repo.order(_orderId);
+      const one = PickRequest(
+        orderId: _orderId,
+        lineId: _lineId,
+        sourceCellId: _cellId,
+        cellAddress: 'A-1',
+        productionDate: '01-10-2026',
+        qty: 1,
+      );
+
+      // Пять пиков и перечитывание заказа - одновременно, как при быстрых сканах.
+      await Future.wait([
+        for (var i = 0; i < 5; i++) repo.pick(one),
+        repo.order(_orderId),
+      ]);
+
+      final view = (await repo.cached(_orderId))!;
+      expect(view.picksOf(_lineId), hasLength(5));
+      expect(view.taken(view.order.lines.single), 5);
+      expect(await outbox.pendingCount(), 5);
+    },
+  );
 
   test('новый короб становится текущим', () async {
     serverReturns(_order());

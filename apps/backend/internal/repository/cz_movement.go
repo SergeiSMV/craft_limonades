@@ -149,6 +149,21 @@ func lockMarks(ctx context.Context, q Querier, marks []string) ([]lockedMark, er
 //
 //	на один уровень (групповая в коробе), глубже в пилоте её нет (CZ-01).
 func openTouchedAggregates(ctx context.Context, q Querier, marks []string) error {
+	return openAggregates(ctx, q, marks, false)
+}
+
+// openAggregatesShipped — то же при «Завершить сборку» (CZ-07): короб ЧЗ не вскрыт, если все
+// его марки легли вместе в один короб отгрузки. Целый короб уезжает клиенту своим кодом
+// агрегации, а не россыпью марок, хотя его марки и сменили ГЕ. Вызывать один раз после
+// переноса всех пиков заказа: марки короба могли прийти разными пиками.
+func openAggregatesShipped(ctx context.Context, q Querier, marks []string) error {
+	return openAggregates(ctx, q, marks, true)
+}
+
+// openAggregates — общий UPDATE вскрытия. together=false — короб ЧЗ (упаковка с ГЕ) вскрыт,
+// если марка лежит не в нём; together=true — короб, как и групповая упаковка, вскрыт, только
+// если его марки лежат не вместе.
+func openAggregates(ctx context.Context, q Querier, marks []string, together bool) error {
 	if _, err := q.Exec(ctx, `
 		WITH touched AS (
 			SELECT DISTINCT aggregate_code AS code FROM cz_marks
@@ -170,14 +185,14 @@ func openTouchedAggregates(ctx context.Context, q Querier, marks []string) error
 			SELECT 1 FROM members x
 			WHERE x.agg = a.code
 			  AND (x.status <> $2
-			       OR (a.load_unit_id IS NOT NULL AND x.load_unit_id IS DISTINCT FROM a.load_unit_id)
-			       OR (a.load_unit_id IS NULL AND EXISTS (
+			       OR (a.load_unit_id IS NOT NULL AND NOT $3 AND x.load_unit_id IS DISTINCT FROM a.load_unit_id)
+			       OR ((a.load_unit_id IS NULL OR $3) AND EXISTS (
 			              SELECT 1 FROM members y
 			              WHERE y.agg = a.code
 			                AND (y.load_unit_id IS DISTINCT FROM x.load_unit_id
 			                     OR y.cell_id IS DISTINCT FROM x.cell_id
 			                     OR y.internal_warehouse_id IS DISTINCT FROM x.internal_warehouse_id)))))`,
-		marks, model.CZMarkInStock); err != nil {
+		marks, model.CZMarkInStock, together); err != nil {
 		return fmt.Errorf("отметить вскрытые упаковки ЧЗ: %w", err)
 	}
 	return nil

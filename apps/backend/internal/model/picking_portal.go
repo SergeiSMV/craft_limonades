@@ -51,6 +51,29 @@ type PickingPortalDetail struct {
 	Boxes   []PickingPortalBox
 	Changes []PickingPortalChange
 	Events  []PickingPortalEvent
+	// CZBoxes — целые упаковки ЧЗ в коробах отгрузки (CZ-07): для УПД такая упаковка идёт
+	// своим кодом агрегации, а не россыпью марок.
+	CZBoxes []PickingCZBox
+}
+
+// PickingCZBox — упаковка ЧЗ, уехавшая целой (CZ-07): не вскрыта, все её марки (и марки
+// вложенных упаковок) — в перенесённых пиках заказа и в одном коробе отгрузки. Вложенная
+// упаковка целого короба отдельно не числится: короб уже покрывает её марки.
+type PickingCZBox struct {
+	Code  string
+	Kind  string // CZAggregateBox / CZAggregateGroup
+	Marks []string
+}
+
+// CZBoxByMark — какая целая упаковка заказа держит марку: КИ → упаковка.
+func (d PickingPortalDetail) CZBoxByMark() map[string]*PickingCZBox {
+	out := map[string]*PickingCZBox{}
+	for i := range d.CZBoxes {
+		for _, cis := range d.CZBoxes[i].Marks {
+			out[cis] = &d.CZBoxes[i]
+		}
+	}
+	return out
 }
 
 // PickingPortalEvent — событие журнала заказа (P9-07): вид (PickingEvent*), кто сделал и с кого

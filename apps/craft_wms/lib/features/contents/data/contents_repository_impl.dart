@@ -77,6 +77,13 @@ class ContentsRepositoryImpl implements ContentsRepository {
   }
 
   @override
+  Future<String?> cachedLoadUnitCell(String id) async {
+    final overlay = await _overlay();
+    final base = (await _cache.loadUnits([id]))[id];
+    return overlay.applyToLoadUnit(id, _unit(base, overlay.cells))?.cellAddress;
+  }
+
+  @override
   Future<List<StockMark>> marksByCode(String code) async {
     final overlay = await _overlay();
     final def = overlay.cells.defaultInternalWarehouse;
