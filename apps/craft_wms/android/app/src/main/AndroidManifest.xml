@@ -75,6 +75,16 @@
              явного объявления, и PackageManager.getPackageInfo вернул бы «не установлено» даже
              на ТСД. com.ubx.uscanner - служба декодера Urovo, com.ubx.barcodescanner.tool - её
              настройки; наличие любого из них означает, что сканер на устройстве есть. -->
+        <!-- Ссылка на политику конфиденциальности с экрана входа (ADHOC-66): на Android 11+
+             url_launcher видит браузер, только если запрос на открытие ссылки объявлен здесь. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="https"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="http"/>
+        </intent>
         <package android:name="com.ubx.uscanner"/>
         <package android:name="com.ubx.barcodescanner.tool"/>
     </queries>

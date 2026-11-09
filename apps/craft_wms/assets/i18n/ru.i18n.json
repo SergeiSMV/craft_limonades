@@ -18,7 +18,9 @@
     "use_password": "Войти по логину и паролю",
     "use_badge": "Войти по бейджу",
     "error_credentials": "Неверный логин или пароль",
-    "error_empty_credentials": "Заполните логин и пароль"
+    "error_empty_credentials": "Заполните логин и пароль",
+    "privacy_policy": "Политика конфиденциальности",
+    "privacy_open_failed": "Не удалось открыть страницу: ${url}"
   },
   "home_screen": {
     "no_access_title": "Нет доступа к ТСД",
