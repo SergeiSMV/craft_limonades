@@ -30,12 +30,12 @@ func BadgeScopeOf(a Access) BadgeScope {
 // Allows — пускает ли уровень к бейджу пользователя [target] (self — свой бейдж, admin —
 // системная должность «Администратор»).
 func (s BadgeScope) Allows(self, admin bool) bool {
-	switch {
-	case s == BadgeScopeAll:
+	switch s {
+	case BadgeScopeAll:
 		return true
-	case s == BadgeScopeStaff:
+	case BadgeScopeStaff:
 		return self || !admin
-	case s == BadgeScopeOwn:
+	case BadgeScopeOwn:
 		return self
 	default:
 		return false
