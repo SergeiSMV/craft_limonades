@@ -231,4 +231,65 @@ void main() {
       expect(cubit.state.status, isNot(GoodsListStatus.error));
     });
   });
+
+  test(
+    'возврат из карточки подменяет товар свежим из справочника (ADHOC-64)',
+    () async {
+      when(
+        () => repo.listGoods(
+          query: any(named: 'query'),
+          groupId: any(named: 'groupId'),
+          supplierId: any(named: 'supplierId'),
+          offset: any(named: 'offset'),
+        ),
+      ).thenAnswer(
+        (_) async => Right(
+          Paged(
+            items: [good('a').copyWith(czMarked: true), good('b')],
+            total: 2,
+            limit: 50,
+            offset: 0,
+          ),
+        ),
+      );
+      // В карточке признак сняли: справочник терминала уже без него.
+      when(() => repo.goodById('a')).thenAnswer((_) async => good('a'));
+
+      await cubit.init();
+      await cubit.returnedFromCard('a');
+
+      expect(cubit.state.goods.map((g) => g.id).toList(), ['a', 'b']);
+      expect(cubit.state.goods.first.czMarked, isFalse);
+      // Список заново не запрашивался: прокрутка и подгруженные страницы остаются.
+      verify(
+        () => repo.listGoods(
+          query: any(named: 'query'),
+          groupId: any(named: 'groupId'),
+          supplierId: any(named: 'supplierId'),
+          offset: any(named: 'offset'),
+        ),
+      ).called(1);
+    },
+  );
+
+  test(
+    'возврат из карточки: товара нет в справочнике - список прежний',
+    () async {
+      when(
+        () => repo.listGoods(
+          query: any(named: 'query'),
+          groupId: any(named: 'groupId'),
+          supplierId: any(named: 'supplierId'),
+          offset: any(named: 'offset'),
+        ),
+      ).thenAnswer((_) async => Right(page(['a'], total: 1)));
+      when(() => repo.goodById('a')).thenAnswer((_) async => null);
+
+      await cubit.init();
+      final before = cubit.state;
+      await cubit.returnedFromCard('a');
+
+      expect(cubit.state, before);
+    },
+  );
 }
