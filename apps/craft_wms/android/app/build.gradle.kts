@@ -1,4 +1,5 @@
 import java.util.Base64
+import java.util.Properties
 
 plugins {
     id("com.android.application")
@@ -23,6 +24,19 @@ val dartDefines: Map<String, String> =
         ?.toMap()
         ?: emptyMap()
 val isStand = dartDefines["STAND"] == "true"
+
+// Ключ приложения для RuStore (ADHOC-66).
+// Что: релиз боевого приложения подписывается своим ключом из `android/key.properties`
+//      (storeFile, storePassword, keyAlias, keyPassword; файл и ключ — вне git).
+// Зачем: RuStore принимает обновление, только если подпись совпадает с первой версией, а
+//        отладочный ключ у каждой машины свой — им публиковать нельзя.
+// Как: нет файла (CI, чужая машина) — релиз, как раньше, подписывается отладочным ключом;
+//      стенд всегда на отладочном: его не публикуем, и он не должен требовать ключа.
+val keyProperties = Properties().apply {
+    val file = rootProject.file("key.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+val hasReleaseKey = !isStand && keyProperties.getProperty("storeFile") != null
 
 android {
     namespace = "com.craftlimonades.sklad"
@@ -49,11 +63,20 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (hasReleaseKey) {
+            create("release") {
+                storeFile = file(keyProperties.getProperty("storeFile"))
+                storePassword = keyProperties.getProperty("storePassword")
+                keyAlias = keyProperties.getProperty("keyAlias")
+                keyPassword = keyProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName(if (hasReleaseKey) "release" else "debug")
         }
     }
 }
