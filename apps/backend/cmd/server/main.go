@@ -97,16 +97,29 @@ func main() {
 	}
 	tokens := auth.NewTokenManager(secret, cfg.AccessTTL, cfg.RefreshTTL)
 
+	// Шифр номеров бейджей для печати на ТСД (ADHOC-65). Ключа нет или он неверный — вход
+	// работает как прежде, номера не запоминаются, печать бейджей отвечает «не настроена».
+	var badges *auth.BadgeCipher
+	if cfg.BadgeKey == "" {
+		log.Warn("BADGE_KEY is empty — badge printing is disabled")
+	} else if c, err := auth.NewBadgeCipher(cfg.BadgeKey); err != nil {
+		log.Error("BADGE_KEY is invalid — badge printing is disabled", "error", err)
+	} else {
+		badges = c
+	}
+
 	// Сервисы доступны только при наличии БД (нужны репозитории). Без неё структура остаётся
 	// нулевой, и роутер просто не регистрирует их маршруты.
 	var svc handler.Services
 	if pool != nil {
 		users := repository.NewUserRepository(pool)
-		svc.Auth = service.NewAuthService(users, tokens)
+		svc.Auth = service.NewAuthService(users, tokens, badges)
 		// Права должности — для проверок по праву на каждой ручке (ADHOC-49).
 		svc.Rights = users
 		// Пользователи и должности в портале (ADHOC-49).
-		svc.Users = service.NewUserAdminService(repository.NewUserAdminRepository(pool))
+		svc.Users = service.NewUserAdminService(repository.NewUserAdminRepository(pool), badges)
+		// Печать бейджей на ТСД (ADHOC-65).
+		svc.Badge = service.NewBadgeService(repository.NewBadgeRepository(pool), users, badges)
 		// Репозитории справочников: переиспользуются импортом (запись) и каталогом (чтение).
 		groups := repository.NewNomenclatureGroupRepository(pool)
 		suppliers := repository.NewSupplierRepository(pool)

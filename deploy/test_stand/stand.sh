@@ -50,6 +50,13 @@ load_env() {
     export STAND_JWT_SECRET
     log "Сгенерирован JWT-секрет стенда."
   fi
+  # Ключ номеров бейджей (ADHOC-65) — свой, не боевой: номера из снимка прода на стенде не
+  # расшифруются и запомнятся заново при входе по бейджу. Строки может не быть в старом
+  # stand.env — set_stand_env её допишет.
+  if [[ -z "${STAND_BADGE_KEY:-}" ]]; then
+    set_stand_env STAND_BADGE_KEY "$(openssl rand -hex 32)"
+    log "Сгенерирован ключ номеров бейджей стенда."
+  fi
   : "${STAND_HTTP_PORT:=8090}" "${STAND_DB_PORT:=5433}" "${STAND_KEEP_SNAPSHOTS:=5}"
   : "${STAND_PROD_PROJECT:=craft-wms}"
   # Честный знак (ADHOC-54): по умолчанию выключен; туннель — тем же сервером, что снимок.

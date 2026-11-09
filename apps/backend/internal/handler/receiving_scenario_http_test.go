@@ -88,8 +88,13 @@ func newReceivingE2E(t *testing.T, ids map[string]string) *rcvEnv {
 		t.Fatalf("токен оператора: %v", err)
 	}
 
+	// Номера бейджей для печати (ADHOC-65) — тестовым ключом.
+	badges, err := auth.NewBadgeCipher(testBadgeKey)
+	if err != nil {
+		t.Fatalf("ключ бейджей: %v", err)
+	}
 	router := handler.NewRouter(slog.New(slog.NewTextHandler(io.Discard, nil)), nil, tokens, handler.Services{
-		Auth:       service.NewAuthService(repository.NewUserRepository(pool), tokens),
+		Auth:       service.NewAuthService(repository.NewUserRepository(pool), tokens, badges),
 		Operations: service.NewOperationsService(repository.NewOperationsRepository(pool)),
 		Barcode:    service.NewBarcodeService(repository.NewBarcodeRepository(pool)),
 		Document:   service.NewDocumentService(repository.NewReportDocumentRepository(pool)),
@@ -108,7 +113,9 @@ func newReceivingE2E(t *testing.T, ids map[string]string) *rcvEnv {
 		StockEntry: service.NewStockEntryService(repository.NewStockEntryRepository(pool)),
 		Stocktake:  service.NewStocktakeService(repository.NewStocktakeRepository(pool)),
 		Rights:     repository.NewUserRepository(pool),
-		Users:      service.NewUserAdminService(repository.NewUserAdminRepository(pool)),
+		Users:      service.NewUserAdminService(repository.NewUserAdminRepository(pool), badges),
+		Badge: service.NewBadgeService(repository.NewBadgeRepository(pool),
+			repository.NewUserRepository(pool), badges),
 		CellSetup: service.NewCellSetupService(pool, repository.NewWarehouseRepository(pool),
 			repository.NewCellRepository(pool)),
 		Label: service.NewLabelService(repository.NewWarehouseRepository(pool), repository.NewCellRepository(pool)),

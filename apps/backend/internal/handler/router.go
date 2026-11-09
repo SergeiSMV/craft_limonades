@@ -70,6 +70,8 @@ type Services struct {
 	Rights appmw.RightsSource
 	// Users — пользователи и должности в портале (ADHOC-49).
 	Users *service.UserAdminService
+	// Badge — печать бейджей сотрудников на ТСД (ADHOC-65).
+	Badge *service.BadgeService
 	// DataVersions — версии данных по областям для заголовка каждого ответа API (ADHOC-60);
 	// nil — заголовка нет (урезанная сборка в тесте).
 	DataVersions appmw.VersionsSource
@@ -535,6 +537,18 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 				r.Get("/users", uH.Users)                      // все, и заблокированные
 				r.Post("/users", uH.CreateUser)                // завести: бейдж или логин с паролем
 				r.Patch("/users/{id}", uH.UpdateUser)          // ФИО, должность, блокировка, новый вход
+			})
+		}
+
+		// «Бейджи» на ТСД (ADHOC-65) — любое из трёх прав; чей бейдж можно печатать, решает
+		// сервис по самому широкому из них.
+		if svc.Badge != nil {
+			bH := NewBadgeHandler(svc.Badge)
+			r.Group(func(r chi.Router) {
+				r.Use(appmw.Authenticator(tokens))
+				r.Use(need(model.RightTSDBadgesOwn, model.RightTSDBadgesStaff, model.RightTSDBadgesAll))
+				r.Get("/badges", bH.Holders)    // кого можно печатать
+				r.Get("/badges/{id}", bH.Badge) // номер к печати
 			})
 		}
 	})

@@ -40,6 +40,9 @@ services:
       DATABASE_URL: postgres://wms:stand@db:5432/craft_wms?sslmode=disable
       # Свой секрет, не боевой: токены прода стенд не примет, вход — заново (бейджи из снимка работают).
       JWT_SECRET: ${STAND_JWT_SECRET:?STAND_JWT_SECRET не задан — запускайте через stand.sh}
+      # Свой ключ номеров бейджей (ADHOC-65): номера из снимка прода не расшифруются и
+      # запомнятся заново при входе по бейджу на стенде.
+      BADGE_KEY: ${STAND_BADGE_KEY:?STAND_BADGE_KEY не задан — запускайте через stand.sh}
       ACCESS_TTL: 12h
       REFRESH_TTL: 720h
     depends_on:

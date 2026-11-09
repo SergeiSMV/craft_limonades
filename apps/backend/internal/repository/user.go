@@ -29,7 +29,8 @@ func NewUserRepository(pool *pgxpool.Pool) *UserRepository {
 // Должность и её права — тем же запросом (ADHOC-49): права проверяются по ним.
 const userColumns = `u.id::text AS id, COALESCE(u.login,'') AS login, COALESCE(u.username,'') AS username,
 	u.password_hash, u.full_name, u.position_id::text AS position_id, p.name AS position_name,
-	p.is_system AS position_system, p.rights AS position_rights, u.is_active, u.created_at, u.updated_at`
+	p.is_system AS position_system, p.rights AS position_rights, u.badge_secret_enc, u.is_active,
+	u.created_at, u.updated_at`
 
 const userFrom = ` FROM users u JOIN positions p ON p.id = u.position_id`
 
@@ -58,6 +59,17 @@ func (r *UserRepository) GetByID(ctx context.Context, id string) (model.User, er
 		return model.User{}, fmt.Errorf("query user by id: %w", err)
 	}
 	return collectUser(rows)
+}
+
+// SaveBadgeSecret запоминает зашифрованный секрет бейджа (ADHOC-65) — после входа по нему.
+// Только у той же строки с тем же логином: бейдж за время входа могли сменить в портале.
+func (r *UserRepository) SaveBadgeSecret(ctx context.Context, id, login string, sealed []byte) error {
+	if _, err := r.pool.Exec(ctx, `
+		UPDATE users SET badge_secret_enc = $3
+		WHERE id = $1::uuid AND login = $2`, id, login, sealed); err != nil {
+		return fmt.Errorf("запомнить номер бейджа: %w", err)
+	}
+	return nil
 }
 
 // UserAccess — доступ пользователя (ADHOC-49): действующие права, системная ли должность,
