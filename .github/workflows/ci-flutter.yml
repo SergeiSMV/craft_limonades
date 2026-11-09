@@ -6,15 +6,13 @@ name: CI · Flutter
 # на выходе в main. Раньше оба события делали всё целиком, и полный прогон (13-18 минут)
 # повторялся дважды за задачу, второй раз — ради того же результата.
 # - pull_request → dev: codegen + analyze + test. Быстро: ни Gradle, ни JDK здесь не нужны.
-# - push → main: РЕЛИЗНАЯ сборка APK + веб-бандл портала + публикация образа в GHCR.
+# - push → main: веб-бандл портала + публикация образа в GHCR (его забирает выкатка прода).
 #   Тесты тут гоняются, только если дерево main разошлось с dev (см. джоб gate).
 #
-# Почему APK собирается релизной, а не отладочной: на терминалы ставится release, и различия
-# живут именно там — слияние манифестов, tree-shaking, оптимизация. На этой разнице жил ADHOC-04
-# (в релизном манифесте не было android.permission.INTERNET, и НИ ОДНА релизная сборка не могла
-# обратиться к серверу, а гейт этого не видел, потому что собирал debug). Подписи не нужны:
-# без keystore релиз собирается с отладочной подписью.
-# Артефакты (APK/web) не выгружаем — на free-тарифе они выедали квоту хранилища.
+# APK в CI не собирается (ADHOC-68): релизная сборка с Gradle занимала 8 из ~18 минут прогона,
+# а её результат никуда не шёл — APK для терминалов собирается локально ключом приложения
+# (scripts/build_tsd_rustore.sh), и там же проверяется разрешение INTERNET (урок ADHOC-04).
+# Артефакты (web) не выгружаем — на free-тарифе они выедали квоту хранилища.
 on:
   pull_request:
     branches: [dev]
@@ -120,9 +118,9 @@ jobs:
         run: |
           if [ -d test ]; then flutter test; else echo "тестов пока нет — пропуск"; fi
 
-  # --- Релиз: сборка артефактов и публикация портала (только push в main) ---
+  # --- Релиз: сборка портала и публикация образа (только push в main) ---
   release:
-    name: Сборка релиза (APK + портал → GHCR)
+    name: Сборка портала → GHCR
     runs-on: ubuntu-latest
     needs: [gate, flutter]
     # `skipped` в списке допустимых исходов — случай «проверки не гоняли, потому что дерево
@@ -135,12 +133,6 @@ jobs:
         working-directory: apps/craft_wms
     steps:
       - uses: actions/checkout@v4
-
-      # JDK нужен Gradle при сборке Android-APK.
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
 
       - uses: subosito/flutter-action@v2
         with:
@@ -155,56 +147,21 @@ jobs:
           key: pub-${{ runner.os }}-${{ hashFiles('apps/craft_wms/pubspec.lock') }}
           restore-keys: pub-${{ runner.os }}-
 
-      # Gradle качает зависимости Android заново на каждом прогоне — это и есть основная
-      # часть времени сборки APK.
-      - name: Кеш Gradle
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: gradle-${{ runner.os }}-${{ hashFiles('apps/craft_wms/android/**/*.gradle*', 'apps/craft_wms/android/**/gradle-wrapper.properties') }}
-          restore-keys: gradle-${{ runner.os }}-
-
       - name: Pub get
         run: flutter pub get
 
       - name: Codegen (build_runner)
         run: dart run build_runner build --delete-conflicting-outputs
 
-      # Реальный .env — в .gitignore (свой на каждой машине). В CI подставляем заглушку
-      # из шаблона: так проверяется, что .env.example остаётся разбираемым, и честно
-      # проходится путь --dart-define-from-file, которым APK собирается на самом деле.
-      - name: Prepare .env (CI stub)
-        run: cp .env.example .env
-
-      # Релизная сборка ТСД-APK — тот же путь, которым приложение ставится на терминалы.
-      # Именно из .env: у ТСД нативная сборка, адрес сервера зашивается в приложение и
-      # относительным быть не может — на устройстве нет origin, относительно которого его
-      # разрешать.
-      - name: Build APK (release)
-        run: flutter build apk --release --dart-define-from-file=.env
-
-      # Разрешения проверяем в самом артефакте, а не на глаз: ADHOC-04 был именно про то,
-      # что в релизном манифесте не оказалось INTERNET, и заметить это можно только здесь.
-      - name: Проверка разрешений в APK
-        run: |
-          aapt_bin="$(find "${ANDROID_HOME:-/usr/local/lib/android/sdk}/build-tools" -name aapt2 2>/dev/null | sort | tail -1)"
-          # Молча пропустить проверку нельзя: зелёный шаг означал бы, что разрешения проверены,
-          # а на деле не проверялось ничего — ровно так ADHOC-04 и дожил до устройства.
-          [ -n "$aapt_bin" ] || { echo "::error::aapt2 не найден — проверка разрешений не выполнена"; exit 1; }
-          perms="$("$aapt_bin" dump badging build/app/outputs/flutter-apk/app-release.apk | grep uses-permission || true)"
-          echo "$perms"
-          echo "$perms" | grep -q 'android.permission.INTERNET' \
-            || { echo "::error::в релизном APK нет android.permission.INTERNET"; exit 1; }
-
       # --- Веб-портал (Flutter Web), точка входа lib/main_portal.dart ---
       # Портал собирается с ОТНОСИТЕЛЬНЫМ BASE_URL и .env не использует: он живёт на одном
       # origin с API (ADR-0015), а dio поддерживает относительный baseUrl на Web. Благодаря
       # этому бандл не привязан к домену — собирается один раз и годится где угодно, поэтому
       # его и можно публиковать образом.
+      # --no-wasm-dry-run: с Flutter 3.41 сборка web по умолчанию сперва пробно компилирует
+      # приложение в WebAssembly (~2,5 мин и лишняя память), а портал собирается только в JS.
       - name: Build web (portal)
-        run: flutter build web -t lib/main_portal.dart --dart-define=BASE_URL=/api/v1/ --release
+        run: flutter build web -t lib/main_portal.dart --dart-define=BASE_URL=/api/v1/ --release --no-wasm-dry-run
 
       # --- Публикация портала ---
       # Бандл уезжает ОБРАЗОМ в GHCR, а не артефактом: артефакты упираются в квоту, а GHCR
