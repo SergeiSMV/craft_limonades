@@ -166,9 +166,18 @@ class GoodsListCubit extends Cubit<GoodsListState> {
   /// Перечитать список под текущие поиск и фильтры («потянуть вниз», «повторить»).
   Future<void> refresh() => load();
 
-  /// Вернулись из карточки товара. Справочнику перечитываться незачем — «Остатки» перечитывают
-  /// снимок, который карточка обновила (ADHOC-33).
-  Future<void> returnedFromCard() async {}
+  /// Вернулись из карточки товара [goodId]: перечитать этот товар из справочника терминала и
+  /// подменить его в списке (ADHOC-64). Карточка правит товар (признак «маркируемый») и пишет
+  /// правку в справочник, а открывается из объекта списка: без подмены повторный вход показал
+  /// бы признак до правки. Сеть не нужна, прокрутка и фильтры остаются. «Остатки» вместо этого
+  /// перечитывают снимок, который карточка обновила (ADHOC-33).
+  Future<void> returnedFromCard(String goodId) async {
+    final fresh = await catalog.goodById(goodId);
+    if (fresh == null || isClosed) return;
+    final i = state.goods.indexWhere((g) => g.id == goodId);
+    if (i < 0 || state.goods[i] == fresh) return;
+    emit(state.copyWith(goods: [...state.goods]..[i] = fresh));
+  }
 
   /// Выбрать или снять склад в фильтре «Остатков» (ADHOC-33); `null` — «Основной».
   Future<void> toggleWarehouse(String? id) async {
