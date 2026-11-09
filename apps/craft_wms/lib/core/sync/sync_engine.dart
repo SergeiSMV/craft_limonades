@@ -98,6 +98,21 @@ class SyncEngine with WidgetsBindingObserver {
   /// это два запроса вместо одного.
   bool _draining = false;
 
+  /// Пока шёл проход, его попросили ещё раз (ADHOC-63): операция могла встать в очередь
+  /// после того, как проход её прочитал. Проход тогда идёт по очереди снова, иначе пик,
+  /// поставленный во время отправки предыдущего, ждал бы таймера или события сети.
+  bool _drainAgain = false;
+
+  /// Конец идущего прохода; `null` - прохода нет.
+  Completer<void>? _pass;
+
+  /// Дождаться конца идущего прохода (ADHOC-63); прохода нет - сразу.
+  ///
+  /// Зачем: повторный [drain] во время прохода возвращается сразу, ничего не отправив. Тому,
+  /// кому нужна пустая очередь (`«Завершить сборку»` сразу после фоновой отправки пиков),
+  /// сначала нужно дождаться прохода, а потом уже звать [drain].
+  Future<void> whenIdle() => _pass?.future ?? Future.value();
+
   /// Движок запущен (пользователь вошёл).
   bool _running = false;
 
@@ -154,6 +169,7 @@ class SyncEngine with WidgetsBindingObserver {
   /// мешает — такая операция выбывает совсем, и проход продолжается.
   Future<SyncResult> drain() async {
     if (_draining) {
+      _drainAgain = true;
       return SyncResult(
         sent: 0,
         rejected: 0,
@@ -161,21 +177,31 @@ class SyncEngine with WidgetsBindingObserver {
       );
     }
     _draining = true;
+    _pass = Completer<void>();
     _syncing.value = true;
     var sent = 0;
     var rejected = 0;
     try {
-      final queue = await _outbox.pending();
-      for (var from = 0; from < queue.length; from += maxBatchOperations) {
-        final to = min(from + maxBatchOperations, queue.length);
-        final chunk = queue.sublist(from, to);
-        final outcome = await _sendChunk(chunk);
-        sent += outcome.sent;
-        rejected += outcome.rejected;
-        if (outcome.stopped) break;
-      }
+      var stopped = false;
+      do {
+        _drainAgain = false;
+        final queue = await _outbox.pending();
+        for (var from = 0; from < queue.length; from += maxBatchOperations) {
+          final to = min(from + maxBatchOperations, queue.length);
+          final chunk = queue.sublist(from, to);
+          final outcome = await _sendChunk(chunk);
+          sent += outcome.sent;
+          rejected += outcome.rejected;
+          stopped = outcome.stopped;
+          if (stopped) break;
+        }
+        // Временная неудача - повтор по таймеру, а не тут же: связи нет.
+      } while (_drainAgain && !stopped);
     } finally {
+      _drainAgain = false;
       _draining = false;
+      _pass?.complete();
+      _pass = null;
       _syncing.value = false;
     }
 

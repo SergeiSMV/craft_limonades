@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:talker_flutter/talker_flutter.dart';
 
 import '../../../../core/di/injection.dart';
 import '../../../../core/gen/strings.g.dart';
@@ -8,6 +9,7 @@ import '../../../../core/scanner/cz_code.dart';
 import '../../../../core/scanner/hardware_scan_listener.dart';
 import '../../../../core/scanner/scan_code.dart';
 import '../../../../core/scanner/scan_deduper.dart';
+import '../../../../core/utils/serial_lock.dart';
 import '../../../../core/widgets/qty_dialog.dart';
 import '../../../contents/domain/contents_entities.dart';
 import '../../../contents/domain/contents_repository.dart';
@@ -26,11 +28,15 @@ import 'picking_sheets.dart';
 /// «разрешить сборку» и проверит остаток сам).
 /// Зачем отдельно от экрана: правила «что за код» опираются на снимок и справочники
 /// терминала - сборка идёт без связи.
+/// Скорость (ADHOC-63): сканы обрабатываются строго по одному в порядке прихода ([_scans]) -
+/// следующий видит заказ уже с пиком предыдущего; марка ищется только по данным терминала,
+/// сеть на скан не ждётся. Время скана пишется в журнал - для замера на устройстве.
 mixin PickingScanActions<T extends StatefulWidget>
     on State<T>, HardwareScanListener<T> {
   final scanController = TextEditingController();
   final scanFocus = FocusNode();
   final _deduper = ScanDeduper();
+  final _scans = SerialLock();
 
   PickingOrderCubit get cubit => context.read<PickingOrderCubit>();
   ContentsRepository get _contents => getIt<ContentsRepository>();
@@ -67,7 +73,7 @@ mixin PickingScanActions<T extends StatefulWidget>
     return view;
   }
 
-  /// Единая точка для поля и интента сканера.
+  /// Единая точка для поля и интента сканера: скан встаёт в очередь сканов экрана.
   Future<void> onScan(String value) async {
     final code = value.trim();
     scanController.clear();
@@ -75,6 +81,18 @@ mixin PickingScanActions<T extends StatefulWidget>
       refocusScan();
       return;
     }
+    final clock = Stopwatch()..start();
+    try {
+      await _scans.run(() => _handle(code, clock));
+    } catch (e, s) {
+      getIt<Talker>().handle(e, s, 'Сборка: скан не обработан');
+    }
+  }
+
+  /// Обработать один скан; [clock] - с прихода скана, для замера.
+  Future<void> _handle(String code, Stopwatch clock) async {
+    if (!mounted) return;
+    final waited = clock.elapsedMilliseconds;
     final view = _ready();
     if (view != null) {
       switch (classifyScan(code)) {
@@ -92,6 +110,10 @@ mixin PickingScanActions<T extends StatefulWidget>
       }
     }
     refocusScan();
+    getIt<Talker>().debug(
+      'Сборка: скан обработан за ${clock.elapsedMilliseconds} мс '
+      '(в очереди сканов $waited мс)',
+    );
   }
 
   /// Россыпь ячейки.
@@ -198,9 +220,9 @@ mixin PickingScanActions<T extends StatefulWidget>
   Future<String> _addressOf(List<StockMark> found) async {
     if (found.isEmpty) return '';
     final m = found.first;
+    // Короб - из снимка терминала: запрос карточки на каждую марку ждал бы сеть.
     if (m.loadUnitId != null) {
-      final res = await _contents.loadUnit(m.loadUnitId!);
-      return res.isRight ? res.right.value?.cellAddress ?? '' : '';
+      return await _contents.cachedLoadUnitCell(m.loadUnitId!) ?? '';
     }
     final cells = await getIt<CatalogCache>().cells();
     return cells.where((c) => c.id == m.cellId).firstOrNull?.address ?? '';
