@@ -38,6 +38,9 @@ type PickingPortalOrder struct {
 	Boxes                int
 	// ReturnLeft — сколько вернуть на места после правки реестра (P9-07-1).
 	ReturnLeft decimal.Decimal
+	// OutOfSync — отгруженный заказ расходится с 1С (P9-08): по строке план реестра не равен
+	// отгруженному. Снимается сам, когда повторная загрузка реестра приводит план к факту.
+	OutOfSync bool
 }
 
 // PickingPortalDetail — заказ в окне деталей портала и в выгрузке Excel (P8-03): обе стороны по
@@ -92,6 +95,10 @@ func (l PickingPortalLine) FactQty() decimal.Decimal {
 	return sum
 }
 
+// PickingPickMoved — состояние пика «в коробе отгрузки» (picking_picks.state): после отгрузки
+// пик остаётся в нём, поэтому перенесённое отгруженного заказа - это отгруженный факт.
+const PickingPickMoved = "moved"
+
 // PickingPortalFact — пик строки: State — picking («в сборке», товар ещё в ячейке) или moved
 // (в коробе отгрузки). BoxSeq — «короб N» заказа.
 type PickingPortalFact struct {
@@ -122,4 +129,75 @@ type PickingPortalChange struct {
 	NewQty      *int
 	OrderStatus string
 	At          time.Time
+	// Reason — откуда правка (PickingChangeReason*, P9-08); считает ClassifyPickingChanges.
+	Reason string
+}
+
+// Причина правки реестра для человека (P9-08): по статусу заказа в момент правки и, после
+// отгрузки, по отгруженному факту.
+const (
+	PickingChangeReasonOrder    = "order"    // заказ не начинали собирать - изменение заказа в 1С
+	PickingChangeReasonPicking  = "picking"  // во время сборки: дособор или возврат на места
+	PickingChangeReasonFit      = "fit"      // после отгрузки, 1С приведена к отгруженному
+	PickingChangeReasonDiverged = "diverged" // после отгрузки, расходится с отгруженным
+)
+
+// ClassifyPickingChanges проставляет причину каждой правке заказа d.
+//
+// Что: до сборки - изменение заказа в 1С (менеджер), во время сборки - своя причина, после
+// отгрузки - «приведено к факту», если новое количество строки равно отгруженному, иначе
+// «расходится». Зачем: правка 10 → 6 после отгрузки 6 - это исправление накладной по нехватке,
+// а не решение менеджера. Как: отгруженное после отгрузки не меняется, поэтому сравнение с
+// нынешним фактом стабильно. Правки целого заказа: удалён в 1С - к факту, если ничего не
+// уехало; вернулся - к факту, если что-то уехало.
+func ClassifyPickingChanges(d *PickingPortalDetail) {
+	moved := map[string]decimal.Decimal{}
+	total := decimal.Zero
+	for _, l := range d.Lines {
+		for _, f := range l.Facts {
+			if f.State != PickingPickMoved {
+				continue
+			}
+			k := pickingLineKey(l.GoodCode, l.BatchDate)
+			moved[k] = moved[k].Add(f.Qty)
+			total = total.Add(f.Qty)
+		}
+	}
+	for i := range d.Changes {
+		c := &d.Changes[i]
+		switch c.OrderStatus {
+		case PickingStatusNew:
+			c.Reason = PickingChangeReasonOrder
+			continue
+		case PickingStatusInProgress, PickingStatusPicked:
+			c.Reason = PickingChangeReasonPicking
+			continue
+		}
+		var fit bool
+		switch c.Kind {
+		case PickingChangeOrderDeleted:
+			fit = total.IsZero()
+		case PickingChangeOrderRestored:
+			fit = total.IsPositive()
+		default:
+			newQty := 0
+			if c.NewQty != nil {
+				newQty = *c.NewQty
+			}
+			fit = moved[pickingLineKey(c.GoodCode, c.BatchDate)].Equal(decimal.NewFromInt(int64(newQty)))
+		}
+		if fit {
+			c.Reason = PickingChangeReasonFit
+		} else {
+			c.Reason = PickingChangeReasonDiverged
+		}
+	}
+}
+
+// pickingLineKey — строка заказа по тройке «код + партия» (партии нет - любая).
+func pickingLineKey(code string, batch *time.Time) string {
+	if batch == nil {
+		return code + "|"
+	}
+	return code + "|" + batch.Format(time.DateOnly)
 }

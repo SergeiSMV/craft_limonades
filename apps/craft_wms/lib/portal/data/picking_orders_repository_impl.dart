@@ -110,6 +110,7 @@ PickingOrderSummary _summary(Map<String, dynamic> j) => PickingOrderSummary(
   factQty: _qty(j['fact_qty']),
   boxes: j['boxes'] as int,
   returnLeft: _qty(j['return_left']),
+  outOfSync: j['out_of_sync'] as bool? ?? false,
 );
 
 PickingOrderDetail _detail(Map<String, dynamic> j) => PickingOrderDetail(
@@ -176,4 +177,5 @@ PickingOrderChange _change(Map<String, dynamic> j) => PickingOrderChange(
   newQty: j['new_qty'] as int?,
   orderStatus: pickingStatusOf(j['order_status'] as String),
   at: DateTime.parse(j['at'] as String),
+  reason: j['reason'] as String? ?? '',
 );

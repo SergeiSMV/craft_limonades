@@ -25,6 +25,9 @@ abstract class PickingCard with _$PickingCard {
     @JsonKey(name: 'changed_after_shipment')
     @Default(false)
     bool changedAfterShipment,
+
+    /// Отгружен и расходится с 1С (P9-08).
+    @JsonKey(name: 'out_of_sync') @Default(false) bool outOfSync,
     @JsonKey(name: 'picked_by_name') @Default('') String pickedByName,
     @JsonKey(name: 'picked_at') DateTime? pickedAt,
     @JsonKey(name: 'shipped_at') DateTime? shippedAt,

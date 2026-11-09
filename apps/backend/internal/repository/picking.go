@@ -163,7 +163,12 @@ func (r *PickingRepository) Load(
 }
 
 // applyPickingPlan пишет план одного заказа. Правила по статусу — docs/picking.md, «Загрузка и
-// повторы»: отгруженный заказ получает только правки и пометку, остальные — новый план.
+// повторы».
+//
+// Отгруженный заказ (P9-08) тоже получает новый план 1С - по нему портал сверяет 1С с
+// отгруженным фактом («Расходится с 1С» / «Сверен с 1С»), а правка не пишется повторно при
+// каждой загрузке. Товар не двигается: ни дособора, ни возврата на места; пометка
+// changed_after_shipment.
 func applyPickingPlan(ctx context.Context, q Querier, in model.PickingLoadInput, loadID string, p *model.PickingOrderPlan) error {
 	switch p.Kind {
 	case model.PickingOrderNew:
@@ -202,16 +207,6 @@ func applyPickingPlan(ctx context.Context, q Querier, in model.PickingLoadInput,
 		}
 	}
 
-	if p.Frozen {
-		if _, err := q.Exec(ctx, `
-			UPDATE picking_orders
-			SET updated_load_id = $2, deleted_at = NULL, changed_after_shipment = true
-			WHERE id = $1`, p.ExistingID, loadID); err != nil {
-			return fmt.Errorf("пометка отгруженного заказа: %w", err)
-		}
-		return insertPickingChanges(ctx, q, p.ExistingID, loadID, p.Status, p.Changes)
-	}
-
 	h := p.Header
 	if _, err := q.Exec(ctx, `
 		UPDATE picking_orders
@@ -220,10 +215,11 @@ func applyPickingPlan(ctx context.Context, q Querier, in model.PickingLoadInput,
 		    status           = CASE WHEN $9 THEN 'in_progress' ELSE status END,
 		    assignee_id      = CASE WHEN $9 THEN picked_by ELSE assignee_id END,
 		    taken_at         = CASE WHEN $9 THEN now() ELSE taken_at END,
-		    last_activity_at = CASE WHEN $9 THEN now() ELSE last_activity_at END
+		    last_activity_at = CASE WHEN $9 THEN now() ELSE last_activity_at END,
+		    changed_after_shipment = changed_after_shipment OR $10
 		WHERE id = $1`,
 		p.ExistingID, h.InvoiceNumber, h.OrderDate, h.Direction, h.Client, h.Address,
-		h.HasUnknown, loadID, p.Reopen); err != nil {
+		h.HasUnknown, loadID, p.Reopen, p.Frozen); err != nil {
 		return fmt.Errorf("заказ сборки %s: %w", h.OrderNumber, err)
 	}
 	// Дособор — событие заказа: его снова держит собравший, вернул в работу загрузивший реестр.
@@ -247,8 +243,8 @@ func applyPickingPlan(ctx context.Context, q Querier, in model.PickingLoadInput,
 		return err
 	}
 	// Перенесённое сверх нового плана — на возврат; план снова вырос или заказ восстановлен —
-	// задание уменьшается или снимается (P9-07-1).
-	if p.Kind == model.PickingOrderNew {
+	// задание уменьшается или снимается (P9-07-1). У отгруженного товар уже уехал.
+	if p.Kind == model.PickingOrderNew || p.Frozen {
 		return nil
 	}
 	return syncPickingReturnTask(ctx, q, p.ExistingID)

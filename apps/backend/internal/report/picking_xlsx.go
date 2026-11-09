@@ -30,10 +30,11 @@ var (
 	pickingOrderHeaders = []string{
 		"Сборка", "Накладная", "Заказ", "Дата заказа", "Клиент", "Направление", "Адрес",
 		"Статус", "Пометки", "В работе у", "Собрал", "Строк", "План", "Факт", "Коробов",
+		"Сверка с 1С",
 	}
 	pickingChangeHeaders = []string{
 		"Сборка", "Накладная", "Заказ", "Когда", "Правка", "Код", "Наименование", "Партия",
-		"Было", "Стало", "Статус заказа",
+		"Было", "Стало", "Статус заказа", "Причина",
 	}
 )
 
@@ -89,6 +90,35 @@ func pickingFlags(o model.PickingPortalOrder) string {
 	return strings.Join(flags, ", ")
 }
 
+// PickingSyncTitle — сверка отгруженного заказа с 1С (P9-08): «расходится» - план реестра не
+// равен отгруженному, «сходится» - равен; у неотгруженного сверять нечего - пусто.
+func PickingSyncTitle(o model.PickingPortalOrder) string {
+	switch {
+	case o.Status != model.PickingStatusShipped:
+		return ""
+	case o.OutOfSync:
+		return "расходится"
+	default:
+		return "сходится"
+	}
+}
+
+// PickingChangeReasonTitle — откуда правка реестра (P9-08).
+func PickingChangeReasonTitle(reason string) string {
+	switch reason {
+	case model.PickingChangeReasonOrder:
+		return "изменение заказа в 1С"
+	case model.PickingChangeReasonPicking:
+		return "изменение в 1С во время сборки"
+	case model.PickingChangeReasonFit:
+		return "приведено к факту отгрузки"
+	case model.PickingChangeReasonDiverged:
+		return "после отгрузки, расходится с фактом"
+	default:
+		return reason
+	}
+}
+
 // BuildPickingXLSX собирает выгрузку «Сборка-отгрузка» за дату накладной date (P8-03).
 //
 // Что: все заказы даты на момент выгрузки — статус WMS и то же, что в окне деталей портала.
@@ -133,12 +163,12 @@ func BuildPickingXLSX(date time.Time, orders []model.PickingPortalDetail) ([]byt
 		w.row(pickingOrdersSheet, append(key,
 			dateOrEmpty(o.OrderDate), o.Client, o.Direction, o.Address,
 			PickingStatusTitle(o.Status), pickingFlags(o), o.AssigneeName, o.PickedByName,
-			o.Lines, o.PlanQty, qtyValue(o.FactQty.String()), o.Boxes)...)
+			o.Lines, o.PlanQty, qtyValue(o.FactQty.String()), o.Boxes, PickingSyncTitle(o))...)
 		for _, c := range d.Changes {
 			w.row(pickingChangesSheet, append(append([]any{}, key...),
 				c.At.In(msk).Format("02.01.2006 15:04"), pickingChangeTitle(c.Kind),
 				c.GoodCode, c.GoodName, dateOrEmpty(c.BatchDate), intOrEmpty(c.OldQty), intOrEmpty(c.NewQty),
-				PickingStatusTitle(c.OrderStatus))...)
+				PickingStatusTitle(c.OrderStatus), PickingChangeReasonTitle(c.Reason))...)
 		}
 	}
 
@@ -190,9 +220,13 @@ func writePickingOrderBlock(w *sheetWriter, st pickingStyles, d model.PickingPor
 	for _, kv := range head {
 		w.label(sheet, st, kv.name, kv.value)
 	}
+	// Сверка - только у отгруженного: у остальных сверять нечего.
+	if sync := PickingSyncTitle(o); sync != "" {
+		w.label(sheet, st, "Сверка с 1С", sync)
+	}
 	for _, c := range d.Changes {
 		w.label(sheet, st, "Правка реестра", c.At.In(msk).Format("02.01.2006 15:04")+": "+
-			pickingChangeText(c))
+			pickingChangeText(c)+" ("+PickingChangeReasonTitle(c.Reason)+")")
 	}
 
 	w.styled(sheet, st.head, toAny(pickingLineHeaders)...)
