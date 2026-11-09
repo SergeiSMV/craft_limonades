@@ -49,6 +49,10 @@ echo "$certs" | grep -q "CN=Android Debug" && die "APK подписан отла
 
 echo
 echo "== Пакет и разрешения"
-"$BT/aapt2" dump badging "$APK" | grep -E "^package:|uses-permission|^application-label:"
+badging="$("$BT/aapt2" dump badging "$APK")"
+echo "$badging" | grep -E "^package:|uses-permission|^application-label:"
+# Без INTERNET релиз не достучится до сервера (ADHOC-04). Раньше это ловил CI, с ADHOC-68 APK
+# в CI не собирается - проверка здесь, на той сборке, что уходит в RuStore.
+grep -q "android.permission.INTERNET" <<<"$badging" || die "в APK нет android.permission.INTERNET."
 echo
 ls -lh "$APK" | awk '{print "== Файл: " $9 " (" $5 ")"}'
