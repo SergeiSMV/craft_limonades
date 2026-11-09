@@ -49,7 +49,7 @@ func NormalizeCZCode(raw string) (string, error) {
 // Связь нужна всегда: ЧЗ читается только онлайн.
 func (s *CZService) Scan(ctx context.Context, raw string) (model.CZScan, error) {
 	if s.client == nil {
-		return model.CZScan{}, model.ErrCZNotConfigured
+		return model.CZScan{}, s.notConfigured()
 	}
 	code, err := NormalizeCZCode(raw)
 	if err != nil {

@@ -6,13 +6,25 @@ import 'package:talker_flutter/talker_flutter.dart';
 
 import 'app.dart';
 import 'core/auth/auth_cubit.dart';
+import 'core/config/app_mode_switch.dart';
 import 'core/di/injection.dart';
 import 'core/monitoring/error_reporting.dart';
 import 'core/scanner/scanner_service.dart';
 
 /// Точка входа ТСД. Ошибки приложения уходят в Bugsink (ADHOC-47): запуск обёрнут, чтобы
 /// падение подготовки до первого кадра тоже дошло.
-Future<void> main() => ErrorReporting.run(ReportingApp.tsd, _start);
+///
+/// Режим (рабочий или демо, ADHOC-67) читается первым: от него зависит адрес сервера, куда
+/// уходят и ошибки. Не прочитался — рабочий режим.
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await AppModeSwitch.load();
+  } catch (_) {
+    // Хранилище недоступно — остаёмся в рабочем режиме.
+  }
+  await ErrorReporting.run(ReportingApp.tsd, _start);
+}
 
 Future<void> _start() async {
   WidgetsFlutterBinding.ensureInitialized();

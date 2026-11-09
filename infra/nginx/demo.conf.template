@@ -1,0 +1,36 @@
+# Шаблон vhost хостового nginx для демо-сервера (ADHOC-67). deploy/demo-setup.sh подставляет
+# домен демо, адрес демо-бэкенда и каталог портала через envsubst и кладёт результат в
+# /etc/nginx/sites-available/<домен демо>. TLS добавит `certbot --nginx`.
+#
+# Портал — тот же каталог, что у прода: бандл собирается с относительным /api/v1/ и о том, что
+# он на демо, узнаёт у сервера (GET /api/v1/demo). Отдельной сборки портала для демо нет.
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${DEMO_DOMAIN};
+
+    client_max_body_size 32m;
+
+    location /api/ {
+        proxy_pass http://${DEMO_BIND};
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location = /health {
+        proxy_pass http://${DEMO_BIND};
+        proxy_set_header Host $host;
+    }
+    location = /ready {
+        proxy_pass http://${DEMO_BIND};
+        proxy_set_header Host $host;
+    }
+
+    location / {
+        root ${PORTAL_ROOT};
+        try_files $uri $uri/ /index.html;
+    }
+}

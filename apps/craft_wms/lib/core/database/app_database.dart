@@ -2,6 +2,8 @@ import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 import 'package:injectable/injectable.dart';
 
+import '../config/app_config.dart';
+
 part 'app_database.g.dart';
 
 /// Локальная база устройства (P2-02): кэш справочников для работы без сети.
@@ -383,7 +385,7 @@ class ProblemPhotoUploads extends Table {
 
 /// Подключение к локальной базе.
 ///
-/// Файл `craft_wms.sqlite` в каталоге приложения; при удалении приложения уходит вместе с ним.
+/// Файл `craft_wms.sqlite` (в демо-режиме — `craft_wms_demo.sqlite`) в каталоге приложения; при удалении приложения уходит вместе с ним.
 /// Секретов здесь нет — только справочные данные, поэтому шифрование не подключаем
 /// (токены по-прежнему живут в secure storage).
 @lazySingleton
@@ -409,7 +411,14 @@ class ProblemPhotoUploads extends Table {
   ],
 )
 class AppDatabase extends _$AppDatabase {
-  AppDatabase() : super(driftDatabase(name: 'craft_wms'));
+  AppDatabase() : super(driftDatabase(name: fileName));
+
+  /// Имя файла базы. У демо-режима свой файл (ADHOC-67): очередь и снимки рабочего склада и
+  /// демо-склада не смешиваются, а вход в демо начинается с чистой базы.
+  static String get fileName => AppConfig.isDemo ? demoFileName : 'craft_wms';
+
+  /// Имя файла базы демо-режима (без `.sqlite`).
+  static const demoFileName = 'craft_wms_demo';
 
   /// Тестовый конструктор: база в памяти, без файла на диске.
   AppDatabase.forTesting(super.executor);

@@ -109,6 +109,17 @@ func (s *AuthService) LoginWithPassword(ctx context.Context, username, password 
 	return s.issuePair(user)
 }
 
+// LoginWithoutSecret — вход по логину без секрета. Только для демо-режима (ADHOC-67): его
+// зовёт [DemoService.Login], а тот работает лишь на демо-базе. Отключённый пользователь не
+// входит — по нему демо закрыто на время сброса.
+func (s *AuthService) LoginWithoutSecret(ctx context.Context, login string) (TokenPair, error) {
+	user, err := s.users.GetByLogin(ctx, login)
+	if err != nil || !user.IsActive {
+		return TokenPair{}, ErrInvalidCredentials
+	}
+	return s.issuePair(user)
+}
+
 // Refresh: валидный refresh-токен → перечитываем пользователя из БД (is_active и должность
 // могли измениться) → выдаём свежий access. Права при этом проверяются по базе на каждом
 // запросе (ADHOC-49), а роль в токене — лишь метка.

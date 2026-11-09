@@ -22,6 +22,7 @@ import (
 
 	"craftwms/internal/auth"
 	"craftwms/internal/config"
+	"craftwms/internal/demo"
 	"craftwms/internal/handler"
 	appmw "craftwms/internal/middleware"
 	"craftwms/internal/observability"
@@ -197,6 +198,30 @@ func main() {
 		svc.CZ = service.NewCZService(nil, czMarks)
 	}
 
+	// Демо-режим (ADHOC-67): DEMO_MODE=true и база «…_demo». Пустая база заполняется при
+	// старте, дальше — ночной сброс по DEMO_RESET_AT и кнопка администратора. На любой другой
+	// базе режим не включается, и ручек демо нет.
+	var demoSvc *service.DemoService
+	if cfg.DemoMode && pool != nil {
+		demoSvc = service.NewDemoService(repository.NewDemoRepository(pool, cfg.DatabaseURL), svc.Auth,
+			func(ctx context.Context, now time.Time) error { return demo.Seed(ctx, pool, now) },
+			cfg.DemoResetAt, log)
+		initCtx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		on, err := demoSvc.Init(initCtx)
+		cancel()
+		switch {
+		case err != nil:
+			log.Error("demo mode init failed", "error", err)
+		case on:
+			svc.Demo = demoSvc
+			svc.CZ.WithDemo(true)
+			log.Info("demo mode enabled", "reset_at", cfg.DemoResetAt)
+		}
+		if !on {
+			demoSvc = nil
+		}
+	}
+
 	// Ошибки ТСД и портала (ADHOC-47): пересылка в проект Bugsink `app`. Без CLIENT_SENTRY_DSN
 	// события приложений отбрасываются. Неверный DSN — работаем без пересылки, как с SENTRY_DSN.
 	if relay, err := observability.NewRelay(cfg.ClientSentryDSN); err != nil {
@@ -222,6 +247,10 @@ func main() {
 	// Фоновое обновление токена ЧЗ: первый токен — сразу при старте, дальше до истечения.
 	if czClient != nil {
 		go czClient.Run(ctx)
+	}
+	// Ночной сброс демо (ADHOC-67).
+	if demoSvc != nil {
+		go demoSvc.Run(ctx)
 	}
 
 	// 7. Запускаем приём соединений в отдельной горутине, чтобы main мог ждать сигнал.

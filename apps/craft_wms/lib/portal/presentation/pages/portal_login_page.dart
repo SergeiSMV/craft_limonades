@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../core/auth/auth_cubit.dart';
+import '../../../core/config/app_config.dart';
 import '../../../core/constants/app_borders.dart';
 import '../../../core/constants/app_boxes.dart';
 import '../../../core/constants/app_colors.dart';
@@ -47,6 +48,9 @@ class _PortalLoginPageState extends State<PortalLoginPage> {
     context.read<AuthCubit>().loginWithPassword(username, password);
   }
 
+  /// Вход под демо-пользователем демо-сервера (ADHOC-67).
+  void submitDemo() => context.read<AuthCubit>().loginDemo();
+
   /// Показ ошибки входа снекбаром (неверные данные / нет сети).
   void onAuthState(BuildContext context, AuthState state) {
     if (state is AuthUnauthenticated && state.failure != null) {
@@ -58,6 +62,7 @@ class _PortalLoginPageState extends State<PortalLoginPage> {
 
   /// Текст ошибки под её тип.
   String _messageFor(Failure failure) => switch (failure) {
+    _ when AppConfig.isDemo => t.portal.login.errorDemo,
     AuthFailure() => t.portal.login.errorAuth,
     NetworkFailure() => t.portal.login.errorNetwork,
     _ => t.portal.login.errorUnknown,
@@ -85,6 +90,7 @@ class _PortalLoginPageState extends State<PortalLoginPage> {
                 passwordController: _passwordController,
                 loading: state is AuthAuthenticating,
                 onSubmit: submit,
+                onDemo: AppConfig.isDemo ? submitDemo : null,
               );
               return SingleChildScrollView(
                 child: SizedBox(
@@ -108,6 +114,7 @@ class _FormPanel extends StatelessWidget {
     required this.passwordController,
     required this.loading,
     required this.onSubmit,
+    this.onDemo,
   });
 
   /// логин
@@ -122,8 +129,12 @@ class _FormPanel extends StatelessWidget {
   /// коллбэк на отправку формы
   final VoidCallback onSubmit;
 
+  /// Вход в демо (ADHOC-67); не `null` — сервер демо: вместо логина и пароля одна кнопка.
+  final VoidCallback? onDemo;
+
   @override
   Widget build(BuildContext context) {
+    final onDemo = this.onDemo;
     return Container(
       decoration: BoxDecoration(
         color: AppColors.kCardBg,
@@ -143,7 +154,7 @@ class _FormPanel extends StatelessWidget {
           ),
           Text(
             textAlign: TextAlign.center,
-            t.portal.login.title,
+            onDemo != null ? t.portal.login.demoTitle : t.portal.login.title,
             style: BoldTextStyles().boldInter24.copyWith(
               color: AppColors.kSidebarHover,
             ),
@@ -152,7 +163,9 @@ class _FormPanel extends StatelessWidget {
           Center(
             child: Text(
               textAlign: TextAlign.center,
-              t.portal.login.subtitle,
+              onDemo != null
+                  ? t.portal.login.demoSubtitle
+                  : t.portal.login.subtitle,
               style: RegularTextStyles().regularInter14.copyWith(
                 color: AppColors.kTextMuted,
               ),
@@ -160,35 +173,46 @@ class _FormPanel extends StatelessWidget {
           ),
           AppBoxes.kHeight32,
 
-          /// поле ввода логина
-          _LabeledField(
-            label: t.portal.login.usernameLabel,
-            controller: usernameController,
-            enabled: !loading,
-            autofocus: true,
-            textInputAction: TextInputAction.next,
-          ),
-          AppBoxes.kHeight16,
+          /// демо-сервер: вход одной кнопкой, без учётных данных (ADHOC-67)
+          if (onDemo != null)
+            PortalButton(
+              label: t.portal.login.demoSubmit,
+              icon: Icons.login,
+              kind: PortalButtonKind.primary,
+              busy: loading,
+              onPressed: onDemo,
+            )
+          else ...[
+            /// поле ввода логина
+            _LabeledField(
+              label: t.portal.login.usernameLabel,
+              controller: usernameController,
+              enabled: !loading,
+              autofocus: true,
+              textInputAction: TextInputAction.next,
+            ),
+            AppBoxes.kHeight16,
 
-          /// поле ввода пароля
-          _LabeledField(
-            label: t.portal.login.passwordLabel,
-            controller: passwordController,
-            enabled: !loading,
-            obscure: true,
-            textInputAction: TextInputAction.done,
-            onSubmitted: (_) => onSubmit(),
-          ),
-          AppBoxes.kHeight24,
+            /// поле ввода пароля
+            _LabeledField(
+              label: t.portal.login.passwordLabel,
+              controller: passwordController,
+              enabled: !loading,
+              obscure: true,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => onSubmit(),
+            ),
+            AppBoxes.kHeight24,
 
-          /// кнопка входа — главная кнопка портала во всю ширину формы (ADHOC-56)
-          PortalButton(
-            label: t.portal.login.submit,
-            icon: Icons.login,
-            kind: PortalButtonKind.primary,
-            busy: loading,
-            onPressed: onSubmit,
-          ),
+            /// кнопка входа — главная кнопка портала во всю ширину формы (ADHOC-56)
+            PortalButton(
+              label: t.portal.login.submit,
+              icon: Icons.login,
+              kind: PortalButtonKind.primary,
+              busy: loading,
+              onPressed: onSubmit,
+            ),
+          ],
         ],
       ),
     );

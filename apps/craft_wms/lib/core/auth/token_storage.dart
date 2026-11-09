@@ -1,6 +1,8 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:injectable/injectable.dart';
 
+import '../config/app_config.dart';
+
 /// Хранилище JWT-токенов. Абстракция, чтобы верхние слои не знали, где токены лежат.
 ///
 /// Реализация по умолчанию — [SecureTokenStorage] поверх flutter_secure_storage
@@ -44,9 +46,27 @@ abstract class TokenStorage {
 ///      (доп. настроек не требует).
 @LazySingleton(as: TokenStorage)
 class SecureTokenStorage implements TokenStorage {
-  SecureTokenStorage() : _storage = const FlutterSecureStorage();
+  SecureTokenStorage()
+    : _storage = const FlutterSecureStorage(),
+      _prefix = AppConfig.isDemo ? demoPrefix : '';
 
   final FlutterSecureStorage _storage;
+
+  /// Приставка ключей: у демо-режима своя сессия (ADHOC-67), и выход из демо не выкидывает
+  /// кладовщика из рабочей сессии.
+  final String _prefix;
+
+  /// Приставка ключей демо-режима.
+  static const demoPrefix = 'demo_';
+
+  /// Стереть сессию демо-режима — перед входом в демо: после ночного сброса демо-сервера
+  /// старые токены и профиль недействительны.
+  static Future<void> clearDemo() async {
+    const storage = FlutterSecureStorage();
+    for (final key in [_kAccess, _kRefresh, _kProfile, _kLastContact]) {
+      await storage.delete(key: '$demoPrefix$key');
+    }
+  }
 
   /// Ключи записей в хранилище.
   static const _kAccess = 'access_token';
@@ -60,45 +80,45 @@ class SecureTokenStorage implements TokenStorage {
   static const _kLastContact = 'last_contact';
 
   @override
-  Future<String?> readAccess() => _storage.read(key: _kAccess);
+  Future<String?> readAccess() => _storage.read(key: '$_prefix$_kAccess');
 
   @override
-  Future<String?> readRefresh() => _storage.read(key: _kRefresh);
+  Future<String?> readRefresh() => _storage.read(key: '$_prefix$_kRefresh');
 
   @override
   Future<void> save({required String access, required String refresh}) async {
     // Пишем оба токена; порядок не критичен — читаем их независимо.
-    await _storage.write(key: _kRefresh, value: refresh);
-    await _storage.write(key: _kAccess, value: access);
+    await _storage.write(key: '$_prefix$_kRefresh', value: refresh);
+    await _storage.write(key: '$_prefix$_kAccess', value: access);
   }
 
   @override
   Future<void> saveAccess(String access) =>
-      _storage.write(key: _kAccess, value: access);
+      _storage.write(key: '$_prefix$_kAccess', value: access);
 
   @override
-  Future<String?> readProfile() => _storage.read(key: _kProfile);
+  Future<String?> readProfile() => _storage.read(key: '$_prefix$_kProfile');
 
   @override
   Future<void> saveProfile(String json) =>
-      _storage.write(key: _kProfile, value: json);
+      _storage.write(key: '$_prefix$_kProfile', value: json);
 
   @override
   Future<DateTime?> readLastContact() async {
-    final raw = await _storage.read(key: _kLastContact);
+    final raw = await _storage.read(key: '$_prefix$_kLastContact');
     return raw == null ? null : DateTime.tryParse(raw);
   }
 
   @override
   Future<void> saveLastContact(DateTime at) =>
-      _storage.write(key: _kLastContact, value: at.toUtc().toIso8601String());
+      _storage.write(key: '$_prefix$_kLastContact', value: at.toUtc().toIso8601String());
 
   @override
   Future<void> clear() async {
-    await _storage.delete(key: _kAccess);
-    await _storage.delete(key: _kRefresh);
-    await _storage.delete(key: _kProfile);
-    await _storage.delete(key: _kLastContact);
+    await _storage.delete(key: '$_prefix$_kAccess');
+    await _storage.delete(key: '$_prefix$_kRefresh');
+    await _storage.delete(key: '$_prefix$_kProfile');
+    await _storage.delete(key: '$_prefix$_kLastContact');
   }
 }
 

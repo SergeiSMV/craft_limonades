@@ -11,6 +11,8 @@ import (
 var (
 	// ErrCZNotConfigured — Честный знак на этом стенде не настроен (нет сокета подписанта).
 	ErrCZNotConfigured = errors.New("chestny znak is not configured")
+	// ErrCZDemo — сервер демо-режима (ADHOC-67): Честный знак там отключён намеренно.
+	ErrCZDemo = errors.New("chestny znak is not available in demo mode")
 	// ErrCZSignerUnavailable — подписант не отвечает или не смог подписать: служба остановлена,
 	// нет ключа, неверный пароль копии, истекла лицензия КриптоПро.
 	ErrCZSignerUnavailable = errors.New("chestny znak signer unavailable")

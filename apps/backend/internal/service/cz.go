@@ -54,6 +54,9 @@ type CZService struct {
 	marks  CZMarks
 	// ownerINN — ИНН нашей организации в ЧЗ: марка с другим владельцем — расхождение (CZ-05).
 	ownerINN string
+	// demo — сервер демо-режима (ADHOC-67): подписанта нет намеренно, и отказ говорит об этом
+	// прямо, а не «не настроен», чтобы показ не выглядел поломкой.
+	demo bool
 }
 
 // NewCZService — сервис поверх клиента True API и хранилища марок; client == nil — ЧЗ не
@@ -67,6 +70,21 @@ func NewCZService(client czClient, marks CZMarks) *CZService {
 func (s *CZService) WithOwnerINN(inn string) *CZService {
 	s.ownerINN = inn
 	return s
+}
+
+// WithDemo помечает сервис демо-сервера (ADHOC-67): без клиента чтение ЧЗ отвечает
+// ErrCZDemo — «в демо-режиме недоступен».
+func (s *CZService) WithDemo(demo bool) *CZService {
+	s.demo = demo
+	return s
+}
+
+// notConfigured — отказ чтения ЧЗ без клиента: на демо-сервере — свой текст (ADHOC-67).
+func (s *CZService) notConfigured() error {
+	if s.demo {
+		return model.ErrCZDemo
+	}
+	return model.ErrCZNotConfigured
 }
 
 // SetGoodCZMarked — правка признака «маркируемый» у товара (CZ-05, только admin).
@@ -105,7 +123,7 @@ func (s *CZService) Status(ctx context.Context) model.CZStatus {
 // отбрасывается — сканер DT50S отдаёт марку целиком, а True API находит только КИ.
 func (s *CZService) CisesInfo(ctx context.Context, codes []string) ([]model.CisInfo, error) {
 	if s.client == nil {
-		return nil, model.ErrCZNotConfigured
+		return nil, s.notConfigured()
 	}
 	keys := make([]string, 0, len(codes))
 	for _, c := range codes {

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/auth/profile.dart';
+import '../../../../core/config/app_config.dart';
 import '../../../../core/constants/app_boxes.dart';
 import '../../../../core/constants/app_insets.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/gen/strings.g.dart';
+import '../settings/demo_section.dart';
 import '../settings/positions_section.dart';
 import '../settings/problem_reasons_section.dart';
 import '../settings/users_section.dart';
@@ -92,6 +94,14 @@ class _SettingsTabState extends State<SettingsTab> {
               ),
             ],
           ),
+        ),
+      // Демо-сервер (ADHOC-67): сброс данных к исходным. Сброс на сервере — только
+      // «Администратору», поэтому и раздел — при праве на пользователей и должности.
+      if (AppConfig.isDemo && widget.users)
+        (
+          icon: Icons.restart_alt,
+          label: tr.groupDemo,
+          body: (_) => const DemoSection(),
         ),
     ];
   }

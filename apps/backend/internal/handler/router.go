@@ -72,6 +72,8 @@ type Services struct {
 	Users *service.UserAdminService
 	// Badge — печать бейджей сотрудников на ТСД (ADHOC-65).
 	Badge *service.BadgeService
+	// Demo — демо-режим (ADHOC-67); nil — сервер не демо, ручек демо нет.
+	Demo DemoService
 	// DataVersions — версии данных по областям для заголовка каждого ответа API (ADHOC-60);
 	// nil — заголовка нет (урезанная сборка в тесте).
 	DataVersions appmw.VersionsSource
@@ -150,6 +152,18 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 			r.Group(func(r chi.Router) {
 				r.Use(appmw.Authenticator(tokens))
 				r.Get("/auth/me", authH.Me)
+			})
+		}
+
+		// Демо-режим (ADHOC-67): только на демо-сервере. Вход без пароля — с тем же лимитом
+		// по IP, что вход по бейджу; сброс — только «Администратор» (в демо это все).
+		if svc.Demo != nil {
+			demoH := NewDemoHandler(svc.Demo)
+			r.Get("/demo", demoH.Status)
+			r.With(httprate.LimitBy(10, time.Minute, clientIPKey)).Post("/auth/demo", demoH.Login)
+			r.Group(func(r chi.Router) {
+				r.Use(appmw.Authenticator(tokens))
+				r.With(needSystem).Post("/demo/reset", demoH.Reset)
 			})
 		}
 
