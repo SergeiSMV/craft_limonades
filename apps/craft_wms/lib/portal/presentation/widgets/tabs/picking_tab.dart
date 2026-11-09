@@ -19,6 +19,7 @@ import '../picking/registry_load_dialog.dart';
 import '../settings/access_common.dart';
 import '../ui/portal_button.dart';
 import '../ui/portal_card.dart';
+import '../ui/portal_checkbox.dart';
 import '../ui/portal_date_picker.dart';
 import '../ui/portal_list_page.dart';
 
@@ -64,6 +65,12 @@ class _PickingTabState extends State<PickingTab> {
   Failure? _error;
   List<PickingOrderSummary> _orders = const [];
   bool _downloading = false;
+
+  /// Только отгруженные, что расходятся с 1С (P9-08): список того, что оператору поправить.
+  bool _onlyOutOfSync = false;
+
+  /// Сколько заказов даты расходится с 1С.
+  int get _outOfSyncCount => _orders.where((o) => o.outOfSync).length;
 
   @override
   void initState() {
@@ -158,6 +165,9 @@ class _PickingTabState extends State<PickingTab> {
     );
   }
 
+  /// Включить или выключить отбор «Только расходится с 1С».
+  void _toggleOutOfSync() => setState(() => _onlyOutOfSync = !_onlyOutOfSync);
+
   /// Показать снекбар.
   void _snack(String text) {
     ScaffoldMessenger.of(context)
@@ -184,6 +194,30 @@ class _PickingTabState extends State<PickingTab> {
             label: p.dateButton(date: fullDate(_date)),
             icon: Icons.calendar_today_outlined,
             onPressed: _pickDate,
+          ),
+        if (widget.canView)
+          InkWell(
+            onTap: _toggleOutOfSync,
+            child: Padding(
+              padding: AppInsets.all8,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  PortalCheckbox(
+                    value: _onlyOutOfSync,
+                    onChanged: _toggleOutOfSync,
+                    semanticLabel: p.onlyOutOfSync(count: _outOfSyncCount),
+                  ),
+                  AppBoxes.kWidth8,
+                  Text(
+                    p.onlyOutOfSync(count: _outOfSyncCount),
+                    style: RegularTextStyles().regularInter13.copyWith(
+                      color: AppColors.kTextMain,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         if (widget.canDownload)
           PortalButton(
@@ -228,7 +262,13 @@ class _PickingTabState extends State<PickingTab> {
       );
     }
     if (_orders.isEmpty) return _message(p.emptyDate(date: fullDate(_date)));
-    return PickingOrderTable(orders: _orders, onOpen: _open);
+    final orders = _onlyOutOfSync
+        ? _orders.where((o) => o.outOfSync).toList()
+        : _orders;
+    if (orders.isEmpty) {
+      return _message(p.emptyOutOfSync(date: fullDate(_date)));
+    }
+    return PickingOrderTable(orders: orders, onOpen: _open);
   }
 
   /// Сообщение вместо списка — карточкой под панелью.

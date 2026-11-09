@@ -290,3 +290,106 @@ func TestPickingCompleteAllShort(t *testing.T) {
 		t.Fatalf("журнал: %s", got)
 	}
 }
+
+// TestPickingSyncAfterShipment — сверка с 1С (P9-08): заказ отгружен пустым (по позиции «не
+// хватает») - расходится с 1С. Реестр убирает позицию - строка плана отгруженного заказа
+// обновляется, заказ сходится с 1С, правка - «приведено к факту», возврата на места нет; следующая
+// загрузка видит уже новый план и правку не повторяет.
+func TestPickingSyncAfterShipment(t *testing.T) {
+	pool := testutil.StartPostgres(t)
+	ctx := context.Background()
+	scan := func(sql string, args ...any) string {
+		t.Helper()
+		var v string
+		mustScan(t, pool, sql, &v, args...)
+		return v
+	}
+	wh := scan(`INSERT INTO warehouses (code,name) VALUES ('SHB','Шабулина') RETURNING id::text`)
+	user := scan(`INSERT INTO users (login,password_hash,full_name) VALUES ('90000053','x','Кладовщик') RETURNING id::text`)
+	good := scan(`INSERT INTO goods (code,name,uom) VALUES ('16151','Сухарики','шт') RETURNING id::text`)
+	load := scan(`INSERT INTO picking_loads (warehouse_id,registry_date,file_name,uploaded_by)
+		VALUES ($1,'2026-11-09','Реестр.xlsx',$2) RETURNING id::text`, wh, user)
+	order := scan(`INSERT INTO picking_orders (warehouse_id,registry_date,invoice_number,order_number,created_load_id,updated_load_id)
+		VALUES ($1,'2026-11-09','21049','15788',$2,$2) RETURNING id::text`, wh, load)
+	line := scan(`INSERT INTO picking_order_lines (order_id,line_no,good_code,good_name,good_id,plan_qty)
+		VALUES ($1,1,'00000016151','Сухарики',$2,2) RETURNING id::text`, order, good)
+
+	pk := repository.NewPickingRepository(pool)
+	if err := pk.TakeOrder(ctx, order, user, 0); err != nil {
+		t.Fatalf("взять заказ: %v", err)
+	}
+	if _, err := pk.MarkShortage(ctx, order, line, user, true); err != nil {
+		t.Fatalf("не хватает: %v", err)
+	}
+	if _, err := pk.CompleteOrder(ctx, order, user); err != nil {
+		t.Fatalf("завершить: %v", err)
+	}
+	if _, err := pk.ShipOrder(ctx, order, user, nil); err != nil {
+		t.Fatalf("отгрузить: %v", err)
+	}
+	d, err := pk.PortalOrder(ctx, order)
+	if err != nil || !d.Order.OutOfSync {
+		t.Fatalf("отгружен пустым при плане 2 - должен расходиться с 1С: %+v, %v", d.Order, err)
+	}
+
+	in := model.PickingLoadInput{WarehouseID: wh, RegistryDate: time.Date(2026, 11, 9, 0, 0, 0, 0, time.UTC),
+		FileName: "Реестр-2.xlsx", UploadedBy: user}
+	old := 2
+	if _, _, err := pk.Load(ctx, in, func([]model.PickingExistingOrder) ([]model.PickingOrderPlan, error) {
+		return []model.PickingOrderPlan{{
+			Kind: model.PickingOrderChanged, ExistingID: order, Status: model.PickingStatusShipped, Frozen: true,
+			Header:         &model.PickingOrderHeader{InvoiceNumber: "21049", OrderNumber: "15788"},
+			Lines:          []model.PickingPlanLine{{GoodCode: "00000016152", GoodName: "Вода", Qty: 1}},
+			RemovedLineIDs: []string{line},
+			Changes: []model.PickingChange{
+				{Kind: model.PickingChangeLineRemoved, GoodCode: "00000016151", GoodName: "Сухарики", OldQty: &old},
+			},
+		}}, nil
+	}); err != nil {
+		t.Fatalf("повторная загрузка: %v", err)
+	}
+	d, err = pk.PortalOrder(ctx, order)
+	if err != nil {
+		t.Fatalf("заказ после загрузки: %v", err)
+	}
+	// Добавленная после отгрузки «Вода» не уехала - заказ всё ещё расходится, убранные «Сухарики» -
+	// приведены к факту.
+	if !d.Order.OutOfSync || !d.Order.ChangedAfterShipment || d.Order.Status != model.PickingStatusShipped {
+		t.Fatalf("после загрузки с новой строкой: %+v", d.Order)
+	}
+	if len(d.Changes) != 1 || d.Changes[0].Reason != model.PickingChangeReasonFit {
+		t.Fatalf("причина правки: %+v", d.Changes)
+	}
+	if n := scan(`SELECT count(*)::text FROM warehouse_tasks WHERE picking_order_id = $1`, order); n != "0" {
+		t.Fatalf("у отгруженного заказа не бывает возврата на места: %s", n)
+	}
+
+	// Ещё загрузка: план уже новый - строки отгруженного видны такими, какие они в 1С.
+	water := 1
+	var seen []model.PickingExistingOrder
+	if _, _, err := pk.Load(ctx, in, func(ex []model.PickingExistingOrder) ([]model.PickingOrderPlan, error) {
+		seen = ex
+		return []model.PickingOrderPlan{{
+			Kind: model.PickingOrderChanged, ExistingID: order, Status: model.PickingStatusShipped, Frozen: true,
+			Header:         &model.PickingOrderHeader{InvoiceNumber: "21049", OrderNumber: "15788"},
+			RemovedLineIDs: []string{scan(`SELECT id::text FROM picking_order_lines WHERE order_id = $1 AND good_code = '00000016152'`, order)},
+			Changes: []model.PickingChange{
+				{Kind: model.PickingChangeLineRemoved, GoodCode: "00000016152", GoodName: "Вода", OldQty: &water},
+			},
+		}}, nil
+	}); err != nil {
+		t.Fatalf("третья загрузка: %v", err)
+	}
+	if len(seen) != 1 || len(seen[0].Lines) != 2 {
+		t.Fatalf("строки отгруженного заказа в сверке: %+v", seen)
+	}
+	for _, l := range seen[0].Lines {
+		if (l.GoodCode == "00000016151") != l.Removed {
+			t.Fatalf("строка %s: убрана=%v", l.GoodCode, l.Removed)
+		}
+	}
+	d, err = pk.PortalOrder(ctx, order)
+	if err != nil || d.Order.OutOfSync {
+		t.Fatalf("всё убрано, ничего не уехало - сходится с 1С: %+v, %v", d.Order, err)
+	}
+}

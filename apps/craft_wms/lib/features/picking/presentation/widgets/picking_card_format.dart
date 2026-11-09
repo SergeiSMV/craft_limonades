@@ -30,7 +30,10 @@ List<String> cardHeaderLines(PickingCard c) {
     else
       c.isPartial ? p.statusPartial : p.statusPicked,
     if (c.deleted) p.cardDeleted,
-    if (c.changedAfterShipment) p.cardChangedAfterShipment,
+    if (c.outOfSync)
+      p.cardOutOfSync
+    else if (c.changedAfterShipment)
+      p.cardSynced,
     if (c.pickedByName.isNotEmpty) p.cardPickedBy(name: c.pickedByName),
     if (pickedAt != null) p.cardPickedAt(time: fullDateTime(pickedAt)),
     if (shippedBy.isNotEmpty) p.cardShippedBy(name: shippedBy),

@@ -59,7 +59,7 @@ func (r *PickingRepository) portalOrders(ctx context.Context, cond string, args 
 		       CASE WHEN o.status = 'in_progress' THEN o.taken_at END,
 		       coalesce(up.full_name, ''), o.picked_at, o.shipped_at,
 		       coalesce(l.cnt, 0), coalesce(l.plan, 0), coalesce(f.qty, 0)::text, coalesce(b.cnt, 0),
-		       coalesce(rt.qty, 0)::text
+		       coalesce(rt.qty, 0)::text, coalesce(sy.diverged, false)
 		FROM picking_orders o
 		LEFT JOIN users ua ON ua.id = o.assignee_id
 		LEFT JOIN users up ON up.id = o.picked_by
@@ -83,6 +83,16 @@ func (r *PickingRepository) portalOrders(ctx context.Context, cond string, args 
 				WHERE ln.order_id = o.id GROUP BY ln.id
 			) x
 		) rt ON o.status <> 'shipped'
+		-- Сверка с 1С (P9-08) — только у отгруженного: по какой-то строке план реестра (у убранной
+		-- строки и удалённого заказа - 0) не равен отгруженному (пики в коробе отгрузки).
+		LEFT JOIN LATERAL (
+			SELECT bool_or(x.plan <> x.moved) AS diverged FROM (
+				SELECT CASE WHEN o.deleted_at IS NOT NULL OR ln.removed_at IS NOT NULL THEN 0 ELSE ln.plan_qty END AS plan,
+				       coalesce(sum(p.qty) FILTER (WHERE p.state = 'moved'), 0) AS moved
+				FROM picking_order_lines ln LEFT JOIN picking_picks p ON p.line_id = ln.id
+				WHERE ln.order_id = o.id GROUP BY ln.id
+			) x
+		) sy ON o.status = 'shipped'
 		WHERE `+cond+`
 		ORDER BY o.deleted_at IS NOT NULL, o.number`, args...)
 	if err != nil {
@@ -97,7 +107,7 @@ func (r *PickingRepository) portalOrders(ctx context.Context, cond string, args 
 			&o.Direction, &o.Client, &o.Address, &o.Status, &o.IsPartial, &o.HasUnknown,
 			&o.Deleted, &o.ChangedAfterShipment, &o.AssigneeName, &o.TakenAt,
 			&o.PickedByName, &o.PickedAt, &o.ShippedAt,
-			&o.Lines, &o.PlanQty, &fact, &o.Boxes, &back); err != nil {
+			&o.Lines, &o.PlanQty, &fact, &o.Boxes, &back, &o.OutOfSync); err != nil {
 			return nil, fmt.Errorf("заказ сборки для портала: %w", err)
 		}
 		if o.FactQty, err = parseQty(fact); err != nil {
@@ -140,6 +150,9 @@ func (r *PickingRepository) portalDetails(ctx context.Context, orders []model.Pi
 	}
 	if err := r.portalEvents(ctx, ids, byOrder); err != nil {
 		return nil, err
+	}
+	for i := range out {
+		model.ClassifyPickingChanges(&out[i])
 	}
 	return out, nil
 }

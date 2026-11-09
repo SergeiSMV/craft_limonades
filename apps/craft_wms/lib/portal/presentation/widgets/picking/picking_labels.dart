@@ -69,10 +69,22 @@ String pickingEventText(PickingOrderEvent e) {
   };
 }
 
+/// Откуда правка реестра (P9-08); пусто - причина не известна.
+String pickingChangeReasonText(String reason) {
+  final p = t.portal.picking;
+  return switch (reason) {
+    'order' => p.reasonOrder,
+    'picking' => p.reasonPicking,
+    'fit' => p.reasonFit,
+    'diverged' => p.reasonDiverged,
+    _ => '',
+  };
+}
+
 /// Статус WMS и пометки заказа отметками: «В работе», «Собран частично», «Удалён в 1С»…
 ///
 /// Цвет — по смыслу: в работе — справка, собран и отгружен — успех, частично и нераспознанное
-/// — внимание, удалён и изменён после отгрузки — критично.
+/// — внимание, удалён и расходится с 1С — критично, сверен с 1С после отгрузки — успех.
 class PickingStatusBadges extends StatelessWidget {
   const PickingStatusBadges({super.key, required this.order});
 
@@ -103,11 +115,11 @@ class PickingStatusBadges extends StatelessWidget {
             p.badgeReturnLeft(qty: fmtQty(o.returnLeft)),
             tone: PortalBadgeTone.warning,
           ),
-        if (o.changedAfterShipment)
-          PortalBadge(
-            p.badgeChangedAfterShipment,
-            tone: PortalBadgeTone.critical,
-          ),
+        // Сверка с 1С (P9-08): расходится - критично, приведён после отгрузки - успех.
+        if (o.outOfSync)
+          PortalBadge(p.badgeOutOfSync, tone: PortalBadgeTone.critical)
+        else if (o.changedAfterShipment)
+          PortalBadge(p.badgeSynced, tone: PortalBadgeTone.success),
       ],
     );
   }

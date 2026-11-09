@@ -134,12 +134,15 @@ class PickingChangesSection extends StatelessWidget {
             Text(
               p.changeAt(
                 time: fullDateTime(c.at),
-                text: pickingChangeText(
-                  kind: c.kind,
-                  goodCode: c.goodCode,
-                  goodName: c.goodName,
-                  oldQty: c.oldQty,
-                  newQty: c.newQty,
+                text: _withReason(
+                  pickingChangeText(
+                    kind: c.kind,
+                    goodCode: c.goodCode,
+                    goodName: c.goodName,
+                    oldQty: c.oldQty,
+                    newQty: c.newQty,
+                  ),
+                  c.reason,
                 ),
               ),
               style: _muted,
@@ -148,6 +151,14 @@ class PickingChangesSection extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Правка с причиной в скобках (P9-08): «Изменено: … 10 → 6 (приведено к факту отгрузки)».
+String _withReason(String text, String reason) {
+  final r = pickingChangeReasonText(reason);
+  return r.isEmpty
+      ? text
+      : t.portal.picking.changeReason(text: text, reason: r);
 }
 
 /// Журнал событий заказа (P9-07): кто брал, отказывался, был снят, собрал и отгрузил.

@@ -10,32 +10,38 @@ import 'package:mocktail/mocktail.dart';
 
 class _MockRepo extends Mock implements PickingOrdersRepository {}
 
-PickingOrderSummary _order({PickingStatus status = PickingStatus.inProgress}) =>
-    PickingOrderSummary(
-      id: 'o1',
-      number: 9,
-      registryDate: DateTime(2026, 11, 9),
-      invoiceNumber: '20961',
-      orderNumber: '15512',
-      orderDate: null,
-      direction: 'Рязань',
-      client: 'ИП Суслова',
-      address: '',
-      status: status,
-      isPartial: false,
-      hasUnknown: false,
-      deleted: false,
-      changedAfterShipment: false,
-      assigneeName: status == PickingStatus.inProgress ? 'Анна' : '',
-      takenAt: null,
-      pickedByName: '',
-      pickedAt: null,
-      shippedAt: null,
-      lines: 1,
-      planQty: 3,
-      factQty: 1,
-      boxes: 1,
-    );
+PickingOrderSummary _order({
+  PickingStatus status = PickingStatus.inProgress,
+  String id = 'o1',
+  int number = 9,
+  bool outOfSync = false,
+  bool changedAfterShipment = false,
+}) => PickingOrderSummary(
+  id: id,
+  number: number,
+  registryDate: DateTime(2026, 11, 9),
+  invoiceNumber: '20961',
+  orderNumber: '15512',
+  orderDate: null,
+  direction: 'Рязань',
+  client: 'ИП Суслова',
+  address: '',
+  status: status,
+  isPartial: false,
+  hasUnknown: false,
+  deleted: false,
+  changedAfterShipment: changedAfterShipment,
+  outOfSync: outOfSync,
+  assigneeName: status == PickingStatus.inProgress ? 'Анна' : '',
+  takenAt: null,
+  pickedByName: '',
+  pickedAt: null,
+  shippedAt: null,
+  lines: 1,
+  planQty: 3,
+  factQty: 1,
+  boxes: 1,
+);
 
 PickingOrderDetail _detail(PickingStatus status) => PickingOrderDetail(
   order: _order(status: status),
@@ -133,6 +139,32 @@ void main() {
     verify(() => repo.release('o1')).called(1);
     // Заказ снова «новый»: снимать больше нечего.
     expect(find.text(p.releaseButton), findsNothing);
+  });
+
+  testWidgets('сверка с 1С: пометки и отбор «Только расходится с 1С»', (
+    tester,
+  ) async {
+    // P9-08: отгружен пустым - расходится с 1С; второй приведён реестром после отгрузки.
+    when(() => repo.orders(any())).thenAnswer(
+      (_) async => Right([
+        _order(status: PickingStatus.shipped, outOfSync: true),
+        _order(
+          status: PickingStatus.shipped,
+          id: 'o2',
+          number: 10,
+          changedAfterShipment: true,
+        ),
+      ]),
+    );
+    await pump(tester, canRelease: false);
+    final p = t.portal.picking;
+    expect(find.text(p.badgeOutOfSync), findsOneWidget);
+    expect(find.text(p.badgeSynced), findsOneWidget);
+
+    await tester.tap(find.text(p.onlyOutOfSync(count: 1)));
+    await tester.pumpAndSettle();
+    expect(find.text('СБ-000009'), findsOneWidget);
+    expect(find.text('СБ-000010'), findsNothing);
   });
 
   testWidgets('без права снятия кнопки нет', (tester) async {

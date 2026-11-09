@@ -43,6 +43,7 @@ class PickingOrderSummary {
     required this.factQty,
     required this.boxes,
     this.returnLeft = 0,
+    this.outOfSync = false,
   });
 
   final String id;
@@ -69,6 +70,10 @@ class PickingOrderSummary {
 
   /// Реестр изменил или удалил уже отгруженный заказ.
   final bool changedAfterShipment;
+
+  /// Отгруженный заказ расходится с 1С (P9-08): по строке план реестра не равен отгруженному.
+  /// Снимается сам, когда повторная загрузка реестра приводит план к факту.
+  final bool outOfSync;
 
   /// Сколько ещё вернуть на места после правки реестра (P9-07-1); пока не ноль, отгрузка закрыта.
   final double returnLeft;
@@ -181,6 +186,7 @@ class PickingOrderChange {
     required this.newQty,
     required this.orderStatus,
     required this.at,
+    this.reason = '',
   });
 
   /// line_added, line_removed, qty_changed, order_deleted, order_restored.
@@ -194,6 +200,10 @@ class PickingOrderChange {
   /// Статус заказа в момент правки: что с ней делали.
   final PickingStatus orderStatus;
   final DateTime at;
+
+  /// Откуда правка (P9-08): order - изменение заказа до сборки, picking - во время сборки,
+  /// fit - после отгрузки 1С приведена к факту, diverged - после отгрузки, расходится с фактом.
+  final String reason;
 }
 
 /// Событие журнала заказа (P9-07): взял, отказался, снят старшим, перехватил зависший,

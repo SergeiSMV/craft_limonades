@@ -61,6 +61,7 @@ type pickingPortalOrderDTO struct {
 	FactQty              decimal.Decimal `json:"fact_qty"`
 	Boxes                int             `json:"boxes"`
 	ReturnLeft           decimal.Decimal `json:"return_left"` // вернуть на места (P9-07-1)
+	OutOfSync            bool            `json:"out_of_sync"` // отгружен и расходится с 1С (P9-08)
 }
 
 type pickingPortalFactDTO struct {
@@ -105,6 +106,7 @@ type pickingPortalChangeDTO struct {
 	NewQty      *int      `json:"new_qty"`
 	OrderStatus string    `json:"order_status"`
 	At          time.Time `json:"at"`
+	Reason      string    `json:"reason"` // откуда правка (P9-08)
 }
 
 type pickingPortalEventDTO struct {
@@ -234,6 +236,7 @@ func pickingPortalOrderOut(o model.PickingPortalOrder) pickingPortalOrderDTO {
 		ChangedAfterShipment: o.ChangedAfterShipment, AssigneeName: o.AssigneeName, TakenAt: o.TakenAt,
 		PickedByName: o.PickedByName, PickedAt: o.PickedAt, ShippedAt: o.ShippedAt,
 		Lines: o.Lines, PlanQty: o.PlanQty, FactQty: o.FactQty, Boxes: o.Boxes, ReturnLeft: o.ReturnLeft,
+		OutOfSync: o.OutOfSync,
 	}
 }
 
@@ -273,7 +276,7 @@ func pickingPortalDetailOut(d model.PickingPortalDetail) pickingPortalDetailDTO 
 	for _, c := range d.Changes {
 		out.Changes = append(out.Changes, pickingPortalChangeDTO{
 			Kind: c.Kind, GoodCode: c.GoodCode, GoodName: c.GoodName, BatchDate: dateOnly(c.BatchDate),
-			OldQty: c.OldQty, NewQty: c.NewQty, OrderStatus: c.OrderStatus, At: c.At,
+			OldQty: c.OldQty, NewQty: c.NewQty, OrderStatus: c.OrderStatus, At: c.At, Reason: c.Reason,
 		})
 	}
 	return out
