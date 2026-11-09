@@ -6,6 +6,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../../../core/error/failure.dart';
+import '../../../../core/outbox/outbox_operation.dart';
 import '../../../../core/outbox/outbox_repository.dart';
 import '../../domain/picking_models.dart';
 import '../../domain/picking_repository.dart';
@@ -93,20 +94,36 @@ abstract class PickingOrderState with _$PickingOrderState {
 ///
 /// Что: заказ с сервера или из слепка терминала, свои пики поверх. Решения «что за код» -
 /// за экраном: у него снимок склада и справочники; кубит выполняет готовый пик.
-/// Зачем подписка на очередь: пик, ушедший без связи, подтверждает движок синхронизации в фоне -
-/// экран перечитывает заказ, чтобы «взято» было с сервера, а не только из очереди.
+/// Зачем подписка на очередь: пик подтверждает движок синхронизации в фоне - экран
+/// перечитывает заказ, чтобы «взято» было с сервера, а не только из очереди.
+///
+/// Скорость скана (ADHOC-63): пик показывается из слепка сразу, без ожидания сервера; заказ с
+/// сервера перечитывается один раз, когда сканы и отправка стихли на [reloadPause]. Отказ
+/// сервера пику приходит из очереди отказов ([OutboxRepository.watchRejected]).
 @injectable
 class PickingOrderCubit extends Cubit<PickingOrderState> {
   PickingOrderCubit(this._repo, this._outbox, @factoryParam this.orderId)
     : super(const PickingOrderState()) {
     _queue = _outbox.watchPendingCount().listen(_onQueue);
+    _rejected = _outbox.watchRejected().listen(_onRejected);
   }
+
+  /// Пауза после последнего пика или отправки, после которой заказ перечитывается с сервера.
+  static const reloadPause = Duration(milliseconds: 1500);
 
   final PickingRepository _repo;
   final OutboxRepository _outbox;
   final String orderId;
   StreamSubscription<int>? _queue;
+  StreamSubscription<List<OutboxOperation>>? _rejected;
   int? _pending;
+  Timer? _reloadTimer;
+
+  /// Отклонённые операции, о которых уже знаем; `null` - список ещё не пришёл.
+  Set<String>? _seenRejected;
+
+  /// Счётчик своих пиков - перечитывание, начатое до пика, не показывает устаревший ответ.
+  int _localSeq = 0;
 
   PickingOrderView? get view => state.view;
 
@@ -132,23 +149,52 @@ class PickingOrderCubit extends Cubit<PickingOrderState> {
     );
   }
 
-  /// Очередь опустела на шаг - фон что-то отправил: перечитать заказ.
+  /// Очередь опустела на шаг - фон что-то отправил: перечитать заказ после паузы.
   void _onQueue(int count) {
     final before = _pending;
     _pending = count;
     if (before != null && count < before && state.view != null) {
-      unawaited(_quietReload());
+      _scheduleReload();
     }
+  }
+
+  /// Сервер отказал пику этого заказа в фоне: причина - подсказкой, пик уже снят с экрана
+  /// (операция «отклонена»). Первый список - то, что было до экрана: не показываем.
+  void _onRejected(List<OutboxOperation> ops) {
+    final mine = ops.where(
+      (op) =>
+          op.kind == OutboxKind.pickingPick &&
+          op.payload['order_id'] == orderId,
+    );
+    final seen = _seenRejected;
+    if (seen == null) {
+      _seenRejected = {for (final op in mine) op.operationId};
+      return;
+    }
+    final fresh = mine.where((op) => seen.add(op.operationId)).toList();
+    if (fresh.isEmpty || isClosed) return;
+    emit(
+      state.copyWith(notice: OrderNoticeRejected(fresh.first.lastError ?? '')),
+    );
+    unawaited(_fromCache(offline: false));
+  }
+
+  /// Перечитать заказ, когда сканы и отправка стихнут на [reloadPause].
+  void _scheduleReload() {
+    _reloadTimer?.cancel();
+    _reloadTimer = Timer(reloadPause, () => unawaited(_quietReload()));
   }
 
   /// Перечитать заказ без подсказок: не вышло - слепок со своими пиками.
   Future<void> _quietReload() async {
+    final seq = _localSeq;
     final res = await _repo.order(orderId);
     if (isClosed) return;
-    if (res.isRight) {
+    if (res.isRight && seq == _localSeq) {
       emit(state.copyWith(view: res.right));
     } else {
-      await _fromCache();
+      // Пик во время запроса: ответ уже в слепке, а свежий пик - поверх него.
+      await _fromCache(offline: res.isLeft);
     }
   }
 
@@ -216,9 +262,23 @@ class PickingOrderCubit extends Cubit<PickingOrderState> {
     await _fromCache(offline: state.view?.fromCache ?? false);
   }
 
-  /// Пик операцией очереди: без связи - в очереди, отказ по существу - причина.
-  Future<void> pick(PickRequest request) =>
-      _queued(_repo.pick(request), unpick: false);
+  /// Пик (ADHOC-63): принят на терминале - сразу на экране, сервер подтвердит в фоне.
+  Future<void> pick(PickRequest request) async {
+    final res = await _repo.pick(request);
+    if (isClosed) return;
+    if (res.isLeft) {
+      emit(state.copyWith(notice: OrderNoticeFailed(res.left)));
+      return;
+    }
+    _localSeq++;
+    emit(
+      state.copyWith(
+        notice: const OrderNoticeDone(unpick: false, queued: false),
+      ),
+    );
+    await _fromCache(offline: state.view?.fromCache ?? false);
+    _scheduleReload();
+  }
 
   /// Вернуть пик.
   Future<void> unpick(PickingPick pick) =>
@@ -303,7 +363,9 @@ class PickingOrderCubit extends Cubit<PickingOrderState> {
 
   @override
   Future<void> close() async {
+    _reloadTimer?.cancel();
     await _queue?.cancel();
+    await _rejected?.cancel();
     return super.close();
   }
 }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:either_dart/either.dart';
 import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
@@ -9,6 +11,7 @@ import '../../../core/outbox/outbox_operation.dart';
 import '../../../core/outbox/outbox_repository.dart';
 import '../../../core/outbox/outbox_retry.dart';
 import '../../../core/sync/sync_engine.dart';
+import '../../../core/utils/serial_lock.dart';
 import '../domain/picking_models.dart';
 import '../domain/picking_repository.dart';
 import '../domain/picking_card.dart';
@@ -23,6 +26,11 @@ import 'picking_store.dart';
 /// Слепок заказа ([PickingStore]) - последний ответ сервера и свои пики. Взятое на экране -
 /// ответ плюс свои пики, которых в нём ещё нет ([PickingOrderView.build]); что из своего уже
 /// учтено, решает состояние операции в очереди и время запроса заказа.
+///
+/// Скорость скана (ADHOC-63): пик принимается на терминале сразу - операция в очередь, запись в
+/// слепок, - а на сервер уходит фоном проходом очереди (сканы подряд - одной пачкой). Все
+/// чтения-изменения-записи слепка идут по одной ([_lock]): иначе пик, записанный во время
+/// перечитывания заказа или соседнего пика, затирался.
 @LazySingleton(as: PickingRepository)
 class PickingRepositoryImpl implements PickingRepository {
   PickingRepositoryImpl(
@@ -40,6 +48,9 @@ class PickingRepositoryImpl implements PickingRepository {
   final SyncEngine _sync;
   final Uuid _uuid;
   final LoadUnitIdGenerator _boxIds;
+
+  /// Очередь записей слепков: чтение-изменение-запись - по одной.
+  final _lock = SerialLock();
 
   @override
   Future<Either<Failure, List<PickingListItem>>> orders() async {
@@ -87,22 +98,28 @@ class PickingRepositoryImpl implements PickingRepository {
     // задвоиться не даст сверка по pick_id.
     final fetchedAt = DateTime.now();
     final res = await _api.order(id);
-    final prev = await _store.load(id);
     if (res.isLeft) {
       final failure = res.left;
+      final prev = await _store.load(id);
       // Без связи - слепок; отказ сервера по существу (удалён в 1С, собран) - как есть.
       if (prev != null && isRetryable(failure)) {
         return Right(await _view(prev, fromCache: true));
       }
       return Left(failure);
     }
-    final draft = PickingOrderDraft(
-      order: res.right,
-      fetchedAt: fetchedAt,
-      local: await _keep(prev?.local ?? const [], fetchedAt),
-      currentBoxId: prev?.currentBoxId,
-    );
-    await _store.save(draft);
+    // Слепок читается после ответа и под блокировкой: пик, записанный во время запроса,
+    // остаётся в нём своей записью.
+    final draft = await _lock.run(() async {
+      final prev = await _store.load(id);
+      final next = PickingOrderDraft(
+        order: res.right,
+        fetchedAt: fetchedAt,
+        local: await _keep(prev?.local ?? const [], fetchedAt),
+        currentBoxId: prev?.currentBoxId,
+      );
+      await _store.save(next);
+      return next;
+    });
     return Right(await _view(draft));
   }
 
@@ -119,11 +136,13 @@ class PickingRepositoryImpl implements PickingRepository {
   Future<Either<Failure, void>> release(String id) async {
     final res = await _api.release(id);
     if (res.isRight) {
-      final d = await _store.load(id);
-      // Свои операции ещё в очереди - слепок нужен, чтобы видеть их на экране.
-      if (d != null && (await _keep(d.local, d.fetchedAt)).isEmpty) {
-        await _store.remove(id);
-      }
+      await _lock.run(() async {
+        final d = await _store.load(id);
+        // Свои операции ещё в очереди - слепок нужен, чтобы видеть их на экране.
+        if (d != null && (await _keep(d.local, d.fetchedAt)).isEmpty) {
+          await _store.remove(id);
+        }
+      });
     }
     return res;
   }
@@ -133,19 +152,16 @@ class PickingRepositoryImpl implements PickingRepository {
     final res = await _api.addBox(orderId, _boxIds.newId());
     if (res.isLeft) return res;
     final box = res.right;
-    final d = await _store.load(orderId);
-    if (d != null) {
+    await _update(orderId, (d) {
       final boxes = [
         ...d.order.boxes.where((b) => b.loadUnitId != box.loadUnitId),
         box,
       ]..sort((a, b) => a.seq.compareTo(b.seq));
-      await _store.save(
-        d.copyWith(
-          order: d.order.copyWith(boxes: boxes),
-          currentBoxId: box.loadUnitId,
-        ),
+      return d.copyWith(
+        order: d.order.copyWith(boxes: boxes),
+        currentBoxId: box.loadUnitId,
       );
-    }
+    });
     return res;
   }
 
@@ -153,27 +169,32 @@ class PickingRepositoryImpl implements PickingRepository {
   Future<Either<Failure, void>> dropBox(String orderId, String boxId) async {
     final res = await _api.dropBox(orderId, boxId);
     if (res.isLeft) return res;
-    final d = await _store.load(orderId);
-    if (d != null) {
-      await _store.save(
-        d.copyWith(
-          order: d.order.copyWith(
-            boxes: d.order.boxes.where((b) => b.loadUnitId != boxId).toList(),
-          ),
+    await _update(
+      orderId,
+      (d) => d.copyWith(
+        order: d.order.copyWith(
+          boxes: d.order.boxes.where((b) => b.loadUnitId != boxId).toList(),
         ),
-      );
-    }
+      ),
+    );
     return res;
   }
 
   @override
-  Future<void> selectBox(String orderId, String boxId) async {
-    final d = await _store.load(orderId);
-    if (d != null) await _store.save(d.copyWith(currentBoxId: boxId));
-  }
+  Future<void> selectBox(String orderId, String boxId) =>
+      _update(orderId, (d) => d.copyWith(currentBoxId: boxId));
 
   @override
   Future<Either<Failure, void>> pick(PickRequest r) async {
+    final res = await _lock.run(() => _pickLocally(r));
+    // Сервер подтвердит в фоне; отказ по существу снимет пик с экрана сам (операция
+    // «отклонена»), причину покажет экран по очереди отказов.
+    if (res.isRight) unawaited(_sync.drain());
+    return res;
+  }
+
+  /// Пик в очередь и в слепок - под блокировкой слепка.
+  Future<Either<Failure, void>> _pickLocally(PickRequest r) async {
     final d = await _store.load(r.orderId);
     final view = d == null ? null : await _view(d);
     final boxId = view?.currentBoxId;
@@ -216,63 +237,68 @@ class PickingRepositoryImpl implements PickingRepository {
       createdAt: DateTime.now(),
     );
     await _store.save(d.copyWith(local: [...d.local, local]));
-    final res = await _send(operationId);
-    if (res.isLeft && res.left is RejectedFailure) {
-      await _drop(r.orderId, pickId);
-    }
-    return res;
+    return const Right(null);
   }
 
   @override
   Future<Either<Failure, void>> unpick(String orderId, PickingPick pick) async {
-    final d = await _store.load(orderId);
-    if (d == null) {
-      return const Left(Failure.unknown('заказа нет на терминале'));
-    }
-    final local = d.local.where((l) => l.pick.id == pick.id).firstOrNull;
-    // Свой пик ещё в очереди - снимаем его, и на сервер не уходит ни пик, ни возврат.
-    if (local != null &&
-        await _outbox.discardIfPending(local.pickOperationId)) {
-      await _drop(orderId, pick.id);
-      return const Right(null);
-    }
-    final operationId = await _outbox.enqueue(
-      kind: OutboxKind.pickingUnpick,
-      payload: {'pick_id': pick.id},
-    );
-    final record =
-        (local ??
-                LocalPick(
-                  pick: pick,
-                  pickOperationId: '',
-                  createdAt: DateTime.now(),
-                ))
-            .copyWith(
-              unpickOperationId: operationId,
-              unpickedAt: DateTime.now(),
-            );
-    await _store.save(
-      d.copyWith(
-        local: [...d.local.where((l) => l.pick.id != pick.id), record],
-      ),
-    );
+    // Постановка возврата - под блокировкой слепка; ожидание сервера - уже без неё.
+    final queued = await _lock.run<Either<Failure, String?>>(() async {
+      final d = await _store.load(orderId);
+      if (d == null) {
+        return const Left(Failure.unknown('заказа нет на терминале'));
+      }
+      final local = d.local.where((l) => l.pick.id == pick.id).firstOrNull;
+      // Свой пик ещё в очереди - снимаем его, и на сервер не уходит ни пик, ни возврат.
+      if (local != null &&
+          await _outbox.discardIfPending(local.pickOperationId)) {
+        await _store.save(
+          d.copyWith(
+            local: d.local.where((l) => l.pick.id != pick.id).toList(),
+          ),
+        );
+        return const Right(null);
+      }
+      final operationId = await _outbox.enqueue(
+        kind: OutboxKind.pickingUnpick,
+        payload: {'pick_id': pick.id},
+      );
+      final record =
+          (local ??
+                  LocalPick(
+                    pick: pick,
+                    pickOperationId: '',
+                    createdAt: DateTime.now(),
+                  ))
+              .copyWith(
+                unpickOperationId: operationId,
+                unpickedAt: DateTime.now(),
+              );
+      await _store.save(
+        d.copyWith(
+          local: [...d.local.where((l) => l.pick.id != pick.id), record],
+        ),
+      );
+      return Right(operationId);
+    });
+    if (queued.isLeft) return Left(queued.left);
+    final operationId = queued.right;
+    if (operationId == null) return const Right(null);
     final res = await _send(operationId);
     // Отказ возврата - пик остаётся в коробе: снимаем только отметку возврата.
     if (res.isLeft && res.left is RejectedFailure) {
-      final now = await _store.load(orderId);
-      if (now != null) {
-        await _store.save(
-          now.copyWith(
-            local: [
-              for (final l in now.local)
-                if (l.pick.id != pick.id)
-                  l
-                else if (l.pickOperationId.isNotEmpty)
-                  l.copyWith(unpickOperationId: null, unpickedAt: null),
-            ],
-          ),
-        );
-      }
+      await _update(
+        orderId,
+        (now) => now.copyWith(
+          local: [
+            for (final l in now.local)
+              if (l.pick.id != pick.id)
+                l
+              else if (l.pickOperationId.isNotEmpty)
+                l.copyWith(unpickOperationId: null, unpickedAt: null),
+          ],
+        ),
+      );
     }
     return res;
   }
@@ -285,19 +311,17 @@ class PickingRepositoryImpl implements PickingRepository {
   }) async {
     final res = await _api.shortage(orderId, lineId, shortage: shortage);
     if (res.isRight) {
-      final d = await _store.load(orderId);
-      if (d != null) {
-        await _store.save(
-          d.copyWith(
-            order: d.order.copyWith(
-              lines: [
-                for (final l in d.order.lines)
-                  l.id == lineId ? l.copyWith(shortage: shortage) : l,
-              ],
-            ),
+      await _update(
+        orderId,
+        (d) => d.copyWith(
+          order: d.order.copyWith(
+            lines: [
+              for (final l in d.order.lines)
+                l.id == lineId ? l.copyWith(shortage: shortage) : l,
+            ],
           ),
-        );
-      }
+        ),
+      );
     }
     return res;
   }
@@ -306,12 +330,14 @@ class PickingRepositoryImpl implements PickingRepository {
   Future<Either<Failure, PickingShipment>> complete(String orderId) async {
     // Свои пики и возвраты в очереди - сначала отправить: завершение считает взятое по серверу.
     if (await _hasPending(orderId)) {
+      // Пики могли уже уходить фоном: сначала дождаться того прохода.
+      await _sync.whenIdle();
       await _sync.drain();
       if (await _hasPending(orderId)) return const Left(Failure.network());
     }
     final res = await _api.complete(orderId);
     // Заказ собран - слепок больше не нужен: пикать в него уже нельзя.
-    if (res.isRight) await _store.remove(orderId);
+    if (res.isRight) await _lock.run(() => _store.remove(orderId));
     return res;
   }
 
@@ -350,14 +376,14 @@ class PickingRepositoryImpl implements PickingRepository {
     return _sync.sendOne(op);
   }
 
-  /// Убрать свою запись о пике.
-  Future<void> _drop(String orderId, String pickId) async {
+  /// Изменить слепок заказа под блокировкой; слепка нет - ничего.
+  Future<void> _update(
+    String orderId,
+    PickingOrderDraft Function(PickingOrderDraft d) change,
+  ) => _lock.run(() async {
     final d = await _store.load(orderId);
-    if (d == null) return;
-    await _store.save(
-      d.copyWith(local: d.local.where((l) => l.pick.id != pickId).toList()),
-    );
-  }
+    if (d != null) await _store.save(change(d));
+  });
 
   /// Свои записи, которые ещё нужны поверх ответа сервера, запрошенного в [fetchedAt]:
   /// операция в очереди или подтверждена уже после запроса.

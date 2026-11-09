@@ -217,6 +217,56 @@ void main() {
     verify(() => sender.sendBatch(any())).called(1);
   });
 
+  // ADHOC-63: пик, поставленный во время отправки предыдущего, не ждёт таймера.
+  test(
+    'операция, поставленная во время прохода, уходит тем же проходом',
+    () async {
+      await enqueue('a');
+      var calls = 0;
+      when(() => sender.sendBatch(any())).thenAnswer((invocation) async {
+        calls++;
+        if (calls == 1) {
+          // Пока первый проход ждёт сеть - новый скан: операция и просьба о проходе.
+          await enqueue('b');
+          await engine.drain();
+        }
+        final ops =
+            invocation.positionalArguments.first as List<OutboxOperation>;
+        return Right({
+          for (final op in ops)
+            op.operationId: const Right<Failure, void>(null),
+        });
+      });
+
+      final res = await engine.drain();
+
+      expect(res.sent, 2);
+      expect(res.remaining, 0);
+      verify(() => sender.sendBatch(any())).called(2);
+    },
+  );
+
+  test('whenIdle ждёт конца идущего прохода', () async {
+    await enqueue('a');
+    var sent = false;
+    when(() => sender.sendBatch(any())).thenAnswer((invocation) async {
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      sent = true;
+      final ops = invocation.positionalArguments.first as List<OutboxOperation>;
+      return Right({
+        for (final op in ops) op.operationId: const Right<Failure, void>(null),
+      });
+    });
+
+    final pass = engine.drain();
+    await Future<void>.delayed(Duration.zero);
+    await engine.whenIdle();
+
+    expect(sent, isTrue);
+    await pass;
+    await engine.whenIdle();
+  });
+
   // Статус связи (P2-07). Главное требование — он не должен врать: «Wi-Fi подключён» и
   // «сервер отвечает» на складе расходятся регулярно, и индикатор по одной связности
   // показывал бы «онлайн» ровно там, где отправить ничего нельзя.

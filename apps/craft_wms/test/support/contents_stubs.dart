@@ -71,6 +71,12 @@ class FakeContentsRepository implements ContentsRepository {
   @override
   Future<CellRef?> findCell(String address) async => cells[address];
 
+  /// Ячейки коробов в снимке терминала: id → адрес (ADHOC-63).
+  final Map<String, String> cachedCells = {};
+
+  @override
+  Future<String?> cachedLoadUnitCell(String id) async => cachedCells[id];
+
   /// Короба ЧЗ: код `00`+SSCC → ГЕ (CZ-06).
   final Map<String, String> czBoxes = {};
 
