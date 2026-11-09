@@ -146,7 +146,7 @@ func TestPickingPortal_live(t *testing.T) {
 		t.Fatalf("разбор выгрузки: %v", err)
 	}
 	defer func() { _ = f.Close() }()
-	if got := f.GetSheetList(); len(got) != 3 || got[0] != "Сборка" {
+	if got := f.GetSheetList(); len(got) != 4 || got[0] != "Сборка" || got[3] != "Марки для УПД" {
 		t.Fatalf("листы: %v", got)
 	}
 	sheet, _ := f.GetRows("Сборка")

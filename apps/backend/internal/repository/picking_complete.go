@@ -297,6 +297,7 @@ func moveOpenPicks(ctx context.Context, q Querier, orderID, shippingCell string)
 		return err
 	}
 
+	var marks []string
 	for _, p := range picks {
 		if _, err := q.Exec(ctx, `
 			UPDATE picking_picks SET state = 'moved', moved_at = now() WHERE id = $1::uuid`, p.id); err != nil {
@@ -329,10 +330,13 @@ func moveOpenPicks(ctx context.Context, q Querier, orderID, shippingCell string)
 				WHERE cis = ANY($1::text[])`, p.marks, p.box); err != nil {
 				return fmt.Errorf("марки в короб отгрузки: %w", err)
 			}
-			if err := openTouchedAggregates(ctx, q, p.marks); err != nil {
-				return err
-			}
+			marks = append(marks, p.marks...)
 		}
+	}
+	// Вскрытие — один раз после всех пиков (CZ-07): короб ЧЗ, целиком легший в один короб
+	// отгрузки, остаётся целым и уходит в Excel своим кодом агрегации.
+	if len(marks) > 0 {
+		return openAggregatesShipped(ctx, q, marks)
 	}
 	return nil
 }

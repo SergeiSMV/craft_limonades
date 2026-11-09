@@ -12,11 +12,13 @@ import (
 )
 
 // Листы выгрузки «Сборка-отгрузка» (P8-03): «Сборка» — заказы блоками с позициями, как в окне
-// деталей портала; «Заказы» — строка на заказ для сверки; «Правки» — правки реестра.
+// деталей портала; «Заказы» — строка на заказ для сверки; «Правки» — правки реестра; «Марки для
+// УПД» — коды ЧЗ собранного и отгруженного построчно (CZ-07).
 const (
 	pickingMainSheet    = "Сборка"
 	pickingOrdersSheet  = "Заказы"
 	pickingChangesSheet = "Правки"
+	pickingMarksSheet   = "Марки для УПД"
 )
 
 var (
@@ -36,6 +38,11 @@ var (
 		"Сборка", "Накладная", "Заказ", "Когда", "Правка", "Код", "Наименование", "Партия",
 		"Было", "Стало", "Статус заказа", "Причина",
 	}
+	pickingMarkHeaders = []string{
+		"Сборка", "Накладная", "Заказ", "Клиент", "Статус", "Код", "Наименование", "Партия",
+		"Код ЧЗ", "Вид",
+	}
+	pickingMarkWidths = []float64{12, 12, 12, 30, 10, 14, 44, 12, 34, 16}
 )
 
 // PickingStatusTitle — статус заказа сборки для человека; незнакомый — как есть.
@@ -125,15 +132,16 @@ func PickingChangeReasonTitle(reason string) string {
 // Зачем: простое скачивание для офиса, не документ для «Провести»: в 1С по нему ничего не
 // проводится. Как: лист «Сборка» — заказ блоком (шапка построчно с подписями, затем позиции с
 // заголовком колонок), позиция — план реестра и факт склада; факт по партии, ячейке и коробу —
-// своей строкой, марка ЧЗ — своей строкой под фактом. Листы «Заказы» и «Правки» — для сверки
-// и фильтров.
+// своей строкой, марка ЧЗ — своей строкой под фактом, целая упаковка ЧЗ — строкой с кодом
+// агрегации и её марками ниже (CZ-07). Листы «Заказы» и «Правки» — для сверки и фильтров,
+// «Марки для УПД» — коды ЧЗ собранного и отгруженного для УПД.
 func BuildPickingXLSX(date time.Time, orders []model.PickingPortalDetail) ([]byte, error) {
 	f := excelize.NewFile()
 	defer func() { _ = f.Close() }()
 	if err := f.SetSheetName(f.GetSheetName(0), pickingMainSheet); err != nil {
 		return nil, fmt.Errorf("переименовать лист: %w", err)
 	}
-	for _, s := range []string{pickingOrdersSheet, pickingChangesSheet} {
+	for _, s := range []string{pickingOrdersSheet, pickingChangesSheet, pickingMarksSheet} {
 		if _, err := f.NewSheet(s); err != nil {
 			return nil, fmt.Errorf("лист %s: %w", s, err)
 		}
@@ -146,6 +154,10 @@ func BuildPickingXLSX(date time.Time, orders []model.PickingPortalDetail) ([]byt
 		col, _ := excelize.ColumnNumberToName(i + 1)
 		_ = f.SetColWidth(pickingMainSheet, col, col, w)
 	}
+	for i, w := range pickingMarkWidths {
+		col, _ := excelize.ColumnNumberToName(i + 1)
+		_ = f.SetColWidth(pickingMarksSheet, col, col, w)
+	}
 
 	w := sheetWriter{f: f}
 	w.styled(pickingMainSheet, st.title, "Сборка-отгрузка", "Дата накладной "+date.Format("02.01.2006"))
@@ -153,6 +165,7 @@ func BuildPickingXLSX(date time.Time, orders []model.PickingPortalDetail) ([]byt
 	w.next(pickingOrdersSheet)
 	w.styled(pickingOrdersSheet, st.head, toAny(pickingOrderHeaders)...)
 	w.styled(pickingChangesSheet, st.head, toAny(pickingChangeHeaders)...)
+	w.styled(pickingMarksSheet, st.head, toAny(pickingMarkHeaders)...)
 
 	for _, d := range orders {
 		w.next(pickingMainSheet)
@@ -170,6 +183,7 @@ func BuildPickingXLSX(date time.Time, orders []model.PickingPortalDetail) ([]byt
 				c.GoodCode, c.GoodName, dateOrEmpty(c.BatchDate), intOrEmpty(c.OldQty), intOrEmpty(c.NewQty),
 				PickingStatusTitle(c.OrderStatus), PickingChangeReasonTitle(c.Reason))...)
 		}
+		writePickingMarks(&w, d)
 	}
 
 	var buf bytes.Buffer
@@ -230,6 +244,7 @@ func writePickingOrderBlock(w *sheetWriter, st pickingStyles, d model.PickingPor
 	}
 
 	w.styled(sheet, st.head, toAny(pickingLineHeaders)...)
+	byMark := d.CZBoxByMark()
 	for _, l := range d.Lines {
 		plan := []any{
 			l.LineNo, l.GoodCode, l.GoodName, l.Uom, l.RegistryCell, batchOrAny(l.BatchDate),
@@ -251,16 +266,146 @@ func writePickingOrderBlock(w *sheetWriter, st pickingStyles, d model.PickingPor
 			if i == 0 {
 				text = comment
 			}
-			first := ""
-			if len(g.marks) > 0 {
-				first = g.marks[0]
+			codes := czCodes(g.marks, byMark)
+			first := czCode{}
+			if len(codes) > 0 {
+				first = codes[0]
 			}
 			w.row(sheet, append(lead,
-				g.batch.Format("02.01.2006"), g.cell, g.box, qtyValue(trimQty(g.qty)), text, first)...)
-			for _, cis := range g.marks[min(1, len(g.marks)):] {
-				blank := make([]any, len(pickingLineHeaders)-1)
-				w.row(sheet, append(blank, cis)...)
+				g.batch.Format("02.01.2006"), g.cell, g.box, qtyValue(trimQty(g.qty)),
+				joinNotes(text, first.note), first.code)...)
+			for _, c := range codes[min(1, len(codes)):] {
+				blank := make([]any, len(pickingLineHeaders)-2)
+				w.row(sheet, append(blank, c.note, c.code)...)
 			}
+		}
+	}
+}
+
+// czCode — строка кода ЧЗ под фактом: марка или код целой упаковки с пометкой.
+type czCode struct {
+	code string
+	note string
+}
+
+// czCodes раскладывает марки факта для УПД (CZ-07): марки целой упаковки — строкой с её кодом
+// агрегации и самими марками сразу ниже (на месте первой из них), остальные — как есть.
+func czCodes(marks []string, byMark map[string]*model.PickingCZBox) []czCode {
+	in := make(map[string]bool, len(marks))
+	for _, cis := range marks {
+		in[cis] = true
+	}
+	var out []czCode
+	done := map[string]bool{}
+	for _, cis := range marks {
+		box := byMark[cis]
+		if box == nil {
+			out = append(out, czCode{code: cis})
+			continue
+		}
+		if done[box.Code] {
+			continue
+		}
+		done[box.Code] = true
+		out = append(out, czCode{code: box.Code, note: czBoxTitle(box.Kind) + " целиком, марок: " + fmt.Sprint(len(box.Marks))})
+		for _, m := range box.Marks {
+			if in[m] {
+				out = append(out, czCode{code: m})
+			}
+		}
+	}
+	return out
+}
+
+// czBoxTitle — вид упаковки ЧЗ для человека.
+func czBoxTitle(kind string) string {
+	if kind == model.CZAggregateGroup {
+		return "упаковка ЧЗ"
+	}
+	return "короб ЧЗ"
+}
+
+// czInBoxTitle — вид марки внутри целой упаковки ЧЗ.
+func czInBoxTitle(kind string) string {
+	if kind == model.CZAggregateGroup {
+		return "в упаковке ЧЗ"
+	}
+	return "в коробе ЧЗ"
+}
+
+// joinNotes склеивает непустые пометки через «; ».
+func joinNotes(notes ...string) string {
+	var out []string
+	for _, n := range notes {
+		if n != "" {
+			out = append(out, n)
+		}
+	}
+	return strings.Join(out, "; ")
+}
+
+// markRef — марка в перенесённом пике: позиция и партия.
+type markRef struct {
+	line  model.PickingPortalLine
+	batch time.Time
+}
+
+// writePickingMarks пишет коды ЧЗ заказа на лист «Марки для УПД» (CZ-07).
+//
+// Что: только собранный и отгруженный заказ и только перенесённое в короба отгрузки — то, что
+// уедет или уехало клиенту. Строка — заказ, товар, партия и код. Целая упаковка ЧЗ — строкой со
+// своим кодом агрегации (вид «короб ЧЗ»), её марки — сразу ниже (вид «в коробе ЧЗ»); марки
+// вскрытого короба и россыпи — по одной (вид «марка»). Зачем: оператор делает УПД по этому
+// листу. Как: в порядке позиций и пиков; упаковка — один раз, на месте первой её марки, даже
+// если её марки разошлись по позициям (две партии одного товара).
+func writePickingMarks(w *sheetWriter, d model.PickingPortalDetail) {
+	o := d.Order
+	if o.Status != model.PickingStatusPicked && o.Status != model.PickingStatusShipped {
+		return
+	}
+	byMark := d.CZBoxByMark()
+	refs := map[string]markRef{}
+	var order []string
+	for _, l := range d.Lines {
+		for _, f := range l.Facts {
+			if f.State != model.PickingPickMoved {
+				continue
+			}
+			for _, cis := range f.Marks {
+				refs[cis] = markRef{line: l, batch: f.BatchDate}
+				order = append(order, cis)
+			}
+		}
+	}
+	key := []any{model.DocNumber(model.DocPrefixPicking, o.Number), o.InvoiceNumber, o.OrderNumber,
+		o.Client, PickingStatusTitle(o.Status)}
+	put := func(l model.PickingPortalLine, batch, code, kind string) {
+		w.row(pickingMarksSheet, append(append([]any{}, key...), l.GoodCode, l.GoodName, batch, code, kind)...)
+	}
+	done := map[string]bool{}
+	for _, cis := range order {
+		ref := refs[cis]
+		box := byMark[cis]
+		if box == nil {
+			put(ref.line, ref.batch.Format("02.01.2006"), cis, "марка")
+			continue
+		}
+		if done[box.Code] {
+			continue
+		}
+		done[box.Code] = true
+		// Партия упаковки — общая партия её марок; разные партии в одной упаковке — пусто,
+		// партия каждой марки — в её строке.
+		batch := ref.batch.Format("02.01.2006")
+		for _, m := range box.Marks {
+			if refs[m].batch.Format("02.01.2006") != batch {
+				batch = ""
+				break
+			}
+		}
+		put(ref.line, batch, box.Code, czBoxTitle(box.Kind))
+		for _, m := range box.Marks {
+			put(refs[m].line, refs[m].batch.Format("02.01.2006"), m, czInBoxTitle(box.Kind))
 		}
 	}
 }
