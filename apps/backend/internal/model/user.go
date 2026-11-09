@@ -65,6 +65,10 @@ const (
 	RightTSDProblemsMark    = "tsd.problems.mark"
 	RightTSDPicking         = "tsd.picking"         // собирать и отгружать заказы (P8-02)
 	RightTSDPickingReprint  = "tsd.picking.reprint" // повторно печатать ярлык короба отгрузки
+	// Бейджи на ТСД (ADHOC-65) — три уровня, действует самый широкий из отмеченных.
+	RightTSDBadgesOwn   = "tsd.badges.own"   // печатать свой бейдж
+	RightTSDBadgesStaff = "tsd.badges.staff" // бейджи всех, кроме администратора
+	RightTSDBadgesAll   = "tsd.badges.all"   // бейджи всех
 )
 
 // Префиксы приложений: «любое право портала / ТСД».
@@ -91,6 +95,7 @@ var Rights = []string{
 	RightTSDStockView, RightTSDStockCZMarked, RightTSDStockRegrade, RightTSDStockEntry,
 	RightTSDProblemsView, RightTSDProblemsMark,
 	RightTSDPicking, RightTSDPickingReprint,
+	RightTSDBadgesOwn, RightTSDBadgesStaff, RightTSDBadgesAll,
 }
 
 // DocumentAction — действие с документом для 1С.
@@ -190,16 +195,18 @@ var (
 
 // User — учётная запись. Поля с тегами db — для скана строк pgx (RowToStructByName).
 type User struct {
-	ID             string    `db:"id"`              // uuid (как текст)
-	Login          string    `db:"login"`           // первые 8 цифр бейджа (пусто у входа по паролю)
-	Username       string    `db:"username"`        // логин для входа по паролю (пусто у работника по бейджу)
-	PasswordHash   string    `db:"password_hash"`   // argon2-хеш секрета/пароля
-	FullName       string    `db:"full_name"`       // ФИО → «исполнитель» в отчётах
-	PositionID     string    `db:"position_id"`     // должность (ADHOC-49)
-	PositionName   string    `db:"position_name"`   //
-	PositionSystem bool      `db:"position_system"` // «Администратор» — все права
-	PositionRights []string  `db:"position_rights"` // права должности, как записаны
-	IsActive       bool      `db:"is_active"`       // блокировка/«удаление» = false
+	ID             string   `db:"id"`              // uuid (как текст)
+	Login          string   `db:"login"`           // первые 8 цифр бейджа (пусто у входа по паролю)
+	Username       string   `db:"username"`        // логин для входа по паролю (пусто у работника по бейджу)
+	PasswordHash   string   `db:"password_hash"`   // argon2-хеш секрета/пароля
+	FullName       string   `db:"full_name"`       // ФИО → «исполнитель» в отчётах
+	PositionID     string   `db:"position_id"`     // должность (ADHOC-49)
+	PositionName   string   `db:"position_name"`   //
+	PositionSystem bool     `db:"position_system"` // «Администратор» — все права
+	PositionRights []string `db:"position_rights"` // права должности, как записаны
+	// BadgeSecretEnc — секрет бейджа для печати, зашифрован (ADHOC-65); nil — не сохранён.
+	BadgeSecretEnc []byte    `db:"badge_secret_enc"`
+	IsActive       bool      `db:"is_active"` // блокировка/«удаление» = false
 	CreatedAt      time.Time `db:"created_at"`
 	UpdatedAt      time.Time `db:"updated_at"`
 }

@@ -53,6 +53,13 @@ abstract final class Rights {
   static const tsdProblemsMark = 'tsd.problems.mark';
   static const tsdPicking = 'tsd.picking'; // P8-02: собирать и отгружать
   static const tsdPickingReprint = 'tsd.picking.reprint';
+  // ADHOC-65: «Бейджи» - три уровня, действует самый широкий из отмеченных.
+  static const tsdBadgesOwn = 'tsd.badges.own';
+  static const tsdBadgesStaff = 'tsd.badges.staff';
+  static const tsdBadgesAll = 'tsd.badges.all';
+
+  /// Любое из прав «Бейджи» - пункт меню виден.
+  static const tsdBadges = [tsdBadgesOwn, tsdBadgesStaff, tsdBadgesAll];
 }
 
 /// Узел дерева прав: группа ([children]) или действие ([code]).
@@ -207,6 +214,14 @@ List<RightNode> rightsTree() {
           children: [
             RightNode(r.tsdPickingWork, code: Rights.tsdPicking),
             RightNode(r.tsdPickingReprint, code: Rights.tsdPickingReprint),
+          ],
+        ),
+        RightNode(
+          r.tsdBadges,
+          children: [
+            RightNode(r.tsdBadgesOwn, code: Rights.tsdBadgesOwn),
+            RightNode(r.tsdBadgesStaff, code: Rights.tsdBadgesStaff),
+            RightNode(r.tsdBadgesAll, code: Rights.tsdBadgesAll),
           ],
         ),
       ],

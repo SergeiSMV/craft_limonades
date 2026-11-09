@@ -19,11 +19,15 @@ class AppConfig {
     return '${value.replaceAll(RegExp(r'/+$'), '')}/';
   }
 
+  /// Политика конфиденциальности (ADHOC-66): страница `privacy.html` веб-портала.
+  /// Портал живёт на том же origin, что и API (ADR-0015), поэтому адрес выводится из [baseUrl],
+  /// а не задаётся отдельно: боевая сборка откроет страницу прода, сборка стенда — стенда.
+  static String get privacyPolicyUrl =>
+      Uri.parse(baseUrl).resolve('/privacy.html').toString();
+
   /// Название склада для шапки ТСД. На пилоте склад один («Шабулина») — берём из dart-define
   /// (`WAREHOUSE_NAME` в `.env`), с дефолтом. ⚠ Плейсхолдер: при мультискладе/привязке устройства
   /// склад должен приходить из профиля/конфига устройства, а не из константы клиента.
-  static String get warehouseName => const String.fromEnvironment(
-        'WAREHOUSE_NAME',
-        defaultValue: 'Шабулина',
-      );
+  static String get warehouseName =>
+      const String.fromEnvironment('WAREHOUSE_NAME', defaultValue: 'Шабулина');
 }

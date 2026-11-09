@@ -5,6 +5,7 @@ import 'package:injectable/injectable.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:talker_flutter/talker_flutter.dart';
 
+import 'badge_label.dart';
 import 'label_geometry.dart';
 import 'label_language.dart';
 import 'good_label.dart';
@@ -163,6 +164,10 @@ class PrinterService {
   /// Напечатать ярлык короба отгрузки заказа сборки (P9-07). Сколько раз его печатают, решает
   /// сервер (повтор - по праву), сюда приходит уже разрешённая печать.
   Future<void> printPickingBoxLabel(PickingBoxLabel label) async =>
+      printRaw(label.tspl(await geometry()));
+
+  /// Напечатать бейдж сотрудника (ADHOC-65): ФИО, должность и ШК входа.
+  Future<void> printBadgeLabel(BadgeLabel label) async =>
       printRaw(label.tspl(await geometry()));
 
   /// Напечатать товарный ярлык: штрихкод и наименование (P4-08).
