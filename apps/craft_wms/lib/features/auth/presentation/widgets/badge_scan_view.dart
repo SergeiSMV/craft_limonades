@@ -10,6 +10,7 @@ import '../../../../core/gen/assets.gen.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/theme/semibold_text.dart';
+import 'privacy_policy_link.dart';
 
 /// Длина бейджа: сервер режет 16 цифр на `login` (первые 8) и `secret` (последние 8).
 const int badgeLength = 16;
@@ -149,6 +150,8 @@ class BadgeScanView extends StatelessWidget {
                         ),
                       ),
                     ),
+                    // Требование RuStore: политика доступна внутри приложения (ADHOC-66).
+                    const PrivacyPolicyLink(),
                   ],
                 ),
               ),

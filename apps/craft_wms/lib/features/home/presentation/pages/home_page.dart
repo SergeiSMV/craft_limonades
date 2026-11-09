@@ -32,7 +32,7 @@ import '../../../sync/presentation/widgets/sync_status_chip.dart';
 import '../widgets/sync_indicator.dart';
 
 /// Главное меню ТСД (P1-07): шапка (сотрудник · склад) + сетка плиток операций.
-/// Рабочая плитка — «Остатки»; остальные — заглушки (тап показывает уведомление).
+/// Плитки — по правам должности; заглушек нет (плитка «История» убрана, ADHOC-65).
 @RoutePage()
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -99,6 +99,10 @@ class HomePage extends StatelessWidget {
   void goToNomenclature(BuildContext context) =>
       context.router.push(const NomenclatureRoute());
 
+  /// Открыть «Бейджи» (ADHOC-65): печать бейджей сотрудников.
+  void goToBadges(BuildContext context) =>
+      context.router.push(const BadgesRoute());
+
   /// Открыть приёмку (P4-09).
   void openReceipt(BuildContext context) =>
       context.router.push(const ReceiptRoute());
@@ -122,13 +126,6 @@ class HomePage extends StatelessWidget {
   /// Открыть раздел «Ввод остатков» (проход склада, P-FastStart).
   void openStockEntry(BuildContext context) =>
       context.router.push(const StockEntryRoute());
-
-  /// Заглушка: раздел ещё не реализован — показываем уведомление.
-  void showStub(BuildContext context) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(t.homeScreen.stubSnack)));
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -202,6 +199,17 @@ class HomePage extends StatelessWidget {
                             ),
                           ),
                         ),
+                        // «Бейджи» - по любому из трёх прав печати (ADHOC-65).
+                        if (can(Rights.tsdBadgesOwn, Rights.tsdBadges))
+                          PopupMenuItem<void>(
+                            onTap: () => goToBadges(context),
+                            child: Text(
+                              t.homeScreen.badgesMenu,
+                              style: RegularTextStyles().regularInter14.copyWith(
+                                color: AppColors.kTileText,
+                              ),
+                            ),
+                          ),
                         PopupMenuItem<void>(
                           onTap: () => goToLogs(context),
                           child: Text(
@@ -272,7 +280,7 @@ class HomePage extends StatelessWidget {
                 if (profile != null && !profile.can(Rights.tsd))
                   const Expanded(child: _NoTsdAccess())
                 else
-                // Сетка операций 2×N. Рабочая — «Остатки», прочие — заглушки.
+                // Сетка операций 2×N.
                 Expanded(
                   child: GridView.count(
                     crossAxisCount: 2,
@@ -362,14 +370,6 @@ class HomePage extends StatelessWidget {
                         imageIcon: Assets.icons.menuIcons.check,
                         color: AppColors.kTileProblems,
                         onTap: () => openProblems(context),
-                      ),
-                      MenuTile(
-                        title: t.homeScreen.tiles.historyTitle,
-                        subtitle: t.homeScreen.tiles.historySubtitle,
-                        imageIcon: Assets.icons.menuIcons.history,
-                        color: AppColors.kTileHistory,
-                        enabled: false,
-                        onTap: () => showStub(context),
                       ),
                     ],
                   ),
