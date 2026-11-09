@@ -72,6 +72,24 @@ class AuthRepository {
     }
   }
 
+  /// Вход на демо-сервере (ADHOC-67): `/auth/demo` без учётных данных → токены демо-
+  /// пользователя → `/auth/me`. На рабочем сервере ручки нет — ответ 404, вход не проходит.
+  Future<Either<Failure, Profile>> loginDemo() async {
+    try {
+      final resp = await _dio.post<Map<String, dynamic>>(ApiConst.loginDemo);
+      final data = resp.data!;
+      await _storage.save(
+        access: data['access'] as String,
+        refresh: data['refresh'] as String,
+      );
+      return me();
+    } on DioException catch (e) {
+      return Left(_mapError(e));
+    } catch (_) {
+      return const Left(Failure.unknown());
+    }
+  }
+
   /// Профиль текущего пользователя (защищённый `/auth/me`; access подставит интерсептор).
   /// Успешный ответ попутно сохраняем: он понадобится для входа без сети.
   /// Отметку контакта пишем здесь явно, а не полагаемся на интерсептор: тот пишет не чаще

@@ -657,6 +657,10 @@ show_menu() {
   item 18 "Настроить подписант" "ключ, пароль, служба — пошагово"
   item 19 "Проверить ЧЗ" "подпись → токен → чтение марки"
 
+  section "Демо-сервер"
+  item 20 "Настроить демо" "выдуманный склад на своём домене, тот же образ"
+  item 21 "Сбросить демо сейчас" "данные демо к исходным"
+
   printf '\n'
   item 0 "Выйти"
   rule
@@ -692,6 +696,8 @@ main() {
       17) need_root "$DEPLOY_DIR/monitoring-setup.sh" --test; pause ;;
       18) need_root "$DEPLOY_DIR/cz-setup.sh"; pause ;;
       19) need_root "$DEPLOY_DIR/cz-setup.sh" --test; pause ;;
+      20) need_root "$DEPLOY_DIR/demo-setup.sh"; pause ;;
+      21) need_root "$DEPLOY_DIR/demo-setup.sh" --reset; pause ;;
       0|q|Q) printf 'Пока.\n'; exit 0 ;;
       "") ;;
       *)  printf '  %sНет такого пункта: %s%s\n' "$C_BAD" "$choice" "$C_OFF"; pause ;;

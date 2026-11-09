@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/auth/auth_cubit.dart';
+import '../../../../core/config/app_config.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/gen/strings.g.dart';
@@ -13,6 +14,7 @@ import '../../../../core/scanner/scanner_service.dart';
 import '../../../../core/widgets/system_ui_wrapper.dart';
 import '../../../splash/presentation/pages/splash_page.dart';
 import '../widgets/badge_scan_view.dart';
+import '../widgets/demo_login_view.dart';
 import '../widgets/password_login_view.dart';
 
 /// Экран входа в двух режимах (P2-01).
@@ -114,6 +116,7 @@ class _LoginPageState extends State<LoginPage> with HardwareScanListener {
 
   /// Текст ошибки под её тип и режим входа (что показать пользователю).
   String _messageFor(Failure failure) => switch (failure) {
+    _ when AppConfig.isDemo => t.loginScreen.errorDemo,
     AuthFailure() =>
       _passwordMode ? t.loginScreen.errorCredentials : t.loginScreen.errorAuth,
     NetworkFailure() => t.loginScreen.errorNetwork,
@@ -129,7 +132,7 @@ class _LoginPageState extends State<LoginPage> with HardwareScanListener {
   /// Кладём его в то же поле и идём общим путём — чтобы вход не зависел от источника кода.
   @override
   void onHardwareScan(ScanCode code) {
-    if (_passwordMode) return;
+    if (_passwordMode || AppConfig.isDemo) return;
     _badgeController.text = code.raw.trim();
     submit(context);
   }
@@ -159,6 +162,9 @@ class _LoginPageState extends State<LoginPage> with HardwareScanListener {
     context.read<AuthCubit>().loginWithPassword(username, password);
   }
 
+  /// Вход под демо-пользователем демо-сервера (ADHOC-67).
+  void submitDemo() => context.read<AuthCubit>().loginDemo();
+
   /// Показать сообщение об ошибке входа.
   void _snack(BuildContext context, String text) {
     ScaffoldMessenger.of(context)
@@ -177,6 +183,8 @@ class _LoginPageState extends State<LoginPage> with HardwareScanListener {
             // Пока идёт вход — крупный индикатор без формы (проверку сессии при старте
             // держит splash-экран, сюда состояние unknown уже не приходит).
             if (state is AuthAuthenticating) return const SplashPage();
+            // Демо-режим (ADHOC-67): вместо бейджа и пароля — вход одной кнопкой.
+            if (AppConfig.isDemo) return DemoLoginView(onSignIn: submitDemo);
             if (_passwordMode) {
               return PasswordLoginView(
                 usernameController: _usernameController,

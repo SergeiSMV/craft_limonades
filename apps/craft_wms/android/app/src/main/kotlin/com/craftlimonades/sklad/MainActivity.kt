@@ -17,5 +17,6 @@ class MainActivity : FlutterActivity() {
         super.configureFlutterEngine(flutterEngine)
         ScannerBridge.register(flutterEngine.dartExecutor.binaryMessenger, applicationContext)
         PrinterBridge.register(flutterEngine.dartExecutor.binaryMessenger, applicationContext)
+        AppBridge.register(flutterEngine.dartExecutor.binaryMessenger, applicationContext)
     }
 }
