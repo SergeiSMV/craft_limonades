@@ -28,11 +28,22 @@ type userAdminRepo interface {
 // в той же транзакции, что и правку.
 type UserAdminService struct {
 	repo userAdminRepo
+	// badges — шифр номеров бейджей для печати (ADHOC-65); nil — номер не сохраняется.
+	badges *auth.BadgeCipher
 }
 
-// NewUserAdminService создаёт сервис пользователей и должностей.
-func NewUserAdminService(repo userAdminRepo) *UserAdminService {
-	return &UserAdminService{repo: repo}
+// NewUserAdminService создаёт сервис пользователей и должностей; badges — шифр номеров
+// бейджей для печати на ТСД (nil — выданный номер не запоминается).
+func NewUserAdminService(repo userAdminRepo, badges *auth.BadgeCipher) *UserAdminService {
+	return &UserAdminService{repo: repo, badges: badges}
+}
+
+// sealBadge — зашифрованный секрет выданного бейджа для печати; без ключа — nil.
+func (s *UserAdminService) sealBadge(badge string) ([]byte, error) {
+	if s.badges == nil {
+		return nil, nil
+	}
+	return s.badges.Seal(badge[:8], badge[8:])
 }
 
 // Ограничения ввода: название должности — как в схеме, пароль — не короче 8 символов.
@@ -105,6 +116,9 @@ func (s *UserAdminService) CreateUser(ctx context.Context, in model.UserCreateIn
 			return "", err
 		}
 		u.Login, u.PasswordHash = in.Badge[:8], hash
+		if u.BadgeSecretEnc, err = s.sealBadge(in.Badge); err != nil {
+			return "", err
+		}
 	case in.Badge == "" && validUsername(username) && validPassword(in.Password):
 		hash, err := auth.HashPassword(in.Password)
 		if err != nil {
@@ -156,6 +170,10 @@ func (s *UserAdminService) UpdateUser(ctx context.Context, in model.UserUpdateIn
 			}
 			login := (*in.Badge)[:8]
 			c.Login, c.PasswordHash = &login, &hash
+			// Новый бейдж заменяет и сохранённый номер: без ключа — пусто, а не прежний.
+			if c.BadgeSecretEnc, err = s.sealBadge(*in.Badge); err != nil {
+				return err
+			}
 		case in.Password != nil && in.Badge == nil && !badgeUser:
 			if !validPassword(*in.Password) {
 				return model.ErrInvalidUser

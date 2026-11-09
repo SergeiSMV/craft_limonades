@@ -192,6 +192,12 @@ abstract final class ApiConst {
   /// Карточка заказа на ТСД (ADHOC-62): план/факт, короба, журнал - только чтение.
   static String pickingCard(String id) => 'picking/orders/$id/card';
 
+  ///**GET** - сотрудники, чьи бейджи пользователь вправе печатать (ADHOC-65).
+  static const String badges = 'badges';
+
+  ///**GET** - номер бейджа сотрудника к печати (ADHOC-65); раскрытие - в журнале сервера.
+  static String badge(String userId) => 'badges/$userId';
+
   ///**GET** - заказы «Сборка-отгрузка» на дату накладной для портала (P8-03): `?date=`.
   static const String pickingPortalOrders = 'picking/portal/orders';
 

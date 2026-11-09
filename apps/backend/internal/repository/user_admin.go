@@ -135,6 +135,7 @@ type NewUser struct {
 	FullName, PositionID string
 	Login, Username      string // ровно одно не пусто
 	PasswordHash         string
+	BadgeSecretEnc       []byte // зашифрованный секрет бейджа для печати (ADHOC-65); nil — нет
 	By                   string
 }
 
@@ -146,9 +147,10 @@ func (r *UserAdminRepository) CreateUser(ctx context.Context, u NewUser) (string
 			return err
 		}
 		if err := q.QueryRow(ctx, `
-			INSERT INTO users (login, username, password_hash, full_name, position_id)
-			VALUES (NULLIF($1, ''), NULLIF($2, ''), $3, $4, $5::uuid)
-			RETURNING id::text`, u.Login, u.Username, u.PasswordHash, u.FullName, u.PositionID).Scan(&id); err != nil {
+			INSERT INTO users (login, username, password_hash, full_name, position_id, badge_secret_enc)
+			VALUES (NULLIF($1, ''), NULLIF($2, ''), $3, $4, $5::uuid, $6)
+			RETURNING id::text`, u.Login, u.Username, u.PasswordHash, u.FullName, u.PositionID,
+			u.BadgeSecretEnc).Scan(&id); err != nil {
 			return userError(err)
 		}
 		return audit(ctx, q, u.By, "user.create", "user", id, map[string]any{
@@ -167,7 +169,10 @@ type UserChange struct {
 	IsActive     *bool
 	Login        *string
 	PasswordHash *string
-	By           string
+	// BadgeSecretEnc — номер нового бейджа для печати (ADHOC-65); пишется вместе с Login,
+	// nil при новом бейдже стирает прежний номер.
+	BadgeSecretEnc []byte
+	By             string
 }
 
 // UpdateUser правит пользователя. Правка, после которой ни у одного активного пользователя не
@@ -192,8 +197,10 @@ func (r *UserAdminRepository) UpdateUser(ctx context.Context, c UserChange) erro
 			    position_id   = COALESCE($3::uuid, position_id),
 			    is_active     = COALESCE($4, is_active),
 			    login         = COALESCE($5, login),
-			    password_hash = COALESCE($6, password_hash)
-			WHERE id = $1::uuid`, c.ID, c.FullName, c.PositionID, c.IsActive, c.Login, c.PasswordHash); err != nil {
+			    password_hash = COALESCE($6, password_hash),
+			    badge_secret_enc = CASE WHEN $5::text IS NULL THEN badge_secret_enc ELSE $7 END
+			WHERE id = $1::uuid`, c.ID, c.FullName, c.PositionID, c.IsActive, c.Login, c.PasswordHash,
+			c.BadgeSecretEnc); err != nil {
 			return userError(err)
 		}
 		if err := checkAdminsLeft(ctx, q); err != nil {

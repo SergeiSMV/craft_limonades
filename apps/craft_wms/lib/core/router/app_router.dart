@@ -22,6 +22,7 @@ import '../../features/picking/presentation/pages/picking_order_page.dart';
 import '../../features/picking/domain/picking_shipment.dart';
 import '../../features/picking/presentation/pages/picking_shipment_page.dart';
 import '../../features/picking/presentation/pages/picking_return_page.dart';
+import '../../features/badges/presentation/pages/badges_page.dart';
 import '../../features/putaway/presentation/pages/putaway_page.dart';
 import '../../features/supplier_return/presentation/pages/supplier_return_page.dart';
 import '../../features/receipt/presentation/bloc/receipt_cubit.dart'; // ReceiptCubit — аргумент ReceiptBoxRoute
@@ -98,6 +99,8 @@ class AppRouter extends RootStackRouter {
     AutoRoute(page: PickingShipmentRoute.page, guards: [_authGuard]),
     AutoRoute(page: PickingCardRoute.page, guards: [_authGuard]),
     AutoRoute(page: PickingReturnRoute.page, guards: [_authGuard]),
+    // Печать бейджей сотрудников (ADHOC-65): пункт меню «три точки».
+    AutoRoute(page: BadgesRoute.page, guards: [_authGuard]),
     // Содержимое ячейки и короба по скану (P5-05).
     AutoRoute(page: CellContentsRoute.page, guards: [_authGuard]),
     AutoRoute(page: LoadUnitRoute.page, guards: [_authGuard]),

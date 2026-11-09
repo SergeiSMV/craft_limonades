@@ -4,6 +4,7 @@ package service
 import (
 	"context"
 	"errors"
+	"log/slog"
 
 	"craftwms/internal/auth"
 	"craftwms/internal/model"
@@ -21,17 +22,21 @@ type userRepo interface {
 	GetByLogin(ctx context.Context, login string) (model.User, error)
 	GetByUsername(ctx context.Context, username string) (model.User, error)
 	GetByID(ctx context.Context, id string) (model.User, error)
+	SaveBadgeSecret(ctx context.Context, id, login string, sealed []byte) error
 }
 
 // AuthService — аутентификация по бейджу и выдача/обновление токенов.
 type AuthService struct {
 	users  userRepo
 	tokens *auth.TokenManager
+	// badges — шифр номеров бейджей для печати (ADHOC-65); nil — номера не сохраняются.
+	badges *auth.BadgeCipher
 }
 
-// NewAuthService собирает сервис из репозитория пользователей и менеджера токенов.
-func NewAuthService(users userRepo, tokens *auth.TokenManager) *AuthService {
-	return &AuthService{users: users, tokens: tokens}
+// NewAuthService собирает сервис из репозитория пользователей, менеджера токенов и шифра
+// номеров бейджей (nil — номера для печати не запоминаются).
+func NewAuthService(users userRepo, tokens *auth.TokenManager, badges *auth.BadgeCipher) *AuthService {
+	return &AuthService{users: users, tokens: tokens, badges: badges}
 }
 
 // TokenPair — пара токенов, выдаётся при успешном входе.
@@ -59,7 +64,29 @@ func (s *AuthService) Login(ctx context.Context, badge string) (TokenPair, error
 	if err != nil || !ok {
 		return TokenPair{}, ErrInvalidCredentials
 	}
+	s.rememberBadge(ctx, user, secret)
 	return s.issuePair(user)
+}
+
+// rememberBadge запоминает номер бейджа для печати (ADHOC-65), если сохранённого нет или он
+// другой (выдан раньше, сменился ключ, база — снимок прода на стенде). Вход от неудачи не
+// зависит: печать — удобство, а не условие работы.
+func (s *AuthService) rememberBadge(ctx context.Context, user model.User, secret string) {
+	if s.badges == nil {
+		return
+	}
+	if user.BadgeSecretEnc != nil {
+		if stored, err := s.badges.Open(user.Login, user.BadgeSecretEnc); err == nil && stored == secret {
+			return
+		}
+	}
+	sealed, err := s.badges.Seal(user.Login, secret)
+	if err == nil {
+		err = s.users.SaveBadgeSecret(ctx, user.ID, user.Login, sealed)
+	}
+	if err != nil {
+		slog.WarnContext(ctx, "badge number not saved", "user_id", user.ID, "error", err)
+	}
 }
 
 // LoginWithPassword: вход admin/менеджера по username+паролю (смартфон/web, не бейдж) — P1-01-1.
