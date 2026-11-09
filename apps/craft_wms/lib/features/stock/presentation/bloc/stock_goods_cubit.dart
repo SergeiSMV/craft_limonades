@@ -83,7 +83,7 @@ class StockGoodsCubit extends GoodsListCubit {
 
   /// Карточка обновила снимок — перечитать его, не обращаясь к серверу.
   @override
-  Future<void> returnedFromCard() => _read();
+  Future<void> returnedFromCard(String goodId) => _read();
 
   /// Перечитать остатки из снимка, не обращаясь к серверу.
   Future<void> _read() async {

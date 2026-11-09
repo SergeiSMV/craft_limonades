@@ -32,14 +32,14 @@ class GoodsResult extends StatelessWidget {
   /// связи его ошибка подменила бы список, и кладовщик вернулся бы на экран ошибки,
   /// хотя поиск не трогал.
   ///
-  /// По возврату список перечитывается ([GoodsListCubit.returnedFromCard]): карточка обновила
-  /// снимок, и количество в строке не должно расходиться с увиденным в карточке.
+  /// По возврату список обновляется ([GoodsListCubit.returnedFromCard]): карточка обновила
+  /// снимок и могла поправить товар, и строка не должна расходиться с увиденным в карточке.
   void openDetail(BuildContext context, Good good) {
     final cubit = context.read<GoodsListCubit>()..cancelPendingSearch();
     dismissKeyboard();
     context.router
         .push(StockDetailRoute(good: good))
-        .then((_) => cubit.returnedFromCard());
+        .then((_) => cubit.returnedFromCard(good.id));
   }
 
   /// Повторить загрузку товаров (после ошибки или «потянуть вниз»). Вызывается из колбэка,

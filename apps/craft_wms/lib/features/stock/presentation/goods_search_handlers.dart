@@ -259,7 +259,7 @@ mixin GoodsSearchHandlers<T extends StatefulWidget> on State<T> {
     // По возврату «Остатки» перечитывают снимок, обновлённый карточкой (ADHOC-33).
     context.router
         .push(StockDetailRoute(good: good, czMark: czMark))
-        .then((_) => cubit.returnedFromCard());
+        .then((_) => cubit.returnedFromCard(good.id));
   }
 
   /// Очистить строку поиска и сразу сбросить запрос. Отложенный дебаунс гасим: иначе
