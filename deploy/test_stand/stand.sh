@@ -272,7 +272,7 @@ cmd_refresh() {
 # портал и API на одном origin, без CORS.
 cmd_portal() {
   log "Собираю портал…"
-  (cd "$APP_DIR" && flutter build web --release -t lib/main_portal.dart --dart-define=BASE_URL=/api/v1/)
+  (cd "$APP_DIR" && flutter build web --release -t lib/main_portal.dart --dart-define=BASE_URL=/api/v1/ --no-wasm-dry-run)
   log "Портал собран: http://localhost:$STAND_HTTP_PORT (nginx отдаёт бандл без перезапуска)."
 }
 
