@@ -39,6 +39,11 @@ type Config struct {
 	// BadgeKey — ключ шифрования номеров бейджей для печати на ТСД (env BADGE_KEY, ADHOC-65):
 	// 64 шестнадцатеричных знака. Пусто — номера не сохраняются и печать бейджей недоступна.
 	BadgeKey string
+
+	// Демо-режим (ADHOC-67): тот же бинарь на отдельной базе с выдуманными данными. Включается
+	// только вместе с базой, имя которой оканчивается на `_demo` (проверяет сервис при старте).
+	DemoMode    bool   // env DEMO_MODE=true
+	DemoResetAt string // время ночного сброса по Москве «ЧЧ:ММ» (env DEMO_RESET_AT), дефолт 03:00
 }
 
 // Load читает конфиг из окружения, подставляя безопасные значения по умолчанию.
@@ -64,6 +69,9 @@ func Load() Config {
 		CZOwnerINN:      strings.TrimSpace(getEnv("CZ_OWNER_INN", "")),
 
 		BadgeKey: strings.TrimSpace(getEnv("BADGE_KEY", "")),
+
+		DemoMode:    strings.EqualFold(strings.TrimSpace(getEnv("DEMO_MODE", "")), "true"),
+		DemoResetAt: strings.TrimSpace(getEnv("DEMO_RESET_AT", "03:00")),
 	}
 }
 

@@ -9,6 +9,7 @@ import '../../../../core/gen/assets.gen.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/theme/semibold_text.dart';
+import 'demo_mode_link.dart';
 import 'privacy_policy_link.dart';
 
 /// Вход по логину и паролю — форма для устройства без аппаратного сканера (смартфон админа).
@@ -116,6 +117,8 @@ class PasswordLoginView extends StatelessWidget {
                         ),
                       ),
                     ],
+                    // Демо-сервер для показа и модерации RuStore (ADHOC-67).
+                    const DemoModeLink(),
                     // Требование RuStore: политика доступна внутри приложения (ADHOC-66).
                     const PrivacyPolicyLink(),
                   ],

@@ -85,6 +85,17 @@ class AuthCubit extends Cubit<AuthState> {
     );
   }
 
+  /// Вход в демо (ADHOC-67): без учётных данных, под демо-пользователем демо-сервера.
+  Future<void> loginDemo() async {
+    if (state is AuthAuthenticating) return;
+    emit(const AuthState.authenticating());
+    final result = await _repo.loginDemo();
+    result.fold(
+      (failure) => emit(AuthState.unauthenticated(failure)),
+      (profile) => emit(AuthState.authenticated(profile)),
+    );
+  }
+
   /// Выход.
   Future<void> logout() async {
     await _repo.logout();

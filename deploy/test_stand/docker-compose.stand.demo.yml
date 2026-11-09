@@ -1,0 +1,62 @@
+# Демо-сервер на тестовом стенде (ADHOC-67): бэкенд ТЕКУЩЕЙ ветки в демо-режиме на своей
+# пустой базе — проверка демо-режима до выкатки. Управляется stand.sh demo-up | demo-reset |
+# demo-down; руками compose не вызывать.
+#
+# Отдельный compose-проект `craft-stand-demo`: своя сеть и свой том, к базе стенда (снимок
+# прода) демо не дотягивается. Портал — тот же бандл, что у стенда (stand.sh portal): о том,
+# что он на демо, портал узнаёт у сервера.
+
+name: craft-stand-demo
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: demo
+      POSTGRES_PASSWORD: demo            # локальная база демо стенда, наружу не публикуется
+      POSTGRES_DB: craft_wms_demo        # окончание «_demo» обязательно: иначе режим не включится
+    volumes:
+      - demo_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U demo -d craft_wms_demo"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build:
+      context: ../../apps/backend
+      dockerfile: Dockerfile
+    environment:
+      APP_PORT: 8080
+      LOG_LEVEL: ${STAND_LOG_LEVEL:-debug}
+      DATABASE_URL: postgres://demo:demo@db:5432/craft_wms_demo?sslmode=disable
+      JWT_SECRET: ${STAND_JWT_SECRET:?STAND_JWT_SECRET не задан — запускайте через stand.sh}
+      BADGE_KEY: ${STAND_BADGE_KEY:-}
+      DEMO_MODE: "true"
+      DEMO_RESET_AT: ${STAND_DEMO_RESET_AT:-03:00}
+    depends_on:
+      db:
+        condition: service_healthy
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/ready"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      # Все интерфейсы: демо стенда должно быть видно ТСД в локальной сети.
+      - "${STAND_DEMO_PORT:-8091}:80"
+    volumes:
+      - ./nginx.stand.conf:/etc/nginx/conf.d/default.conf:ro
+      - ../../apps/craft_wms/build/web:/usr/share/nginx/html:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  demo_db_data:

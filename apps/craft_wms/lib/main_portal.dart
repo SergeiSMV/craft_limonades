@@ -4,8 +4,10 @@ import 'package:talker_bloc_logger/talker_bloc_logger.dart';
 import 'package:talker_flutter/talker_flutter.dart';
 
 import 'core/auth/auth_cubit.dart';
+import 'core/config/app_config.dart';
 import 'core/di/injection.dart';
 import 'core/monitoring/error_reporting.dart';
+import 'portal/domain/demo/demo_repository.dart';
 import 'portal/portal_app.dart';
 
 /// Точка входа ВЕБ-ПОРТАЛА (Flutter Web). Отдельный entry от ТСД-приложения (main.dart),
@@ -13,11 +15,16 @@ import 'portal/portal_app.dart';
 /// Ошибки портала уходят в Bugsink через тот же бэкенд (ADHOC-47).
 Future<void> main() => ErrorReporting.run(ReportingApp.portal, _start);
 
-void _start() {
+Future<void> _start() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // 1. Граф зависимостей (тот же get_it + injectable, что у ТСД).
   configureDependencies();
+
+  // 1a. Демо-сервер (ADHOC-67): тот же бандл портала раздаётся и по демо-адресу, поэтому режим
+  //     узнаём у сервера, а не из сборки. До восстановления сессии: от режима зависят ключи
+  //     хранилища сессии.
+  if (await getIt<DemoRepository>().isDemoServer()) AppConfig.mode = AppMode.demo;
 
   // 2. Логи переходов bloc/cubit — в единый Talker.
   Bloc.observer = TalkerBlocObserver(talker: getIt<Talker>());

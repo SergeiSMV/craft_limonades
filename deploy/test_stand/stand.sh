@@ -19,6 +19,7 @@ STAND_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$STAND_DIR/../.." && pwd)"
 COMPOSE_FILE="$STAND_DIR/docker-compose.stand.yml"
 CZ_COMPOSE_FILE="$STAND_DIR/docker-compose.stand.cz.yml"
+DEMO_COMPOSE_FILE="$STAND_DIR/docker-compose.stand.demo.yml"
 CZ_DIR="$STAND_DIR/cz"
 ENV_FILE="$STAND_DIR/stand.env"
 SNAP_DIR="$STAND_DIR/snapshots"
@@ -57,7 +58,7 @@ load_env() {
     set_stand_env STAND_BADGE_KEY "$(openssl rand -hex 32)"
     log "Сгенерирован ключ номеров бейджей стенда."
   fi
-  : "${STAND_HTTP_PORT:=8090}" "${STAND_DB_PORT:=5433}" "${STAND_KEEP_SNAPSHOTS:=5}"
+  : "${STAND_HTTP_PORT:=8090}" "${STAND_DB_PORT:=5433}" "${STAND_KEEP_SNAPSHOTS:=5}" "${STAND_DEMO_PORT:=8091}"
   : "${STAND_PROD_PROJECT:=craft-wms}"
   # Честный знак (ADHOC-54): по умолчанию выключен; туннель — тем же сервером, что снимок.
   : "${STAND_CZ:=off}"
@@ -282,9 +283,10 @@ cmd_apk() {
   local ip
   ip="$(lan_ip)"
   [[ -n "$ip" ]] || die "не удалось определить адрес этой машины в LAN."
-  log "Собираю APK против стенда: http://$ip:$STAND_HTTP_PORT/api/v1/"
+  log "Собираю APK против стенда: http://$ip:$STAND_HTTP_PORT/api/v1/ (демо — :$STAND_DEMO_PORT)"
   (cd "$APP_DIR" && flutter build apk --release -t lib/main.dart \
-    --dart-define=BASE_URL="http://$ip:$STAND_HTTP_PORT/api/v1/" --dart-define=STAND=true)
+    --dart-define=BASE_URL="http://$ip:$STAND_HTTP_PORT/api/v1/" --dart-define=STAND=true \
+    --dart-define=DEMO_BASE_URL="http://$ip:$STAND_DEMO_PORT/api/v1/")
   log "APK: $APP_DIR/build/app/outputs/flutter-apk/app-release.apk"
   log "Приложение «КЛ: Склад · СТЕНД» ставится рядом с боевым, боевое не трогает."
 }
@@ -406,6 +408,45 @@ cmd_cz_test() {
   log "✅ Марка прочитана через True API со стенда."
 }
 
+# ───────────── Демо-сервер на стенде (ADHOC-67) ─────────────
+#
+# Бэкенд текущей ветки в демо-режиме на своей пустой базе, свой порт (STAND_DEMO_PORT, 8091).
+# Портал — бандл стенда (stand.sh portal), ТСД — кнопка «Демо-режим» в APK стенда.
+
+# demo_compose ... — docker compose демо стенда.
+demo_compose() { docker compose -f "$DEMO_COMPOSE_FILE" "$@"; }
+
+# demo-up — собрать бэкенд ветки и поднять демо; пустую базу бэкенд заполняет сам.
+cmd_demo_up() {
+  [[ -f "$APP_DIR/build/web/index.html" ]] || warn "бандл портала не собран — на корне 404. Собрать: stand.sh portal"
+  demo_compose up -d --build --wait || die "демо не поднялось: stand.sh demo-logs backend"
+  local ip; ip="$(lan_ip)"
+  log "Демо-портал:  http://localhost:$STAND_DEMO_PORT"
+  [[ -n "$ip" ]] && log "Демо для ТСД: http://$ip:$STAND_DEMO_PORT/api/v1/"
+  curl -fsS "http://localhost:$STAND_DEMO_PORT/api/v1/demo" && printf '\n'
+}
+
+# demo-reset — вернуть демо-данные к исходным, как ночной сброс: схема стирается, бэкенд
+# после перезапуска заполняет пустую базу.
+cmd_demo_reset() {
+  demo_compose exec -T db psql -v ON_ERROR_STOP=1 -U demo -d craft_wms_demo \
+    -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;' >/dev/null
+  demo_compose run --rm --entrypoint /usr/local/bin/migrate backend up
+  demo_compose restart backend
+  log "Демо стирается и заполняется заново (stand.sh demo-logs backend)."
+}
+
+# demo-down [--volumes] — остановить демо; с --volumes — и удалить его базу.
+cmd_demo_down() {
+  if [[ "${1:-}" == "--volumes" ]]; then
+    demo_compose down -v --remove-orphans --rmi local
+    log "Демо стенда удалено вместе с базой и образом."
+  else
+    demo_compose down
+    log "Демо стенда остановлено (stand.sh demo-up — продолжить)."
+  fi
+}
+
 # down — остановить стенд, база сохраняется.
 cmd_down() {
   compose down
@@ -501,7 +542,14 @@ cmd_help() {
   cz-setup       один раз: ключ туннеля, доступ на сервере (sudo), ИНН, включить и проверить
   cz-test        проверка: туннель → подписант → токен True API → чтение марки
 
-Порты — в deploy/test_stand/stand.env (по умолчанию портал 8090, база 5433).
+Демо-сервер (ADHOC-67): бэкенд ветки в демо-режиме на своей пустой базе:
+  demo-up        поднять демо (портал http://localhost:8091, ТСД — кнопка «Демо-режим» в APK стенда)
+  demo-reset     вернуть демо-данные к исходным
+  demo-logs      логи демо (backend, db, nginx)
+  demo-down [--volumes]
+                 остановить демо; --volumes — удалить и его базу
+
+Порты — в deploy/test_stand/stand.env (по умолчанию портал 8090, база 5433, демо 8091).
 EOF
 }
 
@@ -528,6 +576,10 @@ main() {
     destroy)   require_docker; cmd_destroy "$@" ;;
     cz-setup)  cmd_cz_setup ;;
     cz-test)   require_docker; cmd_cz_test ;;
+    demo-up)    require_docker; cmd_demo_up ;;
+    demo-reset) require_docker; cmd_demo_reset ;;
+    demo-logs)  require_docker; demo_compose logs -f "$@" ;;
+    demo-down)  require_docker; cmd_demo_down "$@" ;;
     *)         cmd_help; die "неизвестная команда: $cmd" ;;
   esac
 }

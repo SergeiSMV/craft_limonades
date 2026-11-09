@@ -269,8 +269,10 @@ class HomePage extends StatelessWidget {
                   ],
                 ),
                 AppBoxes.kHeight8,
+                // В демо-режиме заголовок говорит об этом прямо (ADHOC-67): операции здесь идут
+                // на демо-сервер, и спутать его с рабочим нельзя.
                 Text(
-                  t.homeScreen.title,
+                  AppConfig.isDemo ? t.homeScreen.demoTitle : t.homeScreen.title,
                   style: BoldTextStyles().boldInter20.copyWith(
                     color: AppColors.kTileText,
                   ),

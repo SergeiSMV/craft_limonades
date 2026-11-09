@@ -13,6 +13,11 @@ abstract final class ApiConst {
   ///**POST** - авторизация по логину/паролю (admin/оператор — веб-портал, смартфон)
   static const String loginByPassword = 'auth/login/password';
 
+  /// Демо-сервер (ADHOC-67): вход без пароля, состояние, сброс. На рабочем сервере — 404.
+  static const String loginDemo = 'auth/demo';
+  static const String demoStatus = 'demo';
+  static const String demoReset = 'demo/reset';
+
   ///**POST** - обновление access-токена по refresh
   static const String refreshToken = 'auth/refresh';
 

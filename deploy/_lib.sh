@@ -603,3 +603,86 @@ job_exit() {
   fi
 }
 
+
+# ── Демо-сервер (ADHOC-67) ──────────────────────────────────────────────────
+# Тот же образ бэкенда, что прод, в своём compose-проекте `craft-wms-demo` на своей базе.
+# Включён, если рядом с .env.prod лежит .env.demo (его создаёт deploy/demo-setup.sh): тогда
+# update.sh обновляет демо сразу после прода тем же образом. Секреты демо — только в .env.demo.
+
+DEMO_COMPOSE_FILE="$REPO_ROOT/infra/docker-compose.demo.yml"
+
+# demo_env_file — файл секретов демо (root 600), рядом с .env.prod.
+demo_env_file() { printf '%s/.env.demo' "$(dirname "$ENV_FILE")"; }
+
+# demo_enabled — демо настроено на этом сервере.
+demo_enabled() { [[ -f "$(demo_env_file)" ]]; }
+
+# demo_get KEY — значение из .env.demo (та же срезка комментариев, что у get_env).
+demo_get() {
+  local v
+  v="$(grep -E "^$1=" "$(demo_env_file)" 2>/dev/null | tail -1 | cut -d= -f2-)"
+  printf '%s' "$v" | sed -E 's/[[:space:]]+#.*$//; s/[[:space:]]+$//'
+}
+
+# demo_compose ... — docker compose демо: секреты из .env.demo, образ бэкенда — из .env.prod,
+# чтобы демо всегда шло на той же сборке, что прод (переменная окружения главнее env-файла).
+demo_compose() {
+  BACKEND_IMAGE="$(get_env BACKEND_IMAGE)" \
+    docker compose --env-file "$(demo_env_file)" -f "$DEMO_COMPOSE_FILE" "$@"
+}
+
+# demo_deploy — миграции демо-базы и подъём демо тем же образом (образ уже скачан update.sh).
+# Проверка /ready на loopback демо. Неудача не трогает прод: update.sh считает обновление
+# неполным, прод продолжает работать.
+demo_deploy() {
+  demo_enabled || return 0
+  [[ -n "$(get_env BACKEND_IMAGE)" ]] || { warn "BACKEND_IMAGE не задан в $ENV_FILE — демо не обновляю."; return 1; }
+  log "Демо: миграции…"
+  demo_compose run --rm --entrypoint /usr/local/bin/migrate backend up || return 1
+  log "Демо: применяю (up -d)…"
+  demo_compose up -d || return 1
+  local bind tries=0; bind="$(demo_get DEMO_BIND)"; bind="${bind:-127.0.0.1:8081}"
+  # Пустая база заполняется на старте — до минуты на слабом сервере.
+  until curl -fsS -m 5 -o /dev/null "http://$bind/ready"; do
+    tries=$((tries + 1))
+    [[ $tries -ge 30 ]] && { warn "демо не ответило на http://$bind/ready."; return 1; }
+    sleep 2
+  done
+  log "Демо работает."
+}
+
+# demo_reset_now — сброс демо командой администратора сервера: схема стирается, бэкенд
+# перезапускается и на пустой базе заполняет её заново (то же, что ночной сброс).
+demo_reset_now() {
+  demo_enabled || die "демо не настроено (нет $(demo_env_file)) — сначала deploy/demo-setup.sh."
+  log "Демо: стираю данные…"
+  demo_compose exec -T db psql -v ON_ERROR_STOP=1 -U demo -d craft_wms_demo \
+    -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;' >/dev/null
+  demo_compose run --rm --entrypoint /usr/local/bin/migrate backend up
+  demo_compose restart backend
+  log "Демо: бэкенд заполняет базу заново."
+}
+
+# setup_demo_vhost — vhost хостового nginx и сертификат для домена демо. Идемпотентна, как
+# setup_bugsink_vhost: прежний vhost — в .bak, живой сертификат не перевыпускается.
+setup_demo_vhost() {
+  local domain bind email avail
+  domain="$(demo_get DEMO_DOMAIN)"
+  [[ -n "$domain" ]] || die "DEMO_DOMAIN не задан в $(demo_env_file)."
+  bind="$(demo_get DEMO_BIND)"; bind="${bind:-127.0.0.1:8081}"
+  email="$(get_env CERTBOT_EMAIL)"
+  [[ -n "$email" ]] || die "CERTBOT_EMAIL не задан — сертификат для $domain не выпустить."
+  avail="/etc/nginx/sites-available/$domain"
+  if command -v getent >/dev/null 2>&1 && ! getent hosts "$domain" >/dev/null; then
+    warn "$domain пока не резолвится в IP — certbot не выпустит сертификат. Нужна DNS-запись."
+  fi
+  log "Генерирую vhost $avail"
+  [[ -f "$avail" ]] && cp -a "$avail" "$avail.bak-$(date +%Y%m%d-%H%M%S)"
+  DEMO_DOMAIN="$domain" DEMO_BIND="$bind" PORTAL_ROOT="$(portal_root)" \
+    envsubst '${DEMO_DOMAIN} ${DEMO_BIND} ${PORTAL_ROOT}' < "$REPO_ROOT/infra/nginx/demo.conf.template" > "$avail"
+  ln -sfn "$avail" "/etc/nginx/sites-enabled/$domain"
+  nginx -t
+  systemctl reload nginx
+  log "certbot --nginx для $domain…"
+  certbot --nginx -d "$domain" --non-interactive --agree-tos -m "$email" --redirect --keep-until-expiring
+}

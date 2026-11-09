@@ -113,6 +113,9 @@ func czErrorResponse(err error) (int, string) {
 	case errors.Is(err, model.ErrCZGoodHasMarks):
 		return http.StatusConflict, "на складе есть марки этого товара: признак «маркируемый» не снять, " +
 			"пока марки не уйдут со склада"
+	case errors.Is(err, model.ErrCZDemo):
+		return http.StatusServiceUnavailable, "в демо-режиме Честный знак недоступен: марки и коды коробов ЧЗ " +
+			"не читаются, на рабочем сервере скан марки показывает товар, партию и место на складе"
 	case errors.Is(err, model.ErrCZNotConfigured):
 		return http.StatusServiceUnavailable, "Честный знак на этом сервере не настроен"
 	case errors.Is(err, model.ErrCZSignerUnavailable):

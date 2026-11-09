@@ -1,0 +1,62 @@
+# Демо-сервер Craft WMS (ADHOC-67): тот же образ бэкенда, что прод, на своей базе с
+# выдуманным складом. Отдельный compose-проект — своя сеть, свой том, свои секреты: до боевой
+# базы, подписанта ЧЗ, Bugsink и бэкапов демо не дотягивается.
+#
+# Управляется deploy/demo-setup.sh (первая настройка) и deploy/update.sh (обновление тем же
+# образом сразу после прода). Секреты — /opt/craft-wms/.env.demo (root 600), образ бэкенда
+# (BACKEND_IMAGE) update.sh передаёт из .env.prod: демо всегда на той же сборке, что прод.
+#
+# Режим включает DEMO_MODE=true, но только на базе с именем на «_demo» — бэкенд проверяет
+# это сам. Пустую базу он заполняет при старте, дальше — ночной сброс в DEMO_RESET_AT (МСК).
+
+name: craft-wms-demo
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: demo
+      POSTGRES_PASSWORD: ${DEMO_DB_PASSWORD:?DEMO_DB_PASSWORD не задан - запускайте deploy/demo-setup.sh}
+      POSTGRES_DB: craft_wms_demo
+    volumes:
+      - demo_db_data:/var/lib/postgresql/data
+    # Порт наружу не публикуется: до базы достаёт только бэкенд демо.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U demo -d craft_wms_demo"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    mem_limit: ${DEMO_DB_MEM_LIMIT:-256m}
+
+  backend:
+    image: ${BACKEND_IMAGE:?BACKEND_IMAGE передаёт update.sh из .env.prod}
+    restart: unless-stopped
+    environment:
+      APP_PORT: 8080
+      LOG_LEVEL: ${DEMO_LOG_LEVEL:-info}
+      DATABASE_URL: postgres://demo:${DEMO_DB_PASSWORD}@db:5432/craft_wms_demo?sslmode=disable
+      JWT_SECRET: ${DEMO_JWT_SECRET:?DEMO_JWT_SECRET не задан}
+      ACCESS_TTL: 12h
+      REFRESH_TTL: 720h
+      # Свой ключ номеров бейджей, не боевой.
+      BADGE_KEY: ${DEMO_BADGE_KEY:-}
+      DEMO_MODE: "true"
+      DEMO_RESET_AT: ${DEMO_RESET_AT:-03:00}
+      # Подписанта ЧЗ, Bugsink и ИНН здесь нет намеренно: ЧЗ в демо недоступен (скан марки
+      # отвечает «в демо-режиме недоступен»), ошибки демо не смешиваются с боевыми.
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      # Только loopback: снаружи — хостовый nginx на демо-домене.
+      - "${DEMO_BIND:-127.0.0.1:8081}:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    mem_limit: ${DEMO_BACKEND_MEM_LIMIT:-192m}
+
+volumes:
+  demo_db_data:
