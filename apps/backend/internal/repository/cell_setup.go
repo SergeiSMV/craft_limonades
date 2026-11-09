@@ -68,14 +68,14 @@ func (r *CellRepository) UpsertSetup(ctx context.Context, q Querier, warehouseID
 // Setup возвращает ячейки склада со стеллажами и настройками этикеток и все стеллажи склада.
 //
 // Без пагинации: ячеек на складе сотни, а странице нужен весь набор — массовая отметка, счётчики
-// фильтров и выгрузка в файл работают по всему складу. Ячейка приёмки («ПРИЁМКА») не входит: у неё
-// нет этикетки и нет места на стеллаже. Порядок задаёт сервис.
+// фильтров и выгрузка в файл работают по всему складу. Служебные ячейки («ПРИЁМКА», «ОТГРУЗКА»)
+// не входят: у них нет этикетки и нет места на стеллаже. Порядок задаёт сервис.
 func (r *CellRepository) Setup(ctx context.Context, warehouseID string) ([]model.CellSetup, []model.Rack, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT c.id::text, c.address, r.id::text, r.code, c.is_floor, c.label_small, c.label_barcode,
 		       c.side_card, c.is_floor_storage
 		FROM cells c LEFT JOIN racks r ON r.id = c.rack_id
-		WHERE c.warehouse_id = $1::uuid AND c.is_active AND NOT c.is_default`, warehouseID)
+		WHERE c.warehouse_id = $1::uuid AND c.is_active AND NOT c.is_default AND NOT c.is_shipping`, warehouseID)
 	if err != nil {
 		return nil, nil, fmt.Errorf("ячейки склада: %w", err)
 	}
@@ -122,7 +122,7 @@ func (r *CellRepository) UpdateSettings(ctx context.Context, q Querier, warehous
 	var found int
 	err := q.QueryRow(ctx, `
 		SELECT count(*) FROM cells
-		WHERE id = ANY($1::uuid[]) AND warehouse_id = $2::uuid AND is_active AND NOT is_default`,
+		WHERE id = ANY($1::uuid[]) AND warehouse_id = $2::uuid AND is_active AND NOT is_default AND NOT is_shipping`,
 		p.CellIDs, warehouseID).Scan(&found)
 	if err != nil {
 		return res, fmt.Errorf("проверка ячеек: %w", err)

@@ -151,9 +151,9 @@ func TestCatalog_goodsCellsSuppliers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// 125 ячеек из файла + дефолтная ячейка приёмки, которую импорт заводит складу сам (P4-03).
-	if cellsAll.Total != 126 {
-		t.Errorf("ячейки: ожидалось 126 (125 из файла + дефолтная), получено %d", cellsAll.Total)
+	// 125 ячеек из файла + ячейки приёмки (P4-03) и отгрузки (P9-02), которые импорт заводит складу сам.
+	if cellsAll.Total != 127 {
+		t.Errorf("ячейки: ожидалось 127 (125 из файла + приёмка и отгрузка), получено %d", cellsAll.Total)
 	}
 	floorTrue := true
 	floors, err := cat.ListCells(ctx, service.CellsQuery{IsFloor: &floorTrue})

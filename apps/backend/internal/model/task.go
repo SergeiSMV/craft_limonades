@@ -16,6 +16,9 @@ const (
 	// TaskStocktake — пересчёт (P10-01): задание одно общее на пересчёт, его не берут целиком —
 	// работники берут из него ячейки.
 	TaskStocktake = "stocktake"
+	// TaskPickingReturn — вернуть на места товар заказа сборки, который реестр изменил или удалил
+	// после сборки (P9-07-1): одно открытое задание на заказ, остаток считается по пикам.
+	TaskPickingReturn = "picking_return"
 )
 
 // Статусы задания: пул new → in_progress (взято) → done.
@@ -57,8 +60,24 @@ type Task struct {
 	Problem *TaskProblemInfo
 	// Stocktake — номер, область и ход пересчёта (P10-04); nil — у других видов.
 	Stocktake *TaskStocktakeInfo
+	// Picking — заказ-основание возврата на места (P9-07-1); nil — у других видов.
+	Picking *TaskPickingInfo
 
 	Items []PutawayTaskItem
+}
+
+// TaskPickingInfo — заказ сборки, по которому вернуть товар на места (P9-07-1). Основание —
+// «заказ удалён в 1С» (Deleted) или «изменение в реестре от ChangedAt»; Left — сколько штук
+// осталось вернуть.
+type TaskPickingInfo struct {
+	OrderID       string
+	Number        int64
+	InvoiceNumber string
+	OrderNumber   string
+	Client        string
+	Deleted       bool
+	ChangedAt     *time.Time
+	Left          decimal.Decimal
 }
 
 // TaskProblemInfo — проблема склада, по решению которой заведено задание на размещение
@@ -132,6 +151,8 @@ type CompletedTask struct {
 	// Stocktake — пересчёт задания вида stocktake (ADHOC-58): номер, область, ход; nil — у других.
 	// У пересчёта «заход» — подсчитанная ячейка, исполнители — кто считал.
 	Stocktake *TaskStocktakeInfo
+	// Picking — заказ сборки задания «вернуть на места» (P9-07-1); nil — у других видов.
+	Picking *TaskPickingInfo
 }
 
 // TaskUser — исполнитель задания.

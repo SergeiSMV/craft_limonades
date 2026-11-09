@@ -51,6 +51,18 @@ class GoodLineTile extends StatelessWidget {
                     color: AppColors.kTextMuted,
                   ),
                 ),
+                // «В сборке» (P9-06): взятое в короб отгрузки ещё числится в ячейке.
+                if (line.inPicking > 0)
+                  Text(
+                    t.contents.inPicking(
+                      total: fmtQty(line.qty),
+                      picking: fmtQty(line.inPicking),
+                      uom: line.uom ?? '',
+                    ),
+                    style: RegularTextStyles().regularInter10.copyWith(
+                      color: AppColors.kBadgeWarningText,
+                    ),
+                  ),
                 if (line.pending) const PendingMark(),
               ],
             ),

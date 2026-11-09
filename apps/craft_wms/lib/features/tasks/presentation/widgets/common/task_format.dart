@@ -14,8 +14,20 @@ String taskKindLabel(String kind) => switch (kind) {
   TaskKind.putaway => t.tasks.kindPutaway,
   TaskKind.supplierReturn => t.tasks.kindSupplierReturn,
   TaskKind.stocktake => t.tasks.kindStocktake,
+  TaskKind.pickingReturn => t.tasks.kindPickingReturn,
   _ => kind,
 };
+
+/// Основание возврата на места (P9-07-1): заказ удалён в 1С или реестр его изменил.
+String pickingReturnBasis(TaskPicking p) => p.deleted
+    ? t.tasks.basisPickingDeleted
+    : p.changedAt == null
+    ? t.tasks.basisPickingChangedNoDate
+    : t.tasks.basisPickingChanged(date: fullDateTime(p.changedAt!));
+
+/// «Сборка: СБ-000012» — заказ возврата на места (P9-07-1).
+String pickingReturnOrder(TaskPicking p) =>
+    t.tasks.pickingOrder(number: docNumber(DocKind.picking, p.number));
 
 /// Основание задания: «Основание: документ № ТН-1042 от 01.10.2026 ИП Березин …» (ADHOC-23);
 /// у задания от приёмки до ADHOC-23 документа нет — «Основание: приёмка от 05.10.2026 …».
@@ -25,6 +37,7 @@ String taskKindLabel(String kind) => switch (kind) {
 /// приёмки у него нет, и запасной ветке «приёмка от <дата создания>» он не подходит.
 String taskBasis(WarehouseTask task) {
   if (task.stocktake case final st?) return stocktakeLine(st);
+  if (task.picking case final p?) return pickingReturnBasis(p);
   if (task.kind == TaskKind.supplierReturn) {
     return t.tasks.basisReturn(supplier: task.supplier);
   }
@@ -71,8 +84,11 @@ String supplierBasis(
   String kind = TaskKind.putaway,
   TaskProblem? problem,
   TaskStocktake? stocktake,
+  TaskPicking? picking,
 }) => stocktake != null
     ? stocktakeLine(stocktake)
+    : picking != null
+    ? pickingReturnOrder(picking)
     : kind == TaskKind.supplierReturn
     ? t.tasks.returnSupplier(supplier: supplier)
     : problem != null

@@ -14,6 +14,7 @@ class ContentLine {
     this.uom,
     required this.productionDate,
     required this.qty,
+    this.inPicking = 0,
     this.pending = false,
     this.internalWarehouseId,
     this.internalWarehouseName,
@@ -29,6 +30,10 @@ class ContentLine {
   /// Дата партии, DD-MM-YYYY.
   final String productionDate;
   final double qty;
+
+  /// Сколько из [qty] уже в сборке (P9-06): взято в короб отгрузки, но числится в ячейке до
+  /// «Завершить сборку». Только у россыпи; у содержимого короба - ноль.
+  final double inPicking;
 
   /// Строку изменила своя неотправленная операция — показывается с пометкой.
   final bool pending;
@@ -52,6 +57,7 @@ class ContentLine {
     String? goodCode,
     String? uom,
     double? qty,
+    double? inPicking,
     bool? pending,
     String? internalWarehouseName,
   }) => ContentLine(
@@ -61,6 +67,7 @@ class ContentLine {
     uom: uom ?? this.uom,
     productionDate: productionDate,
     qty: qty ?? this.qty,
+    inPicking: inPicking ?? this.inPicking,
     pending: pending ?? this.pending,
     internalWarehouseId: internalWarehouseId,
     internalWarehouseName: internalWarehouseName ?? this.internalWarehouseName,
@@ -74,6 +81,7 @@ class ContentLine {
     uom: uom,
     productionDate: productionDate,
     qty: qty,
+    inPicking: inPicking,
     pending: pending,
     internalWarehouseId: id,
   );

@@ -48,6 +48,12 @@ type Services struct {
 	// ProblemReason — справочник причин проблем и вариантов решения (ADHOC-55).
 	ProblemReason *service.ProblemReasonService
 	Contents      *service.ContentsService
+	// Picking — «Сборка-отгрузка» в портале: загрузка «Реестра» 1С (P8-02).
+	Picking *service.PickingLoadService
+	// PickingTask — сборка на ТСД: список, заказ с подбором, взять, короб, «не хватает» (P9-04).
+	PickingTask *service.PickingTaskService
+	// PickingPortal — «Сборка-отгрузка» в портале: заказы на дату, детали, Excel, снятие (P8-03).
+	PickingPortal *service.PickingPortalService
 	// Problem — «Проблемы склада» в портале: список и решение офиса (P6-07-3).
 	Problem *service.ProblemService
 	// ProblemPhoto — фото к проблемам склада (ADHOC-45): загрузка с ТСД, отдача ТСД и порталу.
@@ -293,7 +299,8 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 			taskH := NewTaskHandler(svc.Task)
 			r.Group(func(r chi.Router) {
 				r.Use(appmw.Authenticator(tokens))
-				r.Use(need(model.RightTSDPutaway, model.RightTSDStocktakeCount, model.RightTSDStocktakeManage))
+				r.Use(need(model.RightTSDPutaway, model.RightTSDStocktakeCount, model.RightTSDStocktakeManage,
+					model.RightTSDPickingReturn))
 				r.Get("/tasks", taskH.Current)               // текущие: пул и свои взятые
 				r.Get("/tasks/completed", taskH.Completed)   // лента «Завершённые»
 				r.Get("/tasks/executors", taskH.Executors)   // варианты фильтра по исполнителю
@@ -328,6 +335,8 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 				r.Use(appmw.Authenticator(tokens))
 				r.With(need(model.RightStocktakeView, model.RightStocktakeManage)).
 					Get("/stocktakes", stH.List) // список для портала (P10-05)
+				r.With(need(model.RightStocktakeView, model.RightStocktakeManage)).
+					Get("/stocktakes/{id}/lines", stH.Lines) // ожидалось и посчитано (окно «Ход»)
 				// Заводит и закрывает старший смены — из портала или с ТСД.
 				r.With(need(model.RightStocktakeManage, model.RightTSDStocktakeManage)).
 					Post("/stocktakes", stH.Create) // завести по области
@@ -402,6 +411,68 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 					Get("/problems", prH.List) // открытые сверху
 				r.With(need(model.RightProblemsResolve)).
 					Post("/problems/{id}/resolve", prH.Resolve) // «Провести» решение
+			})
+		}
+
+		// «Сборка-отгрузка» (P8-02) — загрузка «Реестра» 1С из портала: предпросмотр ничего не
+		// пишет, загрузка — после подтверждения оператора. Оба шага — право «загружать реестр».
+		if svc.Picking != nil {
+			pkH := NewPickingHandler(svc.Picking)
+			r.Group(func(r chi.Router) {
+				r.Use(appmw.Authenticator(tokens))
+				r.Use(need(model.RightPickingLoad))
+				r.Post("/picking/registry/preview", pkH.PreviewRegistry)
+				r.Post("/picking/registry/load", pkH.LoadRegistry)
+			})
+		}
+
+		// «Сборка-отгрузка» (P8-03) — заказы на дату накладной и окно деталей: право «смотреть»
+		// или «снимать с исполнителя» (снять, не видя заказа, нельзя). Выгрузка Excel и снятие —
+		// свои права.
+		if svc.PickingPortal != nil {
+			ppH := NewPickingPortalHandler(svc.PickingPortal)
+			r.Group(func(r chi.Router) {
+				r.Use(appmw.Authenticator(tokens))
+				r.With(need(model.RightPickingView, model.RightPickingRelease)).Get("/picking/portal/orders", ppH.Orders)
+				r.With(need(model.RightPickingView, model.RightPickingRelease)).Get("/picking/portal/orders/{id}", ppH.Order)
+				r.With(need(model.RightPickingRelease)).Post("/picking/portal/orders/{id}/release", ppH.Release)
+				r.With(need(model.RightPickingDownload)).Get("/picking/portal/export.xlsx", ppH.ExportXLSX)
+			})
+			// Карточка заказа на ТСД (ADHOC-62) — те же данные, что окно деталей портала, только
+			// чтение: «Завершённые» в «СБОРКЕ» показывают план/факт, короба и журнал. Право
+			// кладовщика сборки, а не портала.
+			r.Group(func(r chi.Router) {
+				r.Use(appmw.Authenticator(tokens))
+				r.Use(need(model.RightTSDPicking))
+				r.Get("/picking/orders/{id}/card", ppH.Order)
+			})
+		}
+
+		// Сборка на ТСД (P9-04) — право «собирать и отгружать». Онлайн: заказ закрепляется за
+		// одним кладовщиком на сервере.
+		if svc.PickingTask != nil {
+			ptH := NewPickingTSDHandler(svc.PickingTask)
+			r.Group(func(r chi.Router) {
+				r.Use(appmw.Authenticator(tokens))
+				r.Use(need(model.RightTSDPicking))
+				r.Get("/picking/orders", ptH.Orders)                                 // список «СБОРКА»
+				r.Get("/picking/orders/shipped", ptH.ShippedOrders)                  // «Завершённые» за дату
+				r.Get("/picking/orders/{id}", ptH.Order)                             // заказ с подбором
+				r.Post("/picking/orders/{id}/take", ptH.Take)                        // взять в работу
+				r.Post("/picking/orders/{id}/release", ptH.Release)                  // отказаться
+				r.Post("/picking/orders/{id}/boxes", ptH.AddBox)                     // короб отгрузки
+				r.Delete("/picking/orders/{id}/boxes/{boxId}", ptH.DropBox)          // убрать пустой короб
+				r.Post("/picking/orders/{id}/lines/{lineId}/shortage", ptH.Shortage) // «не хватает»
+				r.Post("/picking/orders/{id}/complete", ptH.Complete)                // «Завершить сборку» (P9-07)
+				r.Get("/picking/orders/{id}/shipment", ptH.Shipment)                 // короба «N из M»
+				r.Post("/picking/orders/{id}/labels", ptH.Labels)                    // печать ярлыков
+				r.Post("/picking/orders/{id}/ship", ptH.Ship)                        // «Отгрузить»
+			})
+			// Возврат на места (P9-07-1) — задание из «ЗАДАНИЙ», своё право.
+			r.Group(func(r chi.Router) {
+				r.Use(appmw.Authenticator(tokens))
+				r.Use(need(model.RightTSDPickingReturn))
+				r.Get("/picking/orders/{id}/return", ptH.Return) // что вернуть на места
 			})
 		}
 

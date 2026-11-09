@@ -249,7 +249,7 @@ func TestProblemResolve_supplierReturn(t *testing.T) {
 	if err := mf.problem(t, defect, fromReturn); !errors.Is(err, repository.ErrSystemInternalWarehouse) {
 		t.Errorf("пометка товара со склада возврата: %v", err)
 	}
-	if _, err := repository.NewInternalWarehouseRepository(mf.pool).Update(context.Background(), ret, nil, new(bool)); !errors.Is(err, repository.ErrSystemInternalWarehouse) {
+	if _, err := repository.NewInternalWarehouseRepository(mf.pool).Update(context.Background(), ret, nil, new(bool), nil); !errors.Is(err, repository.ErrSystemInternalWarehouse) {
 		t.Errorf("скрыть склад возврата: %v", err)
 	}
 }

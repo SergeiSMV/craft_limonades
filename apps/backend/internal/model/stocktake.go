@@ -51,8 +51,8 @@ var (
 	ErrInvalidStocktake = errors.New("invalid stocktake")
 	// ErrStocktakeUnknownObject — объекта области нет в справочнике или ячейка чужого склада.
 	ErrStocktakeUnknownObject = errors.New("stocktake scope object not found")
-	// ErrStocktakeReceivingCell — в области ячейка приёмки: её товар ждёт размещения и в
-	// пересчёте не участвует.
+	// ErrStocktakeReceivingCell — в области служебная ячейка: в приёмке товар ждёт размещения, в
+	// отгрузке — короба собранных заказов (P9-02); в пересчёте они не участвуют.
 	ErrStocktakeReceivingCell = errors.New("receiving cell is not counted by stocktake")
 	// ErrStocktakeNoCells — область не дала ни одной ячейки: считать нечего.
 	ErrStocktakeNoCells = errors.New("stocktake scope has no cells")
@@ -69,11 +69,16 @@ var (
 //
 // ObjectIDs — идентификаторы объектов вида ScopeKind (ячейки, группы, поставщики, товары или
 // внутренние склады); у «всего склада» пусто.
+//
+// PickingOrderID и ExtraCellIDs — у пересчёта позиции по нехватке при сборке (P9-04): основание —
+// заказ сборки, к ячейкам области добавляется ячейка реестра, где товара по учёту нет.
 type StocktakeCreateInput struct {
-	WarehouseID string
-	ScopeKind   string
-	ObjectIDs   []string
-	CreatedBy   string
+	WarehouseID    string
+	ScopeKind      string
+	ObjectIDs      []string
+	CreatedBy      string
+	PickingOrderID string
+	ExtraCellIDs   []string
 }
 
 // StocktakeCreated — заведённый пересчёт: документ, его задание и сколько ячеек дала область.
@@ -155,6 +160,22 @@ type StocktakeCell struct {
 	StartedAt   *time.Time
 	CountedAt   *time.Time
 	Mine        bool
+}
+
+// StocktakeLine — строка пересчёта для портала: что ожидалось по снимку и что посчитано.
+// GoodName пусто — строка короба (LoadUnitID): ожидался ли короб (0/1) и найден ли. Fact nil —
+// ячейку ещё не посчитали. Problem — недостача ушла проблемой «не найдено» (короб, марки).
+type StocktakeLine struct {
+	CellAddress    string
+	CellStatus     string
+	LoadUnitID     string
+	GoodCode       string
+	GoodName       string
+	Uom            string
+	ProductionDate *time.Time
+	Expected       decimal.Decimal
+	Fact           *decimal.Decimal
+	Problem        bool
 }
 
 // CellUnderCount — ячейка склада сейчас на подсчёте пересчёта (ADHOC-48): что ТСД

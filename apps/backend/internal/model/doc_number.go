@@ -16,6 +16,7 @@ const (
 	DocPrefixTask           = "ЗД" // задание
 	DocPrefixStocktake      = "ИН" // пересчёт
 	DocPrefixProblem        = "ПБ" // проблема склада
+	DocPrefixPicking        = "СБ" // сборка заказа по реестру 1С (P9-02)
 
 	// Документы для 1С — свой счётчик у формы.
 	DocPrefixReceiptDoc    = "ДП" // «Поступление»

@@ -49,6 +49,29 @@ func (r *CellRepository) EnsureDefault(ctx context.Context, q Querier, warehouse
 	return id, nil
 }
 
+// EnsureShipping гарантирует складу ячейку отгрузки («ОТГРУЗКА», P9-02) и возвращает её id.
+//
+// Зачем: «Завершить сборку» ставит короба заказа в ячейку отгрузки — склад без неё собрать заказ
+// не даст. Как и ячейку приёмки, её заводит тот, кто заводит склад: сидер и импорт ячеек;
+// складам, что были до P9-02, — миграция 45. Ищет по признаку: переименование не плодит вторую.
+func (r *CellRepository) EnsureShipping(ctx context.Context, q Querier, warehouseID string) (string, error) {
+	var id string
+	err := q.QueryRow(ctx, `
+		SELECT id::text FROM cells WHERE warehouse_id = $1::uuid AND is_shipping`, warehouseID).Scan(&id)
+	if err == nil || !errors.Is(err, pgx.ErrNoRows) {
+		return id, err
+	}
+	err = q.QueryRow(ctx, `
+		INSERT INTO cells (warehouse_id, address, is_shipping)
+		VALUES ($1::uuid, $2, true)
+		ON CONFLICT (warehouse_id, address) DO UPDATE SET is_shipping = true, is_active = true
+		RETURNING id::text`, warehouseID, model.ShippingCellAddress).Scan(&id)
+	if err != nil {
+		return "", fmt.Errorf("ячейка отгрузки склада %s: %w", warehouseID, err)
+	}
+	return id, nil
+}
+
 // DefaultID возвращает ячейку приёмки по умолчанию для склада или ErrNotFound.
 //
 // Ищет ПО ФЛАГУ, а не по адресу: «ПРИЁМКА» — имя ячейки, и переименование не должно ломать приёмку.

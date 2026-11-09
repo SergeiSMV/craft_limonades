@@ -64,7 +64,7 @@ func TestStocktakeCount_shortageAndSurplus(t *testing.T) {
 	fx := setupStocktake(t)
 	fx.put(t, fx.cellB, fx.good, fx.batch, fx.iwh, 5)
 	fx.put(t, fx.cellB, fx.good, fx.batch, fx.iwhDefect, 2)
-	_, cells := fx.counting(t, fx.cellB)
+	st, cells := fx.counting(t, fx.cellB)
 
 	applied, err := fx.submit(cells["B"], nil,
 		fact(fx.good, "2026-01-01", "", 3),
@@ -91,6 +91,22 @@ func TestStocktakeCount_shortageAndSurplus(t *testing.T) {
 		AND details->>'stocktake_cell_id' = $1`, &audits, cells["B"])
 	if audits != 3 {
 		t.Errorf("правок в audit_log: %d, ожидалось 3", audits)
+	}
+
+	// Окно «Ход» портала: по каждой строке снимка - ожидалось и посчитано, излишек - строкой
+	// с ожидаемым 0.
+	lines, err := fx.repo.Lines(context.Background(), st.ID)
+	mustNoErr(t, err)
+	var got []string
+	for _, l := range lines {
+		f := "-"
+		if l.Fact != nil {
+			f = l.Fact.String()
+		}
+		got = append(got, l.CellAddress+":"+l.Expected.String()+"/"+f)
+	}
+	if len(lines) != 3 || lines[0].GoodName == "" {
+		t.Errorf("строки пересчёта: %v (%+v)", got, lines)
 	}
 
 	// Повтор операции эффекта не повторяет, второй подсчёт той же ячейки — отказ.

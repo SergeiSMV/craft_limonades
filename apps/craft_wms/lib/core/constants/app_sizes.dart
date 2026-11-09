@@ -112,6 +112,14 @@ abstract final class AppSizes {
   static const double kColParty = 3;
   static const double kColDocMin = 140;
   static const double kColPartyMin = 180;
+  // Таблица заказов «Сборка-отгрузка» (P8-03): уже минимума — строки вместо таблицы; заказ и
+  // клиент делят остаток долями, но не уже минимума; статус, исполнитель и план/факт — по
+  // содержимому.
+  static const double kPickingTableMinWidth = 840;
+  static const double kColPickingOrder = 2;
+  static const double kColPickingClient = 3;
+  static const double kColPickingOrderMin = 140;
+  static const double kColPickingClientMin = 200;
   static const double kHeaderHeight = 72; // верхняя панель контента
   // Неактивная позиция на ТСД — серая, пока не отсканировано её место (ADHOC-31).
   static const double kInactiveOpacity = 0.45;
@@ -122,6 +130,8 @@ abstract final class AppSizes {
   static const double kPortalPickListMaxHeight = 220;
   static const double kPortalDialogWidth =
       520; // диалог с таблицей или выбором (пересчёт, P10-05)
+  static const double kPortalDialogWideWidth =
+      900; // диалог с широкой таблицей: ход пересчёта со строками (P9-07-1)
   static const double kPortalTreeIndent =
       16; // отступ уровня дерева групп в выборе (P10-05)
   static const double kContentMaxWidth =

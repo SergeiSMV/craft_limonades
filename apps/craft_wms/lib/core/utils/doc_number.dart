@@ -11,6 +11,7 @@ enum DocKind {
   task,
   stocktake,
   problem,
+  picking,
   // Документы для 1С — свой счётчик у формы.
   receiptDoc,
   movementDoc,
@@ -38,6 +39,7 @@ String docNumber(DocKind kind, int number) {
     DocKind.task => p.prefixTask,
     DocKind.stocktake => p.prefixStocktake,
     DocKind.problem => p.prefixProblem,
+    DocKind.picking => p.prefixPicking,
     DocKind.receiptDoc => p.prefixReceiptDoc,
     DocKind.movementDoc => p.prefixMovementDoc,
     DocKind.stockEntryDoc => p.prefixStockEntryDoc,

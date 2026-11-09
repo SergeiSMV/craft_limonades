@@ -92,6 +92,10 @@ class _TaskDetailView extends StatelessWidget {
     final PageRouteInfo? route = switch (task.kind) {
       TaskKind.putaway => PutawayRoute(task: task),
       TaskKind.supplierReturn => SupplierReturnRoute(task: task),
+      TaskKind.pickingReturn when task.picking != null => PickingReturnRoute(
+        orderId: task.picking!.orderId,
+        number: task.picking!.number,
+      ),
       TaskKind.stocktake when task.stocktakeId != null => StocktakeRoute(
         stocktakeId: task.stocktakeId!,
         number: task.stocktake?.number,
@@ -153,7 +157,9 @@ class _TaskDetailView extends StatelessWidget {
               title: PageHeader(
                 title: task == null
                     ? t.tasks.title
-                    : t.tasks.number(number: docNumber(DocKind.task, task.number)),
+                    : t.tasks.number(
+                        number: docNumber(DocKind.task, task.number),
+                      ),
                 goBack: () => goBack(context),
               ),
             ),
@@ -255,10 +261,16 @@ class _TaskBody extends StatelessWidget {
             style: muted,
           ),
         ],
+        // Возврат на места (P9-07-1) — заказ и сколько вернуть; позиции — на экране возврата.
+        if (task.picking case final p?) ...[
+          Text(pickingReturnOrder(p), style: muted),
+          Text(t.tasks.pickingLeft(qty: qtyText(p.left)), style: muted),
+        ],
         if (task.isMine && task.assigneeName.isNotEmpty)
           Text(t.tasks.assignee(name: task.assigneeName), style: muted),
         AppBoxes.kHeight16,
-        if (task.kind != TaskKind.stocktake) ...[
+        if (task.kind != TaskKind.stocktake &&
+            task.kind != TaskKind.pickingReturn) ...[
           Text(
             task.kind == TaskKind.supplierReturn
                 ? t.tasks.detailItemsReturn

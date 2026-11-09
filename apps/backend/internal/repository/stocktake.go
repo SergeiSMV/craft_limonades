@@ -76,16 +76,31 @@ const stocktakeCellsWithAreaGoods = `EXISTS (
 // Как: одной транзакцией. Ячейка приёмки в пересчёт не входит — её товар ждёт размещения;
 // выбранная явно — отказ. Область без ячеек — отказ: пустой пересчёт ничего не считает.
 func (r *StocktakeRepository) Create(ctx context.Context, in model.StocktakeCreateInput) (model.StocktakeCreated, error) {
+	var out model.StocktakeCreated
+	err := WithinTx(ctx, r.pool, func(q Querier) error {
+		var err error
+		out, err = createStocktake(ctx, q, in)
+		return err
+	})
+	if err != nil {
+		return model.StocktakeCreated{}, err
+	}
+	return out, nil
+}
+
+// createStocktake — тело Create внутри чужой транзакции: пересчёт позиции по нехватке при сборке
+// (P9-04) заводится в одной транзакции с отметкой «не хватает».
+func createStocktake(ctx context.Context, q Querier, in model.StocktakeCreateInput) (model.StocktakeCreated, error) {
 	where, ok := stocktakeCellsSQL[in.ScopeKind]
 	if !ok {
 		return model.StocktakeCreated{}, model.ErrInvalidStocktake
 	}
 	var out model.StocktakeCreated
-	err := WithinTx(ctx, r.pool, func(q Querier) error {
+	err := func() error {
 		if err := q.QueryRow(ctx, `
-			INSERT INTO stocktakes (warehouse_id, scope_kind, created_by)
-			VALUES ($1::uuid, $2, $3::uuid)
-			RETURNING id::text, number`, in.WarehouseID, in.ScopeKind, in.CreatedBy).
+			INSERT INTO stocktakes (warehouse_id, scope_kind, created_by, picking_order_id)
+			VALUES ($1::uuid, $2, $3::uuid, NULLIF($4, '')::uuid)
+			RETURNING id::text, number`, in.WarehouseID, in.ScopeKind, in.CreatedBy, in.PickingOrderID).
 			Scan(&out.ID, &out.Number); err != nil {
 			return stocktakeRefErr(err, "завести пересчёт")
 		}
@@ -119,12 +134,27 @@ func (r *StocktakeRepository) Create(ctx context.Context, in model.StocktakeCrea
 		tag, err := q.Exec(ctx, `
 			INSERT INTO stocktake_cells (stocktake_id, cell_id)
 			SELECT $1::uuid, c.id FROM cells c
-			WHERE c.warehouse_id = $2::uuid AND NOT c.is_default AND `+where+`
+			WHERE c.warehouse_id = $2::uuid AND NOT c.is_default AND NOT c.is_shipping AND `+where+`
 			ORDER BY c.address`, out.ID, in.WarehouseID)
 		if err != nil {
 			return fmt.Errorf("ячейки пересчёта: %w", err)
 		}
-		if out.Cells = int(tag.RowsAffected()); out.Cells == 0 {
+		out.Cells = int(tag.RowsAffected())
+		if len(in.ExtraCellIDs) > 0 {
+			// Ячейки сверх области (ячейка реестра при нехватке): служебные не входят и тут,
+			// уже попавшие из области не дублируются.
+			tag, err := q.Exec(ctx, `
+				INSERT INTO stocktake_cells (stocktake_id, cell_id)
+				SELECT $1::uuid, c.id FROM cells c
+				WHERE c.id = ANY($2::text[]::uuid[]) AND c.warehouse_id = $3::uuid
+				  AND NOT c.is_default AND NOT c.is_shipping
+				ON CONFLICT (stocktake_id, cell_id) DO NOTHING`, out.ID, in.ExtraCellIDs, in.WarehouseID)
+			if err != nil {
+				return fmt.Errorf("ячейки пересчёта сверх области: %w", err)
+			}
+			out.Cells += int(tag.RowsAffected())
+		}
+		if out.Cells == 0 {
 			return model.ErrStocktakeNoCells
 		}
 
@@ -135,20 +165,20 @@ func (r *StocktakeRepository) Create(ctx context.Context, in model.StocktakeCrea
 			return fmt.Errorf("задание на пересчёт: %w", err)
 		}
 		return addTaskEvent(ctx, q, out.TaskID, model.TaskEventCreated, in.CreatedBy, "", "")
-	})
+	}()
 	if err != nil {
 		return model.StocktakeCreated{}, err
 	}
 	return out, nil
 }
 
-// guardStocktakeCells — выбранные ячейки есть на складе пересчёта, и среди них нет ячейки
-// приёмки. Существование уже проверил внешний ключ области; здесь — склад и приёмка.
+// guardStocktakeCells — выбранные ячейки есть на складе пересчёта, и среди них нет служебных:
+// приёмки и отгрузки. Существование уже проверил внешний ключ области; здесь — склад и служебные.
 func guardStocktakeCells(ctx context.Context, q Querier, warehouseID string, ids []string) error {
 	var foreign int
 	var receiving bool
 	if err := q.QueryRow(ctx, `
-		SELECT count(*) FILTER (WHERE warehouse_id <> $2::uuid), COALESCE(bool_or(is_default), false)
+		SELECT count(*) FILTER (WHERE warehouse_id <> $2::uuid), COALESCE(bool_or(is_default OR is_shipping), false)
 		FROM cells WHERE id = ANY($1::text[]::uuid[])`, ids, warehouseID).Scan(&foreign, &receiving); err != nil {
 		return fmt.Errorf("проверить ячейки пересчёта: %w", err)
 	}
@@ -331,11 +361,14 @@ func (s *stocktakeSnapshot) take(ctx context.Context) error {
 		return err
 	}
 	for _, ln := range loose {
-		if !s.inArea(ln.GoodID) || s.system[ln.InternalWarehouseID] {
+		// «В сборке» (P9-05) уже в коробе отгрузки: ячейка ожидает доступное — 20 с 5 в сборке
+		// дают 15. Расхождение пересчёт применяет к той же доступной россыпи (looseQty).
+		expected := ln.Qty.Sub(ln.InPicking)
+		if !s.inArea(ln.GoodID) || s.system[ln.InternalWarehouseID] || !expected.IsPositive() {
 			continue
 		}
 		if _, err := s.looseLine(ctx, stocktakeLineKey{ln.GoodID, ln.BatchID, ln.InternalWarehouseID},
-			ln.Qty.String()); err != nil {
+			expected.String()); err != nil {
 			return err
 		}
 	}
@@ -396,8 +429,11 @@ func (s *stocktakeSnapshot) looseLine(ctx context.Context, key stocktakeLineKey,
 func (s *stocktakeSnapshot) marks(ctx context.Context) error {
 	rows, err := s.q.Query(ctx, `
 		SELECT cis, good_id::text, batch_id::text, internal_warehouse_id::text
-		FROM cz_marks
+		FROM cz_marks m
 		WHERE status = $1 AND cell_id = $2::uuid
+		  -- марка в сборке (P9-05) уже в коробе отгрузки: на полке её не ждут
+		  AND NOT EXISTS (SELECT 1 FROM picking_pick_marks pm JOIN picking_picks p ON p.id = pm.pick_id
+		                  WHERE pm.cis = m.cis AND p.state = 'picking')
 		ORDER BY cis`, model.CZMarkInStock, s.cell)
 	if err != nil {
 		return fmt.Errorf("марки ячейки: %w", err)
