@@ -1,3 +1,4 @@
+import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -59,7 +60,11 @@ class CraftWmsApp extends StatelessWidget {
           title: 'Craft WMS',
           debugShowCheckedModeBanner: false,
           theme: buildAppTheme(),
-          routerConfig: _router.config(),
+          // Наблюдатель маршрутов: кнопка обновления узнаёт о возврате в меню из раздела
+          // (`didPopNext`) и проверяет новую версию (ADHOC-69).
+          routerConfig: _router.config(
+            navigatorObservers: () => [AutoRouteObserver()],
+          ),
           // Плашка «Подключаюсь к принтеру…» поверх любого экрана: печатают из приёмки,
           // «Остатков» и карточки товара, и переподключение может идти секунды (P6-04).
           builder: (context, child) =>

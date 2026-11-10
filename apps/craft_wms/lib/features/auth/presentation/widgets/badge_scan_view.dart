@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../../core/app_update/app_update_button.dart';
 import '../../../../core/constants/app_borders.dart';
 import '../../../../core/constants/app_boxes.dart';
 import '../../../../core/constants/app_colors.dart';
@@ -151,6 +152,8 @@ class BadgeScanView extends StatelessWidget {
                         ),
                       ),
                     ),
+                    // Новая версия из RuStore, скачанная в фоне (ADHOC-69).
+                    AppUpdateButton(queueHint: t.loginScreen.updateQueue),
                     // Демо-сервер для показа и модерации RuStore (ADHOC-67).
                     const DemoModeLink(),
                     // Требование RuStore: политика доступна внутри приложения (ADHOC-66).

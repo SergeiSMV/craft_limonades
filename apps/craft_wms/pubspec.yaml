@@ -61,6 +61,7 @@ dependencies:
   image_picker: ^1.1.2
   sentry_flutter: ^9.0.0
   url_launcher: ^6.3.3 # ссылка на политику конфиденциальности с экрана входа (ADHOC-66, требование RuStore)
+  flutter_rustore_update: ^10.5.5 # обновление ТСД из RuStore: тихое скачивание на экране входа (ADHOC-69)
 
 
 dev_dependencies:
