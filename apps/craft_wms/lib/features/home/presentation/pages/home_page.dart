@@ -169,7 +169,11 @@ class HomePage extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                           Text(
-                            AppConfig.warehouseName,
+                            // В демо склад выдуманный: название из сборки (пилотный склад)
+                            // тут не к месту.
+                            AppConfig.isDemo
+                                ? t.homeScreen.demoWarehouse
+                                : AppConfig.warehouseName,
                             style: RegularTextStyles().regularInter14.copyWith(
                               color: AppColors.kTileText,
                             ),
