@@ -1,8 +1,12 @@
+import 'package:craft_wms/core/app_update/app_update_cubit.dart';
+import 'package:craft_wms/core/app_update/app_update_service.dart';
 import 'package:craft_wms/core/auth/auth_cubit.dart';
 import 'package:craft_wms/core/auth/auth_repository.dart';
 import 'package:craft_wms/core/auth/profile.dart';
+import 'package:craft_wms/core/di/injection.dart';
 import 'package:craft_wms/core/error/failure.dart';
 import 'package:craft_wms/core/gen/strings.g.dart';
+import 'package:craft_wms/core/outbox/outbox_repository.dart';
 import 'package:craft_wms/core/scanner/scan_event.dart';
 import 'package:craft_wms/core/theme/app_theme.dart';
 import 'package:craft_wms/features/auth/presentation/pages/login_page.dart';
@@ -13,10 +17,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:talker_flutter/talker_flutter.dart';
 
 import '../../support/fake_scanner_service.dart';
 
 class _MockAuthRepository extends Mock implements AuthRepository {}
+
+class _MockAppUpdateService extends Mock implements AppUpdateService {}
+
+class _MockOutbox extends Mock implements OutboxRepository {}
 
 /// Устройство со сканером — как боевой DT50S.
 const _tsd = ScannerProbe(
@@ -45,6 +54,15 @@ void main() {
       (_) async => const Left(Failure.auth('Неверный логин или пароль')),
     );
     cubit = AuthCubit(repo);
+    // Экран входа проверяет обновление приложения (ADHOC-69); в тестах магазина нет.
+    final updates = _MockAppUpdateService();
+    when(() => updates.supported).thenReturn(false);
+    if (getIt.isRegistered<AppUpdateCubit>()) {
+      getIt.unregister<AppUpdateCubit>();
+    }
+    getIt.registerFactory<AppUpdateCubit>(
+      () => AppUpdateCubit(updates, _MockOutbox(), Talker()),
+    );
   });
 
   tearDown(() => cubit.close());

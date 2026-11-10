@@ -18,6 +18,10 @@ class AppConfig {
   /// Приложение работает с демо-сервером.
   static bool get isDemo => mode == AppMode.demo;
 
+  /// Сборка тестового стенда (`--dart-define=STAND=true`, пакет `…sklad.stand`, ADHOC-39).
+  /// Стенда нет в RuStore, поэтому обновление из магазина в нём не проверяется (ADHOC-69).
+  static const bool isStand = bool.fromEnvironment('STAND');
+
   /// Адрес API демо-сервера (`DEMO_BASE_URL` в dart-define); пусто — демо-режима в сборке нет.
   static String get demoBaseUrl {
     const value = String.fromEnvironment('DEMO_BASE_URL');

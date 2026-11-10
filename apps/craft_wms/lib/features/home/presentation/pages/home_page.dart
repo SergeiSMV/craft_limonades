@@ -4,6 +4,7 @@ import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/app_update/app_update_button.dart';
 import '../../../../core/auth/auth_cubit.dart';
 import '../../../../core/auth/profile.dart';
 import '../../../../core/auth/rights.dart';
@@ -282,6 +283,9 @@ class HomePage extends StatelessWidget {
                   ),
                 ),
                 AppBoxes.kHeight8,
+                // Новая версия из RuStore, скачанная в фоне (ADHOC-69): в меню никто не стоит
+                // посреди операции, поэтому кнопка и проверка - здесь и на экране входа.
+                AppUpdateButton(queueHint: t.homeScreen.updateQueue),
                 // Ни одного права ТСД у должности — вместо плиток объяснение (ADHOC-51).
                 if (profile != null && !profile.can(Rights.tsd))
                   const Expanded(child: _NoTsdAccess())
