@@ -59,10 +59,18 @@ func (s *CZService) Scan(ctx context.Context, raw string) (model.CZScan, error) 
 	if err != nil {
 		return model.CZScan{}, err
 	}
+	return s.scanInfo(ctx, code, info, gtinGoods{})
+}
+
+// scanInfo — скан по уже прочитанному ответу ЧЗ: общее у одиночного скана и пачки (ADHOC-70).
+// goods — товары по GTIN, уже найденные в этом запросе: пачка марок одного товара ищет его
+// в справочнике один раз.
+func (s *CZService) scanInfo(ctx context.Context, code string, info model.CisInfo, goods gtinGoods) (model.CZScan, error) {
 	out := model.CZScan{Code: code, Info: info, Discrepancy: s.discrepancy(info)}
 
+	var err error
 	if info.PackageType == "" || info.PackageType == "UNIT" {
-		out.Good, out.BindBarcode, err = s.goodByGTIN(ctx, info.Gtin)
+		out.Good, out.BindBarcode, err = goods.lookup(ctx, s, info.Gtin)
 		if err != nil {
 			return model.CZScan{}, err
 		}
@@ -77,10 +85,32 @@ func (s *CZService) Scan(ctx context.Context, raw string) (model.CZScan, error) 
 			return model.CZScan{}, err
 		}
 	}
-	if err := s.expand(ctx, info.Child, &out); err != nil {
+	if err := s.expand(ctx, info.Child, &out, goods); err != nil {
 		return model.CZScan{}, err
 	}
 	return out, nil
+}
+
+// gtinGoods — товары справочника по GTIN в пределах одного запроса: найденный товар и ШК,
+// который предложить привязать, если GTIN незнаком.
+type gtinGoods map[string]gtinGood
+
+type gtinGood struct {
+	good *model.CZGoodRef
+	bind string
+}
+
+// lookup — товар по GTIN: из уже найденных в запросе, иначе из справочника (с запоминанием).
+func (g gtinGoods) lookup(ctx context.Context, s *CZService, gtin string) (*model.CZGoodRef, string, error) {
+	if hit, ok := g[gtin]; ok {
+		return hit.good, hit.bind, nil
+	}
+	good, bind, err := s.goodByGTIN(ctx, gtin)
+	if err != nil {
+		return nil, "", err
+	}
+	g[gtin] = gtinGood{good: good, bind: bind}
+	return good, bind, nil
 }
 
 // oneInfo — ответ ЧЗ по одному коду. Отказ ЧЗ по коду в пакетном ответе — «не найден» с его
@@ -174,12 +204,11 @@ func (s *CZService) boxInWMS(ctx context.Context, code string) (string, error) {
 // Как: ЧЗ по упаковке отдаёт только КИ вложенных. Они дочитываются пачками по czChunk; что
 // оказалось упаковкой, спускается на уровень ниже. Единицы сводятся по GTIN и дате
 // производства единицы — партии (ADR-0017). Товар по GTIN ищется один раз на GTIN.
-func (s *CZService) expand(ctx context.Context, children []string, out *model.CZScan) error {
+func (s *CZService) expand(ctx context.Context, children []string, out *model.CZScan, goods gtinGoods) error {
 	// Расхождение — часть ключа: чужие или выбывшие единицы уходят в проблему отдельно от
 	// своих той же партии, поэтому и строкой показываются отдельно (CZ-05).
 	type key struct{ gtin, date, discrepancy string }
 	lines := map[key]*model.CZCompositionLine{}
-	goods := map[string]*model.CZGoodRef{}
 	// Упаковка каждого запрошенного кода — по тому, чьим ребёнком он пришёл, а не по полю
 	// parent ответа ЧЗ: так ссылка всегда ведёт на код, который знает и приёмка (CZ-05).
 	// Вложенный короб (короб в паллете) упаковкой приёмки не считается — его единицы
@@ -209,13 +238,9 @@ func (s *CZService) expand(ctx context.Context, children []string, out *model.CZ
 					k := key{it.Gtin, dateOnly(it.ProducedDate), s.discrepancy(it)}
 					ln, ok := lines[k]
 					if !ok {
-						good, known := goods[it.Gtin]
-						if !known {
-							g, _, err := s.goodByGTIN(ctx, it.Gtin)
-							if err != nil {
-								return err
-							}
-							goods[it.Gtin], good = g, g
+						good, _, err := goods.lookup(ctx, s, it.Gtin)
+						if err != nil {
+							return err
 						}
 						ln = &model.CZCompositionLine{GTIN: it.Gtin, ProductName: it.ProductName,
 							Good: good, ProducedDate: k.date, Discrepancy: k.discrepancy}

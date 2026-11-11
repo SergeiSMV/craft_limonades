@@ -178,3 +178,64 @@ func TestCZScan_discrepancy(t *testing.T) {
 		t.Fatalf("got %d %s", rec.Code, rec.Body)
 	}
 }
+
+// ADHOC-70: пачка сканов. Ответ по каждому коду — в порядке присланных: марка (как со
+// сканера DT50S), короб, марка, которой нет в ЧЗ, обычный ШК. Формат закреплён эталоном
+// testdata/cz_scan_batch.json — его же разбирает клиент ТСД.
+func TestCZScanBatch_wireFormat(t *testing.T) {
+	router, _, worker := czRouter(t, service.NewCZService(scanCZClient{}, scanCZMarks{}))
+	body, _ := json.Marshal(map[string][]string{"codes": {
+		"]d2\x1d" + scanMark + "\x1d93dGVz", "]C1" + scanBox, "0104612728200172215unknown", "4612728200172",
+	}})
+	rec := czCall(router, worker, http.MethodPost, "/api/v1/cz/scan/batch", string(body))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("код %d: %s", rec.Code, rec.Body)
+	}
+	var want, got map[string]any
+	if err := json.Unmarshal(readFixture(t, "cz_scan_batch.json"), &want); err != nil {
+		t.Fatalf("эталон не разбирается: %v", err)
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+		t.Fatalf("ответ не разбирается: %v", err)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("ответ разошёлся с эталоном testdata/cz_scan_batch.json.\nПолучено: %s", rec.Body)
+	}
+}
+
+func TestCZScanBatch_errors(t *testing.T) {
+	codes := func(n int) string {
+		list := make([]string, n)
+		for i := range list {
+			list[i] = scanMark
+		}
+		b, _ := json.Marshal(map[string][]string{"codes": list})
+		return string(b)
+	}
+	cases := []struct {
+		name string
+		svc  *service.CZService
+		body string
+		code int
+		msg  string
+	}{
+		{"bad json", service.NewCZService(scanCZClient{}, scanCZMarks{}), `codes`, 400, "ожидается"},
+		{"пусто", service.NewCZService(scanCZClient{}, scanCZMarks{}), codes(0), 400, "ни одного"},
+		{"больше сотни", service.NewCZService(scanCZClient{}, scanCZMarks{}), codes(101), 400, "слишком много"},
+		{"не настроено", service.NewCZService(nil, nil), codes(1), 503, "не настроен"},
+		{"ЧЗ недоступен", service.NewCZService(czClientStub{infoErr: model.ErrCZUnavailable}, nil), codes(2), 502, "True API"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			router, _, worker := czRouter(t, tc.svc)
+			rec := czCall(router, worker, http.MethodPost, "/api/v1/cz/scan/batch", tc.body)
+			if rec.Code != tc.code || !strings.Contains(rec.Body.String(), tc.msg) {
+				t.Fatalf("got %d %s, want %d with %q", rec.Code, rec.Body, tc.code, tc.msg)
+			}
+		})
+	}
+	router, _, _ := czRouter(t, service.NewCZService(scanCZClient{}, scanCZMarks{}))
+	if rec := czCall(router, "", http.MethodPost, "/api/v1/cz/scan/batch", codes(1)); rec.Code != http.StatusUnauthorized {
+		t.Fatalf("без токена: %d", rec.Code)
+	}
+}

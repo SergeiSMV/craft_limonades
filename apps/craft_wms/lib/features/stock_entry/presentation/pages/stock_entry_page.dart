@@ -51,6 +51,14 @@ class _StockEntryView extends StatelessWidget {
   /// действием в меню шапки.
   Future<void> _onBack(BuildContext context) async {
     final cubit = context.read<StockEntryCubit>();
+    // Марки ЧЗ, отсканированные последними, сначала ложатся в ячейку (ADHOC-70).
+    if (cubit.czHold.busy) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(t.czScan.settling)));
+      await cubit.czHold.settle();
+      if (!context.mounted) return;
+    }
     final s = cubit.state;
     if (s.busy) return; // идёт финал — не мешаем
     if (s.finished) {

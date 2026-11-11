@@ -20,6 +20,7 @@ type czReader interface {
 	Status(ctx context.Context) model.CZStatus
 	CisesInfo(ctx context.Context, codes []string) ([]model.CisInfo, error)
 	Scan(ctx context.Context, code string) (model.CZScan, error)
+	ScanMany(ctx context.Context, codes []string) ([]service.CZScanItem, error)
 	SetGoodCZMarked(ctx context.Context, goodID string, marked bool) error
 }
 

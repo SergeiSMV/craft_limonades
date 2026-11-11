@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -70,7 +72,15 @@ class _EntryBoxViewState extends State<_EntryBoxView>
       snack(t.stockEntry.boxAlreadyOpen);
       return;
     }
-    context.router.replace(EntryBoxRoute(cubit: cubit, boxId: boxId));
+    unawaited(_switchBox(boxId));
+  }
+
+  /// Перейти в другой короб, когда марки этого легли в него (ADHOC-70).
+  Future<void> _switchBox(String boxId) async {
+    if (!await czSettle()) return;
+    if (mounted) {
+      await context.router.replace(EntryBoxRoute(cubit: cubit, boxId: boxId));
+    }
   }
 
   /// Напечатать ярлык короба и сказать, чем кончилось.
@@ -96,9 +106,9 @@ class _EntryBoxViewState extends State<_EntryBoxView>
       confirmLabel: t.stockEntry.boxDeleteConfirm,
       cancelLabel: t.stockEntry.cancel,
     );
-    if (!ok || !mounted) return;
+    if (!ok || !await czSettle()) return;
     cubit.removeBox(widget.boxId);
-    context.router.maybePop();
+    if (mounted) Navigator.of(context).pop();
   }
 
   @override
@@ -111,87 +121,92 @@ class _EntryBoxViewState extends State<_EntryBoxView>
         .linesOf(box.id)
         .reversed
         .toList(); // свежая строка — сверху
-    return SystemUiWrapper(
-      style: StatusBarStyle.light,
-      child: Scaffold(
-        backgroundColor: AppColors.kNeumorphicBg,
-        appBar: AppBar(
-          automaticallyImplyLeading: false,
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          toolbarHeight: AppSizes.kIcon60,
-          flexibleSpace: ClipRRect(
-            borderRadius: AppBorders.kBottom10,
-            child: Assets.images.stockEntry.image(fit: BoxFit.cover),
+    // «Назад» — после марок, ещё не легших в короб (ADHOC-70).
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: czOnPop,
+      child: SystemUiWrapper(
+        style: StatusBarStyle.light,
+        child: Scaffold(
+          backgroundColor: AppColors.kNeumorphicBg,
+          appBar: AppBar(
+            automaticallyImplyLeading: false,
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            toolbarHeight: AppSizes.kIcon60,
+            flexibleSpace: ClipRRect(
+              borderRadius: AppBorders.kBottom10,
+              child: Assets.images.stockEntry.image(fit: BoxFit.cover),
+            ),
+            title: PageHeader(
+              title: t.stockEntry.boxTitle(code: box.code),
+              goBack: czLeave,
+            ),
           ),
-          title: PageHeader(
-            title: t.stockEntry.boxTitle(code: box.code),
-            goBack: () => context.router.maybePop(),
-          ),
-        ),
-        body: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: AppInsets.all8,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Padding(
-                      padding: AppInsets.left6,
-                      child: Text(
-                        t.stockEntry.currentCell(
-                          address: state.cell?.address ?? '',
-                        ),
-                        style: SemiboldTextStyles().semiboldInter14.copyWith(
-                          color: AppColors.kSidebarHover,
+          body: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: AppInsets.all8,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Padding(
+                        padding: AppInsets.left6,
+                        child: Text(
+                          t.stockEntry.currentCell(
+                            address: state.cell?.address ?? '',
+                          ),
+                          style: SemiboldTextStyles().semiboldInter14.copyWith(
+                            color: AppColors.kSidebarHover,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  // У короба ЧЗ своя этикетка поставщика с SSCC — ярлык не нужен.
-                  if (!box.isCz) ...[
+                    // У короба ЧЗ своя этикетка поставщика с SSCC — ярлык не нужен.
+                    if (!box.isCz) ...[
+                      AppBoxes.kWidth8,
+                      BarIconButton(
+                        onPressed: _printLabel,
+                        icon: MdiIcons.printer,
+                      ),
+                    ],
+                    if (state.undoStack.isNotEmpty) ...[
+                      AppBoxes.kWidth8,
+                      BarIconButton(onPressed: cubit.undo, icon: MdiIcons.undo),
+                    ],
                     AppBoxes.kWidth8,
                     BarIconButton(
-                      onPressed: _printLabel,
-                      icon: MdiIcons.printer,
+                      onPressed: _deleteBox,
+                      icon: Icons.delete_outline,
+                      color: AppColors.kDanger,
                     ),
                   ],
-                  if (state.undoStack.isNotEmpty) ...[
-                    AppBoxes.kWidth8,
-                    BarIconButton(onPressed: cubit.undo, icon: MdiIcons.undo),
-                  ],
-                  AppBoxes.kWidth8,
-                  BarIconButton(
-                    onPressed: _deleteBox,
-                    icon: Icons.delete_outline,
-                    color: AppColors.kDanger,
-                  ),
-                ],
+                ),
               ),
-            ),
-            Padding(
-              padding: AppInsets.h8,
-              child: EntryScanField(
-                controller: scanController,
-                focusNode: scanFocus,
-                onTap: addManual,
-                onSubmitted: onScan,
+              Padding(
+                padding: AppInsets.h8,
+                child: EntryScanField(
+                  controller: scanController,
+                  focusNode: scanFocus,
+                  onTap: addManual,
+                  onSubmitted: onScan,
+                ),
               ),
-            ),
-            Expanded(
-              child: lines.isEmpty
-                  ? Center(child: Text(t.stockEntry.boxEmpty))
-                  : ListView.builder(
-                      padding: AppInsets.h8 + AppInsets.top8,
-                      itemCount: lines.length,
-                      itemBuilder: (context, i) => LineTile(
-                        line: lines[i],
-                        onLongPress: () => showLineMenu(lines[i]),
+              Expanded(
+                child: lines.isEmpty
+                    ? Center(child: Text(t.stockEntry.boxEmpty))
+                    : ListView.builder(
+                        padding: AppInsets.h8 + AppInsets.top8,
+                        itemCount: lines.length,
+                        itemBuilder: (context, i) => LineTile(
+                          line: lines[i],
+                          onLongPress: () => showLineMenu(lines[i]),
+                        ),
                       ),
-                    ),
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );
