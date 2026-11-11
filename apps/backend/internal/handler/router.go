@@ -244,6 +244,9 @@ func NewRouter(log *slog.Logger, db Pinger, tokens *auth.TokenManager, svc Servi
 			// Скан марки или кода короба на ТСД (CZ-04) — сотруднику: кладовщик сканирует марку
 			// в «Остатках» и «Номенклатуре». Только онлайн: каждый скан — запрос в True API.
 			r.With(appmw.Authenticator(tokens), need(model.RightsTSD)).Post("/cz/scan", czH.Scan)
+			// Пачка сканов (ADHOC-70): приёмка и ввод остатков читают марки, накопленные за время
+			// предыдущего запроса, одним запросом в True API.
+			r.With(appmw.Authenticator(tokens), need(model.RightsTSD)).Post("/cz/scan/batch", czH.ScanBatch)
 		}
 
 		// Чтение справочников (товары/группы/поставщики/ячейки/остатки) — любому аутентифицированному

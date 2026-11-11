@@ -31,6 +31,7 @@ class CzMarkInWms {
     this.loadUnitId,
     this.loadUnitCellId,
     this.cellId,
+    this.internalWarehouseId,
     this.aggregateCode,
     this.cellAddress,
   });
@@ -47,6 +48,9 @@ class CzMarkInWms {
 
   /// Ячейка марки россыпью.
   final String? cellId;
+
+  /// Внутренний склад марки россыпью; `null` — «Основной» или марка в коробе.
+  final String? internalWarehouseId;
 
   /// Упаковка ЧЗ, в которой марка пришла.
   final String? aggregateCode;
@@ -182,4 +186,17 @@ class CzScanResult {
 abstract interface class CzScanRepository {
   /// Данные по коду со сканера: префикс AIM и криптохвост сервер срежет сам.
   Future<Either<Failure, CzScanResult>> scan(String code);
+
+  /// Пачка кодов одним запросом в ЧЗ (ADHOC-70): ответ на каждый код в том же порядке.
+  /// `Left` — не прочитан ни один код (нет связи, ЧЗ недоступен); отказ по одному коду —
+  /// в его [CzScanBatchItem.result].
+  Future<Either<Failure, List<CzScanBatchItem>>> scanMany(List<String> codes);
+}
+
+/// Ответ пачки по одному коду (ADHOC-70): код, как его прислал терминал, и скан или отказ.
+class CzScanBatchItem {
+  const CzScanBatchItem({required this.requested, required this.result});
+
+  final String requested;
+  final Either<Failure, CzScanResult> result;
 }

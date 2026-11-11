@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -77,7 +79,15 @@ class _ReceiptBoxViewState extends State<_ReceiptBoxView>
       snack(t.receipt.boxAlreadyOpen);
       return;
     }
-    context.router.replace(ReceiptBoxRoute(cubit: cubit, boxId: boxId));
+    unawaited(_switchBox(boxId));
+  }
+
+  /// Перейти в другой короб, когда марки этого легли в него (ADHOC-70).
+  Future<void> _switchBox(String boxId) async {
+    if (!await czSettle()) return;
+    if (mounted) {
+      await context.router.replace(ReceiptBoxRoute(cubit: cubit, boxId: boxId));
+    }
   }
 
   /// Ячейка на странице короба переносит короб целиком (решение пользователя, ADHOC-18).
@@ -95,9 +105,9 @@ class _ReceiptBoxViewState extends State<_ReceiptBoxView>
       confirmLabel: t.receipt.boxDeleteConfirm,
       cancelLabel: t.receipt.cancel,
     );
-    if (!ok || !mounted) return;
+    if (!ok || !await czSettle()) return;
     cubit.removeBox(widget.boxId);
-    context.router.maybePop();
+    if (mounted) Navigator.of(context).pop();
   }
 
   @override
@@ -113,79 +123,84 @@ class _ReceiptBoxViewState extends State<_ReceiptBoxView>
     final cellText = box.cell == null
         ? t.receipt.cellDefault(address: state.defaultCell?.address ?? '')
         : t.receipt.cell(address: box.cell!.address);
-    return SystemUiWrapper(
-      style: StatusBarStyle.light,
-      child: Scaffold(
-        backgroundColor: AppColors.kNeumorphicBg,
-        appBar: AppBar(
-          automaticallyImplyLeading: false,
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          toolbarHeight: AppSizes.kIcon60,
-          flexibleSpace: ClipRRect(
-            borderRadius: AppBorders.kBottom10,
-            child: Assets.images.featuredSnacks.image(fit: BoxFit.cover),
-          ),
-          title: PageHeader(
-            title: box.isCz
-                ? t.receipt.czBox(code: box.shortCode)
-                : t.receipt.box(code: box.shortCode),
-            goBack: () => context.router.maybePop(),
-          ),
-        ),
-        body: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: AppInsets.all8,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: BarButton(
-                      onPressed: changeCell,
-                      text: cellText,
-                      icon: MdiIcons.cogTransfer,
-                    ),
-                  ),
-                  // У короба ЧЗ своя этикетка поставщика с SSCC — ярлык не нужен (CZ-05).
-                  if (!box.isCz) ...[
-                    AppBoxes.kWidth8,
-                    BarIconButton(
-                      onPressed: () => printBoxLabel(box.id),
-                      icon: MdiIcons.printer,
-                    ),
-                  ],
-                  AppBoxes.kWidth8,
-                  BarIconButton(
-                    onPressed: _deleteBox,
-                    icon: Icons.delete_outline,
-                    color: AppColors.kDanger,
-                  ),
-                ],
-              ),
+    // «Назад» — после марок, ещё не легших в короб (ADHOC-70).
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: czOnPop,
+      child: SystemUiWrapper(
+        style: StatusBarStyle.light,
+        child: Scaffold(
+          backgroundColor: AppColors.kNeumorphicBg,
+          appBar: AppBar(
+            automaticallyImplyLeading: false,
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            toolbarHeight: AppSizes.kIcon60,
+            flexibleSpace: ClipRRect(
+              borderRadius: AppBorders.kBottom10,
+              child: Assets.images.featuredSnacks.image(fit: BoxFit.cover),
             ),
-            Padding(
-              padding: AppInsets.h8,
-              child: ReceiptScanField(
-                controller: scanController,
-                focusNode: scanFocus,
-                onTap: addManual,
-                onSubmitted: onScan,
-              ),
+            title: PageHeader(
+              title: box.isCz
+                  ? t.receipt.czBox(code: box.shortCode)
+                  : t.receipt.box(code: box.shortCode),
+              goBack: czLeave,
             ),
-            Expanded(
-              child: lines.isEmpty
-                  ? Center(child: Text(t.receipt.boxEmpty))
-                  : ListView.builder(
-                      padding: AppInsets.h8 + AppInsets.top8,
-                      itemCount: lines.length,
-                      itemBuilder: (context, i) => ReceiptLineTile(
-                        line: lines[i],
-                        onLongPress: () => showLineMenu(lines[i]),
+          ),
+          body: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: AppInsets.all8,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: BarButton(
+                        onPressed: changeCell,
+                        text: cellText,
+                        icon: MdiIcons.cogTransfer,
                       ),
                     ),
-            ),
-          ],
+                    // У короба ЧЗ своя этикетка поставщика с SSCC — ярлык не нужен (CZ-05).
+                    if (!box.isCz) ...[
+                      AppBoxes.kWidth8,
+                      BarIconButton(
+                        onPressed: () => printBoxLabel(box.id),
+                        icon: MdiIcons.printer,
+                      ),
+                    ],
+                    AppBoxes.kWidth8,
+                    BarIconButton(
+                      onPressed: _deleteBox,
+                      icon: Icons.delete_outline,
+                      color: AppColors.kDanger,
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: AppInsets.h8,
+                child: ReceiptScanField(
+                  controller: scanController,
+                  focusNode: scanFocus,
+                  onTap: addManual,
+                  onSubmitted: onScan,
+                ),
+              ),
+              Expanded(
+                child: lines.isEmpty
+                    ? Center(child: Text(t.receipt.boxEmpty))
+                    : ListView.builder(
+                        padding: AppInsets.h8 + AppInsets.top8,
+                        itemCount: lines.length,
+                        itemBuilder: (context, i) => ReceiptLineTile(
+                          line: lines[i],
+                          onLongPress: () => showLineMenu(lines[i]),
+                        ),
+                      ),
+              ),
+            ],
+          ),
         ),
       ),
     );

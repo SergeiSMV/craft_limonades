@@ -8,6 +8,7 @@ import '../../../../core/load_unit/load_unit_id_generator.dart';
 import '../../../../core/printer/printer_device.dart';
 import '../../../../core/printer/printer_service.dart';
 import '../../../cz/domain/cz_intake.dart';
+import '../../../cz/domain/cz_intake_hold.dart';
 import '../../../stock/data/catalog_models.dart';
 import '../../data/entry_draft_store.dart';
 import '../../../stock/data/catalog_repository.dart';
@@ -114,6 +115,10 @@ class StockEntryCubit extends Cubit<StockEntryState> {
 
   final CatalogRepository _catalog;
   final EntryDraftStore _drafts;
+
+  /// Марки ЧЗ, отсканированные, но ещё не легшие в проход (ADHOC-70): закрытие ячейки, уход и
+  /// финал ждут их.
+  final czHold = CzIntakeHold();
   final LoadUnitIdGenerator _ids;
   final PrinterService _printer;
 

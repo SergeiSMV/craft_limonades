@@ -6,6 +6,8 @@ import '../../../../core/gen/strings.g.dart';
 import '../../../../core/warehouse/internal_warehouses.dart';
 import '../../../contents/domain/contents_entities.dart';
 import '../../../contents/domain/contents_repository.dart';
+import '../../../cz/domain/cz_scan.dart';
+import '../../../cz/domain/cz_stock_marks.dart';
 import '../../../stock/data/catalog_models.dart';
 import '../../../stock/data/catalog_repository.dart';
 import '../../domain/movement_models.dart';
@@ -32,7 +34,12 @@ mixin MoveMarkScanActions<T extends StatefulWidget> on State<T> {
 
   /// Отсканирован КИ марки или групповой упаковки.
   Future<void> onMarkScan(String code) async {
-    final found = await _contents.marksByCode(code);
+    final found = await stockMarksByCode(
+      code,
+      contents: _contents,
+      cz: getIt<CzScanRepository>(),
+      defaultWarehouseId: getIt<InternalWarehouses>().defaultId,
+    );
     final spots = <(StockMark, MarkSpot)>[];
     for (final m in found) {
       if (await _spotOf(m) case final spot?) spots.add((m, spot));
@@ -92,8 +99,12 @@ mixin MoveMarkScanActions<T extends StatefulWidget> on State<T> {
       );
     }
     if (m.inBox) {
-      final res = await _contents.loadUnit(m.loadUnitId!);
-      final box = res.isRight ? res.right.value : null;
+      // Короб марки — из снимка терминала; сервер — только если его там нет (ADHOC-70).
+      var box = await _contents.cachedLoadUnit(m.loadUnitId!);
+      if (box == null) {
+        final res = await _contents.loadUnit(m.loadUnitId!);
+        box = res.isRight ? res.right.value : null;
+      }
       if (box == null) return null;
       final cellId = s.boxCellInSession(box.id) ?? box.cellId;
       final cell = cellId == null

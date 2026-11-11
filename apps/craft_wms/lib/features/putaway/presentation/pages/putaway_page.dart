@@ -16,6 +16,7 @@ import '../../../../core/scanner/cz_code.dart';
 import '../../../../core/scanner/hardware_scan_listener.dart';
 import '../../../../core/scanner/scan_code.dart';
 import '../../../../core/scanner/scan_deduper.dart';
+import '../../../../core/scanner/scan_serial.dart';
 import '../../../../core/utils/keyboard.dart';
 import '../../../../core/widgets/cell_change_sheet.dart';
 import '../../../../core/widgets/page_header.dart';
@@ -24,6 +25,8 @@ import '../../../../core/widgets/rejected_session_banner.dart';
 import '../../../../core/widgets/scan_field.dart';
 import '../../../../core/widgets/system_ui_wrapper.dart';
 import '../../../contents/domain/contents_repository.dart';
+import '../../../cz/domain/cz_scan.dart';
+import '../../../cz/domain/cz_stock_marks.dart';
 import '../../../stock/data/catalog_models.dart';
 import '../../../stock/data/catalog_repository.dart';
 import '../../../stocktake/presentation/widgets/cell_count_warning.dart';
@@ -35,6 +38,7 @@ import '../widgets/pick_card.dart';
 import '../widgets/putaway_lists.dart';
 import '../widgets/putaway_messages.dart';
 import '../../../../core/utils/doc_number.dart';
+import '../../../../core/warehouse/internal_warehouses.dart';
 
 /// Выполнение задания на размещение (P5-03): скан короба или товара → скан ячейки → … →
 /// «Завершить». Работает без связи: сеанс копится на терминале и уходит одной операцией.
@@ -84,6 +88,9 @@ class _PutawayViewState extends State<_PutawayView> with HardwareScanListener {
 
   //* --- скан --- *//
 
+  /// Сканы экрана — по одному, в порядке прихода (ADHOC-70).
+  final _scans = ScanSerial('Размещение');
+
   /// Единая точка для обоих источников кода (поле и интент), поэтому отсечение дубля здесь.
   Future<void> onScan(String value) async {
     final code = value.trim();
@@ -92,6 +99,12 @@ class _PutawayViewState extends State<_PutawayView> with HardwareScanListener {
       refocusScan();
       return;
     }
+    await _scans.run(() => _handleScan(code));
+  }
+
+  /// Обработать один скан: уже в очереди сканов экрана.
+  Future<void> _handleScan(String code) async {
+    if (!mounted) return;
     switch (classifyScan(code)) {
       case ScanKind.cargoUnit:
         cubit.pickBox(loadUnitIdFrom(code)!);
@@ -160,7 +173,12 @@ class _PutawayViewState extends State<_PutawayView> with HardwareScanListener {
   /// Скан марки или групповой упаковки ЧЗ (CZ-06): россыпь маркируемого товара берётся
   /// марками, лежащими россыпью в ячейке приёмки, — того же товара и партии, что первая.
   Future<void> onMarkScan(String code) async {
-    final marks = await getIt<ContentsRepository>().marksByCode(code);
+    final marks = await stockMarksByCode(
+      code,
+      contents: getIt<ContentsRepository>(),
+      cz: getIt<CzScanRepository>(),
+      defaultWarehouseId: getIt<InternalWarehouses>().defaultId,
+    );
     final receiving = (await getIt<CatalogRepository>().defaultCell()).fold(
       (_) => null,
       (c) => c,
@@ -360,7 +378,9 @@ class _PutawayViewState extends State<_PutawayView> with HardwareScanListener {
               child: Assets.images.featuredSnacks.image(fit: BoxFit.cover),
             ),
             title: PageHeader(
-              title: t.putaway.title(number: docNumber(DocKind.task, state.task.number)),
+              title: t.putaway.title(
+                number: docNumber(DocKind.task, state.task.number),
+              ),
               goBack: goBack,
             ),
           ),

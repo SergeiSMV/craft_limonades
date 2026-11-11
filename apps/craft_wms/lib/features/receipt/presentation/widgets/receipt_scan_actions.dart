@@ -86,17 +86,26 @@ mixin ReceiptScanActions<T extends StatefulWidget>
       refocusScan();
       return;
     }
-    switch (classifyScan(code)) {
+    final kind = classifyScan(code);
+    // Марка и короб «Честного знака» встают в очередь чтения и ответа не ждут (ADHOC-70).
+    if (kind == ScanKind.czMark || kind == ScanKind.czBox) {
+      onCzScan(code);
+      refocusScan();
+      return;
+    }
+    // Остальные сканы — после марок, отсканированных раньше: ячейка и короб, сменённые
+    // до ответа ЧЗ, увели бы туда марки, отсканированные до смены.
+    if (!await czSettle()) return;
+    switch (kind) {
       case ScanKind.cargoUnit:
         _onBoxLabel(loadUnitIdFrom(code)!);
       case ScanKind.cell:
         await _onCellScan(code);
       case ScanKind.good:
         await _onGoodScan(code);
-      // Марка и короб «Честного знака» читаются из ЧЗ (CZ-05).
       case ScanKind.czMark:
       case ScanKind.czBox:
-        await onCzScan(code);
+        break;
       case ScanKind.unknown:
         // Ярлык ГЕ новой версии — исправная этикетка, а не чужой код: «не распознан»
         // отправил бы кладовщика искать поломку, которой нет (P4-04).
@@ -138,6 +147,7 @@ mixin ReceiptScanActions<T extends StatefulWidget>
 
   /// Выбрать ячейку вручную — тот же лист, что во «Вводе остатков».
   Future<void> changeCell() async {
+    if (!await czSettle() || !mounted) return;
     final cell = await showModalBottomSheet<Cell>(
       context: context,
       isScrollControlled: true,

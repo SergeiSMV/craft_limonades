@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter_neumorphic_plus/flutter_neumorphic.dart';
 
@@ -45,7 +47,7 @@ class _ReceiptWorkViewState extends State<ReceiptWorkView>
 
   /// Скан ярлыка короба открывает его страницу.
   @override
-  void onBoxScanned(String boxId) => _openBox(boxId);
+  void onBoxScanned(String boxId) => unawaited(_openBox(boxId));
 
   /// Ячейка в общем списке — для штучных строк и новых коробов.
   @override
@@ -54,6 +56,9 @@ class _ReceiptWorkViewState extends State<ReceiptWorkView>
   /// Открыть страницу короба. Cubit передаётся тот же: короб — часть этой приёмки, и его
   /// страница правит то же состояние и тот же черновик.
   Future<void> _openBox(String boxId) async {
+    // Марки, отсканированные россыпью, — до входа в короб (ADHOC-70).
+    if (!await czSettle()) return;
+    if (!mounted) return;
     await context.router.push(ReceiptBoxRoute(cubit: cubit, boxId: boxId));
     refocusScan();
   }
@@ -74,6 +79,7 @@ class _ReceiptWorkViewState extends State<ReceiptWorkView>
   /// Документа поставщика нет (черновик до ADHOC-23) — сначала он: без него сервер приёмку
   /// не проведёт.
   Future<void> _submit() async {
+    if (!await czSettle()) return;
     if (widget.state.doc == null && !await _editDoc()) return;
     if (!mounted) return;
     final ok = await showBindPromptDialog(

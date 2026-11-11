@@ -10,11 +10,15 @@ import '../../../../core/scanner/cz_code.dart';
 import '../../../../core/scanner/hardware_scan_listener.dart';
 import '../../../../core/scanner/scan_code.dart';
 import '../../../../core/scanner/scan_deduper.dart';
+import '../../../../core/scanner/scan_serial.dart';
 import '../../../../core/utils/date_time_format.dart';
 import '../../../../core/widgets/bind_prompt_dialog.dart';
 import '../../../../core/widgets/date_qty_dialog.dart';
 import '../../../../core/widgets/good_picker_sheet.dart';
+import '../../../../core/warehouse/internal_warehouses.dart';
 import '../../../contents/domain/contents_repository.dart';
+import '../../../cz/domain/cz_scan.dart';
+import '../../../cz/domain/cz_stock_marks.dart';
 import '../../../stock/data/catalog_models.dart';
 import '../../../stock/data/catalog_repository.dart';
 import '../../domain/stocktake_count.dart';
@@ -60,6 +64,9 @@ mixin CountScanActions<T extends StatefulWidget>
   @override
   void onHardwareScan(ScanCode code) => onScan(code.raw);
 
+  /// Сканы экрана — по одному, в порядке прихода (ADHOC-70).
+  final _scans = ScanSerial('Пересчёт');
+
   /// Единая точка для поля и интента сканера.
   Future<void> onScan(String value) async {
     final code = value.trim();
@@ -68,6 +75,12 @@ mixin CountScanActions<T extends StatefulWidget>
       refocusScan();
       return;
     }
+    await _scans.run(() => _handleScan(code));
+  }
+
+  /// Обработать один скан: уже в очереди сканов экрана.
+  Future<void> _handleScan(String code) async {
+    if (!mounted) return;
     switch (classifyScan(code)) {
       case ScanKind.cargoUnit:
         await _onBox(loadUnitIdFrom(code)!);
@@ -127,7 +140,12 @@ mixin CountScanActions<T extends StatefulWidget>
   /// Склад позиции: марка лежит здесь россыпью — её склад; лежит в другом месте — склад
   /// позиции снимка того же товара и партии, иначе «Основной».
   Future<void> _onMark(String code) async {
-    final found = await _contents.marksByCode(code);
+    final found = await stockMarksByCode(
+      code,
+      contents: _contents,
+      cz: getIt<CzScanRepository>(),
+      defaultWarehouseId: getIt<InternalWarehouses>().defaultId,
+    );
     if (!mounted) return;
     if (found.isEmpty) {
       snack(t.stocktake.markUnknown);

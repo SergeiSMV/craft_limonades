@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:auto_route/auto_route.dart';
 import 'package:craft_wms/core/gen/assets.gen.dart';
 import 'package:flutter_neumorphic_plus/flutter_neumorphic.dart';
@@ -44,10 +46,12 @@ class _CellEntryViewState extends State<CellEntryView>
 
   /// Скан ярлыка короба ячейки открывает его страницу.
   @override
-  void onBoxScanned(String boxId) => _openBox(boxId);
+  void onBoxScanned(String boxId) => unawaited(_openBox(boxId));
 
   /// Открыть страницу короба. Cubit передаётся тот же: короб — часть этого прохода.
+  /// Марки, отсканированные россыпью, — до входа в короб (ADHOC-70).
   Future<void> _openBox(String boxId) async {
+    if (!await czSettle() || !mounted) return;
     await context.router.push(EntryBoxRoute(cubit: cubit, boxId: boxId));
     refocusScan();
   }
@@ -55,6 +59,11 @@ class _CellEntryViewState extends State<CellEntryView>
   /// Новый короб: заводим и сразу открываем — следующие сканы пойдут в него. Ярлык кладовщик
   /// печатает со страницы короба.
   Future<void> _newBox() => _openBox(cubit.newBox());
+
+  /// Закрыть ячейку, когда марки, отсканированные последними, легли в неё (ADHOC-70).
+  Future<void> _finishCell() async {
+    if (await czSettle()) cubit.finishCell();
+  }
 
   /// Сменить ячейку текущего буфера (ошиблись ячейкой, товары верны): лист выбора → `changeCell`
   /// (строки и короба сохраняются, при слиянии с пройденной — суммируются), затем возврат
@@ -216,7 +225,7 @@ class _CellEntryViewState extends State<CellEntryView>
           child: Padding(
             padding: AppInsets.all16,
             child: FilledButton.icon(
-              onPressed: state.lines.isEmpty ? null : cubit.finishCell,
+              onPressed: state.lines.isEmpty ? null : _finishCell,
               icon: const Icon(Icons.check),
               label: Text(t.stockEntry.finishCell),
             ),
