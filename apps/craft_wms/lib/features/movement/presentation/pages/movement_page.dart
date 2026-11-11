@@ -16,6 +16,7 @@ import '../../../../core/scanner/cz_code.dart';
 import '../../../../core/scanner/hardware_scan_listener.dart';
 import '../../../../core/scanner/scan_code.dart';
 import '../../../../core/scanner/scan_deduper.dart';
+import '../../../../core/scanner/scan_serial.dart';
 import '../../../../core/utils/keyboard.dart';
 import '../../../../core/widgets/cell_change_sheet.dart';
 import '../../../../core/widgets/page_header.dart';
@@ -112,6 +113,9 @@ class _MovementViewState extends State<_MovementView>
 
   //* --- скан --- *//
 
+  /// Сканы экрана — по одному, в порядке прихода (ADHOC-70).
+  final _scans = ScanSerial('Перемещение');
+
   /// Единая точка для обоих источников кода (поле и интент), поэтому отсечение дубля здесь.
   Future<void> onScan(String value) async {
     final code = value.trim();
@@ -122,6 +126,12 @@ class _MovementViewState extends State<_MovementView>
       refocusScan();
       return;
     }
+    await _scans.run(() => _handleScan(code));
+  }
+
+  /// Обработать один скан: уже в очереди сканов экрана.
+  Future<void> _handleScan(String code) async {
+    if (!mounted) return;
     switch (classifyScan(code)) {
       case ScanKind.cargoUnit:
         await onBoxScan(loadUnitIdFrom(code)!);

@@ -178,3 +178,52 @@ func czDay(ts string) string {
 	}
 	return ts
 }
+
+// czScanBatchItem — ответ пачки по одному коду (ADHOC-70): скан или отказ по этому коду.
+// Requested — код, как его прислал ТСД; Status и Error — как ответила бы `cz/scan` на этот код.
+type czScanBatchItem struct {
+	Requested string          `json:"requested"`
+	Scan      *czScanResponse `json:"scan"`
+	Status    int             `json:"status,omitempty"`
+	Error     string          `json:"error,omitempty"`
+}
+
+// ScanBatch: POST /api/v1/cz/scan/batch {codes: [...]} — скан пачки марок и кодов коробов
+// одним запросом в ЧЗ (ADHOC-70).
+//
+// Ответ — `{items: [...]}` по одному на присланный код, в том же порядке; формат закреплён
+// эталоном testdata/cz_scan_batch.json. Отказ по коду — в его элементе, отказ чтения целиком
+// (ЧЗ недоступен, не настроен, неверное тело) — ошибка запроса, как у `cz/scan`.
+func (h *CZHandler) ScanBatch(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Codes []string `json:"codes"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, czMaxBody)).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "ожидается {\"codes\": [\"…\"]}")
+		return
+	}
+	items, err := h.svc.ScanMany(r.Context(), req.Codes)
+	if err != nil {
+		code, msg := czErrorResponse(err)
+		if code >= http.StatusInternalServerError {
+			slog.ErrorContext(r.Context(), "chestny znak batch scan failed", "error", err)
+		}
+		writeError(w, code, msg)
+		return
+	}
+	out := make([]czScanBatchItem, 0, len(items))
+	for _, it := range items {
+		item := czScanBatchItem{Requested: it.Requested}
+		if it.Err != nil {
+			item.Status, item.Error = czErrorResponse(it.Err)
+			if item.Status >= http.StatusInternalServerError {
+				slog.ErrorContext(r.Context(), "chestny znak batch scan item failed", "error", it.Err)
+			}
+		} else {
+			res := toCZScanResponse(it.Scan)
+			item.Scan = &res
+		}
+		out = append(out, item)
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": out})
+}

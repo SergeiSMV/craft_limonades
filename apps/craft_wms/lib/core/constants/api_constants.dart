@@ -251,6 +251,10 @@ abstract final class ApiConst {
   /// состав (CZ-04): `cz/scan`. Код — в теле: в КИ бывают `/`, `%`, `"`.
   static const String czScan = 'cz/scan';
 
+  ///**POST** - пачка сканов марок и кодов коробов одним запросом в ЧЗ (ADHOC-70):
+  /// `cz/scan/batch {codes}` → ответ на каждый код.
+  static const String czScanBatch = 'cz/scan/batch';
+
   ///**PATCH** - признак «маркируемый» у товара, только admin (CZ-05): `goods/{id}/cz-marked`.
   static String goodCzMarked(String id) => 'goods/$id/cz-marked';
 

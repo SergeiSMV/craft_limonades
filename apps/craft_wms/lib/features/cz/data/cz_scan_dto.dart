@@ -1,3 +1,6 @@
+import 'package:either_dart/either.dart';
+
+import '../../../core/error/failure.dart';
 import '../domain/cz_scan.dart';
 
 /// Разбор ответа `POST cz/scan` (CZ-04). Формат закреплён эталонами сервера
@@ -46,6 +49,29 @@ CzScanResult czScanFromJson(Map<String, dynamic> j) {
   );
 }
 
+/// Разбор ответа `POST cz/scan/batch` (ADHOC-70): `{items: [{requested, scan | status, error}]}`.
+/// Формат закреплён эталоном сервера `testdata/cz_scan_batch.json`. Отказ по коду — как
+/// ответ сервера с его кодом и текстом, чтобы экран говорил то же, что при одиночном скане.
+List<CzScanBatchItem> czScanBatchFromJson(Map<String, dynamic> j) => [
+  for (final raw in (j['items'] as List?) ?? const [])
+    _batchItem(raw as Map<String, dynamic>),
+];
+
+CzScanBatchItem _batchItem(Map<String, dynamic> j) {
+  final scan = j['scan'];
+  return CzScanBatchItem(
+    requested: j['requested'] as String,
+    result: scan is Map<String, dynamic>
+        ? Right(czScanFromJson(scan))
+        : Left(
+            Failure.server(
+              (j['status'] as num?)?.toInt() ?? 0,
+              _text(j['error']),
+            ),
+          ),
+  );
+}
+
 /// Непустая строка или `null`: сервер опускает пустые поля, но и пустую строку считаем «нет».
 String? _text(Object? v) => v is String && v.isNotEmpty ? v : null;
 
@@ -69,6 +95,7 @@ CzMarkInWms? _mark(Object? v) {
     loadUnitId: v['load_unit_id'] as String?,
     loadUnitCellId: v['load_unit_cell_id'] as String?,
     cellId: v['cell_id'] as String?,
+    internalWarehouseId: v['internal_warehouse_id'] as String?,
     aggregateCode: v['aggregate_code'] as String?,
     cellAddress: v['cell_address'] as String?,
   );

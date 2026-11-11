@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -38,8 +40,17 @@ class _ReceiptView extends StatelessWidget {
   /// «Назад» (стрелка и системный жест). Выход приёмку НЕ теряет: черновик сохранён и
   /// поднимется при следующем открытии — об этом и говорим, чтобы выход не выглядел потерей
   /// (урок ADHOC-13).
-  void _onBack(BuildContext context) {
-    final s = context.read<ReceiptCubit>().state;
+  Future<void> _onBack(BuildContext context) async {
+    final cubit = context.read<ReceiptCubit>();
+    // Марки ЧЗ, отсканированные последними, сначала ложатся в черновик (ADHOC-70).
+    if (cubit.czHold.busy) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(t.czScan.settling)));
+      await cubit.czHold.settle();
+      if (!context.mounted) return;
+    }
+    final s = cubit.state;
     if (s.busy) return; // идёт отправка — не мешаем
     if (s.started && s.outcome == null && s.lines.isNotEmpty) {
       ScaffoldMessenger.of(context)
@@ -93,7 +104,7 @@ class _ReceiptView extends StatelessWidget {
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) _onBack(context);
+        if (!didPop) unawaited(_onBack(context));
       },
       child: SystemUiWrapper(
         style: StatusBarStyle.light,

@@ -77,6 +77,12 @@ class FakeContentsRepository implements ContentsRepository {
   @override
   Future<String?> cachedLoadUnitCell(String id) async => cachedCells[id];
 
+  /// Короба в снимке терминала (ADHOC-70); нет — `null`, и экран спросит [loadUnit].
+  final Map<String, LoadUnitView> cachedUnits = {};
+
+  @override
+  Future<LoadUnitView?> cachedLoadUnit(String id) async => cachedUnits[id];
+
   /// Короба ЧЗ: код `00`+SSCC → ГЕ (CZ-06).
   final Map<String, String> czBoxes = {};
 

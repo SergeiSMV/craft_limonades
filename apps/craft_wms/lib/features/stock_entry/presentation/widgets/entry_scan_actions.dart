@@ -15,6 +15,7 @@ import '../../../../core/widgets/bind_prompt_dialog.dart';
 import '../../../../core/widgets/date_qty_dialog.dart';
 import '../../../../core/widgets/good_picker_sheet.dart';
 import '../../../cz/domain/cz_intake.dart';
+import '../../../cz/domain/cz_intake_hold.dart';
 import '../../../cz/domain/cz_scan.dart';
 import '../../../cz/presentation/widgets/cz_intake_scan.dart';
 import '../../../stock/data/catalog_models.dart';
@@ -38,9 +39,6 @@ mixin EntryScanActions<T extends StatefulWidget>
 
   /// Отсекает дубль, если устройство отдаёт код и в поле, и интентом.
   final _deduper = ScanDeduper();
-
-  /// Короб, в который ложатся строки этого экрана; `null` — россыпь ячейки.
-  String? get scanBoxId;
 
   /// Отсканирован короб текущей ячейки — экран решает, открыть ли его.
   void onBoxScanned(String boxId);
@@ -88,12 +86,22 @@ mixin EntryScanActions<T extends StatefulWidget>
       refocusScan();
       return;
     }
-    switch (classifyScan(code)) {
+    final kind = classifyScan(code);
+    // Марка и короб ЧЗ встают в очередь чтения и ответа не ждут (ADHOC-70).
+    if (kind == ScanKind.czMark || kind == ScanKind.czBox) {
+      _onCzScan(code);
+      refocusScan();
+      return;
+    }
+    // Остальные сканы — после марок, отсканированных раньше: короб, открытый до ответа ЧЗ,
+    // увёл бы в себя марки, отсканированные россыпью.
+    if (!await czSettle()) return;
+    switch (kind) {
       case ScanKind.cargoUnit:
         _onBoxLabel(loadUnitIdFrom(code)!);
       case ScanKind.czMark:
       case ScanKind.czBox:
-        await _onCzScan(code);
+        break;
       case ScanKind.cell:
         // Код ячейки в поле товара: ручной выбор товара НЕ открываем — иначе адрес ячейки
         // привязался бы к выбранному товару как штрихкод.
@@ -138,41 +146,51 @@ mixin EntryScanActions<T extends StatefulWidget>
     return false;
   }
 
-  /// Скан кода ЧЗ: прочитать (только со связью), положить в ячейку или короб.
-  Future<void> _onCzScan(String code) async {
+  /// Скан кода ЧЗ: в закрытый короб ЧЗ — отказ, иначе в очередь чтения (ADHOC-70).
+  void _onCzScan(String code) {
     if (inCzBox) {
       snack(t.stockEntry.czBoxClosed);
       return;
     }
-    final read = await readCzIntake(code);
-    if (read == null || !mounted) return;
-    final scan = read.scan;
-    final result = scan.kind == CzCodeKind.box
-        ? cubit
-              .addCzBox(code: scan.code, lines: read.lines, groups: read.groups)
-              .result
-        : cubit.addCzMarks(
+    czEnqueue(code);
+  }
+
+  /// Марка или упаковка уже в проходе — повтор не читается.
+  @override
+  bool czAlreadyHere(String key) =>
+      cubit.state.passLines.any((l) => l.marks.any((m) => m.cis == key)) ||
+      cubit.state.passGroups.any((g) => g.code == key);
+
+  @override
+  CzIntakeHold get czHold => cubit.czHold;
+
+  @override
+  CzIntakeTexts get czTexts => CzIntakeTexts(
+    marksAdded: (n) => t.stockEntry.czMarksAdded(count: n),
+    boxAdded: (n) => t.stockEntry.czBoxAdded(count: n),
+    duplicate: t.stockEntry.czDuplicate,
+    boxClosed: t.stockEntry.czBoxClosed,
+    unreadable: (n) => t.stockEntry.czUnreadable(count: n),
+    discrepancy: t.stockEntry.czDiscrepancyAdded,
+  );
+
+  /// Положить прочитанное: короб ЧЗ — новой ГЕ ячейки, марки — в короб скана или россыпью.
+  @override
+  CzIntakeAdd czApply(CzIntakeRead read, {String? boxId}) {
+    if (read.scan.kind == CzCodeKind.box) {
+      return cubit
+          .addCzBox(
+            code: read.scan.code,
             lines: read.lines,
             groups: read.groups,
-            boxId: scanBoxId,
-          );
-    switch (result) {
-      case CzIntakeAdd.duplicate:
-        snack(t.stockEntry.czDuplicate);
-      case CzIntakeAdd.czBoxClosed:
-        snack(t.stockEntry.czBoxClosed);
-      case CzIntakeAdd.added:
-        snack(
-          [
-            scan.kind == CzCodeKind.box
-                ? t.stockEntry.czBoxAdded(count: read.units)
-                : t.stockEntry.czMarksAdded(count: read.units),
-            if (scan.unreadable.isNotEmpty)
-              t.stockEntry.czUnreadable(count: scan.unreadable.length),
-            if (read.hasDiscrepancy) t.stockEntry.czDiscrepancyAdded,
-          ].join('\n'),
-        );
+          )
+          .result;
     }
+    return cubit.addCzMarks(
+      lines: read.lines,
+      groups: read.groups,
+      boxId: boxId,
+    );
   }
 
   /// Скан ШК товара. Резолв кэш-first; не привязан — выбор товара и привязка очередью;

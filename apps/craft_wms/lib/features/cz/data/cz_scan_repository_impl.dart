@@ -39,4 +39,24 @@ class CzScanRepositoryImpl implements CzScanRepository {
       return const Left(Failure.unknown());
     }
   }
+
+  @override
+  Future<Either<Failure, List<CzScanBatchItem>>> scanMany(
+    List<String> codes,
+  ) async {
+    try {
+      final resp = await _dio.post<Map<String, dynamic>>(
+        ApiConst.czScanBatch,
+        data: {'codes': codes},
+        options: Options(receiveTimeout: _timeout),
+      );
+      final data = resp.data;
+      if (data == null) return const Left(Failure.unknown());
+      return Right(czScanBatchFromJson(data));
+    } on DioException catch (e) {
+      return Left(mapDioError(e));
+    } catch (_) {
+      return const Left(Failure.unknown());
+    }
+  }
 }

@@ -8,6 +8,7 @@
 dev.md
 dev-context.md
 dev-context-archive.md
+version.md
 docs/roadmap.md
 docs/progress.md
 scripts/roadmap_flatten.lua
