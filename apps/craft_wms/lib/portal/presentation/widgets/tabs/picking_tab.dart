@@ -11,7 +11,7 @@ import '../../../../core/sync/data_versions.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/utils/date_time_format.dart';
 import '../../../../core/widgets/data_versions_listener.dart';
-import '../../../data/web_download.dart';
+import '../../../../core/web_files/web_download.dart';
 import '../../../domain/picking/picking_order.dart';
 import '../picking/picking_order_dialog.dart';
 import '../picking/picking_order_table.dart';

@@ -5,7 +5,7 @@ import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/constants/app_insets.dart';
 import '../../../../../core/gen/strings.g.dart';
 import '../../../../../core/theme/semibold_text.dart';
-import '../../../data/tasks_models.dart';
+import '../../../domain/tasks_models.dart';
 
 /// Пометка статуса задания: «новое», «в работе», «выполнено».
 class TaskStatusBadge extends StatelessWidget {

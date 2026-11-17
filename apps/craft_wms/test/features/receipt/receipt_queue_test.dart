@@ -3,7 +3,7 @@ import 'package:craft_wms/core/error/failure.dart';
 import 'package:craft_wms/core/outbox/outbox_operation.dart';
 import 'package:craft_wms/core/outbox/outbox_repository.dart';
 import 'package:craft_wms/core/sync/sync_engine.dart';
-import 'package:craft_wms/features/receipt/data/receipt_repository.dart';
+import 'package:craft_wms/features/receipt/data/receipt_repository_impl.dart';
 import 'package:craft_wms/features/stock/data/catalog_cache.dart';
 // Только Migrator: полный экспорт drift переопределяет матчеры теста.
 import 'package:drift/drift.dart' show Migrator;
@@ -39,7 +39,7 @@ void main() {
       when(
         () => sync.sendOne(any()),
       ).thenAnswer((_) async => const Left(Failure.network()));
-      final repo = ReceiptRepository(outbox, sync);
+      final repo = ReceiptRepositoryImpl(outbox, sync);
       final payload = {
         'receipt_id': 'r1',
         'warehouse_id': 'w1',

@@ -1,8 +1,8 @@
 import 'package:craft_wms/core/di/injection.dart';
-import 'package:craft_wms/features/stock_entry/data/entry_draft_store.dart';
+import 'package:craft_wms/features/stock_entry/domain/stock_entry_drafts.dart';
 import 'package:mocktail/mocktail.dart';
 
-class _MockDrafts extends Mock implements EntryDraftStore {}
+class _MockDrafts extends Mock implements StockEntryDrafts {}
 
 /// Зарегистрировать пустое хранилище прохода для экранов, где висит [PendingPassBadge].
 ///
@@ -12,8 +12,8 @@ class _MockDrafts extends Mock implements EntryDraftStore {}
 void registerEmptyDraftStore() {
   final drafts = _MockDrafts();
   when(() => drafts.watchHasDraft()).thenAnswer((_) => Stream.value(false));
-  if (getIt.isRegistered<EntryDraftStore>()) {
-    getIt.unregister<EntryDraftStore>();
+  if (getIt.isRegistered<StockEntryDrafts>()) {
+    getIt.unregister<StockEntryDrafts>();
   }
-  getIt.registerSingleton<EntryDraftStore>(drafts);
+  getIt.registerSingleton<StockEntryDrafts>(drafts);
 }

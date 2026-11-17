@@ -1,4 +1,4 @@
-import '../../../data/documents_repository.dart';
+import '../../../domain/documents/documents_repository.dart';
 
 /// Фильтр списка документов по состоянию в 1С (ADHOC-26).
 ///

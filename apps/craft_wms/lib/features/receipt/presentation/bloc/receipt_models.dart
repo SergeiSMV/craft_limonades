@@ -3,7 +3,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import '../../../../core/load_unit/box_code.dart';
 import '../../../../core/printer/load_unit_label.dart';
 import '../../../cz/domain/cz_intake.dart';
-import '../../../stock/data/catalog_models.dart';
+import '../../../stock/domain/catalog_models.dart';
 
 part 'receipt_models.freezed.dart';
 part 'receipt_models.g.dart';

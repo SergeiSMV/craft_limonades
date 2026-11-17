@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../../../core/error/failure.dart';
 import '../../../../core/gen/strings.g.dart';
-import '../../../data/cells_repository.dart';
+import '../../../domain/cells/cells_repository.dart';
 import '../../../domain/cells/cell_setup.dart';
 import '../../../domain/cells/cells_view.dart';
 

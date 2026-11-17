@@ -3,7 +3,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../../../core/error/failure.dart';
-import '../../../tasks/data/tasks_models.dart';
+import '../../../tasks/domain/tasks_models.dart';
 import '../../domain/movement_history.dart';
 
 part 'movement_history_cubit.freezed.dart';

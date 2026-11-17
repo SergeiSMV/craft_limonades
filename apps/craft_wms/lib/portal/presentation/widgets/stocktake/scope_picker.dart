@@ -13,7 +13,7 @@ import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/theme/semibold_text.dart';
 import '../../../../core/utils/search_text.dart';
-import '../../../data/stocktakes_repository.dart';
+import '../../../domain/stocktakes/stocktakes_repository.dart';
 import '../ui/portal_input.dart';
 
 /// Выбор объектов области пересчёта (P10-05, плоский стиль - ADHOC-56): поле поиска, под ним

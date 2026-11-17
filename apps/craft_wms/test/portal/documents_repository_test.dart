@@ -2,10 +2,11 @@ import 'dart:typed_data';
 
 import 'package:craft_wms/core/constants/api_constants.dart';
 import 'package:craft_wms/core/error/failure.dart';
-import 'package:craft_wms/portal/data/documents_repository.dart';
+import 'package:craft_wms/portal/domain/documents/documents_repository.dart';
 import 'package:craft_wms/portal/presentation/widgets/documents/doc_form.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:craft_wms/portal/data/documents_repository_impl.dart';
 
 import '../support/fake_dio_adapter.dart';
 
@@ -29,7 +30,7 @@ void main() {
               },
             ),
       });
-      final repo = DocumentsRepository(dio);
+      final repo = DocumentsRepositoryImpl(dio);
 
       final res = await repo.listDocuments();
       expect(res.isRight, isTrue);
@@ -57,7 +58,7 @@ void main() {
       });
       dio.httpClientAdapter = adapter;
 
-      final res = await DocumentsRepository(dio).listDocuments(kind: 'receipt');
+      final res = await DocumentsRepositoryImpl(dio).listDocuments(kind: 'receipt');
       expect(adapter.requests.single.queryParameters, {'kind': 'receipt'});
       expect(res.right.single.kind, 'receipt');
       expect(res.right.single.supplier, 'ООО «Голсера»');
@@ -75,7 +76,7 @@ void main() {
           Headers.contentTypeHeader: [Headers.jsonContentType],
         }),
       });
-      final res = await DocumentsRepository(dio).listDocuments();
+      final res = await DocumentsRepositoryImpl(dio).listDocuments();
       expect(res.isLeft, isTrue);
       expect(res.left, isA<ServerFailure>());
     });
@@ -92,7 +93,7 @@ void main() {
       });
       dio.httpClientAdapter = adapter;
 
-      final res = await DocumentsRepository(dio).downloadReport('d1');
+      final res = await DocumentsRepositoryImpl(dio).downloadReport('d1');
       expect(res.isRight, isTrue);
       expect(res.right.bytes, equals(xlsx));
       // ADHOC-24: имя - то, что прислал сервер, а не зашитое «ввод остатков».
@@ -120,7 +121,7 @@ void main() {
       });
       dio.httpClientAdapter = adapter;
 
-      final res = await DocumentsRepository(dio).markDone('d1');
+      final res = await DocumentsRepositoryImpl(dio).markDone('d1');
       expect(res.isRight, isTrue);
       expect(adapter.requests.single.path, ApiConst.documentDone('d1'));
     });
@@ -131,7 +132,7 @@ void main() {
           Headers.contentTypeHeader: [Headers.jsonContentType],
         }),
       });
-      final res = await DocumentsRepository(dio).markDone('d1');
+      final res = await DocumentsRepositoryImpl(dio).markDone('d1');
       expect(res.isLeft, isTrue);
       expect(res.left, isA<ServerFailure>());
     });
@@ -149,7 +150,7 @@ void main() {
               },
             ),
       });
-      final res = await DocumentsRepository(dio).events('d1');
+      final res = await DocumentsRepositoryImpl(dio).events('d1');
       expect(res.isRight, isTrue);
       final events = res.right;
       expect(events, hasLength(2));
@@ -164,7 +165,7 @@ void main() {
           Headers.contentTypeHeader: [Headers.jsonContentType],
         }),
       });
-      final res = await DocumentsRepository(dio).events('d1');
+      final res = await DocumentsRepositoryImpl(dio).events('d1');
       expect(res.isLeft, isTrue);
       expect(res.left, isA<ServerFailure>());
     });

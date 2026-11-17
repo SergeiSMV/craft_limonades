@@ -20,7 +20,7 @@ import '../../../../core/widgets/page_header.dart';
 import '../../../../core/widgets/system_ui_wrapper.dart';
 import '../../../stock/presentation/stock_navigation.dart';
 import '../../../stocktake/presentation/widgets/stocktake_format.dart';
-import '../../data/tasks_models.dart';
+import '../../domain/tasks_models.dart';
 import '../bloc/task_detail_cubit.dart';
 import '../widgets/common/task_format.dart';
 import '../widgets/common/task_status_badge.dart';

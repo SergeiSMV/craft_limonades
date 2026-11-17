@@ -14,8 +14,8 @@ import '../scanner/scan_code.dart';
 import '../scanner/scan_deduper.dart';
 import '../theme/regular_text.dart';
 import '../theme/semibold_text.dart';
-import '../../features/stock/data/catalog_models.dart';
-import '../../features/stock/data/catalog_repository.dart';
+import '../../features/stock/domain/catalog_models.dart';
+import '../../features/stock/domain/catalog_repository.dart';
 
 /// Нижний лист смены ячейки (коррекция «не та ячейка»): высокий лист с полем сверху и встроенным
 /// прокручиваемым списком ячеек (локальная prefix-фильтрация). В отличие от инлайн-автокомплита на

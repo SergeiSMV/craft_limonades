@@ -8,7 +8,7 @@ import 'package:craft_wms/features/contents/domain/contents_repository.dart';
 import 'package:craft_wms/features/contents/domain/load_unit_label_printer.dart';
 import 'package:craft_wms/features/contents/domain/stock_entities.dart';
 import 'package:craft_wms/features/contents/presentation/bloc/boxes_cubit.dart';
-import 'package:craft_wms/features/stock/data/catalog_repository.dart';
+import 'package:craft_wms/features/stock/domain/catalog_repository.dart';
 import 'package:craft_wms/features/stock/presentation/bloc/stock_goods_cubit.dart';
 import 'package:craft_wms/features/tasks/domain/tasks_snapshot_sync.dart';
 import 'package:either_dart/either.dart';

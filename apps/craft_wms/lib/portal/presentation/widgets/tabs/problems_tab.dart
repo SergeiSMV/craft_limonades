@@ -9,7 +9,7 @@ import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/sync/data_versions.dart';
 import '../../../../core/widgets/data_versions_listener.dart';
-import '../../../data/problems_repository.dart';
+import '../../../domain/problems/problems_repository.dart';
 import '../problems/problem_card.dart';
 import '../problems/problem_filter.dart';
 import '../problems/problem_resolve_dialog.dart';

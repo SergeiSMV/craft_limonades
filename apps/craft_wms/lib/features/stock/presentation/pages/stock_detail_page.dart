@@ -8,7 +8,7 @@ import '../../../../core/gen/strings.g.dart';
 import '../../../../core/widgets/page_header.dart';
 import '../../../../core/widgets/system_ui_wrapper.dart';
 import '../../../cz/domain/cz_scan.dart';
-import '../../data/catalog_models.dart';
+import '../../domain/catalog_models.dart';
 import '../bloc/stock_detail_cubit.dart';
 import '../widgets/stock_detail/stock_detail_body.dart';
 

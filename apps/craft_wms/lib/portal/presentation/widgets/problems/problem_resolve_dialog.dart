@@ -9,7 +9,7 @@ import '../../../../core/gen/strings.g.dart';
 import '../../../../core/problems/problem_reasons.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/utils/date_time_format.dart';
-import '../../../data/problems_repository.dart';
+import '../../../domain/problems/problems_repository.dart';
 import '../settings/access_common.dart';
 import '../ui/portal_button.dart';
 import '../ui/portal_choice.dart';

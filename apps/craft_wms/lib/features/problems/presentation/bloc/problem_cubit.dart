@@ -7,7 +7,7 @@ import '../../../../core/load_unit/load_unit_id_generator.dart';
 import '../../../../core/problems/problem_reasons.dart';
 import '../../../../core/warehouse/internal_warehouses.dart';
 import '../../../contents/domain/contents_entities.dart';
-import '../../../stock/data/catalog_models.dart';
+import '../../../stock/domain/catalog_models.dart';
 import '../../domain/problem_photos.dart';
 import '../../domain/problem_repository.dart';
 import 'problem_state.dart';

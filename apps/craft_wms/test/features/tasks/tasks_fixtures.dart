@@ -1,4 +1,4 @@
-import 'package:craft_wms/features/tasks/data/tasks_models.dart';
+import 'package:craft_wms/features/tasks/domain/tasks_models.dart';
 
 /// Ответ `GET /tasks` в том виде, в каком его отдаёт сервер (handler/tasks.go): количества -
 /// строкой, даты партий - DD-MM-YYYY, у короба - состав, у россыпи - товар и остаток.

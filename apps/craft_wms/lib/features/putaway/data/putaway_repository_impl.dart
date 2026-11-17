@@ -8,8 +8,9 @@ import '../../../core/outbox/outbox_repository.dart';
 import '../../../core/outbox/sent_sessions.dart';
 import '../../../core/sync/sync_engine.dart';
 import '../../tasks/data/tasks_cache.dart';
-import 'putaway_draft_store.dart';
-import '../../tasks/data/tasks_repository.dart';
+import '../../tasks/domain/tasks_repository.dart';
+import '../domain/putaway_drafts.dart';
+import '../domain/putaway_repository.dart';
 
 /// Отправка сеанса размещения (P5-03).
 ///
@@ -18,9 +19,10 @@ import '../../tasks/data/tasks_repository.dart';
 /// Зачем ещё и снимок заданий: после отправки список текущих должен показать задание таким,
 /// каким его сделал сеанс. Со связью - свежий ответ сервера; без связи - снимок, в котором
 /// размещённое уже отмечено, иначе кладовщик разместил бы его повторно.
-@lazySingleton
-class PutawayRepository {
-  PutawayRepository(
+/// Контракт - [PutawayRepository] в `domain` (ADHOC-71).
+@LazySingleton(as: PutawayRepository)
+class PutawayRepositoryImpl implements PutawayRepository {
+  PutawayRepositoryImpl(
     this._outbox,
     this._sync,
     this._tasks,
@@ -34,7 +36,7 @@ class PutawayRepository {
   final SyncEngine _sync;
   final TasksRepository _tasks;
   final TasksCache _cache;
-  final PutawayDraftStore _drafts;
+  final PutawayDrafts _drafts;
   final SentSessionStore _sent;
   final LoadUnitIdGenerator _ids;
 
@@ -42,6 +44,7 @@ class PutawayRepository {
   ///
   /// Только со связью: кто держит задание, знает сервер. Удалось - снимок текущих обновляется,
   /// чтобы задание сразу показалось «новым».
+  @override
   Future<Either<Failure, void>> releaseTask(String taskId) async {
     final res = await _tasks.release(taskId);
     if (res.isRight) await _tasks.current();
@@ -56,6 +59,7 @@ class PutawayRepository {
   /// `result`: `Right` - сервер провёл. `Left(RejectedFailure)` - отказ по существу: операция
   /// [operationId] ждёт разбора. Любой другой `Left` - связи нет, сеанс в очереди; работа уже
   /// не потеряется.
+  @override
   Future<({String operationId, Either<Failure, void> result})> submit({
     required Map<String, dynamic> payload,
     required Map<String, dynamic> session,
@@ -91,6 +95,7 @@ class PutawayRepository {
   /// очереди; откроется он в своём задании. Второе значение - номер задания, чтобы сказать
   /// кладовщику, куда идти. Черновик уже есть - [ReopenOutcome.draftBusy]: он один на все
   /// задания, и новый затёр бы чужую работу.
+  @override
   Future<(ReopenOutcome, int)> reopenRejected(String operationId) async {
     if (await _drafts.load() != null) return (ReopenOutcome.draftBusy, 0);
     final session = await _sent.load(operationId);

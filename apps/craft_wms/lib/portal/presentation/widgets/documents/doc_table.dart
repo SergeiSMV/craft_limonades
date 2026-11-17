@@ -6,7 +6,7 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/theme/semibold_text.dart';
-import '../../../data/documents_repository.dart';
+import '../../../domain/documents/documents_repository.dart';
 import '../ui/portal_card.dart';
 import 'doc_card.dart';
 import 'doc_filter.dart';

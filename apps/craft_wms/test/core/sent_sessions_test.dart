@@ -6,9 +6,9 @@ import 'package:craft_wms/core/outbox/sent_sessions.dart';
 import 'package:craft_wms/core/sync/sync_engine.dart';
 import 'package:craft_wms/features/movement/data/movement_repository_impl.dart';
 import 'package:craft_wms/features/putaway/data/putaway_draft_store.dart';
-import 'package:craft_wms/features/putaway/data/putaway_repository.dart';
+import 'package:craft_wms/features/putaway/data/putaway_repository_impl.dart';
 import 'package:craft_wms/features/tasks/data/tasks_cache.dart';
-import 'package:craft_wms/features/tasks/data/tasks_repository.dart';
+import 'package:craft_wms/features/tasks/domain/tasks_repository.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -127,7 +127,7 @@ void main() {
       final putawayDrafts = PutawayDraftStore(db);
       final ids = _FixedIds();
       when(ids.newId).thenReturn('new-putaway-id');
-      final putaway = PutawayRepository(
+      final putaway = PutawayRepositoryImpl(
         outbox,
         _MockSync(),
         _MockTasks(),

@@ -5,7 +5,7 @@ import '../../../../core/constants/app_insets.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/outbox/outbox_operation.dart';
-import '../../../stock/data/catalog_cache.dart';
+import '../../../stock/domain/catalog_repository.dart';
 
 /// Строка операции в списке несинхронизированного (P2-06).
 ///
@@ -57,7 +57,7 @@ class _OperationTileState extends State<OperationTile> {
   Future<String?> _loadGoodName() async {
     final id = operation.payload['good_id'] as String?;
     if (id == null) return null;
-    final good = await getIt<CatalogCache>().goodById(id);
+    final good = await getIt<CatalogRepository>().goodById(id);
     return good?.name;
   }
 

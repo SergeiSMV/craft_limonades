@@ -9,7 +9,7 @@ import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/theme/semibold_text.dart';
 import '../../../../core/utils/search_text.dart';
-import '../../../data/problems_repository.dart';
+import '../../../domain/problems/problems_repository.dart';
 import '../ui/portal_input.dart';
 
 /// Выбор поставщика возврата (ADHOC-30, плоский стиль - ADHOC-56): поле поиска и под ним

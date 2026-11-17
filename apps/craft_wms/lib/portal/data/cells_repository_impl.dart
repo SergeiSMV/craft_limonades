@@ -1,30 +1,27 @@
 import 'dart:convert';
 import 'dart:typed_data';
-
 import 'package:dio/dio.dart';
 import 'package:either_dart/either.dart';
 import 'package:injectable/injectable.dart';
-
 import '../../core/constants/api_constants.dart';
 import '../../core/error/failure.dart';
 import '../domain/cells/cell_setup.dart';
-import 'import_report.dart';
+import '../domain/cells/cells_repository.dart';
+import '../domain/import/import_report.dart';
 
 /// Репозиторий страницы «Ячейки» портала (ADHOC-57): список ячеек и стеллажей, массовая
 /// правка галочек этикеток, загрузка и выгрузка `.xlsx` в формате rack_labels, печать PDF.
 /// Слой data: изолирует HTTP от UI, отдаёт `Either<Failure, T>`.
-@lazySingleton
-class CellsRepository {
-  CellsRepository(this._dio);
+@LazySingleton(as: CellsRepository)
+class CellsRepositoryImpl implements CellsRepository {
+  CellsRepositoryImpl(this._dio);
 
   final Dio _dio;
 
-  /// Код склада. На пилоте склад один - «Шабулина»/SHB (совпадает с дефолтом бэкенда).
-  static const String warehouse = 'SHB';
-
-  static const _query = {'warehouse': warehouse};
+  static const _query = {'warehouse': CellsRepository.warehouse};
 
   /// Все ячейки склада (без ячейки приёмки) и его стеллажи: `GET /cells/setup`.
+  @override
   Future<Either<Failure, CellsSetup>> loadSetup() => _guard(() async {
     final resp = await _dio.get<Map<String, dynamic>>(
       ApiConst.cellsSetup,
@@ -36,6 +33,7 @@ class CellsRepository {
   /// Массовая правка галочек: `PATCH /cells/setup`. В теле - только изменённые галочки;
   /// «на карточке» сервер ставит только ячейкам со стеллажом. Всё или ничего: 409 - среди
   /// ячеек есть чужие, ничего не изменено. Ответ - сколько ячеек изменено.
+  @override
   Future<Either<Failure, int>> saveSettings(
     List<String> cellIds,
     Map<CellFlag, bool> changes,
@@ -53,6 +51,7 @@ class CellsRepository {
   });
 
   /// Выгрузка всего склада `.xlsx` в формате rack_labels: `GET /cells/export.xlsx`.
+  @override
   Future<Either<Failure, Uint8List>> exportCells() => _guard(() async {
     final resp = await _dio.get<List<int>>(
       ApiConst.cellsExport,
@@ -64,6 +63,7 @@ class CellsRepository {
 
   /// PDF одного вида: `POST /cells/labels.pdf`. Пустой [cellIds] - весь склад. 409 - чужие
   /// ячейки; 422 - печатать нечего или не влезает (причины - в тексте ошибки).
+  @override
   Future<Either<Failure, Uint8List>> labelsPdf(
     LabelKind kind,
     List<String> cellIds,
@@ -79,6 +79,7 @@ class CellsRepository {
 
   /// Загрузка `.xlsx` в формате rack_labels: `POST /import/cells` (multipart, поле `file`).
   /// На вебе файла на диске нет - шлём байты из выбора файла браузера.
+  @override
   Future<Either<Failure, CellsImportReport>> importCells({
     required List<int> bytes,
     required String filename,
@@ -95,6 +96,7 @@ class CellsRepository {
 
   /// Завести напольную ячейку (ADHOC-61): `POST /cells/floor`. Ответ - id и адрес, как его
   /// записал сервер («d-h-п» → «D-Н-П»). 400 - адрес не вида «D-Н-П», 409 - адрес занят.
+  @override
   Future<Either<Failure, ({String id, String address})>> createFloorCell(
     String address,
   ) => _guard(() async {
@@ -108,6 +110,7 @@ class CellsRepository {
 
   /// Новый адрес напольной ячейки: `PATCH /cells/floor/{id}`. 404 - ячейки уже нет, 409 - адрес
   /// занят.
+  @override
   Future<Either<Failure, ({String id, String address})>> renameFloorCell(
     String id,
     String address,
@@ -122,6 +125,7 @@ class CellsRepository {
 
   /// Убрать пустую напольную ячейку: `DELETE /cells/floor/{id}`. 409 - в ячейке товар или
   /// короба.
+  @override
   Future<Either<Failure, void>> deleteFloorCell(String id) => _guard(() async {
     await _dio.delete<void>(ApiConst.cellFloor(id), queryParameters: _query);
   });
@@ -137,7 +141,7 @@ class CellsRepository {
   };
 
   static CellsSetup _parseSetup(Map<String, dynamic> d) => CellsSetup(
-    warehouse: d['warehouse'] as String? ?? warehouse,
+    warehouse: d['warehouse'] as String? ?? CellsRepository.warehouse,
     cells: [
       for (final c
           in (d['cells'] as List? ?? const []).cast<Map<String, dynamic>>())

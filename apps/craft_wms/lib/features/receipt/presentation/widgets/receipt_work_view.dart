@@ -10,7 +10,7 @@ import '../../../../core/scanner/hardware_scan_listener.dart';
 import '../../../../core/widgets/bind_prompt_dialog.dart';
 import '../../../../core/widgets/box_tile.dart';
 import '../../../cz/presentation/widgets/cz_intake_scan.dart';
-import '../../../stock/data/catalog_models.dart';
+import '../../../stock/domain/catalog_models.dart';
 import '../bloc/receipt_cubit.dart';
 import 'receipt_context_bar.dart';
 import 'receipt_label_actions.dart';

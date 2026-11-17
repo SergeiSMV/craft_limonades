@@ -5,7 +5,7 @@ import '../../../../../core/constants/app_insets.dart';
 import '../../../../cz/domain/cz_scan.dart';
 import '../../../../cz/presentation/widgets/cz_mark_section.dart';
 import '../../../../cz/presentation/widgets/cz_marked_section.dart';
-import '../../../data/catalog_models.dart';
+import '../../../domain/catalog_models.dart';
 import 'barcodes_section.dart';
 import 'good_info_card.dart';
 import 'places_sliver.dart';

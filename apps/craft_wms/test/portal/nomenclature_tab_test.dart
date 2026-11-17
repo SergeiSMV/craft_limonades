@@ -2,8 +2,8 @@ import 'package:craft_wms/core/constants/app_insets.dart';
 import 'package:craft_wms/core/di/injection.dart';
 import 'package:craft_wms/core/sync/data_versions.dart';
 import 'package:craft_wms/core/gen/strings.g.dart';
-import 'package:craft_wms/features/stock/data/catalog_api.dart';
-import 'package:craft_wms/features/stock/data/catalog_models.dart';
+import 'package:craft_wms/portal/domain/catalog/portal_catalog_repository.dart';
+import 'package:craft_wms/features/stock/domain/catalog_models.dart';
 import 'package:craft_wms/portal/presentation/widgets/tabs/nomenclature_tab.dart';
 import 'package:craft_wms/portal/presentation/widgets/ui/portal_input.dart';
 import 'package:either_dart/either.dart';
@@ -11,7 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
-class _MockApi extends Mock implements CatalogApi {}
+class _MockApi extends Mock implements PortalCatalogRepository {}
 
 Good good(int i) => Good(
   id: 'g$i',
@@ -35,7 +35,7 @@ void main() {
       getIt.registerSingleton(DataVersions());
     }
     api = _MockApi();
-    getIt.registerSingleton<CatalogApi>(api);
+    getIt.registerSingleton<PortalCatalogRepository>(api);
     when(() => api.listGroups()).thenAnswer((_) async => const Right([]));
     when(
       () => api.listSuppliers(query: any(named: 'query')),

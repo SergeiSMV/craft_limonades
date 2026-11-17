@@ -8,8 +8,8 @@ import 'package:injectable/injectable.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/warehouse/internal_warehouses.dart';
 import '../../../contents/domain/contents_entities.dart';
-import '../../data/catalog_models.dart';
-import '../../data/catalog_repository.dart';
+import '../../domain/catalog_models.dart';
+import '../../domain/catalog_repository.dart';
 
 part 'goods_list_cubit.freezed.dart';
 

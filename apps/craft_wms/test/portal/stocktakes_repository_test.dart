@@ -1,4 +1,4 @@
-import 'package:craft_wms/portal/data/stocktakes_repository.dart';
+import 'package:craft_wms/portal/data/stocktakes_repository_impl.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// P10-05: дерево групп номенклатуры для выбора области - родитель, затем поддерево, по имени.

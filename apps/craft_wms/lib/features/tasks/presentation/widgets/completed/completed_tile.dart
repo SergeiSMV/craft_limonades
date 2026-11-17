@@ -10,7 +10,7 @@ import '../../../../../core/gen/strings.g.dart';
 import '../../../../../core/theme/regular_text.dart';
 import '../../../../../core/theme/semibold_text.dart';
 import '../../../../stocktake/presentation/widgets/stocktake_format.dart';
-import '../../../data/tasks_models.dart';
+import '../../../domain/tasks_models.dart';
 import '../common/task_format.dart';
 import '../../../../../core/utils/doc_number.dart';
 

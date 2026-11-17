@@ -1,6 +1,6 @@
 import 'package:craft_wms/core/gen/strings.g.dart';
 import 'package:craft_wms/core/theme/app_theme.dart';
-import 'package:craft_wms/features/tasks/data/tasks_models.dart';
+import 'package:craft_wms/features/tasks/domain/tasks_models.dart';
 import 'package:craft_wms/features/tasks/presentation/widgets/detail/task_item_tile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';

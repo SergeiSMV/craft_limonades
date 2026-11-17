@@ -4,7 +4,7 @@ import 'package:injectable/injectable.dart';
 
 import '../../../../core/error/failure.dart';
 import '../../../../core/load_unit/load_unit_id_generator.dart';
-import '../../../tasks/data/tasks_models.dart';
+import '../../../tasks/domain/tasks_models.dart';
 import '../../domain/supplier_return_repository.dart';
 
 part 'supplier_return_cubit.freezed.dart';

@@ -8,8 +8,8 @@ import '../../../contents/domain/contents_entities.dart';
 import '../../../contents/domain/contents_repository.dart';
 import '../../../cz/domain/cz_scan.dart';
 import '../../../cz/domain/cz_stock_marks.dart';
-import '../../../stock/data/catalog_models.dart';
-import '../../../stock/data/catalog_repository.dart';
+import '../../../stock/domain/catalog_models.dart';
+import '../../../stock/domain/catalog_repository.dart';
 import '../../domain/movement_models.dart';
 import '../bloc/movement_cubit.dart';
 

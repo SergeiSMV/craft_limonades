@@ -4,7 +4,7 @@ import '../../../../core/utils/date_time_format.dart';
 import '../../../../core/utils/qty_format.dart';
 import '../../../contents/domain/contents_entities.dart';
 import '../../../movement/presentation/widgets/move_format.dart';
-import '../../../stock/data/catalog_models.dart';
+import '../../../stock/domain/catalog_models.dart';
 
 /// Подписи «Проблем склада» для человека.
 

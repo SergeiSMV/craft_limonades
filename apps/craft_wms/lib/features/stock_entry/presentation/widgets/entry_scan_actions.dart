@@ -18,8 +18,8 @@ import '../../../cz/domain/cz_intake.dart';
 import '../../../cz/domain/cz_intake_hold.dart';
 import '../../../cz/domain/cz_scan.dart';
 import '../../../cz/presentation/widgets/cz_intake_scan.dart';
-import '../../../stock/data/catalog_models.dart';
-import '../../../stock/data/catalog_repository.dart';
+import '../../../stock/domain/catalog_models.dart';
+import '../../../stock/domain/catalog_repository.dart';
 import '../../domain/entry_models.dart';
 import '../bloc/stock_entry_cubit.dart';
 

@@ -12,7 +12,7 @@ import 'package:craft_wms/features/problems/presentation/widgets/resolved/resolv
 import 'package:craft_wms/features/problems/presentation/widgets/records/record_days.dart';
 import 'package:craft_wms/features/problems/presentation/widgets/problem_format.dart';
 import 'package:craft_wms/features/problems/presentation/widgets/records/record_format.dart';
-import 'package:craft_wms/features/tasks/data/tasks_models.dart';
+import 'package:craft_wms/features/tasks/domain/tasks_models.dart';
 import 'package:either_dart/either.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';

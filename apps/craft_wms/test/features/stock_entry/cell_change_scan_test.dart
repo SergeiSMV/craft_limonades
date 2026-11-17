@@ -1,8 +1,8 @@
 import 'package:craft_wms/core/di/injection.dart';
 import 'package:craft_wms/core/gen/strings.g.dart';
 import 'package:craft_wms/core/theme/app_theme.dart';
-import 'package:craft_wms/features/stock/data/catalog_models.dart';
-import 'package:craft_wms/features/stock/data/catalog_repository.dart';
+import 'package:craft_wms/features/stock/domain/catalog_models.dart';
+import 'package:craft_wms/features/stock/domain/catalog_repository.dart';
 import 'package:craft_wms/core/widgets/cell_change_sheet.dart';
 import 'package:either_dart/either.dart';
 import 'package:flutter/material.dart';

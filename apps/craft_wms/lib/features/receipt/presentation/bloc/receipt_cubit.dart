@@ -9,10 +9,10 @@ import '../../../../core/printer/printer_device.dart';
 import '../../../../core/printer/printer_service.dart';
 import '../../../cz/domain/cz_intake.dart';
 import '../../../cz/domain/cz_intake_hold.dart';
-import '../../../stock/data/catalog_models.dart';
-import '../../../stock/data/catalog_repository.dart';
-import '../../data/receipt_draft_store.dart';
-import '../../data/receipt_repository.dart';
+import '../../../stock/domain/catalog_models.dart';
+import '../../../stock/domain/catalog_repository.dart';
+import '../../domain/receipt_drafts.dart';
+import '../../domain/receipt_repository.dart';
 import 'receipt_cz.dart';
 import 'receipt_models.dart';
 
@@ -106,7 +106,7 @@ class ReceiptCubit extends Cubit<ReceiptState> {
 
   /// Марки ЧЗ, отсканированные, но ещё не легшие в приёмку (ADHOC-70): уход и отправка ждут их.
   final czHold = CzIntakeHold();
-  final ReceiptDraftStore _drafts;
+  final ReceiptDrafts _drafts;
   final LoadUnitIdGenerator _ids;
   final PrinterService _printer;
 

@@ -9,14 +9,15 @@ import '../../../core/outbox/outbox_operation.dart';
 import '../../../core/outbox/outbox_repository.dart';
 import '../../../core/outbox/sent_sessions.dart';
 import '../../../core/sync/sync_engine.dart';
+import '../domain/movement_drafts.dart';
 import '../domain/movement_repository.dart';
 
 /// Хранилище незавершённого сеанса перемещения (P6-04).
 ///
 /// До «Завершить» сеанс существует только здесь: перенесённое не должно пропасть из учёта из-за
 /// разряда батареи посередине. Отдельный класс - ради живой пометки на плитке главного меню.
-@lazySingleton
-class MovementDraftStore extends DraftSlot {
+@LazySingleton(as: MovementDrafts)
+class MovementDraftStore extends DraftSlot implements MovementDrafts {
   MovementDraftStore(AppDatabase db) : super(db, 'movement');
 }
 
@@ -38,7 +39,7 @@ class MovementRepositoryImpl implements MovementRepository {
 
   final OutboxRepository _outbox;
   final SyncEngine _sync;
-  final MovementDraftStore _drafts;
+  final MovementDrafts _drafts;
   final SentSessionStore _sent;
   final LoadUnitIdGenerator _ids;
 

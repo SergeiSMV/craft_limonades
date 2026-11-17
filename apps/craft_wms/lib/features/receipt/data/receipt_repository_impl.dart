@@ -5,6 +5,7 @@ import '../../../core/error/failure.dart';
 import '../../../core/outbox/outbox_operation.dart';
 import '../../../core/outbox/outbox_repository.dart';
 import '../../../core/sync/sync_engine.dart';
+import '../domain/receipt_repository.dart';
 
 /// Отправка приёмки на сервер (P4-09).
 ///
@@ -14,10 +15,10 @@ import '../../../core/sync/sync_engine.dart';
 /// связь проседает, и операция в очереди переживает и обрыв, и перезапуск. Прямые ручки
 /// (P4-03) остаются для отладки и для клиентов, которые работают только онлайн.
 /// Как: тем же путём, что привязка ШК, - строка в очереди, затем `SyncEngine.sendOne`.
-/// Не дошла сейчас - уйдёт сама при появлении связи.
-@lazySingleton
-class ReceiptRepository {
-  ReceiptRepository(this._outbox, this._sync);
+/// Не дошла сейчас - уйдёт сама при появлении связи. Контракт - [ReceiptRepository] в `domain`.
+@LazySingleton(as: ReceiptRepository)
+class ReceiptRepositoryImpl implements ReceiptRepository {
+  ReceiptRepositoryImpl(this._outbox, this._sync);
 
   final OutboxRepository _outbox;
   final SyncEngine _sync;
@@ -27,6 +28,7 @@ class ReceiptRepository {
   /// `Right` - сервер оприходовал. `Left(RejectedFailure)` - отказ по существу: операция лежит
   /// в очереди отклонённой и ждёт разбора. Любой другой `Left` - связи нет, операция ждёт
   /// отправки; работа кладовщика при этом уже не потеряется.
+  @override
   Future<Either<Failure, void>> submit(Map<String, dynamic> payload) async {
     final operationId = await _outbox.enqueue(
       kind: OutboxKind.receiptSubmit,

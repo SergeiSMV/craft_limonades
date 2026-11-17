@@ -12,7 +12,7 @@ import 'package:craft_wms/features/contents/data/contents_dto.dart';
 import 'package:craft_wms/features/contents/data/contents_repository_impl.dart';
 import 'package:craft_wms/features/contents/domain/contents_entities.dart';
 import 'package:craft_wms/features/stock/data/catalog_cache.dart';
-import 'package:craft_wms/features/stock/data/catalog_models.dart';
+import 'package:craft_wms/features/stock/domain/catalog_models.dart';
 import 'package:drift/drift.dart' show Migrator, Value;
 import 'package:dio/dio.dart';
 import 'package:drift/native.dart';

@@ -2,13 +2,14 @@ import 'package:injectable/injectable.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/database/draft_slot.dart';
+import '../domain/putaway_drafts.dart';
 
 /// Хранилище незавершённого сеанса размещения (P5-03).
 ///
 /// Сеанс набирается на терминале и уходит на сервер одной операцией на «Завершить». До этого
 /// его единственная копия - здесь: перенесённые короба не должны пропасть из учёта из-за
 /// разряда батареи посередине.
-@lazySingleton
-class PutawayDraftStore extends DraftSlot {
+@LazySingleton(as: PutawayDrafts)
+class PutawayDraftStore extends DraftSlot implements PutawayDrafts {
   PutawayDraftStore(AppDatabase db) : super(db, 'putaway');
 }

@@ -7,7 +7,7 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/theme/semibold_text.dart';
-import '../../../../features/stock/data/catalog_models.dart';
+import '../../../../features/stock/domain/catalog_models.dart';
 import '../ui/portal_badge.dart';
 import '../ui/portal_button.dart';
 import '../ui/portal_card.dart';

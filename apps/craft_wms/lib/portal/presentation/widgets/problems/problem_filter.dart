@@ -1,6 +1,6 @@
 import '../../../../core/utils/doc_number.dart';
 import '../../../../core/utils/search_text.dart';
-import '../../../data/problems_repository.dart';
+import '../../../domain/problems/problems_repository.dart';
 import 'problem_labels.dart';
 
 /// Фильтр рабочего списка «Проблемы склада» (P6-07-3): открытые - то, что ждёт решения офиса.

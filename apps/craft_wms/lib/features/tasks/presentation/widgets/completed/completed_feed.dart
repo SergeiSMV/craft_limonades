@@ -6,7 +6,7 @@ import '../../../../../core/constants/app_insets.dart';
 import '../../../../../core/error/failure.dart';
 import '../../../../../core/gen/strings.g.dart';
 import '../../../../../core/router/app_router.dart';
-import '../../../data/tasks_models.dart';
+import '../../../domain/tasks_models.dart';
 import '../../bloc/completed_tasks_cubit.dart';
 import '../common/tasks_message.dart';
 import 'completed_tile.dart';
