@@ -41,15 +41,15 @@ func TestInternalWarehouseService_validation(t *testing.T) {
 		"имя длиннее 100": {"OK", strings.Repeat("я", 101)},
 		"пустой код":      {"", "Склад"},
 	} {
-		if _, err := svc.Create(ctx, args[0], args[1]); !errors.Is(err, ErrInvalidInternalWarehouse) {
+		if _, err := svc.Create(ctx, args[0], args[1]); !errors.Is(err, model.ErrInvalidInternalWarehouse) {
 			t.Errorf("%s: %v", name, err)
 		}
 	}
 	blank := " "
-	if _, err := svc.Update(ctx, "11111111-1111-4111-8111-111111111111", &blank, nil, nil); !errors.Is(err, ErrInvalidInternalWarehouse) {
+	if _, err := svc.Update(ctx, "11111111-1111-4111-8111-111111111111", &blank, nil, nil); !errors.Is(err, model.ErrInvalidInternalWarehouse) {
 		t.Errorf("переименовать в пустое: %v", err)
 	}
-	if err := svc.Delete(ctx, "x"); !errors.Is(err, ErrInvalidInternalWarehouse) {
+	if err := svc.Delete(ctx, "x"); !errors.Is(err, model.ErrInvalidInternalWarehouse) {
 		t.Errorf("id не UUID: %v", err)
 	}
 }

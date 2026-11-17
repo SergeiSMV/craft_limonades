@@ -8,23 +8,7 @@ import (
 	"github.com/shopspring/decimal"
 
 	"craftwms/internal/model"
-	"craftwms/internal/repository"
 )
-
-// ErrEmptyReceiptID - не указан документ приёмки.
-//
-// Остальные проверки переиспользуют ошибки, уже заведённые соседними сервисами
-// (ErrEmptyWarehouse, ErrEmptyGoodID, ErrInvalidQuantity, ErrInvalidDate): заводить синонимы
-// значило бы, что хендлеру придётся сопоставлять две ошибки на один смысл. ErrEmptyCell приёмке
-// не нужна - пустая ячейка здесь не ошибка, а просьба подставить умолчание (P4-03).
-var ErrEmptyReceiptID = errors.New("receipt id is required")
-
-// ErrNoDefaultCell - у склада нет ячейки приёмки по умолчанию.
-//
-// Заводится вместе со складом (сидер при развёртывании, импорт ячеек при новом складе), поэтому
-// её отсутствие - не рабочая ситуация кладовщика, а незавершённое развёртывание: приходовать
-// «куда-нибудь» нельзя, и молчаливый выбор произвольной ячейки соврал бы про место хранения.
-var ErrNoDefaultCell = errors.New("warehouse has no default cell")
 
 // receiptRepo - зависимость сервиса от хранилища приёмки.
 type receiptRepo interface {
@@ -57,10 +41,10 @@ func NewReceiptService(repo receiptRepo, cells receiptCellRepo) *ReceiptService 
 // [docNumber], [docDate] - накладная поставщика, обязательна (ADHOC-23).
 func (s *ReceiptService) Start(ctx context.Context, id, warehouseID, supplierID, createdBy, docNumber, docDate string) error {
 	if id == "" {
-		return ErrEmptyReceiptID
+		return model.ErrEmptyReceiptID
 	}
 	if warehouseID == "" {
-		return ErrEmptyWarehouse
+		return model.ErrEmptyWarehouse
 	}
 	doc, err := parseSupplierDoc(docNumber, docDate, time.Now())
 	if err != nil {
@@ -78,13 +62,13 @@ func (s *ReceiptService) Start(ctx context.Context, id, warehouseID, supplierID,
 // кладовщик читает её с упаковки, и разные форматы на двух экранах приводили бы к ошибкам ввода.
 func (s *ReceiptService) AddLine(ctx context.Context, receiptID, goodID, productionDate, cellID, loadUnitID string, qty decimal.Decimal) (string, error) {
 	if receiptID == "" {
-		return "", ErrEmptyReceiptID
+		return "", model.ErrEmptyReceiptID
 	}
 	if goodID == "" {
-		return "", ErrEmptyGoodID
+		return "", model.ErrEmptyGoodID
 	}
 	if !qty.IsPositive() {
-		return "", ErrInvalidQuantity
+		return "", model.ErrInvalidQuantity
 	}
 	iso, err := parseEntryDate(productionDate)
 	if err != nil {
@@ -122,8 +106,8 @@ func (s *ReceiptService) defaultCell(ctx context.Context, receiptID string) (str
 		return "", err
 	}
 	cellID, err := s.cells.DefaultID(ctx, rc.WarehouseID)
-	if errors.Is(err, repository.ErrNotFound) {
-		return "", ErrNoDefaultCell
+	if errors.Is(err, model.ErrNotFound) {
+		return "", model.ErrNoDefaultCell
 	}
 	if err != nil {
 		return "", err
@@ -134,7 +118,7 @@ func (s *ReceiptService) defaultCell(ctx context.Context, receiptID string) (str
 // Post оприходует документ и возвращает число проведённых строк.
 func (s *ReceiptService) Post(ctx context.Context, receiptID string) (int, error) {
 	if receiptID == "" {
-		return 0, ErrEmptyReceiptID
+		return 0, model.ErrEmptyReceiptID
 	}
 	return s.repo.Post(ctx, receiptID)
 }
@@ -142,7 +126,7 @@ func (s *ReceiptService) Post(ctx context.Context, receiptID string) (int, error
 // Get возвращает шапку документа и его строки - для показа кладовщику.
 func (s *ReceiptService) Get(ctx context.Context, receiptID string) (model.Receipt, []model.ReceiptLine, error) {
 	if receiptID == "" {
-		return model.Receipt{}, nil, ErrEmptyReceiptID
+		return model.Receipt{}, nil, model.ErrEmptyReceiptID
 	}
 	rc, err := s.repo.ByID(ctx, receiptID)
 	if err != nil {

@@ -23,7 +23,7 @@ func (r *PickingRepository) TaskOrder(ctx context.Context, orderID string) (mode
 		&o.ID, &o.Number, &o.WarehouseID, &o.RegistryDate, &o.InvoiceNumber, &o.OrderNumber,
 		&o.Direction, &o.Client, &o.Address, &o.Status, &o.HasUnknown, &o.Deleted, &o.AssigneeID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return o, ErrNotFound
+		return o, model.ErrNotFound
 	}
 	if err != nil {
 		return o, fmt.Errorf("заказ сборки: %w", err)

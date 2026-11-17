@@ -15,37 +15,6 @@ import (
 	"craftwms/internal/movement"
 )
 
-// Ошибки переноса ГЕ и проведения документа движения (P6-02). Все - отказ по существу:
-// повтор их не исправит.
-var (
-	// ErrSameCell - ГЕ переносят туда, где она и так лежит.
-	ErrSameCell = errors.New("load unit is already in the target cell")
-	// ErrMovementPosted - документ движения с этим идентификатором уже проведён.
-	ErrMovementPosted = errors.New("movement already posted")
-	// ErrEmptyMovement - в документе движения нет ни одной строки.
-	ErrEmptyMovement = errors.New("movement has no lines")
-	// ErrUnknownMovementKind - вид документа не перемещение и не пополнение.
-	ErrUnknownMovementKind = errors.New("unknown movement kind")
-	// ErrReceivingCell - ячейка приёмки («ПРИЁМКА») в движении ни источник, ни приёмник: её
-	// разносит задание на размещение (P5-02-1), иначе остаток задания разошёлся бы с ячейкой.
-	// Исключение - источник-россыпь с меткой склада (ADHOC-55): её в задании нет.
-	ErrReceivingCell = errors.New("receiving cell is emptied only by a putaway task")
-	// ErrEmptyMovementLine - в строке нет ни ГЕ, ни товара.
-	// У товара источник и приёмник - ровно по одному: ячейка или короб.
-	ErrEmptyMovementLine = errors.New("movement line must have a load unit or goods with one source and one target")
-	// ErrSamePlace - товар кладут туда же, откуда взяли: та же ячейка и тот же короб (или
-	// россыпь).
-	ErrSamePlace = errors.New("goods move to the same place")
-	// ErrGoodsShort - в источнике меньше товара этой партии, чем просят перенести. Россыпью
-	// считается остаток ячейки за вычетом того, что лежит в её коробах.
-	ErrGoodsShort = errors.New("not enough goods at the source")
-	// ErrWarehouseMismatch - товар кладут в короб другого внутреннего склада (P6-07-1):
-	// короб принадлежит складу целиком, брак в «Основной» короб не кладётся, и наоборот.
-	ErrWarehouseMismatch = errors.New("goods and load unit belong to different internal warehouses")
-	// ErrMovementQty - количество товара в строке не положительное.
-	ErrMovementQty = errors.New("goods quantity must be positive")
-)
-
 // loadUnitTransfer - что нужно, чтобы перенести ГЕ целиком в другую ячейку.
 type loadUnitTransfer struct {
 	LoadUnitID  string
@@ -89,21 +58,21 @@ func transferLoadUnit(ctx context.Context, q Querier, in loadUnitTransfer) (stri
 		FROM load_units lu WHERE id = $1::uuid FOR UPDATE`, in.LoadUnitID).
 		Scan(&from, &parent, &hasChildren, &iwh)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", nil, ErrLoadUnitNotFound
+		return "", nil, model.ErrLoadUnitNotFound
 	}
 	if err != nil {
 		return "", nil, fmt.Errorf("прочитать ГЕ: %w", err)
 	}
 	if from == nil {
-		return "", nil, ErrLoadUnitNotPlaced
+		return "", nil, model.ErrLoadUnitNotPlaced
 	}
 	// Паллетная логика вне объёма пилота: перенос части дерева разорвал бы место коробов
 	// и их остаток.
 	if parent != nil || hasChildren {
-		return "", nil, ErrLoadUnitNested
+		return "", nil, model.ErrLoadUnitNested
 	}
 	if *from == in.ToCellID {
-		return "", nil, ErrSameCell
+		return "", nil, model.ErrSameCell
 	}
 	if err := guardCellOfWarehouse(ctx, q, in.ToCellID, in.WarehouseID); err != nil {
 		return "", nil, err
@@ -235,10 +204,10 @@ type MovementSubmitInput struct {
 //	в конце той же транзакции публикуется «Движение» для 1С (P6-07).
 func movementSubmit(ctx context.Context, q Querier, in MovementSubmitInput) (int, error) {
 	if in.Kind != model.MovementMove && in.Kind != model.MovementReplenish {
-		return 0, ErrUnknownMovementKind
+		return 0, model.ErrUnknownMovementKind
 	}
 	if len(in.Lines) == 0 {
-		return 0, ErrEmptyMovement
+		return 0, model.ErrEmptyMovement
 	}
 	if _, err := q.Exec(ctx, `
 		INSERT INTO movements (id, kind, warehouse_id, created_by)
@@ -246,7 +215,7 @@ func movementSubmit(ctx context.Context, q Querier, in MovementSubmitInput) (int
 		in.MovementID, in.Kind, in.WarehouseID, in.CreatedBy); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			return 0, ErrMovementPosted
+			return 0, model.ErrMovementPosted
 		}
 		return 0, fmt.Errorf("открыть документ движения: %w", err)
 	}
@@ -299,7 +268,7 @@ func movementSubmit(ctx context.Context, q Querier, in MovementSubmitInput) (int
 // шаге, даже если дальше в документе в короб доложат или из него возьмут.
 func movementLoadUnit(ctx context.Context, q Querier, in MovementSubmitInput, lineNo int, ln MovementLineInput) ([]movement.Move, error) {
 	if ln.ToCellID == "" {
-		return nil, ErrEmptyMovementLine
+		return nil, model.ErrEmptyMovementLine
 	}
 	if err := guardNotReceivingCell(ctx, q, ln.ToCellID); err != nil {
 		return nil, err
@@ -367,10 +336,10 @@ func movementGoods(ctx context.Context, q Querier, in MovementSubmitInput, lineN
 	if ln.GoodID == "" ||
 		(ln.FromCellID == "") == (ln.FromLoadUnitID == "") ||
 		(ln.ToCellID == "") == (ln.ToLoadUnitID == "") {
-		return nil, ErrEmptyMovementLine
+		return nil, model.ErrEmptyMovementLine
 	}
 	if !ln.Qty.IsPositive() {
-		return nil, ErrMovementQty
+		return nil, model.ErrMovementQty
 	}
 	batchID, err := existingBatch(ctx, q, ln.GoodID, ln.ProductionDate)
 	if err != nil {
@@ -389,19 +358,19 @@ func movementGoods(ctx context.Context, q Querier, in MovementSubmitInput, lineN
 	if ln.FromLoadUnitID != "" {
 		box := boxes[ln.FromLoadUnitID]
 		if ln.InternalWarehouseID != "" && ln.InternalWarehouseID != box.iwh {
-			return nil, ErrWarehouseMismatch
+			return nil, model.ErrWarehouseMismatch
 		}
 		fromCell, iwh = box.cell, box.iwh
 	}
 	if ln.ToLoadUnitID != "" {
 		box := boxes[ln.ToLoadUnitID]
 		if box.iwh != iwh {
-			return nil, ErrWarehouseMismatch
+			return nil, model.ErrWarehouseMismatch
 		}
 		toCell = box.cell
 	}
 	if fromCell == toCell && ln.FromLoadUnitID == ln.ToLoadUnitID {
-		return nil, ErrSamePlace
+		return nil, model.ErrSamePlace
 	}
 	if err := guardCellOfWarehouse(ctx, q, fromCell, in.WarehouseID); err != nil {
 		return nil, err
@@ -439,7 +408,7 @@ func movementGoods(ctx context.Context, q Querier, in MovementSubmitInput, lineN
 			return nil, err
 		}
 		if loose.LessThan(ln.Qty) {
-			return nil, ErrGoodsShort
+			return nil, model.ErrGoodsShort
 		}
 	}
 	if ln.ToLoadUnitID != "" {
@@ -499,13 +468,13 @@ func guardNotReceivingCell(ctx context.Context, q Querier, cellID string) error 
 	var receiving bool
 	err := q.QueryRow(ctx, `SELECT is_default FROM cells WHERE id = $1::uuid`, cellID).Scan(&receiving)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return ErrUnknownReference
+		return model.ErrUnknownReference
 	}
 	if err != nil {
 		return fmt.Errorf("проверить ячейку приёмки: %w", err)
 	}
 	if receiving {
-		return ErrReceivingCell
+		return model.ErrReceivingCell
 	}
 	return nil
 }
@@ -518,7 +487,7 @@ func existingBatch(ctx context.Context, q Querier, goodID, productionDate string
 		SELECT id::text FROM batches WHERE good_id = $1::uuid AND production_date = $2::date`,
 		goodID, productionDate).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", ErrGoodsShort
+		return "", model.ErrGoodsShort
 	}
 	if err != nil {
 		return "", fmt.Errorf("найти партию: %w", err)
@@ -552,16 +521,16 @@ func lockPlacedLoadUnits(ctx context.Context, q Querier, ids ...string) (map[str
 			       internal_warehouse_id::text
 			FROM load_units lu WHERE id = $1::uuid FOR UPDATE`, id).Scan(&cell, &parent, &hasChildren, &iwh)
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, ErrLoadUnitNotFound
+			return nil, model.ErrLoadUnitNotFound
 		}
 		if err != nil {
 			return nil, fmt.Errorf("прочитать короб: %w", err)
 		}
 		if cell == nil {
-			return nil, ErrLoadUnitNotPlaced
+			return nil, model.ErrLoadUnitNotPlaced
 		}
 		if parent != nil || hasChildren {
-			return nil, ErrLoadUnitNested
+			return nil, model.ErrLoadUnitNested
 		}
 		out[id] = placedLoadUnit{cell: *cell, iwh: iwh}
 	}
@@ -583,7 +552,7 @@ func takeFromLoadUnit(ctx context.Context, q Querier, loadUnitID, goodID, batchI
 		return fmt.Errorf("взять товар из короба: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return ErrGoodsShort
+		return model.ErrGoodsShort
 	}
 	return nil
 }

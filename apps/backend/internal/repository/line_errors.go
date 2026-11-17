@@ -51,15 +51,15 @@ func (e *DocumentLinesError) Unwrap() []error {
 // lineRejections - ошибки, которыми отказывает одна строка документа, не задевая остальные.
 // Всё прочее (сбой базы, документ уже проведён, задание не то) обрывает проверку сразу.
 var lineRejections = []error{
-	ErrEmptyMovementLine, ErrMovementQty, ErrSamePlace, ErrGoodsShort, ErrWarehouseMismatch,
-	ErrReceivingCell, ErrSameCell, ErrLoadUnitNotFound, ErrLoadUnitNotPlaced, ErrLoadUnitNested,
-	ErrForeignCell, ErrUnknownReference, ErrInsufficientStock,
-	ErrPutawaySameCell, ErrLooseStockShort, ErrNotInTask, ErrExceedsTask,
+	model.ErrEmptyMovementLine, model.ErrMovementQty, model.ErrSamePlace, model.ErrGoodsShort, model.ErrWarehouseMismatch,
+	model.ErrReceivingCell, model.ErrSameCell, model.ErrLoadUnitNotFound, model.ErrLoadUnitNotPlaced, model.ErrLoadUnitNested,
+	model.ErrForeignCell, model.ErrUnknownReference, model.ErrInsufficientStock,
+	model.ErrPutawaySameCell, model.ErrLooseStockShort, model.ErrNotInTask, model.ErrExceedsTask,
 	// Марки ЧЗ строки (CZ-06).
 	model.ErrCZMarksRequired, model.ErrCZMarksQtyMismatch, model.ErrCZMarkNotAtSource,
 	model.ErrCZMarkBatchMismatch,
 	// Сборка (P9-05): ячейка отгрузки в движении, марка в сборке.
-	ErrShippingCell, model.ErrPickingMarkInPicking,
+	model.ErrShippingCell, model.ErrPickingMarkInPicking,
 }
 
 // isLineRejection - отказ ли это одной строки.
@@ -75,9 +75,9 @@ func isLineRejection(err error) bool {
 // lineReason - причина отказа строки по-русски; незнакомая ошибка - её текст как есть.
 func lineReason(err error) string {
 	switch {
-	case errors.Is(err, ErrGoodsShort), errors.Is(err, ErrInsufficientStock):
+	case errors.Is(err, model.ErrGoodsShort), errors.Is(err, model.ErrInsufficientStock):
 		return "в источнике не хватает товара этой партии"
-	case errors.Is(err, ErrLooseStockShort):
+	case errors.Is(err, model.ErrLooseStockShort):
 		return "в ячейке приёмки не хватает россыпи"
 	case errors.Is(err, model.ErrCZMarksRequired):
 		return "маркируемый товар перемещается только сканом марок"
@@ -89,45 +89,45 @@ func lineReason(err error) string {
 	case errors.Is(err, model.ErrCZMarkBatchMismatch):
 		return "марка другого товара или другой партии"
 	// Ввод остатков с коробами и марками (ADHOC-46).
-	case errors.Is(err, ErrLoadUnitExists):
+	case errors.Is(err, model.ErrLoadUnitExists):
 		return "короб уже есть в учёте склада - его не вводят заново"
 	case errors.Is(err, model.ErrCZAggregateExists):
 		return "короб или упаковка ЧЗ уже есть в учёте склада"
 	case errors.Is(err, model.ErrCZMarkExists):
 		return "марка уже есть в учёте склада"
-	case errors.Is(err, ErrEntryDuplicate):
+	case errors.Is(err, model.ErrEntryDuplicate):
 		return "уже введено в другой ячейке этого прохода"
-	case errors.Is(err, ErrEntryCellHasMarks):
+	case errors.Is(err, model.ErrEntryCellHasMarks):
 		return "в ячейке уже лежат марки этого товара и партии россыпью - пересчёт их не учтёт"
-	case errors.Is(err, ErrEntryEmptyBox):
+	case errors.Is(err, model.ErrEntryEmptyBox):
 		return "в коробе нет товара"
-	case errors.Is(err, ErrLoadUnitNotFound):
+	case errors.Is(err, model.ErrLoadUnitNotFound):
 		return "короб не найден"
-	case errors.Is(err, ErrLoadUnitNotPlaced):
+	case errors.Is(err, model.ErrLoadUnitNotPlaced):
 		return "короб не размещён на складе"
-	case errors.Is(err, ErrLoadUnitNested):
+	case errors.Is(err, model.ErrLoadUnitNested):
 		return "вложенные короба не поддерживаются"
-	case errors.Is(err, ErrSameCell), errors.Is(err, ErrPutawaySameCell):
+	case errors.Is(err, model.ErrSameCell), errors.Is(err, model.ErrPutawaySameCell):
 		return "уже лежит в этой ячейке"
-	case errors.Is(err, ErrSamePlace):
+	case errors.Is(err, model.ErrSamePlace):
 		return "товар кладут туда же, откуда взяли"
-	case errors.Is(err, ErrWarehouseMismatch):
+	case errors.Is(err, model.ErrWarehouseMismatch):
 		return "товар и короб - с разных внутренних складов"
 	case errors.Is(err, model.ErrPickingMarkInPicking):
 		return "марка уже взята в сборку: она в коробе отгрузки"
-	case errors.Is(err, ErrReceivingCell):
+	case errors.Is(err, model.ErrReceivingCell):
 		return "ячейку приёмки разносит только задание на размещение"
-	case errors.Is(err, ErrForeignCell):
+	case errors.Is(err, model.ErrForeignCell):
 		return "ячейка другого склада"
-	case errors.Is(err, ErrUnknownReference):
+	case errors.Is(err, model.ErrUnknownReference):
 		return "ячейка, товар или короб не найдены"
-	case errors.Is(err, ErrNotInTask):
+	case errors.Is(err, model.ErrNotInTask):
 		return "этого нет в задании на размещение"
-	case errors.Is(err, ErrExceedsTask):
+	case errors.Is(err, model.ErrExceedsTask):
 		return "больше, чем осталось по заданию"
-	case errors.Is(err, ErrMovementQty):
+	case errors.Is(err, model.ErrMovementQty):
 		return "количество должно быть больше нуля"
-	case errors.Is(err, ErrEmptyMovementLine):
+	case errors.Is(err, model.ErrEmptyMovementLine):
 		return "строка заполнена неверно"
 	default:
 		return err.Error()

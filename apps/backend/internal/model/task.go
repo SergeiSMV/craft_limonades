@@ -1,6 +1,7 @@
 package model
 
 import (
+	"errors"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -230,3 +231,25 @@ type TaskStocktakeInfo struct {
 	Cells     int
 	Counted   int
 }
+
+// Ошибки заданий для склада (P5-02-1).
+var (
+	// ErrTaskNotFound - задания нет.
+	ErrTaskNotFound = errors.New("task not found")
+	// ErrTaskTaken - задание держит другой исполнитель, и оно не зависло.
+	ErrTaskTaken = errors.New("task is taken by another user")
+	// ErrTaskDone - задание уже выполнено.
+	ErrTaskDone = errors.New("task is already done")
+	// ErrTaskMismatch - сеанс не подходит заданию: другой вид или другой склад.
+	ErrTaskMismatch = errors.New("putaway does not match the task")
+	// ErrNotInTask - строка сеанса размещает то, чего нет в задании (или уже размещено им).
+	ErrNotInTask = errors.New("putaway line is not part of the task")
+	// ErrExceedsTask - россыпи размещают больше, чем осталось по заданию.
+	ErrExceedsTask = errors.New("putaway line exceeds the task remainder")
+)
+
+// Ошибки входа заданий.
+var (
+	// ErrInvalidTaskFilter - фильтр ленты не разобран (дата, курсор, исполнитель).
+	ErrInvalidTaskFilter = errors.New("invalid completed tasks filter")
+)

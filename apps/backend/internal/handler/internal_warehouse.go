@@ -9,7 +9,6 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"craftwms/internal/model"
-	"craftwms/internal/repository"
 	"craftwms/internal/service"
 )
 
@@ -107,17 +106,17 @@ func (h *InternalWarehouseHandler) Delete(w http.ResponseWriter, r *http.Request
 // internalWarehouseError - ответ на ошибку ведения справочника; текст - для оператора портала.
 func internalWarehouseError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
-	case errors.Is(err, service.ErrInvalidInternalWarehouse):
+	case errors.Is(err, model.ErrInvalidInternalWarehouse):
 		writeError(w, http.StatusBadRequest, "код - латиница, цифры и «_» до 20 знаков; имя - до 100 символов")
-	case errors.Is(err, repository.ErrUnknownInternalWarehouse):
+	case errors.Is(err, model.ErrUnknownInternalWarehouse):
 		writeError(w, http.StatusNotFound, "склад не найден")
-	case errors.Is(err, repository.ErrInternalWarehouseExists):
+	case errors.Is(err, model.ErrInternalWarehouseExists):
 		writeError(w, http.StatusConflict, "склад с таким кодом уже есть")
-	case errors.Is(err, repository.ErrDefaultInternalWarehouse):
+	case errors.Is(err, model.ErrDefaultInternalWarehouse):
 		writeError(w, http.StatusConflict, "склад по умолчанию нельзя скрыть или удалить")
-	case errors.Is(err, repository.ErrSystemInternalWarehouse):
+	case errors.Is(err, model.ErrSystemInternalWarehouse):
 		writeError(w, http.StatusConflict, "системный склад нельзя скрыть, удалить или разрешить к сборке")
-	case errors.Is(err, repository.ErrInternalWarehouseInUse):
+	case errors.Is(err, model.ErrInternalWarehouseInUse):
 		writeError(w, http.StatusConflict, "на складе есть остаток или история - его можно только скрыть")
 	default:
 		slog.ErrorContext(r.Context(), "internal warehouse change failed", "error", err)

@@ -11,9 +11,6 @@ import (
 	"craftwms/internal/model"
 )
 
-// ErrUserNotFound - пользователь не найден по логину/id.
-var ErrUserNotFound = errors.New("user not found")
-
 // UserRepository - доступ к таблице users. Изолирует SQL от домена.
 type UserRepository struct {
 	pool *pgxpool.Pool
@@ -130,7 +127,7 @@ func (r *UserRepository) CreateUsernameAdminIfNotExists(ctx context.Context, use
 func collectUser(rows pgx.Rows) (model.User, error) {
 	user, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[model.User])
 	if errors.Is(err, pgx.ErrNoRows) {
-		return model.User{}, ErrUserNotFound
+		return model.User{}, model.ErrUserNotFound
 	}
 	if err != nil {
 		return model.User{}, fmt.Errorf("scan user: %w", err)

@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"craftwms/internal/model"
 )
 
 // Документ поставщика (ADHOC-23): номер обязателен («б/н» - тоже номер), дата - DD-MM-YYYY
@@ -24,11 +26,11 @@ func TestParseSupplierDoc(t *testing.T) {
 		name, number, date string
 		want               error
 	}{
-		{"пустой номер", "  ", "01-10-2026", ErrEmptyDocNumber},
-		{"длинный номер", strings.Repeat("Я", 51), "01-10-2026", ErrDocNumberTooLong},
-		{"нет даты", "1", "", ErrInvalidDocDate},
-		{"ISO вместо DD-MM-YYYY", "1", "2026-10-01", ErrInvalidDocDate},
-		{"дата в будущем", "1", "12-10-2026", ErrInvalidDocDate},
+		{"пустой номер", "  ", "01-10-2026", model.ErrEmptyDocNumber},
+		{"длинный номер", strings.Repeat("Я", 51), "01-10-2026", model.ErrDocNumberTooLong},
+		{"нет даты", "1", "", model.ErrInvalidDocDate},
+		{"ISO вместо DD-MM-YYYY", "1", "2026-10-01", model.ErrInvalidDocDate},
+		{"дата в будущем", "1", "12-10-2026", model.ErrInvalidDocDate},
 	} {
 		if _, err := parseSupplierDoc(tc.number, tc.date, now); !errors.Is(err, tc.want) {
 			t.Errorf("%s: %v, ожидалось %v", tc.name, err, tc.want)

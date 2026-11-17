@@ -11,7 +11,6 @@ import (
 	"github.com/shopspring/decimal"
 
 	"craftwms/internal/model"
-	"craftwms/internal/repository"
 	"craftwms/internal/service"
 )
 
@@ -78,7 +77,7 @@ func (h *MovementHistoryHandler) List(w http.ResponseWriter, r *http.Request) {
 		From: q.Get("from"), To: q.Get("to"), ExecutorID: q.Get("executor"),
 		BeforePostedAt: q.Get("before_posted_at"), BeforeID: q.Get("before_id"), Limit: limit,
 	})
-	if errors.Is(err, service.ErrInvalidMovementFilter) {
+	if errors.Is(err, model.ErrInvalidMovementFilter) {
 		writeError(w, http.StatusBadRequest, "неверный фильтр")
 		return
 	}
@@ -112,7 +111,7 @@ func (h *MovementHistoryHandler) Executors(w http.ResponseWriter, r *http.Reques
 // Get: GET /api/v1/movements/{id} - запись со строками по порядку проведения. 200 / 404.
 func (h *MovementHistoryHandler) Get(w http.ResponseWriter, r *http.Request) {
 	d, err := h.svc.Get(r.Context(), chi.URLParam(r, "id"))
-	if errors.Is(err, repository.ErrMovementNotFound) {
+	if errors.Is(err, model.ErrMovementNotFound) {
 		writeError(w, http.StatusNotFound, "перемещение не найдено")
 		return
 	}

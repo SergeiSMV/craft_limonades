@@ -55,7 +55,7 @@ func TestDocuments(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create draft: %v", err)
 	}
-	if _, err := docRepo.BySource(ctx, model.SourceTypeStockEntrySession, draft); !errors.Is(err, repository.ErrDocumentNotFound) {
+	if _, err := docRepo.BySource(ctx, model.SourceTypeStockEntrySession, draft); !errors.Is(err, model.ErrDocumentNotFound) {
 		t.Errorf("незавершённая сессия: ожидалась ErrDocumentNotFound, получено %v", err)
 	}
 
@@ -144,13 +144,13 @@ func TestDocuments(t *testing.T) {
 	}
 
 	// --- границы ---
-	if _, _, err := svc.File(ctx, "00000000-0000-0000-0000-0000000000ff", user); !errors.Is(err, repository.ErrDocumentNotFound) {
+	if _, _, err := svc.File(ctx, "00000000-0000-0000-0000-0000000000ff", user); !errors.Is(err, model.ErrDocumentNotFound) {
 		t.Errorf("нет документа: ожидалась ErrDocumentNotFound, получено %v", err)
 	}
-	if err := svc.MarkDone(ctx, "00000000-0000-0000-0000-0000000000ff", user); !errors.Is(err, repository.ErrDocumentNotFound) {
+	if err := svc.MarkDone(ctx, "00000000-0000-0000-0000-0000000000ff", user); !errors.Is(err, model.ErrDocumentNotFound) {
 		t.Errorf("отметка несуществующего: ожидалась ErrDocumentNotFound, получено %v", err)
 	}
-	if err := svc.MarkDone(ctx, "", user); !errors.Is(err, service.ErrEmptyDocumentID) {
+	if err := svc.MarkDone(ctx, "", user); !errors.Is(err, model.ErrEmptyDocumentID) {
 		t.Errorf("пустой id: ожидалась ErrEmptyDocumentID, получено %v", err)
 	}
 
@@ -185,7 +185,7 @@ func TestDocuments(t *testing.T) {
 			t.Errorf("событие %q: автор %q, ожидался «Тест»", e.Event, e.UserName)
 		}
 	}
-	if _, err := svc.Events(ctx, "00000000-0000-0000-0000-0000000000ff"); !errors.Is(err, repository.ErrDocumentNotFound) {
+	if _, err := svc.Events(ctx, "00000000-0000-0000-0000-0000000000ff"); !errors.Is(err, model.ErrDocumentNotFound) {
 		t.Errorf("журнал несуществующего: ожидалась ErrDocumentNotFound, получено %v", err)
 	}
 }

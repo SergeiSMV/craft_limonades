@@ -126,7 +126,7 @@ func TestStock_RemoveGuardsNegative(t *testing.T) {
 	assertQty(t, repo, fx.keyA(), "6")
 
 	// списать больше, чем есть → ErrInsufficientStock, остаток не меняется
-	if err := repo.Remove(ctx, fx.keyA(), decimal.NewFromInt(10)); !errors.Is(err, repository.ErrInsufficientStock) {
+	if err := repo.Remove(ctx, fx.keyA(), decimal.NewFromInt(10)); !errors.Is(err, model.ErrInsufficientStock) {
 		t.Fatalf("ожидалась ErrInsufficientStock, получено %v", err)
 	}
 	assertQty(t, repo, fx.keyA(), "6")
@@ -143,7 +143,7 @@ func TestStock_TransferAtomic(t *testing.T) {
 	assertQty(t, repo, fx.keyB(), "4")
 
 	// перенос больше, чем есть в источнике → откат: и источник, и приёмник без изменений
-	if err := repo.Transfer(ctx, fx.keyA(), fx.keyB(), decimal.NewFromInt(100)); !errors.Is(err, repository.ErrInsufficientStock) {
+	if err := repo.Transfer(ctx, fx.keyA(), fx.keyB(), decimal.NewFromInt(100)); !errors.Is(err, model.ErrInsufficientStock) {
 		t.Fatalf("ожидалась ErrInsufficientStock, получено %v", err)
 	}
 	assertQty(t, repo, fx.keyA(), "6")
@@ -169,7 +169,7 @@ func TestStock_ConcurrentIssue(t *testing.T) {
 			switch err := repo.Remove(ctx, fx.keyA(), decimal.NewFromInt(1)); {
 			case err == nil:
 				atomic.AddInt64(&success, 1)
-			case errors.Is(err, repository.ErrInsufficientStock):
+			case errors.Is(err, model.ErrInsufficientStock):
 				atomic.AddInt64(&insufficient, 1)
 			default:
 				atomic.AddInt64(&other, 1)

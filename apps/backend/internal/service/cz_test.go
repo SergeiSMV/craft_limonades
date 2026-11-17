@@ -76,14 +76,14 @@ func TestCZServiceCisesInfoNormalizesCodes(t *testing.T) {
 
 func TestCZServiceCisesInfoValidation(t *testing.T) {
 	s := NewCZService(&fakeCZClient{}, nil)
-	if _, err := s.CisesInfo(context.Background(), []string{" ", ""}); !errors.Is(err, ErrCZNoCodes) {
+	if _, err := s.CisesInfo(context.Background(), []string{" ", ""}); !errors.Is(err, model.ErrCZNoCodes) {
 		t.Fatalf("err = %v", err)
 	}
 	many := make([]string, czMaxCodes+1)
 	for i := range many {
 		many[i] = "c"
 	}
-	if _, err := s.CisesInfo(context.Background(), many); !errors.Is(err, ErrCZTooManyCodes) {
+	if _, err := s.CisesInfo(context.Background(), many); !errors.Is(err, model.ErrCZTooManyCodes) {
 		t.Fatalf("err = %v", err)
 	}
 }

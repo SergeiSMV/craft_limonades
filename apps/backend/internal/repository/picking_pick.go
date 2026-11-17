@@ -21,10 +21,6 @@ const (
 	KindPickingUnpick = "picking_unpick"
 )
 
-// ErrShippingCell - ячейка отгрузки в движении (P9-05): в ней числятся короба собранных заказов,
-// и уходят они оттуда только отгрузкой.
-var ErrShippingCell = errors.New("ячейка отгрузки - служебная: короба собранных заказов уходят из неё только отгрузкой")
-
 // PickingPickInput - пик из очереди ТСД.
 //
 // Источник - ровно один: россыпь ячейки (SourceCellID, склад - InternalWarehouseID, пусто - по
@@ -215,7 +211,7 @@ func guardPickingSource(ctx context.Context, q Querier, warehouseID, cellID, iwh
 		       AND (SELECT allow_picking FROM internal_warehouses WHERE id = $3::uuid)
 		FROM cells c WHERE c.id = $2::uuid`, warehouseID, cellID, iwh).Scan(&ok)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return ErrUnknownReference
+		return model.ErrUnknownReference
 	}
 	if err != nil {
 		return fmt.Errorf("источник сборки: %w", err)
@@ -293,13 +289,13 @@ func guardNotShippingCell(ctx context.Context, q Querier, cellID string) error {
 	var shipping bool
 	err := q.QueryRow(ctx, `SELECT is_shipping FROM cells WHERE id = $1::uuid`, cellID).Scan(&shipping)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return ErrUnknownReference
+		return model.ErrUnknownReference
 	}
 	if err != nil {
 		return fmt.Errorf("проверить ячейку отгрузки: %w", err)
 	}
 	if shipping {
-		return ErrShippingCell
+		return model.ErrShippingCell
 	}
 	return nil
 }

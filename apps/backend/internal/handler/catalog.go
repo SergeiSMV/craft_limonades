@@ -9,7 +9,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"craftwms/internal/repository"
+	"craftwms/internal/model"
 	"craftwms/internal/service"
 )
 
@@ -42,7 +42,7 @@ func (h *CatalogHandler) ListGoods(w http.ResponseWriter, r *http.Request) {
 // GetGood: GET /api/v1/goods/{id} - один товар (404, если не найден).
 func (h *CatalogHandler) GetGood(w http.ResponseWriter, r *http.Request) {
 	good, err := h.svc.GetGood(r.Context(), chi.URLParam(r, "id"))
-	if errors.Is(err, repository.ErrNotFound) {
+	if errors.Is(err, model.ErrNotFound) {
 		writeError(w, http.StatusNotFound, "товар не найден")
 		return
 	}

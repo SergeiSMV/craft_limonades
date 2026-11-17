@@ -2,11 +2,9 @@ package service
 
 import (
 	"context"
-	"errors"
 	"strings"
 
 	"craftwms/internal/model"
-	"craftwms/internal/repository"
 )
 
 // Пределы страницы ленты истории перемещений - как у «Завершённых» заданий.
@@ -14,9 +12,6 @@ const (
 	movementHistoryDefaultLimit = 30
 	movementHistoryMaxLimit     = 100
 )
-
-// ErrInvalidMovementFilter - фильтр ленты истории не разобран (дата, курсор, исполнитель).
-var ErrInvalidMovementFilter = errors.New("invalid movement history filter")
 
 // movementHistoryRepo - зависимость сервиса истории перемещений.
 type movementHistoryRepo interface {
@@ -51,7 +46,7 @@ func (s *MovementHistoryService) List(ctx context.Context, q MovementHistoryQuer
 	w, err := parseFeedWindow(q.From, q.To, q.BeforePostedAt, q.BeforeID, q.Limit,
 		movementHistoryDefaultLimit, movementHistoryMaxLimit)
 	if err != nil {
-		return nil, ErrInvalidMovementFilter
+		return nil, model.ErrInvalidMovementFilter
 	}
 	f := model.MovementHistoryFilter{
 		From: w.From, To: w.To,
@@ -61,7 +56,7 @@ func (s *MovementHistoryService) List(ctx context.Context, q MovementHistoryQuer
 		Limit:          w.Limit,
 	}
 	if !isOptionalUUID(f.ExecutorID) {
-		return nil, ErrInvalidMovementFilter
+		return nil, model.ErrInvalidMovementFilter
 	}
 	return s.repo.List(ctx, f)
 }
@@ -74,7 +69,7 @@ func (s *MovementHistoryService) Executors(ctx context.Context) ([]model.TaskUse
 // Get - запись со строками. Не UUID - «не найдено»: такой записи заведомо нет.
 func (s *MovementHistoryService) Get(ctx context.Context, id string) (model.MovementRecordDetail, error) {
 	if !isUUID(strings.TrimSpace(id)) {
-		return model.MovementRecordDetail{}, repository.ErrMovementNotFound
+		return model.MovementRecordDetail{}, model.ErrMovementNotFound
 	}
 	return s.repo.Get(ctx, strings.TrimSpace(id))
 }

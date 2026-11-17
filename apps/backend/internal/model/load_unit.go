@@ -1,6 +1,9 @@
 package model
 
-import "time"
+import (
+	"errors"
+	"time"
+)
 
 // Виды грузовой единицы (P4-01). Значения лежат в БД под CHECK - менять только миграцией.
 const (
@@ -84,3 +87,11 @@ type PlaceLoadUnitInput struct {
 	// StocktakeCellID - ячейка пересчёта, в которой нашли короб (P10-03).
 	StocktakeCellID *string
 }
+
+// Ошибки грузовой единицы (P4-03).
+var (
+	// ErrInvalidLoadUnitID - идентификатор ГЕ не UUID.
+	ErrInvalidLoadUnitID = errors.New("load unit id must be a UUID")
+	// ErrInvalidLoadUnitKind - вид ГЕ не «короб» и не «паллета».
+	ErrInvalidLoadUnitKind = errors.New("load unit kind must be box or pallet")
+)

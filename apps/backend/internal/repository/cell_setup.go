@@ -10,10 +10,6 @@ import (
 // Стеллажи и настройки этикеток ячеек (ADHOC-57). Живут на CellRepository: стеллаж - часть
 // раскладки ячеек склада, отдельный репозиторий дробил бы одну транзакцию импорта на два.
 
-// Псевдоним ошибки из model на время ADHOC-71 (долг 38): старые ссылки работают, errors.Is
-// сравнивает тот же объект. Снимается, когда все ссылки переведены на model.
-var ErrForeignCells = model.ErrForeignCells
-
 // UpsertRack заводит или находит стеллаж склада по коду и возвращает его id и признак «создан».
 // Стеллаж - только группировка ячеек: своих настроек у него нет (галочка карточки - у ячейки).
 func (r *CellRepository) UpsertRack(ctx context.Context, q Querier, warehouseID, code string) (string, bool, error) {
@@ -127,7 +123,7 @@ func (r *CellRepository) UpdateSettings(ctx context.Context, q Querier, warehous
 		return res, fmt.Errorf("проверка ячеек: %w", err)
 	}
 	if found != len(p.CellIDs) {
-		return res, ErrForeignCells
+		return res, model.ErrForeignCells
 	}
 
 	tag, err := q.Exec(ctx, `

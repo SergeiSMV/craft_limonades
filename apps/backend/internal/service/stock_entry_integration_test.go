@@ -136,13 +136,13 @@ func TestStockEntry_fullCycle(t *testing.T) {
 	}
 
 	// Повторный финал закрытой сессии → ErrSessionClosed.
-	if _, err := env.svc.Finalize(ctx, sess); !errors.Is(err, repository.ErrSessionClosed) {
+	if _, err := env.svc.Finalize(ctx, sess); !errors.Is(err, model.ErrSessionClosed) {
 		t.Fatalf("повторный Finalize: ожидалась ErrSessionClosed, получено %v", err)
 	}
 	// Checkpoint по закрытой сессии → ErrSessionClosed.
 	err = env.svc.Checkpoint(ctx, sess, service.EntryCell{CellID: env.cell1,
 		Lines: []service.EntryLine{{GoodID: env.good1, ProductionDate: "15-01-2026", Qty: decimal.NewFromInt(1)}}})
-	if !errors.Is(err, repository.ErrSessionClosed) {
+	if !errors.Is(err, model.ErrSessionClosed) {
 		t.Fatalf("Checkpoint закрытой: ожидалась ErrSessionClosed, получено %v", err)
 	}
 }
@@ -152,7 +152,7 @@ func TestStockEntry_validation(t *testing.T) {
 	_, env := setupStockEntry(t)
 	ctx := context.Background()
 
-	if _, err := env.svc.Start(ctx, "", "   ", env.user); !errors.Is(err, service.ErrEmptyWarehouse) {
+	if _, err := env.svc.Start(ctx, "", "   ", env.user); !errors.Is(err, model.ErrEmptyWarehouse) {
 		t.Fatalf("пустой склад: ожидалась ErrEmptyWarehouse, получено %v", err)
 	}
 
@@ -164,23 +164,23 @@ func TestStockEntry_validation(t *testing.T) {
 	// Неверный формат даты → ErrInvalidDate.
 	err = env.svc.Checkpoint(ctx, sess, service.EntryCell{CellID: env.cell1,
 		Lines: []service.EntryLine{{GoodID: env.good1, ProductionDate: "2026-01-15", Qty: decimal.NewFromInt(1)}}})
-	if !errors.Is(err, service.ErrInvalidDate) {
+	if !errors.Is(err, model.ErrInvalidDate) {
 		t.Fatalf("дата ISO вместо DD-MM-YYYY: ожидалась ErrInvalidDate, получено %v", err)
 	}
 	// Отрицательное количество → ErrInvalidQuantity.
 	err = env.svc.Checkpoint(ctx, sess, service.EntryCell{CellID: env.cell1,
 		Lines: []service.EntryLine{{GoodID: env.good1, ProductionDate: "15-01-2026", Qty: decimal.NewFromInt(-1)}}})
-	if !errors.Is(err, service.ErrInvalidQuantity) {
+	if !errors.Is(err, model.ErrInvalidQuantity) {
 		t.Fatalf("отрицательное qty: ожидалась ErrInvalidQuantity, получено %v", err)
 	}
 	// Пустая ячейка → ErrEmptyCell.
-	if err := env.svc.Checkpoint(ctx, sess, service.EntryCell{CellID: "  "}); !errors.Is(err, service.ErrEmptyCell) {
+	if err := env.svc.Checkpoint(ctx, sess, service.EntryCell{CellID: "  "}); !errors.Is(err, model.ErrEmptyCell) {
 		t.Fatalf("пустая ячейка: ожидалась ErrEmptyCell, получено %v", err)
 	}
 
 	// Несуществующая сессия → ErrSessionNotFound.
 	missing := "00000000-0000-0000-0000-0000000000ff"
-	if _, err := env.svc.Finalize(ctx, missing); !errors.Is(err, repository.ErrSessionNotFound) {
+	if _, err := env.svc.Finalize(ctx, missing); !errors.Is(err, model.ErrSessionNotFound) {
 		t.Fatalf("финал несуществующей: ожидалась ErrSessionNotFound, получено %v", err)
 	}
 }

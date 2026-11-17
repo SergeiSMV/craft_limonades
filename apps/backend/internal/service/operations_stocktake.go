@@ -36,11 +36,11 @@ type stocktakeCellSubmitPayload struct {
 func (s *OperationsService) stocktakeCellSubmit(ctx context.Context, userID, id string, raw json.RawMessage) (repository.Applied, error) {
 	var p stocktakeCellSubmitPayload
 	if err := json.Unmarshal(raw, &p); err != nil {
-		return repository.Applied{}, ErrInvalidPayload
+		return repository.Applied{}, model.ErrInvalidPayload
 	}
 	in := model.StocktakeCellSubmitInput{StocktakeCellID: strings.TrimSpace(p.StocktakeCellID), UserID: userID}
 	if !isUUID(in.StocktakeCellID) {
-		return repository.Applied{}, ErrInvalidPayload
+		return repository.Applied{}, model.ErrInvalidPayload
 	}
 
 	type posKey struct{ good, date, iwh string }
@@ -53,10 +53,10 @@ func (s *OperationsService) stocktakeCellSubmit(ctx context.Context, userID, id 
 			Qty:                 ln.Qty,
 		}
 		if !isUUID(f.GoodID) || !isOptionalUUID(f.InternalWarehouseID) {
-			return repository.Applied{}, ErrInvalidPayload
+			return repository.Applied{}, model.ErrInvalidPayload
 		}
 		if f.Qty.IsNegative() {
-			return repository.Applied{}, ErrInvalidQuantity
+			return repository.Applied{}, model.ErrInvalidQuantity
 		}
 		iso, err := parseEntryDate(ln.ProductionDate)
 		if err != nil {
@@ -65,13 +65,13 @@ func (s *OperationsService) stocktakeCellSubmit(ctx context.Context, userID, id 
 		f.ProductionDate = iso
 		k := posKey{f.GoodID, iso, f.InternalWarehouseID}
 		if seen[k] {
-			return repository.Applied{}, ErrInvalidPayload
+			return repository.Applied{}, model.ErrInvalidPayload
 		}
 		seen[k] = true
 		for _, m := range ln.Marks {
 			m = strings.TrimSpace(m)
 			if m == "" || slices.Contains(marks, m) {
-				return repository.Applied{}, ErrInvalidPayload
+				return repository.Applied{}, model.ErrInvalidPayload
 			}
 			marks = append(marks, m)
 			f.Marks = append(f.Marks, m)
@@ -81,7 +81,7 @@ func (s *OperationsService) stocktakeCellSubmit(ctx context.Context, userID, id 
 	for _, lu := range p.Boxes {
 		lu = strings.TrimSpace(lu)
 		if !isUUID(lu) || slices.Contains(in.Boxes, lu) {
-			return repository.Applied{}, ErrInvalidPayload
+			return repository.Applied{}, model.ErrInvalidPayload
 		}
 		in.Boxes = append(in.Boxes, lu)
 	}

@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"craftwms/internal/labels"
-	"craftwms/internal/repository"
+	"craftwms/internal/model"
 	"craftwms/internal/service"
 )
 
@@ -51,13 +51,13 @@ func (h *LabelHandler) CellLabelsPDF(w http.ResponseWriter, r *http.Request) {
 	var fit *labels.FitError
 	switch {
 	case err == nil:
-	case errors.Is(err, repository.ErrNotFound):
+	case errors.Is(err, model.ErrNotFound):
 		writeError(w, http.StatusNotFound, "склад не найден")
 		return
-	case errors.Is(err, service.ErrUnknownLabelKind), errors.Is(err, service.ErrInvalidCellIDs):
+	case errors.Is(err, model.ErrUnknownLabelKind), errors.Is(err, model.ErrInvalidCellIDs):
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
-	case errors.Is(err, repository.ErrForeignCells):
+	case errors.Is(err, model.ErrForeignCells):
 		writeError(w, http.StatusConflict, "часть ячеек не найдена на складе - обновите страницу")
 		return
 	case errors.Is(err, labels.ErrNothingToPrint):

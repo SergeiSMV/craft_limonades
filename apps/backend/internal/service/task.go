@@ -2,12 +2,10 @@ package service
 
 import (
 	"context"
-	"errors"
 	"strings"
 	"time"
 
 	"craftwms/internal/model"
-	"craftwms/internal/repository"
 )
 
 // TaskStaleAfter - через сколько без отправок взятое задание снова видно всем (решение
@@ -19,12 +17,6 @@ const TaskStaleAfter = 8 * time.Hour
 const (
 	completedDefaultLimit = 30
 	completedMaxLimit     = 100
-)
-
-// Ошибки входа заданий.
-var (
-	// ErrInvalidTaskFilter - фильтр ленты не разобран (дата, курсор, исполнитель).
-	ErrInvalidTaskFilter = errors.New("invalid completed tasks filter")
 )
 
 // taskRepo - зависимость сервиса заданий (интерфейс ради тестируемости).
@@ -64,7 +56,7 @@ type TaskDetail struct {
 // Detail - задание с позициями, заходами и журналом событий.
 func (s *TaskService) Detail(ctx context.Context, id, userID string) (TaskDetail, error) {
 	if !isUUID(id) {
-		return TaskDetail{}, repository.ErrTaskNotFound
+		return TaskDetail{}, model.ErrTaskNotFound
 	}
 	t, err := s.repo.ByID(ctx, id, userID)
 	if err != nil {
@@ -84,7 +76,7 @@ func (s *TaskService) Detail(ctx context.Context, id, userID string) (TaskDetail
 // Take - взять задание в работу.
 func (s *TaskService) Take(ctx context.Context, id, userID string) error {
 	if !isUUID(id) {
-		return repository.ErrTaskNotFound
+		return model.ErrTaskNotFound
 	}
 	return s.repo.Take(ctx, id, userID, TaskStaleAfter)
 }
@@ -92,7 +84,7 @@ func (s *TaskService) Take(ctx context.Context, id, userID string) error {
 // Release - отказаться от взятого задания: оно возвращается в пул.
 func (s *TaskService) Release(ctx context.Context, id, userID string) error {
 	if !isUUID(id) {
-		return repository.ErrTaskNotFound
+		return model.ErrTaskNotFound
 	}
 	return s.repo.Release(ctx, id, userID)
 }
@@ -124,7 +116,7 @@ func (s *TaskService) Completed(ctx context.Context, q CompletedQuery) ([]model.
 	w, err := parseFeedWindow(q.From, q.To, q.BeforeCompletedAt, q.BeforeID, q.Limit,
 		completedDefaultLimit, completedMaxLimit)
 	if err != nil {
-		return nil, ErrInvalidTaskFilter
+		return nil, model.ErrInvalidTaskFilter
 	}
 	f := model.CompletedTasksFilter{
 		From: w.From, To: w.To,
@@ -135,7 +127,7 @@ func (s *TaskService) Completed(ctx context.Context, q CompletedQuery) ([]model.
 		Limit:             w.Limit,
 	}
 	if !isOptionalUUID(f.ExecutorID) {
-		return nil, ErrInvalidTaskFilter
+		return nil, model.ErrInvalidTaskFilter
 	}
 	return s.repo.Completed(ctx, f)
 }

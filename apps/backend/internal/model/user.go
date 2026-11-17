@@ -288,3 +288,12 @@ type UserUpdateInput struct {
 	Password   *string
 	By         string
 }
+
+// ErrUserNotFound - пользователь не найден по логину/id.
+var ErrUserNotFound = errors.New("user not found")
+
+// Ошибки сервиса. Для входа отдаём один общий ErrInvalidCredentials (не различаем «нет логина»
+// и «неверный секрет»), чтобы не подсказывать перебору, какие логины существуют.
+var (
+	ErrInvalidCredentials = errors.New("invalid credentials")
+)

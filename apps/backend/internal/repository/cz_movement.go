@@ -63,7 +63,7 @@ func moveMarks(ctx context.Context, q Querier, goodID, batchID string, marks []s
 		var marked bool
 		err := q.QueryRow(ctx, `SELECT cz_marked FROM goods WHERE id = $1::uuid`, goodID).Scan(&marked)
 		if errors.Is(err, pgx.ErrNoRows) {
-			return ErrUnknownReference
+			return model.ErrUnknownReference
 		}
 		if err != nil {
 			return fmt.Errorf("признак маркировки товара: %w", err)

@@ -8,7 +8,6 @@ import (
 	"github.com/shopspring/decimal"
 
 	"craftwms/internal/model"
-	"craftwms/internal/repository"
 )
 
 // fakeStockRepo - in-memory реализация stockRepo для юнит-тестов сервиса (без БД).
@@ -16,7 +15,7 @@ import (
 // её проверяет интеграционный тест репозитория (stock_integration_test.go).
 type fakeStockRepo struct {
 	qty          map[model.StockKey]decimal.Decimal
-	insufficient bool // при true Remove/Transfer возвращают repository.ErrInsufficientStock
+	insufficient bool // при true Remove/Transfer возвращают model.ErrInsufficientStock
 	addCalls     int
 	setCalls     int
 	removeCalls  int
@@ -44,7 +43,7 @@ func (f *fakeStockRepo) Set(_ context.Context, key model.StockKey, qty decimal.D
 func (f *fakeStockRepo) Remove(_ context.Context, key model.StockKey, qty decimal.Decimal) error {
 	f.removeCalls++
 	if f.insufficient {
-		return repository.ErrInsufficientStock
+		return model.ErrInsufficientStock
 	}
 	f.qty[key] = f.qty[key].Sub(qty)
 	return nil
@@ -52,7 +51,7 @@ func (f *fakeStockRepo) Remove(_ context.Context, key model.StockKey, qty decima
 
 func (f *fakeStockRepo) Transfer(_ context.Context, from, to model.StockKey, _ decimal.Decimal) error {
 	if f.insufficient {
-		return repository.ErrInsufficientStock
+		return model.ErrInsufficientStock
 	}
 	f.transferred = true
 	f.lastFrom, f.lastTo = from, to
@@ -85,8 +84,8 @@ func TestReceive_nonPositive_rejected(t *testing.T) {
 		repo := newFakeStockRepo()
 		svc := NewStockService(repo)
 		err := svc.Receive(context.Background(), testKey, qty)
-		if !errors.Is(err, ErrInvalidQuantity) {
-			t.Fatalf("qty=%s: ожидалась ErrInvalidQuantity, получено %v", qty, err)
+		if !errors.Is(err, model.ErrInvalidQuantity) {
+			t.Fatalf("qty=%s: ожидалась model.ErrInvalidQuantity, получено %v", qty, err)
 		}
 		if repo.addCalls != 0 {
 			t.Fatalf("qty=%s: Add не должен вызываться при невалидном количестве", qty)
@@ -132,8 +131,8 @@ func TestSetLine_negativeRejected(t *testing.T) {
 	repo := newFakeStockRepo()
 	svc := NewStockService(repo)
 	err := svc.SetLine(context.Background(), testKey, decimal.NewFromInt(-1))
-	if !errors.Is(err, ErrInvalidQuantity) {
-		t.Fatalf("ожидалась ErrInvalidQuantity, получено %v", err)
+	if !errors.Is(err, model.ErrInvalidQuantity) {
+		t.Fatalf("ожидалась model.ErrInvalidQuantity, получено %v", err)
 	}
 	if repo.setCalls != 0 {
 		t.Fatalf("Set не должен вызываться при отрицательном qty")
@@ -146,8 +145,8 @@ func TestIssue_insufficient_mappedToServiceError(t *testing.T) {
 	svc := NewStockService(repo)
 
 	err := svc.Issue(context.Background(), testKey, decimal.NewFromInt(1))
-	if !errors.Is(err, ErrInsufficientStock) {
-		t.Fatalf("ожидалась service.ErrInsufficientStock, получено %v", err)
+	if !errors.Is(err, model.ErrInsufficientStock) {
+		t.Fatalf("ожидалась model.ErrInsufficientStock, получено %v", err)
 	}
 }
 
@@ -155,8 +154,8 @@ func TestIssue_nonPositive_rejected(t *testing.T) {
 	repo := newFakeStockRepo()
 	svc := NewStockService(repo)
 	err := svc.Issue(context.Background(), testKey, decimal.Zero)
-	if !errors.Is(err, ErrInvalidQuantity) {
-		t.Fatalf("ожидалась ErrInvalidQuantity, получено %v", err)
+	if !errors.Is(err, model.ErrInvalidQuantity) {
+		t.Fatalf("ожидалась model.ErrInvalidQuantity, получено %v", err)
 	}
 	if repo.removeCalls != 0 {
 		t.Fatalf("Remove не должен вызываться при невалидном количестве")
@@ -168,8 +167,8 @@ func TestTransfer_buildsKeysAndValidates(t *testing.T) {
 	svc := NewStockService(repo)
 
 	// невалидное количество - отказ до репозитория
-	if err := svc.Transfer(context.Background(), "c1", "c2", "g", "b", "iwh", decimal.Zero); !errors.Is(err, ErrInvalidQuantity) {
-		t.Fatalf("ожидалась ErrInvalidQuantity, получено %v", err)
+	if err := svc.Transfer(context.Background(), "c1", "c2", "g", "b", "iwh", decimal.Zero); !errors.Is(err, model.ErrInvalidQuantity) {
+		t.Fatalf("ожидалась model.ErrInvalidQuantity, получено %v", err)
 	}
 	// валидное - перенос выполнен
 	if err := svc.Transfer(context.Background(), "c1", "c2", "g", "b", "iwh", decimal.NewFromInt(3)); err != nil {
@@ -190,7 +189,7 @@ func TestTransfer_insufficient_mapped(t *testing.T) {
 	repo.insufficient = true
 	svc := NewStockService(repo)
 	err := svc.Transfer(context.Background(), "c1", "c2", "g", "b", "iwh", decimal.NewFromInt(3))
-	if !errors.Is(err, ErrInsufficientStock) {
-		t.Fatalf("ожидалась ErrInsufficientStock, получено %v", err)
+	if !errors.Is(err, model.ErrInsufficientStock) {
+		t.Fatalf("ожидалась model.ErrInsufficientStock, получено %v", err)
 	}
 }

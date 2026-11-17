@@ -171,3 +171,13 @@ type LoadUnitContentEvent struct {
 	UserName       *string
 	At             time.Time
 }
+
+// Ошибки просмотра содержимого.
+var (
+	// ErrInvalidCellID - идентификатор ячейки не UUID.
+	ErrInvalidCellID = errors.New("cell id must be a UUID")
+	// ErrInvalidShortCode - короткий код не из 1…8 шестнадцатеричных знаков.
+	ErrInvalidShortCode = errors.New("short code must be 1 to 8 hex digits")
+	// ErrInvalidCZBoxCode - код короба ЧЗ не `00` + 18 цифр SSCC.
+	ErrInvalidCZBoxCode = errors.New("chestny znak box code must be 00 and 18 digits")
+)

@@ -40,16 +40,6 @@ const (
 	KindReturnSubmit = "return_submit"
 )
 
-// Ошибки применения приёмки из очереди (P4-09).
-var (
-	// ErrNoDefaultCell - у склада нет ячейки приёмки по умолчанию, а строка ячейку не указала.
-	ErrNoDefaultCell = errors.New("warehouse has no default cell")
-	// ErrUnknownReference - документ ссылается на то, чего нет в справочниках (склад, поставщик,
-	// товар, ячейка). Устройство собирает приёмку по своему кэшу, и между сборкой и отправкой
-	// справочник мог измениться; это разбирается человеком, а не повтором.
-	ErrUnknownReference = errors.New("receipt references a missing catalog entry")
-)
-
 // LoadUnitInput - грузовая единица, собранная на приёмке: идентификатор из QR ярлыка и вид.
 // CZCode - короб ЧЗ (`00`+SSCC), которым является ГЕ (CZ-05): id ей выдало устройство, ярлыка нет.
 type LoadUnitInput struct {
@@ -183,8 +173,8 @@ func (r *OperationsRepository) ReceiptSubmit(ctx context.Context, operationID st
 			if ln.CellID == "" {
 				if defaultCell == "" {
 					id, err := defaultCellID(ctx, q, in.WarehouseID)
-					if errors.Is(err, ErrNotFound) {
-						return nil, ErrNoDefaultCell
+					if errors.Is(err, model.ErrNotFound) {
+						return nil, model.ErrNoDefaultCell
 					}
 					if err != nil {
 						return nil, err
@@ -275,7 +265,7 @@ func (r *OperationsRepository) ReturnSubmit(ctx context.Context, operationID str
 func missingReference(err error) error {
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == "23503" {
-		return ErrUnknownReference
+		return model.ErrUnknownReference
 	}
 	return err
 }

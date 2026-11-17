@@ -3,18 +3,10 @@ package service
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 
 	"craftwms/internal/auth"
 	"craftwms/internal/model"
-)
-
-// Ошибки сервиса. Для входа отдаём один общий ErrInvalidCredentials (не различаем «нет логина»
-// и «неверный секрет»), чтобы не подсказывать перебору, какие логины существуют.
-var (
-	ErrBadBadge           = model.ErrBadBadge // псевдоним на время ADHOC-71
-	ErrInvalidCredentials = errors.New("invalid credentials")
 )
 
 // userRepo - то, что нужно AuthService от хранилища (зависимость от интерфейса, а не реализации).
@@ -49,20 +41,20 @@ type TokenPair struct {
 // проверяем активность → выдаём пару токенов.
 func (s *AuthService) Login(ctx context.Context, badge string) (TokenPair, error) {
 	if !isBadge(badge) {
-		return TokenPair{}, ErrBadBadge
+		return TokenPair{}, model.ErrBadBadge
 	}
 	login, secret := badge[:8], badge[8:]
 
 	user, err := s.users.GetByLogin(ctx, login)
 	if err != nil {
-		return TokenPair{}, ErrInvalidCredentials // в т.ч. «не найден» - без деталей
+		return TokenPair{}, model.ErrInvalidCredentials // в т.ч. «не найден» - без деталей
 	}
 	if !user.IsActive {
-		return TokenPair{}, ErrInvalidCredentials // заблокирован
+		return TokenPair{}, model.ErrInvalidCredentials // заблокирован
 	}
 	ok, err := auth.VerifyPassword(secret, user.PasswordHash)
 	if err != nil || !ok {
-		return TokenPair{}, ErrInvalidCredentials
+		return TokenPair{}, model.ErrInvalidCredentials
 	}
 	s.rememberBadge(ctx, user, secret)
 	return s.issuePair(user)
@@ -93,18 +85,18 @@ func (s *AuthService) rememberBadge(ctx context.Context, user model.User, secret
 // Ищем по username → сверяем argon2 → проверяем активность → та же пара токенов, что и по бейджу.
 func (s *AuthService) LoginWithPassword(ctx context.Context, username, password string) (TokenPair, error) {
 	if username == "" || password == "" {
-		return TokenPair{}, ErrInvalidCredentials
+		return TokenPair{}, model.ErrInvalidCredentials
 	}
 	user, err := s.users.GetByUsername(ctx, username)
 	if err != nil {
-		return TokenPair{}, ErrInvalidCredentials // в т.ч. «не найден» - без деталей
+		return TokenPair{}, model.ErrInvalidCredentials // в т.ч. «не найден» - без деталей
 	}
 	if !user.IsActive {
-		return TokenPair{}, ErrInvalidCredentials // заблокирован
+		return TokenPair{}, model.ErrInvalidCredentials // заблокирован
 	}
 	ok, err := auth.VerifyPassword(password, user.PasswordHash)
 	if err != nil || !ok {
-		return TokenPair{}, ErrInvalidCredentials
+		return TokenPair{}, model.ErrInvalidCredentials
 	}
 	return s.issuePair(user)
 }
@@ -115,7 +107,7 @@ func (s *AuthService) LoginWithPassword(ctx context.Context, username, password 
 func (s *AuthService) LoginWithoutSecret(ctx context.Context, login string) (TokenPair, error) {
 	user, err := s.users.GetByLogin(ctx, login)
 	if err != nil || !user.IsActive {
-		return TokenPair{}, ErrInvalidCredentials
+		return TokenPair{}, model.ErrInvalidCredentials
 	}
 	return s.issuePair(user)
 }
@@ -126,11 +118,11 @@ func (s *AuthService) LoginWithoutSecret(ctx context.Context, login string) (Tok
 func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (string, error) {
 	claims, err := s.tokens.ParseRefresh(refreshToken)
 	if err != nil {
-		return "", ErrInvalidCredentials
+		return "", model.ErrInvalidCredentials
 	}
 	user, err := s.users.GetByID(ctx, claims.Subject)
 	if err != nil || !user.IsActive {
-		return "", ErrInvalidCredentials
+		return "", model.ErrInvalidCredentials
 	}
 	return s.tokens.IssueAccess(user.ID, user.Role())
 }

@@ -122,7 +122,7 @@ func (s *CatalogService) ListGoods(ctx context.Context, q GoodsQuery) (Page[mode
 	return Page[model.Good]{Items: items, Total: total, Limit: limit, Offset: offset}, nil
 }
 
-// GetGood - один товар по id (repository.ErrNotFound, если нет).
+// GetGood - один товар по id (model.ErrNotFound, если нет).
 func (s *CatalogService) GetGood(ctx context.Context, id string) (model.Good, error) {
 	return s.goods.GetByID(ctx, id)
 }

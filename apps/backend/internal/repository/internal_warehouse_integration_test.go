@@ -77,16 +77,16 @@ func TestInternalWarehouse_incompleteKeyRejected(t *testing.T) {
 	repo := repository.NewStockRepository(fx.pool)
 	key := model.StockKey{CellID: fx.cellA, GoodID: fx.good, BatchID: fx.batch} // без склада
 
-	if err := repo.Add(ctx, key, decimal.NewFromInt(1)); !errors.Is(err, repository.ErrEmptyInternalWarehouse) {
+	if err := repo.Add(ctx, key, decimal.NewFromInt(1)); !errors.Is(err, model.ErrEmptyInternalWarehouse) {
 		t.Errorf("Add: ожидалась ErrEmptyInternalWarehouse, получено %v", err)
 	}
-	if err := repo.Set(ctx, key, decimal.NewFromInt(1)); !errors.Is(err, repository.ErrEmptyInternalWarehouse) {
+	if err := repo.Set(ctx, key, decimal.NewFromInt(1)); !errors.Is(err, model.ErrEmptyInternalWarehouse) {
 		t.Errorf("Set: ожидалась ErrEmptyInternalWarehouse, получено %v", err)
 	}
-	if err := repo.Remove(ctx, key, decimal.NewFromInt(1)); !errors.Is(err, repository.ErrEmptyInternalWarehouse) {
+	if err := repo.Remove(ctx, key, decimal.NewFromInt(1)); !errors.Is(err, model.ErrEmptyInternalWarehouse) {
 		t.Errorf("Remove: ожидалась ErrEmptyInternalWarehouse, получено %v", err)
 	}
-	if _, err := repo.GetQty(ctx, key); !errors.Is(err, repository.ErrEmptyInternalWarehouse) {
+	if _, err := repo.GetQty(ctx, key); !errors.Is(err, model.ErrEmptyInternalWarehouse) {
 		t.Errorf("GetQty: ожидалась ErrEmptyInternalWarehouse, получено %v", err)
 	}
 }

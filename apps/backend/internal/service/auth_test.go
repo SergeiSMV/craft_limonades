@@ -165,8 +165,8 @@ func TestLoginBadBadge(t *testing.T) {
 		"",                  // пустой
 	}
 	for _, badge := range cases {
-		if _, err := svc.Login(context.Background(), badge); !errors.Is(err, ErrBadBadge) {
-			t.Errorf("Login(%q) err = %v, want ErrBadBadge", badge, err)
+		if _, err := svc.Login(context.Background(), badge); !errors.Is(err, model.ErrBadBadge) {
+			t.Errorf("Login(%q) err = %v, want model.ErrBadBadge", badge, err)
 		}
 	}
 }
@@ -175,8 +175,8 @@ func TestLoginBadBadge(t *testing.T) {
 func TestLoginUserNotFound(t *testing.T) {
 	svc, _, _ := newService(t, false) // пользователей нет
 
-	if _, err := svc.Login(context.Background(), testBadge); !errors.Is(err, ErrInvalidCredentials) {
-		t.Errorf("err = %v, want ErrInvalidCredentials", err)
+	if _, err := svc.Login(context.Background(), testBadge); !errors.Is(err, model.ErrInvalidCredentials) {
+		t.Errorf("err = %v, want model.ErrInvalidCredentials", err)
 	}
 }
 
@@ -187,8 +187,8 @@ func TestLoginInactiveUser(t *testing.T) {
 	u.IsActive = false
 	repo.add(u)
 
-	if _, err := svc.Login(context.Background(), testBadge); !errors.Is(err, ErrInvalidCredentials) {
-		t.Errorf("err = %v, want ErrInvalidCredentials", err)
+	if _, err := svc.Login(context.Background(), testBadge); !errors.Is(err, model.ErrInvalidCredentials) {
+		t.Errorf("err = %v, want model.ErrInvalidCredentials", err)
 	}
 }
 
@@ -197,8 +197,8 @@ func TestLoginWrongSecret(t *testing.T) {
 	svc, _, _ := newService(t, true)
 
 	wrongBadge := testLogin + "00000000" // верный логин, неверный секрет
-	if _, err := svc.Login(context.Background(), wrongBadge); !errors.Is(err, ErrInvalidCredentials) {
-		t.Errorf("err = %v, want ErrInvalidCredentials", err)
+	if _, err := svc.Login(context.Background(), wrongBadge); !errors.Is(err, model.ErrInvalidCredentials) {
+		t.Errorf("err = %v, want model.ErrInvalidCredentials", err)
 	}
 }
 
@@ -231,8 +231,8 @@ func TestRefreshSuccess(t *testing.T) {
 func TestRefreshInvalidToken(t *testing.T) {
 	svc, _, _ := newService(t, true)
 
-	if _, err := svc.Refresh(context.Background(), "garbage"); !errors.Is(err, ErrInvalidCredentials) {
-		t.Errorf("err = %v, want ErrInvalidCredentials", err)
+	if _, err := svc.Refresh(context.Background(), "garbage"); !errors.Is(err, model.ErrInvalidCredentials) {
+		t.Errorf("err = %v, want model.ErrInvalidCredentials", err)
 	}
 }
 
@@ -246,8 +246,8 @@ func TestRefreshInactiveUser(t *testing.T) {
 	u.IsActive = false
 	repo.add(u)
 
-	if _, err := svc.Refresh(context.Background(), refresh); !errors.Is(err, ErrInvalidCredentials) {
-		t.Errorf("err = %v, want ErrInvalidCredentials", err)
+	if _, err := svc.Refresh(context.Background(), refresh); !errors.Is(err, model.ErrInvalidCredentials) {
+		t.Errorf("err = %v, want model.ErrInvalidCredentials", err)
 	}
 }
 
@@ -256,8 +256,8 @@ func TestRefreshRejectsAccessToken(t *testing.T) {
 	svc, tm, _ := newService(t, true)
 
 	access, _ := tm.IssueAccess(testUserID, model.RoleAdmin)
-	if _, err := svc.Refresh(context.Background(), access); !errors.Is(err, ErrInvalidCredentials) {
-		t.Errorf("err = %v, want ErrInvalidCredentials", err)
+	if _, err := svc.Refresh(context.Background(), access); !errors.Is(err, model.ErrInvalidCredentials) {
+		t.Errorf("err = %v, want model.ErrInvalidCredentials", err)
 	}
 }
 
@@ -290,8 +290,8 @@ func TestLoginWithPasswordWrongPassword(t *testing.T) {
 	svc, _, repo := newService(t, false)
 	addUsernameAdmin(t, repo)
 
-	if _, err := svc.LoginWithPassword(context.Background(), testUsername, "wrong-password"); !errors.Is(err, ErrInvalidCredentials) {
-		t.Errorf("err = %v, want ErrInvalidCredentials", err)
+	if _, err := svc.LoginWithPassword(context.Background(), testUsername, "wrong-password"); !errors.Is(err, model.ErrInvalidCredentials) {
+		t.Errorf("err = %v, want model.ErrInvalidCredentials", err)
 	}
 }
 
@@ -299,8 +299,8 @@ func TestLoginWithPasswordWrongPassword(t *testing.T) {
 func TestLoginWithPasswordUnknownUser(t *testing.T) {
 	svc, _, _ := newService(t, false) // без username-админа
 
-	if _, err := svc.LoginWithPassword(context.Background(), "nobody", testPassword); !errors.Is(err, ErrInvalidCredentials) {
-		t.Errorf("err = %v, want ErrInvalidCredentials", err)
+	if _, err := svc.LoginWithPassword(context.Background(), "nobody", testPassword); !errors.Is(err, model.ErrInvalidCredentials) {
+		t.Errorf("err = %v, want model.ErrInvalidCredentials", err)
 	}
 }
 
@@ -312,8 +312,8 @@ func TestLoginWithPasswordInactive(t *testing.T) {
 	u.IsActive = false
 	repo.add(u)
 
-	if _, err := svc.LoginWithPassword(context.Background(), testUsername, testPassword); !errors.Is(err, ErrInvalidCredentials) {
-		t.Errorf("err = %v, want ErrInvalidCredentials", err)
+	if _, err := svc.LoginWithPassword(context.Background(), testUsername, testPassword); !errors.Is(err, model.ErrInvalidCredentials) {
+		t.Errorf("err = %v, want model.ErrInvalidCredentials", err)
 	}
 }
 
@@ -328,8 +328,8 @@ func TestLoginWithPasswordEmpty(t *testing.T) {
 		{"", ""},
 	}
 	for _, c := range cases {
-		if _, err := svc.LoginWithPassword(context.Background(), c.u, c.p); !errors.Is(err, ErrInvalidCredentials) {
-			t.Errorf("LoginWithPassword(%q,%q) err = %v, want ErrInvalidCredentials", c.u, c.p, err)
+		if _, err := svc.LoginWithPassword(context.Background(), c.u, c.p); !errors.Is(err, model.ErrInvalidCredentials) {
+			t.Errorf("LoginWithPassword(%q,%q) err = %v, want model.ErrInvalidCredentials", c.u, c.p, err)
 		}
 	}
 }
@@ -338,8 +338,8 @@ func TestLoginWithPasswordEmpty(t *testing.T) {
 func TestLoginWithPasswordRejectsBadgeUser(t *testing.T) {
 	svc, _, _ := newService(t, true) // есть бейдж-работник (login), username нет
 
-	if _, err := svc.LoginWithPassword(context.Background(), testLogin, testSecret); !errors.Is(err, ErrInvalidCredentials) {
-		t.Errorf("err = %v, want ErrInvalidCredentials", err)
+	if _, err := svc.LoginWithPassword(context.Background(), testLogin, testSecret); !errors.Is(err, model.ErrInvalidCredentials) {
+		t.Errorf("err = %v, want model.ErrInvalidCredentials", err)
 	}
 }
 

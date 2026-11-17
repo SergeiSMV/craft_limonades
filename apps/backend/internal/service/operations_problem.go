@@ -3,22 +3,13 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/shopspring/decimal"
 
+	"craftwms/internal/model"
 	"craftwms/internal/repository"
-)
-
-// Ошибки формы проблемы склада (P6-07-1).
-var (
-	// ErrInvalidProblemID - идентификатор проблемы не UUID.
-	ErrInvalidProblemID = errors.New("problem id must be a UUID")
-	// ErrProblemCommentRequired - у причины с обязательным комментарием его нет; проверяет
-	// репозиторий по справочнику причин (ADHOC-55).
-	ErrProblemCommentRequired = repository.ErrProblemCommentRequired
 )
 
 // problemCommentMax - предел комментария в символах: это пояснение кладовщика, не акт.
@@ -57,7 +48,7 @@ type problemSubmitPayload struct {
 func (s *OperationsService) problemSubmit(ctx context.Context, userID, id string, raw json.RawMessage) (repository.Applied, error) {
 	var p problemSubmitPayload
 	if err := json.Unmarshal(raw, &p); err != nil {
-		return repository.Applied{}, ErrInvalidPayload
+		return repository.Applied{}, model.ErrInvalidPayload
 	}
 	in := repository.ProblemSubmitInput{
 		ProblemID:               strings.TrimSpace(p.ProblemID),
@@ -75,25 +66,25 @@ func (s *OperationsService) problemSubmit(ctx context.Context, userID, id string
 		Mark:                    strings.TrimSpace(p.Mark),
 	}
 	if !isUUID(in.ProblemID) {
-		return repository.Applied{}, ErrInvalidProblemID
+		return repository.Applied{}, model.ErrInvalidProblemID
 	}
 	if in.WarehouseID == "" {
-		return repository.Applied{}, ErrEmptyWarehouse
+		return repository.Applied{}, model.ErrEmptyWarehouse
 	}
 	if !isUUID(in.WarehouseID) || !isUUID(in.ToInternalWarehouseID) {
-		return repository.Applied{}, ErrInvalidPayload
+		return repository.Applied{}, model.ErrInvalidPayload
 	}
 	for _, v := range []string{in.LoadUnitID, in.GoodID, in.CellID, in.FromLoadUnitID, in.FromInternalWarehouseID} {
 		if !isOptionalUUID(v) {
-			return repository.Applied{}, ErrInvalidPayload
+			return repository.Applied{}, model.ErrInvalidPayload
 		}
 	}
 	// Причину и обязательность комментария знает справочник - их проверяет репозиторий.
 	if in.Reason == "" {
-		return repository.Applied{}, repository.ErrUnknownReason
+		return repository.Applied{}, model.ErrUnknownReason
 	}
 	if utf8.RuneCountInString(in.Comment) > problemCommentMax {
-		return repository.Applied{}, ErrInvalidPayload
+		return repository.Applied{}, model.ErrInvalidPayload
 	}
 
 	if in.LoadUnitID != "" {
@@ -101,20 +92,20 @@ func (s *OperationsService) problemSubmit(ctx context.Context, userID, id string
 		if in.GoodID != "" || p.ProductionDate != "" || !p.Qty.IsZero() ||
 			in.CellID != "" || in.FromLoadUnitID != "" || in.FromInternalWarehouseID != "" ||
 			len(p.Marks) > 0 {
-			return repository.Applied{}, ErrInvalidPayload
+			return repository.Applied{}, model.ErrInvalidPayload
 		}
 		return s.repo.ProblemSubmit(ctx, id, in)
 	}
 
 	if in.GoodID == "" || (in.CellID == "") == (in.FromLoadUnitID == "") {
-		return repository.Applied{}, repository.ErrEmptyProblem
+		return repository.Applied{}, model.ErrEmptyProblem
 	}
 	// Склад товара из короба - склад короба: из строки его не берём.
 	if in.FromLoadUnitID != "" && in.FromInternalWarehouseID != "" {
-		return repository.Applied{}, ErrInvalidPayload
+		return repository.Applied{}, model.ErrInvalidPayload
 	}
 	if !p.Qty.IsPositive() {
-		return repository.Applied{}, ErrInvalidQuantity
+		return repository.Applied{}, model.ErrInvalidQuantity
 	}
 	iso, err := parseEntryDate(p.ProductionDate)
 	if err != nil {

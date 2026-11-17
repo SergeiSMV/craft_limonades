@@ -12,16 +12,6 @@ import (
 	"craftwms/internal/model"
 )
 
-// Ошибки сессии ввода остатков.
-var (
-	// ErrSessionNotFound - нет сессии с таким id.
-	ErrSessionNotFound = errors.New("stock entry session not found")
-	// ErrSessionClosed - сессия уже финализирована (checkpoint/finalize по ней запрещены).
-	ErrSessionClosed = errors.New("stock entry session already closed")
-	// ErrSessionNotClosed - отчёт запрошен по ещё не завершённой сессии.
-	ErrSessionNotClosed = errors.New("stock entry session not closed")
-)
-
 // StockEntryLineInput - строка ячейки в checkpoint'е. ProductionDate - ISO 'YYYY-MM-DD'
 // (сервис уже привёл из транспортного DD-MM-YYYY).
 type StockEntryLineInput struct {
@@ -315,13 +305,13 @@ func guardSessionDraft(ctx context.Context, q Querier, sessionID string) error {
 	var status string
 	err := q.QueryRow(ctx, `SELECT status FROM stock_entry_sessions WHERE id = $1::uuid`, sessionID).Scan(&status)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return ErrSessionNotFound
+		return model.ErrSessionNotFound
 	}
 	if err != nil {
 		return fmt.Errorf("session status: %w", err)
 	}
 	if status != "draft" {
-		return ErrSessionClosed
+		return model.ErrSessionClosed
 	}
 	return nil
 }

@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"craftwms/internal/middleware"
+	"craftwms/internal/model"
 	"craftwms/internal/service"
 )
 
@@ -37,7 +38,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 	pair, err := h.svc.Login(r.Context(), req.Badge)
 	switch {
-	case errors.Is(err, service.ErrBadBadge):
+	case errors.Is(err, model.ErrBadBadge):
 		writeError(w, http.StatusBadRequest, "badge must be 16 digits")
 		return
 	case err != nil:

@@ -2,17 +2,12 @@ package service
 
 import (
 	"context"
-	"errors"
 	"regexp"
 	"strings"
 	"unicode/utf8"
 
 	"craftwms/internal/model"
 )
-
-// ErrInvalidInternalWarehouse - код или имя склада не годятся: код - латиница в верхнем
-// регистре, цифры и «_» до 20 знаков, имя - непустое, до 100 символов.
-var ErrInvalidInternalWarehouse = errors.New("invalid internal warehouse code or name")
 
 // internalWarehouseCode - код склада для отчётов и импорта: коротко и без пробелов.
 var internalWarehouseCode = regexp.MustCompile(`^[A-Z0-9_]{1,20}$`)
@@ -50,7 +45,7 @@ func (s *InternalWarehouseService) Create(ctx context.Context, code, name string
 	code = strings.ToUpper(strings.TrimSpace(code))
 	name = strings.TrimSpace(name)
 	if !internalWarehouseCode.MatchString(code) || !validWarehouseName(name) {
-		return model.InternalWarehouse{}, ErrInvalidInternalWarehouse
+		return model.InternalWarehouse{}, model.ErrInvalidInternalWarehouse
 	}
 	return s.repo.Create(ctx, code, name)
 }
@@ -59,12 +54,12 @@ func (s *InternalWarehouseService) Create(ctx context.Context, code, name string
 // сборку из него. nil - не меняется.
 func (s *InternalWarehouseService) Update(ctx context.Context, id string, name *string, active, allowPicking *bool) (model.InternalWarehouse, error) {
 	if !isUUID(id) {
-		return model.InternalWarehouse{}, ErrInvalidInternalWarehouse
+		return model.InternalWarehouse{}, model.ErrInvalidInternalWarehouse
 	}
 	if name != nil {
 		trimmed := strings.TrimSpace(*name)
 		if !validWarehouseName(trimmed) {
-			return model.InternalWarehouse{}, ErrInvalidInternalWarehouse
+			return model.InternalWarehouse{}, model.ErrInvalidInternalWarehouse
 		}
 		name = &trimmed
 	}
@@ -74,7 +69,7 @@ func (s *InternalWarehouseService) Update(ctx context.Context, id string, name *
 // Delete удаляет склад без остатка и истории.
 func (s *InternalWarehouseService) Delete(ctx context.Context, id string) error {
 	if !isUUID(id) {
-		return ErrInvalidInternalWarehouse
+		return model.ErrInvalidInternalWarehouse
 	}
 	return s.repo.Delete(ctx, id)
 }

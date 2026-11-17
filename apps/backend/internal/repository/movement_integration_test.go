@@ -169,7 +169,7 @@ func TestMove_documentIsAtomic(t *testing.T) {
 	mf.receive(t, []string{lu1, lu2}, 0)
 
 	mv := uuid.NewString()
-	if _, err := mf.move(t, mv, luTo(lu1, mf.cellB), luTo(lu2, mf.cellA)); !errors.Is(err, repository.ErrSameCell) {
+	if _, err := mf.move(t, mv, luTo(lu1, mf.cellB), luTo(lu2, mf.cellA)); !errors.Is(err, model.ErrSameCell) {
 		t.Fatalf("вторая строка: %v, ожидалась ErrSameCell", err)
 	}
 	if currentCell(t, mf.stockFixture, lu1) != mf.cellA || mf.qtyOf(t, mf.cellB, mf.batch) != "0" {
@@ -192,7 +192,7 @@ func TestMove_repeatIsRejected(t *testing.T) {
 	if _, err := mf.move(t, mv, luTo(lu, mf.cellB)); err != nil {
 		t.Fatalf("первая попытка: %v", err)
 	}
-	if _, err := mf.move(t, mv, luTo(lu, mf.cellC)); !errors.Is(err, repository.ErrMovementPosted) {
+	if _, err := mf.move(t, mv, luTo(lu, mf.cellC)); !errors.Is(err, model.ErrMovementPosted) {
 		t.Fatalf("повтор документа: %v, ожидалась ErrMovementPosted", err)
 	}
 	if currentCell(t, mf.stockFixture, lu) != mf.cellB || mf.qtyOf(t, mf.cellC, mf.batch) != "0" {
@@ -225,15 +225,15 @@ func TestMove_rejections(t *testing.T) {
 		lines []repository.MovementLineInput
 		want  error
 	}{
-		{"неизвестный вид", "teleport", []repository.MovementLineInput{luTo(placed, mf.cellB)}, repository.ErrUnknownMovementKind},
-		{"пустой документ", model.MovementMove, nil, repository.ErrEmptyMovement},
-		{"строка без ГЕ", model.MovementMove, []repository.MovementLineInput{{ToCellID: mf.cellB}}, repository.ErrEmptyMovementLine},
-		{"на то же место", model.MovementMove, []repository.MovementLineInput{luTo(placed, mf.cellA)}, repository.ErrSameCell},
-		{"неизвестная ГЕ", model.MovementMove, []repository.MovementLineInput{luTo(uuid.NewString(), mf.cellB)}, repository.ErrLoadUnitNotFound},
-		{"ГЕ не на складе", model.MovementMove, []repository.MovementLineInput{luTo(unplaced, mf.cellB)}, repository.ErrLoadUnitNotPlaced},
-		{"короб в паллете", model.MovementMove, []repository.MovementLineInput{luTo(nested, mf.cellB)}, repository.ErrLoadUnitNested},
-		{"ячейка чужого склада", model.MovementMove, []repository.MovementLineInput{luTo(placed, foreign)}, repository.ErrForeignCell},
-		{"неизвестная ячейка", model.MovementMove, []repository.MovementLineInput{luTo(placed, uuid.NewString())}, repository.ErrUnknownReference},
+		{"неизвестный вид", "teleport", []repository.MovementLineInput{luTo(placed, mf.cellB)}, model.ErrUnknownMovementKind},
+		{"пустой документ", model.MovementMove, nil, model.ErrEmptyMovement},
+		{"строка без ГЕ", model.MovementMove, []repository.MovementLineInput{{ToCellID: mf.cellB}}, model.ErrEmptyMovementLine},
+		{"на то же место", model.MovementMove, []repository.MovementLineInput{luTo(placed, mf.cellA)}, model.ErrSameCell},
+		{"неизвестная ГЕ", model.MovementMove, []repository.MovementLineInput{luTo(uuid.NewString(), mf.cellB)}, model.ErrLoadUnitNotFound},
+		{"ГЕ не на складе", model.MovementMove, []repository.MovementLineInput{luTo(unplaced, mf.cellB)}, model.ErrLoadUnitNotPlaced},
+		{"короб в паллете", model.MovementMove, []repository.MovementLineInput{luTo(nested, mf.cellB)}, model.ErrLoadUnitNested},
+		{"ячейка чужого склада", model.MovementMove, []repository.MovementLineInput{luTo(placed, foreign)}, model.ErrForeignCell},
+		{"неизвестная ячейка", model.MovementMove, []repository.MovementLineInput{luTo(placed, uuid.NewString())}, model.ErrUnknownReference},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -347,15 +347,15 @@ func TestMove_goodsRejections(t *testing.T) {
 		line repository.MovementLineInput
 		want error
 	}{
-		{"из короба больше состава", mf.goodsLine(13, "", boxA, mf.cellB, ""), repository.ErrGoodsShort},
-		{"россыпи меньше, чем просят", mf.goodsLine(6, mf.cellA, "", mf.cellB, ""), repository.ErrGoodsShort},
-		{"россыпь там, где только короб", mf.goodsLine(1, mf.cellB, "", mf.cellC, ""), repository.ErrGoodsShort},
-		{"партии нет", unknownBatch, repository.ErrGoodsShort},
-		{"россыпь туда же", mf.goodsLine(1, mf.cellA, "", mf.cellA, ""), repository.ErrSamePlace},
-		{"короб в себя же", mf.goodsLine(1, "", boxB, "", boxB), repository.ErrSamePlace},
-		{"короб не на складе", mf.goodsLine(1, mf.cellA, "", "", unplaced), repository.ErrLoadUnitNotPlaced},
-		{"два источника", both, repository.ErrEmptyMovementLine},
-		{"нулевое количество", zero, repository.ErrMovementQty},
+		{"из короба больше состава", mf.goodsLine(13, "", boxA, mf.cellB, ""), model.ErrGoodsShort},
+		{"россыпи меньше, чем просят", mf.goodsLine(6, mf.cellA, "", mf.cellB, ""), model.ErrGoodsShort},
+		{"россыпь там, где только короб", mf.goodsLine(1, mf.cellB, "", mf.cellC, ""), model.ErrGoodsShort},
+		{"партии нет", unknownBatch, model.ErrGoodsShort},
+		{"россыпь туда же", mf.goodsLine(1, mf.cellA, "", mf.cellA, ""), model.ErrSamePlace},
+		{"короб в себя же", mf.goodsLine(1, "", boxB, "", boxB), model.ErrSamePlace},
+		{"короб не на складе", mf.goodsLine(1, mf.cellA, "", "", unplaced), model.ErrLoadUnitNotPlaced},
+		{"два источника", both, model.ErrEmptyMovementLine},
+		{"нулевое количество", zero, model.ErrMovementQty},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -445,7 +445,7 @@ func TestMove_receivingCellRejected(t *testing.T) {
 					MovementID: uuid.NewString(), Kind: kind, WarehouseID: mf.wh, CreatedBy: mf.user,
 					Lines: []repository.MovementLineInput{tc.line},
 				})
-				if !errors.Is(err, repository.ErrReceivingCell) {
+				if !errors.Is(err, model.ErrReceivingCell) {
 					t.Errorf("получено %v, ожидалась ErrReceivingCell", err)
 				}
 			})

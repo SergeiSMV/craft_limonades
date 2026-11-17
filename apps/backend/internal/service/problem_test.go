@@ -69,11 +69,11 @@ func TestProblemService_resolveValidation(t *testing.T) {
 		{ProblemID: id, Decision: model.ProblemDecisionSupplierReturn},
 	}
 	for _, in := range bad {
-		if err := svc.Resolve(ctx, in); !errors.Is(err, ErrInvalidDecision) {
+		if err := svc.Resolve(ctx, in); !errors.Is(err, model.ErrInvalidDecision) {
 			t.Errorf("%+v: %v", in, err)
 		}
 	}
-	if err := svc.Resolve(ctx, model.ResolveProblemInput{ProblemID: "x", Decision: model.ProblemDecisionPlace}); !errors.Is(err, ErrInvalidProblemID) {
+	if err := svc.Resolve(ctx, model.ResolveProblemInput{ProblemID: "x", Decision: model.ProblemDecisionPlace}); !errors.Is(err, model.ErrInvalidProblemID) {
 		t.Errorf("не UUID: %v", err)
 	}
 	if len(repo.resolved) != len(ok) {
@@ -103,7 +103,7 @@ func TestProblemService_resolveByResolution(t *testing.T) {
 			DocNumber: "СП-1", DocDate: "2026-10-29"}, // действие не варианта
 	}
 	for _, in := range bad {
-		if err := svc.Resolve(ctx, in); !errors.Is(err, ErrInvalidDecision) {
+		if err := svc.Resolve(ctx, in); !errors.Is(err, model.ErrInvalidDecision) {
 			t.Errorf("%+v: %v", in, err)
 		}
 	}
@@ -135,8 +135,8 @@ func TestProblemService_resolvedFeed(t *testing.T) {
 		{BeforeResolvedAt: "2026-10-21T10:00:00Z", BeforeID: "не-uuid"},
 	}
 	for _, q := range bad {
-		if _, err := svc.Resolved(ctx, q); !errors.Is(err, ErrInvalidProblemFilter) {
-			t.Errorf("%+v: ждали ErrInvalidProblemFilter, получили %v", q, err)
+		if _, err := svc.Resolved(ctx, q); !errors.Is(err, model.ErrInvalidProblemFilter) {
+			t.Errorf("%+v: ждали model.ErrInvalidProblemFilter, получили %v", q, err)
 		}
 	}
 }

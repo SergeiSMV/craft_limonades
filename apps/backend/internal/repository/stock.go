@@ -12,9 +12,6 @@ import (
 	"craftwms/internal/model"
 )
 
-// ErrInsufficientStock - попытка списать больше, чем есть в (ячейка, товар, партия).
-var ErrInsufficientStock = errors.New("insufficient stock")
-
 // StockRepository - доступ к таблице stock (ядро учёта остатков).
 type StockRepository struct {
 	pool *pgxpool.Pool
@@ -88,18 +85,10 @@ func (r *StockRepository) GetQty(ctx context.Context, key model.StockKey) (decim
 // чтобы их можно было композировать в транзакции (Transfer). qty передаём строкой
 // и приводим $4::numeric - надёжно для numeric-колонки без завязки на кодирование типов.
 
-// ErrEmptyInternalWarehouse - в ключе остатка не задана учётная принадлежность.
-//
-// Отдельная ошибка, а не отказ БД: пустая строка доходит до запроса и падает невнятным
-// «invalid input syntax for type uuid», по которому непонятно, что именно забыли. Поле добавилось
-// к StockKey уже после того, как операции остатка разошлись по коду, и компилятор такие места
-// не подсвечивает - литерал структуры с именованными полями собирается и без него.
-var ErrEmptyInternalWarehouse = errors.New("internal warehouse is required in stock key")
-
 // guardStockKey проверяет, что ключ остатка полон.
 func guardStockKey(key model.StockKey) error {
 	if key.InternalWarehouseID == "" {
-		return ErrEmptyInternalWarehouse
+		return model.ErrEmptyInternalWarehouse
 	}
 	return nil
 }
@@ -150,14 +139,10 @@ func removeStock(ctx context.Context, q Querier, key model.StockKey, qty decimal
 	}
 	// 0 затронутых строк = строки нет ИЛИ остатка не хватило → недостаточно остатка.
 	if tag.RowsAffected() == 0 {
-		return ErrInsufficientStock
+		return model.ErrInsufficientStock
 	}
 	return nil
 }
-
-// ErrNoDefaultInternalWarehouse - в справочнике нет склада по умолчанию. Заводить остаток
-// «куда-нибудь» нельзя: учётная принадлежность - часть грани, и ошибка здесь тихо исказит учёт.
-var ErrNoDefaultInternalWarehouse = errors.New("no default internal warehouse")
 
 // defaultInternalWarehouse - внутренний склад, куда приходуем, если он не выбран явно.
 //
@@ -168,7 +153,7 @@ func defaultInternalWarehouse(ctx context.Context, q Querier) (string, error) {
 	var id string
 	err := q.QueryRow(ctx, `SELECT id::text FROM internal_warehouses WHERE is_default`).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", ErrNoDefaultInternalWarehouse
+		return "", model.ErrNoDefaultInternalWarehouse
 	}
 	if err != nil {
 		return "", fmt.Errorf("склад по умолчанию: %w", err)

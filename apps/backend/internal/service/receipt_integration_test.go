@@ -198,7 +198,7 @@ func TestReceipt_postIsNotRepeatable(t *testing.T) {
 	if _, err := e.svc.Post(ctx, id); err != nil {
 		t.Fatalf("первое оприходование: %v", err)
 	}
-	if _, err := e.svc.Post(ctx, id); !errors.Is(err, repository.ErrReceiptPosted) {
+	if _, err := e.svc.Post(ctx, id); !errors.Is(err, model.ErrReceiptPosted) {
 		t.Fatalf("повтор: ожидалась ErrReceiptPosted, получено %v", err)
 	}
 
@@ -208,7 +208,7 @@ func TestReceipt_postIsNotRepeatable(t *testing.T) {
 	}
 
 	// Оприходованный документ не пополняется: строки уже превратились в остаток.
-	if _, err := e.svc.AddLine(ctx, id, e.good, "15-01-2026", e.cell1, "", decimal.RequireFromString("1")); !errors.Is(err, repository.ErrReceiptPosted) {
+	if _, err := e.svc.AddLine(ctx, id, e.good, "15-01-2026", e.cell1, "", decimal.RequireFromString("1")); !errors.Is(err, model.ErrReceiptPosted) {
 		t.Errorf("строка в проведённый документ: ожидалась ErrReceiptPosted, получено %v", err)
 	}
 }
@@ -314,7 +314,7 @@ func TestReceipt_loadUnitCellConflict(t *testing.T) {
 		t.Fatalf("AddLine 2: %v", err)
 	}
 
-	if _, err := e.svc.Post(ctx, id); !errors.Is(err, repository.ErrLoadUnitCellConflict) {
+	if _, err := e.svc.Post(ctx, id); !errors.Is(err, model.ErrLoadUnitCellConflict) {
 		t.Fatalf("ожидалась ErrLoadUnitCellConflict, получено %v", err)
 	}
 	// Транзакция откатилась целиком: ни остатка, ни смены статуса.
@@ -337,25 +337,25 @@ func TestReceipt_guards(t *testing.T) {
 		t.Fatalf("Start: %v", err)
 	}
 
-	if _, err := e.svc.Post(ctx, id); !errors.Is(err, repository.ErrEmptyReceipt) {
+	if _, err := e.svc.Post(ctx, id); !errors.Is(err, model.ErrEmptyReceipt) {
 		t.Errorf("пустой документ: ожидалась ErrEmptyReceipt, получено %v", err)
 	}
-	if err := e.svc.Start(ctx, "", e.warehouse, "", e.user, "ТН-1", "01-10-2026"); !errors.Is(err, service.ErrEmptyReceiptID) {
+	if err := e.svc.Start(ctx, "", e.warehouse, "", e.user, "ТН-1", "01-10-2026"); !errors.Is(err, model.ErrEmptyReceiptID) {
 		t.Errorf("без id: %v", err)
 	}
-	if err := e.svc.Start(ctx, uuid.NewString(), "", "", e.user, "ТН-1", "01-10-2026"); !errors.Is(err, service.ErrEmptyWarehouse) {
+	if err := e.svc.Start(ctx, uuid.NewString(), "", "", e.user, "ТН-1", "01-10-2026"); !errors.Is(err, model.ErrEmptyWarehouse) {
 		t.Errorf("без склада: %v", err)
 	}
-	if _, err := e.svc.AddLine(ctx, id, "", "15-01-2026", e.cell1, "", decimal.NewFromInt(1)); !errors.Is(err, service.ErrEmptyGoodID) {
+	if _, err := e.svc.AddLine(ctx, id, "", "15-01-2026", e.cell1, "", decimal.NewFromInt(1)); !errors.Is(err, model.ErrEmptyGoodID) {
 		t.Errorf("без товара: %v", err)
 	}
-	if _, err := e.svc.AddLine(ctx, id, e.good, "15-01-2026", e.cell1, "", decimal.Zero); !errors.Is(err, service.ErrInvalidQuantity) {
+	if _, err := e.svc.AddLine(ctx, id, e.good, "15-01-2026", e.cell1, "", decimal.Zero); !errors.Is(err, model.ErrInvalidQuantity) {
 		t.Errorf("нулевое количество: %v", err)
 	}
-	if _, err := e.svc.AddLine(ctx, id, e.good, "2026-01-15", e.cell1, "", decimal.NewFromInt(1)); !errors.Is(err, service.ErrInvalidDate) {
+	if _, err := e.svc.AddLine(ctx, id, e.good, "2026-01-15", e.cell1, "", decimal.NewFromInt(1)); !errors.Is(err, model.ErrInvalidDate) {
 		t.Errorf("дата в ISO вместо DD-MM-YYYY: %v", err)
 	}
-	if _, err := e.svc.Post(ctx, uuid.NewString()); !errors.Is(err, repository.ErrReceiptNotFound) {
+	if _, err := e.svc.Post(ctx, uuid.NewString()); !errors.Is(err, model.ErrReceiptNotFound) {
 		t.Errorf("несуществующий документ: %v", err)
 	}
 }

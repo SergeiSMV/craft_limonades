@@ -109,7 +109,7 @@ func TestMovementHistory_getShowsBoxesAndInsideCell(t *testing.T) {
 		t.Errorf("строка товара: %+v", goods)
 	}
 
-	if _, err := repository.NewMovementHistoryRepository(mf.pool).Get(ctx, uuid.NewString()); !errors.Is(err, repository.ErrMovementNotFound) {
+	if _, err := repository.NewMovementHistoryRepository(mf.pool).Get(ctx, uuid.NewString()); !errors.Is(err, model.ErrMovementNotFound) {
 		t.Errorf("несуществующая запись: %v", err)
 	}
 }
