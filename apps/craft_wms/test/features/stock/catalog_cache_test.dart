@@ -1,6 +1,7 @@
 import 'package:craft_wms/core/database/app_database.dart';
 import 'package:craft_wms/features/stock/data/catalog_cache.dart';
-import 'package:craft_wms/features/stock/data/catalog_models.dart';
+import 'package:craft_wms/features/stock/domain/catalog_models.dart';
+import 'package:craft_wms/features/stock/domain/group_tree.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -99,12 +100,12 @@ void main() {
   group('фильтры', () {
     test('фильтр по группе работает по поддереву', () async {
       // Выбор родительской группы должен показывать товары вложенных, иначе он даёт пусто.
-      final ids = CatalogCache.descendantGroupIds(groups, 'grp-food');
+      final ids = descendantGroupIds(groups, 'grp-food');
       final page = await cache.searchGoods(groupIds: ids);
       expect(page.items.map((g) => g.id), containsAll(['g1', 'g2']));
 
       final leaf = await cache.searchGoods(
-        groupIds: CatalogCache.descendantGroupIds(groups, 'grp-snacks'),
+        groupIds: descendantGroupIds(groups, 'grp-snacks'),
       );
       expect(leaf.items.map((g) => g.id), ['g1']);
     });

@@ -5,7 +5,7 @@ import 'package:injectable/injectable.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/error/dio_failure.dart';
 import '../../../core/error/failure.dart';
-import 'catalog_models.dart';
+import '../domain/catalog_models.dart';
 
 /// Сетевой источник справочников и остатков: ходит на `/goods`, `/nomenclature-groups`,
 /// `/suppliers`, `/cells`, `/barcodes`, `/stock` (API P1-06, P-FS-03/12, P2-02) и возвращает

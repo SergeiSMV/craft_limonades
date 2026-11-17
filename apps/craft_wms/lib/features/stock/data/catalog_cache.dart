@@ -3,7 +3,7 @@ import 'package:injectable/injectable.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/utils/search_text.dart';
-import 'catalog_models.dart';
+import '../domain/catalog_models.dart';
 
 /// Имена справочников для отметок о синхронизации.
 abstract final class CatalogName {
@@ -25,8 +25,8 @@ abstract final class CatalogName {
 /// Как: запись справочника - всегда полная замена в транзакции (см. [_replace]); чтение
 ///      повторяет семантику серверного API, чтобы экраны не различали источник данных.
 ///
-/// Лежит рядом с `CatalogRepository`, а не в `core`: обе стороны работают с доменными моделями
-/// фичи `stock`, и `stock_entry` уже берёт репозиторий отсюда же.
+/// Лежит рядом с `CatalogRepositoryImpl`, а не в `core`: обе стороны работают с доменными
+/// моделями фичи `stock` (`stock/domain`).
 @lazySingleton
 class CatalogCache {
   CatalogCache(this._db);
@@ -209,7 +209,7 @@ class CatalogCache {
   /// Поиск товаров: «все слова присутствуют, порядок не важен» - как на сервере (P-FS-17).
   ///
   /// [groupIds] - уже развёрнутое поддерево групп: разворачивать его здесь нельзя, потому что
-  /// дерево нужно целиком, а это забота вызывающего ([descendantGroupIds]).
+  /// дерево нужно целиком, а это забота вызывающего (`descendantGroupIds` из `domain`).
   Future<Paged<Good>> searchGoods({
     String? query,
     List<String>? groupIds,
@@ -344,30 +344,6 @@ class CatalogCache {
   }
 
   //* --- вспомогательное --- *//
-
-  /// Идентификаторы группы и всех её потомков.
-  ///
-  /// Зачем: выбор родительской группы должен показывать товары из вложенных, иначе фильтр по
-  /// верхнему уровню даёт пусто. На сервере это рекурсивный CTE (P1-07), здесь - обход дерева
-  /// в памяти: групп немного, и грузятся они всё равно целиком.
-  static List<String> descendantGroupIds(
-    List<NomenclatureGroup> all,
-    String rootId,
-  ) {
-    final children = <String, List<String>>{};
-    for (final g in all) {
-      final parent = g.parentId;
-      if (parent != null) (children[parent] ??= []).add(g.id);
-    }
-    final result = <String>[rootId];
-    final queue = <String>[rootId];
-    while (queue.isNotEmpty) {
-      final next = children[queue.removeLast()] ?? const [];
-      result.addAll(next);
-      queue.addAll(next);
-    }
-    return result;
-  }
 
   /// Экранирование спецсимволов LIKE: без него код с `%` или `_` превращался бы в шаблон
   /// и находил лишнее.

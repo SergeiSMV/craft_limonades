@@ -12,8 +12,8 @@ import '../../../../core/utils/qty_format.dart';
 import '../../../../core/utils/search_text.dart';
 import '../../../../core/widgets/data_versions_listener.dart';
 import '../../../../features/stock/data/catalog_api.dart';
-import '../../../../features/stock/data/catalog_cache.dart';
-import '../../../../features/stock/data/catalog_models.dart';
+import '../../../../features/stock/domain/catalog_models.dart';
+import '../../../../features/stock/domain/group_tree.dart';
 import '../../../data/warehouse_stock_repository.dart';
 import '../nomenclature/good_card_dialog.dart';
 import '../nomenclature/goods_list_card.dart';
@@ -115,7 +115,7 @@ class _StockTabState extends State<StockTab> {
     final groupId = _groupId;
     final groups = groupId == null
         ? null
-        : CatalogCache.descendantGroupIds(_groups, groupId).toSet();
+        : descendantGroupIds(_groups, groupId).toSet();
     return [
       for (final s in stock.goods)
         if ((groups == null || groups.contains(s.good.groupId)) &&

@@ -2,7 +2,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 
 import '../../../../core/problems/problem_reasons.dart';
 import '../../../contents/domain/contents_entities.dart';
-import '../../../stock/data/catalog_models.dart';
+import '../../../stock/domain/catalog_models.dart';
 import '../../domain/problem_photos.dart';
 
 part 'problem_state.freezed.dart';

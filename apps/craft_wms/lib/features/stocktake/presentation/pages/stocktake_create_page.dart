@@ -24,7 +24,7 @@ import '../../../../core/widgets/page_header.dart';
 import '../../../../core/widgets/scan_field.dart';
 import '../../../../core/widgets/section_title.dart';
 import '../../../../core/widgets/system_ui_wrapper.dart';
-import '../../../stock/data/catalog_repository.dart';
+import '../../../stock/domain/catalog_repository.dart';
 import '../../domain/stocktake_models.dart';
 import '../bloc/stocktake_create_cubit.dart';
 import '../widgets/stocktake_format.dart';
@@ -139,7 +139,12 @@ class _CreateViewState extends State<_CreateView> with HardwareScanListener {
   /// Итог: заведён - назад к заданиям; отказ - причина.
   void onState(BuildContext context, StocktakeCreateState state) {
     if (state.created case final c?) {
-      snack(t.stocktake.createDone(number: docNumber(DocKind.stocktake, c.number), cells: c.cells));
+      snack(
+        t.stocktake.createDone(
+          number: docNumber(DocKind.stocktake, c.number),
+          cells: c.cells,
+        ),
+      );
       goBack();
     } else if (state.failure case final f?) {
       snack(t.stocktake.createFailed(reason: failureReason(f)));

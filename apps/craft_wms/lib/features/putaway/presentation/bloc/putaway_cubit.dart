@@ -5,7 +5,7 @@ import 'package:injectable/injectable.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/load_unit/load_unit_id_generator.dart';
 import '../../../../core/outbox/sent_sessions.dart';
-import '../../../stock/data/catalog_models.dart';
+import '../../../stock/domain/catalog_models.dart';
 import '../../../tasks/data/tasks_models.dart';
 import '../../data/putaway_draft_store.dart';
 import '../../data/putaway_repository.dart';

@@ -1,5 +1,5 @@
 import 'package:craft_wms/features/contents/data/contents_dto.dart';
-import 'package:craft_wms/features/stock/data/catalog_models.dart';
+import 'package:craft_wms/features/stock/domain/catalog_models.dart';
 import 'package:craft_wms/portal/data/internal_warehouses_repository.dart';
 import 'package:craft_wms/portal/data/warehouse_stock_repository.dart';
 import 'package:flutter_test/flutter_test.dart';

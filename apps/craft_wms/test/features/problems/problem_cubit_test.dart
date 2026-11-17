@@ -11,7 +11,7 @@ import 'package:craft_wms/features/problems/domain/problem_photos.dart';
 import 'package:craft_wms/features/problems/domain/problem_repository.dart';
 import 'package:craft_wms/features/problems/presentation/bloc/problem_cubit.dart';
 import 'package:craft_wms/features/problems/presentation/bloc/problem_state.dart';
-import 'package:craft_wms/features/stock/data/catalog_models.dart';
+import 'package:craft_wms/features/stock/domain/catalog_models.dart';
 import 'package:either_dart/either.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';

@@ -13,7 +13,7 @@ import '../../../../core/theme/semibold_text.dart';
 import '../../../../core/utils/date_time_format.dart';
 import '../../../../core/utils/qty_format.dart';
 import '../../../../features/stock/data/catalog_api.dart';
-import '../../../../features/stock/data/catalog_models.dart';
+import '../../../../features/stock/domain/catalog_models.dart';
 import '../../../data/warehouse_stock_repository.dart';
 import '../settings/access_common.dart';
 import '../ui/portal_badge.dart';

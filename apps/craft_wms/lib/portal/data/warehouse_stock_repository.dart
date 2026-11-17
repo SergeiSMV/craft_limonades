@@ -5,7 +5,7 @@ import '../../core/error/failure.dart';
 import '../../features/contents/data/contents_api.dart';
 import '../../features/contents/data/contents_dto.dart';
 import '../../features/stock/data/catalog_api.dart';
-import '../../features/stock/data/catalog_models.dart';
+import '../../features/stock/domain/catalog_models.dart';
 import 'internal_warehouses_repository.dart';
 
 /// Место товара одной партии на складе: россыпью в ячейке или в коробе.

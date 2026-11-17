@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:flutter_neumorphic_plus/flutter_neumorphic.dart';
 
-import '../../features/stock/data/catalog_models.dart';
-import '../../features/stock/data/catalog_repository.dart';
+import '../../features/stock/domain/catalog_models.dart';
+import '../../features/stock/domain/catalog_repository.dart';
 import '../constants/app_borders.dart';
 import '../constants/app_boxes.dart';
 import '../constants/app_colors.dart';

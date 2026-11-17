@@ -14,7 +14,7 @@ import '../../../../../core/utils/qty_format.dart';
 import '../../../../../core/widgets/error_retry.dart';
 import '../../../../contents/presentation/widgets/common/freshness_note.dart';
 import '../../../../contents/presentation/widgets/common/pending_mark.dart';
-import '../../../data/catalog_models.dart';
+import '../../../domain/catalog_models.dart';
 import '../../bloc/goods_list_cubit.dart';
 
 /// Виджет результат: список товаров / индикатор / ошибка / пусто.

@@ -9,7 +9,7 @@ import '../../../../core/constants/app_insets.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
-import '../../../stock/data/catalog_models.dart';
+import '../../../stock/domain/catalog_models.dart';
 
 /// Неоморф-поле адреса ячейки с инлайн-автокомплитом (локальная prefix-фильтрация по [cells]).
 /// Переиспользуется на экране выбора ячейки и в листе смены ячейки. [onPicked] - тап по варианту из

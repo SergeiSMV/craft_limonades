@@ -19,7 +19,7 @@ import '../../../../core/widgets/bind_prompt_dialog.dart';
 import '../../../../core/widgets/page_header.dart';
 import '../../../../core/widgets/system_ui_wrapper.dart';
 import '../../../cz/presentation/widgets/cz_intake_scan.dart';
-import '../../../stock/data/catalog_models.dart';
+import '../../../stock/domain/catalog_models.dart';
 import '../bloc/receipt_cubit.dart';
 import '../widgets/receipt_label_actions.dart';
 import '../widgets/receipt_line_tile.dart';

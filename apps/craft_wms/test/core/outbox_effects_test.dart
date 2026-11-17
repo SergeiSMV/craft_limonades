@@ -9,8 +9,9 @@ import 'package:craft_wms/core/outbox/outbox_sender.dart';
 import 'package:craft_wms/core/sync/sync_engine.dart';
 import 'package:craft_wms/features/stock/data/catalog_api.dart';
 import 'package:craft_wms/features/stock/data/catalog_cache.dart';
-import 'package:craft_wms/features/stock/data/catalog_models.dart';
-import 'package:craft_wms/features/stock/data/catalog_repository.dart';
+import 'package:craft_wms/features/stock/domain/catalog_models.dart';
+import 'package:craft_wms/features/stock/data/catalog_repository_impl.dart';
+import 'package:craft_wms/features/stock/domain/catalog_repository.dart';
 // Только Migrator: полный экспорт drift переопределяет матчеры теста.
 import 'package:drift/drift.dart' show Migrator;
 import 'package:drift/native.dart';
@@ -64,7 +65,7 @@ void main() {
       Talker(),
       _MockConnectivity(),
     );
-    repo = CatalogRepository(api, cache, outbox, effects, engine);
+    repo = CatalogRepositoryImpl(api, cache, outbox, effects, engine);
     await cache.putGoods(const [good]);
     await cache.putBarcodes([]);
   });

@@ -22,8 +22,8 @@ import '../../../../core/widgets/neumorphic_action_button.dart';
 import '../../../../core/widgets/page_header.dart';
 import '../../../../core/widgets/scan_field.dart';
 import '../../../../core/widgets/system_ui_wrapper.dart';
-import '../../../stock/data/catalog_models.dart';
-import '../../../stock/data/catalog_repository.dart';
+import '../../../stock/domain/catalog_models.dart';
+import '../../../stock/domain/catalog_repository.dart';
 import '../../../stocktake/presentation/widgets/cell_count_warning.dart';
 import '../../../tasks/data/tasks_models.dart';
 import '../bloc/supplier_return_cubit.dart';
@@ -208,7 +208,9 @@ class _SupplierReturnViewState extends State<_SupplierReturnView>
               child: Assets.images.featuredSnacks.image(fit: BoxFit.cover),
             ),
             title: PageHeader(
-              title: t.supplierReturn.title(number: docNumber(DocKind.task, state.task.number)),
+              title: t.supplierReturn.title(
+                number: docNumber(DocKind.task, state.task.number),
+              ),
               goBack: goBack,
             ),
           ),

@@ -8,7 +8,9 @@ import '../../../core/outbox/outbox_repository.dart';
 import '../../../core/sync/sync_engine.dart';
 import 'catalog_api.dart';
 import 'catalog_cache.dart';
-import 'catalog_models.dart';
+import '../domain/catalog_models.dart';
+import '../domain/catalog_repository.dart';
+import '../domain/group_tree.dart';
 
 /// Репозиторий справочников: сначала локальный кэш, сеть - там, где кэша быть не может (P2-02).
 ///
@@ -19,10 +21,11 @@ import 'catalog_models.dart';
 ///      записи (привязка и отвязка ШК) и чтения до первой синхронизации кэша.
 ///
 /// Публичная поверхность намеренно совпадает с прежней, сетевой версией: переход на кэш не
-/// потребовал правок ни в одном cubit и ни в одном виджете.
-@lazySingleton
-class CatalogRepository {
-  CatalogRepository(
+/// потребовал правок ни в одном cubit и ни в одном виджете. Контракт - интерфейс
+/// [CatalogRepository] в `domain` (ADHOC-71): экраны и чужие фичи видят только его.
+@LazySingleton(as: CatalogRepository)
+class CatalogRepositoryImpl implements CatalogRepository {
+  CatalogRepositoryImpl(
     this._api,
     this._cache,
     this._outbox,
@@ -50,6 +53,7 @@ class CatalogRepository {
 
   /// Список/поиск товаров. Из кэша - с поиском «все слова присутствуют» и фильтром по поддереву
   /// групп, как на сервере (P-FS-17, P1-07). До первой синхронизации - сетью.
+  @override
   Future<Either<Failure, Paged<Good>>> listGoods({
     String? query,
     String? groupId,
@@ -74,10 +78,7 @@ class CatalogRepository {
       if (!await _ready(CatalogName.groups)) {
         groupIds = [groupId];
       } else {
-        groupIds = CatalogCache.descendantGroupIds(
-          await _cache.groups(),
-          groupId,
-        );
+        groupIds = descendantGroupIds(await _cache.groups(), groupId);
       }
     }
     return Right(
@@ -103,6 +104,7 @@ class CatalogRepository {
   /// факт, проверить который было нечем. Цена ошибки несимметрична: по такому ответу кладовщик
   /// привязывает ШК к товару, а привязка уже есть на сервере за другим товаром - вместо чтения
   /// получаем порчу справочника. Теперь отказ доходит до экрана как есть.
+  @override
   Future<Either<Failure, Good?>> resolveGoodByBarcode(String code) async {
     if (await _ready(CatalogName.barcodes)) {
       final local = await _cache.goodByBarcode(code);
@@ -114,15 +116,18 @@ class CatalogRepository {
   /// Товар по идентификатору из справочника терминала; `null` - справочник не загружен или
   /// товара в нём нет (заведён после загрузки). Нужен переходу в карточку товара из содержимого
   /// короба (P5-05-1), где известен только идентификатор и наименование.
+  @override
   Future<Good?> goodById(String id) async =>
       await _ready(CatalogName.goods) ? _cache.goodById(id) : null;
 
   /// Товары по идентификаторам из справочника терминала одним запросом (ADHOC-59); пусто -
   /// справочник не загружен, товаров, заведённых после загрузки, в ответе нет.
+  @override
   Future<Map<String, Good>> goodsByIds(Iterable<String> ids) async =>
       await _ready(CatalogName.goods) ? _cache.goodsByIds(ids) : {};
 
   /// Штрихкоды товара (секция «Штрихкоды» карточки). Пустой список - норма.
+  @override
   Future<Either<Failure, List<Barcode>>> listGoodBarcodes(String goodId) async {
     if (!await _ready(CatalogName.barcodes)) {
       return _api.listGoodBarcodes(goodId);
@@ -138,6 +143,7 @@ class CatalogRepository {
   ///
   /// [fromCzMark] - ШК взят из марки ЧЗ (CZ-05): сервер заодно помечает товар маркируемым,
   /// кэш - сразу, следствием операции.
+  @override
   Future<Either<Failure, void>> bindBarcode({
     required String goodId,
     required String barcode,
@@ -159,6 +165,7 @@ class CatalogRepository {
   ///
   /// Выданный код сразу кладётся в кэш подтверждённым: его выдал сервер, ждать нечего, а скан
   /// только что напечатанного ярлыка без связи иначе не опознал бы товар.
+  @override
   Future<Either<Failure, IssuedBarcode>> issueInternalBarcode(
     String goodId,
   ) async {
@@ -177,6 +184,7 @@ class CatalogRepository {
   ///
   /// `Right(null)` - справочник прочитан, а дефолтной ячейки в нём нет: склад развёрнут не до
   /// конца, и это повод звать админа, а не ошибка связи.
+  @override
   Future<Either<Failure, Cell?>> defaultCell() async {
     final res = await listAllCells();
     return res.map((cells) => cells.where((c) => c.isDefault).firstOrNull);
@@ -186,6 +194,7 @@ class CatalogRepository {
   ///
   /// `good_id` кладётся в тело операции не для запроса - серверу он не нужен, - а чтобы при
   /// отказе было чем вернуть привязку в кэш.
+  @override
   Future<Either<Failure, void>> unbindBarcode({
     required String goodId,
     required String barcode,
@@ -213,6 +222,7 @@ class CatalogRepository {
   /// кандидата, а решает условное снятие [OutboxRepository.discardIfPending] - оно удаляет
   /// строку, только если та всё ещё `pending`. Движок, в свою очередь, забирает операцию
   /// в отправку лишь если строка на месте. Кто из двух успел первым - того и исход.
+  @override
   Future<bool> cancelPendingBind(String barcode) async {
     final waiting = await _outbox.pending();
     final match = waiting
@@ -250,12 +260,14 @@ class CatalogRepository {
   }
 
   /// Все группы номенклатуры (дерево фильтра).
+  @override
   Future<Either<Failure, List<NomenclatureGroup>>> listGroups() async {
     if (!await _ready(CatalogName.groups)) return _api.listGroups();
     return Right(await _cache.groups());
   }
 
   /// Поставщики (для фильтра), опционально по подстроке имени.
+  @override
   Future<Either<Failure, List<Supplier>>> listSuppliers({String? query}) async {
     if (!await _ready(CatalogName.suppliers)) {
       return _api.listSuppliers(query: query);
@@ -264,6 +276,7 @@ class CatalogRepository {
   }
 
   /// Список/поиск ячеек по адресу.
+  @override
   Future<Either<Failure, Paged<Cell>>> listCells({
     String? query,
     String? warehouseId,
@@ -290,6 +303,7 @@ class CatalogRepository {
   /// Раньше это были четыре запроса к серверу при каждом открытии экрана - и ещё раз после
   /// каждой завершённой ячейки. Теперь чтение из кэша; сигнатура не изменилась, поэтому
   /// вызывающий код тот же.
+  @override
   Future<Either<Failure, List<Cell>>> listAllCells({
     String? warehouseId,
   }) async {
@@ -298,4 +312,8 @@ class CatalogRepository {
     }
     return Right(await _cache.cells(warehouseId: warehouseId));
   }
+
+  @override
+  Future<Cell?> cachedCellById(String id) async =>
+      (await _cache.cells()).where((c) => c.id == id).firstOrNull;
 }

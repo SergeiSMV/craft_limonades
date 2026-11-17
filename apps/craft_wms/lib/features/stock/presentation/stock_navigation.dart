@@ -3,8 +3,8 @@ import 'package:flutter/widgets.dart';
 
 import '../../../core/di/injection.dart';
 import '../../../core/router/app_router.dart';
-import '../data/catalog_models.dart';
-import '../data/catalog_repository.dart';
+import '../domain/catalog_models.dart';
+import '../domain/catalog_repository.dart';
 
 /// Открыть карточку остатков товара по идентификатору - из другого раздела (P5-05-1: строка
 /// содержимого короба).

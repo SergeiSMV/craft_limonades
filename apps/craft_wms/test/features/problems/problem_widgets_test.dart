@@ -7,7 +7,7 @@ import 'package:craft_wms/features/contents/domain/contents_entities.dart';
 import 'package:craft_wms/features/problems/presentation/bloc/problem_state.dart';
 import 'package:craft_wms/features/problems/presentation/widgets/problem_choice.dart';
 import 'package:craft_wms/features/problems/presentation/widgets/problem_form.dart';
-import 'package:craft_wms/features/stock/data/catalog_models.dart';
+import 'package:craft_wms/features/stock/domain/catalog_models.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';

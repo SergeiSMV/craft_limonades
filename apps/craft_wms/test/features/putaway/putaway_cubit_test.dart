@@ -9,7 +9,7 @@ import 'package:craft_wms/features/putaway/data/putaway_draft_store.dart';
 import 'package:craft_wms/features/putaway/data/putaway_repository.dart';
 import 'package:craft_wms/features/putaway/presentation/bloc/putaway_cubit.dart';
 import 'package:craft_wms/features/putaway/presentation/bloc/putaway_models.dart';
-import 'package:craft_wms/features/stock/data/catalog_models.dart';
+import 'package:craft_wms/features/stock/domain/catalog_models.dart';
 import 'package:craft_wms/features/tasks/data/tasks_models.dart';
 import 'package:drift/native.dart';
 import 'package:either_dart/either.dart';

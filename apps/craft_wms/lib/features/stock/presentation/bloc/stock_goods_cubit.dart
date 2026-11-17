@@ -7,8 +7,8 @@ import '../../../../core/utils/search_text.dart';
 import '../../../../core/warehouse/internal_warehouses.dart';
 import '../../../contents/domain/contents_repository.dart';
 import '../../../contents/domain/stock_entities.dart';
-import '../../data/catalog_cache.dart';
-import '../../data/catalog_models.dart';
+import '../../domain/catalog_models.dart';
+import '../../domain/group_tree.dart';
 import 'goods_list_cubit.dart';
 
 /// Вкладка «Товары» в «Остатках» (ADHOC-33): товары, которые есть на складе, с количеством.
@@ -103,7 +103,7 @@ class StockGoodsCubit extends GoodsListCubit {
     final groupId = state.groupId;
     final groups = groupId == null
         ? null
-        : CatalogCache.descendantGroupIds(state.groups, groupId).toSet();
+        : descendantGroupIds(state.groups, groupId).toSet();
     final qty = <String, double>{};
     final goods = <Good>[];
     for (final s in _all) {
