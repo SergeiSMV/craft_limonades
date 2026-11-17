@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -16,13 +17,21 @@ import (
 	"craftwms/internal/service"
 )
 
+// problems - то, что обработчику «Проблем склада» нужно от сервиса.
+type problems interface {
+	List(ctx context.Context, status string) ([]model.Problem, error)
+	Current(ctx context.Context) ([]model.Problem, error)
+	Resolved(ctx context.Context, q service.ResolvedQuery) ([]model.Problem, error)
+	Resolve(ctx context.Context, in model.ResolveProblemInput) error
+}
+
 // ProblemHandler - «Проблемы склада» в портале (P6-07-3): список и решение офиса.
 type ProblemHandler struct {
-	svc *service.ProblemService
+	svc problems
 }
 
 // NewProblemHandler создаёт обработчик проблем склада.
-func NewProblemHandler(svc *service.ProblemService) *ProblemHandler {
+func NewProblemHandler(svc problems) *ProblemHandler {
 	return &ProblemHandler{svc: svc}
 }
 

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -10,18 +11,29 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"craftwms/internal/model"
-	"craftwms/internal/repository"
 	"craftwms/internal/service"
 )
+
+// barcodes - то, что обработчику штрихкодов нужно от сервиса.
+type barcodes interface {
+	ResolveGood(ctx context.Context, code string) (model.Good, error)
+	Bind(ctx context.Context, goodID, barcode, symbology string) error
+	Unbind(ctx context.Context, barcode string) error
+	List(ctx context.Context, limit, offset int) (service.Page[model.BarcodeLink], error)
+	ListByGood(ctx context.Context, goodID string) ([]model.Barcode, error)
+	GenerateInternal(ctx context.Context, goodID string) (string, bool, error)
+	CZStock(ctx context.Context, barcode string) (int, error)
+	Regrade(ctx context.Context, in model.RegradeInput) (model.RegradeResult, error)
+}
 
 // BarcodeHandler - HTTP-обработчики привязки ШК к товару и резолва товара по ШК
 // (ввод остатков P-FastStart). Доступ - любой аутентифицированный сотрудник (кладовщик на проходе).
 type BarcodeHandler struct {
-	svc *service.BarcodeService
+	svc barcodes
 }
 
 // NewBarcodeHandler создаёт обработчик штрихкодов.
-func NewBarcodeHandler(svc *service.BarcodeService) *BarcodeHandler {
+func NewBarcodeHandler(svc barcodes) *BarcodeHandler {
 	return &BarcodeHandler{svc: svc}
 }
 
@@ -199,7 +211,7 @@ func (h *BarcodeHandler) Regrade(w http.ResponseWriter, r *http.Request) {
 	case errors.Is(err, model.ErrGoodNotFound):
 		writeError(w, http.StatusNotFound, "товар не найден")
 		return
-	case repository.IsRegradeRefusal(err):
+	case model.IsRegradeRefusal(err):
 		writeError(w, http.StatusConflict, err.Error())
 		return
 	case err != nil:

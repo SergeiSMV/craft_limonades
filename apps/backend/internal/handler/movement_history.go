@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -14,14 +15,21 @@ import (
 	"craftwms/internal/service"
 )
 
+// movementHistory - то, что обработчику истории перемещений нужно от сервиса.
+type movementHistory interface {
+	List(ctx context.Context, q service.MovementHistoryQuery) ([]model.MovementRecord, error)
+	Get(ctx context.Context, id string) (model.MovementRecordDetail, error)
+	Executors(ctx context.Context) ([]model.TaskUser, error)
+}
+
 // MovementHistoryHandler - история перемещений на ТСД (ADHOC-28): лента «Завершённые» в разделе
 // «Перемещение» и запись со строками. Сотруднику: кладовщик видит перемещения всего склада.
 type MovementHistoryHandler struct {
-	svc *service.MovementHistoryService
+	svc movementHistory
 }
 
 // NewMovementHistoryHandler создаёт обработчик истории перемещений.
-func NewMovementHistoryHandler(svc *service.MovementHistoryService) *MovementHistoryHandler {
+func NewMovementHistoryHandler(svc movementHistory) *MovementHistoryHandler {
 	return &MovementHistoryHandler{svc: svc}
 }
 

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,19 +11,23 @@ import (
 
 	"craftwms/internal/labels"
 	"craftwms/internal/model"
-	"craftwms/internal/service"
 )
 
 // defaultLabelsWarehouse - склад по умолчанию для этикеток (на пилоте один - «Шабулина»).
 const defaultLabelsWarehouse = "SHB"
 
+// cellLabels - то, что обработчику этикеток нужно от сервиса.
+type cellLabels interface {
+	CellLabelsPDF(ctx context.Context, warehouseCode, kind string, cellIDs []string) ([]byte, string, error)
+}
+
 // LabelHandler - PDF этикеток ячеек и карточек на стойку (ADHOC-57, геометрия rack_labels).
 type LabelHandler struct {
-	svc *service.LabelService
+	svc cellLabels
 }
 
 // NewLabelHandler создаёт обработчик этикеток.
-func NewLabelHandler(svc *service.LabelService) *LabelHandler {
+func NewLabelHandler(svc cellLabels) *LabelHandler {
 	return &LabelHandler{svc: svc}
 }
 

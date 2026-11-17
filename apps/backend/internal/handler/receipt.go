@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -12,18 +13,31 @@ import (
 
 	appmw "craftwms/internal/middleware"
 	"craftwms/internal/model"
-	"craftwms/internal/service"
 )
+
+// receipts - то, что обработчику приёмки нужно от сервиса приёмки.
+type receipts interface {
+	Start(ctx context.Context, id, warehouseID, supplierID, createdBy, docNumber, docDate string) error
+	Get(ctx context.Context, receiptID string) (model.Receipt, []model.ReceiptLine, error)
+	AddLine(ctx context.Context, receiptID, goodID, productionDate, cellID, loadUnitID string, qty decimal.Decimal) (string, error)
+	Post(ctx context.Context, receiptID string) (int, error)
+}
+
+// loadUnits - то, что обработчику приёмки нужно от сервиса грузовых единиц.
+type loadUnits interface {
+	Create(ctx context.Context, id, kind string) error
+	Get(ctx context.Context, id string) (model.LoadUnit, error)
+}
 
 // ReceiptHandler - HTTP-обработчики приёмки (P4-03): документ, строка сканом, оприходование.
 // Доступ - любой аутентифицированный сотрудник: приёмку ведёт кладовщик на ТСД.
 type ReceiptHandler struct {
-	svc *service.ReceiptService
-	lu  *service.LoadUnitService
+	svc receipts
+	lu  loadUnits
 }
 
 // NewReceiptHandler создаёт обработчик приёмки.
-func NewReceiptHandler(svc *service.ReceiptService, lu *service.LoadUnitService) *ReceiptHandler {
+func NewReceiptHandler(svc receipts, lu loadUnits) *ReceiptHandler {
 	return &ReceiptHandler{svc: svc, lu: lu}
 }
 

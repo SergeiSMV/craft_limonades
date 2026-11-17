@@ -228,7 +228,7 @@ func movementSubmit(ctx context.Context, q Querier, in MovementSubmitInput) (int
 	// отката, отказ строки откатывает только её. Нашлись плохие - отказ документа целиком
 	// со списком всех; транзакция откатывается, как и раньше.
 	var moves []movement.Move
-	var bad []LineRejection
+	var bad []model.LineRejection
 	for i, ln := range in.Lines {
 		var step []movement.Move
 		rejected, err := tryLine(ctx, q, func() error {
@@ -244,13 +244,13 @@ func movementSubmit(ctx context.Context, q Querier, in MovementSubmitInput) (int
 			return 0, err
 		}
 		if rejected != nil {
-			bad = append(bad, LineRejection{Line: i + 1, Label: movementLineText(ctx, q, ln), Err: rejected})
+			bad = append(bad, model.LineRejection{Line: i + 1, Label: movementLineText(ctx, q, ln), Err: rejected})
 			continue
 		}
 		moves = append(moves, step...)
 	}
 	if len(bad) > 0 {
-		return 0, &DocumentLinesError{Total: len(in.Lines), Lines: bad}
+		return 0, &model.DocumentLinesError{Total: len(in.Lines), Lines: bad}
 	}
 	if err := saveMovementDocument(ctx, q, in.MovementID, moves); err != nil {
 		return 0, err

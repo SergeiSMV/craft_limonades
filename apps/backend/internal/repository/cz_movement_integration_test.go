@@ -99,7 +99,7 @@ func (cf *czMoveFixture) opened(t *testing.T, code string) bool {
 // lineErr - причина отказа единственной плохой строки документа.
 func lineErr(t *testing.T, err error) error {
 	t.Helper()
-	var lines *repository.DocumentLinesError
+	var lines *model.DocumentLinesError
 	if !errors.As(err, &lines) || len(lines.Lines) != 1 {
 		t.Fatalf("ждали отказ одной строки, получили %v", err)
 	}

@@ -24,3 +24,14 @@ var (
 	// ErrRegradeBoxNotPlaced - короб с марками не стоит в ячейке.
 	ErrRegradeBoxNotPlaced = errors.New("короб с марками не размещён в ячейке")
 )
+
+// IsRegradeRefusal - отказ перепривязки по существу: его текст - для кладовщика.
+func IsRegradeRefusal(err error) bool {
+	for _, e := range []error{ErrRegradeNotBound, ErrRegradeSameGood, ErrRegradeOpenProblem,
+		ErrRegradeCellCounting, ErrRegradeBoxNotPlaced, ErrGoodNotFound} {
+		if errors.Is(err, e) {
+			return true
+		}
+	}
+	return false
+}

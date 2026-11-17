@@ -326,7 +326,7 @@ func (s *OperationsService) dispatch(ctx context.Context, userID, id string, op 
 func isRejection(err error) bool {
 	// Документ со списком отклонённых строк (ADHOC-40) - отказ по существу целиком, какими бы
 	// ни были причины строк.
-	var lines *repository.DocumentLinesError
+	var lines *model.DocumentLinesError
 	if errors.As(err, &lines) {
 		return true
 	}
