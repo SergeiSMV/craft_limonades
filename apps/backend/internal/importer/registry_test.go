@@ -8,8 +8,8 @@ import (
 	"time"
 )
 
-// registrySamplePath — образец «Реестра», отданный 1С вместе с ТЗ (лежит в документации).
-const registrySamplePath = "../../../../docs/1c/Реестр_2026-10-21_1530.xlsx"
+// registrySamplePath — образец «Реестра», отданный 1С вместе с ТЗ.
+const registrySamplePath = "testdata/registry_sample.xlsx"
 
 // registryHeader — заголовок реестра в порядке 1С.
 var registryHeader = []any{"Номер накладной", "Дата накладной", "Номер заказа", "Дата заказа", "Статус",

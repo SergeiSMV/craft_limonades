@@ -26,8 +26,7 @@ sudo bash deploy/craft.sh
 
 Локальный стек ([dev-deploy.md](dev-deploy.md)) поднимает и **контейнерный** nginx (`make up`).
 На проде reverse-proxy и TLS делает **хостовый** nginx сервера, а `docker-compose.prod.yml`
-содержит только `postgres` и `backend`, причём backend слушает loopback. Это осознанная разница —
-см. [ADR-0011](../adr/0011-pilot-deploy-host-nginx-ghcr.md).
+содержит только `postgres` и `backend`, причём backend слушает loopback. Это осознанная разница (ADR-0011).
 
 ⚠ **Никогда на проде:** `migrate down` и `docker compose down -v` — сотрут данные.
 Схема двигается только вперёд.

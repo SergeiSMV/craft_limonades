@@ -2,7 +2,6 @@
 
 Как поднять, проверить и погасить стек на своей машине, и как собрать клиентов — приложение
 для ТСД и веб-портал. Боевой сервер — в [prod-deploy.md](prod-deploy.md).
-Архитектура — в [architecture.md](../architecture.md), обоснования — в [adr/](../adr/).
 
 > Локальный контур: одна машина, `docker-compose.yml`, **контейнерный** nginx.
 > На проде reverse-proxy и TLS делает хостовый nginx — см. [prod-deploy.md](prod-deploy.md).
@@ -99,8 +98,7 @@ colima stop        # остановить docker-демон
 
 **Адрес бэкенда — в файле `apps/craft_wms/.env`** (в `.gitignore`, свой на каждой машине;
 шаблон — `apps/craft_wms/.env.example`). Сборки читают его флагом `--dart-define-from-file=.env`.
-Формат — JSON, ключ `BASE_URL` **с завершающим `/`**, API под префиксом `/api/v1`
-([ADR-0015](../adr/0015-url-scheme-api-v1-portal-root.md)):
+Формат — JSON, ключ `BASE_URL` **с завершающим `/`**, API под префиксом `/api/v1`:
 
 ```json
 { "BASE_URL": "https://craft.skogi.ru/api/v1/" }

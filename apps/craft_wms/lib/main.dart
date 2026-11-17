@@ -27,7 +27,7 @@ Future<void> main() async {
 }
 
 Future<void> _start() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  WidgetsFlutterBinding.ensureInitialized(); 
 
   // 1. Только портретная ориентация. ТСД держат вертикально, ландшафта в работе кладовщика нет,
   //    а автоповорот срабатывает, когда терминал просто кладут на стол: экраны свёрстаны под

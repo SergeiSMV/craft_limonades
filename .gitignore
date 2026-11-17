@@ -5,12 +5,13 @@
 ~$*
 
 # Локальные dev-документы (не для репозитория)
+# docs/ целиком локальный, кроме инструкций по развёртке на сервере (docs/deploy/)
+docs/*
+!docs/deploy/
 dev.md
 dev-context.md
 dev-context-archive.md
 version.md
-docs/roadmap.md
-docs/progress.md
 scripts/roadmap_flatten.lua
 
 # Environment / секреты — никогда не коммитим

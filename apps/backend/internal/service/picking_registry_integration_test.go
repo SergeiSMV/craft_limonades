@@ -23,7 +23,7 @@ func TestPickingRegistry_sampleAgainstCatalog(t *testing.T) {
 		t.Fatalf("завести товары: %v", err)
 	}
 
-	f, err := os.Open("../../../../docs/1c/Реестр_2026-10-21_1530.xlsx")
+	f, err := os.Open("../importer/testdata/registry_sample.xlsx")
 	if err != nil {
 		t.Fatalf("открыть образец: %v", err)
 	}
