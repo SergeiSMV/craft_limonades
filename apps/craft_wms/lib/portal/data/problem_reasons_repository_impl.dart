@@ -1,29 +1,24 @@
 import 'package:dio/dio.dart';
 import 'package:either_dart/either.dart';
 import 'package:injectable/injectable.dart';
-
 import '../../core/constants/api_constants.dart';
 import '../../core/error/failure.dart';
 import '../../core/problems/problem_reasons.dart';
-
-/// Справочник целиком: причины и варианты решения, и неактивные.
-typedef ProblemReasonsDirectory = ({
-  List<ProblemReason> reasons,
-  List<ResolutionVariant> resolutions,
-});
+import '../domain/problem_reasons/problem_reasons_repository.dart';
 
 /// Справочник причин проблем и вариантов решения в портале (ADHOC-55): чтение и ведение -
 /// право «Настройки: причины проблем». Удаления нет - причина и вариант выключаются.
 ///
 /// Ошибки по существу (повтор названия, системная причина, «пересорт» не у пересорта) сервер
 /// объясняет текстом в поле `error` - он приезжает в `ServerFailure.message`.
-@lazySingleton
-class ProblemReasonsRepository {
-  ProblemReasonsRepository(this._dio);
+@LazySingleton(as: ProblemReasonsRepository)
+class ProblemReasonsRepositoryImpl implements ProblemReasonsRepository {
+  ProblemReasonsRepositoryImpl(this._dio);
 
   final Dio _dio;
 
   /// Весь справочник.
+  @override
   Future<Either<Failure, ProblemReasonsDirectory>> list() => _call(() async {
     final resp = await _dio.get<Map<String, dynamic>>(ApiConst.problemReasons);
     final data = resp.data ?? const {};
@@ -40,6 +35,7 @@ class ProblemReasonsRepository {
   });
 
   /// Завести причину.
+  @override
   Future<Either<Failure, void>> createReason({
     required String name,
     required bool commentRequired,
@@ -56,6 +52,7 @@ class ProblemReasonsRepository {
   );
 
   /// Изменить причину; `null` - поле не меняется.
+  @override
   Future<Either<Failure, void>> updateReason(
     String code, {
     String? name,
@@ -75,6 +72,7 @@ class ProblemReasonsRepository {
   );
 
   /// Завести вариант решения: название и действие.
+  @override
   Future<Either<Failure, void>> createResolution({
     required String name,
     required String action,
@@ -86,6 +84,7 @@ class ProblemReasonsRepository {
   );
 
   /// Переименовать вариант и (или) выключить или включить его.
+  @override
   Future<Either<Failure, void>> updateResolution(
     String id, {
     String? name,

@@ -1,5 +1,5 @@
 import '../../../../core/gen/strings.g.dart';
-import '../../../data/problems_repository.dart';
+import '../../../domain/problems/problems_repository.dart';
 
 /// Подписи значений транспорта «Проблем склада» (P6-07-3).
 

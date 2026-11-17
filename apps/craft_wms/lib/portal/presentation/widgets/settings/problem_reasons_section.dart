@@ -8,7 +8,7 @@ import '../../../../core/gen/strings.g.dart';
 import '../../../../core/sync/data_versions.dart';
 import '../../../../core/widgets/data_versions_listener.dart';
 import '../../../../core/problems/problem_reasons.dart';
-import '../../../data/problem_reasons_repository.dart';
+import '../../../domain/problem_reasons/problem_reasons_repository.dart';
 import 'access_common.dart';
 import 'problem_reason_dialogs.dart';
 import 'problem_reason_rows.dart';

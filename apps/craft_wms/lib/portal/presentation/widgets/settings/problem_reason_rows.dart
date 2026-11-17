@@ -8,7 +8,7 @@ import '../../../../core/gen/strings.g.dart';
 import '../../../../core/problems/problem_reasons.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/theme/semibold_text.dart';
-import '../../../data/problems_repository.dart';
+import '../../../domain/problems/problems_repository.dart';
 import '../ui/portal_badge.dart';
 import '../ui/portal_button.dart';
 

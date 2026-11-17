@@ -3,7 +3,7 @@ import 'package:craft_wms/core/di/injection.dart';
 import 'package:craft_wms/core/sync/data_versions.dart';
 import 'package:craft_wms/core/gen/strings.g.dart';
 import 'package:craft_wms/portal/data/internal_warehouses_repository.dart';
-import 'package:craft_wms/portal/data/problem_reasons_repository.dart';
+import 'package:craft_wms/portal/domain/problem_reasons/problem_reasons_repository.dart';
 import 'package:craft_wms/portal/presentation/widgets/settings/problem_reasons_section.dart';
 import 'package:craft_wms/portal/presentation/widgets/settings/warehouses_section.dart';
 import 'package:craft_wms/portal/presentation/widgets/shell/sidebar_menu_item.dart';

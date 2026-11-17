@@ -10,7 +10,7 @@ import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/sync/data_versions.dart';
 import '../../../../core/widgets/data_versions_listener.dart';
-import '../../../data/stocktakes_repository.dart';
+import '../../../domain/stocktakes/stocktakes_repository.dart';
 import '../settings/access_common.dart';
 import '../ui/portal_button.dart';
 import '../ui/portal_card.dart';

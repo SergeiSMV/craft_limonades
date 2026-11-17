@@ -1,4 +1,4 @@
-import 'package:craft_wms/portal/data/cells_repository.dart';
+import 'package:craft_wms/portal/domain/cells/cells_repository.dart';
 import 'package:craft_wms/portal/domain/cells/cell_setup.dart';
 import 'package:craft_wms/portal/presentation/widgets/cells/cells_controller.dart';
 import 'package:either_dart/either.dart';

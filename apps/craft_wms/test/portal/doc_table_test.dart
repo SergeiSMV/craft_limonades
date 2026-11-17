@@ -1,5 +1,5 @@
 import 'package:craft_wms/core/gen/strings.g.dart';
-import 'package:craft_wms/portal/data/documents_repository.dart';
+import 'package:craft_wms/portal/domain/documents/documents_repository.dart';
 import 'package:craft_wms/portal/presentation/widgets/documents/doc_card.dart';
 import 'package:craft_wms/portal/presentation/widgets/documents/doc_form.dart';
 import 'package:craft_wms/portal/presentation/widgets/documents/doc_table.dart';

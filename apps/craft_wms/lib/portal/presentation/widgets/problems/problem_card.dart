@@ -10,7 +10,7 @@ import '../../../../core/theme/semibold_text.dart';
 import '../../../../core/utils/date_time_format.dart';
 import '../../../../core/utils/doc_number.dart';
 import '../../../../core/utils/qty_format.dart';
-import '../../../data/problems_repository.dart';
+import '../../../domain/problems/problems_repository.dart';
 import '../ui/portal_badge.dart';
 import '../ui/portal_button.dart';
 import '../ui/portal_card.dart';

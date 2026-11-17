@@ -1,5 +1,5 @@
 import 'package:craft_wms/core/gen/strings.g.dart';
-import 'package:craft_wms/portal/data/problems_repository.dart';
+import 'package:craft_wms/portal/domain/problems/problems_repository.dart';
 import 'package:craft_wms/portal/presentation/widgets/problems/problem_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

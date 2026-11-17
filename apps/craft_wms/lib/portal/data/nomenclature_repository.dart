@@ -4,7 +4,7 @@ import 'package:injectable/injectable.dart';
 
 import '../../core/constants/api_constants.dart';
 import '../../core/error/failure.dart';
-import 'import_report.dart';
+import '../domain/import/import_report.dart';
 
 /// Репозиторий импорта справочников через веб-портал.
 /// Слой data: изолирует HTTP от UI, отдаёт `Either<Failure, ImportReport>`.

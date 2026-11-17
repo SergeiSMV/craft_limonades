@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:craft_wms/portal/data/cells_repository_impl.dart';
 
 import 'package:craft_wms/core/constants/api_constants.dart';
 import 'package:craft_wms/core/error/failure.dart';
-import 'package:craft_wms/portal/data/cells_repository.dart';
 import 'package:craft_wms/portal/domain/cells/cell_setup.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -50,7 +50,7 @@ void main() {
       });
       dio.httpClientAdapter = adapter;
 
-      final res = await CellsRepository(dio).loadSetup();
+      final res = await CellsRepositoryImpl(dio).loadSetup();
 
       final setup = res.right;
       expect(adapter.requests.single.queryParameters['warehouse'], 'SHB');
@@ -74,7 +74,7 @@ void main() {
     });
     dio.httpClientAdapter = adapter;
 
-    final res = await CellsRepository(dio).saveSettings(
+    final res = await CellsRepositoryImpl(dio).saveSettings(
       ['c1', 'c2'],
       {CellFlag.small: true, CellFlag.sideCard: true},
     );
@@ -92,7 +92,7 @@ void main() {
       'PATCH ${ApiConst.cellsSetup}': (_) => jsonResponse({}, 200),
     });
 
-    final res = await CellsRepository(
+    final res = await CellsRepositoryImpl(
       dio,
     ).saveSettings(['c1'], {CellFlag.sideCard: false});
 
@@ -106,7 +106,7 @@ void main() {
       }, 409),
     });
 
-    final res = await CellsRepository(
+    final res = await CellsRepositoryImpl(
       dio,
     ).saveSettings(['c1'], {CellFlag.floor: true});
 
@@ -119,7 +119,7 @@ void main() {
     final adapter = RecordingAdapter({'POST ${ApiConst.cellLabelsPdf}': pdf});
     dio.httpClientAdapter = adapter;
 
-    final res = await CellsRepository(dio).labelsPdf(LabelKind.cards, ['c1']);
+    final res = await CellsRepositoryImpl(dio).labelsPdf(LabelKind.cards, ['c1']);
 
     expect(utf8.decode(res.right), '%PDF-');
     final req = adapter.requests.single;
@@ -138,7 +138,7 @@ void main() {
       }, 422),
     });
 
-    final res = await CellsRepository(dio).labelsPdf(LabelKind.large, const []);
+    final res = await CellsRepositoryImpl(dio).labelsPdf(LabelKind.large, const []);
 
     final f = res.left as ServerFailure;
     expect(f.statusCode, 422);
@@ -149,7 +149,7 @@ void main() {
     final adapter = RecordingAdapter({'GET ${ApiConst.cellsExport}': pdf});
     dio.httpClientAdapter = adapter;
 
-    final res = await CellsRepository(dio).exportCells();
+    final res = await CellsRepositoryImpl(dio).exportCells();
 
     expect(res.isRight, isTrue);
     expect(adapter.requests.single.responseType, ResponseType.bytes);
@@ -169,7 +169,7 @@ void main() {
       }, 200),
     });
 
-    final res = await CellsRepository(
+    final res = await CellsRepositoryImpl(
       dio,
     ).importCells(bytes: [1], filename: 'cells.xlsx');
 
@@ -186,7 +186,7 @@ void main() {
       ),
     });
 
-    final res = await CellsRepository(dio).loadSetup();
+    final res = await CellsRepositoryImpl(dio).loadSetup();
 
     expect(res.left, isA<NetworkFailure>());
   });

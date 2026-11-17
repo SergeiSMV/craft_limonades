@@ -7,7 +7,7 @@ import '../../../../core/di/injection.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
-import '../../../data/stocktakes_repository.dart';
+import '../../../domain/stocktakes/stocktakes_repository.dart';
 import '../settings/access_common.dart';
 import '../ui/portal_button.dart';
 import '../ui/portal_choice.dart';

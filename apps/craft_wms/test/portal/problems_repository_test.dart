@@ -1,8 +1,9 @@
 import 'package:craft_wms/core/constants/api_constants.dart';
 import 'package:craft_wms/core/error/failure.dart';
-import 'package:craft_wms/portal/data/problems_repository.dart';
+import 'package:craft_wms/portal/domain/problems/problems_repository.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:craft_wms/portal/data/problems_repository_impl.dart';
 
 import '../support/fake_dio_adapter.dart';
 
@@ -39,7 +40,7 @@ void main() {
         200,
       ),
     });
-    final res = await ProblemsRepository(dio).list();
+    final res = await ProblemsRepositoryImpl(dio).list();
     expect(res.isRight, isTrue);
     final [box, done] = res.right;
     expect(box.loadUnitCode, '9FA0B1C2');
@@ -65,7 +66,7 @@ void main() {
           _json('{"error":"по проблеме уже принято решение"}', 409),
     });
     dio.httpClientAdapter = adapter;
-    final repo = ProblemsRepository(dio);
+    final repo = ProblemsRepositoryImpl(dio);
 
     final ok = await repo.resolve('p1', (
       resolutionId: 'r1',

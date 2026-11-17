@@ -7,7 +7,7 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/problems/problem_reasons.dart';
 import '../../../../core/theme/regular_text.dart';
-import '../../../data/problems_repository.dart';
+import '../../../domain/problems/problems_repository.dart';
 import 'access_common.dart';
 import 'problem_reason_rows.dart';
 import '../ui/portal_modal.dart';

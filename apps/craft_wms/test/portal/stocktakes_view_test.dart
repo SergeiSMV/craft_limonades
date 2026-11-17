@@ -4,12 +4,13 @@ import 'package:craft_wms/core/constants/api_constants.dart';
 import 'package:craft_wms/core/di/injection.dart';
 import 'package:craft_wms/core/sync/data_versions.dart';
 import 'package:craft_wms/core/gen/strings.g.dart';
-import 'package:craft_wms/portal/data/stocktakes_repository.dart';
+import 'package:craft_wms/portal/domain/stocktakes/stocktakes_repository.dart';
 import 'package:craft_wms/portal/presentation/widgets/stocktake/stocktake_card.dart';
 import 'package:craft_wms/portal/presentation/widgets/stocktake/stocktakes_view.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:craft_wms/portal/data/stocktakes_repository_impl.dart';
 
 import '../support/fake_dio_adapter.dart';
 
@@ -61,7 +62,7 @@ void main() {
     if (getIt.isRegistered<StocktakesRepository>()) {
       getIt.unregister<StocktakesRepository>();
     }
-    getIt.registerSingleton<StocktakesRepository>(StocktakesRepository(dio));
+    getIt.registerSingleton<StocktakesRepository>(StocktakesRepositoryImpl(dio));
     // ADHOC-60: вкладки слушают версии данных сервера.
     if (!getIt.isRegistered<DataVersions>()) {
       getIt.registerSingleton(DataVersions());
