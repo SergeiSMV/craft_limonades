@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -11,18 +12,29 @@ import (
 
 	appmw "craftwms/internal/middleware"
 	"craftwms/internal/model"
-	"craftwms/internal/service"
 )
+
+// userAdmin - то, что обработчику нужно от сервиса пользователей и должностей.
+type userAdmin interface {
+	Rights() []string
+	Positions(ctx context.Context) ([]model.Position, error)
+	CreatePosition(ctx context.Context, in model.PositionInput, by string) (string, error)
+	UpdatePosition(ctx context.Context, id string, in model.PositionInput, by string) error
+	DeletePosition(ctx context.Context, id, by string) error
+	Users(ctx context.Context) ([]model.UserListItem, error)
+	CreateUser(ctx context.Context, in model.UserCreateInput) (string, error)
+	UpdateUser(ctx context.Context, in model.UserUpdateInput) error
+}
 
 // UserAdminHandler - пользователи и должности в портале (ADHOC-49); право «пользователи и
 // должности». Хеши, бейджи и пароли в ответы не попадают: у бейджа виден только логин
 // (первые 8 цифр) - по нему офис узнаёт, какой бейдж выдан.
 type UserAdminHandler struct {
-	svc *service.UserAdminService
+	svc userAdmin
 }
 
 // NewUserAdminHandler создаёт обработчик пользователей и должностей.
-func NewUserAdminHandler(svc *service.UserAdminService) *UserAdminHandler {
+func NewUserAdminHandler(svc userAdmin) *UserAdminHandler {
 	return &UserAdminHandler{svc: svc}
 }
 
@@ -183,7 +195,7 @@ func userAdminError(w http.ResponseWriter, r *http.Request, err error, action st
 	switch {
 	case errors.Is(err, model.ErrInvalidPosition), errors.Is(err, model.ErrInvalidUser):
 		writeError(w, http.StatusBadRequest, err.Error())
-	case errors.Is(err, service.ErrBadBadge):
+	case errors.Is(err, model.ErrBadBadge):
 		writeError(w, http.StatusBadRequest, "бейдж - ровно 16 цифр")
 	case errors.Is(err, model.ErrPositionNotFound), errors.Is(err, model.ErrUserMissing):
 		writeError(w, http.StatusNotFound, err.Error())

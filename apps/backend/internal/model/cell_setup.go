@@ -1,5 +1,25 @@
 package model
 
+import "errors"
+
+// Ошибки страницы «Ячейки» (ADHOC-57, ADHOC-61): ввод портала - 400, состояние склада - 409.
+// Тексты - для экрана портала.
+var (
+	ErrNoCellsSelected = errors.New("не выбраны ячейки")
+	ErrEmptyCellsPatch = errors.New("нечего менять: не задана ни одна галочка")
+	ErrTooManyCells    = errors.New("слишком много ячеек за один раз")
+	ErrInvalidCellIDs  = errors.New("id ячейки должен быть UUID")
+	// ErrInvalidFloorAddress - адрес напольной ячейки не вида «D-Н-П» (ADHOC-61).
+	ErrInvalidFloorAddress = errors.New("адрес напольной ячейки - стеллаж и «-Н-П», например «D-Н-П»")
+	// ErrForeignCells - в патче есть ячейки не этого склада, неактивные, ячейка приёмки или
+	// несуществующие: менять такие нельзя, и тихо пропускать их тоже нельзя.
+	ErrForeignCells = errors.New("ячейки не найдены на складе")
+	// ErrCellExists - на складе уже есть активная ячейка с таким адресом.
+	ErrCellExists = errors.New("ячейка с таким адресом уже есть на складе")
+	// ErrCellNotEmpty - в ячейке лежит товар или стоят короба: удалить её нельзя.
+	ErrCellNotEmpty = errors.New("в ячейке есть товар или короба - удалить нельзя")
+)
+
 // CellSetup - ячейка на странице «Ячейки» портала (ADHOC-57): адрес, стеллаж и настройки
 // этикетки на балку. Отдельна от Cell: Cell кормит ТСД и не должна тянуть поля печати.
 type CellSetup struct {

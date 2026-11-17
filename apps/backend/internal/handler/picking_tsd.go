@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -16,15 +17,33 @@ import (
 	"craftwms/internal/service"
 )
 
+// pickingTasks - то, что обработчику сборки на ТСД нужно от сервиса задания. Заказ с подбором
+// (service.PickingTask) живёт в service: в нём подбор пакета picking, которому в model не место.
+type pickingTasks interface {
+	Orders(ctx context.Context, userID string) ([]model.PickingOrderListItem, error)
+	ShippedOrders(ctx context.Context, userID string, date time.Time) ([]model.PickingOrderListItem, error)
+	Task(ctx context.Context, orderID string) (service.PickingTask, error)
+	Take(ctx context.Context, orderID, userID string) error
+	Release(ctx context.Context, orderID, userID string) error
+	AddBox(ctx context.Context, orderID, userID, loadUnitID string) (int, error)
+	DropBox(ctx context.Context, orderID, userID, loadUnitID string) error
+	MarkShortage(ctx context.Context, orderID, lineID, userID string, shortage bool) (model.PickingShortageResult, error)
+	Shipment(ctx context.Context, orderID string) (model.PickingShipment, error)
+	Complete(ctx context.Context, orderID, userID string) (model.PickingShipment, error)
+	PrintLabels(ctx context.Context, orderID string, boxIDs []string, canReprint bool) (model.PickingShipment, error)
+	Ship(ctx context.Context, orderID, userID string, boxIDs []string) (model.PickingShipment, error)
+	ReturnView(ctx context.Context, orderID string) (model.PickingReturnView, error)
+}
+
 // PickingTSDHandler - сборка на ТСД (P9-04): список «СБОРКА», заказ с подбором, взять,
 // отказаться, короб отгрузки, «не хватает». Всё - онлайн: взятие закрепляет заказ за одним
 // кладовщиком, а это решает сервер.
 type PickingTSDHandler struct {
-	svc *service.PickingTaskService
+	svc pickingTasks
 }
 
 // NewPickingTSDHandler создаёт обработчик сборки на ТСД.
-func NewPickingTSDHandler(svc *service.PickingTaskService) *PickingTSDHandler {
+func NewPickingTSDHandler(svc pickingTasks) *PickingTSDHandler {
 	return &PickingTSDHandler{svc: svc}
 }
 

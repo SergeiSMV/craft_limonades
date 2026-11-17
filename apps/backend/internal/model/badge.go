@@ -2,6 +2,9 @@ package model
 
 import "errors"
 
+// ErrBadBadge - бейдж не из 16 цифр: ошибка ввода, а не «неверные учётные данные».
+var ErrBadBadge = errors.New("badge must be 16 digits")
+
 // BadgeScope - чьи бейджи пользователь печатает на ТСД (ADHOC-65); уровни по возрастанию.
 type BadgeScope int
 

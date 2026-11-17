@@ -13,7 +13,7 @@ import (
 // Ошибки сервиса. Для входа отдаём один общий ErrInvalidCredentials (не различаем «нет логина»
 // и «неверный секрет»), чтобы не подсказывать перебору, какие логины существуют.
 var (
-	ErrBadBadge           = errors.New("badge must be 16 digits")
+	ErrBadBadge           = model.ErrBadBadge // псевдоним на время ADHOC-71
 	ErrInvalidCredentials = errors.New("invalid credentials")
 )
 

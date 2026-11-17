@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,9 +12,17 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"craftwms/internal/model"
-	"craftwms/internal/repository"
-	"craftwms/internal/service"
 )
+
+// cellSetup - то, что обработчику страницы «Ячейки» нужно от сервиса.
+type cellSetup interface {
+	Setup(ctx context.Context, warehouseCode string) (*model.CellsSetup, error)
+	UpdateSettings(ctx context.Context, warehouseCode string, p model.CellSettingsPatch) (model.CellSettingsResult, error)
+	ExportXLSX(ctx context.Context, warehouseCode string) ([]byte, string, error)
+	CreateFloorCell(ctx context.Context, warehouseCode string, in model.FloorCellInput) (model.FloorCell, error)
+	RenameFloorCell(ctx context.Context, warehouseCode, cellID string, in model.FloorCellInput) (model.FloorCell, error)
+	DeleteFloorCell(ctx context.Context, warehouseCode, cellID string) error
+}
 
 // cellSetupMaxBody - потолок тела правки галочек: 5000 UUID в JSON - около 200 КБ.
 const cellSetupMaxBody = 512 << 10
@@ -21,11 +30,11 @@ const cellSetupMaxBody = 512 << 10
 // CellSetupHandler - страница «Ячейки» портала (ADHOC-57): список ячеек со стеллажами и
 // настройками этикеток, правка галочек, выгрузка в .xlsx формата rack_labels.
 type CellSetupHandler struct {
-	svc *service.CellSetupService
+	svc cellSetup
 }
 
 // NewCellSetupHandler создаёт обработчик страницы «Ячейки».
-func NewCellSetupHandler(svc *service.CellSetupService) *CellSetupHandler {
+func NewCellSetupHandler(svc cellSetup) *CellSetupHandler {
 	return &CellSetupHandler{svc: svc}
 }
 
@@ -136,19 +145,19 @@ func (h *CellSetupHandler) DeleteFloorCell(w http.ResponseWriter, r *http.Reques
 // cellSetupError - ответ на ошибку страницы «Ячейки»; текст - для экрана портала.
 func cellSetupError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
-	case errors.Is(err, repository.ErrNotFound):
+	case errors.Is(err, model.ErrNotFound):
 		if chi.URLParam(r, "id") != "" {
 			writeError(w, http.StatusNotFound, "напольная ячейка не найдена - обновите страницу")
 			return
 		}
 		writeError(w, http.StatusNotFound, "склад не найден")
-	case errors.Is(err, service.ErrNoCellsSelected), errors.Is(err, service.ErrEmptyCellsPatch),
-		errors.Is(err, service.ErrTooManyCells), errors.Is(err, service.ErrInvalidCellIDs),
-		errors.Is(err, service.ErrInvalidFloorAddress):
+	case errors.Is(err, model.ErrNoCellsSelected), errors.Is(err, model.ErrEmptyCellsPatch),
+		errors.Is(err, model.ErrTooManyCells), errors.Is(err, model.ErrInvalidCellIDs),
+		errors.Is(err, model.ErrInvalidFloorAddress):
 		writeError(w, http.StatusBadRequest, err.Error())
-	case errors.Is(err, repository.ErrForeignCells):
+	case errors.Is(err, model.ErrForeignCells):
 		writeError(w, http.StatusConflict, "часть ячеек не найдена на складе - обновите страницу")
-	case errors.Is(err, repository.ErrCellExists), errors.Is(err, repository.ErrCellNotEmpty):
+	case errors.Is(err, model.ErrCellExists), errors.Is(err, model.ErrCellNotEmpty):
 		writeError(w, http.StatusConflict, err.Error())
 	default:
 		slog.ErrorContext(r.Context(), "cell setup failed", "error", err)

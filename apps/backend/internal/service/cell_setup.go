@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"regexp"
 	"sort"
@@ -16,14 +15,14 @@ import (
 	"craftwms/internal/repository"
 )
 
-// Ошибки изменения настроек ячеек - 400 у хендлера.
+// Псевдоним ошибки из model на время ADHOC-71 (долг 38): старые ссылки работают, errors.Is
+// сравнивает тот же объект. Снимается, когда все ссылки переведены на model.
 var (
-	ErrNoCellsSelected = errors.New("не выбраны ячейки")
-	ErrEmptyCellsPatch = errors.New("нечего менять: не задана ни одна галочка")
-	ErrTooManyCells    = errors.New("слишком много ячеек за один раз")
-	ErrInvalidCellIDs  = errors.New("id ячейки должен быть UUID")
-	// ErrInvalidFloorAddress - адрес напольной ячейки не вида «D-Н-П» (ADHOC-61).
-	ErrInvalidFloorAddress = errors.New("адрес напольной ячейки - стеллаж и «-Н-П», например «D-Н-П»")
+	ErrNoCellsSelected     = model.ErrNoCellsSelected
+	ErrEmptyCellsPatch     = model.ErrEmptyCellsPatch
+	ErrTooManyCells        = model.ErrTooManyCells
+	ErrInvalidCellIDs      = model.ErrInvalidCellIDs
+	ErrInvalidFloorAddress = model.ErrInvalidFloorAddress
 )
 
 // floorAddressRe - адрес напольной ячейки после нормализации: сегменты букв и цифр через дефис,
