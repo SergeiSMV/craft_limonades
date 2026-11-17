@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -15,14 +16,24 @@ import (
 	"craftwms/internal/service"
 )
 
+// warehouseTasks - то, что обработчику заданий нужно от сервиса заданий.
+type warehouseTasks interface {
+	Current(ctx context.Context, userID string) ([]model.Task, error)
+	Detail(ctx context.Context, id, userID string) (service.TaskDetail, error)
+	Take(ctx context.Context, id, userID string) error
+	Release(ctx context.Context, id, userID string) error
+	Completed(ctx context.Context, q service.CompletedQuery) ([]model.CompletedTask, error)
+	Executors(ctx context.Context) ([]model.TaskUser, error)
+}
+
 // TaskHandler - задания для склада на ТСД (P5-02-1): текущие, карточка, взятие и отказ,
 // лента «Завершённые». Сотруднику: задания выполняет кладовщик.
 type TaskHandler struct {
-	svc *service.TaskService
+	svc warehouseTasks
 }
 
 // NewTaskHandler создаёт обработчик заданий.
-func NewTaskHandler(svc *service.TaskService) *TaskHandler {
+func NewTaskHandler(svc warehouseTasks) *TaskHandler {
 	return &TaskHandler{svc: svc}
 }
 

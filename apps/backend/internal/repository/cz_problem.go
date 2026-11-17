@@ -130,7 +130,7 @@ func czRejection(err error, what string) error {
 		model.ErrCZMarkNotAtSource, model.ErrCZMarkBatchMismatch,
 	} {
 		if errors.Is(err, target) {
-			return &CZRejection{Text: what + ": " + lineReason(err), Err: err}
+			return &CZRejection{Text: what + ": " + model.LineReason(err), Err: err}
 		}
 	}
 	return err

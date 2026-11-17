@@ -86,7 +86,7 @@ func putawaySubmit(ctx context.Context, q Querier, in PutawaySubmitInput) (int, 
 	// Строки проверяются все, а не до первой плохой (ADHOC-40): каждая - под своей точкой
 	// отката. Остаток задания в памяти отклонённая строка не трогает - он восстанавливается,
 	// иначе следующая строка упёрлась бы в «больше, чем осталось» из-за строки, которой нет.
-	var bad []LineRejection
+	var bad []model.LineRejection
 	for i, ln := range in.Lines {
 		undo := rem.snapshot()
 		rejected, err := tryLine(ctx, q, func() error {
@@ -130,11 +130,11 @@ func putawaySubmit(ctx context.Context, q Querier, in PutawaySubmitInput) (int, 
 		}
 		if rejected != nil {
 			undo()
-			bad = append(bad, LineRejection{Line: i + 1, Label: putawayLineText(ctx, q, ln), Err: rejected})
+			bad = append(bad, model.LineRejection{Line: i + 1, Label: putawayLineText(ctx, q, ln), Err: rejected})
 		}
 	}
 	if len(bad) > 0 {
-		return 0, &DocumentLinesError{Total: len(in.Lines), Lines: bad}
+		return 0, &model.DocumentLinesError{Total: len(in.Lines), Lines: bad}
 	}
 	// «Движение» для 1С - в этой же транзакции: проведённого сеанса без документа не бывает,
 	// как и документа без сеанса (P5-04).

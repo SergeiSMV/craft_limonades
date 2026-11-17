@@ -11,43 +11,6 @@ import (
 	"craftwms/internal/model"
 )
 
-// LineRejection - строка документа, отклонённая по существу (ADHOC-40).
-type LineRejection struct {
-	Line  int    // номер строки в документе, с 1
-	Label string // что это за строка - для человека: товар, партия, откуда и куда
-	Err   error  // причина - ошибка репозитория
-}
-
-// DocumentLinesError - документ отклонён, и названы ВСЕ его плохие строки (ADHOC-40, долг 26).
-//
-// Зачем: документ проводится целиком или не проводится вовсе, и раньше проверка обрывалась на
-// первой плохой строке. Кладовщик с тремя плохими строками узнавал о них по одной за попытку,
-// а видел английский код без указания строки.
-// Как: текст ошибки - по-русски, строка названа содержимым: терминал показывает его как есть.
-// Unwrap отдаёт причины строк, поэтому errors.Is по ним работает, как и раньше.
-type DocumentLinesError struct {
-	Total int // строк в документе
-	Lines []LineRejection
-}
-
-func (e *DocumentLinesError) Error() string {
-	var b strings.Builder
-	fmt.Fprintf(&b, "Отклонено строк: %d из %d", len(e.Lines), e.Total)
-	for _, l := range e.Lines {
-		fmt.Fprintf(&b, "\n• %s: %s", l.Label, lineReason(l.Err))
-	}
-	return b.String()
-}
-
-// Unwrap - причины всех отклонённых строк.
-func (e *DocumentLinesError) Unwrap() []error {
-	out := make([]error, 0, len(e.Lines))
-	for _, l := range e.Lines {
-		out = append(out, l.Err)
-	}
-	return out
-}
-
 // lineRejections - ошибки, которыми отказывает одна строка документа, не задевая остальные.
 // Всё прочее (сбой базы, документ уже проведён, задание не то) обрывает проверку сразу.
 var lineRejections = []error{
@@ -70,68 +33,6 @@ func isLineRejection(err error) bool {
 		}
 	}
 	return false
-}
-
-// lineReason - причина отказа строки по-русски; незнакомая ошибка - её текст как есть.
-func lineReason(err error) string {
-	switch {
-	case errors.Is(err, model.ErrGoodsShort), errors.Is(err, model.ErrInsufficientStock):
-		return "в источнике не хватает товара этой партии"
-	case errors.Is(err, model.ErrLooseStockShort):
-		return "в ячейке приёмки не хватает россыпи"
-	case errors.Is(err, model.ErrCZMarksRequired):
-		return "маркируемый товар перемещается только сканом марок"
-	case errors.Is(err, model.ErrCZMarksQtyMismatch):
-		return "марок не столько, сколько единиц в строке"
-	case errors.Is(err, model.ErrCZMarkNotAtSource):
-		return "марки нет в источнике строки или она уже не на складе - её могли переместить с " +
-			"другого терминала: обновите данные и отсканируйте снова"
-	case errors.Is(err, model.ErrCZMarkBatchMismatch):
-		return "марка другого товара или другой партии"
-	// Ввод остатков с коробами и марками (ADHOC-46).
-	case errors.Is(err, model.ErrLoadUnitExists):
-		return "короб уже есть в учёте склада - его не вводят заново"
-	case errors.Is(err, model.ErrCZAggregateExists):
-		return "короб или упаковка ЧЗ уже есть в учёте склада"
-	case errors.Is(err, model.ErrCZMarkExists):
-		return "марка уже есть в учёте склада"
-	case errors.Is(err, model.ErrEntryDuplicate):
-		return "уже введено в другой ячейке этого прохода"
-	case errors.Is(err, model.ErrEntryCellHasMarks):
-		return "в ячейке уже лежат марки этого товара и партии россыпью - пересчёт их не учтёт"
-	case errors.Is(err, model.ErrEntryEmptyBox):
-		return "в коробе нет товара"
-	case errors.Is(err, model.ErrLoadUnitNotFound):
-		return "короб не найден"
-	case errors.Is(err, model.ErrLoadUnitNotPlaced):
-		return "короб не размещён на складе"
-	case errors.Is(err, model.ErrLoadUnitNested):
-		return "вложенные короба не поддерживаются"
-	case errors.Is(err, model.ErrSameCell), errors.Is(err, model.ErrPutawaySameCell):
-		return "уже лежит в этой ячейке"
-	case errors.Is(err, model.ErrSamePlace):
-		return "товар кладут туда же, откуда взяли"
-	case errors.Is(err, model.ErrWarehouseMismatch):
-		return "товар и короб - с разных внутренних складов"
-	case errors.Is(err, model.ErrPickingMarkInPicking):
-		return "марка уже взята в сборку: она в коробе отгрузки"
-	case errors.Is(err, model.ErrReceivingCell):
-		return "ячейку приёмки разносит только задание на размещение"
-	case errors.Is(err, model.ErrForeignCell):
-		return "ячейка другого склада"
-	case errors.Is(err, model.ErrUnknownReference):
-		return "ячейка, товар или короб не найдены"
-	case errors.Is(err, model.ErrNotInTask):
-		return "этого нет в задании на размещение"
-	case errors.Is(err, model.ErrExceedsTask):
-		return "больше, чем осталось по заданию"
-	case errors.Is(err, model.ErrMovementQty):
-		return "количество должно быть больше нуля"
-	case errors.Is(err, model.ErrEmptyMovementLine):
-		return "строка заполнена неверно"
-	default:
-		return err.Error()
-	}
 }
 
 // docLineSavepoint - имя точки отката строки. Одно на все строки: точка ставится заново перед

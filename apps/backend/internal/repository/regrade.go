@@ -287,14 +287,3 @@ func regradeGroupStock(ctx context.Context, q Querier, g regradeGroup, good, bat
 		CellID: g.cell, GoodID: good, BatchID: batch, InternalWarehouseID: g.iwh,
 	}, qty)
 }
-
-// IsRegradeRefusal - отказ перепривязки по существу: его текст - для кладовщика.
-func IsRegradeRefusal(err error) bool {
-	for _, e := range []error{model.ErrRegradeNotBound, model.ErrRegradeSameGood, model.ErrRegradeOpenProblem,
-		model.ErrRegradeCellCounting, model.ErrRegradeBoxNotPlaced, model.ErrGoodNotFound} {
-		if errors.Is(err, e) {
-			return true
-		}
-	}
-	return false
-}

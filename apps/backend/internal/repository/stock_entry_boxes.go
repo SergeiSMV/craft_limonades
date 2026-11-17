@@ -196,14 +196,14 @@ func guardEntryCell(ctx context.Context, q Querier, sessionID string, in StockEn
 		return err
 	}
 	if len(bad) > 0 {
-		return &DocumentLinesError{Total: total, Lines: bad}
+		return &model.DocumentLinesError{Total: total, Lines: bad}
 	}
 	return nil
 }
 
 // guardSessionCells - отказы строк всех ячеек сессии (финал), одним списком.
 func guardSessionCells(ctx context.Context, q Querier, sessionID string, cells []StockEntryCellInput) error {
-	var bad []LineRejection
+	var bad []model.LineRejection
 	total := 0
 	for _, c := range cells {
 		b, n, err := entryCellRejections(ctx, q, sessionID, c, false)
@@ -217,7 +217,7 @@ func guardSessionCells(ctx context.Context, q Querier, sessionID string, cells [
 		total += n
 	}
 	if len(bad) > 0 {
-		return &DocumentLinesError{Total: total, Lines: bad}
+		return &model.DocumentLinesError{Total: total, Lines: bad}
 	}
 	return nil
 }
@@ -228,11 +228,11 @@ func guardSessionCells(ctx context.Context, q Querier, sessionID string, cells [
 // целиком, чтобы назвать все плохие сразу (ADHOC-40).
 // [inSession] - проверять и повторы с другими ячейками прохода: на checkpoint ячейка ещё не
 // в сессии, на финале она уже там, и сравнивать её с ней самой нельзя.
-func entryCellRejections(ctx context.Context, q Querier, sessionID string, in StockEntryCellInput, inSession bool) ([]LineRejection, int, error) {
-	var bad []LineRejection
+func entryCellRejections(ctx context.Context, q Querier, sessionID string, in StockEntryCellInput, inSession bool) ([]model.LineRejection, int, error) {
+	var bad []model.LineRejection
 	n := 0
 	reject := func(label string, err error) {
-		bad = append(bad, LineRejection{Line: n, Label: label, Err: err})
+		bad = append(bad, model.LineRejection{Line: n, Label: label, Err: err})
 	}
 	cellAddr := cellText(ctx, q, in.CellID)
 

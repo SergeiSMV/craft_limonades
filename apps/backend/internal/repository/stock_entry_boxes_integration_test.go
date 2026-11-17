@@ -183,7 +183,7 @@ func TestStockEntry_rejections(t *testing.T) {
 			entryLine(ef.good, 2, "", "0104600000000017215N2"), // марок меньше единиц
 		},
 	})
-	var lines *repository.DocumentLinesError
+	var lines *model.DocumentLinesError
 	if !errors.As(err, &lines) {
 		t.Fatalf("ждали отказ строк, получили %v", err)
 	}

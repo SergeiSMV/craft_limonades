@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -11,18 +12,24 @@ import (
 
 	appmw "craftwms/internal/middleware"
 	"craftwms/internal/model"
-	"craftwms/internal/repository"
 	"craftwms/internal/service"
 )
+
+// stockEntry - то, что обработчику ввода остатков нужно от сервиса.
+type stockEntry interface {
+	Start(ctx context.Context, sessionID, warehouseID, createdBy string) (string, error)
+	Checkpoint(ctx context.Context, sessionID string, cell service.EntryCell) error
+	Finalize(ctx context.Context, sessionID string) (int, error)
+}
 
 // StockEntryHandler - HTTP-обработчики сессии ввода остатков (P-FastStart): старт, checkpoint ячейки,
 // финал. Доступ - любой аутентифицированный сотрудник (кладовщик проходит склад).
 type StockEntryHandler struct {
-	svc *service.StockEntryService
+	svc stockEntry
 }
 
 // NewStockEntryHandler создаёт обработчик сессии ввода остатков.
-func NewStockEntryHandler(svc *service.StockEntryService) *StockEntryHandler {
+func NewStockEntryHandler(svc stockEntry) *StockEntryHandler {
 	return &StockEntryHandler{svc: svc}
 }
 
@@ -157,7 +164,7 @@ func (h *StockEntryHandler) Finalize(w http.ResponseWriter, r *http.Request) {
 // Отказ строк (ADHOC-46) - первым: его Unwrap отдаёт причины строк, и errors.Is ниже принял бы
 // его за ошибку формы. Текст - по-русски со списком строк, ТСД показывает его как есть.
 func stockEntryError(w http.ResponseWriter, r *http.Request, err error) {
-	var lines *repository.DocumentLinesError
+	var lines *model.DocumentLinesError
 	if errors.As(err, &lines) {
 		writeError(w, http.StatusUnprocessableEntity, lines.Error())
 		return

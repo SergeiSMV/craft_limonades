@@ -15,9 +15,9 @@ import (
 // Тесты ADHOC-40 (долг 26): документ называет все плохие строки сразу, а не первую.
 
 // linesError достаёт список отклонённых строк из отказа документа.
-func linesError(t *testing.T, err error) *repository.DocumentLinesError {
+func linesError(t *testing.T, err error) *model.DocumentLinesError {
 	t.Helper()
-	var lines *repository.DocumentLinesError
+	var lines *model.DocumentLinesError
 	if !errors.As(err, &lines) {
 		t.Fatalf("ожидался отказ со списком строк, получено: %v", err)
 	}
@@ -139,7 +139,7 @@ func TestMove_documentLevelErrorUnchanged(t *testing.T) {
 		MovementID: uuid.NewString(), Kind: "teleport", WarehouseID: mf.wh, CreatedBy: mf.user,
 		Lines: []repository.MovementLineInput{mf.goodsLine(1, mf.cellA, "", mf.cellB, "")},
 	})
-	var lines *repository.DocumentLinesError
+	var lines *model.DocumentLinesError
 	if errors.As(err, &lines) || !errors.Is(err, model.ErrUnknownMovementKind) {
 		t.Errorf("вид документа: %v, ожидалась ErrUnknownMovementKind без списка строк", err)
 	}

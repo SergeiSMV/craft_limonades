@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -9,17 +10,24 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"craftwms/internal/model"
-	"craftwms/internal/service"
 )
+
+// internalWarehouses - то, что обработчику справочника внутренних складов нужно от сервиса.
+type internalWarehouses interface {
+	List(ctx context.Context) ([]model.InternalWarehouse, error)
+	Create(ctx context.Context, code, name string) (model.InternalWarehouse, error)
+	Update(ctx context.Context, id string, name *string, active, allowPicking *bool) (model.InternalWarehouse, error)
+	Delete(ctx context.Context, id string) error
+}
 
 // InternalWarehouseHandler - справочник внутренних складов (P6-07-1, ADHOC-29). Читает любой
 // сотрудник (ТСД помечает брак и подписывает его), ведёт - только admin из портала.
 type InternalWarehouseHandler struct {
-	svc *service.InternalWarehouseService
+	svc internalWarehouses
 }
 
 // NewInternalWarehouseHandler создаёт обработчик справочника внутренних складов.
-func NewInternalWarehouseHandler(svc *service.InternalWarehouseService) *InternalWarehouseHandler {
+func NewInternalWarehouseHandler(svc internalWarehouses) *InternalWarehouseHandler {
 	return &InternalWarehouseHandler{svc: svc}
 }
 
