@@ -11,7 +11,7 @@ import '../../../../core/widgets/section_title.dart';
 import '../../domain/stocktake_models.dart';
 
 /// Выбор позиции снимка, когда у товара их несколько (партии, «Брак»): какую считаем.
-/// «Другая партия» — излишек «Основного» с новой датой. `null` — передумали.
+/// «Другая партия» - излишек «Основного» с новой датой. `null` - передумали.
 Future<({StocktakePosition? position})?> showPositionPickSheet(
   BuildContext context,
   List<StocktakePosition> positions,

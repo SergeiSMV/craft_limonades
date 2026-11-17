@@ -25,7 +25,7 @@ func newCatalogSvc(pool *pgxpool.Pool) *service.CatalogService {
 	)
 }
 
-// seedCatalog наполняет БД справочниками через импорт (номенклатура + ячейки) — как в проде.
+// seedCatalog наполняет БД справочниками через импорт (номенклатура + ячейки) - как в проде.
 func seedCatalog(t *testing.T, pool *pgxpool.Pool) {
 	t.Helper()
 	ctx := context.Background()
@@ -50,7 +50,7 @@ func seedCatalog(t *testing.T, pool *pgxpool.Pool) {
 	}
 }
 
-// TestCatalog_goodsCellsSuppliers — чтение справочников через CatalogService: списки, поиск, фильтры, пагинация.
+// TestCatalog_goodsCellsSuppliers - чтение справочников через CatalogService: списки, поиск, фильтры, пагинация.
 func TestCatalog_goodsCellsSuppliers(t *testing.T) {
 	pool := testutil.StartPostgres(t)
 	seedCatalog(t, pool)
@@ -183,7 +183,7 @@ func TestCatalog_goodsCellsSuppliers(t *testing.T) {
 	}
 }
 
-// TestCatalog_stock — остатки в товарном разрезе: адрес ячейки, дата партии, точное decimal-количество.
+// TestCatalog_stock - остатки в товарном разрезе: адрес ячейки, дата партии, точное decimal-количество.
 func TestCatalog_stock(t *testing.T) {
 	pool := testutil.StartPostgres(t)
 	seedCatalog(t, pool)
@@ -215,7 +215,7 @@ func TestCatalog_stock(t *testing.T) {
 		t.Fatalf("Add stock: %v", err)
 	}
 
-	// «Где лежит товар» — good_id фильтр.
+	// «Где лежит товар» - good_id фильтр.
 	page, err := cat.ListStock(ctx, service.StockQuery{GoodID: &goodID})
 	if err != nil {
 		t.Fatalf("ListStock: %v", err)
@@ -229,7 +229,7 @@ func TestCatalog_stock(t *testing.T) {
 			cellAddr, it.CellAddress, it.ProductionDate, it.Qty)
 	}
 
-	// Пустой результат — непустой слайс (в JSON []): товар без остатка.
+	// Пустой результат - непустой слайс (в JSON []): товар без остатка.
 	empty, err := cat.ListStock(ctx, service.StockQuery{GoodID: strptr("00000000-0000-0000-0000-000000000000")})
 	if err != nil {
 		t.Fatal(err)
@@ -278,7 +278,7 @@ func TestCatalog_goodsSearchByWords(t *testing.T) {
 		return out
 	}
 
-	// contains — есть ли товар с таким наименованием среди найденных.
+	// contains - есть ли товар с таким наименованием среди найденных.
 	contains := func(got []string, want string) bool {
 		for _, n := range got {
 			if n == want {
@@ -301,7 +301,7 @@ func TestCatalog_goodsSearchByWords(t *testing.T) {
 		if got := names("фома сухарики"); contains(got, seed[0].name) {
 			t.Fatalf("«фома сухарики» не должно находить арахис: %v", got)
 		}
-		// А вот сухарики — должно: «Фома Лукич» есть в их полном наименовании.
+		// А вот сухарики - должно: «Фома Лукич» есть в их полном наименовании.
 		if got := names("фома сухарики"); !contains(got, seed[2].name) {
 			t.Fatalf("«фома сухарики» должно находить сухарики по full_name: %v", got)
 		}

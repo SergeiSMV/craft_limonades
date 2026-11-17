@@ -10,7 +10,7 @@ import '../ui/portal_input.dart';
 import '../ui/portal_modal.dart';
 
 /// Диалог адреса напольной ячейки (ADHOC-61): новая ячейка ([current] нет) или новый адрес.
-/// Возвращает введённый адрес; `null` — оператор передумал. Адрес проверяет и приводит к виду
+/// Возвращает введённый адрес; `null` - оператор передумал. Адрес проверяет и приводит к виду
 /// справочника сервер: «d-h-п» станет «D-Н-П».
 Future<String?> showFloorCellAddressDialog(
   BuildContext context, {
@@ -91,7 +91,7 @@ Future<bool> showDeleteFloorCellDialog(
   return ok ?? false;
 }
 
-/// Содержимое диалога — не шире половины колонки, как у диалогов складов.
+/// Содержимое диалога - не шире половины колонки, как у диалогов складов.
 class _DialogBody extends StatelessWidget {
   const _DialogBody({required this.children});
 

@@ -10,12 +10,12 @@ import (
 	"craftwms/internal/repository"
 )
 
-// Тесты P6-01: журнал движений. Критерий задачи — фиксируются оба типа движений: перемещение
+// Тесты P6-01: журнал движений. Критерий задачи - фиксируются оба типа движений: перемещение
 // (ГЕ целиком или товар) и пополнение; товар у обоих ходит между коробами и россыпью в любых
-// сочетаниях. Фикстура setupStock — из stock_integration_test.go, newLU — из
-// load_units_integration_test.go, newUser и receiveBox — из placements_integration_test.go.
+// сочетаниях. Фикстура setupStock - из stock_integration_test.go, newLU - из
+// load_units_integration_test.go, newUser и receiveBox - из placements_integration_test.go.
 
-// movementLine — строка движения в виде, удобном тестам: пустая строка — NULL.
+// movementLine - строка движения в виде, удобном тестам: пустая строка - NULL.
 type movementLine struct {
 	lu, good, batch, qty, iwh string
 	fromLU, toLU              string
@@ -35,7 +35,7 @@ func newMovement(t *testing.T, fx *stockFixture, kind, user string) string {
 	return id
 }
 
-// insertMovementLine пишет строку движения; ошибку возвращает — тесты схемы её и ждут.
+// insertMovementLine пишет строку движения; ошибку возвращает - тесты схемы её и ждут.
 func insertMovementLine(fx *stockFixture, movement string, no int, l movementLine) error {
 	_, err := fx.pool.Exec(context.Background(), `
 		INSERT INTO movement_lines
@@ -48,7 +48,7 @@ func insertMovementLine(fx *stockFixture, movement string, no int, l movementLin
 	return err
 }
 
-// goods — товарная строка фикстуры с количеством 3 в склад по умолчанию.
+// goods - товарная строка фикстуры с количеством 3 в склад по умолчанию.
 func goods(fx *stockFixture, fromCell, fromLU, toCell, toLU string) movementLine {
 	return movementLine{
 		good: fx.good, batch: fx.batch, qty: "3", iwh: fx.iwh,
@@ -67,11 +67,11 @@ func TestMovements_bothKindsRecorded(t *testing.T) {
 	move := newMovement(t, fx, model.MovementMove, user)
 	mustNoErr(t, insertMovementLine(fx, move, 1, movementLine{lu: boxA, fromCell: fx.cellA, toCell: fx.cellB}))
 	mustNoErr(t, insertMovementLine(fx, move, 2, goods(fx, fx.cellA, "", fx.cellB, "")))
-	// Товар из короба в короб — тоже перемещение: источник и приёмник задаются QR коробов.
+	// Товар из короба в короб - тоже перемещение: источник и приёмник задаются QR коробов.
 	mustNoErr(t, insertMovementLine(fx, move, 3, goods(fx, fx.cellA, boxA, fx.cellB, boxB)))
 
-	// Пополнение: ГЕ→ГЕ, ГЕ→россыпь, россыпь→ГЕ, россыпь→россыпь. Две строки — внутри одной
-	// ячейки: из короба в россыпь рядом и из россыпи в короб рядом — это законные движения.
+	// Пополнение: ГЕ→ГЕ, ГЕ→россыпь, россыпь→ГЕ, россыпь→россыпь. Две строки - внутри одной
+	// ячейки: из короба в россыпь рядом и из россыпи в короб рядом - это законные движения.
 	repl := newMovement(t, fx, model.MovementReplenish, user)
 	mustNoErr(t, insertMovementLine(fx, repl, 1, goods(fx, fx.cellA, boxA, fx.cellB, boxB)))
 	mustNoErr(t, insertMovementLine(fx, repl, 2, goods(fx, fx.cellA, boxA, fx.cellA, "")))
@@ -89,7 +89,7 @@ func TestMovements_bothKindsRecorded(t *testing.T) {
 		t.Errorf("строк: перемещение %s, пополнение %s; ожидалось 3 и 4", moves, repls)
 	}
 
-	// История ячейки — то, по чему пересчёт (P10) узнаёт, что ячейку трогали.
+	// История ячейки - то, по чему пересчёт (P10) узнаёт, что ячейку трогали.
 	var touched string
 	mustScan(t, fx.pool, `
 		SELECT count(*)::text FROM movement_lines

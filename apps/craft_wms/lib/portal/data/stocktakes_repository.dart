@@ -64,10 +64,10 @@ typedef PortalStocktakeLine = ({
   bool problem,
 });
 
-/// Объект области для выбора: id для сервера, подпись для человека, глубина — у дерева групп.
+/// Объект области для выбора: id для сервера, подпись для человека, глубина - у дерева групп.
 typedef ScopeObject = ({String id, String label, int depth});
 
-/// Пересчёты в портале (P10-05): список, ход, заведение по любой области и закрытие. Всё —
+/// Пересчёты в портале (P10-05): список, ход, заведение по любой области и закрытие. Всё -
 /// старшему смены; пока право «заводить пересчёт» у admin.
 @lazySingleton
 class StocktakesRepository {
@@ -124,7 +124,7 @@ class StocktakesRepository {
         ];
       });
 
-  /// Завести пересчёт; ответ — номер и сколько ячеек дала область.
+  /// Завести пересчёт; ответ - номер и сколько ячеек дала область.
   Future<Either<Failure, ({int number, int cells})>> create({
     required String warehouseId,
     required String scopeKind,
@@ -145,7 +145,7 @@ class StocktakesRepository {
     );
   });
 
-  /// Закрыть пересчёт; [force] — с неподсчитанными ячейками.
+  /// Закрыть пересчёт; [force] - с неподсчитанными ячейками.
   Future<Either<Failure, void>> close(String id, {required bool force}) =>
       _call(() async {
         await _dio.post<void>(
@@ -154,7 +154,7 @@ class StocktakesRepository {
         );
       });
 
-  /// Склад портала — склад ячеек справочника: пилот — один склад. `null` — ячеек нет.
+  /// Склад портала - склад ячеек справочника: пилот - один склад. `null` - ячеек нет.
   Future<Either<Failure, String?>> warehouseId() => _call(() async {
     final resp = await _dio.get<Map<String, dynamic>>(
       ApiConst.cells,
@@ -166,7 +166,7 @@ class StocktakesRepository {
         : (items.first as Map<String, dynamic>)['warehouse_id'] as String?;
   });
 
-  /// Ячейки по адресу (поиск на сервере), без ячейки приёмки — она в пересчёт не входит.
+  /// Ячейки по адресу (поиск на сервере), без ячейки приёмки - она в пересчёт не входит.
   Future<Either<Failure, List<ScopeObject>>> searchCells(String query) =>
       _call(() async {
         final resp = await _dio.get<Map<String, dynamic>>(
@@ -248,8 +248,8 @@ class StocktakesRepository {
   }
 }
 
-/// Дерево групп номенклатуры плоским списком: родитель, затем его поддерево, на каждом уровне —
-/// по имени; глубина — уровень в дереве. Матрица — узел этого дерева.
+/// Дерево групп номенклатуры плоским списком: родитель, затем его поддерево, на каждом уровне -
+/// по имени; глубина - уровень в дереве. Матрица - узел этого дерева.
 List<ScopeObject> flattenGroups(List<Map<String, dynamic>> all) {
   final children = <String?, List<Map<String, dynamic>>>{};
   for (final g in all) {

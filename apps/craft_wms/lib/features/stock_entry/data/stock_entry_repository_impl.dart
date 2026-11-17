@@ -8,9 +8,9 @@ import '../../../core/error/failure.dart';
 import '../../../core/sync/sync_engine.dart';
 import '../domain/stock_entry_repository.dart';
 
-/// Сессия ввода остатков по HTTP (P-FastStart): старт, checkpoint ячейки, финал. Слой data —
+/// Сессия ввода остатков по HTTP (P-FastStart): старт, checkpoint ячейки, финал. Слой data -
 /// изолирует HTTP; access-токен подставит AuthInterceptor. Очередь операций отправляет
-/// [SyncEngine] — тот же движок, что и у всего приложения.
+/// [SyncEngine] - тот же движок, что и у всего приложения.
 @LazySingleton(as: StockEntryRepository)
 class StockEntryRepositoryImpl implements StockEntryRepository {
   StockEntryRepositoryImpl(this._dio, this._engine);

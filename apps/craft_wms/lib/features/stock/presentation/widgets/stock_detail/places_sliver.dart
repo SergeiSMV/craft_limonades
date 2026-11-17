@@ -17,7 +17,7 @@ import '../../../../../core/widgets/section_title.dart';
 /// подпись «данные на», если места из прежнего снимка (ADHOC-33), индикатор загрузки и «пусто».
 ///
 /// **Возвращает sliver, а не обычный виджет.** Так индикатор и «пусто» получают
-/// `SliverFillRemaining` — высоту незанятого остатка вьюпорта — и центрируются в нём.
+/// `SliverFillRemaining` - высоту незанятого остатка вьюпорта - и центрируются в нём.
 /// Ребёнок обычного `ListView` этого не может: вьюпорт даёт детям неограниченную высоту
 /// по оси прокрутки, и `Center` в такой ситуации сжимается по своему содержимому.
 class PlacesSliver extends StatelessWidget {
@@ -40,7 +40,7 @@ class PlacesSliver extends StatelessWidget {
           ),
         );
       case StockDetailStatus.loaded:
-        // Пустой остаток — состояние на весь остаток экрана, как загрузка и ошибка:
+        // Пустой остаток - состояние на весь остаток экрана, как загрузка и ошибка:
         // элементом SliverList его отцентрировать нельзя (высота там неограниченная).
         if (state.items.isEmpty) {
           return SliverFillRemaining(
@@ -69,7 +69,7 @@ class PlacesSliver extends StatelessWidget {
           sliver: SliverList(
             delegate: SliverChildBuilderDelegate(
               (context, i) => _row(state, i),
-              // Первый элемент — заголовок секции, дальше строки остатка.
+              // Первый элемент - заголовок секции, дальше строки остатка.
               childCount: state.items.length + 1,
             ),
           ),

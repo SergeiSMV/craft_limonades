@@ -14,7 +14,7 @@ const (
 	maxLimit     = 200
 )
 
-// Максимум слов в поисковом запросе: каждое слово — отдельный LIKE по каждой строке,
+// Максимум слов в поисковом запросе: каждое слово - отдельный LIKE по каждой строке,
 // защищаемся от запроса-простыни.
 const maxSearchWords = 10
 
@@ -22,14 +22,14 @@ const maxSearchWords = 10
 var likeEscaper = strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`)
 
 // normalizeSearch приводит текст к виду, в котором сравниваются обе стороны поиска:
-// нижний регистр и «ё»→«е» (кладовщик набирает «береза», в 1С — «Берёза»).
+// нижний регистр и «ё»→«е» (кладовщик набирает «береза», в 1С - «Берёза»).
 func normalizeSearch(s string) string {
 	return strings.ReplaceAll(strings.ToLower(s), "ё", "е")
 }
 
 // searchWords разбивает поисковую строку на слова для поиска «все слова присутствуют,
 // порядок не важен»: «фома бекон» найдёт «Арахис в хрустящей корочке Бекон (ТМ Фома Лукич)».
-// Пустая строка даёт пустой слайс — фильтр не применяется.
+// Пустая строка даёт пустой слайс - фильтр не применяется.
 func searchWords(query string) []string {
 	fields := strings.Fields(query)
 	if len(fields) > maxSearchWords {
@@ -44,7 +44,7 @@ func searchWords(query string) []string {
 	return words
 }
 
-// Page — страница списка для выдачи клиенту. Items всегда непустой слайс (в JSON — [], не null).
+// Page - страница списка для выдачи клиенту. Items всегда непустой слайс (в JSON - [], не null).
 type Page[T any] struct {
 	Items  []T `json:"items"`
 	Total  int `json:"total"`
@@ -72,7 +72,7 @@ type (
 	}
 )
 
-// CatalogService — чтение справочников (товары, группы, поставщики, ячейки, остатки).
+// CatalogService - чтение справочников (товары, группы, поставщики, ячейки, остатки).
 type CatalogService struct {
 	goods     goodsReadRepo
 	groups    groupReadRepo
@@ -87,7 +87,7 @@ func NewCatalogService(goods goodsReadRepo, groups groupReadRepo, suppliers supp
 }
 
 // clampPaging приводит limit/offset к безопасным границам: limit ∈ [1, maxLimit] (0 → дефолт),
-// offset ≥ 0. Валидация — в сервисе (бизнес-правило), а не размазана по хендлерам.
+// offset ≥ 0. Валидация - в сервисе (бизнес-правило), а не размазана по хендлерам.
 func clampPaging(limit, offset int) (int, int) {
 	switch {
 	case limit <= 0:
@@ -101,7 +101,7 @@ func clampPaging(limit, offset int) (int, int) {
 	return limit, offset
 }
 
-// GoodsQuery — входные параметры поиска товаров (из хендлера).
+// GoodsQuery - входные параметры поиска товаров (из хендлера).
 type GoodsQuery struct {
 	Query      string
 	GroupID    *string
@@ -110,7 +110,7 @@ type GoodsQuery struct {
 	Offset     int
 }
 
-// ListGoods — страница товаров под фильтр.
+// ListGoods - страница товаров под фильтр.
 func (s *CatalogService) ListGoods(ctx context.Context, q GoodsQuery) (Page[model.Good], error) {
 	limit, offset := clampPaging(q.Limit, q.Offset)
 	items, total, err := s.goods.List(ctx, repository.GoodsFilter{
@@ -122,22 +122,22 @@ func (s *CatalogService) ListGoods(ctx context.Context, q GoodsQuery) (Page[mode
 	return Page[model.Good]{Items: items, Total: total, Limit: limit, Offset: offset}, nil
 }
 
-// GetGood — один товар по id (repository.ErrNotFound, если нет).
+// GetGood - один товар по id (repository.ErrNotFound, если нет).
 func (s *CatalogService) GetGood(ctx context.Context, id string) (model.Good, error) {
 	return s.goods.GetByID(ctx, id)
 }
 
-// ListGroups — все группы номенклатуры (клиент строит дерево).
+// ListGroups - все группы номенклатуры (клиент строит дерево).
 func (s *CatalogService) ListGroups(ctx context.Context) ([]model.NomenclatureGroup, error) {
 	return s.groups.List(ctx)
 }
 
-// ListSuppliers — поставщики (опциональный поиск по подстроке имени).
+// ListSuppliers - поставщики (опциональный поиск по подстроке имени).
 func (s *CatalogService) ListSuppliers(ctx context.Context, query string) ([]model.Supplier, error) {
 	return s.suppliers.List(ctx, query)
 }
 
-// CellsQuery — входные параметры поиска ячеек.
+// CellsQuery - входные параметры поиска ячеек.
 type CellsQuery struct {
 	Query       string
 	WarehouseID *string
@@ -146,7 +146,7 @@ type CellsQuery struct {
 	Offset      int
 }
 
-// ListCells — страница ячеек под фильтр.
+// ListCells - страница ячеек под фильтр.
 func (s *CatalogService) ListCells(ctx context.Context, q CellsQuery) (Page[model.Cell], error) {
 	limit, offset := clampPaging(q.Limit, q.Offset)
 	items, total, err := s.cells.List(ctx, repository.CellsFilter{
@@ -158,7 +158,7 @@ func (s *CatalogService) ListCells(ctx context.Context, q CellsQuery) (Page[mode
 	return Page[model.Cell]{Items: items, Total: total, Limit: limit, Offset: offset}, nil
 }
 
-// StockQuery — входные параметры выборки остатков.
+// StockQuery - входные параметры выборки остатков.
 type StockQuery struct {
 	GoodID *string
 	CellID *string
@@ -166,7 +166,7 @@ type StockQuery struct {
 	Offset int
 }
 
-// ListStock — страница остатков (товарный разрез / содержимое ячейки).
+// ListStock - страница остатков (товарный разрез / содержимое ячейки).
 func (s *CatalogService) ListStock(ctx context.Context, q StockQuery) (Page[model.StockItem], error) {
 	limit, offset := clampPaging(q.Limit, q.Offset)
 	items, total, err := s.stock.List(ctx, repository.StockFilter{

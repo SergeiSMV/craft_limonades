@@ -13,10 +13,10 @@ import '../common/task_format.dart';
 
 /// Позиция задания: короб с составом либо россыпь с партией и остатком (P5-02-1).
 ///
-/// Выпуклая неоморфная плашка и шрифты — как у товара во вкладке «Товары» и в содержимом
+/// Выпуклая неоморфная плашка и шрифты - как у товара во вкладке «Товары» и в содержимом
 /// ячейки и короба (ADHOC-21): одни и те же короба и товары не должны выглядеть по-разному
-/// в разных разделах. Касание — карточка короба или карточка остатков товара. Размещённое
-/// приглушено и отмечено галочкой — оно ещё видно, но работы по нему нет; открыть его можно.
+/// в разных разделах. Касание - карточка короба или карточка остатков товара. Размещённое
+/// приглушено и отмечено галочкой - оно ещё видно, но работы по нему нет; открыть его можно.
 class TaskItemTile extends StatelessWidget {
   const TaskItemTile({super.key, required this.item, required this.onTap});
 
@@ -80,7 +80,7 @@ class TaskItemTile extends StatelessWidget {
       t.tasks.box(code: boxCode(item.loadUnitId!, czCode: item.czCode)),
       style: title,
     ),
-    // Каждый товар короба — наименование, партия и количество своими строками.
+    // Каждый товар короба - наименование, партия и количество своими строками.
     for (final c in item.contents) ...[
       Text(c.good.name, style: muted),
       Text(t.tasks.batch(date: batchDate(c.productionDate)), style: muted),
@@ -103,7 +103,7 @@ class TaskItemTile extends StatelessWidget {
       t.tasks.batch(date: batchDate(item.productionDate ?? '')),
       style: muted,
     ),
-    // У возврата позиция отгружается целиком — «осталось из» там не к чему (ADHOC-31).
+    // У возврата позиция отгружается целиком - «осталось из» там не к чему (ADHOC-31).
     Text(
       item.problemId != null
           ? t.tasks.qtyLine(qty: qtyText(item.qty), uom: item.good?.uom ?? '')

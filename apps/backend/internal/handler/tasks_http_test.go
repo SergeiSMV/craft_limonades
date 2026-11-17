@@ -13,7 +13,7 @@ import (
 )
 
 // Ручки заданий для склада (P5-02-1) через настоящий роутер: текущие, карточка, взятие,
-// отказ и лента. Логику пула и остатка проверяют тесты репозитория; здесь — маршруты,
+// отказ и лента. Логику пула и остатка проверяют тесты репозитория; здесь - маршруты,
 // коды ответов и форма JSON, на которую опирается ТСД.
 func TestTasksHTTP_poolCycle(t *testing.T) {
 	e := newReceivingE2E(t, nil)
@@ -55,7 +55,7 @@ func TestTasksHTTP_poolCycle(t *testing.T) {
 	if tk.Kind != "putaway" || tk.Status != "new" || tk.Number <= 0 || tk.Supplier != "ООО «Голсера»" || len(tk.Items) != 2 {
 		t.Fatalf("задание: %s", raw)
 	}
-	// Основание — документ поставщика приёмки (ADHOC-23).
+	// Основание - документ поставщика приёмки (ADHOC-23).
 	if tk.DocNumber == nil || *tk.DocNumber != "ТН-1" || tk.DocDate == nil || *tk.DocDate != "01-10-2026" {
 		t.Errorf("документ-основание задания: %s", raw)
 	}
@@ -85,7 +85,7 @@ func TestTasksHTTP_poolCycle(t *testing.T) {
 		t.Errorf("отказаться: %d", code)
 	}
 
-	// Несуществующее и кривое — 404; кривой фильтр ленты — 400; пустая лента — [].
+	// Несуществующее и кривое - 404; кривой фильтр ленты - 400; пустая лента - [].
 	if code, _ := e.call(t, http.MethodGet, "/api/v1/tasks/"+uuid.NewString(), e.workerToken, ""); code != http.StatusNotFound {
 		t.Errorf("нет задания: %d", code)
 	}

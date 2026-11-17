@@ -12,7 +12,7 @@ import (
 	"craftwms/internal/model"
 )
 
-// StocktakeRepository — пересчёт (P10): заведение по области и снимок ячейки в начале подсчёта.
+// StocktakeRepository - пересчёт (P10): заведение по области и снимок ячейки в начале подсчёта.
 type StocktakeRepository struct {
 	pool *pgxpool.Pool
 }
@@ -22,7 +22,7 @@ func NewStocktakeRepository(pool *pgxpool.Pool) *StocktakeRepository {
 	return &StocktakeRepository{pool: pool}
 }
 
-// stocktakeScopeColumn — колонка `stocktake_scope` для объектов вида области. У «всего склада»
+// stocktakeScopeColumn - колонка `stocktake_scope` для объектов вида области. У «всего склада»
 // объектов нет.
 var stocktakeScopeColumn = map[string]string{
 	model.StocktakeScopeCells:             "cell_id",
@@ -32,8 +32,8 @@ var stocktakeScopeColumn = map[string]string{
 	model.StocktakeScopeInternalWarehouse: "internal_warehouse_id",
 }
 
-// stocktakeAreaGoodsSQL — товары области пересчёта $1: выбранные товары, товары выбранных
-// поставщиков и товары групп с поддеревом (матрица — узел того же дерева). У пересчёта один вид
+// stocktakeAreaGoodsSQL - товары области пересчёта $1: выбранные товары, товары выбранных
+// поставщиков и товары групп с поддеревом (матрица - узел того же дерева). У пересчёта один вид
 // области, поэтому условия объединяются: лишние подзапросы пусты.
 const stocktakeAreaGoodsSQL = `
 	SELECT g.id FROM goods g
@@ -47,9 +47,9 @@ const stocktakeAreaGoodsSQL = `
 	            SELECT ng.id FROM nomenclature_groups ng JOIN tree ON ng.parent_id = tree.id)
 	        SELECT id FROM tree)`
 
-// stocktakeCellsSQL — условие на ячейку `c` для каждого вида области пересчёта $1.
+// stocktakeCellsSQL - условие на ячейку `c` для каждого вида области пересчёта $1.
 //
-// Ячейки и «весь склад» — как заданы; внутренний склад, группа, поставщик и товар — ячейки, где
+// Ячейки и «весь склад» - как заданы; внутренний склад, группа, поставщик и товар - ячейки, где
 // сейчас есть их остаток. Остаток ячейки включает содержимое её коробов, поэтому товар в коробе
 // ячейку тоже даёт. Ячейка приёмки отсекается общим условием в Create.
 var stocktakeCellsSQL = map[string]string{
@@ -69,12 +69,12 @@ const stocktakeCellsWithAreaGoods = `EXISTS (
 
 // Create заводит пересчёт: шапку, объекты области, ячейки и общее задание в пуле (P10-02).
 //
-// Что: область разворачивается в ячейки сразу — каждая `pending`, её возьмёт любой работник.
-// Зачем: список ячеек — это объём работы, его видит старший смены и пул заданий. Снимка
+// Что: область разворачивается в ячейки сразу - каждая `pending`, её возьмёт любой работник.
+// Зачем: список ячеек - это объём работы, его видит старший смены и пул заданий. Снимка
 // «ожидалось» здесь нет: он снимается при начале подсчёта ячейки (StartCount), иначе за время
 // между заведением и подсчётом движения дали бы ложные расхождения (решение 2026-10-26).
-// Как: одной транзакцией. Ячейка приёмки в пересчёт не входит — её товар ждёт размещения;
-// выбранная явно — отказ. Область без ячеек — отказ: пустой пересчёт ничего не считает.
+// Как: одной транзакцией. Ячейка приёмки в пересчёт не входит - её товар ждёт размещения;
+// выбранная явно - отказ. Область без ячеек - отказ: пустой пересчёт ничего не считает.
 func (r *StocktakeRepository) Create(ctx context.Context, in model.StocktakeCreateInput) (model.StocktakeCreated, error) {
 	var out model.StocktakeCreated
 	err := WithinTx(ctx, r.pool, func(q Querier) error {
@@ -88,7 +88,7 @@ func (r *StocktakeRepository) Create(ctx context.Context, in model.StocktakeCrea
 	return out, nil
 }
 
-// createStocktake — тело Create внутри чужой транзакции: пересчёт позиции по нехватке при сборке
+// createStocktake - тело Create внутри чужой транзакции: пересчёт позиции по нехватке при сборке
 // (P9-04) заводится в одной транзакции с отметкой «не хватает».
 func createStocktake(ctx context.Context, q Querier, in model.StocktakeCreateInput) (model.StocktakeCreated, error) {
 	where, ok := stocktakeCellsSQL[in.ScopeKind]
@@ -118,7 +118,7 @@ func createStocktake(ctx context.Context, q Querier, in model.StocktakeCreateInp
 			}
 		case model.StocktakeScopeInternalWarehouse:
 			// Системные склады («Не найдено», «Возврат поставщику») пересчёт не считает: их
-			// товар — в решении офиса или задании возврата.
+			// товар - в решении офиса или задании возврата.
 			var system bool
 			if err := q.QueryRow(ctx, `
 				SELECT EXISTS (SELECT 1 FROM internal_warehouses
@@ -172,8 +172,8 @@ func createStocktake(ctx context.Context, q Querier, in model.StocktakeCreateInp
 	return out, nil
 }
 
-// guardStocktakeCells — выбранные ячейки есть на складе пересчёта, и среди них нет служебных:
-// приёмки и отгрузки. Существование уже проверил внешний ключ области; здесь — склад и служебные.
+// guardStocktakeCells - выбранные ячейки есть на складе пересчёта, и среди них нет служебных:
+// приёмки и отгрузки. Существование уже проверил внешний ключ области; здесь - склад и служебные.
 func guardStocktakeCells(ctx context.Context, q Querier, warehouseID string, ids []string) error {
 	var foreign int
 	var receiving bool
@@ -191,8 +191,8 @@ func guardStocktakeCells(ctx context.Context, q Querier, warehouseID string, ids
 	return nil
 }
 
-// stocktakeRefErr — нарушение внешнего ключа (нет склада, автора или объекта области) —
-// ErrStocktakeUnknownObject; остальное — сбой.
+// stocktakeRefErr - нарушение внешнего ключа (нет склада, автора или объекта области) -
+// ErrStocktakeUnknownObject; остальное - сбой.
 func stocktakeRefErr(err error, what string) error {
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == "23503" {
@@ -201,24 +201,24 @@ func stocktakeRefErr(err error, what string) error {
 	return fmt.Errorf("%s: %w", what, err)
 }
 
-// stocktakeLockKey — пространство рекомендательных блокировок ячеек пересчёта; движение берёт
+// stocktakeLockKey - пространство рекомендательных блокировок ячеек пересчёта; движение берёт
 // ту же блокировку разделяемой (миграция 31, `stocktake_disrupt_cells`).
 const stocktakeLockKey = 1010
 
 // StartCount начинает подсчёт ячейки: снимает «ожидалось» и ставит её на пересчёт (P10-02).
 //
-// Что: строки ячейки пересчёта — россыпь (товар · партия · склад), живые короба целиком
-// (ожидается 1) и марки ЧЗ россыпью; ячейка `counting` — с этого момента движение через неё
+// Что: строки ячейки пересчёта - россыпь (товар · партия · склад), живые короба целиком
+// (ожидается 1) и марки ЧЗ россыпью; ячейка `counting` - с этого момента движение через неё
 // сбивает подсчёт (триггеры миграции 31).
 // Зачем: снимок в момент скана ячейки на месте, а не при заведении пересчёта: между ними могут
 // пройти часы, и снимок разошёлся бы с полкой.
-// Как: подсчёт начинает тот, кто держит ячейку, — взятую (`taken`) или сбитую (`disrupted`,
-// тогда прежние строки заменяются). Повтор по уже начатой своей ячейке снимка не трогает —
+// Как: подсчёт начинает тот, кто держит ячейку, - взятую (`taken`) или сбитую (`disrupted`,
+// тогда прежние строки заменяются). Повтор по уже начатой своей ячейке снимка не трогает -
 // возвращает снятое: повтор операции не должен стирать подсчитанное. Перед чтением берётся
-// исключительная блокировка ячейки: идущие движения дописываются в снимок, начатые после —
-// ждут его фиксации и помечают подсчёт сбитым. Россыпь и короба — теми же расчётами, что
+// исключительная блокировка ячейки: идущие движения дописываются в снимок, начатые после -
+// ждут его фиксации и помечают подсчёт сбитым. Россыпь и короба - теми же расчётами, что
 // «Остатки» (looseStock, liveLoadUnits): снимок не расходится с тем, что видит кладовщик.
-// При области по группе, поставщику, товару снимается только товар области, а короб — если в
+// При области по группе, поставщику, товару снимается только товар области, а короб - если в
 // нём есть товар области.
 func (r *StocktakeRepository) StartCount(ctx context.Context, stocktakeCellID, userID string) (model.StocktakeCellView, error) {
 	err := WithinTx(ctx, r.pool, func(q Querier) error {
@@ -295,7 +295,7 @@ func (r *StocktakeRepository) StartCount(ctx context.Context, stocktakeCellID, u
 	return r.CellView(ctx, stocktakeCellID, userID)
 }
 
-// stocktakeAreaGoodsInCell — товары области пересчёта, лежащие в ячейке (россыпью или в
+// stocktakeAreaGoodsInCell - товары области пересчёта, лежащие в ячейке (россыпью или в
 // коробах: остаток ячейки включает короба).
 func stocktakeAreaGoodsInCell(ctx context.Context, q Querier, stocktakeID, cellID string) (map[string]bool, error) {
 	rows, err := q.Query(ctx, `
@@ -315,10 +315,10 @@ func stocktakeAreaGoodsInCell(ctx context.Context, q Querier, stocktakeID, cellI
 	return out, nil
 }
 
-// stocktakeLineKey — позиция россыпи в снимке: товар · партия · внутренний склад.
+// stocktakeLineKey - позиция россыпи в снимке: товар · партия · внутренний склад.
 type stocktakeLineKey struct{ good, batch, iwh string }
 
-// stocktakeSnapshot — снятие «ожидалось» по одной ячейке пересчёта. area — товары области; nil —
+// stocktakeSnapshot - снятие «ожидалось» по одной ячейке пересчёта. area - товары области; nil -
 // ячейка считается целиком.
 type stocktakeSnapshot struct {
 	q      Querier
@@ -329,12 +329,12 @@ type stocktakeSnapshot struct {
 	lines  map[stocktakeLineKey]string
 }
 
-// inArea — товар считается этим пересчётом.
+// inArea - товар считается этим пересчётом.
 func (s *stocktakeSnapshot) inArea(goodID string) bool {
 	return s.area == nil || s.area[goodID]
 }
 
-// systemInternalWarehouses — системные внутренние склады («Не найдено», «Возврат поставщику»).
+// systemInternalWarehouses - системные внутренние склады («Не найдено», «Возврат поставщику»).
 //
 // Их товар пересчёт не считает: не найденное ждёт решения офиса, возврат лежит в задании, и
 // правка остатка выбила бы товар из-под проблемы или задания.
@@ -361,7 +361,7 @@ func (s *stocktakeSnapshot) take(ctx context.Context) error {
 		return err
 	}
 	for _, ln := range loose {
-		// «В сборке» (P9-05) уже в коробе отгрузки: ячейка ожидает доступное — 20 с 5 в сборке
+		// «В сборке» (P9-05) уже в коробе отгрузки: ячейка ожидает доступное - 20 с 5 в сборке
 		// дают 15. Расхождение пересчёт применяет к той же доступной россыпи (looseQty).
 		expected := ln.Qty.Sub(ln.InPicking)
 		if !s.inArea(ln.GoodID) || s.system[ln.InternalWarehouseID] || !expected.IsPositive() {
@@ -390,7 +390,7 @@ func (s *stocktakeSnapshot) take(ctx context.Context) error {
 	return s.marks(ctx)
 }
 
-// boxInArea — короб считается: не на системном складе, и ячейка целиком или в коробе есть
+// boxInArea - короб считается: не на системном складе, и ячейка целиком или в коробе есть
 // товар области.
 func (s *stocktakeSnapshot) boxInArea(lu model.LoadUnitCard) bool {
 	if s.system[lu.InternalWarehouseID] {
@@ -407,7 +407,7 @@ func (s *stocktakeSnapshot) boxInArea(lu model.LoadUnitCard) bool {
 	return false
 }
 
-// looseLine — строка россыпи позиции: заводит её с ожидаемым количеством или возвращает уже
+// looseLine - строка россыпи позиции: заводит её с ожидаемым количеством или возвращает уже
 // заведённую.
 func (s *stocktakeSnapshot) looseLine(ctx context.Context, key stocktakeLineKey, expected string) (string, error) {
 	if id, ok := s.lines[key]; ok {
@@ -424,8 +424,8 @@ func (s *stocktakeSnapshot) looseLine(ctx context.Context, key stocktakeLineKey,
 	return id, nil
 }
 
-// marks — марки ЧЗ россыпью в ячейке: каждая «ожидалась» на строке своей позиции. Марка без
-// остатка россыпью (учёт разошёлся) заводит строку с нулём — она всё равно ожидается на полке.
+// marks - марки ЧЗ россыпью в ячейке: каждая «ожидалась» на строке своей позиции. Марка без
+// остатка россыпью (учёт разошёлся) заводит строку с нулём - она всё равно ожидается на полке.
 func (s *stocktakeSnapshot) marks(ctx context.Context) error {
 	rows, err := s.q.Query(ctx, `
 		SELECT cis, good_id::text, batch_id::text, internal_warehouse_id::text

@@ -14,9 +14,9 @@ import (
 	"craftwms/internal/service"
 )
 
-// UserAdminHandler — пользователи и должности в портале (ADHOC-49); право «пользователи и
+// UserAdminHandler - пользователи и должности в портале (ADHOC-49); право «пользователи и
 // должности». Хеши, бейджи и пароли в ответы не попадают: у бейджа виден только логин
-// (первые 8 цифр) — по нему офис узнаёт, какой бейдж выдан.
+// (первые 8 цифр) - по нему офис узнаёт, какой бейдж выдан.
 type UserAdminHandler struct {
 	svc *service.UserAdminService
 }
@@ -50,12 +50,12 @@ type userResponse struct {
 	CreatedAt    string `json:"created_at"` // RFC3339
 }
 
-// Rights: GET /api/v1/rights — коды всех прав в порядке показа.
+// Rights: GET /api/v1/rights - коды всех прав в порядке показа.
 func (h *UserAdminHandler) Rights(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string][]string{"rights": h.svc.Rights()})
 }
 
-// Positions: GET /api/v1/positions — должности, системная первой.
+// Positions: GET /api/v1/positions - должности, системная первой.
 func (h *UserAdminHandler) Positions(w http.ResponseWriter, r *http.Request) {
 	items, err := h.svc.Positions(r.Context())
 	if err != nil {
@@ -69,7 +69,7 @@ func (h *UserAdminHandler) Positions(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// CreatePosition: POST /api/v1/positions {name, rights} — 201 {id} / 400 / 409.
+// CreatePosition: POST /api/v1/positions {name, rights} - 201 {id} / 400 / 409.
 func (h *UserAdminHandler) CreatePosition(w http.ResponseWriter, r *http.Request) {
 	var req positionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -84,7 +84,7 @@ func (h *UserAdminHandler) CreatePosition(w http.ResponseWriter, r *http.Request
 	writeJSON(w, http.StatusCreated, map[string]string{"id": id})
 }
 
-// UpdatePosition: PATCH /api/v1/positions/{id} {name, rights} — 204 / 400 / 404 / 409.
+// UpdatePosition: PATCH /api/v1/positions/{id} {name, rights} - 204 / 400 / 404 / 409.
 func (h *UserAdminHandler) UpdatePosition(w http.ResponseWriter, r *http.Request) {
 	var req positionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -98,7 +98,7 @@ func (h *UserAdminHandler) UpdatePosition(w http.ResponseWriter, r *http.Request
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// DeletePosition: DELETE /api/v1/positions/{id} — 204 / 404 / 409.
+// DeletePosition: DELETE /api/v1/positions/{id} - 204 / 404 / 409.
 func (h *UserAdminHandler) DeletePosition(w http.ResponseWriter, r *http.Request) {
 	if err := h.svc.DeletePosition(r.Context(), chi.URLParam(r, "id"), currentUser(r)); err != nil {
 		userAdminError(w, r, err, "delete position")
@@ -107,7 +107,7 @@ func (h *UserAdminHandler) DeletePosition(w http.ResponseWriter, r *http.Request
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// Users: GET /api/v1/users — все пользователи, активные сверху.
+// Users: GET /api/v1/users - все пользователи, активные сверху.
 func (h *UserAdminHandler) Users(w http.ResponseWriter, r *http.Request) {
 	items, err := h.svc.Users(r.Context())
 	if err != nil {
@@ -124,7 +124,7 @@ func (h *UserAdminHandler) Users(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// CreateUser: POST /api/v1/users {full_name, position_id, badge | username + password} —
+// CreateUser: POST /api/v1/users {full_name, position_id, badge | username + password} -
 // 201 {id} / 400 / 404 / 409.
 func (h *UserAdminHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	var req struct {
@@ -150,7 +150,7 @@ func (h *UserAdminHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpdateUser: PATCH /api/v1/users/{id} {full_name?, position_id?, is_active?, badge? | password?}
-// — 204 / 400 / 404 / 409. Отсутствующее поле не меняется.
+// - 204 / 400 / 404 / 409. Отсутствующее поле не меняется.
 func (h *UserAdminHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		FullName   *string `json:"full_name"`
@@ -178,13 +178,13 @@ func currentUser(r *http.Request) string {
 	return id
 }
 
-// userAdminError — ответ на ошибку пользователей и должностей; текст — для экрана портала.
+// userAdminError - ответ на ошибку пользователей и должностей; текст - для экрана портала.
 func userAdminError(w http.ResponseWriter, r *http.Request, err error, action string) {
 	switch {
 	case errors.Is(err, model.ErrInvalidPosition), errors.Is(err, model.ErrInvalidUser):
 		writeError(w, http.StatusBadRequest, err.Error())
 	case errors.Is(err, service.ErrBadBadge):
-		writeError(w, http.StatusBadRequest, "бейдж — ровно 16 цифр")
+		writeError(w, http.StatusBadRequest, "бейдж - ровно 16 цифр")
 	case errors.Is(err, model.ErrPositionNotFound), errors.Is(err, model.ErrUserMissing):
 		writeError(w, http.StatusNotFound, err.Error())
 	case errors.Is(err, model.ErrPositionSystem), errors.Is(err, model.ErrPositionNameTaken),

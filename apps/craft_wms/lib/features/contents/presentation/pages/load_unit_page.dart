@@ -22,7 +22,7 @@ import '../widgets/load_unit/load_unit_body.dart';
 
 /// Экран «Короб» (P5-05): где лежит и что внутри. Открывается сканом QR короба в «Остатках»
 /// или касанием короба в списке ячейки; скан другого короба или ячейки отсюда открывает их.
-/// С P5-05-1 — перепечатка ярлыка и история короба.
+/// С P5-05-1 - перепечатка ярлыка и история короба.
 @RoutePage()
 class LoadUnitPage extends StatelessWidget {
   const LoadUnitPage({super.key, required this.loadUnitId});
@@ -55,7 +55,7 @@ class _LoadUnitView extends StatefulWidget {
 
 class _LoadUnitViewState extends State<_LoadUnitView>
     with HardwareScanListener {
-  /// Скан с экрана короба: другой короб или ячейка — вместо этого экрана, без стопки.
+  /// Скан с экрана короба: другой короб или ячейка - вместо этого экрана, без стопки.
   @override
   Future<void> onHardwareScan(ScanCode code) async {
     final handled = await openScannedContents(context, code, replace: true);
@@ -66,7 +66,7 @@ class _LoadUnitViewState extends State<_LoadUnitView>
     }
   }
 
-  /// Идёт печать ярлыка — кнопка не принимает повторное нажатие.
+  /// Идёт печать ярлыка - кнопка не принимает повторное нажатие.
   bool _printing = false;
 
   /// Перечитать карточку и историю короба.
@@ -108,8 +108,8 @@ class _LoadUnitViewState extends State<_LoadUnitView>
           automaticallyImplyLeading: false,
           backgroundColor: AppColors.kBg,
           title: PageHeader(
-            // Код короба — в заголовке: он известен из QR до всякой загрузки (ADHOC-21). У короба
-            // ЧЗ ярлыка нет — после загрузки его код с этикетки ЧЗ (CZ-06).
+            // Код короба - в заголовке: он известен из QR до всякой загрузки (ADHOC-21). У короба
+            // ЧЗ ярлыка нет - после загрузки его код с этикетки ЧЗ (CZ-06).
             title: t.contents.boxCode(
               code: boxCode(
                 widget.loadUnitId,

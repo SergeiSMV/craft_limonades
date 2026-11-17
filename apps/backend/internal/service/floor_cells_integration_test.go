@@ -11,7 +11,7 @@ import (
 	"craftwms/internal/testutil"
 )
 
-// TestNormalizeFloorAddress — адрес напольной ячейки: заглавными, «Н» окончания кириллицей,
+// TestNormalizeFloorAddress - адрес напольной ячейки: заглавными, «Н» окончания кириллицей,
 // стеллаж перед «-Н-П» обязателен.
 func TestNormalizeFloorAddress(t *testing.T) {
 	ok := map[string]string{
@@ -34,7 +34,7 @@ func TestNormalizeFloorAddress(t *testing.T) {
 	}
 }
 
-// TestFloorCells_lifecycle — напольная ячейка: добавить, увидеть на странице, переименовать,
+// TestFloorCells_lifecycle - напольная ячейка: добавить, увидеть на странице, переименовать,
 // не удалить с товаром, удалить пустую, вернуть удалённую тем же адресом. Ячейку стеллажа так не
 // переименовать и не удалить.
 func TestFloorCells_lifecycle(t *testing.T) {
@@ -120,7 +120,7 @@ func TestFloorCells_lifecycle(t *testing.T) {
 	}
 }
 
-// TestFloorCells_receivingCell — после миграции 44 ячейка приёмки — «ПРИЁМКА», «С-Н-П» —
+// TestFloorCells_receivingCell - после миграции 44 ячейка приёмки - «ПРИЁМКА», «С-Н-П» -
 // обычная напольная; импорт ячеек не заводит вторую ячейку приёмки и ставит признак пола по адресу.
 func TestFloorCells_receivingCell(t *testing.T) {
 	pool := testutil.StartPostgres(t)

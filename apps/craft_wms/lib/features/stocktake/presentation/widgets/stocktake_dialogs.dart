@@ -4,7 +4,7 @@ import '../../../../core/gen/strings.g.dart';
 
 /// Подтверждения экрана ячеек пересчёта (P10-04).
 
-/// Отказаться от ячейки: начатый подсчёт отбросится. `true` — отказаться.
+/// Отказаться от ячейки: начатый подсчёт отбросится. `true` - отказаться.
 Future<bool> confirmRelease(BuildContext context) => _confirm(
   context,
   title: t.stocktake.releaseTitle,
@@ -13,7 +13,7 @@ Future<bool> confirmRelease(BuildContext context) => _confirm(
   no: t.stocktake.releaseNo,
 );
 
-/// Закрыть пересчёт; [uncounted] — сколько ячеек не подсчитано. `true` — закрыть.
+/// Закрыть пересчёт; [uncounted] - сколько ячеек не подсчитано. `true` - закрыть.
 Future<bool> confirmClose(BuildContext context, {required int uncounted}) =>
     _confirm(
       context,

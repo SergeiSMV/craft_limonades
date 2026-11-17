@@ -12,11 +12,11 @@ import (
 	"github.com/getsentry/sentry-go"
 )
 
-// ErrBadEnvelope — тело не похоже на конверт Sentry: первая строка не JSON-объект.
+// ErrBadEnvelope - тело не похоже на конверт Sentry: первая строка не JSON-объект.
 var ErrBadEnvelope = errors.New("bad sentry envelope")
 
-// relayTimeout — сколько ждём Bugsink. Он в той же сети compose и отвечает за миллисекунды;
-// дольше — значит, лежит, и клиенту лучше повторить позже, чем держать соединение.
+// relayTimeout - сколько ждём Bugsink. Он в той же сети compose и отвечает за миллисекунды;
+// дольше - значит, лежит, и клиенту лучше повторить позже, чем держать соединение.
 const relayTimeout = 10 * time.Second
 
 // Relay пересылает конверты событий приложений (ТСД и портала) в проект Bugsink `app`
@@ -26,8 +26,8 @@ const relayTimeout = 10 * time.Second
 // клиент строит из адреса API. Relay убирает этот ключ из конверта и отправляет его в Bugsink
 // по внутреннему адресу с ключом проекта.
 // Зачем: клиентам не нужен настоящий DSN в сборке (ключ меняется без пересборки, стенд и
-// локальный стек отправку не включают), порталу — CORS, хостовому nginx — новый путь.
-// Как: Bugsink берёт ключ из `dsn` в заголовке конверта, если он там есть, иначе — из
+// локальный стек отправку не включают), порталу - CORS, хостовому nginx - новый путь.
+// Как: Bugsink берёт ключ из `dsn` в заголовке конверта, если он там есть, иначе - из
 // X-Sentry-Auth (проверено на Bugsink 2). Поэтому `dsn` из заголовка удаляется, а ключ проекта
 // ставится в X-Sentry-Auth.
 type Relay struct {
@@ -36,7 +36,7 @@ type Relay struct {
 	client   *http.Client
 }
 
-// NewRelay собирает пересылку по DSN проекта `app` (env CLIENT_SENTRY_DSN). Пустой DSN —
+// NewRelay собирает пересылку по DSN проекта `app` (env CLIENT_SENTRY_DSN). Пустой DSN -
 // пересылки нет (nil): события клиентов отбрасываются.
 func NewRelay(dsn string) (*Relay, error) {
 	if dsn == "" {
@@ -53,7 +53,7 @@ func NewRelay(dsn string) (*Relay, error) {
 	}, nil
 }
 
-// Forward отправляет конверт (уже распакованный) в Bugsink и возвращает его ответ как есть —
+// Forward отправляет конверт (уже распакованный) в Bugsink и возвращает его ответ как есть -
 // код и заголовки ограничения частоты клиент SDK разбирает сам. Тело ответа закрывает
 // вызывающий.
 func (r *Relay) Forward(ctx context.Context, envelope []byte) (*http.Response, error) {
@@ -74,7 +74,7 @@ func (r *Relay) Forward(ctx context.Context, envelope []byte) (*http.Response, e
 	return resp, nil
 }
 
-// StripEnvelopeDSN убирает поле `dsn` из заголовка конверта — первой строки, JSON-объекта.
+// StripEnvelopeDSN убирает поле `dsn` из заголовка конверта - первой строки, JSON-объекта.
 // Остальные строки (заголовки и тела элементов) не трогаются: тела бывают двоичными.
 func StripEnvelopeDSN(envelope []byte) ([]byte, error) {
 	head, rest, found := bytes.Cut(envelope, []byte("\n"))

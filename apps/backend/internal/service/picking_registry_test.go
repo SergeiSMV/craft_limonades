@@ -13,7 +13,7 @@ import (
 	"craftwms/internal/model"
 )
 
-// fakeRegistryGoods — справочник в памяти; codes — коды последнего запроса.
+// fakeRegistryGoods - справочник в памяти; codes - коды последнего запроса.
 type fakeRegistryGoods struct {
 	goods map[string]model.RegistryGood
 	codes []string
@@ -34,7 +34,7 @@ func (f *fakeRegistryGoods) ByCodes(_ context.Context, codes []string) (map[stri
 	return out, nil
 }
 
-// registryFile собирает «Реестр» за 30.10.2026 (46325 — дата числом Excel) из строк
+// registryFile собирает «Реестр» за 30.10.2026 (46325 - дата числом Excel) из строк
 // {накладная, заказ, клиент, код, количество}.
 func registryFile(t *testing.T, rows [][5]string) []byte {
 	t.Helper()
@@ -61,7 +61,7 @@ func registryFile(t *testing.T, rows [][5]string) []byte {
 	return buf.Bytes()
 }
 
-// TestPickingRegistryParse_groupsOrders — накладная из двух заказов даёт два заказа, строки
+// TestPickingRegistryParse_groupsOrders - накладная из двух заказов даёт два заказа, строки
 // заказа идут в порядке файла, нераспознанный код помечает заказ, справочник читается одним
 // запросом без повторов кодов.
 func TestPickingRegistryParse_groupsOrders(t *testing.T) {
@@ -103,7 +103,7 @@ func TestPickingRegistryParse_groupsOrders(t *testing.T) {
 	}
 }
 
-// TestPickingRegistryParse_errors — ошибка файла и справочника доходит до вызывающего.
+// TestPickingRegistryParse_errors - ошибка файла и справочника доходит до вызывающего.
 func TestPickingRegistryParse_errors(t *testing.T) {
 	svc := NewPickingRegistryService(&fakeRegistryGoods{err: errors.New("база недоступна")})
 	if _, err := svc.Parse(context.Background(), bytes.NewReader([]byte("не файл"))); err == nil {

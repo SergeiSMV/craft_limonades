@@ -20,10 +20,10 @@ abstract class PutawayPick with _$PutawayPick {
     @JsonKey(name: 'production_date') String? productionDate,
     double? qty,
 
-    /// Код короба ЧЗ взятого короба (CZ-06) — для подписи; `null` — свой короб или россыпь.
+    /// Код короба ЧЗ взятого короба (CZ-06) - для подписи; `null` - свой короб или россыпь.
     @JsonKey(name: 'cz_code') String? czCode,
 
-    /// КИ марок ЧЗ взятой россыпи (CZ-06): маркируемый товар берут марками, количество —
+    /// КИ марок ЧЗ взятой россыпи (CZ-06): маркируемый товар берут марками, количество -
     /// их число.
     @Default(<String>[]) List<String> marks,
   }) = _PutawayPick;
@@ -58,19 +58,19 @@ enum PutawayOutcome {
   rejected,
 }
 
-/// Подсказка кладовщику по результату скана — показывается один раз.
+/// Подсказка кладовщику по результату скана - показывается один раз.
 @freezed
 sealed class PutawayNotice with _$PutawayNotice {
   /// Отсканированного нет в задании.
   const factory PutawayNotice.notInTask() = NoticeNotInTask;
 
-  /// Это уже размещено — этим заданием раньше или в этом заходе.
+  /// Это уже размещено - этим заданием раньше или в этом заходе.
   const factory PutawayNotice.alreadyPlaced() = NoticeAlreadyPlaced;
 
   /// Отсканирована ячейка, а в руках ничего: сначала короб или товар.
   const factory PutawayNotice.pickFirst() = NoticePickFirst;
 
-  /// Это ячейка приёмки — размещают из неё, а не в неё.
+  /// Это ячейка приёмки - размещают из неё, а не в неё.
   const factory PutawayNotice.receivingCell() = NoticeReceivingCell;
 
   /// Ячейка другого склада.
@@ -82,6 +82,6 @@ sealed class PutawayNotice with _$PutawayNotice {
   /// Эта марка уже взята или положена в этом сеансе (CZ-06).
   const factory PutawayNotice.markTaken() = NoticeMarkTaken;
 
-  /// Отброшенное задание вернуть в пул не удалось — нет связи; вернётся само по зависанию.
+  /// Отброшенное задание вернуть в пул не удалось - нет связи; вернётся само по зависанию.
   const factory PutawayNotice.releaseOffline(int number) = NoticeReleaseOffline;
 }

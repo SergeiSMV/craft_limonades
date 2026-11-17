@@ -16,9 +16,9 @@ import (
 	"craftwms/migrations"
 )
 
-// TestPendingMigrations — `migrate pending` (ADHOC-37): по нему update.sh решает, снимать ли
-// дамп перед миграциями. Пустая база, отставшая схема и «грязная» версия — «есть что
-// применять», актуальная — нет.
+// TestPendingMigrations - `migrate pending` (ADHOC-37): по нему update.sh решает, снимать ли
+// дамп перед миграциями. Пустая база, отставшая схема и «грязная» версия - «есть что
+// применять», актуальная - нет.
 func TestPendingMigrations(t *testing.T) {
 	testcontainers.SkipIfProviderIsNotHealthy(t) // нет Docker → t.Skip, а не падение
 
@@ -57,7 +57,7 @@ func TestPendingMigrations(t *testing.T) {
 		t.Fatalf("последняя миграция: %v", err)
 	}
 	if latest < 2 {
-		t.Fatalf("последняя миграция %d — тесту нужно хотя бы две", latest)
+		t.Fatalf("последняя миграция %d - тесту нужно хотя бы две", latest)
 	}
 
 	check := func(want bool, stage string) {
@@ -83,7 +83,7 @@ func TestPendingMigrations(t *testing.T) {
 	}
 	check(false, "схема актуальна")
 
-	// «Грязная» версия — как после миграции, упавшей на середине: golang-migrate ставит флаг
+	// «Грязная» версия - как после миграции, упавшей на середине: golang-migrate ставит флаг
 	// в schema_migrations до применения и снимает после.
 	conn, err := pgx.Connect(ctx, dsn)
 	if err != nil {

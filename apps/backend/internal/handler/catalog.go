@@ -13,7 +13,7 @@ import (
 	"craftwms/internal/service"
 )
 
-// CatalogHandler — HTTP-обработчики чтения справочников (P1-06): товары, группы, поставщики, ячейки, остатки.
+// CatalogHandler - HTTP-обработчики чтения справочников (P1-06): товары, группы, поставщики, ячейки, остатки.
 type CatalogHandler struct {
 	svc *service.CatalogService
 }
@@ -23,7 +23,7 @@ func NewCatalogHandler(svc *service.CatalogService) *CatalogHandler {
 	return &CatalogHandler{svc: svc}
 }
 
-// ListGoods: GET /api/v1/goods — поиск товаров (q, group_id, supplier_id) с пагинацией (limit/offset).
+// ListGoods: GET /api/v1/goods - поиск товаров (q, group_id, supplier_id) с пагинацией (limit/offset).
 func (h *CatalogHandler) ListGoods(w http.ResponseWriter, r *http.Request) {
 	limit, offset := paging(r)
 	page, err := h.svc.ListGoods(r.Context(), service.GoodsQuery{
@@ -39,7 +39,7 @@ func (h *CatalogHandler) ListGoods(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, page)
 }
 
-// GetGood: GET /api/v1/goods/{id} — один товар (404, если не найден).
+// GetGood: GET /api/v1/goods/{id} - один товар (404, если не найден).
 func (h *CatalogHandler) GetGood(w http.ResponseWriter, r *http.Request) {
 	good, err := h.svc.GetGood(r.Context(), chi.URLParam(r, "id"))
 	if errors.Is(err, repository.ErrNotFound) {
@@ -53,7 +53,7 @@ func (h *CatalogHandler) GetGood(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, good)
 }
 
-// ListGroups: GET /api/v1/nomenclature-groups — все группы номенклатуры (клиент строит дерево).
+// ListGroups: GET /api/v1/nomenclature-groups - все группы номенклатуры (клиент строит дерево).
 func (h *CatalogHandler) ListGroups(w http.ResponseWriter, r *http.Request) {
 	groups, err := h.svc.ListGroups(r.Context())
 	if err != nil {
@@ -63,7 +63,7 @@ func (h *CatalogHandler) ListGroups(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, groups)
 }
 
-// ListSuppliers: GET /api/v1/suppliers — поставщики (опциональный поиск q).
+// ListSuppliers: GET /api/v1/suppliers - поставщики (опциональный поиск q).
 func (h *CatalogHandler) ListSuppliers(w http.ResponseWriter, r *http.Request) {
 	suppliers, err := h.svc.ListSuppliers(r.Context(), queryStr(r, "q"))
 	if err != nil {
@@ -73,7 +73,7 @@ func (h *CatalogHandler) ListSuppliers(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, suppliers)
 }
 
-// ListCells: GET /api/v1/cells — поиск ячеек (q по адресу, warehouse_id, is_floor) с пагинацией.
+// ListCells: GET /api/v1/cells - поиск ячеек (q по адресу, warehouse_id, is_floor) с пагинацией.
 func (h *CatalogHandler) ListCells(w http.ResponseWriter, r *http.Request) {
 	limit, offset := paging(r)
 	page, err := h.svc.ListCells(r.Context(), service.CellsQuery{
@@ -89,7 +89,7 @@ func (h *CatalogHandler) ListCells(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, page)
 }
 
-// ListStock: GET /api/v1/stock — остатки (good_id — «где лежит товар», cell_id — «что в ячейке») с пагинацией.
+// ListStock: GET /api/v1/stock - остатки (good_id - «где лежит товар», cell_id - «что в ячейке») с пагинацией.
 func (h *CatalogHandler) ListStock(w http.ResponseWriter, r *http.Request) {
 	limit, offset := paging(r)
 	page, err := h.svc.ListStock(r.Context(), service.StockQuery{
@@ -112,12 +112,12 @@ func catalogError(w http.ResponseWriter, r *http.Request, op string, err error) 
 
 // --- разбор query-параметров ---
 
-// queryStr — обрезанное значение параметра ("" если нет).
+// queryStr - обрезанное значение параметра ("" если нет).
 func queryStr(r *http.Request, key string) string {
 	return strings.TrimSpace(r.URL.Query().Get(key))
 }
 
-// optStr — указатель на значение параметра или nil (нет фильтра), если параметр пуст.
+// optStr - указатель на значение параметра или nil (нет фильтра), если параметр пуст.
 func optStr(r *http.Request, key string) *string {
 	if v := queryStr(r, key); v != "" {
 		return &v
@@ -125,7 +125,7 @@ func optStr(r *http.Request, key string) *string {
 	return nil
 }
 
-// optBool — *bool из параметра (true/false/1/0), nil для пустого/нераспознанного (нет фильтра).
+// optBool - *bool из параметра (true/false/1/0), nil для пустого/нераспознанного (нет фильтра).
 func optBool(r *http.Request, key string) *bool {
 	switch strings.ToLower(queryStr(r, key)) {
 	case "true", "1":
@@ -139,7 +139,7 @@ func optBool(r *http.Request, key string) *bool {
 	}
 }
 
-// paging — limit/offset из query (пустые/кривые → 0, дальше сервис приведёт к дефолтам/границам).
+// paging - limit/offset из query (пустые/кривые → 0, дальше сервис приведёт к дефолтам/границам).
 func paging(r *http.Request) (limit, offset int) {
 	limit, _ = strconv.Atoi(queryStr(r, "limit"))
 	offset, _ = strconv.Atoi(queryStr(r, "offset"))

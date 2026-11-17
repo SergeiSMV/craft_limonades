@@ -13,7 +13,7 @@ import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../data/problems_repository.dart';
 
-/// Фото проблемы со склада в карточке портала (ADHOC-45): миниатюры, по нажатию — снимок
+/// Фото проблемы со склада в карточке портала (ADHOC-45): миниатюры, по нажатию - снимок
 /// целиком. Снимки грузятся по одному, когда карточку показали: список проблем от них не ждёт.
 class ProblemPhotos extends StatefulWidget {
   const ProblemPhotos({
@@ -32,12 +32,12 @@ class ProblemPhotos extends StatefulWidget {
 class _ProblemPhotosState extends State<ProblemPhotos> {
   final _repo = getIt<ProblemsRepository>();
 
-  /// Загрузки — один раз на снимок, а не на каждую перерисовку.
+  /// Загрузки - один раз на снимок, а не на каждую перерисовку.
   late final Map<String, Future<Either<Failure, Uint8List>>> _loads = {
     for (final id in widget.photos) id: _repo.photo(widget.problemId, id),
   };
 
-  /// Открыть снимок целиком — в белом окне портала (ADHOC-56).
+  /// Открыть снимок целиком - в белом окне портала (ADHOC-56).
   void open(Uint8List content) => showDialog<void>(
     context: context,
     builder: (_) => Dialog(
@@ -65,7 +65,7 @@ class _ProblemPhotosState extends State<ProblemPhotos> {
     );
   }
 
-  /// Миниатюра: снимок, пока грузится — ожидание, не загрузился — пометка.
+  /// Миниатюра: снимок, пока грузится - ожидание, не загрузился - пометка.
   Widget _thumb(Either<Failure, Uint8List>? res) {
     final content = res != null && res.isRight ? res.right : null;
     final Widget child;

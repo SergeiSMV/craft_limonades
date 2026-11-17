@@ -17,7 +17,7 @@ func qty(n int64) decimal.Decimal { return decimal.NewFromInt(n) }
 
 func ptr[T any](v T) *T { return &v }
 
-// src — источник товара g1 склада «Основной»; lu пуст — россыпь.
+// src - источник товара g1 склада «Основной»; lu пуст - россыпь.
 func src(cell string, lu string, batch time.Time, n int64) Source {
 	return Source{
 		CellID: cell, CellAddress: cell, LoadUnitID: lu, InternalWarehouseID: "main",
@@ -25,7 +25,7 @@ func src(cell string, lu string, batch time.Time, n int64) Source {
 	}
 }
 
-// takes — подбор строкой «ячейка/короб:партия:кол-во» для сравнения в таблице.
+// takes - подбор строкой «ячейка/короб:партия:кол-во» для сравнения в таблице.
 func takes(sg Suggestion) []string {
 	var out []string
 	for _, t := range sg.Takes {

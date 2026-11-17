@@ -13,14 +13,14 @@ import '../../../../../core/utils/date_time_format.dart';
 import '../../../../../core/utils/doc_number.dart';
 import '../../../domain/movement_history.dart';
 
-/// Вид перемещения для человека; незнакомый — как есть.
+/// Вид перемещения для человека; незнакомый - как есть.
 String moveKindLabel(String kind) => switch (kind) {
   'move' => t.movement.kindMove,
   'replenish' => t.movement.kindReplenish,
   _ => kind,
 };
 
-/// Заголовок записи: вид и номер операции — «Перемещение ПМ-000001» (ADHOC-55).
+/// Заголовок записи: вид и номер операции - «Перемещение ПМ-000001» (ADHOC-55).
 String moveRecordTitle(MoveRecord record) {
   final docKind = operationDocKind(record.kind);
   if (docKind == null || record.number == 0) return moveKindLabel(record.kind);
@@ -31,7 +31,7 @@ String moveRecordTitle(MoveRecord record) {
 }
 
 /// Запись ленты «Завершённые» перемещения: вид, кто перемещал, сколько коробов и строк
-/// товара, время. Вид — как у записи «Завершённых» заданий.
+/// товара, время. Вид - как у записи «Завершённых» заданий.
 class MoveRecordTile extends StatelessWidget {
   const MoveRecordTile({super.key, required this.record, required this.onTap});
 

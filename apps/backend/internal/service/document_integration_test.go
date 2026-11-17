@@ -17,7 +17,7 @@ import (
 )
 
 // Рабочий список документов оператора (P3-02): состав списка, содержимое файла, статусы.
-// Пришёл на смену тесту сервиса отчёта по сессии — адресация сменилась с сессии на документ.
+// Пришёл на смену тесту сервиса отчёта по сессии - адресация сменилась с сессии на документ.
 func TestDocuments(t *testing.T) {
 	pool := testutil.StartPostgres(t)
 	ctx := context.Background()
@@ -50,7 +50,7 @@ func TestDocuments(t *testing.T) {
 	if _, err := seRepo.Finalize(ctx, sid); err != nil {
 		t.Fatalf("Finalize: %v", err)
 	}
-	// Ещё одна сессия остаётся в работе — в список документов она попасть не должна.
+	// Ещё одна сессия остаётся в работе - в список документов она попасть не должна.
 	draft, err := seRepo.Create(ctx, wh, user)
 	if err != nil {
 		t.Fatalf("Create draft: %v", err)
@@ -168,7 +168,7 @@ func TestDocuments(t *testing.T) {
 		model.DocEventCreated,
 		model.DocEventDownloaded,
 		model.DocEventDone,
-		model.DocEventDownloaded, // повторное скачивание — отдельная запись, статус при этом не менялся
+		model.DocEventDownloaded, // повторное скачивание - отдельная запись, статус при этом не менялся
 		model.DocEventDone,
 	}
 	if len(seq) != len(wantEvents) {

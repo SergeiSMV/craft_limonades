@@ -35,7 +35,7 @@ void main() {
     await cubit.close();
   });
 
-  test('список из снимка помечен — кладовщик видит, что связи нет', () async {
+  test('список из снимка помечен - кладовщик видит, что связи нет', () async {
     final repo = _MockRepo();
     final at = DateTime(2026, 10, 7, 9);
     when(() => repo.current()).thenAnswer(

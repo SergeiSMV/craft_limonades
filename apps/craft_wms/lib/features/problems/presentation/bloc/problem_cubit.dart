@@ -12,12 +12,12 @@ import '../../domain/problem_photos.dart';
 import '../../domain/problem_repository.dart';
 import 'problem_state.dart';
 
-/// Cubit «Проблем склада» на ТСД (P6-07-2): одна проблема — одна операция `problem_submit`.
+/// Cubit «Проблем склада» на ТСД (P6-07-2): одна проблема - одна операция `problem_submit`.
 ///
-/// Решения о потоке — здесь, без сети и базы: экран находит короб и ячейку и передаёт
+/// Решения о потоке - здесь, без сети и базы: экран находит короб и ячейку и передаёт
 /// найденное. Правила те же, что у сервера: ячейка приёмки не годится (её разносит задание на
 /// размещение); часть короба вынимается в россыпь склада назначения той же ячейки; склад
-/// назначения — не тот, где товар уже лежит.
+/// назначения - не тот, где товар уже лежит.
 @injectable
 class ProblemCubit extends Cubit<ProblemState> {
   ProblemCubit(this._repo, this._ids, this._photos, this._camera)
@@ -28,10 +28,10 @@ class ProblemCubit extends Cubit<ProblemState> {
   final ProblemPhotoRepository _photos;
   final PhotoCamera _camera;
 
-  /// Склады, которыми можно пометить, — для выбора на экране.
+  /// Склады, которыми можно пометить, - для выбора на экране.
   List<InternalWarehouse> warehouses = const [];
 
-  /// Причины на выбор (ADHOC-55) — из справочника терминала.
+  /// Причины на выбор (ADHOC-55) - из справочника терминала.
   List<ProblemReason> reasons = const [];
 
   /// Начать: новый идентификатор проблемы, склады и причины для выбора.
@@ -44,7 +44,7 @@ class ProblemCubit extends Cubit<ProblemState> {
 
   //* --- что помечаем --- *//
 
-  /// Отсканирован короб. [cell] — где он лежит; `null` — не размещён.
+  /// Отсканирован короб. [cell] - где он лежит; `null` - не размещён.
   void onBox(LoadUnitView box, Cell? cell) {
     if (cell == null || !box.live) {
       emit(state.copyWith(notice: const ProblemNotice.boxEmpty()));
@@ -61,7 +61,7 @@ class ProblemCubit extends Cubit<ProblemState> {
     );
   }
 
-  /// Отсканирована или выбрана ячейка: её короба и россыпь — на выбор.
+  /// Отсканирована или выбрана ячейка: её короба и россыпь - на выбор.
   void onCell(Cell cell, CellView view) {
     if (!_cellAllowed(cell)) return;
     if (view.isEmpty) {
@@ -91,7 +91,7 @@ class ProblemCubit extends Cubit<ProblemState> {
     _choose(ProblemSubject.wholeBox(box: s.box, cell: s.cell));
   }
 
-  /// Пометить товар партии [line] количеством [qty] — из короба источника или из россыпи
+  /// Пометить товар партии [line] количеством [qty] - из короба источника или из россыпи
   /// ячейки. Больше, чем лежит, не берётся.
   void chooseGoods(ContentLine line, double qty) {
     if (qty <= 0 || qty > line.qty) return;
@@ -107,9 +107,9 @@ class ProblemCubit extends Cubit<ProblemState> {
     }
   }
 
-  /// Пометить товар марками ЧЗ (CZ-06): [line] — товар, партия и склад марок, [cell] — где они
-  /// лежат, [box] — короб, если марки в нём. К уже отмеченным марками того же товара, партии и
-  /// места марки добавляются; повтор — подсказка, другое — подсказка.
+  /// Пометить товар марками ЧЗ (CZ-06): [line] - товар, партия и склад марок, [cell] - где они
+  /// лежат, [box] - короб, если марки в нём. К уже отмеченным марками того же товара, партии и
+  /// места марки добавляются; повтор - подсказка, другое - подсказка.
   void chooseMarks({
     required List<String> marks,
     required ContentLine line,
@@ -187,7 +187,7 @@ class ProblemCubit extends Cubit<ProblemState> {
 
   void setMark(String text) => emit(state.copyWith(mark: text));
 
-  /// Шаг назад: от формы — к выбору в источнике, от выбора — к скану.
+  /// Шаг назад: от формы - к выбору в источнике, от выбора - к скану.
   void back() => emit(
     state.subject != null
         ? state.copyWith(subject: null, toWarehouseId: null, notice: null)
@@ -197,7 +197,7 @@ class ProblemCubit extends Cubit<ProblemState> {
   /// Подсказка показана.
   void clearNotice() => emit(state.copyWith(notice: null));
 
-  /// Ярлык короба, которого нет: на сервере — недействителен; без связи — не проверить.
+  /// Ярлык короба, которого нет: на сервере - недействителен; без связи - не проверить.
   void boxNotFound({required bool offline}) => emit(
     state.copyWith(
       notice: offline
@@ -206,13 +206,13 @@ class ProblemCubit extends Cubit<ProblemState> {
     ),
   );
 
-  /// Следующая проблема — с чистого листа (причина остаётся: брак идёт пачками).
+  /// Следующая проблема - с чистого листа (причина остаётся: брак идёт пачками).
   void next() =>
       emit(ProblemState(problemId: _ids.newId(), reason: state.reason));
 
   //* --- фото (ADHOC-45) --- *//
 
-  /// Снять фото камерой терминала. Больше [kProblemPhotoMax] не берём; отмену съёмки — молча.
+  /// Снять фото камерой терминала. Больше [kProblemPhotoMax] не берём; отмену съёмки - молча.
   Future<void> takePhoto() async {
     if (state.photos.length >= kProblemPhotoMax || state.outcome != null) {
       return;
@@ -240,8 +240,8 @@ class ProblemCubit extends Cubit<ProblemState> {
     if (!state.canSubmit) return;
     emit(state.copyWith(busy: true, notice: null));
     final res = await _repo.submit(payload(state));
-    // Снимки — вслед за проблемой, своей очередью: и проведённой, и ждущей связи. Отклонённой
-    // проблемы на сервере не будет — её снимкам некуда лечь.
+    // Снимки - вслед за проблемой, своей очередью: и проведённой, и ждущей связи. Отклонённой
+    // проблемы на сервере не будет - её снимкам некуда лечь.
     if (!(res.isLeft && res.left is RejectedFailure) &&
         state.photos.isNotEmpty) {
       await _photos.enqueue(state.problemId!, state.photos);
@@ -260,11 +260,11 @@ class ProblemCubit extends Cubit<ProblemState> {
     );
   }
 
-  /// Тело операции `problem_submit` — формат эталона `testdata/problem_submit.json`.
+  /// Тело операции `problem_submit` - формат эталона `testdata/problem_submit.json`.
   ///
-  /// Короб целиком — только его id: склад и ячейку сервер знает сам. Товар из короба —
-  /// короб-источник; из россыпи — ячейка и склад россыпи, если он не «Основной». Дата партии —
-  /// DD-MM-YYYY. Марка — только если отсканирована. Марки ЧЗ (CZ-06) — у маркируемого товара.
+  /// Короб целиком - только его id: склад и ячейку сервер знает сам. Товар из короба -
+  /// короб-источник; из россыпи - ячейка и склад россыпи, если он не «Основной». Дата партии -
+  /// DD-MM-YYYY. Марка - только если отсканирована. Марки ЧЗ (CZ-06) - у маркируемого товара.
   @visibleForTesting
   static Map<String, dynamic> payload(ProblemState s) {
     final subject = s.subject!;

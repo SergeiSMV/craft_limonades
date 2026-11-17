@@ -13,13 +13,13 @@ import (
 	"craftwms/internal/service"
 )
 
-// Сценарные тесты перемещения (P6-08D): весь путь через настоящий роутер — так, как его
-// проходят терминал кладовщика и портал оператора. Обе ветки — короб целиком и товар между
+// Сценарные тесты перемещения (P6-08D): весь путь через настоящий роутер - так, как его
+// проходят терминал кладовщика и портал оператора. Обе ветки - короб целиком и товар между
 // коробами и россыпью. Итог каждого сценария проверяется там, где его увидят люди: остаток,
 // состав коробов, снимок терминала, история на ТСД, документ «Движение» в портале и сам .xlsx.
-// Пополнение заморожено (P6-06): на складе оно сейчас — то же перемещение товара.
+// Пополнение заморожено (P6-06): на складе оно сейчас - то же перемещение товара.
 
-// moveEnv — склад под перемещение: три ячейки хранения, приёмка положила в M1-1-1-1 два
+// moveEnv - склад под перемещение: три ячейки хранения, приёмка положила в M1-1-1-1 два
 // короба по 12 и россыпь 5 одной партии.
 type moveEnv struct {
 	*rcvEnv
@@ -58,20 +58,20 @@ func newMoveE2E(t *testing.T) *moveEnv {
 	return e
 }
 
-// move — батч одного сеанса перемещения: одна операция `movement_submit`.
+// move - батч одного сеанса перемещения: одна операция `movement_submit`.
 func (e *moveEnv) move(operationID string, lines ...string) string {
 	return jsonf(`{"operations":[{"operation_id":%q,"kind":"movement_submit","payload":{
 		"movement_id":%q,"movement_kind":"move","warehouse_id":%q,"lines":[%s]}}]}`,
 		operationID, uuid.NewString(), e.warehouse, strings.Join(lines, ","))
 }
 
-// boxLine — короб целиком в ячейку.
+// boxLine - короб целиком в ячейку.
 func boxMove(box, toCell string) string {
 	return jsonf(`{"load_unit_id":%q,"to_cell_id":%q}`, box, toCell)
 }
 
-// goodsLine — товар партии 01-09-2026: откуда и куда — ячейка (россыпь) или короб; пустое —
-// не задано. [iwh] — склад россыпи, пусто — «Основной».
+// goodsLine - товар партии 01-09-2026: откуда и куда - ячейка (россыпь) или короб; пустое -
+// не задано. [iwh] - склад россыпи, пусто - «Основной».
 func (e *moveEnv) goodsLine(qty int, fromCell, fromBox, toCell, toBox, iwh string) string {
 	parts := []string{jsonf(`"good_id":%q,"production_date":"01-09-2026","qty":%d`, e.good, qty)}
 	for _, kv := range [][2]string{
@@ -85,13 +85,13 @@ func (e *moveEnv) goodsLine(qty int, fromCell, fromBox, toCell, toBox, iwh strin
 	return "{" + strings.Join(parts, ",") + "}"
 }
 
-// stock — остаток товара по ячейкам M1-1-1-1 / M1-1-1-2 / M1-1-1-3.
+// stock - остаток товара по ячейкам M1-1-1-1 / M1-1-1-2 / M1-1-1-3.
 func (e *moveEnv) stock(t *testing.T) string {
 	t.Helper()
 	return e.qtyIn(t, e.cell1, e.good) + " / " + e.qtyIn(t, e.cellB, e.good) + " / " + e.qtyIn(t, e.cellC, e.good)
 }
 
-// boxQty — сколько товара в коробе.
+// boxQty - сколько товара в коробе.
 func (e *moveEnv) boxQty(t *testing.T, box string) string {
 	t.Helper()
 	var q string
@@ -102,7 +102,7 @@ func (e *moveEnv) boxQty(t *testing.T, box string) string {
 	return q
 }
 
-// byWarehouse — остаток ячейки по кодам внутренних складов: «DEFECT:2.000 MAIN:15.000».
+// byWarehouse - остаток ячейки по кодам внутренних складов: «DEFECT:2.000 MAIN:15.000».
 func (e *moveEnv) byWarehouse(t *testing.T, cell string) string {
 	t.Helper()
 	var s string
@@ -115,7 +115,7 @@ func (e *moveEnv) byWarehouse(t *testing.T, cell string) string {
 	return s
 }
 
-// iwh — id внутреннего склада по коду справочника.
+// iwh - id внутреннего склада по коду справочника.
 func (e *moveEnv) iwh(t *testing.T, code string) string {
 	t.Helper()
 	var id string
@@ -126,7 +126,7 @@ func (e *moveEnv) iwh(t *testing.T, code string) string {
 	return id
 }
 
-// terminal — снимок склада так, как его загрузит терминал: ячейка каждого короба и россыпь
+// terminal - снимок склада так, как его загрузит терминал: ячейка каждого короба и россыпь
 // по ячейкам.
 func (e *moveEnv) terminal(t *testing.T) (boxCells, loose map[string]string) {
 	t.Helper()
@@ -154,8 +154,8 @@ func (e *moveEnv) terminal(t *testing.T) (boxCells, loose map[string]string) {
 	return boxCells, loose
 }
 
-// docRows — строки «Движения» как «откуда>куда:кол-во», по порядку: порядок строк в файле
-// здесь не проверяется — его закрепляет эталон формата.
+// docRows - строки «Движения» как «откуда>куда:кол-во», по порядку: порядок строк в файле
+// здесь не проверяется - его закрепляет эталон формата.
 func docRows(rows [][]string) []string {
 	out := make([]string, 0, len(rows))
 	for _, r := range rows {
@@ -167,7 +167,7 @@ func docRows(rows [][]string) []string {
 
 // Два сеанса, обе ветки. Первый: короб 1 целиком в M1-1-1-2, 4 шт из короба 2 россыпью
 // туда же, 2 шт россыпи в M1-1-1-3. Второй: 3 шт россыпи M1-1-1-2 докладываются в короб 1,
-// который там же лежит, — движение внутри ячейки, — и короб 2 целиком в M1-1-1-3. Товара
+// который там же лежит, - движение внутри ячейки, - и короб 2 целиком в M1-1-1-3. Товара
 // на складе всё время 29; после каждого сеанса остаток, состав коробов, снимок терминала,
 // история и «Движение» говорят одно и то же; движение внутри ячейки в «Движение» не идёт.
 func TestMovementHTTP_twoSessionsBothBranches(t *testing.T) {
@@ -191,7 +191,7 @@ func TestMovementHTTP_twoSessionsBothBranches(t *testing.T) {
 		loose[e.cell1] != "3" || loose[e.cellB] != "4" || loose[e.cellC] != "2" {
 		t.Errorf("снимок после сеанса 1: короба %v, россыпь %v", boxCells, loose)
 	}
-	// В «Движении» коробов нет — только товар: короб (12) и 4 шт из короба 2 — одна партия по
+	// В «Движении» коробов нет - только товар: короб (12) и 4 шт из короба 2 - одна партия по
 	// одному маршруту M1-1-1-1 → M1-1-1-2, для 1С это одна строка на 16.
 	docs := e.movementDocs(t)
 	if len(docs) != 1 || docs[0]["operation"] != "move" || docs[0]["lines_count"] != float64(2) {
@@ -231,7 +231,7 @@ func TestMovementHTTP_twoSessionsBothBranches(t *testing.T) {
 	if got := docRows(rows); !slices.Equal(got, []string{"M1-1-1-1>M1-1-1-3:8"}) {
 		t.Errorf("строки «Движения» сеанса 2 (докладка внутри ячейки не публикуется): %v", got)
 	}
-	// История на ТСД — оба сеанса, свежий первым; докладка внутри ячейки в ней видна.
+	// История на ТСД - оба сеанса, свежий первым; докладка внутри ячейки в ней видна.
 	code, body := e.call(t, http.MethodGet, "/api/v1/movements", e.workerToken, "")
 	var feed []map[string]any
 	if code != http.StatusOK || json.Unmarshal(body, &feed) != nil || len(feed) != 2 ||
@@ -245,7 +245,7 @@ func TestMovementHTTP_twoSessionsBothBranches(t *testing.T) {
 // приёмки; брак в короб «Основного» склада. После всех отказов склад и портал как до них.
 func TestMovementHTTP_rejectionsLeaveNoTrace(t *testing.T) {
 	e := newMoveE2E(t)
-	// Брак: 2 шт россыпи M1-1-1-1 помечены — чтобы было что положить не в тот короб.
+	// Брак: 2 шт россыпи M1-1-1-1 помечены - чтобы было что положить не в тот короб.
 	defect := e.iwh(t, "DEFECT")
 	mark := jsonf(`{"operations":[{"operation_id":%q,"kind":"problem_submit","payload":{
 		"problem_id":%q,"warehouse_id":%q,"good_id":%q,"production_date":"01-09-2026","qty":2,
@@ -285,9 +285,9 @@ func TestMovementHTTP_rejectionsLeaveNoTrace(t *testing.T) {
 	}
 }
 
-// Обрыв ответа. Терминал отправил сеанс, ответ не дошёл — он шлёт тот же батч ещё раз.
+// Обрыв ответа. Терминал отправил сеанс, ответ не дошёл - он шлёт тот же батч ещё раз.
 // Повтор получает «уже принято»: короб не переезжает дважды, товар не уходит дважды,
-// документ и запись истории — одни.
+// документ и запись истории - одни.
 func TestMovementHTTP_replayAfterLostResponse(t *testing.T) {
 	e := newMoveE2E(t)
 	batch := e.move(uuid.NewString(),
@@ -313,7 +313,7 @@ func TestMovementHTTP_replayAfterLostResponse(t *testing.T) {
 }
 
 // Помеченный товар едет своей меткой (P6-07-1). Короб 2 целиком в «Изоляторе», 2 шт
-// россыпи — «Брак». Короб переезжает в M1-1-1-2 со своим складом, брак россыпью — в
+// россыпи - «Брак». Короб переезжает в M1-1-1-2 со своим складом, брак россыпью - в
 // M1-1-1-3 строкой своего склада; «Основной» в M1-1-1-1 не задет.
 func TestMovementHTTP_markedGoodsTravelWithMark(t *testing.T) {
 	e := newMoveE2E(t)
@@ -354,7 +354,7 @@ func TestMovementHTTP_markedGoodsTravelWithMark(t *testing.T) {
 }
 
 // ADHOC-40 (долг 26). Два терминала по устаревшему снимку: сеанс, в котором две строки уже
-// неисполнимы, отклоняется одним ответом со списком обеих — по-русски и с товаром и местами,
+// неисполнимы, отклоняется одним ответом со списком обеих - по-русски и с товаром и местами,
 // как их видит кладовщик. Терминал показывает этот текст на экране «Несинхронизированное».
 func TestMovementHTTP_rejectionNamesAllBadLines(t *testing.T) {
 	e := newMoveE2E(t)

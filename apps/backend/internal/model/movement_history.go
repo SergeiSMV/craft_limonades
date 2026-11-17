@@ -8,13 +8,13 @@ import (
 
 // История перемещений на ТСД (ADHOC-28): лента «Завершённые» в разделе «Перемещение».
 //
-// Кладовщик видит перемещения всего склада — кто и куда дел короб или товар, — а не только
+// Кладовщик видит перемещения всего склада - кто и куда дел короб или товар, - а не только
 // свои: разбирается, куда делся короб, и находит свою или чужую ошибку без офиса.
 
-// MovementHistoryFilter — фильтр ленты истории.
+// MovementHistoryFilter - фильтр ленты истории.
 //
-// From/To — границы по времени проведения (To не включается); ExecutorID — кто двигал. Пустые
-// поля фильтр не сужают. Before* — курсор подгрузки: отдаются записи строго «старше»
+// From/To - границы по времени проведения (To не включается); ExecutorID - кто двигал. Пустые
+// поля фильтр не сужают. Before* - курсор подгрузки: отдаются записи строго «старше»
 // последней показанной.
 type MovementHistoryFilter struct {
 	From, To       *time.Time
@@ -24,9 +24,9 @@ type MovementHistoryFilter struct {
 	Limit          int
 }
 
-// MovementRecord — запись ленты: документ движения целиком.
+// MovementRecord - запись ленты: документ движения целиком.
 //
-// LoadUnits и Goods — сколько в документе строк «короб целиком» и строк товара: по ним
+// LoadUnits и Goods - сколько в документе строк «короб целиком» и строк товара: по ним
 // кладовщик узнаёт запись в ленте, не открывая её.
 type MovementRecord struct {
 	ID        string
@@ -38,14 +38,14 @@ type MovementRecord struct {
 	Goods     int
 }
 
-// MovementRecordLine — строка документа движения для человека: ГЕ целиком ЛИБО товар.
+// MovementRecordLine - строка документа движения для человека: ГЕ целиком ЛИБО товар.
 //
 // Короба здесь показываются, в отличие от «Движения» для 1С: кладовщик мыслит коробами, и
 // перекладывание из короба в россыпь той же ячейки ему важно увидеть.
 type MovementRecordLine struct {
 	LoadUnitID *string // ГЕ целиком
 
-	GoodID         *string // товар; у строки ГЕ — nil
+	GoodID         *string // товар; у строки ГЕ - nil
 	GoodCode       *string
 	GoodName       *string
 	Uom            *string
@@ -54,13 +54,13 @@ type MovementRecordLine struct {
 
 	FromCellID      string
 	FromCellAddress string
-	FromLoadUnitID  *string // короб-источник товара; nil — россыпь
+	FromLoadUnitID  *string // короб-источник товара; nil - россыпь
 	ToCellID        string
 	ToCellAddress   string
-	ToLoadUnitID    *string // короб-приёмник товара; nil — россыпь
+	ToLoadUnitID    *string // короб-приёмник товара; nil - россыпь
 }
 
-// MovementRecordDetail — запись ленты со строками.
+// MovementRecordDetail - запись ленты со строками.
 type MovementRecordDetail struct {
 	MovementRecord
 	Lines []MovementRecordLine

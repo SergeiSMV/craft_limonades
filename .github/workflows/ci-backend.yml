@@ -1,10 +1,10 @@
 name: CI · Backend
 
-# Гоняется ТОЛЬКО когда менялся бэкенд (apps/backend/**) — Flutter зря не пересобираем.
-# Два прогона на путь фича→dev→main (dev всегда зелёный — гейт стоит на входе в него):
+# Гоняется ТОЛЬКО когда менялся бэкенд (apps/backend/**) - Flutter зря не пересобираем.
+# Два прогона на путь фича→dev→main (dev всегда зелёный - гейт стоит на входе в него):
 # - pull_request → dev: build/vet/test/lint (гейт перед входом кода в dev);
 # - push → main: то же + публикация docker-образа :main в GHCR (релиз на прод).
-# push→dev и PR dev→main не гоняем — избыточно (dev уже проверен, :dev не деплоится).
+# push→dev и PR dev→main не гоняем - избыточно (dev уже проверен, :dev не деплоится).
 on:
   pull_request:
     branches: [dev]
@@ -17,26 +17,26 @@ on:
       - 'apps/backend/**'
       - '.github/workflows/ci-backend.yml'
 
-# Отменяем устаревшие прогоны на том же ref — экономим минуты Actions.
+# Отменяем устаревшие прогоны на том же ref - экономим минуты Actions.
 concurrency:
   group: ci-backend-${{ github.ref }}
   cancel-in-progress: true
 
-# По умолчанию — только чтение; docker-джоб повышает права точечно.
+# По умолчанию - только чтение; docker-джоб повышает права точечно.
 permissions:
   contents: read
 
 jobs:
   # --- Привратник: нужно ли вообще гонять тесты на этом событии ---
   #
-  # На PR — всегда. На push в main — только если дерево main ОТЛИЧАЕТСЯ от dev.
+  # На PR - всегда. На push в main - только если дерево main ОТЛИЧАЕТСЯ от dev.
   #
   # Что это даёт. При обычном потоке (ветка → PR в dev → мерж dev в main) код, приезжающий
   # в main, уже прошёл гейт на PR, и повторный прогон занимает те же минуты ради того же
   # результата. Совпадение деревьев это подтверждает.
   #
   # Чего это НЕ даёт, чтобы не обманываться: совпадение говорит «main не отличается от dev»,
-  # а не «dev проверен». Гарантия проверенности держится на самом потоке — вход в dev только
+  # а не «dev проверен». Гарантия проверенности держится на самом потоке - вход в dev только
   # через PR с гейтом. Сравнение ловит другое: прямой push в main мимо dev и нетривиальный
   # мерж, где дерево получилось иным. Branch protection на free-тарифе не enforced, поэтому
   # такой путь технически открыт, и молча пропускать его нельзя.
@@ -54,16 +54,16 @@ jobs:
         id: decide
         run: |
           if [ "${{ github.event_name }}" != "push" ]; then
-            echo "PR — гейт обязателен."
+            echo "PR - гейт обязателен."
             echo "tests=true" >> "$GITHUB_OUTPUT"; exit 0
           fi
           head_tree="$(git rev-parse 'HEAD^{tree}')"
           dev_tree="$(git rev-parse 'origin/dev^{tree}' 2>/dev/null || echo none)"
           if [ "$head_tree" = "$dev_tree" ]; then
-            echo "Дерево совпадает с dev ($head_tree) — этот код уже проходил гейт на PR."
+            echo "Дерево совпадает с dev ($head_tree) - этот код уже проходил гейт на PR."
             echo "tests=false" >> "$GITHUB_OUTPUT"
           else
-            echo "Дерево отличается от dev (main=$head_tree dev=$dev_tree) — гоняем полностью."
+            echo "Дерево отличается от dev (main=$head_tree dev=$dev_tree) - гоняем полностью."
             echo "tests=true" >> "$GITHUB_OUTPUT"
           fi
 
@@ -112,7 +112,7 @@ jobs:
     name: Docker image (backend → GHCR)
     runs-on: ubuntu-latest
     needs: [gate, backend]
-    # `skipped` в списке допустимых исходов — это случай «тесты не гоняли, потому что дерево
+    # `skipped` в списке допустимых исходов - это случай «тесты не гоняли, потому что дерево
     # совпадает с проверенным dev». Без него пропуск тестов пропустил бы и публикацию образа.
     if: >-
       !cancelled() && github.event_name == 'push'

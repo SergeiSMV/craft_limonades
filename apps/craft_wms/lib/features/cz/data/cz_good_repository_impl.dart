@@ -10,7 +10,7 @@ import '../domain/cz_good_repository.dart';
 
 /// Правка признака «маркируемый» (CZ-05): `PATCH goods/{id}/cz-marked`, затем кэш товаров.
 ///
-/// Кэш — после ответа сервера, а не до: правка онлайн, и пометка в кэше без подтверждения
+/// Кэш - после ответа сервера, а не до: правка онлайн, и пометка в кэше без подтверждения
 /// разошлась бы со справочником до следующей загрузки.
 @LazySingleton(as: CzGoodRepository)
 class CzGoodRepositoryImpl implements CzGoodRepository {

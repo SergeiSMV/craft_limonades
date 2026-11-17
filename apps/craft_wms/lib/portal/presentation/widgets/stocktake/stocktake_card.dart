@@ -13,8 +13,8 @@ import '../ui/portal_badge.dart';
 import '../ui/portal_button.dart';
 import 'stocktake_labels.dart';
 
-/// Строка пересчёта в карточке списка (P10-05, плоский стиль — ADHOC-56): номер со статусом,
-/// область, кто завёл, когда закрыт, ход — каждый факт своей строкой; справа «Ход» и
+/// Строка пересчёта в карточке списка (P10-05, плоский стиль - ADHOC-56): номер со статусом,
+/// область, кто завёл, когда закрыт, ход - каждый факт своей строкой; справа «Ход» и
 /// «Закрыть» (у незакрытого).
 class StocktakeCard extends StatelessWidget {
   const StocktakeCard({
@@ -27,11 +27,11 @@ class StocktakeCard extends StatelessWidget {
 
   final PortalStocktake stocktake;
 
-  /// Идёт закрытие — кнопка ждёт.
+  /// Идёт закрытие - кнопка ждёт.
   final bool busy;
   final VoidCallback onProgress;
 
-  /// «Закрыть»; `null` — у должности нет права заводить и закрывать (ADHOC-50).
+  /// «Закрыть»; `null` - у должности нет права заводить и закрывать (ADHOC-50).
   final VoidCallback? onClose;
 
   @override

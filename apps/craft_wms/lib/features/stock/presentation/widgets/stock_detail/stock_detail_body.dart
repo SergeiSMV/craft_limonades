@@ -24,7 +24,7 @@ class StockDetailBody extends StatelessWidget {
   /// Товар, чьи остатки открыты.
   final Good good;
 
-  /// Скан марки «Честного знака», которым открыта карточка (CZ-04); `null` — обычная карточка.
+  /// Скан марки «Честного знака», которым открыта карточка (CZ-04); `null` - обычная карточка.
   final CzScanResult? czMark;
 
   @override
@@ -50,7 +50,7 @@ class StockDetailBody extends StatelessWidget {
                   ),
                 ),
               ),
-              // Марка — сразу под шапкой: ради неё карточку и открыли.
+              // Марка - сразу под шапкой: ради неё карточку и открыли.
               if (czMark != null)
                 SliverPadding(
                   padding: AppInsets.h8,

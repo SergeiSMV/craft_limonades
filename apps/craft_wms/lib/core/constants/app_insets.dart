@@ -58,7 +58,7 @@ abstract final class AppInsets {
   static const EdgeInsets left12 = EdgeInsets.only(left: 12);
 
   //* --- Диалоги ---------------------------------------------------------- *//
-  /// Поля вокруг диалога. Дефолтные 40 по бокам на экране ТСД (360dp) съедают ширину —
+  /// Поля вокруг диалога. Дефолтные 40 по бокам на экране ТСД (360dp) съедают ширину -
   /// подписи кнопок переносятся на вторую строку.
   // Плоский стиль портала (ADHOC-56).
   static const EdgeInsets cardRow = EdgeInsets.symmetric(horizontal: 16, vertical: 12);
@@ -68,7 +68,7 @@ abstract final class AppInsets {
   static const EdgeInsets navSectionTitle = EdgeInsets.fromLTRB(10, 12, 10, 4);
   static const EdgeInsets input = EdgeInsets.symmetric(horizontal: 12, vertical: 8);
   static const EdgeInsets inputSearch = EdgeInsets.symmetric(horizontal: 12);
-  // Поле заданной высоты: слева отступ даёт пустой префикс, высоту — он же.
+  // Поле заданной высоты: слева отступ даёт пустой префикс, высоту - он же.
   static const EdgeInsets inputTall = EdgeInsets.only(right: 12);
   static const EdgeInsets modalHeader = EdgeInsets.fromLTRB(20, 16, 12, 16);
   static const EdgeInsets modalBody = EdgeInsets.all(20);
@@ -80,8 +80,8 @@ abstract final class AppInsets {
   static const EdgeInsets tableHead = EdgeInsets.symmetric(horizontal: 16, vertical: 8);
   static const EdgeInsets page = EdgeInsets.symmetric(horizontal: 24, vertical: 24);
   static const EdgeInsets pageCompact = EdgeInsets.symmetric(horizontal: 12, vertical: 16);
-  // Таблица документов (ADHOC-26, плоский стиль — ADHOC-56): ячейка и ячейка шапки; по краям
-  // таблицы ещё h8 — с ними крайние колонки отступают от рамки карточки на 16, как строки.
+  // Таблица документов (ADHOC-26, плоский стиль - ADHOC-56): ячейка и ячейка шапки; по краям
+  // таблицы ещё h8 - с ними крайние колонки отступают от рамки карточки на 16, как строки.
   static const EdgeInsets tableCell = EdgeInsets.symmetric(
     horizontal: 8,
     vertical: 10,

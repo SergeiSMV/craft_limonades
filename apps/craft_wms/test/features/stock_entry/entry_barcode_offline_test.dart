@@ -32,7 +32,7 @@ class _MockCatalogRepo extends Mock implements CatalogRepository {}
 ///
 /// Поток ввода держал собственный резолв поверх `Dio`, мимо кэша устройства, и сводил оба
 /// неудачных исхода к `null`: «ШК не привязан» и «проверить не смогли» становились неотличимы.
-/// Экран молча открывал выбор товара — то есть предлагал привязку, опираясь на факт, которого
+/// Экран молча открывал выбор товара - то есть предлагал привязку, опираясь на факт, которого
 /// у него не было, и заодно показывал снэкбар с ошибкой: два противоречащих сообщения на один скан.
 ///
 /// Привязка офлайн при этом остаётся возможной: кладовщик стоит у стеллажа с упаковкой в руках,
@@ -116,7 +116,7 @@ void main() {
     expect(
       find.text(t.stockEntry.barcodeOffline(barcode: code)),
       findsOneWidget,
-      reason: 'код не проверен — так и говорим, а не выдаём его за свободный',
+      reason: 'код не проверен - так и говорим, а не выдаём его за свободный',
     );
     expect(
       find.byType(GoodPickerSheet),
@@ -140,7 +140,7 @@ void main() {
     expect(
       find.byType(GoodPickerSheet),
       findsOneWidget,
-      reason: 'кладовщик подтвердил — даём выбрать товар',
+      reason: 'кладовщик подтвердил - даём выбрать товар',
     );
     await scanner.dispose();
   });
@@ -155,7 +155,7 @@ void main() {
     final scanner = await scan(tester, code);
 
     // «Не найден по локальной базе» кладовщик может доверить своей памяти,
-    // «не удалось проверить» — повод позвать админа. Путать их нельзя.
+    // «не удалось проверить» - повод позвать админа. Путать их нельзя.
     expect(
       find.text(t.stockEntry.barcodeLookupFailed(barcode: code)),
       findsOneWidget,
@@ -176,7 +176,7 @@ void main() {
     expect(
       find.byType(GoodPickerSheet),
       findsOneWidget,
-      reason: 'сервер ответил «не привязан» — это рабочий сценарий прохода',
+      reason: 'сервер ответил «не привязан» - это рабочий сценарий прохода',
     );
     await scanner.dispose();
   });
@@ -192,7 +192,7 @@ void main() {
     expect(
       find.byType(GoodPickerSheet),
       findsNothing,
-      reason: 'товар опознан — выбирать вручную нечего',
+      reason: 'товар опознан - выбирать вручную нечего',
     );
     await scanner.dispose();
   });

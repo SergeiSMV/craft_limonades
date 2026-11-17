@@ -19,7 +19,7 @@ class CellsRepository {
 
   final Dio _dio;
 
-  /// Код склада. На пилоте склад один — «Шабулина»/SHB (совпадает с дефолтом бэкенда).
+  /// Код склада. На пилоте склад один - «Шабулина»/SHB (совпадает с дефолтом бэкенда).
   static const String warehouse = 'SHB';
 
   static const _query = {'warehouse': warehouse};
@@ -33,9 +33,9 @@ class CellsRepository {
     return _parseSetup(resp.data!);
   });
 
-  /// Массовая правка галочек: `PATCH /cells/setup`. В теле — только изменённые галочки;
-  /// «на карточке» сервер ставит только ячейкам со стеллажом. Всё или ничего: 409 — среди
-  /// ячеек есть чужие, ничего не изменено. Ответ — сколько ячеек изменено.
+  /// Массовая правка галочек: `PATCH /cells/setup`. В теле - только изменённые галочки;
+  /// «на карточке» сервер ставит только ячейкам со стеллажом. Всё или ничего: 409 - среди
+  /// ячеек есть чужие, ничего не изменено. Ответ - сколько ячеек изменено.
   Future<Either<Failure, int>> saveSettings(
     List<String> cellIds,
     Map<CellFlag, bool> changes,
@@ -62,8 +62,8 @@ class CellsRepository {
     return Uint8List.fromList(resp.data!);
   });
 
-  /// PDF одного вида: `POST /cells/labels.pdf`. Пустой [cellIds] — весь склад. 409 — чужие
-  /// ячейки; 422 — печатать нечего или не влезает (причины — в тексте ошибки).
+  /// PDF одного вида: `POST /cells/labels.pdf`. Пустой [cellIds] - весь склад. 409 - чужие
+  /// ячейки; 422 - печатать нечего или не влезает (причины - в тексте ошибки).
   Future<Either<Failure, Uint8List>> labelsPdf(
     LabelKind kind,
     List<String> cellIds,
@@ -78,7 +78,7 @@ class CellsRepository {
   });
 
   /// Загрузка `.xlsx` в формате rack_labels: `POST /import/cells` (multipart, поле `file`).
-  /// На вебе файла на диске нет — шлём байты из выбора файла браузера.
+  /// На вебе файла на диске нет - шлём байты из выбора файла браузера.
   Future<Either<Failure, CellsImportReport>> importCells({
     required List<int> bytes,
     required String filename,
@@ -93,8 +93,8 @@ class CellsRepository {
     return CellsImportReport.fromJson(resp.data!);
   });
 
-  /// Завести напольную ячейку (ADHOC-61): `POST /cells/floor`. Ответ — id и адрес, как его
-  /// записал сервер («d-h-п» → «D-Н-П»). 400 — адрес не вида «D-Н-П», 409 — адрес занят.
+  /// Завести напольную ячейку (ADHOC-61): `POST /cells/floor`. Ответ - id и адрес, как его
+  /// записал сервер («d-h-п» → «D-Н-П»). 400 - адрес не вида «D-Н-П», 409 - адрес занят.
   Future<Either<Failure, ({String id, String address})>> createFloorCell(
     String address,
   ) => _guard(() async {
@@ -106,7 +106,7 @@ class CellsRepository {
     return _floorCell(resp.data!);
   });
 
-  /// Новый адрес напольной ячейки: `PATCH /cells/floor/{id}`. 404 — ячейки уже нет, 409 — адрес
+  /// Новый адрес напольной ячейки: `PATCH /cells/floor/{id}`. 404 - ячейки уже нет, 409 - адрес
   /// занят.
   Future<Either<Failure, ({String id, String address})>> renameFloorCell(
     String id,
@@ -120,7 +120,7 @@ class CellsRepository {
     return _floorCell(resp.data!);
   });
 
-  /// Убрать пустую напольную ячейку: `DELETE /cells/floor/{id}`. 409 — в ячейке товар или
+  /// Убрать пустую напольную ячейку: `DELETE /cells/floor/{id}`. 409 - в ячейке товар или
   /// короба.
   Future<Either<Failure, void>> deleteFloorCell(String id) => _guard(() async {
     await _dio.delete<void>(ApiConst.cellFloor(id), queryParameters: _query);
@@ -171,9 +171,9 @@ class CellsRepository {
     }
   }
 
-  /// Ответ сервера с кодом — [ServerFailure] с текстом ошибки (`{"error": "…"}`): его
-  /// показываем как есть — причины 409 и 422 оператору нужны дословно. У запросов файла тело
-  /// ошибки приходит байтами — разбираем его тоже.
+  /// Ответ сервера с кодом - [ServerFailure] с текстом ошибки (`{"error": "…"}`): его
+  /// показываем как есть - причины 409 и 422 оператору нужны дословно. У запросов файла тело
+  /// ошибки приходит байтами - разбираем его тоже.
   static Failure _mapError(DioException e) {
     final code = e.response?.statusCode;
     if (code == null) return const Failure.network();

@@ -11,13 +11,13 @@ import (
 
 // Ошибки валидации ввода привязки ШК.
 var (
-	// ErrEmptyBarcode — не передан штрихкод.
+	// ErrEmptyBarcode - не передан штрихкод.
 	ErrEmptyBarcode = errors.New("barcode is required")
-	// ErrEmptyGoodID — не передан товар для привязки.
+	// ErrEmptyGoodID - не передан товар для привязки.
 	ErrEmptyGoodID = errors.New("good_id is required")
 )
 
-// barcodeRepo — зависимость сервиса от хранилища ШК (интерфейс ради тестируемости).
+// barcodeRepo - зависимость сервиса от хранилища ШК (интерфейс ради тестируемости).
 type barcodeRepo interface {
 	GetGoodByBarcode(ctx context.Context, code string) (model.Good, error)
 	ListByGood(ctx context.Context, goodID string) ([]model.Barcode, error)
@@ -30,9 +30,9 @@ type barcodeRepo interface {
 	Regrade(ctx context.Context, in model.RegradeInput) (model.RegradeResult, error)
 }
 
-// BarcodeService — резолв товара по ШК и привязка ШК к товару (ввод остатков P-FastStart).
+// BarcodeService - резолв товара по ШК и привязка ШК к товару (ввод остатков P-FastStart).
 // Валидирует ввод; доменные ошибки хранилища (ErrNotFound/ErrBarcodeConflict/ErrGoodNotFound)
-// проходят как есть — хендлер маппит их в HTTP-коды.
+// проходят как есть - хендлер маппит их в HTTP-коды.
 type BarcodeService struct {
 	repo barcodeRepo
 }
@@ -42,7 +42,7 @@ func NewBarcodeService(repo barcodeRepo) *BarcodeService {
 	return &BarcodeService{repo: repo}
 }
 
-// ResolveGood — товар по ШК; нет привязки → repository.ErrNotFound.
+// ResolveGood - товар по ШК; нет привязки → repository.ErrNotFound.
 func (s *BarcodeService) ResolveGood(ctx context.Context, code string) (model.Good, error) {
 	code = strings.TrimSpace(code)
 	if code == "" {
@@ -51,7 +51,7 @@ func (s *BarcodeService) ResolveGood(ctx context.Context, code string) (model.Go
 	return s.repo.GetGoodByBarcode(ctx, code)
 }
 
-// ListByGood — все ШК товара (секция «Штрихкоды» в карточке). Пустой good_id отклоняется.
+// ListByGood - все ШК товара (секция «Штрихкоды» в карточке). Пустой good_id отклоняется.
 func (s *BarcodeService) ListByGood(ctx context.Context, goodID string) ([]model.Barcode, error) {
 	goodID = strings.TrimSpace(goodID)
 	if goodID == "" {
@@ -60,7 +60,7 @@ func (s *BarcodeService) ListByGood(ctx context.Context, goodID string) ([]model
 	return s.repo.ListByGood(ctx, goodID)
 }
 
-// List — страница всех привязок ШК: справочник целиком для кэша устройства (P2-02).
+// List - страница всех привязок ШК: справочник целиком для кэша устройства (P2-02).
 // Границы limit/offset те же, что у остальных справочников (clampPaging), чтобы клиент
 // листал одинаково везде.
 func (s *BarcodeService) List(ctx context.Context, limit, offset int) (Page[model.BarcodeLink], error) {
@@ -72,7 +72,7 @@ func (s *BarcodeService) List(ctx context.Context, limit, offset int) (Page[mode
 	return Page[model.BarcodeLink]{Items: items, Total: total, Limit: limit, Offset: offset}, nil
 }
 
-// Bind — привязать ШК к товару (аддитивно, идемпотентно). Пустые good_id/barcode отклоняются.
+// Bind - привязать ШК к товару (аддитивно, идемпотентно). Пустые good_id/barcode отклоняются.
 func (s *BarcodeService) Bind(ctx context.Context, goodID, barcode, symbology string) error {
 	goodID = strings.TrimSpace(goodID)
 	barcode = strings.TrimSpace(barcode)
@@ -88,18 +88,18 @@ func (s *BarcodeService) Bind(ctx context.Context, goodID, barcode, symbology st
 
 // GenerateInternal выдаёт товару внутренний ШК и возвращает его.
 //
-// Что: EAN-13 с префиксом 20–29 и контрольной цифрой для товара, у которого своего ШК нет.
-// Зачем: без штрихкода товар выпадает из всей работы склада — его не принять сканом, не найти
+// Что: EAN-13 с префиксом 20-29 и контрольной цифрой для товара, у которого своего ШК нет.
+// Зачем: без штрихкода товар выпадает из всей работы склада - его не принять сканом, не найти
 // в ячейке, не собрать в заказ. Код печатается на ярлыке (P4-08) и наклеивается.
 //
 // **Идемпотентно по товару.** Уже выданный внутренний ШК возвращается как есть, второй не
 // заводится. Иначе повторное нажатие (связь мигнула, кладовщик не увидел ответа) дало бы товару
-// два кода, из которых на упаковке наклеен один, — и второй жил бы в справочнике мусором.
+// два кода, из которых на упаковке наклеен один, - и второй жил бы в справочнике мусором.
 // Перепечать испорченной этикетки идёт этим же вызовом и даёт тот же код.
 //
 // Товар при этом может иметь и внешние ШК: привязка аддитивна (1→N), и внутренний код просто
-// встаёт рядом. Это не противоречие — у коробки может быть и свой штрихкод, и наш.
-// Второе возвращаемое значение — создан ли код сейчас. По нему экран отличает «выдали новый»
+// встаёт рядом. Это не противоречие - у коробки может быть и свой штрихкод, и наш.
+// Второе возвращаемое значение - создан ли код сейчас. По нему экран отличает «выдали новый»
 // от «он уже был»: во втором случае человеку стоит сказать, что он переклеивает существующий,
 // а не заводит ещё один.
 func (s *BarcodeService) GenerateInternal(ctx context.Context, goodID string) (string, bool, error) {
@@ -122,7 +122,7 @@ func (s *BarcodeService) GenerateInternal(ctx context.Context, goodID string) (s
 	}
 }
 
-// Unbind — отвязать ШК (коррекция ошибочной привязки, P-FS-12). Идемпотентно на уровне репозитория
+// Unbind - отвязать ШК (коррекция ошибочной привязки, P-FS-12). Идемпотентно на уровне репозитория
 // (нет привязки → не ошибка). Пустой barcode отклоняется.
 func (s *BarcodeService) Unbind(ctx context.Context, barcode string) error {
 	barcode = strings.TrimSpace(barcode)
@@ -132,7 +132,7 @@ func (s *BarcodeService) Unbind(ctx context.Context, barcode string) error {
 	return s.repo.Unbind(ctx, barcode)
 }
 
-// CZStock — сколько марок ЧЗ с этим ШК на складе (ADHOC-53): ТСД спрашивает перед отвязкой ШК
+// CZStock - сколько марок ЧЗ с этим ШК на складе (ADHOC-53): ТСД спрашивает перед отвязкой ШК
 // маркируемого товара и, если марки есть, предлагает перепривязку.
 func (s *BarcodeService) CZStock(ctx context.Context, barcode string) (int, error) {
 	barcode = strings.TrimSpace(barcode)
@@ -142,7 +142,7 @@ func (s *BarcodeService) CZStock(ctx context.Context, barcode string) (int, erro
 	return s.repo.CZStockOfBarcode(ctx, barcode)
 }
 
-// Regrade — перепривязать ШК к другому товару с пересортом марок ЧЗ со склада (ADHOC-53).
+// Regrade - перепривязать ШК к другому товару с пересортом марок ЧЗ со склада (ADHOC-53).
 func (s *BarcodeService) Regrade(ctx context.Context, in model.RegradeInput) (model.RegradeResult, error) {
 	in.Barcode = strings.TrimSpace(in.Barcode)
 	in.GoodID = strings.TrimSpace(in.GoodID)

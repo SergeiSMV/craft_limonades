@@ -12,8 +12,8 @@ import (
 	"craftwms/internal/model"
 )
 
-// problemLines — что решение офиса или отгрузка возврата берёт по проблеме: короб целиком;
-// товар с марками ЧЗ — там, где лежат его марки (CZ-06); товар без марок — по количеству, где
+// problemLines - что решение офиса или отгрузка возврата берёт по проблеме: короб целиком;
+// товар с марками ЧЗ - там, где лежат его марки (CZ-06); товар без марок - по количеству, где
 // найдётся на складе-метке (P6-07-3).
 func problemLines(ctx context.Context, q Querier, p lockedProblem) ([]problemLine, error) {
 	if p.loadUnit != "" {
@@ -26,12 +26,12 @@ func problemLines(ctx context.Context, q Querier, p lockedProblem) ([]problemLin
 	return problemGoodsLines(ctx, q, p)
 }
 
-// problemMarkLines — товар проблемы по её маркам (CZ-06): строки по ячейкам, где марки лежат
-// россыпью склада-метки. Марок у проблемы нет — nil: товар берётся по количеству.
+// problemMarkLines - товар проблемы по её маркам (CZ-06): строки по ячейкам, где марки лежат
+// россыпью склада-метки. Марок у проблемы нет - nil: товар берётся по количеству.
 //
-// Зачем по маркам: товар разных проблем одной партии неразличим по количеству, а марки — нет;
-// иначе остаток списался бы в одной ячейке, а марки — в другой. Марка, ушедшая со склада-метки
-// или из россыпи (переложена в короб), — товара проблемы нет там, где его ждут:
+// Зачем по маркам: товар разных проблем одной партии неразличим по количеству, а марки - нет;
+// иначе остаток списался бы в одной ячейке, а марки - в другой. Марка, ушедшая со склада-метки
+// или из россыпи (переложена в короб), - товара проблемы нет там, где его ждут:
 // ErrProblemGoodsMissing, как у проблемы без марок.
 func problemMarkLines(ctx context.Context, q Querier, p lockedProblem) ([]problemLine, error) {
 	rows, err := q.Query(ctx, `
@@ -74,8 +74,8 @@ func problemMarkLines(ctx context.Context, q Querier, p lockedProblem) ([]proble
 	return lines, nil
 }
 
-// retireProblemMarks уводит со склада марки проблемы статусом status (CZ-06): короб — все
-// марки в нём, товар — марки проблемы. Ушедшая марка места не имеет (CHECK cz_marks_place).
+// retireProblemMarks уводит со склада марки проблемы статусом status (CZ-06): короб - все
+// марки в нём, товар - марки проблемы. Ушедшая марка места не имеет (CHECK cz_marks_place).
 func retireProblemMarks(ctx context.Context, q Querier, p lockedProblem, status string) error {
 	var err error
 	if p.loadUnit != "" {
@@ -95,8 +95,8 @@ func retireProblemMarks(ctx context.Context, q Querier, p lockedProblem, status 
 	return nil
 }
 
-// relabelProblemMarks переводит марки товара проблемы на склад to — вместе с остатком
-// (CZ-06): марки россыпью несут склад строки. Марки короба склада не несут — его меняет короб.
+// relabelProblemMarks переводит марки товара проблемы на склад to - вместе с остатком
+// (CZ-06): марки россыпью несут склад строки. Марки короба склада не несут - его меняет короб.
 func relabelProblemMarks(ctx context.Context, q Querier, p lockedProblem, to string) error {
 	if _, err := q.Exec(ctx, `
 		UPDATE cz_marks SET internal_warehouse_id = $2::uuid, updated_at = now()
@@ -107,10 +107,10 @@ func relabelProblemMarks(ctx context.Context, q Querier, p lockedProblem, to str
 	return nil
 }
 
-// CZRejection — отказ операции по маркам ЧЗ с причиной по-русски (CZ-06).
+// CZRejection - отказ операции по маркам ЧЗ с причиной по-русски (CZ-06).
 //
 // Зачем: строки документов движения называют свою причину по-русски (ADHOC-40), а пометка
-// проблемы и отгрузка возврата отказывают целиком — без обёртки кладовщик увидел бы код ошибки
+// проблемы и отгрузка возврата отказывают целиком - без обёртки кладовщик увидел бы код ошибки
 // по-английски. Unwrap отдаёт ошибку-сигнал: очередь по-прежнему узнаёт отказ по существу.
 type CZRejection struct {
 	Text string
@@ -119,11 +119,11 @@ type CZRejection struct {
 
 func (e *CZRejection) Error() string { return e.Text }
 
-// Unwrap — ошибка-сигнал отказа.
+// Unwrap - ошибка-сигнал отказа.
 func (e *CZRejection) Unwrap() error { return e.Err }
 
 // czRejection оборачивает ошибку марок ЧЗ причиной по-русски с префиксом [what]; прочие
-// ошибки (сбой базы) — как есть.
+// ошибки (сбой базы) - как есть.
 func czRejection(err error, what string) error {
 	for _, target := range []error{
 		model.ErrCZMarksRequired, model.ErrCZMarksQtyMismatch,
@@ -136,8 +136,8 @@ func czRejection(err error, what string) error {
 	return err
 }
 
-// returnMarks — марки, отсканированные в сеансе отгрузки возврата (CZ-06, долг 30): каждая
-// должна принадлежать позиции сеанса, и каждая позиция россыпью с марками — быть названа
+// returnMarks - марки, отсканированные в сеансе отгрузки возврата (CZ-06, долг 30): каждая
+// должна принадлежать позиции сеанса, и каждая позиция россыпью с марками - быть названа
 // целиком.
 type returnMarks struct {
 	pending map[string]bool // ещё не отнесённые к позиции
@@ -151,8 +151,8 @@ func newReturnMarks(cis []string) *returnMarks {
 	return r
 }
 
-// take относит к позиции p её марки. Короб уезжает целиком — его марки сканировать незачем;
-// позиция россыпью без марок — по-прежнему одним сканом товара.
+// take относит к позиции p её марки. Короб уезжает целиком - его марки сканировать незачем;
+// позиция россыпью без марок - по-прежнему одним сканом товара.
 func (r *returnMarks) take(ctx context.Context, q Querier, p lockedProblem) error {
 	if p.loadUnit != "" {
 		return nil
@@ -172,7 +172,7 @@ func (r *returnMarks) take(ctx context.Context, q Querier, p lockedProblem) erro
 		if !r.pending[cis] {
 			return &CZRejection{
 				Text: "Отсканированы не все марки позиции возврата «" +
-					goodText(ctx, q, p.good, "", decimal.Zero) + "» — отсканируйте каждую единицу",
+					goodText(ctx, q, p.good, "", decimal.Zero) + "» - отсканируйте каждую единицу",
 				Err: model.ErrCZReturnMarksIncomplete,
 			}
 		}
@@ -181,15 +181,15 @@ func (r *returnMarks) take(ctx context.Context, q Querier, p lockedProblem) erro
 	return rows.Err()
 }
 
-// allTaken — все отсканированные марки нашли свою позицию; лишняя — отказ сеанса.
+// allTaken - все отсканированные марки нашли свою позицию; лишняя - отказ сеанса.
 func (r *returnMarks) allTaken() error {
 	if len(r.pending) == 0 {
 		return nil
 	}
-	// Первая по порядку — чтобы причина не зависела от обхода словаря.
+	// Первая по порядку - чтобы причина не зависела от обхода словаря.
 	extra := slices.Sorted(maps.Keys(r.pending))[0]
 	return &CZRejection{
-		Text: "Марка " + extra + " не из позиций этого возврата — уберите её из сеанса",
+		Text: "Марка " + extra + " не из позиций этого возврата - уберите её из сеанса",
 		Err:  model.ErrCZReturnMarkForeign,
 	}
 }

@@ -17,20 +17,20 @@ import '../ui/portal_choice.dart';
 
 /// Диалоги справочника причин и вариантов решения (ADHOC-55).
 
-/// Название, флаг комментария и варианты причины; `null` — оператор передумал.
+/// Название, флаг комментария и варианты причины; `null` - оператор передумал.
 typedef ProblemReasonDraft = ({
   String name,
   bool commentRequired,
   List<String> resolutions,
 });
 
-/// Название и действие варианта; `null` — оператор передумал.
+/// Название и действие варианта; `null` - оператор передумал.
 typedef ResolutionVariantDraft = ({String name, String action});
 
 /// Диалог причины: название, «комментарий обязателен» и варианты решения галочками.
-/// [current] — правка существующей, без него — новая.
+/// [current] - правка существующей, без него - новая.
 ///
-/// Варианты «пересорт» предлагаются только причине «Пересорт», а ей — только они: сервер
+/// Варианты «пересорт» предлагаются только причине «Пересорт», а ей - только они: сервер
 /// другое сочетание не примет. Выключенный вариант виден, только пока он отмечен у причины.
 Future<ProblemReasonDraft?> showProblemReasonDialog(
   BuildContext context, {
@@ -57,7 +57,7 @@ class _ReasonDialogState extends State<_ReasonDialog> {
   late final Set<String> _selected = {...?widget.current?.resolutions};
   String? _error;
 
-  /// Варианты на выбор: по правилу «пересорт только у пересорта»; выключенные — если отмечены.
+  /// Варианты на выбор: по правилу «пересорт только у пересорта»; выключенные - если отмечены.
   List<ResolutionVariant> get _choices {
     final regrade = widget.current?.code == ProblemReasonCodes.regrade;
     return [
@@ -74,7 +74,7 @@ class _ReasonDialogState extends State<_ReasonDialog> {
     _error = null;
   });
 
-  /// Сохранить: название и хотя бы один вариант; варианты — в порядке справочника.
+  /// Сохранить: название и хотя бы один вариант; варианты - в порядке справочника.
   void submit() {
     final name = _name.text.trim();
     final resolutions = [
@@ -162,7 +162,7 @@ class _ReasonDialogState extends State<_ReasonDialog> {
     );
   }
 
-  /// Строка с галочкой — как действие в дереве прав.
+  /// Строка с галочкой - как действие в дереве прав.
   Widget _check({
     required String label,
     required bool value,
@@ -192,7 +192,7 @@ class _ReasonDialogState extends State<_ReasonDialog> {
   );
 }
 
-/// Диалог варианта решения: название и — только у нового — действие.
+/// Диалог варианта решения: название и - только у нового - действие.
 Future<ResolutionVariantDraft?> showResolutionVariantDialog(
   BuildContext context, {
   ResolutionVariant? current,
@@ -267,7 +267,7 @@ class _VariantDialogState extends State<_VariantDialog> {
               ),
               AppBoxes.kHeight16,
               PortalFieldLabel(tr.actionLabel),
-              // Действие у существующего варианта не меняется — только показывается.
+              // Действие у существующего варианта не меняется - только показывается.
               if (editing)
                 Text(
                   resolutionActionLabel(widget.current!.action),

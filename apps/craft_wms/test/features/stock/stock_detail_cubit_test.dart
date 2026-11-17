@@ -12,7 +12,7 @@ import '../../support/contents_stubs.dart';
 
 class _MockRepo extends Mock implements CatalogRepository {}
 
-/// Карточка остатков товара: места — из снимка склада (ADHOC-33), ШК — из справочника.
+/// Карточка остатков товара: места - из снимка склада (ADHOC-33), ШК - из справочника.
 void main() {
   late _MockRepo repo;
   late FakeContentsRepository contents;
@@ -58,7 +58,7 @@ void main() {
     },
   );
 
-  test('без связи — места из прежнего снимка, карточка не уходит в ошибку '
+  test('без связи - места из прежнего снимка, карточка не уходит в ошибку '
       '(долг 22)', () async {
     snapshot.result = const Left(Failure.network());
     contents.places = places([5]);
@@ -88,7 +88,7 @@ void main() {
   });
 
   test('unbindBarcode: DELETE → перезагрузка карточки (ШК убыл)', () async {
-    // 1-я загрузка — два ШК; после отвязки — один.
+    // 1-я загрузка - два ШК; после отвязки - один.
     var call = 0;
     contents.places = places([5]);
     when(() => repo.listGoodBarcodes('g1')).thenAnswer((_) async {

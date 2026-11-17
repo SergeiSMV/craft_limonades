@@ -8,7 +8,7 @@ import '../../../data/documents_repository.dart';
 import '../ui/portal_button.dart';
 import '../ui/portal_modal.dart';
 
-/// История документа (P3-03, плоский стиль — ADHOC-56): кто и когда его сформировал, скачал,
+/// История документа (P3-03, плоский стиль - ADHOC-56): кто и когда его сформировал, скачал,
 /// отметил выполненным.
 Future<void> showDocHistoryDialog(BuildContext context, List<DocEvent> events) {
   return showDialog<void>(
@@ -43,7 +43,7 @@ class _HistoryRow extends StatelessWidget {
 
   final DocEvent event;
 
-  /// Человекочитаемое название события. Незнакомое показываем как есть — лучше сырой код,
+  /// Человекочитаемое название события. Незнакомое показываем как есть - лучше сырой код,
   /// чем пустая строка: журнал читают, когда разбираются в расхождении.
   String get _label => switch (event.event) {
     'created' => t.portal.documents.eventCreated,

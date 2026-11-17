@@ -4,7 +4,7 @@
 
 **Стек:** Flutter (Android 11+, Urovo DT50) · Flutter Web (портал оператора) · Go (chi, pgx) · PostgreSQL · Docker · nginx · Excel (XLSX).
 Ключевые свойства: **offline-first** на устройстве, идемпотентность операций по `operation_id`,
-авторизация по бейджу сотрудника, роли `employee`/`admin`. Обмен с 1С — без прямой интеграции: по завершении
+авторизация по бейджу сотрудника, роли `employee`/`admin`. Обмен с 1С - без прямой интеграции: по завершении
 операции бэкенд формирует Excel-отчёт и выдаёт его в веб-портале, загрузку в 1С делает человек.
 
 ## Структура репозитория
@@ -16,9 +16,9 @@ infra/              # docker-compose, nginx
 docs/deploy/        # инструкции по развёртыванию
 ```
 
-## Локальный запуск — бэкенд (полный цикл)
+## Локальный запуск - бэкенд (полный цикл)
 
-Требуется Docker (локально — через Colima).
+Требуется Docker (локально - через Colima).
 
 ```bash
 colima start                        # docker-демон (macOS), если не запущен
@@ -46,13 +46,13 @@ flutter run                         # запуск на эмуляторе (бэ
 
 ## Документация
 
-В репозитории — только инструкции по развёртыванию, **[docs/deploy/](docs/deploy/)**:
+В репозитории - только инструкции по развёртыванию, **[docs/deploy/](docs/deploy/)**:
 [dev-deploy.md](docs/deploy/dev-deploy.md) (локальный стек, `.env`, миграции, сборка APK
 и портала), [prod-deploy.md](docs/deploy/prod-deploy.md) (боевой сервер: установка, TLS,
 авто-обновление, бэкапы и восстановление), [tsd-setup.md](docs/deploy/tsd-setup.md) (ввод
 нового ТСД: установка приложения, первый вход, принтер), [test-stand.md](docs/deploy/test-stand.md)
 (тестовый стенд на снимке боевой базы) и [rustore.md](docs/deploy/rustore.md) (публикация в
-RuStore). На сервере всё делается из одного меню — `sudo bash deploy/craft.sh`.
+RuStore). На сервере всё делается из одного меню - `sudo bash deploy/craft.sh`.
 
 ## Разработка
 

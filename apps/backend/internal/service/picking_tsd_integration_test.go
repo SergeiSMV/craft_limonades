@@ -10,9 +10,9 @@ import (
 	"craftwms/internal/testutil"
 )
 
-// TestPickingTSD_flow — цикл сборки на ТСД по живой базе (P9-04): список, взять, повтор, чужой
+// TestPickingTSD_flow - цикл сборки на ТСД по живой базе (P9-04): список, взять, повтор, чужой
 // заказ, зависший перехват, отказаться, короба отгрузки «N» с повтором и чужим ярлыком,
-// «не хватает» с пересчётом позиции (ячейки товара плюс ячейка реестра, основание — заказ, второй
+// «не хватает» с пересчётом позиции (ячейки товара плюс ячейка реестра, основание - заказ, второй
 // не заводится), отказы удалённого и нераспознанного заказа.
 func TestPickingTSD_flow(t *testing.T) {
 	pool := testutil.StartPostgres(t)
@@ -51,7 +51,7 @@ func TestPickingTSD_flow(t *testing.T) {
 			wh, date, number, load)
 	}
 	o1 := order("15512", "2026-11-09")
-	o2 := order("15513", "2026-11-08") // дата раньше — в списке первым
+	o2 := order("15513", "2026-11-08") // дата раньше - в списке первым
 	line := scan(`INSERT INTO picking_order_lines (order_id,line_no,good_code,good_id,cell_id,registry_cell,plan_qty)
 		VALUES ($1,1,'00000016147',$2,$3,'R-1',10) RETURNING id::text`, o1, good, cellR)
 	ghostLine := scan(`INSERT INTO picking_order_lines (order_id,line_no,good_code,good_id,plan_qty)
@@ -65,7 +65,7 @@ func TestPickingTSD_flow(t *testing.T) {
 		t.Fatalf("список: %+v, %v", list, err)
 	}
 
-	// Анна берёт заказ, повтор — не ошибка; Борис видит его занятым и взять не может.
+	// Анна берёт заказ, повтор - не ошибка; Борис видит его занятым и взять не может.
 	if err := svc.Take(ctx, o1, ann); err != nil {
 		t.Fatalf("взять: %v", err)
 	}
@@ -86,7 +86,7 @@ func TestPickingTSD_flow(t *testing.T) {
 		t.Fatalf("короб в чужом заказе: %v", err)
 	}
 
-	// Короба отгрузки: номера по порядку, повтор отдаёт тот же номер, ярлык другого короба — отказ.
+	// Короба отгрузки: номера по порядку, повтор отдаёт тот же номер, ярлык другого короба - отказ.
 	box1, box2 := "22222222-2222-4222-8222-222222222222", "33333333-3333-4333-8333-333333333333"
 	if seq, err := svc.AddBox(ctx, o1, ann, box1); err != nil || seq != 1 {
 		t.Fatalf("короб 1: %d, %v", seq, err)
@@ -109,8 +109,8 @@ func TestPickingTSD_flow(t *testing.T) {
 		t.Fatalf("короба в заказе: %+v, %v", task.Order.Boxes, err)
 	}
 
-	// Убрать пустой короб, заведённый по ошибке: остальные нумеруются заново, повтор — успех,
-	// чужой ярлык — нет такого короба, чужой исполнитель — отказ.
+	// Убрать пустой короб, заведённый по ошибке: остальные нумеруются заново, повтор - успех,
+	// чужой ярлык - нет такого короба, чужой исполнитель - отказ.
 	box3 := "44444444-4444-4444-8444-444444444444"
 	if seq, err := svc.AddBox(ctx, o1, ann, box3); err != nil || seq != 3 {
 		t.Fatalf("короб 3: %d, %v", seq, err)
@@ -132,12 +132,12 @@ func TestPickingTSD_flow(t *testing.T) {
 		task.Order.Boxes[0].Seq != 1 || task.Order.Boxes[1].Seq != 2 {
 		t.Fatalf("короба после удаления: %+v, %v", task.Order.Boxes, err)
 	}
-	// Ярлык убранного короба снова в деле — следующим номером.
+	// Ярлык убранного короба снова в деле - следующим номером.
 	if seq, err := svc.AddBox(ctx, o1, ann, box1); err != nil || seq != 3 {
 		t.Fatalf("короб 1 снова: %d, %v", seq, err)
 	}
 
-	// «Не хватает»: пересчёт товара в A-1 (там остаток) и R-1 (ячейка реестра), основание — заказ.
+	// «Не хватает»: пересчёт товара в A-1 (там остаток) и R-1 (ячейка реестра), основание - заказ.
 	res, err := svc.MarkShortage(ctx, o1, line, ann, true)
 	if err != nil || !res.Created || res.StocktakeNumber == nil {
 		t.Fatalf("не хватает: %+v, %v", res, err)
@@ -158,7 +158,7 @@ func TestPickingTSD_flow(t *testing.T) {
 	if err != nil || again.Created || again.StocktakeNumber == nil || *again.StocktakeNumber != *res.StocktakeNumber {
 		t.Fatalf("повтор нехватки завёл второй пересчёт: %+v, %v", again, err)
 	}
-	// Товара нет нигде и ячейки реестра нет — считать негде, отметка ставится без пересчёта.
+	// Товара нет нигде и ячейки реестра нет - считать негде, отметка ставится без пересчёта.
 	none, err := svc.MarkShortage(ctx, o1, ghostLine, ann, true)
 	if err != nil || none.StocktakeNumber != nil {
 		t.Fatalf("нехватка без ячеек: %+v, %v", none, err)

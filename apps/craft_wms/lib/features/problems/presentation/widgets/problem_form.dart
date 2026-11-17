@@ -20,7 +20,7 @@ import 'photos/problem_photo_strip.dart';
 import 'problem_format.dart';
 
 /// Куда и почему: что помечаем (карточкой, как «В руках» в перемещении), склад назначения
-/// и причина (вариантами, как фильтр «Остатков»), комментарий и — для «не нашей марки» —
+/// и причина (вариантами, как фильтр «Остатков»), комментарий и - для «не нашей марки» -
 /// марка (вдавленными полями, как диалог накладной).
 class ProblemForm extends StatelessWidget {
   const ProblemForm({
@@ -39,7 +39,7 @@ class ProblemForm extends StatelessWidget {
   final ProblemState state;
   final List<InternalWarehouse> targets;
 
-  /// Причины на выбор — из справочника терминала (ADHOC-55).
+  /// Причины на выбор - из справочника терминала (ADHOC-55).
   final List<ProblemReason> reasons;
   final TextEditingController comment;
   final TextEditingController mark;
@@ -102,7 +102,7 @@ class ProblemForm extends StatelessWidget {
           _field(controller: mark, hint: t.problems.mark),
         ],
         AppBoxes.kHeight16,
-        // Фото — последним: снимают, когда остальное уже выбрано (ADHOC-45).
+        // Фото - последним: снимают, когда остальное уже выбрано (ADHOC-45).
         ProblemPhotoStrip(
           photos: [
             for (final p in state.photos)
@@ -116,14 +116,14 @@ class ProblemForm extends StatelessWidget {
     );
   }
 
-  /// Варианты — в строку с переносом.
+  /// Варианты - в строку с переносом.
   Widget _choices(List<Widget> items) => Wrap(
     spacing: AppSizes.kChipSpacing,
     runSpacing: AppSizes.kChipSpacing,
     children: items,
   );
 
-  /// Вдавленное поле — как в окне накладной и количества.
+  /// Вдавленное поле - как в окне накладной и количества.
   Widget _field({
     required TextEditingController controller,
     required String hint,
@@ -157,7 +157,7 @@ class ProblemForm extends StatelessWidget {
   );
 }
 
-/// Что помечаем — построчно: наименование, партия, количество, место (короб — короб, позиции,
+/// Что помечаем - построчно: наименование, партия, количество, место (короб - короб, позиции,
 /// место).
 class _SubjectCard extends StatelessWidget {
   const _SubjectCard({required this.subject});

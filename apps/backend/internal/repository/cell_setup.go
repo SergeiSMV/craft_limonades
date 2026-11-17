@@ -8,20 +8,20 @@ import (
 	"craftwms/internal/model"
 )
 
-// Стеллажи и настройки этикеток ячеек (ADHOC-57). Живут на CellRepository: стеллаж — часть
+// Стеллажи и настройки этикеток ячеек (ADHOC-57). Живут на CellRepository: стеллаж - часть
 // раскладки ячеек склада, отдельный репозиторий дробил бы одну транзакцию импорта на два.
 
-// ErrForeignCells — в патче есть ячейки не этого склада, неактивные, ячейка приёмки или
+// ErrForeignCells - в патче есть ячейки не этого склада, неактивные, ячейка приёмки или
 // несуществующие: менять такие нельзя, и тихо пропускать их тоже нельзя.
 var ErrForeignCells = errors.New("ячейки не найдены на складе")
 
 // UpsertRack заводит или находит стеллаж склада по коду и возвращает его id и признак «создан».
-// Стеллаж — только группировка ячеек: своих настроек у него нет (галочка карточки — у ячейки).
+// Стеллаж - только группировка ячеек: своих настроек у него нет (галочка карточки - у ячейки).
 func (r *CellRepository) UpsertRack(ctx context.Context, q Querier, warehouseID, code string) (string, bool, error) {
 	var id string
 	var created bool
 	// DO UPDATE, а не DO NOTHING: только он возвращает строку существующего стеллажа.
-	// (xmax = 0) — строка вставлена сейчас.
+	// (xmax = 0) - строка вставлена сейчас.
 	err := q.QueryRow(ctx, `
 		INSERT INTO racks (warehouse_id, code)
 		VALUES ($1::uuid, $2)
@@ -34,14 +34,14 @@ func (r *CellRepository) UpsertRack(ctx context.Context, q Querier, warehouseID,
 }
 
 // UpsertSetup заводит или обновляет ячейку по (warehouse_id, address) вместе со стеллажом и
-// настройками этикетки — строка файла ячеек. Возвращает created=true для новой ячейки.
+// настройками этикетки - строка файла ячеек. Возвращает created=true для новой ячейки.
 // Повторная загрузка того же файла не двоит ячейки и приводит настройки к файлу.
 //
-// sideCard nil — галочка карточки не задана файлом: у существующей ячейки не меняется, у новой
-// false. Ячейка без стеллажа на карточку не попадает — её side_card всегда false.
+// sideCard nil - галочка карточки не задана файлом: у существующей ячейки не меняется, у новой
+// false. Ячейка без стеллажа на карточку не попадает - её side_card всегда false.
 //
-// Адрес на «-Н-П» — напольное хранение (ADHOC-61): признак ставится по адресу, стеллажа у такой
-// ячейки нет — пол у стеллажа на карточку стойки не попадает.
+// Адрес на «-Н-П» - напольное хранение (ADHOC-61): признак ставится по адресу, стеллажа у такой
+// ячейки нет - пол у стеллажа на карточку стойки не попадает.
 func (r *CellRepository) UpsertSetup(ctx context.Context, q Querier, warehouseID string, rackID *string, c model.CellSetup, sideCard *bool) (bool, error) {
 	floor := IsFloorStorageAddress(c.Address)
 	if floor {
@@ -67,7 +67,7 @@ func (r *CellRepository) UpsertSetup(ctx context.Context, q Querier, warehouseID
 
 // Setup возвращает ячейки склада со стеллажами и настройками этикеток и все стеллажи склада.
 //
-// Без пагинации: ячеек на складе сотни, а странице нужен весь набор — массовая отметка, счётчики
+// Без пагинации: ячеек на складе сотни, а странице нужен весь набор - массовая отметка, счётчики
 // фильтров и выгрузка в файл работают по всему складу. Служебные ячейки («ПРИЁМКА», «ОТГРУЗКА»)
 // не входят: у них нет этикетки и нет места на стеллаже. Порядок задаёт сервис.
 func (r *CellRepository) Setup(ctx context.Context, warehouseID string) ([]model.CellSetup, []model.Rack, error) {
@@ -112,10 +112,10 @@ func (r *CellRepository) Setup(ctx context.Context, warehouseID string) ([]model
 
 // UpdateSettings меняет галочки у ячеек склада одним UPDATE в транзакции q.
 //
-// Как: сначала проверка, что все id — активные ячейки этого склада, кроме ячейки приёмки; иначе
-// ErrForeignCells и ничего не меняется. Поле патча nil — колонка не трогается (COALESCE).
+// Как: сначала проверка, что все id - активные ячейки этого склада, кроме ячейки приёмки; иначе
+// ErrForeignCells и ничего не меняется. Поле патча nil - колонка не трогается (COALESCE).
 // Галочка карточки ставится только ячейкам со стеллажом: у ячейки без стеллажа карточки нет, её
-// side_card остаётся false (снять можно любой). Счётчик — сколько строк реально изменилось:
+// side_card остаётся false (снять можно любой). Счётчик - сколько строк реально изменилось:
 // «Сохранить» без изменений не должен рапортовать о правке.
 func (r *CellRepository) UpdateSettings(ctx context.Context, q Querier, warehouseID string, p model.CellSettingsPatch) (model.CellSettingsResult, error) {
 	var res model.CellSettingsResult

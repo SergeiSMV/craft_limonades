@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/contents_stubs.dart';
 
-/// Вкладка «Короба» (P5-05-1): открытие обновляет снимок, поиск — по приведённому коду.
+/// Вкладка «Короба» (P5-05-1): открытие обновляет снимок, поиск - по приведённому коду.
 void main() {
   late FakeContentsRepository repo;
   late FakeContentsSnapshotSync snapshot;
@@ -30,7 +30,7 @@ void main() {
   tearDown(() => cubit.close());
 
   test(
-    'первое открытие обновляет снимок и показывает все короба; повторное — нет',
+    'первое открытие обновляет снимок и показывает все короба; повторное - нет',
     () async {
       await cubit.open();
       expect(snapshot.refreshes, 1);
@@ -50,7 +50,7 @@ void main() {
     expect(cubit.state.data!.value!.single.id, a.id);
   });
 
-  test('не код — подсказка, сервер не спрашиваем', () async {
+  test('не код - подсказка, сервер не спрашиваем', () async {
     await cubit.open();
     await cubit.submitQuery('кальмар');
 
@@ -68,7 +68,7 @@ void main() {
     expect(repo.searches, ['9FA0']);
   });
 
-  test('пустая строка — снова весь список', () async {
+  test('пустая строка - снова весь список', () async {
     await cubit.open();
     await cubit.submitQuery('9fa0');
     await cubit.submitQuery('');
@@ -77,7 +77,7 @@ void main() {
     expect(cubit.state.data!.value, hasLength(2));
   });
 
-  test('без связи снимок не обновился — подпись «данные на»', () async {
+  test('без связи снимок не обновился - подпись «данные на»', () async {
     snapshot.result = const Left(Failure.network());
     repo.unitsFreshness = FromSnapshot(DateTime(2026, 10, 8, 14, 30));
 

@@ -10,7 +10,7 @@ import (
 	"craftwms/internal/service"
 )
 
-// PickingHandler — «Сборка-отгрузка» в портале (P8-02): загрузка «Реестра» 1С.
+// PickingHandler - «Сборка-отгрузка» в портале (P8-02): загрузка «Реестра» 1С.
 type PickingHandler struct {
 	load *service.PickingLoadService
 }
@@ -20,14 +20,14 @@ func NewPickingHandler(load *service.PickingLoadService) *PickingHandler {
 	return &PickingHandler{load: load}
 }
 
-// PreviewRegistry: POST /api/v1/picking/registry/preview — multipart с .xlsx реестра в поле
+// PreviewRegistry: POST /api/v1/picking/registry/preview - multipart с .xlsx реестра в поле
 // "file". Ничего не пишет: заказы файла против заказов той же даты, нераспознанные коды, ячейки
 // вне WMS, нехватка остатка.
 func (h *PickingHandler) PreviewRegistry(w http.ResponseWriter, r *http.Request) {
 	h.registry(w, r, false)
 }
 
-// LoadRegistry: POST /api/v1/picking/registry/load — тот же файл после подтверждения оператора:
+// LoadRegistry: POST /api/v1/picking/registry/load - тот же файл после подтверждения оператора:
 // сверка повторяется по свежему состоянию и пишется одной транзакцией.
 func (h *PickingHandler) LoadRegistry(w http.ResponseWriter, r *http.Request) {
 	h.registry(w, r, true)

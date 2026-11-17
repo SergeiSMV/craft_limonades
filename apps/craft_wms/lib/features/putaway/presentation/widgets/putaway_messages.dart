@@ -9,7 +9,7 @@ import '../../../../core/theme/semibold_text.dart';
 import '../bloc/putaway_models.dart';
 import '../../../../core/utils/doc_number.dart';
 
-/// Итог сеанса: проведён, ушёл в очередь, отклонён. Одна кнопка — вернуться к заданию.
+/// Итог сеанса: проведён, ушёл в очередь, отклонён. Одна кнопка - вернуться к заданию.
 class PutawayOutcomeView extends StatelessWidget {
   const PutawayOutcomeView({
     super.key,
@@ -23,7 +23,7 @@ class PutawayOutcomeView extends StatelessWidget {
   final String? reason;
   final VoidCallback onDone;
 
-  /// Вернуть отклонённый сеанс в правку (ADHOC-41); `null` — исправлять нечего.
+  /// Вернуть отклонённый сеанс в правку (ADHOC-41); `null` - исправлять нечего.
   final VoidCallback? onFix;
 
   @override

@@ -8,19 +8,19 @@ import (
 	"craftwms/internal/model"
 )
 
-// Отбор заказов портала: условие WHERE — только эти константы, параметры — аргументами запроса.
+// Отбор заказов портала: условие WHERE - только эти константы, параметры - аргументами запроса.
 const (
 	portalOrdersByDate = `o.warehouse_id = $1::uuid AND o.registry_date = $2::date`
 	portalOrderByID    = `o.id = $1::uuid`
 )
 
-// PortalOrders — заказы склада на дату накладной для списка портала «Сборка-отгрузка» (P8-03),
-// включая удалённые в 1С (с пометкой). Порядок — живые раньше удалённых, затем номер сборки.
+// PortalOrders - заказы склада на дату накладной для списка портала «Сборка-отгрузка» (P8-03),
+// включая удалённые в 1С (с пометкой). Порядок - живые раньше удалённых, затем номер сборки.
 func (r *PickingRepository) PortalOrders(ctx context.Context, warehouseID string, date time.Time) ([]model.PickingPortalOrder, error) {
 	return r.portalOrders(ctx, portalOrdersByDate, warehouseID, date)
 }
 
-// PortalDetails — заказы даты со строками, фактом, коробами и правками: выгрузка Excel (P8-03).
+// PortalDetails - заказы даты со строками, фактом, коробами и правками: выгрузка Excel (P8-03).
 func (r *PickingRepository) PortalDetails(ctx context.Context, warehouseID string, date time.Time) ([]model.PickingPortalDetail, error) {
 	orders, err := r.portalOrders(ctx, portalOrdersByDate, warehouseID, date)
 	if err != nil {
@@ -29,7 +29,7 @@ func (r *PickingRepository) PortalDetails(ctx context.Context, warehouseID strin
 	return r.portalDetails(ctx, orders)
 }
 
-// PortalOrder — один заказ для окна деталей портала. Нет такого заказа → ErrPickingOrderNotFound.
+// PortalOrder - один заказ для окна деталей портала. Нет такого заказа → ErrPickingOrderNotFound.
 func (r *PickingRepository) PortalOrder(ctx context.Context, orderID string) (model.PickingPortalDetail, error) {
 	orders, err := r.portalOrders(ctx, portalOrderByID, orderID)
 	if err != nil {
@@ -45,10 +45,10 @@ func (r *PickingRepository) PortalOrder(ctx context.Context, orderID string) (mo
 	return out[0], nil
 }
 
-// portalOrders — шапки заказов с итогами по условию cond (одна из констант portalOrder*).
+// portalOrders - шапки заказов с итогами по условию cond (одна из констант portalOrder*).
 //
 // Исполнитель показывается только у заказа в работе: после «Завершить сборку» в колонке
-// «собрал» — picked_by. План — живые строки; факт — все пики, кроме возвращённых на место (пик
+// «собрал» - picked_by. План - живые строки; факт - все пики, кроме возвращённых на место (пик
 // по строке, убранной реестром, тоже факт: его предстоит вернуть).
 func (r *PickingRepository) portalOrders(ctx context.Context, cond string, args ...any) ([]model.PickingPortalOrder, error) {
 	rows, err := r.pool.Query(ctx, `
@@ -71,8 +71,8 @@ func (r *PickingRepository) portalOrders(ctx context.Context, cond string, args 
 			SELECT sum(qty) AS qty FROM picking_picks WHERE order_id = o.id AND state <> 'returned'
 		) f ON true
 		LEFT JOIN LATERAL (SELECT count(*) AS cnt FROM picking_boxes WHERE order_id = o.id AND dropped_at IS NULL) b ON true
-		-- Вернуть на места (P9-07-1) — то же правило, что returnLines, одним запросом на все
-		-- заказы: перенесённое сверх плана, у удалённого — и «в сборке»; у отгруженного — ничего.
+		-- Вернуть на места (P9-07-1) - то же правило, что returnLines, одним запросом на все
+		-- заказы: перенесённое сверх плана, у удалённого - и «в сборке»; у отгруженного - ничего.
 		LEFT JOIN LATERAL (
 			SELECT sum(greatest(x.moved - x.plan, 0) + x.open) AS qty FROM (
 				SELECT CASE WHEN o.deleted_at IS NOT NULL OR ln.removed_at IS NOT NULL THEN 0 ELSE ln.plan_qty END AS plan,
@@ -83,7 +83,7 @@ func (r *PickingRepository) portalOrders(ctx context.Context, cond string, args 
 				WHERE ln.order_id = o.id GROUP BY ln.id
 			) x
 		) rt ON o.status <> 'shipped'
-		-- Сверка с 1С (P9-08) — только у отгруженного: по какой-то строке план реестра (у убранной
+		-- Сверка с 1С (P9-08) - только у отгруженного: по какой-то строке план реестра (у убранной
 		-- строки и удалённого заказа - 0) не равен отгруженному (пики в коробе отгрузки).
 		LEFT JOIN LATERAL (
 			SELECT bool_or(x.plan <> x.moved) AS diverged FROM (
@@ -121,8 +121,8 @@ func (r *PickingRepository) portalOrders(ctx context.Context, cond string, args 
 	return out, rows.Err()
 }
 
-// portalDetails дополняет шапки строками с фактом, коробами и правками — четырьмя запросами на
-// все заказы сразу, а не по запросу на заказ (выгрузка даты — сотни заказов).
+// portalDetails дополняет шапки строками с фактом, коробами и правками - четырьмя запросами на
+// все заказы сразу, а не по запросу на заказ (выгрузка даты - сотни заказов).
 func (r *PickingRepository) portalDetails(ctx context.Context, orders []model.PickingPortalOrder) ([]model.PickingPortalDetail, error) {
 	ids := make([]string, len(orders))
 	byOrder := make(map[string]*model.PickingPortalDetail, len(orders))
@@ -160,14 +160,14 @@ func (r *PickingRepository) portalDetails(ctx context.Context, orders []model.Pi
 	return out, nil
 }
 
-// lineRef — где строка лежит в ответе: заказ и индекс строки.
+// lineRef - где строка лежит в ответе: заказ и индекс строки.
 type lineRef struct {
 	order string
 	index int
 }
 
-// portalLines — строки плана заказов, и убранные реестром тоже: в деталях они видны
-// зачёркнутыми. Наименование — из 1С, единица и «маркируемый» — из справочника.
+// portalLines - строки плана заказов, и убранные реестром тоже: в деталях они видны
+// зачёркнутыми. Наименование - из 1С, единица и «маркируемый» - из справочника.
 func (r *PickingRepository) portalLines(ctx context.Context, ids []string, byOrder map[string]*model.PickingPortalDetail) (map[string]lineRef, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT l.order_id::text, l.id::text, l.line_no, l.good_code, l.good_name, l.good_id IS NOT NULL,
@@ -198,8 +198,8 @@ func (r *PickingRepository) portalLines(ctx context.Context, ids []string, byOrd
 	return lineAt, rows.Err()
 }
 
-// portalFacts — пики заказов, кроме возвращённых на место, с марками: партия (дата
-// производства), ячейка-источник, короб отгрузки и кто взял. Порядок — по времени пика.
+// portalFacts - пики заказов, кроме возвращённых на место, с марками: партия (дата
+// производства), ячейка-источник, короб отгрузки и кто взял. Порядок - по времени пика.
 func (r *PickingRepository) portalFacts(ctx context.Context, ids []string, byOrder map[string]*model.PickingPortalDetail, lineAt map[string]lineRef) error {
 	rows, err := r.pool.Query(ctx, `
 		SELECT p.line_id::text, b.production_date, c.address, bx.seq, p.qty::text, p.state,
@@ -238,14 +238,14 @@ func (r *PickingRepository) portalFacts(ctx context.Context, ids []string, byOrd
 	return rows.Err()
 }
 
-// portalCZBoxes — целые упаковки ЧЗ в коробах отгрузки заказов (CZ-07).
+// portalCZBoxes - целые упаковки ЧЗ в коробах отгрузки заказов (CZ-07).
 //
-// Что: упаковка (своя или над ней — короб с групповой внутри) целая, если она и вложенные в неё
-// не вскрыты, все её марки — в перенесённых пиках этого заказа и в одном коробе отгрузки.
+// Что: упаковка (своя или над ней - короб с групповой внутри) целая, если она и вложенные в неё
+// не вскрыты, все её марки - в перенесённых пиках этого заказа и в одном коробе отгрузки.
 // Зачем проверять состав, а не только opened_at: признак ставится по факту перемещений, а
-// здесь — документ для УПД; марка короба, отгруженная другим заказом или не собранная, делает
-// его россыпью наверняка. Как: кандидаты — упаковка марки и её родитель; из целых родителя и
-// вложенной остаётся родитель (вложенность — один уровень, CZ-01).
+// здесь - документ для УПД; марка короба, отгруженная другим заказом или не собранная, делает
+// его россыпью наверняка. Как: кандидаты - упаковка марки и её родитель; из целых родителя и
+// вложенной остаётся родитель (вложенность - один уровень, CZ-01).
 func (r *PickingRepository) portalCZBoxes(ctx context.Context, ids []string, byOrder map[string]*model.PickingPortalDetail) error {
 	rows, err := r.pool.Query(ctx, `
 		WITH picked AS (
@@ -309,7 +309,7 @@ func (r *PickingRepository) portalCZBoxes(ctx context.Context, ids []string, byO
 	return nil
 }
 
-// portalBoxes — короба отгрузки заказов по номеру.
+// portalBoxes - короба отгрузки заказов по номеру.
 func (r *PickingRepository) portalBoxes(ctx context.Context, ids []string, byOrder map[string]*model.PickingPortalDetail) error {
 	rows, err := r.pool.Query(ctx, `
 		SELECT order_id::text, seq, shipped_at FROM picking_boxes
@@ -329,7 +329,7 @@ func (r *PickingRepository) portalBoxes(ctx context.Context, ids []string, byOrd
 	return rows.Err()
 }
 
-// portalChanges — правки заказов повторными загрузками реестра, в порядке записи.
+// portalChanges - правки заказов повторными загрузками реестра, в порядке записи.
 func (r *PickingRepository) portalChanges(ctx context.Context, ids []string, byOrder map[string]*model.PickingPortalDetail) error {
 	rows, err := r.pool.Query(ctx, `
 		SELECT order_id::text, kind, coalesce(good_code, ''), coalesce(good_name, ''), batch_date,
@@ -352,12 +352,12 @@ func (r *PickingRepository) portalChanges(ctx context.Context, ids []string, byO
 	return rows.Err()
 }
 
-// ForceReleaseOrder — старший смены снимает заказ с исполнителя из портала (P8-03): заказ в
-// работе снова «новый» без исполнителя. Пики и короба остаются — следующий кладовщик продолжает с
+// ForceReleaseOrder - старший смены снимает заказ с исполнителя из портала (P8-03): заказ в
+// работе снова «новый» без исполнителя. Пики и короба остаются - следующий кладовщик продолжает с
 // того же места; прежний на следующем действии получит «заказ не у вас в работе».
 //
-// Заказ уже «новый» — не ошибка (повтор, или кладовщик успел отказаться сам); собранный и
-// отгруженный — ErrPickingOrderClosed. В журнал — кто снял (leadID) и с кого.
+// Заказ уже «новый» - не ошибка (повтор, или кладовщик успел отказаться сам); собранный и
+// отгруженный - ErrPickingOrderClosed. В журнал - кто снял (leadID) и с кого.
 func (r *PickingRepository) ForceReleaseOrder(ctx context.Context, orderID, leadID string) error {
 	return WithinTx(ctx, r.pool, func(q Querier) error {
 		st, err := lockPickingOrder(ctx, q, orderID, 0)
@@ -379,7 +379,7 @@ func (r *PickingRepository) ForceReleaseOrder(ctx context.Context, orderID, lead
 	})
 }
 
-// portalEvents — журнал событий заказов (P9-07) в порядке записи.
+// portalEvents - журнал событий заказов (P9-07) в порядке записи.
 func (r *PickingRepository) portalEvents(ctx context.Context, ids []string, byOrder map[string]*model.PickingPortalDetail) error {
 	rows, err := r.pool.Query(ctx, `
 		SELECT e.order_id::text, e.kind, coalesce(u.full_name, ''), coalesce(pu.full_name, ''),

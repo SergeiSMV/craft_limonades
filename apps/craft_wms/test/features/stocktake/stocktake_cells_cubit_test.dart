@@ -10,7 +10,7 @@ import 'package:mocktail/mocktail.dart';
 
 class _MockRepo extends Mock implements StocktakeRepository {}
 
-/// P10-04: ячейки пересчёта на ТСД — скан ячейки на месте, без связи — начатые подсчёты.
+/// P10-04: ячейки пересчёта на ТСД - скан ячейки на месте, без связи - начатые подсчёты.
 void main() {
   late _MockRepo repo;
 
@@ -52,7 +52,7 @@ void main() {
     ).thenAnswer((inv) async => Right(StocktakeCellView(cell: free)));
   });
 
-  test('свои и свободные — отдельно', () async {
+  test('свои и свободные - отдельно', () async {
     final c = StocktakeCellsCubit(repo, 'ST');
     await c.load();
     expect(c.state.mine, [mine]);
@@ -79,7 +79,7 @@ void main() {
     await c.close();
   });
 
-  test('чужая ячейка — подсказка, без запросов', () async {
+  test('чужая ячейка - подсказка, без запросов', () async {
     final c = StocktakeCellsCubit(repo, 'ST');
     await c.load();
     await c.scanCell('Z9');
@@ -88,7 +88,7 @@ void main() {
     await c.close();
   });
 
-  test('без связи — начатые подсчёты на терминале', () async {
+  test('без связи - начатые подсчёты на терминале', () async {
     when(
       () => repo.stocktake('ST'),
     ).thenAnswer((_) async => const Left(Failure.network()));

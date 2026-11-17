@@ -11,8 +11,8 @@ import (
 	"craftwms/internal/repository"
 )
 
-// fakeStockRepo — in-memory реализация stockRepo для юнит-тестов сервиса (без БД).
-// Проверяем ЛОГИКУ сервиса (валидация, маппинг ошибок), а не атомарность SQL —
+// fakeStockRepo - in-memory реализация stockRepo для юнит-тестов сервиса (без БД).
+// Проверяем ЛОГИКУ сервиса (валидация, маппинг ошибок), а не атомарность SQL -
 // её проверяет интеграционный тест репозитория (stock_integration_test.go).
 type fakeStockRepo struct {
 	qty          map[model.StockKey]decimal.Decimal
@@ -167,11 +167,11 @@ func TestTransfer_buildsKeysAndValidates(t *testing.T) {
 	repo := newFakeStockRepo()
 	svc := NewStockService(repo)
 
-	// невалидное количество — отказ до репозитория
+	// невалидное количество - отказ до репозитория
 	if err := svc.Transfer(context.Background(), "c1", "c2", "g", "b", "iwh", decimal.Zero); !errors.Is(err, ErrInvalidQuantity) {
 		t.Fatalf("ожидалась ErrInvalidQuantity, получено %v", err)
 	}
-	// валидное — перенос выполнен
+	// валидное - перенос выполнен
 	if err := svc.Transfer(context.Background(), "c1", "c2", "g", "b", "iwh", decimal.NewFromInt(3)); err != nil {
 		t.Fatalf("Transfer: неожиданная ошибка: %v", err)
 	}

@@ -10,7 +10,7 @@ import '../domain/picking/picking_order.dart';
 import 'documents_repository.dart';
 
 /// Раздел «Сборка-отгрузка» портала поверх API P8-03. Слой data: HTTP и разбор ответа в
-/// сущности домена; отказ по существу сервер объясняет текстом в поле `error` — он приезжает в
+/// сущности домена; отказ по существу сервер объясняет текстом в поле `error` - он приезжает в
 /// `ServerFailure.message`.
 @LazySingleton(as: PickingOrdersRepository)
 class PickingOrdersRepositoryImpl implements PickingOrdersRepository {

@@ -89,7 +89,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('2.5'), findsOneWidget);
-    // Активный фильтр — чипом под поиском.
+    // Активный фильтр - чипом под поиском.
     expect(find.widgetWithText(Chip, 'Брак'), findsOneWidget);
   });
 }

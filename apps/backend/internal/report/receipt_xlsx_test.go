@@ -19,7 +19,7 @@ func receiptSnap() model.ReportSnapshot {
 		Executor:      "Иванов Иван",
 		DocNumber:     "ТН-1042/2",
 		DocDate:       "2026-10-01",
-		// 22:30 UTC — уже следующий день по Москве.
+		// 22:30 UTC - уже следующий день по Москве.
 		CreatedAt: time.Date(2026, 10, 5, 22, 30, 0, 0, time.UTC),
 		Rows: []model.ReportSnapshotRow{
 			{CellAddress: "С-Н-П", GoodCode: &code, GoodName: "Кальмар", ProductionDate: "2026-09-01", Qty: "36"},
@@ -61,7 +61,7 @@ func TestBuildReceiptXLSX(t *testing.T) {
 		"A3": "Поставщик", "B3": "ООО «Голсера»",
 		"A4": "Документ поставщика", "B4": "№ ТН-1042/2 от 01.10.2026",
 		"A5": "Исполнитель", "B5": "Иванов Иван",
-		"A6": "Дата", "B6": "06.10.2026 01:30", // сервер в UTC, документ — по Москве
+		"A6": "Дата", "B6": "06.10.2026 01:30", // сервер в UTC, документ - по Москве
 		"A8": "Ячейка", "B8": "Код", "C8": "Наименование", "D8": "Дата выпуска", "E8": "Количество",
 		"A9": "С-Н-П", "B9": "16121", "C9": "Кальмар", "D9": "01.09.2026", "E9": "36",
 		"B10": "", "C10": "Креветка", "E10": "1.5",
@@ -71,13 +71,13 @@ func TestBuildReceiptXLSX(t *testing.T) {
 			t.Errorf("%s: получили %q, ждали %q", cell, got, v)
 		}
 	}
-	// Количество — числом, а не текстом: оператор сверяет суммы в Excel.
+	// Количество - числом, а не текстом: оператор сверяет суммы в Excel.
 	if typ, _ := f.GetCellType(receiptSheet, "E10"); typ == excelize.CellTypeSharedString || typ == excelize.CellTypeInlineString {
 		t.Error("количество записано текстом")
 	}
 }
 
-// ADHOC-55: номер документа — рядом с названием формы, номер приёмки — строкой под ним.
+// ADHOC-55: номер документа - рядом с названием формы, номер приёмки - строкой под ним.
 func TestBuildReceiptXLSX_numbers(t *testing.T) {
 	snap := receiptSnap()
 	snap.Number, snap.SourceNumber = 5, 21
@@ -122,7 +122,7 @@ func TestBuildDocumentXLSX_receipt(t *testing.T) {
 	}
 }
 
-// Снимок до ADHOC-23 накладной не несёт — строки «Документ поставщика» нет, шапка прежняя.
+// Снимок до ADHOC-23 накладной не несёт - строки «Документ поставщика» нет, шапка прежняя.
 func TestBuildReceiptXLSX_snapshotWithoutDoc(t *testing.T) {
 	snap := receiptSnap()
 	snap.DocNumber, snap.DocDate = "", ""

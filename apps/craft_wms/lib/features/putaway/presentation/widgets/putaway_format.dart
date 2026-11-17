@@ -4,7 +4,7 @@ import '../../../../core/utils/qty_format.dart';
 import '../../../tasks/presentation/widgets/common/task_format.dart';
 import '../bloc/putaway_models.dart';
 
-/// Как назвать взятое: короб — его коротким кодом с ярлыка, россыпь — товаром, партией и
+/// Как назвать взятое: короб - его коротким кодом с ярлыка, россыпь - товаром, партией и
 /// количеством.
 String pickTitle(PutawayPick p) => p.isBox
     ? t.putaway.box(code: boxCode(p.loadUnitId!, czCode: p.czCode))

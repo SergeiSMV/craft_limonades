@@ -13,7 +13,7 @@ import (
 )
 
 // Тесты P5-02 (проведение сеанса размещения) и P5-02-1 (сеанс выполняет задание).
-// Ячейка A фикстуры — ячейка приёмки (дефолтная), B — ячейка хранения. Всё, что приёмка
+// Ячейка A фикстуры - ячейка приёмки (дефолтная), B - ячейка хранения. Всё, что приёмка
 // кладёт в A, становится заданием на размещение.
 
 type putawayFixture struct {
@@ -80,7 +80,7 @@ func looseTo(good string, qty int64, cell string) repository.PutawayLineInput {
 	}
 }
 
-// qtyIn — остаток товара фикстуры в ячейке (склад по умолчанию).
+// qtyIn - остаток товара фикстуры в ячейке (склад по умолчанию).
 func (pf *putawayFixture) qtyIn(t *testing.T, cell string) string {
 	t.Helper()
 	q, err := repository.NewStockRepository(pf.pool).GetQty(context.Background(), model.StockKey{
@@ -158,7 +158,7 @@ func TestPutaway_sessionIsAtomic(t *testing.T) {
 	}
 }
 
-// Повтор той же операции — ответ первой попытки; тот же сеанс другой операцией — отказ.
+// Повтор той же операции - ответ первой попытки; тот же сеанс другой операцией - отказ.
 func TestPutaway_repeats(t *testing.T) {
 	pf := setupPutaway(t)
 	ctx := context.Background()
@@ -229,7 +229,7 @@ func mustScanInt(t *testing.T, pf *putawayFixture, sql string, dst *int, args ..
 }
 
 // ADHOC-21: россыпь, унесённая размещением целиком, не остаётся в «где лежит товар» строкой
-// с нулём — расход уменьшает строку остатка, а не удаляет её, и список обязан её скрывать.
+// с нулём - расход уменьшает строку остатка, а не удаляет её, и список обязан её скрывать.
 func TestPutaway_emptiedCellNotListedAsStock(t *testing.T) {
 	pf := setupPutaway(t)
 	task := pf.receive(t, nil, 5)
@@ -237,7 +237,7 @@ func TestPutaway_emptiedCellNotListedAsStock(t *testing.T) {
 		t.Fatalf("размещение россыпи: %v", err)
 	}
 	if a := pf.qtyIn(t, pf.cellA); a != "0" {
-		t.Fatalf("в ячейке приёмки осталось %s, ожидалось 0 — сценарий не тот", a)
+		t.Fatalf("в ячейке приёмки осталось %s, ожидалось 0 - сценарий не тот", a)
 	}
 
 	good := pf.good
@@ -245,6 +245,6 @@ func TestPutaway_emptiedCellNotListedAsStock(t *testing.T) {
 		repository.StockFilter{GoodID: &good, Limit: 50})
 	mustNoErr(t, err)
 	if total != 1 || len(items) != 1 || items[0].CellID != pf.cellB {
-		t.Errorf("остатки товара: %d строк (total %d): %+v, ожидалась одна — в B", len(items), total, items)
+		t.Errorf("остатки товара: %d строк (total %d): %+v, ожидалась одна - в B", len(items), total, items)
 	}
 }

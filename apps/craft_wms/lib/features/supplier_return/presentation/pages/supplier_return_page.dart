@@ -31,8 +31,8 @@ import '../widgets/return_outcome_view.dart';
 import '../widgets/return_position_tile.dart';
 import '../../../../core/utils/doc_number.dart';
 
-/// Отгрузка возврата поставщику по заданию (ADHOC-31): отметить все позиции — сканом короба,
-/// ячейки и товара или касанием — и нажать «Отгружено». Задание отгружается целиком, сеанс
+/// Отгрузка возврата поставщику по заданию (ADHOC-31): отметить все позиции - сканом короба,
+/// ячейки и товара или касанием - и нажать «Отгружено». Задание отгружается целиком, сеанс
 /// уходит одной операцией очереди и работает без связи.
 @RoutePage()
 class SupplierReturnPage extends StatelessWidget {
@@ -71,7 +71,7 @@ class _SupplierReturnViewState extends State<_SupplierReturnView>
     super.dispose();
   }
 
-  /// Вернуть фокус полю скана — иначе сканер в режиме «клавиатуры» печатает в никуда.
+  /// Вернуть фокус полю скана - иначе сканер в режиме «клавиатуры» печатает в никуда.
   void refocusScan() {
     if (mounted) _scanFocus.requestFocus();
   }
@@ -79,7 +79,7 @@ class _SupplierReturnViewState extends State<_SupplierReturnView>
   @override
   void onHardwareScan(ScanCode code) => onScan(code.raw);
 
-  /// Единая точка для поля и интента сканера: короб — сразу, ячейка — запоминается, товар —
+  /// Единая точка для поля и интента сканера: короб - сразу, ячейка - запоминается, товар -
   /// ищется по штрихкоду в справочнике терминала.
   Future<void> onScan(String value) async {
     final code = value.trim();
@@ -109,8 +109,8 @@ class _SupplierReturnViewState extends State<_SupplierReturnView>
     refocusScan();
   }
 
-  /// Скан ячейки: товар возврата забирают из неё, и это меняет её остаток — ячейка на
-  /// пересчёте сначала предупреждает (ADHOC-48). Адрес не из справочника — проверять нечего,
+  /// Скан ячейки: товар возврата забирают из неё, и это меняет её остаток - ячейка на
+  /// пересчёте сначала предупреждает (ADHOC-48). Адрес не из справочника - проверять нечего,
   /// подсказку даст задание.
   Future<void> onCellScan(String address) async {
     final a = address.toLowerCase();
@@ -128,7 +128,7 @@ class _SupplierReturnViewState extends State<_SupplierReturnView>
     if (mounted) cubit.scanCell(address);
   }
 
-  /// Скан штрихкода товара: товар — из справочника терминала, позиция — из задания.
+  /// Скан штрихкода товара: товар - из справочника терминала, позиция - из задания.
   Future<void> onGoodScan(String code) async {
     final res = await getIt<CatalogRepository>().resolveGoodByBarcode(code);
     if (!mounted) return;
@@ -150,7 +150,7 @@ class _SupplierReturnViewState extends State<_SupplierReturnView>
     refocusScan();
   }
 
-  /// «Отгружено» — только когда отмечено всё; иначе подсказка, сколько осталось.
+  /// «Отгружено» - только когда отмечено всё; иначе подсказка, сколько осталось.
   Future<void> ship() async {
     final s = cubit.state;
     if (!s.complete) {
@@ -164,7 +164,7 @@ class _SupplierReturnViewState extends State<_SupplierReturnView>
   /// Вернуться к заданию.
   void goBack() => context.router.maybePop();
 
-  /// Подсказка по результату скана — один раз.
+  /// Подсказка по результату скана - один раз.
   void onNotice(BuildContext context, SupplierReturnState state) {
     final n = state.notice;
     if (n == null) return;
@@ -195,7 +195,7 @@ class _SupplierReturnViewState extends State<_SupplierReturnView>
       builder: (context, state) => SystemUiWrapper(
         style: StatusBarStyle.light,
         child: Scaffold(
-          // Текст здесь вводит только сканер — под клавиатуру экран не сжимается.
+          // Текст здесь вводит только сканер - под клавиатуру экран не сжимается.
           resizeToAvoidBottomInset: false,
           backgroundColor: AppColors.kNeumorphicBg,
           appBar: AppBar(
@@ -260,8 +260,8 @@ class _SupplierReturnViewState extends State<_SupplierReturnView>
                 ),
                 style: muted,
               ),
-              // Что делать сейчас: без ячейки — сканировать ячейку (короб — только если в задании
-              // есть короб целиком), с ячейкой — товар в ней.
+              // Что делать сейчас: без ячейки - сканировать ячейку (короб - только если в задании
+              // есть короб целиком), с ячейкой - товар в ней.
               Text(
                 state.cell != null
                     ? t.supplierReturn.stepGoods(cell: state.cell!)

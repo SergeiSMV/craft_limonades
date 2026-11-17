@@ -4,8 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/fake_dio_adapter.dart';
 
-/// ADHOC-48: проверка ячейки на подсчёт перед движением — ответ сервера, подтверждённый
-/// подсчёт не спрашивается снова, без связи — как будто подсчёта нет.
+/// ADHOC-48: проверка ячейки на подсчёт перед движением - ответ сервера, подтверждённый
+/// подсчёт не спрашивается снова, без связи - как будто подсчёта нет.
 void main() {
   const path = 'GET cells/c1/stocktake-count';
   const counting = {
@@ -22,7 +22,7 @@ void main() {
     return CellCountCheckImpl(dio);
   }
 
-  test('ячейка на подсчёте — кто считает и какой пересчёт', () async {
+  test('ячейка на подсчёте - кто считает и какой пересчёт', () async {
     final check = checkWith((_) => jsonResponse(counting, 200));
     final count = await check.counting('c1');
     expect(count?.stocktakeNumber, 12);
@@ -30,13 +30,13 @@ void main() {
     expect(count?.countedBy, 'Иванов И.');
   });
 
-  test('подсчёта нет — null', () async {
+  test('подсчёта нет - null', () async {
     final check = checkWith((_) => jsonResponse({'counting': null}, 200));
     expect(await check.counting('c1'), isNull);
   });
 
   test(
-    'подтверждённый подсчёт второй раз не спрашивается, новый — да',
+    'подтверждённый подсчёт второй раз не спрашивается, новый - да',
     () async {
       var startedAt = '2026-10-26T10:00:00Z';
       final check = checkWith(
@@ -53,7 +53,7 @@ void main() {
     },
   );
 
-  test('нет связи или старый сервер — null, движение не держим', () async {
+  test('нет связи или старый сервер - null, движение не держим', () async {
     final offline = checkWith(
       (o) => throw DioException.connectionError(
         requestOptions: o,

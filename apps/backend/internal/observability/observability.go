@@ -1,13 +1,13 @@
-// Package observability — отправка ошибок бэкенда в Bugsink (ADHOC-42).
+// Package observability - отправка ошибок бэкенда в Bugsink (ADHOC-42).
 //
-// Что: ошибки журнала (slog, уровень error) и паники HTTP-запросов уходят событиями в Bugsink —
-// свой сервер, совместимый с Sentry, поэтому клиент — штатный sentry-go.
+// Что: ошибки журнала (slog, уровень error) и паники HTTP-запросов уходят событиями в Bugsink -
+// свой сервер, совместимый с Sentry, поэтому клиент - штатный sentry-go.
 // Зачем: до этого ошибка 500 оставалась строкой в journal сервера, и узнавали о ней по жалобе
-// кладовщика. Событие несёт стек, запрос, пользователя и группируется: повтор той же ошибки —
+// кладовщика. Событие несёт стек, запрос, пользователя и группируется: повтор той же ошибки -
 // счётчик, а не новое письмо.
-// Как: обёртка над обработчиком slog ([Handler]) — места, где бэкенд уже пишет `slog.Error`,
+// Как: обёртка над обработчиком slog ([Handler]) - места, где бэкенд уже пишет `slog.Error`,
 // отправляют событие без правок; middleware ([Middleware]) даёт каждому запросу свой контекст
-// (запрос, request_id) и ловит паники. Без DSN всё выключено: dev, тесты и стенд — как раньше.
+// (запрос, request_id) и ловит паники. Без DSN всё выключено: dev, тесты и стенд - как раньше.
 package observability
 
 import (
@@ -19,21 +19,21 @@ import (
 	"github.com/getsentry/sentry-go"
 )
 
-// Options — настройки отправки. DSN пуст — отправка выключена.
+// Options - настройки отправки. DSN пуст - отправка выключена.
 type Options struct {
 	DSN         string // адрес проекта Bugsink (env SENTRY_DSN)
 	Environment string // окружение: prod, stand … (env SENTRY_ENVIRONMENT)
-	Release     string // версия сборки (env SENTRY_RELEASE); пусто — без версии
+	Release     string // версия сборки (env SENTRY_RELEASE); пусто - без версии
 
-	// Transport — только для тестов: перехват событий вместо отправки по сети.
+	// Transport - только для тестов: перехват событий вместо отправки по сети.
 	Transport sentry.Transport
 }
 
-// Init включает отправку ошибок. Возвращает false, если DSN не задан — тогда [Handler] и
+// Init включает отправку ошибок. Возвращает false, если DSN не задан - тогда [Handler] и
 // [Middleware] ничего не отправляют и почти ничего не стоят.
 //
 // SendDefaultPII выключен: в событие не попадают заголовки авторизации, cookie и IP клиента.
-// Пользователь называется только идентификатором и ролью — их кладёт [Handler] из контекста.
+// Пользователь называется только идентификатором и ролью - их кладёт [Handler] из контекста.
 func Init(o Options) (bool, error) {
 	if o.DSN == "" {
 		return false, nil
@@ -53,11 +53,11 @@ func Init(o Options) (bool, error) {
 	return true, nil
 }
 
-// active — Init прошёл с DSN. Свой признак, а не «у hub есть клиент»: sentry-go держит
+// active - Init прошёл с DSN. Свой признак, а не «у hub есть клиент»: sentry-go держит
 // клиент-заглушку и без Init, и такая проверка считала отправку включённой в dev и тестах.
 var active atomic.Bool
 
-// Flush дожидается отправки накопленных событий — при остановке сервиса, иначе ошибки,
+// Flush дожидается отправки накопленных событий - при остановке сервиса, иначе ошибки,
 // случившиеся перед самым SIGTERM, пропали бы вместе с процессом.
 func Flush(timeout time.Duration) bool {
 	if !enabled() {
@@ -66,14 +66,14 @@ func Flush(timeout time.Duration) bool {
 	return sentry.Flush(timeout)
 }
 
-// Enabled — отправка включена (задан DSN). Нужно проверке мониторинга (ADHOC-43): ответить,
+// Enabled - отправка включена (задан DSN). Нужно проверке мониторинга (ADHOC-43): ответить,
 // ушла ли тестовая ошибка или её некуда было отправлять.
 func Enabled() bool { return enabled() }
 
-// enabled — отправка включена.
+// enabled - отправка включена.
 func enabled() bool { return active.Load() }
 
-// hubFrom — hub запроса из контекста, а вне запроса — общий.
+// hubFrom - hub запроса из контекста, а вне запроса - общий.
 func hubFrom(ctx context.Context) *sentry.Hub {
 	if ctx != nil {
 		if hub := sentry.GetHubFromContext(ctx); hub != nil {
@@ -83,7 +83,7 @@ func hubFrom(ctx context.Context) *sentry.Hub {
 	return sentry.CurrentHub()
 }
 
-// isAbort — штатный обрыв ответа (клиент ушёл): net/http сам глушит такую панику, это не ошибка.
+// isAbort - штатный обрыв ответа (клиент ушёл): net/http сам глушит такую панику, это не ошибка.
 func isAbort(v any) bool {
 	err, ok := v.(error)
 	return ok && errors.Is(err, errAbortHandler)

@@ -1,11 +1,11 @@
 # Тестовый стенд Craft WMS: копия боевого контура на машине разработчика.
-# Управляется только скриптом deploy/test_stand/stand.sh — руками compose не вызывать.
+# Управляется только скриптом deploy/test_stand/stand.sh - руками compose не вызывать.
 #
 # Отдельный compose-проект (`craft-stand`) со своими портами и своим томом БД: стенд живёт
 # рядом с обычным dev-стеком (`make up`), не задевая его базу.
 #
 # Раскладка повторяет прод: бэкенд и портал за одним nginx, API под /api/v1/, пробы на корне.
-# Бэкенд собирается из ТЕКУЩЕЙ ветки — ради этого стенд и нужен: новые миграции и код
+# Бэкенд собирается из ТЕКУЩЕЙ ветки - ради этого стенд и нужен: новые миграции и код
 # проверяются на копии боевых данных до мержа.
 #
 # Доступа к боевой базе у стенда нет и быть не может: DATABASE_URL смотрит только на свой
@@ -21,7 +21,7 @@ services:
       POSTGRES_PASSWORD: stand         # локальная база стенда, наружу не публикуется дальше 127.0.0.1
       POSTGRES_DB: craft_wms
     ports:
-      - "127.0.0.1:${STAND_DB_PORT:-5433}:5432"   # psql/GUI с этой машины; 5433 — не мешать dev-стеку на 5432
+      - "127.0.0.1:${STAND_DB_PORT:-5433}:5432"   # psql/GUI с этой машины; 5433 - не мешать dev-стеку на 5432
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:
@@ -38,11 +38,11 @@ services:
       APP_PORT: 8080
       LOG_LEVEL: ${STAND_LOG_LEVEL:-debug}
       DATABASE_URL: postgres://wms:stand@db:5432/craft_wms?sslmode=disable
-      # Свой секрет, не боевой: токены прода стенд не примет, вход — заново (бейджи из снимка работают).
-      JWT_SECRET: ${STAND_JWT_SECRET:?STAND_JWT_SECRET не задан — запускайте через stand.sh}
+      # Свой секрет, не боевой: токены прода стенд не примет, вход - заново (бейджи из снимка работают).
+      JWT_SECRET: ${STAND_JWT_SECRET:?STAND_JWT_SECRET не задан - запускайте через stand.sh}
       # Свой ключ номеров бейджей (ADHOC-65): номера из снимка прода не расшифруются и
       # запомнятся заново при входе по бейджу на стенде.
-      BADGE_KEY: ${STAND_BADGE_KEY:?STAND_BADGE_KEY не задан — запускайте через stand.sh}
+      BADGE_KEY: ${STAND_BADGE_KEY:?STAND_BADGE_KEY не задан - запускайте через stand.sh}
       ACCESS_TTL: 12h
       REFRESH_TTL: 720h
     depends_on:
@@ -63,7 +63,7 @@ services:
       - "${STAND_HTTP_PORT:-8090}:80"
     volumes:
       - ./nginx.stand.conf:/etc/nginx/conf.d/default.conf:ro
-      # Бандл портала собирает `stand.sh portal`; пока его нет — на корне 404, API работает.
+      # Бандл портала собирает `stand.sh portal`; пока его нет - на корне 404, API работает.
       - ../../apps/craft_wms/build/web:/usr/share/nginx/html:ro
     depends_on:
       backend:

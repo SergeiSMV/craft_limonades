@@ -36,7 +36,7 @@ class CzIntakeRead {
   /// Сколько единиц (марок) прочитано.
   int get units => lines.fold<int>(0, (n, l) => n + l.marks.length);
 
-  /// Есть ли марки с расхождением — они уйдут в «Изолятор».
+  /// Есть ли марки с расхождением - они уйдут в «Изолятор».
   bool get hasDiscrepancy =>
       lines.any((l) => l.marks.any((m) => m.discrepancy != null));
 }
@@ -72,7 +72,7 @@ class _CzSummary {
   final reasons = <String>{};
 }
 
-/// Чтение кодов «Честного знака» для прихода — общее для приёмки (CZ-05) и «Ввода остатков»
+/// Чтение кодов «Честного знака» для прихода - общее для приёмки (CZ-05) и «Ввода остатков»
 /// (ADHOC-46), с очередью и пачками (ADHOC-70).
 ///
 /// Что: скан марки или короба ЧЗ сразу встаёт в очередь чтения ([CzScanQueue]) вместе с
@@ -93,23 +93,23 @@ mixin CzIntakeScan<T extends StatefulWidget>
   /// Выбрать товар из номенклатуры (для привязки ШК незнакомого GTIN).
   Future<Good?> pickGood();
 
-  /// Короб ЧЗ с этим кодом уже есть в этом приходе — экран его открывает.
-  /// `true` — короб найден и обработан: читать код незачем.
+  /// Короб ЧЗ с этим кодом уже есть в этом приходе - экран его открывает.
+  /// `true` - короб найден и обработан: читать код незачем.
   bool openOwnCzBox(String code);
 
   /// Марка или упаковка с этим ключом уже есть в приходе: повтор не читается.
   bool czAlreadyHere(String key);
 
-  /// Короб, в который ложится скан на этом экране; `null` — россыпь.
+  /// Короб, в который ложится скан на этом экране; `null` - россыпь.
   String? get scanBoxId;
 
-  /// Положить прочитанное в приход экрана: короб ЧЗ — новой ГЕ, марки — в [boxId] или россыпью.
+  /// Положить прочитанное в приход экрана: короб ЧЗ - новой ГЕ, марки - в [boxId] или россыпью.
   CzIntakeAdd czApply(CzIntakeRead read, {String? boxId});
 
   /// Тексты итога этого прихода.
   CzIntakeTexts get czTexts;
 
-  /// Незавершённое чтение всего прихода — из его кубита: страница прихода ждёт по нему.
+  /// Незавершённое чтение всего прихода - из его кубита: страница прихода ждёт по нему.
   CzIntakeHold get czHold;
 
   /// Очередь чтения заводится первым сканом ЧЗ: экран без марок её не держит.
@@ -126,23 +126,23 @@ mixin CzIntakeScan<T extends StatefulWidget>
   final _czApply = SerialLock();
   int _czApplying = 0;
 
-  /// Ответ окна привязки по GTIN на время чтения: товар или `null` — отказались.
+  /// Ответ окна привязки по GTIN на время чтения: товар или `null` - отказались.
   final _gtinChoice = <String, Good?>{};
 
-  /// Открыто окно привязки ШК или выбор товара: коды ЧЗ под ним — в очередь.
+  /// Открыто окно привязки ШК или выбор товара: коды ЧЗ под ним - в очередь.
   bool _czPromptOpen = false;
 
   /// Работа этого экрана в [czHold]: завершается, когда все его коды легли в приход.
   Completer<void>? _czWork;
 
-  /// Ждут ответа или применяются коды ЧЗ — сменить ячейку, уйти или отправить пока нельзя.
+  /// Ждут ответа или применяются коды ЧЗ - сменить ячейку, уйти или отправить пока нельзя.
   bool get czBusy => (_czQueueOrNull?.pending ?? 0) > 0 || _czApplying > 0;
 
   @override
   void dispose() {
     unawaited(_czResults?.cancel());
     _czQueueOrNull?.dispose();
-    // Экран ушёл — его чтение больше не держит приход (уход ждал его через [czSettle]).
+    // Экран ушёл - его чтение больше не держит приход (уход ждал его через [czSettle]).
     _czWork?.complete();
     _czWork = null;
     super.dispose();
@@ -161,7 +161,7 @@ mixin CzIntakeScan<T extends StatefulWidget>
     return true;
   }
 
-  /// Скан кода ЧЗ: свой короб открывается, повтор отсекается на месте, остальное — в очередь
+  /// Скан кода ЧЗ: свой короб открывается, повтор отсекается на месте, остальное - в очередь
   /// чтения с коробом экрана.
   void czEnqueue(String code) {
     final box = czBoxFrom(code);
@@ -204,12 +204,12 @@ mixin CzIntakeScan<T extends StatefulWidget>
     }
   }
 
-  /// Системное «назад» на странице короба — тоже через [czLeave].
+  /// Системное «назад» на странице короба - тоже через [czLeave].
   void czOnPop(bool didPop, Object? _) {
     if (!didPop) unawaited(czLeave());
   }
 
-  /// Пачка ответов — в очередь применения: пачки не перемешиваются, окно привязки одной
+  /// Пачка ответов - в очередь применения: пачки не перемешиваются, окно привязки одной
   /// пачки держит следующую.
   void _onCzResults(List<CzQueueResult<String?>> batch) {
     _czApplying++;
@@ -297,7 +297,7 @@ mixin CzIntakeScan<T extends StatefulWidget>
   }
 
   /// Почему код не взять: короб уже принят на склад, марка уже числится (с местом), свой
-  /// короб ЧЗ (открывается, текста нет — пустая строка). `null` — брать можно.
+  /// короб ЧЗ (открывается, текста нет - пустая строка). `null` - брать можно.
   String? _refusal(CzScanResult scan) {
     switch (scan.kind) {
       case CzCodeKind.box:
@@ -330,9 +330,9 @@ mixin CzIntakeScan<T extends StatefulWidget>
     return t.czScan.markOnStockAt(place: place);
   }
 
-  /// Товары справочника по GTIN скана. Известный — из справочника терминала; незнакомый —
-  /// ответ окна привязки, уже данный в этом чтении, иначе окно. `null` — товара нет
-  /// (причина — в итоге).
+  /// Товары справочника по GTIN скана. Известный - из справочника терминала; незнакомый -
+  /// ответ окна привязки, уже данный в этом чтении, иначе окно. `null` - товара нет
+  /// (причина - в итоге).
   Future<Map<String, Good>?> _goodsOf(CzScanResult scan, _CzSummary sum) async {
     final refs = <String, CzGood?>{
       if (scan.kind == CzCodeKind.unit && scan.gtin != null)
@@ -367,7 +367,7 @@ mixin CzIntakeScan<T extends StatefulWidget>
   }
 
   /// Незнакомый GTIN: спросить, выбрать товар и привязать к нему ШК из марки. Привязка уходит
-  /// операцией очереди и заодно помечает товар маркируемым — поэтому товар возвращается уже
+  /// операцией очереди и заодно помечает товар маркируемым - поэтому товар возвращается уже
   /// маркируемым. Пока открыты окна, коды ЧЗ принимаются в очередь ([acceptScan]).
   Future<Good?> _bindGtin(String gtin, String name) async {
     final barcode = ean13FromGtin(gtin);
@@ -407,7 +407,7 @@ mixin CzIntakeScan<T extends StatefulWidget>
     if (_czQueue.pending > 0) t.czScan.queued(count: _czQueue.pending),
   ].join('\n');
 
-  /// Текст отказа чтения ЧЗ: отказ сервера — его словами.
+  /// Текст отказа чтения ЧЗ: отказ сервера - его словами.
   String _failureText(Failure f) => switch (f) {
     NetworkFailure() => t.czScan.offline,
     ServerFailure(:final message?) => t.czScan.failed(reason: message),

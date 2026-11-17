@@ -1,4 +1,4 @@
--- P8-02 откат: права сборки снимаются с должностей, ограничение — как в миграции 41.
+-- P8-02 откат: права сборки снимаются с должностей, ограничение - как в миграции 41.
 UPDATE positions SET rights = ARRAY(
     SELECT r FROM unnest(rights) r
     WHERE r NOT IN ('portal.picking.view', 'portal.picking.load', 'portal.picking.download',

@@ -2,7 +2,7 @@ package model
 
 import "testing"
 
-// TestNormalizeGoodCode — оба вида кода из реестра приводятся к одиннадцати цифрам справочника.
+// TestNormalizeGoodCode - оба вида кода из реестра приводятся к одиннадцати цифрам справочника.
 func TestNormalizeGoodCode(t *testing.T) {
 	cases := []struct {
 		raw, want string
@@ -24,8 +24,8 @@ func TestNormalizeGoodCode(t *testing.T) {
 	}
 }
 
-// TestCellAddressKey — адреса с латинскими и кириллическими двойниками совпадают, разные
-// стеллажи — нет.
+// TestCellAddressKey - адреса с латинскими и кириллическими двойниками совпадают, разные
+// стеллажи - нет.
 func TestCellAddressKey(t *testing.T) {
 	same := [][2]string{
 		{"C-1-1-1", "С-1-1-1"}, // латинская C и кириллическая С

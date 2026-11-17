@@ -59,7 +59,7 @@ func TestStock_Set_overwrites(t *testing.T) {
 	mustNoErr(t, repo.Set(ctx, fx.keyA(), decimal.NewFromInt(3)))
 	assertQty(t, repo, fx.keyA(), "3")
 
-	// SET в ноль допустим — строка остаётся с qty=0.
+	// SET в ноль допустим - строка остаётся с qty=0.
 	mustNoErr(t, repo.Set(ctx, fx.keyA(), decimal.Zero))
 	assertQty(t, repo, fx.keyA(), "0")
 }

@@ -138,7 +138,7 @@ void main() {
     verifyNever(() => storage.saveAccess(any()));
   });
 
-  // Долг 9: отметка последнего контакта — по ней ограничен вход без связи.
+  // Долг 9: отметка последнего контакта - по ней ограничен вход без связи.
   group('отметка контакта с сервером', () {
     test('успешный ответ на запрос с токеном отмечает контакт', () async {
       when(() => storage.readAccess()).thenAnswer((_) async => 'tok');
@@ -192,7 +192,7 @@ void main() {
     });
 
     test('повтор после refresh тоже отмечает контакт', () async {
-      // Повтор уходит мимо onResponse — отметка ставится отдельно.
+      // Повтор уходит мимо onResponse - отметка ставится отдельно.
       var access = 'old';
       when(() => storage.readAccess()).thenAnswer((_) async => access);
       when(() => storage.readRefresh()).thenAnswer((_) async => 'ref');

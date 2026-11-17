@@ -17,12 +17,12 @@ import '../../support/entry_draft_stub.dart';
 
 class _MockRepo extends Mock implements CatalogRepository {}
 
-/// Строка поиска на экране «Номенклатура» (до ADHOC-33 — «Остатки»): крестик очистки виден только при непустом вводе
+/// Строка поиска на экране «Номенклатура» (до ADHOC-33 - «Остатки»): крестик очистки виден только при непустом вводе
 /// и по тапу чистит и поле, и запрос.
 void main() {
   late _MockRepo repo;
 
-  /// Значения `query`, с которыми экран ходил в API, — по ним видно, что запрос сброшен.
+  /// Значения `query`, с которыми экран ходил в API, - по ним видно, что запрос сброшен.
   final queries = <String?>[];
 
   setUp(() {
@@ -88,7 +88,7 @@ void main() {
     expect(
       find.byIcon(Icons.close),
       findsNothing,
-      reason: 'поле пустое — крестика нет',
+      reason: 'поле пустое - крестика нет',
     );
 
     await tester.enterText(find.byType(TextField), 'арахис');
@@ -96,7 +96,7 @@ void main() {
     expect(
       find.byIcon(Icons.close),
       findsOneWidget,
-      reason: 'есть текст — крестик появился',
+      reason: 'есть текст - крестик появился',
     );
 
     // Дебаунс 350 мс: таймер сам по себе кадров не планирует, двигаем часы явно.
@@ -144,7 +144,7 @@ void main() {
     expect(
       queries,
       isEmpty,
-      reason: 'скан не уходит в поиск по наименованию — дебаунс отменён',
+      reason: 'скан не уходит в поиск по наименованию - дебаунс отменён',
     );
   });
 
@@ -181,7 +181,7 @@ void main() {
     await tester.enterText(find.byType(TextField), 'арахис');
     await tester.pump(const Duration(milliseconds: 100)); // дебаунс ещё тикает
 
-    // Тап по товару. Роутера в тесте нет, поэтому push бросит исключение — но отмена
+    // Тап по товару. Роутера в тесте нет, поэтому push бросит исключение - но отмена
     // отложенного поиска происходит ДО него, и проверяем мы именно её.
     await tester.tap(find.text('Арахис жареный'));
     await tester.pump();

@@ -14,8 +14,8 @@ import (
 	"craftwms/internal/service"
 )
 
-// BarcodeHandler — HTTP-обработчики привязки ШК к товару и резолва товара по ШК
-// (ввод остатков P-FastStart). Доступ — любой аутентифицированный сотрудник (кладовщик на проходе).
+// BarcodeHandler - HTTP-обработчики привязки ШК к товару и резолва товара по ШК
+// (ввод остатков P-FastStart). Доступ - любой аутентифицированный сотрудник (кладовщик на проходе).
 type BarcodeHandler struct {
 	svc *service.BarcodeService
 }
@@ -25,7 +25,7 @@ func NewBarcodeHandler(svc *service.BarcodeService) *BarcodeHandler {
 	return &BarcodeHandler{svc: svc}
 }
 
-// GetByCode: GET /api/v1/barcodes/{code} — товар по ШК (200) или 404, если ШК не привязан.
+// GetByCode: GET /api/v1/barcodes/{code} - товар по ШК (200) или 404, если ШК не привязан.
 func (h *BarcodeHandler) GetByCode(w http.ResponseWriter, r *http.Request) {
 	code := strings.TrimSpace(chi.URLParam(r, "code"))
 	good, err := h.svc.ResolveGood(r.Context(), code)
@@ -44,8 +44,8 @@ func (h *BarcodeHandler) GetByCode(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, good)
 }
 
-// ListByGood: GET /api/v1/goods/{id}/barcodes — все ШК товара (секция «Штрихкоды» в карточке).
-// 200 со списком (пустой — норма); 400 — пустой id.
+// ListByGood: GET /api/v1/goods/{id}/barcodes - все ШК товара (секция «Штрихкоды» в карточке).
+// 200 со списком (пустой - норма); 400 - пустой id.
 func (h *BarcodeHandler) ListByGood(w http.ResponseWriter, r *http.Request) {
 	goodID := strings.TrimSpace(chi.URLParam(r, "id"))
 	list, err := h.svc.ListByGood(r.Context(), goodID)
@@ -61,13 +61,13 @@ func (h *BarcodeHandler) ListByGood(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, list)
 }
 
-// List отдаёт страницу всех привязок ШК — справочник для офлайн-кэша устройства (P2-02).
+// List отдаёт страницу всех привязок ШК - справочник для офлайн-кэша устройства (P2-02).
 // Доступ employee, как у остальных справочников: без него не работает скан без сети.
-// GenerateInternal: POST /api/v1/goods/{id}/barcode — выдать товару внутренний ШК (P4-07).
+// GenerateInternal: POST /api/v1/goods/{id}/barcode - выдать товару внутренний ШК (P4-07).
 // 200 {barcode, generated} / 400 / 404 (нет такого товара).
 //
 // Идемпотентно: у товара с уже выданным внутренним ШК возвращается он же. Поэтому ответ 200,
-// а не 201 — вызов не обещает, что код создан именно сейчас. Признак `generated` говорит,
+// а не 201 - вызов не обещает, что код создан именно сейчас. Признак `generated` говорит,
 // что именно произошло: по нему экран решает, печатать ярлык молча или сказать «код уже был».
 func (h *BarcodeHandler) GenerateInternal(w http.ResponseWriter, r *http.Request) {
 	goodID := strings.TrimSpace(chi.URLParam(r, "id"))
@@ -101,8 +101,8 @@ func (h *BarcodeHandler) List(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, page)
 }
 
-// Unbind: DELETE /api/v1/barcodes/{code} — отвязать ошибочный ШК (P-FS-12).
-// 204 — отвязано (идемпотентно: и если ШК уже не было); 400 — пустой код.
+// Unbind: DELETE /api/v1/barcodes/{code} - отвязать ошибочный ШК (P-FS-12).
+// 204 - отвязано (идемпотентно: и если ШК уже не было); 400 - пустой код.
 func (h *BarcodeHandler) Unbind(w http.ResponseWriter, r *http.Request) {
 	code := strings.TrimSpace(chi.URLParam(r, "code"))
 	err := h.svc.Unbind(r.Context(), code)
@@ -121,16 +121,16 @@ func (h *BarcodeHandler) Unbind(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// bindRequest — тело POST /api/v1/barcodes.
+// bindRequest - тело POST /api/v1/barcodes.
 type bindRequest struct {
 	GoodID    string `json:"good_id"`
 	Barcode   string `json:"barcode"`
 	Symbology string `json:"symbology"` // 'ean13'/'code128'/…; необязательно
 }
 
-// Bind: POST /api/v1/barcodes — привязать ШК к товару.
-// 201 — привязано (в т.ч. повторно к тому же товару, идемпотентно); 400 — нет good_id/barcode
-// или битый JSON; 404 — товара нет; 409 — ШК уже за другим товаром.
+// Bind: POST /api/v1/barcodes - привязать ШК к товару.
+// 201 - привязано (в т.ч. повторно к тому же товару, идемпотентно); 400 - нет good_id/barcode
+// или битый JSON; 404 - товара нет; 409 - ШК уже за другим товаром.
 func (h *BarcodeHandler) Bind(w http.ResponseWriter, r *http.Request) {
 	var req bindRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -159,7 +159,7 @@ func (h *BarcodeHandler) Bind(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, req)
 }
 
-// CZStock: GET /api/v1/barcodes/{code}/cz-stock — сколько марок ЧЗ с этим ШК на складе
+// CZStock: GET /api/v1/barcodes/{code}/cz-stock - сколько марок ЧЗ с этим ШК на складе
 // (ADHOC-53). 200 {marks_in_stock}; ТСД спрашивает перед отвязкой ШК маркируемого товара.
 func (h *BarcodeHandler) CZStock(w http.ResponseWriter, r *http.Request) {
 	n, err := h.svc.CZStock(r.Context(), chi.URLParam(r, "code"))
@@ -175,14 +175,14 @@ func (h *BarcodeHandler) CZStock(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]int{"marks_in_stock": n})
 }
 
-// regradeRequest — тело POST /api/v1/barcodes/{code}/regrade.
+// regradeRequest - тело POST /api/v1/barcodes/{code}/regrade.
 type regradeRequest struct {
 	GoodID string `json:"good_id"`
 }
 
-// Regrade: POST /api/v1/barcodes/{code}/regrade — перепривязать ШК к другому товару с пересортом
-// марок ЧЗ со склада (ADHOC-53). 200 {problem_id, marks}; 400 — нет товара в теле; 409 — отказ
-// по существу, текст — для кладовщика.
+// Regrade: POST /api/v1/barcodes/{code}/regrade - перепривязать ШК к другому товару с пересортом
+// марок ЧЗ со склада (ADHOC-53). 200 {problem_id, marks}; 400 - нет товара в теле; 409 - отказ
+// по существу, текст - для кладовщика.
 func (h *BarcodeHandler) Regrade(w http.ResponseWriter, r *http.Request) {
 	var req regradeRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

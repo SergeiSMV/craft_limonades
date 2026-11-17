@@ -2,7 +2,7 @@ import 'package:craft_wms/features/contents/data/contents_dto.dart';
 import 'package:craft_wms/features/contents/domain/contents_entities.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// ADHOC-32: история короба несёт изменения состава; старый сервер их не отдаёт — пусто.
+/// ADHOC-32: история короба несёт изменения состава; старый сервер их не отдаёт - пусто.
 void main() {
   test('состав в истории: доложили из короба, вынули в ячейку, отгрузили', () {
     final h = historyFromJson({
@@ -44,7 +44,7 @@ void main() {
     expect(h.contents[1].peer, isNull);
   });
 
-  test('сервер до ADHOC-32: состава в ответе нет — история без него', () {
+  test('сервер до ADHOC-32: состава в ответе нет - история без него', () {
     final h = historyFromJson({
       'created_at': '2026-10-21T08:00:00Z',
       'moves': [],

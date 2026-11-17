@@ -14,7 +14,7 @@ import '../common/contents_message.dart';
 import '../common/freshness_note.dart';
 
 /// Вкладка «Короба» в «Остатках» (P5-05-1): короба склада или выдача поиска по короткому коду.
-/// Тянется вниз — обновить снимок и перечитать.
+/// Тянется вниз - обновить снимок и перечитать.
 class BoxesList extends StatelessWidget {
   const BoxesList({super.key});
 
@@ -30,7 +30,7 @@ class BoxesList extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = context.watch<BoxesCubit>().state;
     switch (state.status) {
-      // Вкладку ещё не открывали — она живёт в IndexedStack невидимой, и крутилка вертелась
+      // Вкладку ещё не открывали - она живёт в IndexedStack невидимой, и крутилка вертелась
       // бы впустую с самого входа в «Остатки».
       case BoxesStatus.initial:
         return const SizedBox.shrink();
@@ -72,16 +72,16 @@ class BoxesList extends StatelessWidget {
     return RefreshIndicator(
       onRefresh: () => reload(context),
       child: ListView.builder(
-        // Отступы — у плашек, как в списке товаров: тень неоморфной плашки не режется краем.
+        // Отступы - у плашек, как в списке товаров: тень неоморфной плашки не режется краем.
         padding: EdgeInsets.zero,
         physics: const AlwaysScrollableScrollPhysics(),
-        // Первый элемент — подпись о снимке и сообщение, дальше короба.
+        // Первый элемент - подпись о снимке и сообщение, дальше короба.
         itemCount: units.length + 1,
         itemBuilder: (context, i) {
           if (i == 0) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
-              // Подпись и сообщения — с отступами списка, плашки задают свои сами.
+              // Подпись и сообщения - с отступами списка, плашки задают свои сами.
               children: [
                 if (data != null && !state.invalidQuery)
                   Padding(

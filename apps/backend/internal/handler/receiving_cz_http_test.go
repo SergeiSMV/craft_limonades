@@ -13,19 +13,19 @@ import (
 )
 
 // Сценарные тесты приёмки с марками ЧЗ (CZ-05): тот же путь через настоящий роутер, что у
-// приёмки без марок. Итог проверяется в базе — там, где его прочтут скан марки, «Проблемы
+// приёмки без марок. Итог проверяется в базе - там, где его прочтут скан марки, «Проблемы
 // склада» и задание на размещение: место каждой марки, короб ЧЗ как ГЕ, расхождения в «Изоляторе».
 
-// Пиво с GTIN марок эталона: GTIN-14 04612728200172 — ШК 4612728200172 без ведущего нуля.
+// Пиво с GTIN марок эталона: GTIN-14 04612728200172 - ШК 4612728200172 без ведущего нуля.
 const (
 	czBeerBarcode = "4612728200172"
 	czBoxCode     = "00146127282000000173"
 )
 
-// czMark — КИ марки пива эталона с серийным номером n.
+// czMark - КИ марки пива эталона с серийным номером n.
 func czMark(n string) string { return "0104612728200172215" + n }
 
-// seedCZGood заводит товар с ШК марок эталона (id — заданный или новый).
+// seedCZGood заводит товар с ШК марок эталона (id - заданный или новый).
 func seedCZGood(t *testing.T, e *rcvEnv, id string) string {
 	t.Helper()
 	if id == "" {
@@ -53,7 +53,7 @@ func (e *rcvEnv) scalar(t *testing.T, sql string, args ...any) string {
 	return out
 }
 
-// byWarehouse — остаток ячейки по внутренним складам, «КОД:кол-во» через пробел.
+// byWarehouse - остаток ячейки по внутренним складам, «КОД:кол-во» через пробел.
 func (e *rcvEnv) byWarehouse(t *testing.T, cell string) string {
 	t.Helper()
 	return e.scalar(t, `
@@ -62,7 +62,7 @@ func (e *rcvEnv) byWarehouse(t *testing.T, cell string) string {
 		WHERE s.cell_id = $1::uuid AND s.qty > 0`, cell)
 }
 
-// marksPlaces — место каждой марки: «КИ@ГЕ» в коробе или «КИ@ячейка/склад», с «!» у марок
+// marksPlaces - место каждой марки: «КИ@ГЕ» в коробе или «КИ@ячейка/склад», с «!» у марок
 // проблемы; через пробел по КИ.
 func (e *rcvEnv) marksPlaces(t *testing.T) string {
 	t.Helper()
@@ -76,8 +76,8 @@ func (e *rcvEnv) marksPlaces(t *testing.T) string {
 		`)
 }
 
-// Эталон приёмки с марками — вторая половина контракта (первая — Dart-тест приёмки): короб ЧЗ
-// с групповой упаковкой в своей ячейке и марки россыпью в ячейке приёмки, одна — чужая.
+// Эталон приёмки с марками - вторая половина контракта (первая - Dart-тест приёмки): короб ЧЗ
+// с групповой упаковкой в своей ячейке и марки россыпью в ячейке приёмки, одна - чужая.
 func TestReceivingCZHTTP_clientWireFormat(t *testing.T) {
 	raw, err := os.ReadFile(filepath.Join("testdata", "receipt_submit_cz.json"))
 	if err != nil {
@@ -95,16 +95,16 @@ func TestReceivingCZHTTP_clientWireFormat(t *testing.T) {
 
 	if got := e.operations(t, string(raw)); len(got) != 1 || got[0] != service.StatusAccepted {
 		t.Fatalf("эталонная приёмка не применилась: %v.\n"+
-			"Формат разошёлся — сверьте testdata/receipt_submit_cz.json с тем, что шлёт клиент.", got)
+			"Формат разошёлся - сверьте testdata/receipt_submit_cz.json с тем, что шлёт клиент.", got)
 	}
 
-	// Короб ЧЗ — это ГЕ приёмки, упаковка — в нём.
+	// Короб ЧЗ - это ГЕ приёмки, упаковка - в нём.
 	if got := e.scalar(t, `
 		SELECT string_agg(kind || ':' || COALESCE(load_unit_id::text, parent_code), ' ' ORDER BY kind)
 		FROM cz_aggregates`); got != "BOX:"+box+" GROUP:00146127282000000172" {
 		t.Fatalf("агрегаты: %s", got)
 	}
-	// Марки короба — в ГЕ, россыпь — в ячейке приёмки; чужая — в «Изоляторе» с проблемой.
+	// Марки короба - в ГЕ, россыпь - в ячейке приёмки; чужая - в «Изоляторе» с проблемой.
 	if got := e.marksPlaces(t); got != "0001@LU 0002@LU 0003@LU 0004@С-Н-П/MAIN 0005@С-Н-П/ISOLATOR!" {
 		t.Fatalf("места марок: %s", got)
 	}
@@ -119,13 +119,13 @@ func TestReceivingCZHTTP_clientWireFormat(t *testing.T) {
 	if got := e.byWarehouse(t, e.cellDefault); got != "ISOLATOR:1.000 MAIN:1.000" {
 		t.Fatalf("остаток ячейки приёмки: %s", got)
 	}
-	// Задание на размещение — только «Основной» россыпи: изолированное разместить нельзя.
+	// Задание на размещение - только «Основной» россыпи: изолированное разместить нельзя.
 	if got := e.scalar(t, `SELECT string_agg(qty::text, ' ') FROM putaway_task_items`); got != "1.000" {
 		t.Fatalf("позиции задания: %s", got)
 	}
 }
 
-// Короб ЧЗ с выбывшей маркой уходит в «Изолятор» целиком — ГЕ со всеми марками. Брак — лишь
+// Короб ЧЗ с выбывшей маркой уходит в «Изолятор» целиком - ГЕ со всеми марками. Брак - лишь
 // метка: короб остаётся в задании на размещение и переезжает как любой другой.
 func TestReceivingCZHTTP_boxWithRetiredMark(t *testing.T) {
 	e := newReceivingE2E(t, nil)
@@ -163,7 +163,7 @@ func TestReceivingCZHTTP_boxWithRetiredMark(t *testing.T) {
 	}
 }
 
-// Вся россыпь приёмки ушла в «Изолятор» — задания на размещение нет: размещать нечего.
+// Вся россыпь приёмки ушла в «Изолятор» - задания на размещение нет: размещать нечего.
 func TestReceivingCZHTTP_isolatedLooseLeavesNoTask(t *testing.T) {
 	e := newReceivingE2E(t, nil)
 	good := seedCZGood(t, e, "")
@@ -184,7 +184,7 @@ func TestReceivingCZHTTP_isolatedLooseLeavesNoTask(t *testing.T) {
 	}
 }
 
-// Ошибки ЧЗ — отказ, а не повтор: иначе очередь ТСД встала бы на такой приёмке навсегда.
+// Ошибки ЧЗ - отказ, а не повтор: иначе очередь ТСД встала бы на такой приёмке навсегда.
 func TestReceivingCZHTTP_rejections(t *testing.T) {
 	e := newReceivingE2E(t, nil)
 	good := seedCZGood(t, e, "")
@@ -203,7 +203,7 @@ func TestReceivingCZHTTP_rejections(t *testing.T) {
 	got := e.operations(t, `{"operations":[`+strings.Join([]string{
 		receipt(good, 1, czMark("C1")),               // принята
 		receipt(good, 1, czMark("C1")),               // та же марка второй раз
-		receipt(other, 1, czMark("C2")),              // GTIN марки — ШК другого товара
+		receipt(other, 1, czMark("C2")),              // GTIN марки - ШК другого товара
 		receipt(good, 1, czMark("C3"), czMark("C4")), // марок больше количества
 	}, ",")+`]}`)
 	if want := "accepted,rejected,rejected,rejected"; strings.Join(got, ",") != want {

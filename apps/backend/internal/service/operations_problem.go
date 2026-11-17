@@ -14,21 +14,21 @@ import (
 
 // Ошибки формы проблемы склада (P6-07-1).
 var (
-	// ErrInvalidProblemID — идентификатор проблемы не UUID.
+	// ErrInvalidProblemID - идентификатор проблемы не UUID.
 	ErrInvalidProblemID = errors.New("problem id must be a UUID")
-	// ErrProblemCommentRequired — у причины с обязательным комментарием его нет; проверяет
+	// ErrProblemCommentRequired - у причины с обязательным комментарием его нет; проверяет
 	// репозиторий по справочнику причин (ADHOC-55).
 	ErrProblemCommentRequired = repository.ErrProblemCommentRequired
 )
 
-// problemCommentMax — предел комментария в символах: это пояснение кладовщика, не акт.
+// problemCommentMax - предел комментария в символах: это пояснение кладовщика, не акт.
 const problemCommentMax = 1000
 
-// problemSubmitPayload — тело операции problem_submit, как его собирает устройство (P6-07-1).
+// problemSubmitPayload - тело операции problem_submit, как его собирает устройство (P6-07-1).
 //
 // Помечено ровно одно: короб целиком (`load_unit_id`) ЛИБО товар (`good_id` + `production_date`
-// + `qty`) — из россыпи ячейки (`cell_id`, склад россыпи — `internal_warehouse_id`, пусто —
-// «Основной») или из короба (`from_load_unit_id`). Куда — `to_internal_warehouse_id`.
+// + `qty`) - из россыпи ячейки (`cell_id`, склад россыпи - `internal_warehouse_id`, пусто -
+// «Основной») или из короба (`from_load_unit_id`). Куда - `to_internal_warehouse_id`.
 type problemSubmitPayload struct {
 	ProblemID   string `json:"problem_id"`
 	WarehouseID string `json:"warehouse_id"`
@@ -53,7 +53,7 @@ type problemSubmitPayload struct {
 // problemSubmit разбирает и проверяет проблему склада из очереди устройства (P6-07-1).
 //
 // Всё, что проверяется без базы, проверяется здесь: идентификаторы, «короб или товар», один
-// источник у товара, количество, дата, причина и комментарий. Автор — из токена.
+// источник у товара, количество, дата, причина и комментарий. Автор - из токена.
 func (s *OperationsService) problemSubmit(ctx context.Context, userID, id string, raw json.RawMessage) (repository.Applied, error) {
 	var p problemSubmitPayload
 	if err := json.Unmarshal(raw, &p); err != nil {
@@ -88,7 +88,7 @@ func (s *OperationsService) problemSubmit(ctx context.Context, userID, id string
 			return repository.Applied{}, ErrInvalidPayload
 		}
 	}
-	// Причину и обязательность комментария знает справочник — их проверяет репозиторий.
+	// Причину и обязательность комментария знает справочник - их проверяет репозиторий.
 	if in.Reason == "" {
 		return repository.Applied{}, repository.ErrUnknownReason
 	}
@@ -97,7 +97,7 @@ func (s *OperationsService) problemSubmit(ctx context.Context, userID, id string
 	}
 
 	if in.LoadUnitID != "" {
-		// Короб целиком: товарные поля и источник — противоречие, а не подсказка.
+		// Короб целиком: товарные поля и источник - противоречие, а не подсказка.
 		if in.GoodID != "" || p.ProductionDate != "" || !p.Qty.IsZero() ||
 			in.CellID != "" || in.FromLoadUnitID != "" || in.FromInternalWarehouseID != "" ||
 			len(p.Marks) > 0 {
@@ -109,7 +109,7 @@ func (s *OperationsService) problemSubmit(ctx context.Context, userID, id string
 	if in.GoodID == "" || (in.CellID == "") == (in.FromLoadUnitID == "") {
 		return repository.Applied{}, repository.ErrEmptyProblem
 	}
-	// Склад товара из короба — склад короба: из строки его не берём.
+	// Склад товара из короба - склад короба: из строки его не берём.
 	if in.FromLoadUnitID != "" && in.FromInternalWarehouseID != "" {
 		return repository.Applied{}, ErrInvalidPayload
 	}

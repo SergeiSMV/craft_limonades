@@ -28,7 +28,7 @@ import '../widgets/line_menu_sheet.dart';
 /// Подсчёт ячейки пересчёта (P10-04): слепой счёт по позициям снимка, «Ячейка посчитана».
 ///
 /// Открывается после скана ячейки на месте (снимок снят сервером) или из начатого подсчёта на
-/// терминале; дальше работает без связи — насчитанное живёт в черновике.
+/// терминале; дальше работает без связи - насчитанное живёт в черновике.
 @RoutePage()
 class StocktakeCountPage extends StatelessWidget {
   const StocktakeCountPage({super.key, required this.view});
@@ -80,7 +80,7 @@ class _CountViewState extends State<_CountView>
   /// Вернуться к ячейкам.
   void goBack() => context.router.maybePop();
 
-  /// Подсказка по результату скана — один раз.
+  /// Подсказка по результату скана - один раз.
   void onNotice(BuildContext context, StocktakeCountState state) {
     final n = state.notice;
     if (n == null) return;
@@ -135,7 +135,7 @@ class _CountViewState extends State<_CountView>
       builder: (context, state) => SystemUiWrapper(
         style: StatusBarStyle.light,
         child: Scaffold(
-          // Текст здесь вводит только сканер — под клавиатуру экран не сжимается.
+          // Текст здесь вводит только сканер - под клавиатуру экран не сжимается.
           resizeToAvoidBottomInset: false,
           backgroundColor: AppColors.kNeumorphicBg,
           appBar: AppBar(

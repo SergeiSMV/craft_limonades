@@ -10,14 +10,14 @@ import 'package:craft_wms/features/cz/domain/cz_stock_marks.dart';
 import 'package:either_dart/either.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// Эталон ответа пачки — общий с сервером (`cz_scan_http_test.go`).
+/// Эталон ответа пачки - общий с сервером (`cz_scan_http_test.go`).
 Map<String, dynamic> _golden(String name) =>
     jsonDecode(
           File('../backend/internal/handler/testdata/$name').readAsStringSync(),
         )
         as Map<String, dynamic>;
 
-/// Сервер-подделка: каждая пачка ждёт, пока тест её отпустит; ответ — марка на каждый код.
+/// Сервер-подделка: каждая пачка ждёт, пока тест её отпустит; ответ - марка на каждый код.
 class _FakeRepo implements CzScanRepository {
   final calls = <List<String>>[];
   final _gates = <Completer<void>>[];

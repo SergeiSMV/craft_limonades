@@ -26,10 +26,10 @@ import (
 
 var quietLog = slog.New(slog.NewTextHandler(io.Discard, nil))
 
-// t0 — «сейчас» тестов; токены фальшивого ЧЗ живут 10 часов от него.
+// t0 - «сейчас» тестов; токены фальшивого ЧЗ живут 10 часов от него.
 var t0 = time.Date(2026, 10, 23, 9, 0, 0, 0, time.UTC)
 
-// clock — подменяемое время клиента.
+// clock - подменяемое время клиента.
 type clock struct {
 	mu  sync.Mutex
 	now time.Time
@@ -47,7 +47,7 @@ func fakeJWT(payload string) string {
 	return enc([]byte(`{"alg":"none"}`)) + "." + enc([]byte(payload)) + "." + enc([]byte("sig"))
 }
 
-// stubSigner — подпись без КриптоПро: "SIG:" + данные; err — отказ.
+// stubSigner - подпись без КриптоПро: "SIG:" + данные; err - отказ.
 type stubSigner struct {
 	calls atomic.Int64
 	err   error
@@ -62,12 +62,12 @@ func (s *stubSigner) Sign(_ context.Context, data []byte) ([]byte, error) {
 }
 func (s *stubSigner) Health(context.Context) error { return s.err }
 
-// fakeAPI — фальшивый True API: вход с проверкой подписи и cises/info.
+// fakeAPI - фальшивый True API: вход с проверкой подписи и cises/info.
 type fakeAPI struct {
 	t         *testing.T
 	signIns   atomic.Int64
-	signInErr int            // код отказа simpleSignIn; 0 — выдать токен
-	infoCode  func() int     // код ответа cises/info; nil — 200
+	signInErr int            // код отказа simpleSignIn; 0 - выдать токен
+	infoCode  func() int     // код ответа cises/info; nil - 200
 	infoBody  string         // тело 200 для cises/info
 	lastCodes []string       // коды последнего cises/info
 	tokens    map[string]int // выданные токены
@@ -153,7 +153,7 @@ func TestTokenCachedAndRefreshedBeforeExpiry(t *testing.T) {
 		t.Fatalf("expiry = %v, %v", exp, ok)
 	}
 
-	// За 59 минут до истечения — уже порог обновления (час): входим заново.
+	// За 59 минут до истечения - уже порог обновления (час): входим заново.
 	clk.Add(9*time.Hour + time.Minute)
 	second, err := c.Token(ctx)
 	if err != nil {
@@ -176,12 +176,12 @@ func TestTokenRefreshFailureKeepsValidToken(t *testing.T) {
 	}
 	signer.err = fmt.Errorf("%w: connection refused", model.ErrCZSignerUnavailable)
 
-	// В окне обновления, но токен ещё годен — работаем на старом.
+	// В окне обновления, но токен ещё годен - работаем на старом.
 	clk.Add(9*time.Hour + 30*time.Minute)
 	if got, err := c.Token(ctx); err != nil || got != first {
 		t.Fatalf("got %q, %v; want old token", got, err)
 	}
-	// До истечения меньше минуты — старый не отдаём, отдаём причину.
+	// До истечения меньше минуты - старый не отдаём, отдаём причину.
 	clk.Add(29*time.Minute + 30*time.Second)
 	if _, err := c.Token(ctx); !errors.Is(err, model.ErrCZSignerUnavailable) {
 		t.Fatalf("err = %v, want ErrCZSignerUnavailable", err)
@@ -242,8 +242,8 @@ func TestTokenWithoutExpUsesFallback(t *testing.T) {
 	}
 }
 
-// cisesInfoBody — ответ cises/info в формате, сверенном на проде (CZ-02): марка, транспортный
-// короб и отказ по коду. Вид упаковки — generalPackageType, packageType — уровень (у короба LEVEL1).
+// cisesInfoBody - ответ cises/info в формате, сверенном на проде (CZ-02): марка, транспортный
+// короб и отказ по коду. Вид упаковки - generalPackageType, packageType - уровень (у короба LEVEL1).
 const cisesInfoBody = `[
  {"cisInfo":{"requestedCis":"0104600000000017215abc","cis":"0104600000000017215abc",
    "gtin":"04600000000017","productName":"Лимонад","productGroup":"softdrinks",
@@ -308,7 +308,7 @@ func TestCisesInfoRetriesOnceOn401(t *testing.T) {
 		t.Fatalf("sign-ins = %d, want 2", n)
 	}
 
-	// 401 и на новом токене — второй раз не повторяем.
+	// 401 и на новом токене - второй раз не повторяем.
 	api.infoCode = func() int { return http.StatusUnauthorized }
 	_, err := c.CisesInfo(ctx, []string{"x"})
 	var se *statusError
@@ -382,7 +382,7 @@ func TestRunObtainsTokenAndStops(t *testing.T) {
 	}
 }
 
-// TestSocketSigner — клиент подписанта против настоящего обработчика cz-signer на сокете.
+// TestSocketSigner - клиент подписанта против настоящего обработчика cz-signer на сокете.
 func TestSocketSigner(t *testing.T) {
 	dir, err := os.MkdirTemp("/tmp", "czt")
 	if err != nil {
@@ -419,7 +419,7 @@ func TestSocketSigner(t *testing.T) {
 		t.Fatalf("health err = %v", err)
 	}
 
-	// Службы нет вовсе — та же ошибка, а не зависание.
+	// Службы нет вовсе - та же ошибка, а не зависание.
 	none := NewSocketSigner(filepath.Join(dir, "none.sock"))
 	if _, err := none.Sign(ctx, []byte("x")); !errors.Is(err, model.ErrCZSignerUnavailable) {
 		t.Fatalf("err = %v", err)

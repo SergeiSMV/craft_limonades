@@ -14,27 +14,27 @@ import (
 	"craftwms/internal/repository"
 )
 
-// warehouseCodeRepo — резолв склада по коду (для ?warehouse=SHB).
+// warehouseCodeRepo - резолв склада по коду (для ?warehouse=SHB).
 type warehouseCodeRepo interface {
 	IDByCode(ctx context.Context, code string) (string, error)
 }
 
-// cellLabelRepo — ячейки склада с настройками этикеток и стеллажи (то же, что видит страница).
+// cellLabelRepo - ячейки склада с настройками этикеток и стеллажи (то же, что видит страница).
 type cellLabelRepo interface {
 	Setup(ctx context.Context, warehouseID string) ([]model.CellSetup, []model.Rack, error)
 }
 
-// Виды PDF — те же три файла, что собирал rack_labels.
+// Виды PDF - те же три файла, что собирал rack_labels.
 const (
 	LabelKindLarge = "large" // этикетки на большую балку, 4 на лист
 	LabelKindSmall = "small" // этикетки на малую балку, 6 на лист
 	LabelKindCards = "cards" // карточки на боковую опору стеллажа, 2 на лист
 )
 
-// ErrUnknownLabelKind — вид PDF не large, small или cards.
+// ErrUnknownLabelKind - вид PDF не large, small или cards.
 var ErrUnknownLabelKind = errors.New("вид этикеток: large, small или cards")
 
-// LabelService — PDF этикеток ячеек и карточек на стойку по геометрии rack_labels (ADHOC-57).
+// LabelService - PDF этикеток ячеек и карточек на стойку по геометрии rack_labels (ADHOC-57).
 type LabelService struct {
 	warehouses warehouseCodeRepo
 	cells      cellLabelRepo
@@ -45,17 +45,17 @@ func NewLabelService(warehouses warehouseCodeRepo, cells cellLabelRepo) *LabelSe
 	return &LabelService{warehouses: warehouses, cells: cells}
 }
 
-// CellLabelsPDF — PDF вида kind по выбранным ячейкам склада и имя файла.
+// CellLabelsPDF - PDF вида kind по выбранным ячейкам склада и имя файла.
 //
-// cellIDs пуст — весь склад. Иначе печатаются только выбранные: на балку — ячейки своего
-// размера, карточки — стеллажей выбранных ячеек с галочкой «карточка», и каждая карточка
+// cellIDs пуст - весь склад. Иначе печатаются только выбранные: на балку - ячейки своего
+// размера, карточки - стеллажей выбранных ячеек с галочкой «карточка», и каждая карточка
 // целиком, со всеми ячейками стеллажа (половина карточки на стойке бесполезна).
 // Кегль считается по всему складу, а не по выборке: перепечатанная этикетка обязана совпасть
 // с соседними на стеллаже.
 //
-// Ошибки: repository.ErrNotFound — нет склада; ErrUnknownLabelKind, ErrInvalidCellIDs;
-// repository.ErrForeignCells — среди id есть ячейка не этого склада (или приёмки);
-// labels.ErrNothingToPrint — в выборке нет этикеток этого вида; *labels.FitError — не влезает.
+// Ошибки: repository.ErrNotFound - нет склада; ErrUnknownLabelKind, ErrInvalidCellIDs;
+// repository.ErrForeignCells - среди id есть ячейка не этого склада (или приёмки);
+// labels.ErrNothingToPrint - в выборке нет этикеток этого вида; *labels.FitError - не влезает.
 func (s *LabelService) CellLabelsPDF(ctx context.Context, warehouseCode, kind string, cellIDs []string) ([]byte, string, error) {
 	if kind != LabelKindLarge && kind != LabelKindSmall && kind != LabelKindCards {
 		return nil, "", ErrUnknownLabelKind
@@ -114,7 +114,7 @@ func (s *LabelService) CellLabelsPDF(ctx context.Context, warehouseCode, kind st
 	return pdf, "labels_" + kind + ".pdf", err
 }
 
-// beamCell — этикетка ячейки. Напольная (ADHOC-61) — всегда с QR: адрес кириллицей Code128 не
+// beamCell - этикетка ячейки. Напольная (ADHOC-61) - всегда с QR: адрес кириллицей Code128 не
 // кодирует, а без кода ячейку на ТСД не отсканировать; галочка штрих-кода её не касается.
 func beamCell(c model.CellSetup) labels.Cell {
 	if c.IsFloorStorage {
@@ -123,11 +123,11 @@ func beamCell(c model.CellSetup) labels.Cell {
 	return labels.Cell{Address: c.Address, IsFloor: c.IsFloor, Barcode: c.LabelBarcode}
 }
 
-// sideCards — карточки стеллажей выбранных ячеек и адреса всех карточек склада для единого
-// кегля. Решение 2026-11-05: галочка «на карточке» — у ячейки, стеллаж только группирует. Карточку
-// печатает выбранная ячейка с галочкой и стеллажом; строки карточки — все ячейки её стеллажа с
-// галочкой (штрих-код на балке не учитывается — что сканировать с карточки, решает человек).
-// Строки карточки — позиции убывают, ярусы сверху вниз: так стеллаж выглядит из прохода, если
+// sideCards - карточки стеллажей выбранных ячеек и адреса всех карточек склада для единого
+// кегля. Решение 2026-11-05: галочка «на карточке» - у ячейки, стеллаж только группирует. Карточку
+// печатает выбранная ячейка с галочкой и стеллажом; строки карточки - все ячейки её стеллажа с
+// галочкой (штрих-код на балке не учитывается - что сканировать с карточки, решает человек).
+// Строки карточки - позиции убывают, ярусы сверху вниз: так стеллаж выглядит из прохода, если
 // клеить карточку на правую опору (как в rack_labels).
 func sideCards(cells []model.CellSetup, selected []model.CellSetup) ([]labels.Card, []string) {
 	onCard := func(c model.CellSetup) bool { return c.SideCard && c.RackID != nil && c.RackCode != nil }
@@ -141,7 +141,7 @@ func sideCards(cells []model.CellSetup, selected []model.CellSetup) ([]labels.Ca
 	}
 	var cards []labels.Card
 	seen := map[string]bool{}
-	for _, c := range selected { // порядок выборки — порядок стеллажей
+	for _, c := range selected { // порядок выборки - порядок стеллажей
 		if !onCard(c) || seen[*c.RackID] {
 			continue
 		}
@@ -165,10 +165,10 @@ func sideCards(cells []model.CellSetup, selected []model.CellSetup) ([]labels.Ca
 	return cards, set
 }
 
-// tierPosRe — ярус и позиция — два последних числа адреса («B-1-3-12» — ярус 3, позиция 12).
+// tierPosRe - ярус и позиция - два последних числа адреса («B-1-3-12» - ярус 3, позиция 12).
 var tierPosRe = regexp.MustCompile(`-(\d+)-(\d+)$`)
 
-// tierPos — ярус и позиция ячейки; адрес другого вида — нули (ячейка уходит в конец порядка).
+// tierPos - ярус и позиция ячейки; адрес другого вида - нули (ячейка уходит в конец порядка).
 func tierPos(address string) (tier, pos int) {
 	m := tierPosRe.FindStringSubmatch(address)
 	if m == nil {
@@ -179,9 +179,9 @@ func tierPos(address string) (tier, pos int) {
 	return tier, pos
 }
 
-// cellBefore — порядок наклейки этикеток на балки: по стеллажу (без стеллажа — в конце), внутри
-// стеллажа по позиции слева направо, в позиции ярусы сверху вниз — в этом порядке клеящий идёт
-// вдоль стеллажа. При равенстве — натуральный порядок адресов.
+// cellBefore - порядок наклейки этикеток на балки: по стеллажу (без стеллажа - в конце), внутри
+// стеллажа по позиции слева направо, в позиции ярусы сверху вниз - в этом порядке клеящий идёт
+// вдоль стеллажа. При равенстве - натуральный порядок адресов.
 func cellBefore(a, b model.CellSetup) bool {
 	switch {
 	case a.RackCode == nil && b.RackCode != nil:
@@ -202,7 +202,7 @@ func cellBefore(a, b model.CellSetup) bool {
 	return naturalLess(a.Address, b.Address)
 }
 
-// naturalLess сравнивает адреса «натурально»: числовые сегменты — по значению, а не лексикографически
+// naturalLess сравнивает адреса «натурально»: числовые сегменты - по значению, а не лексикографически
 // (чтобы M1-1-2-1 шёл раньше M1-1-10-1). Побайтово, разбивая на цифровые и нецифровые пробеги.
 func naturalLess(a, b string) bool {
 	ai, bi := 0, 0
@@ -223,7 +223,7 @@ func naturalLess(a, b string) bool {
 		ai++
 		bi++
 	}
-	// Более короткая строка — раньше (все общие сегменты равны).
+	// Более короткая строка - раньше (все общие сегменты равны).
 	return len(a)-ai < len(b)-bi
 }
 

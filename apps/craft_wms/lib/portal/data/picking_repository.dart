@@ -50,13 +50,13 @@ class RegistryLine {
   final DateTime? batchDate;
   final int qty;
 
-  /// Ячейка из реестра как в файле; пусто — без ячейки.
+  /// Ячейка из реестра как в файле; пусто - без ячейки.
   final String cell;
 
   /// Ячейка с таким адресом есть в WMS.
   final bool cellFound;
 
-  /// Остаток для сборки по товару и партии; null — не сверялся (товар вне справочника, заказ
+  /// Остаток для сборки по товару и партии; null - не сверялся (товар вне справочника, заказ
   /// уже собран или отгружен).
   final double? available;
 
@@ -135,7 +135,7 @@ class RegistryOrder {
 
   final RegistryOrderKind kind;
 
-  /// Номер сборки («СБ-…») уже загруженного заказа; у нового — null.
+  /// Номер сборки («СБ-…») уже загруженного заказа; у нового - null.
   final int? number;
 
   /// Статус WMS до загрузки: new, in_progress, picked, shipped.
@@ -202,10 +202,10 @@ class RegistryPreview {
     );
   }
 
-  /// Id записанной загрузки; у предпросмотра — null.
+  /// Id записанной загрузки; у предпросмотра - null.
   final String? loadId;
 
-  /// Дата накладных файла — дата сборки.
+  /// Дата накладных файла - дата сборки.
   final DateTime date;
   final Map<RegistryOrderKind, int> counts;
   final List<RegistryOrder> orders;
@@ -249,7 +249,7 @@ class PickingRepository {
     } on DioException catch (e) {
       final code = e.response?.statusCode;
       if (code == null) return const Left(Failure.network());
-      // 422 — файл не принят (нет листа или колонки, несколько дат): текст сервера показываем.
+      // 422 - файл не принят (нет листа или колонки, несколько дат): текст сервера показываем.
       final msg = (e.response?.data is Map)
           ? (e.response!.data['error'] as String?)
           : null;

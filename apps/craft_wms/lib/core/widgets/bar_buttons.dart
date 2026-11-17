@@ -7,7 +7,7 @@ import '../constants/app_insets.dart';
 import '../constants/app_sizes.dart';
 import '../theme/semibold_text.dart';
 
-/// Выпуклая кнопка-строка шапки — как шапка ячейки во «Вводе остатков»: приёмка (общий список
+/// Выпуклая кнопка-строка шапки - как шапка ячейки во «Вводе остатков»: приёмка (общий список
 /// и страница короба) и короб прохода ввода остатков (ADHOC-46).
 class BarButton extends StatelessWidget {
   const BarButton({
@@ -22,7 +22,7 @@ class BarButton extends StatelessWidget {
   final String text;
   final IconData icon;
 
-  /// Цвет текста и иконки; `null` — обычный цвет шапки.
+  /// Цвет текста и иконки; `null` - обычный цвет шапки.
   final Color? color;
 
   @override
@@ -59,7 +59,7 @@ class BarButton extends StatelessWidget {
   }
 }
 
-/// Квадратная выпуклая кнопка-иконка шапки — как кнопка отмены во «Вводе остатков».
+/// Квадратная выпуклая кнопка-иконка шапки - как кнопка отмены во «Вводе остатков».
 class BarIconButton extends StatelessWidget {
   const BarIconButton({
     super.key,
@@ -71,7 +71,7 @@ class BarIconButton extends StatelessWidget {
   final VoidCallback onPressed;
   final IconData icon;
 
-  /// Цвет иконки; `null` — обычный цвет шапки.
+  /// Цвет иконки; `null` - обычный цвет шапки.
   final Color? color;
 
   @override

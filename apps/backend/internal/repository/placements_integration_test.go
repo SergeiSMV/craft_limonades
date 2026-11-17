@@ -14,9 +14,9 @@ import (
 	"craftwms/migrations"
 )
 
-// Тесты P5-01: журнал размещений ГЕ. Критерий задачи — видно текущее место ГЕ и её историю;
-// инвариант — текущее место (`load_units.cell_id`) равно `to_cell_id` последней строки журнала.
-// Фикстура setupStock — из stock_integration_test.go, newLU — из load_units_integration_test.go.
+// Тесты P5-01: журнал размещений ГЕ. Критерий задачи - видно текущее место ГЕ и её историю;
+// инвариант - текущее место (`load_units.cell_id`) равно `to_cell_id` последней строки журнала.
+// Фикстура setupStock - из stock_integration_test.go, newLU - из load_units_integration_test.go.
 
 // newUser заводит кладовщика и возвращает его id.
 func newUser(t *testing.T, fx *stockFixture) string {
@@ -27,10 +27,10 @@ func newUser(t *testing.T, fx *stockFixture) string {
 	return id
 }
 
-// testDoc — накладная поставщика тестовых приёмок (ADHOC-23).
+// testDoc - накладная поставщика тестовых приёмок (ADHOC-23).
 var testDoc = model.SupplierDoc{Number: "ТН-1", Date: time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)}
 
-// receiveBox принимает короб с товаром в ячейку и оприходует приёмку — так ГЕ появляется
+// receiveBox принимает короб с товаром в ячейку и оприходует приёмку - так ГЕ появляется
 // на складе в жизни.
 func receiveBox(t *testing.T, fx *stockFixture, user, lu, cell string) string {
 	t.Helper()
@@ -50,7 +50,7 @@ func receiveBox(t *testing.T, fx *stockFixture, user, lu, cell string) string {
 	return receipt
 }
 
-// currentCell — текущее место ГЕ по шапке.
+// currentCell - текущее место ГЕ по шапке.
 func currentCell(t *testing.T, fx *stockFixture, lu string) string {
 	t.Helper()
 	got, err := repository.NewLoadUnitRepository(fx.pool).ByID(context.Background(), lu)
@@ -60,7 +60,7 @@ func currentCell(t *testing.T, fx *stockFixture, lu string) string {
 	return *got.CellID
 }
 
-// Приёмка — первое размещение: строка журнала «ниоткуда → в ячейку» с автором и документом.
+// Приёмка - первое размещение: строка журнала «ниоткуда → в ячейку» с автором и документом.
 func TestPlacements_receiptWritesFirstRow(t *testing.T) {
 	fx := setupStock(t)
 	user := newUser(t, fx)
@@ -78,7 +78,7 @@ func TestPlacements_receiptWritesFirstRow(t *testing.T) {
 		t.Errorf("перенос: from=%v to=%s (%s), ожидалось ниоткуда → A", p.FromCellID, p.ToCellID, p.ToAddress)
 	}
 	if p.Source != model.PlacementReceipt || p.ReceiptID == nil || *p.ReceiptID != receipt {
-		t.Errorf("источник: %s, документ %v — ожидалась приёмка %s", p.Source, p.ReceiptID, receipt)
+		t.Errorf("источник: %s, документ %v - ожидалась приёмка %s", p.Source, p.ReceiptID, receipt)
 	}
 	if p.UserID == nil || *p.UserID != user {
 		t.Errorf("автор: %v, ожидался кладовщик приёмки", p.UserID)
@@ -117,7 +117,7 @@ func TestPlacements_moveAppendsHistory(t *testing.T) {
 	}
 }
 
-// Перенос в ту же ячейку — не перенос: журнал не засоряется пустыми строками.
+// Перенос в ту же ячейку - не перенос: журнал не засоряется пустыми строками.
 func TestPlacements_sameCellIsNoop(t *testing.T) {
 	fx := setupStock(t)
 	ctx := context.Background()
@@ -132,11 +132,11 @@ func TestPlacements_sameCellIsNoop(t *testing.T) {
 	hist, err := repository.NewLoadUnitRepository(fx.pool).Placements(ctx, lu)
 	mustNoErr(t, err)
 	if len(hist) != 1 {
-		t.Errorf("строк истории: %d, ожидалась 1 — перенос на месте не пишется", len(hist))
+		t.Errorf("строк истории: %d, ожидалась 1 - перенос на месте не пишется", len(hist))
 	}
 }
 
-// Короб без размещения — пустая история; несуществующий короб — отдельная ошибка.
+// Короб без размещения - пустая история; несуществующий короб - отдельная ошибка.
 func TestPlacements_emptyAndUnknown(t *testing.T) {
 	fx := setupStock(t)
 	ctx := context.Background()
@@ -192,7 +192,7 @@ func TestPlacements_migrationBackfillsPlacedUnits(t *testing.T) {
 	unplaced := newLU(t, fx, model.LoadUnitBox)
 
 	// Более поздние миграции, опирающиеся на журнал, откатываются и накатываются вокруг неё.
-	// Возвраты на места (P9-07-1) ссылаются на задания — их миграция снимается первой.
+	// Возвраты на места (P9-07-1) ссылаются на задания - их миграция снимается первой.
 	execMigration(t, fx, "000050_picking_return.down.sql")
 	execMigration(t, fx, "000025_supplier_return_shipments.down.sql")
 	execMigration(t, fx, "000024_problem_decisions.down.sql")
@@ -230,7 +230,7 @@ func TestPlacements_migrationBackfillsPlacedUnits(t *testing.T) {
 	}
 }
 
-// execMigration выполняет файл миграции как есть — тем же текстом, что уедет на прод.
+// execMigration выполняет файл миграции как есть - тем же текстом, что уедет на прод.
 func execMigration(t *testing.T, fx *stockFixture, name string) {
 	t.Helper()
 	sql, err := migrations.FS.ReadFile(name)

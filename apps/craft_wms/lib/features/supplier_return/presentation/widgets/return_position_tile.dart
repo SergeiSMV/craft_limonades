@@ -7,9 +7,9 @@ import '../../../../core/widgets/neumorphic_line_tile.dart';
 import '../../../tasks/data/tasks_models.dart';
 import '../../../tasks/presentation/widgets/common/task_format.dart';
 
-/// Позиция возврата в сеансе отгрузки (ADHOC-31): короб или товар, построчно — состав или
-/// партия и количество, ячейка, где лежит. Неактивная — серая, с подсказкой, что сканировать
-/// (короб или ячейку); отмеченная — с галочкой справа.
+/// Позиция возврата в сеансе отгрузки (ADHOC-31): короб или товар, построчно - состав или
+/// партия и количество, ячейка, где лежит. Неактивная - серая, с подсказкой, что сканировать
+/// (короб или ячейку); отмеченная - с галочкой справа.
 class ReturnPositionTile extends StatelessWidget {
   const ReturnPositionTile({
     super.key,
@@ -26,7 +26,7 @@ class ReturnPositionTile extends StatelessWidget {
   final int scannedMarks;
   final bool checked;
 
-  /// Место позиции подтверждено сканом — её можно отметить.
+  /// Место позиции подтверждено сканом - её можно отметить.
   final bool active;
   final VoidCallback onTap;
 

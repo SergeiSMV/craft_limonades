@@ -31,9 +31,9 @@ import '../widgets/detail/task_item_tile.dart';
 import '../../../../core/utils/doc_number.dart';
 
 /// Карточка задания (P5-02-1): что разместить, заходы, «Взять» / «Отказаться». У пересчёта
-/// (ADHOC-58) вместо позиций — область и ход, в истории — подсчитанные ячейки.
+/// (ADHOC-58) вместо позиций - область и ход, в истории - подсчитанные ячейки.
 ///
-/// Из «Текущих» задание передаётся целиком и открывается без связи; из ленты «Завершённые» —
+/// Из «Текущих» задание передаётся целиком и открывается без связи; из ленты «Завершённые» -
 /// только [taskId], и задание дочитывается с сервера.
 @RoutePage()
 class TaskDetailPage extends StatelessWidget {
@@ -81,9 +81,9 @@ class _TaskDetailView extends StatelessWidget {
     if (ok == true) await cubit.release();
   }
 
-  /// Выполнить задание: размещение (P5-03), отгрузку возврата (ADHOC-31) или пересчёт —
+  /// Выполнить задание: размещение (P5-03), отгрузку возврата (ADHOC-31) или пересчёт -
   /// список его ячеек (ADHOC-58). Маршрут выбирается по виду задания явно: неизвестный вид не
-  /// должен молча открывать размещение. По возврату карточка обновляется — задание могло быть
+  /// должен молча открывать размещение. По возврату карточка обновляется - задание могло быть
   /// выполнено или вернуться в пул.
   Future<void> execute(BuildContext context) async {
     final cubit = context.read<TaskDetailCubit>();
@@ -121,7 +121,7 @@ class _TaskDetailView extends StatelessWidget {
     };
     snack(context, text);
     context.read<TaskDetailCubit>().clearAction();
-    // Отдал задание — делать в карточке больше нечего.
+    // Отдал задание - делать в карточке больше нечего.
     if (action is TaskReleased) goBack(context);
   }
 
@@ -144,7 +144,7 @@ class _TaskDetailView extends StatelessWidget {
           style: StatusBarStyle.light,
           child: Scaffold(
             backgroundColor: AppColors.kNeumorphicBg,
-            // Шапка — как у раздела «ЗАДАНИЯ» и «Приёмки»: фон-картинка и заголовок с возвратом.
+            // Шапка - как у раздела «ЗАДАНИЯ» и «Приёмки»: фон-картинка и заголовок с возвратом.
             appBar: AppBar(
               automaticallyImplyLeading: false,
               backgroundColor: Colors.transparent,
@@ -206,8 +206,8 @@ class _TaskBody extends StatelessWidget {
   final TaskDetailState state;
   final WarehouseTask task;
 
-  /// Открыть позицию задания: короб — его карточку, россыпь — карточку остатков товара
-  /// (ADHOC-21). Обе работают и без связи: карточка короба — из снимка, товара — из справочника.
+  /// Открыть позицию задания: короб - его карточку, россыпь - карточку остатков товара
+  /// (ADHOC-21). Обе работают и без связи: карточка короба - из снимка, товара - из справочника.
   void openItem(BuildContext context, TaskItem item) {
     final good = item.good;
     if (item.isBox) {
@@ -243,14 +243,14 @@ class _TaskBody extends StatelessWidget {
             TaskStatusBadge(status: task.status),
           ],
         ),
-        // Номер — в заголовке страницы, здесь не повторяется.
+        // Номер - в заголовке страницы, здесь не повторяется.
         Text(
           t.tasks.createdLine(created: fullDateTime(task.createdAt)),
           style: muted,
         ),
         Text(taskAuthor(task), style: muted),
         Text(taskBasis(task), style: muted),
-        // Пересчёт (ADHOC-58) — область и ход; позиций у него нет: работники берут ячейки.
+        // Пересчёт (ADHOC-58) - область и ход; позиций у него нет: работники берут ячейки.
         if (task.stocktake case final st?) ...[
           Text(
             t.stocktake.scope(scope: scopeLabel(st.scopeKind)),
@@ -261,7 +261,7 @@ class _TaskBody extends StatelessWidget {
             style: muted,
           ),
         ],
-        // Возврат на места (P9-07-1) — заказ и сколько вернуть; позиции — на экране возврата.
+        // Возврат на места (P9-07-1) - заказ и сколько вернуть; позиции - на экране возврата.
         if (task.picking case final p?) ...[
           Text(pickingReturnOrder(p), style: muted),
           Text(t.tasks.pickingLeft(qty: qtyText(p.left)), style: muted),
@@ -278,7 +278,7 @@ class _TaskBody extends StatelessWidget {
             style: section,
           ),
           AppBoxes.kHeight8,
-          // Вертикальный отступ у плашки — чтобы тень неоморфной плашки не слипалась с соседней.
+          // Вертикальный отступ у плашки - чтобы тень неоморфной плашки не слипалась с соседней.
           for (final item in task.items)
             Padding(
               padding: AppInsets.v4,
@@ -289,7 +289,7 @@ class _TaskBody extends StatelessWidget {
             ),
           AppBoxes.kHeight16,
         ],
-        // Раскрывающаяся плашка, свёрнутая по умолчанию, — как история короба (ADHOC-21):
+        // Раскрывающаяся плашка, свёрнутая по умолчанию, - как история короба (ADHOC-21):
         // у задания с несколькими заходами история длиннее позиций и оттесняла бы их вниз.
         ExpandableCard(
           headerBuilder: (_) => Padding(

@@ -16,8 +16,8 @@ part 'goods_list_cubit.freezed.dart';
 /// Стадия загрузки списка товаров.
 enum GoodsListStatus { initial, loading, loaded, error }
 
-/// Состояние списка товаров с фильтрами — «Номенклатура» и вкладка «Товары» в «Остатках»
-/// (ADHOC-33). Одноклассовое со статусом — список с фильтрами не требует union'а, а фильтры
+/// Состояние списка товаров с фильтрами - «Номенклатура» и вкладка «Товары» в «Остатках»
+/// (ADHOC-33). Одноклассовое со статусом - список с фильтрами не требует union'а, а фильтры
 /// должны переживать перезагрузку. Поля складов, количеств и свежести заполняют только
 /// «Остатки» ([StockGoodsCubit]); у номенклатуры они пусты.
 @freezed
@@ -34,19 +34,19 @@ abstract class GoodsListState with _$GoodsListState {
     String? supplierId,
     Failure? failure,
 
-    /// Внутренние склады для фильтра; пусто — фильтра по складам нет (номенклатура).
+    /// Внутренние склады для фильтра; пусто - фильтра по складам нет (номенклатура).
     @Default(<InternalWarehouse>[]) List<InternalWarehouse> warehouses,
 
-    /// Выбранные склады; `null` — «Основной», пустой набор — все.
+    /// Выбранные склады; `null` - «Основной», пустой набор - все.
     @Default(<String?>{}) Set<String?> warehouseIds,
 
-    /// Остаток товара на выбранных складах — по id товара.
+    /// Остаток товара на выбранных складах - по id товара.
     @Default(<String, double>{}) Map<String, double> stockQty,
 
     /// Товары, чей остаток изменила своя неотправленная операция.
     @Default(<String>{}) Set<String> pendingGoods,
 
-    /// Откуда остатки; `null` — список не из снимка (номенклатура).
+    /// Откуда остатки; `null` - список не из снимка (номенклатура).
     DataFreshness? freshness,
   }) = _GoodsListState;
 
@@ -56,9 +56,9 @@ abstract class GoodsListState with _$GoodsListState {
   bool get hasMore => goods.length < total;
 }
 
-/// Cubit «Номенклатуры» (ADHOC-33; до неё — «Остатков»): держит справочники для фильтров
+/// Cubit «Номенклатуры» (ADHOC-33; до неё - «Остатков»): держит справочники для фильтров
 /// (группы/поставщики) и перезагружает список товаров при смене поиска/фильтра. Фабрика (свой
-/// на экран). «Остатки» наследуют его ([StockGoodsCubit]) и подменяют источник списка — [load].
+/// на экран). «Остатки» наследуют его ([StockGoodsCubit]) и подменяют источник списка - [load].
 @injectable
 class GoodsListCubit extends Cubit<GoodsListState> {
   GoodsListCubit(this.catalog) : super(const GoodsListState());
@@ -111,7 +111,7 @@ class GoodsListCubit extends Cubit<GoodsListState> {
     await load();
   }
 
-  /// Поиск по имени/коду. Применяется сразу; отложенный вариант — `setQueryDebounced`.
+  /// Поиск по имени/коду. Применяется сразу; отложенный вариант - `setQueryDebounced`.
   /// Гасим отложенный поиск: иначе «висящий» таймер применил бы более старый текст
   /// уже после этого вызова.
   Future<void> setQuery(String? query) async {
@@ -120,19 +120,19 @@ class GoodsListCubit extends Cubit<GoodsListState> {
     await load();
   }
 
-  /// Резолв товара по отсканированному ШК (P-FS-16). `Right(null)` — ШК не привязан ни к одному
-  /// товару, `Left` — спросить не удалось (нет связи или отказ сервера); экран показывает эти
+  /// Резолв товара по отсканированному ШК (P-FS-16). `Right(null)` - ШК не привязан ни к одному
+  /// товару, `Left` - спросить не удалось (нет связи или отказ сервера); экран показывает эти
   /// исходы по-разному, поэтому различает их он, а не cubit.
   ///
   /// Ошибку намеренно НЕ кладём в state (ADHOC-06). Раньше клали, и один скан подменял весь
-  /// список экраном «не удалось загрузить» — при том что список загрузился нормально, а
+  /// список экраном «не удалось загрузить» - при том что список загрузился нормально, а
   /// кладовщик его не трогал. Это тот же дефект, что закрывали в отложенном поиске (ADHOC-03):
   /// неудача точечного запроса рушит экран, к которому она отношения не имеет.
   Future<Either<Failure, Good?>> resolveBarcode(String code) =>
       catalog.resolveGoodByBarcode(code);
 
-  /// Товар справочника терминала по идентификатору — для карточки по скану марки «Честного
-  /// знака» (CZ-04): сервер называет товар марки, карточке нужен он целиком. `null` — товара
+  /// Товар справочника терминала по идентификатору - для карточки по скану марки «Честного
+  /// знака» (CZ-04): сервер называет товар марки, карточке нужен он целиком. `null` - товара
   /// на терминале нет (справочник не загружен или старше товара).
   Future<Good?> goodById(String id) => catalog.goodById(id);
 
@@ -151,13 +151,13 @@ class GoodsListCubit extends Cubit<GoodsListState> {
     return res.fold((failure) => failure, (_) => null);
   }
 
-  /// Фильтр по группе (null — снять).
+  /// Фильтр по группе (null - снять).
   Future<void> setGroup(String? groupId) async {
     emit(state.copyWith(groupId: groupId));
     await load();
   }
 
-  /// Фильтр по поставщику (null — снять).
+  /// Фильтр по поставщику (null - снять).
   Future<void> setSupplier(String? supplierId) async {
     emit(state.copyWith(supplierId: supplierId));
     await load();
@@ -179,7 +179,7 @@ class GoodsListCubit extends Cubit<GoodsListState> {
     emit(state.copyWith(goods: [...state.goods]..[i] = fresh));
   }
 
-  /// Выбрать или снять склад в фильтре «Остатков» (ADHOC-33); `null` — «Основной».
+  /// Выбрать или снять склад в фильтре «Остатков» (ADHOC-33); `null` - «Основной».
   Future<void> toggleWarehouse(String? id) async {
     final ids = {...state.warehouseIds};
     if (!ids.remove(id)) ids.add(id);
@@ -187,7 +187,7 @@ class GoodsListCubit extends Cubit<GoodsListState> {
     await load();
   }
 
-  /// Все склады — снять выбор складов.
+  /// Все склады - снять выбор складов.
   Future<void> allWarehouses() async {
     emit(state.copyWith(warehouseIds: const {}));
     await load();
@@ -201,7 +201,7 @@ class GoodsListCubit extends Cubit<GoodsListState> {
     await load();
   }
 
-  /// Перезагрузка списка под текущие фильтры (с первой страницы — сбрасывает подгруженное).
+  /// Перезагрузка списка под текущие фильтры (с первой страницы - сбрасывает подгруженное).
   @protected
   Future<void> load() async {
     emit(
@@ -231,7 +231,7 @@ class GoodsListCubit extends Cubit<GoodsListState> {
 
   /// Подгрузить следующую страницу (бесконечный скролл): дозапрашивает от `offset = goods.length`
   /// и дописывает в конец. Защита от повторного входа и от запроса за границей total. Ошибку
-  /// подгрузки не роняем в error-экран (список уже показан) — просто снимаем флаг, скролл повторит.
+  /// подгрузки не роняем в error-экран (список уже показан) - просто снимаем флаг, скролл повторит.
   Future<void> loadMore() async {
     if (state.loadingMore ||
         state.status != GoodsListStatus.loaded ||

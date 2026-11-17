@@ -8,7 +8,7 @@ import '../../../core/error/failure.dart';
 import '../domain/stocktake_models.dart';
 
 /// Сетевой источник пересчёта (P10-03): ход, ячейки, взятие, скан ячейки, заведение и
-/// закрытие. Склады в ответе — как на сервере; к соглашению терминала их приводит репозиторий.
+/// закрытие. Склады в ответе - как на сервере; к соглашению терминала их приводит репозиторий.
 @lazySingleton
 class StocktakeApi {
   StocktakeApi(this._dio);
@@ -38,7 +38,7 @@ class StocktakeApi {
     (_) {},
   );
 
-  /// Ответ — ячейка с позициями плоским объектом: поля ячейки и `positions`.
+  /// Ответ - ячейка с позициями плоским объектом: поля ячейки и `positions`.
   Future<Either<Failure, StocktakeCellView>> start(String cellId) => _call(
     () => _dio.post<Object?>(ApiConst.stocktakeCellStart(cellId)),
     (data) {

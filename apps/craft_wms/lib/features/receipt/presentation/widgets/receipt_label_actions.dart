@@ -20,7 +20,7 @@ import 'receipt_failure_text.dart';
 mixin ReceiptLabelActions<T extends StatefulWidget> on State<T> {
   ReceiptCubit get _cubit => context.read<ReceiptCubit>();
 
-  /// Показать снекбар — общий для экрана и миксина.
+  /// Показать снекбар - общий для экрана и миксина.
   void snack(String text) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -36,8 +36,8 @@ mixin ReceiptLabelActions<T extends StatefulWidget> on State<T> {
     );
   }
 
-  /// Напечатать товарный ярлык: ШК у товара один — печатаем его, несколько — спрашиваем,
-  /// нет ни одного — предлагаем выдать внутренний.
+  /// Напечатать товарный ярлык: ШК у товара один - печатаем его, несколько - спрашиваем,
+  /// нет ни одного - предлагаем выдать внутренний.
   Future<void> printGoodLabel(Good good) async {
     final res = await _cubit.barcodesOf(good.id);
     if (!mounted) return;
@@ -58,7 +58,7 @@ mixin ReceiptLabelActions<T extends StatefulWidget> on State<T> {
   /// Предложить выдать товару без ШК внутренний код и напечатать ярлык (P4-07, P4-08).
   ///
   /// Только по сети (решение P4-09): без связи кладовщик получает понятный отказ, а товар
-  /// принимается без ярлыка — приёмку отсутствие наклейки не останавливает.
+  /// принимается без ярлыка - приёмку отсутствие наклейки не останавливает.
   Future<void> offerInternalBarcode(Good good) async {
     final confirmed = await showBindPromptDialog(
       context,
@@ -80,7 +80,7 @@ mixin ReceiptLabelActions<T extends StatefulWidget> on State<T> {
       return;
     }
     final issued = res.right;
-    // Выдача идемпотентна: у товара код уже мог быть. Печатаем его же, но говорим об этом —
+    // Выдача идемпотентна: у товара код уже мог быть. Печатаем его же, но говорим об этом -
     // иначе кладовщик решит, что у товара теперь два внутренних кода.
     if (!issued.generated) {
       snack(t.receipt.barcodeExisted(barcode: issued.barcode));
@@ -103,7 +103,7 @@ mixin ReceiptLabelActions<T extends StatefulWidget> on State<T> {
     ),
   );
 
-  /// Печать товарного ярлыка с отчётом об исходе. Наименование уходит в принтер как есть —
+  /// Печать товарного ярлыка с отчётом об исходе. Наименование уходит в принтер как есть -
   /// чистит его шаблон ярлыка (`sanitizeTsplText`), а не каждый вызывающий.
   Future<void> _printGood(String barcode, Good good) async {
     final error = await _cubit.printGoodLabel(

@@ -23,7 +23,7 @@ const _order =
     '"taken_at":"2026-11-08T07:00:00Z","picked_by_name":"","picked_at":null,"shipped_at":null,'
     '"lines":1,"plan_qty":3,"fact_qty":"1.5","boxes":1';
 
-/// P8-03: раздел «Сборка-отгрузка» портала — разбор списка и деталей, дата в запросе, отказ
+/// P8-03: раздел «Сборка-отгрузка» портала - разбор списка и деталей, дата в запросе, отказ
 /// снятия текстом сервера.
 void main() {
   late Dio dio;
@@ -77,7 +77,7 @@ void main() {
     expect(d.changes.single.orderStatus, PickingStatus.newOrder);
   });
 
-  test('снятие собранного — отказ текстом сервера', () async {
+  test('снятие собранного - отказ текстом сервера', () async {
     dio.httpClientAdapter = RecordingAdapter({
       'POST ${ApiConst.pickingPortalRelease('o1')}': (_) =>
           _json('{"error":"заказ уже собран или отгружен"}', 409),

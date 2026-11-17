@@ -39,7 +39,7 @@ dependencies:
   get_it: ^9.2.1 # service locator (DI-контейнер)
   injectable: ^3.0.0 # аннотации для автогенерации регистрации в get_it
   dio: ^5.10.0 # HTTP-клиент (REST API, интерсепторы)
-  either_dart: ^1.0.0 # Either<Failure, T> — типобезопасные ошибки вместо throw
+  either_dart: ^1.0.0 # Either<Failure, T> - типобезопасные ошибки вместо throw
   freezed_annotation: ^3.1.0 # аннотации для immutable-моделей (union/copyWith)
   json_annotation: ^4.12.0 # аннотации @JsonSerializable для (де)сериализации
   talker_flutter: ^5.1.17 # структурированное логирование + UI-просмотр логов
@@ -47,16 +47,16 @@ dependencies:
   talker_bloc_logger: ^5.1.17 # логирование событий и переходов состояний BLoC
   slang: ^4.18.0 # type-safe i18n: строки в Dart, без .arb
   slang_flutter: ^4.18.0 # Flutter-интеграция slang (Locale, context.t)
-  flutter_secure_storage: ^10.3.1 # зашифрованное хранилище токенов (Android Keystore; на вебе — браузер)
+  flutter_secure_storage: ^10.3.1 # зашифрованное хранилище токенов (Android Keystore; на вебе - браузер)
   web: ^1.1.0 # доступ к DOM в веб-портале (нативный <input type=file> для выбора .xls)
   material_design_icons_flutter: ^7.0.7296
   flutter_svg: ^2.3.0
   flutter_neumorphic_plus: ^3.5.0
-  drift: ^2.34.4 # локальная БД устройства (sqlite) — офлайн-стор и кэш справочников (P2-02)
+  drift: ^2.34.4 # локальная БД устройства (sqlite) - офлайн-стор и кэш справочников (P2-02)
   drift_flutter: ^0.3.1 # подключение drift к файлу БД на устройстве (нативные библиотеки sqlite3)
   path_provider: ^2.1.6 # каталог файла базы: вход в демо-режим стирает базу демо (ADHOC-67)
-  uuid: ^4.5.1 # operation_id для очереди операций — ключ идемпотентности (P2-03)
-  connectivity_plus: ^6.1.0 # событие смены сети — подсказка «попробовать раньше» (P2-04)
+  uuid: ^4.5.1 # operation_id для очереди операций - ключ идемпотентности (P2-03)
+  connectivity_plus: ^6.1.0 # событие смены сети - подсказка «попробовать раньше» (P2-04)
   permission_handler: ^12.0.1 # запрос прав на поиск Bluetooth-устройств (P4-05)
   image_picker: ^1.1.2
   sentry_flutter: ^9.0.0
@@ -81,7 +81,7 @@ dev_dependencies:
   flutter_native_splash: ^2.4.4 # генерация нативного splash-экрана (до загрузки Flutter)
   drift_dev: ^2.34.0 # генерация кода таблиц и запросов drift
 
-# FlutterGen: генерирует lib/core/gen/assets.gen.dart (Assets.images.<файл>) —
+# FlutterGen: генерирует lib/core/gen/assets.gen.dart (Assets.images.<файл>) -
 # типобезопасный доступ к ассетам вместо строковых путей. Запускается build_runner'ом.
 flutter_gen:
   output: lib/core/gen/   # рядом со slang-геном (strings.g.dart)
@@ -97,7 +97,7 @@ flutter_native_splash:
   # Веб-заставку генератором НЕ управляем: у портала своя лёгкая заставка,
   # свёрстанная вручную в web/index.html (slate-фон + янтарный спиннер).
   web: false
-  # Android 12+ — отдельная splash-API ОС (иконка по центру на фоне color).
+  # Android 12+ - отдельная splash-API ОС (иконка по центру на фоне color).
   android_12:
     color: "#1E293B"
     image: assets/images/cl_icon.png
@@ -118,7 +118,7 @@ flutter:
     - assets/icons/
     - assets/icons/menu_icons/
 
-  # Локальный Inter (assets/fonts/Inter) — для портала и приложения без google_fonts.
+  # Локальный Inter (assets/fonts/Inter) - для портала и приложения без google_fonts.
   # Variable Inter-V.ttf не подключаем: Flutter берёт статичные .otf по weight/style.
   fonts:
     - family: Inter

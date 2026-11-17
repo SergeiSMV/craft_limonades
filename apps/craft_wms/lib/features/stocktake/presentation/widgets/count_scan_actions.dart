@@ -28,13 +28,13 @@ import 'position_pick_sheet.dart';
 
 /// Скан при подсчёте ячейки пересчёта (P10-04).
 ///
-/// Что: разбор кода — ярлык короба, этикетка короба ЧЗ, марка, штрихкод товара — и что из него
-/// насчитать. Россыпь без марок — как во «Вводе остатков»: товар по ШК, дата и количество в
+/// Что: разбор кода - ярлык короба, этикетка короба ЧЗ, марка, штрихкод товара - и что из него
+/// насчитать. Россыпь без марок - как во «Вводе остатков»: товар по ШК, дата и количество в
 /// диалоге (партия подставлена из снимка), насчитанное копится к позиции.
 /// Зачем отдельно от экрана: у экрана и так список, кнопки и итог; правила «что за код» живут
-/// здесь и опираются на справочники терминала — подсчёт идёт без связи.
+/// здесь и опираются на справочники терминала - подсчёт идёт без связи.
 /// Как: короб и марку терминал узнаёт по своему снимку склада. Неизвестный WMS короб или марку
-/// не отмечаем — сервер всё равно отклонит весь подсчёт, а кладовщик узнал бы об этом позже.
+/// не отмечаем - сервер всё равно отклонит весь подсчёт, а кладовщик узнал бы об этом позже.
 mixin CountScanActions<T extends StatefulWidget>
     on State<T>, HardwareScanListener<T> {
   final scanController = TextEditingController();
@@ -56,7 +56,7 @@ mixin CountScanActions<T extends StatefulWidget>
     super.dispose();
   }
 
-  /// Вернуть фокус полю скана — иначе сканер DT50 печатает «в никуда».
+  /// Вернуть фокус полю скана - иначе сканер DT50 печатает «в никуда».
   void refocusScan() {
     if (mounted) scanFocus.requestFocus();
   }
@@ -64,7 +64,7 @@ mixin CountScanActions<T extends StatefulWidget>
   @override
   void onHardwareScan(ScanCode code) => onScan(code.raw);
 
-  /// Сканы экрана — по одному, в порядке прихода (ADHOC-70).
+  /// Сканы экрана - по одному, в порядке прихода (ADHOC-70).
   final _scans = ScanSerial('Пересчёт');
 
   /// Единая точка для поля и интента сканера.
@@ -102,7 +102,7 @@ mixin CountScanActions<T extends StatefulWidget>
     refocusScan();
   }
 
-  /// Ярлык короба: короб снимка — найден; другой — только если WMS его знает.
+  /// Ярлык короба: короб снимка - найден; другой - только если WMS его знает.
   Future<void> _onBox(String id) async {
     final inSnapshot = count.boxPositions.any(
       (p) => p.loadUnitId!.toLowerCase() == id.toLowerCase(),
@@ -135,9 +135,9 @@ mixin CountScanActions<T extends StatefulWidget>
     cubit.foundBox(id, czCode: czCode);
   }
 
-  /// Марка или групповая упаковка ЧЗ: товар и партия — из снимка склада терминала.
+  /// Марка или групповая упаковка ЧЗ: товар и партия - из снимка склада терминала.
   ///
-  /// Склад позиции: марка лежит здесь россыпью — её склад; лежит в другом месте — склад
+  /// Склад позиции: марка лежит здесь россыпью - её склад; лежит в другом месте - склад
   /// позиции снимка того же товара и партии, иначе «Основной».
   Future<void> _onMark(String code) async {
     final found = await stockMarksByCode(
@@ -179,8 +179,8 @@ mixin CountScanActions<T extends StatefulWidget>
     );
   }
 
-  /// Штрихкод товара: товар — из справочника терминала; не привязан — выбор и привязка
-  /// очередью; проверить без связи не удалось — решение за кладовщиком (как во «Вводе остатков»).
+  /// Штрихкод товара: товар - из справочника терминала; не привязан - выбор и привязка
+  /// очередью; проверить без связи не удалось - решение за кладовщиком (как во «Вводе остатков»).
   Future<void> _onGood(String code) async {
     final res = await _catalog.resolveGoodByBarcode(code);
     if (!mounted) return;
@@ -207,7 +207,7 @@ mixin CountScanActions<T extends StatefulWidget>
     await countGood(good);
   }
 
-  /// Выбрать товар и привязать ему ШК очередью — затем посчитать.
+  /// Выбрать товар и привязать ему ШК очередью - затем посчитать.
   Future<void> _pickAndBind(String code) async {
     final picked = await pickGood();
     if (picked == null || !mounted) return;
@@ -222,8 +222,8 @@ mixin CountScanActions<T extends StatefulWidget>
     refocusScan();
   }
 
-  /// Посчитать товар: позиция снимка (одна — сразу, несколько — выбор), иначе излишек
-  /// «Основного». Маркируемый — только марками.
+  /// Посчитать товар: позиция снимка (одна - сразу, несколько - выбор), иначе излишек
+  /// «Основного». Маркируемый - только марками.
   Future<void> countGood(Good good) async {
     if (good.czMarked) {
       cubit.hintScanMark();
@@ -241,7 +241,7 @@ mixin CountScanActions<T extends StatefulWidget>
     await _askQty(_good(good), position);
   }
 
-  /// Посчитать позицию снимка касанием — без скана.
+  /// Посчитать позицию снимка касанием - без скана.
   Future<void> countPosition(StocktakePosition p) async {
     if (p.marked) {
       cubit.hintScanMark();
@@ -251,7 +251,7 @@ mixin CountScanActions<T extends StatefulWidget>
     refocusScan();
   }
 
-  /// Дата и количество; партия позиции подставлена. Другая дата — та же позиция другой партии.
+  /// Дата и количество; партия позиции подставлена. Другая дата - та же позиция другой партии.
   Future<void> _askQty(StocktakeGood good, StocktakePosition? position) async {
     final res = await showDialog<DateQtyResult>(
       context: context,

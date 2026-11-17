@@ -28,10 +28,10 @@ class _MockConnectivity extends Mock implements Connectivity {}
 class _PhotoServer implements HttpClientAdapter {
   bool offline = false;
 
-  /// Проблемы, которые уже на сервере; снимок к другой — 404.
+  /// Проблемы, которые уже на сервере; снимок к другой - 404.
   final Set<String> problems = {};
 
-  /// Проблемы, у которых решение уже принято, — 409.
+  /// Проблемы, у которых решение уже принято, - 409.
   final Set<String> resolved = {};
 
   /// Принятые снимки: путь → размер.
@@ -75,7 +75,7 @@ class _PhotoServer implements HttpClientAdapter {
 }
 
 /// Очередь фото проблем (ADHOC-45): снимки ждут, пока проблема не дошла, уходят по порядку,
-/// отказ по существу убирает снимок, без связи — ждут.
+/// отказ по существу убирает снимок, без связи - ждут.
 void main() {
   late AppDatabase db;
   late _PhotoServer server;
@@ -110,7 +110,7 @@ void main() {
 
   Future<int> pending() => repo.watchPendingCount().first;
 
-  test('проблема уже на сервере — снимки уходят и покидают очередь', () async {
+  test('проблема уже на сервере - снимки уходят и покидают очередь', () async {
     server.problems.add('p1');
     await repo.enqueue('p1', [shot('a'), shot('b')]);
     expect(server.stored.keys, [
@@ -120,7 +120,7 @@ void main() {
     expect(await pending(), 0);
   });
 
-  test('проблемы ещё нет — снимки ждут и уходят, когда она дошла', () async {
+  test('проблемы ещё нет - снимки ждут и уходят, когда она дошла', () async {
     await repo.enqueue('p1', [shot('a')]);
     expect(await pending(), 1);
     expect((await repo.pendingOf('p1')).single.id, 'a');

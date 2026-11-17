@@ -29,7 +29,7 @@ void main() {
   );
 
   test(
-    'загрузка укладывает склады; «Основной» — первым и он же по умолчанию',
+    'загрузка укладывает склады; «Основной» - первым и он же по умолчанию',
     () async {
       when(
         () => dio.get<List<dynamic>>(ApiConst.internalWarehouses),
@@ -42,7 +42,7 @@ void main() {
       final w = InternalWarehouses(dio, db);
       expect((await w.refresh()).isRight, isTrue);
 
-      // Новый экземпляр — читает из базы, а не из памяти.
+      // Новый экземпляр - читает из базы, а не из памяти.
       final fresh = InternalWarehouses(dio, db);
       expect((await fresh.all()).map((x) => x.name), ['Основной', 'Брак']);
       expect(await fresh.defaultId(), 'm');
@@ -76,7 +76,7 @@ void main() {
   );
 
   test(
-    'сервер без ручки (404) — не сбой: справочник остаётся прежним',
+    'сервер без ручки (404) - не сбой: справочник остаётся прежним',
     () async {
       when(() => dio.get<List<dynamic>>(ApiConst.internalWarehouses)).thenThrow(
         DioException(
@@ -96,7 +96,7 @@ void main() {
   );
 
   test(
-    'нет связи — сбой, который синхронизация лишь запишет в журнал',
+    'нет связи - сбой, который синхронизация лишь запишет в журнал',
     () async {
       when(() => dio.get<List<dynamic>>(ApiConst.internalWarehouses)).thenThrow(
         DioException(
@@ -158,11 +158,11 @@ void main() {
     expect(
       all.single.isActive,
       isTrue,
-      reason: 'до синхронизации — «в выборе»',
+      reason: 'до синхронизации - «в выборе»',
     );
   });
 
-  test('соглашение терминала: склад по умолчанию и пусто — null', () {
+  test('соглашение терминала: склад по умолчанию и пусто - null', () {
     expect(InternalWarehouses.normalize('m', 'm'), isNull);
     expect(InternalWarehouses.normalize('', 'm'), isNull);
     expect(InternalWarehouses.normalize(null, 'm'), isNull);

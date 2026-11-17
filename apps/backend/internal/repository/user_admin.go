@@ -13,9 +13,9 @@ import (
 	"craftwms/internal/model"
 )
 
-// UserAdminRepository — пользователи и должности для портала (ADHOC-49).
+// UserAdminRepository - пользователи и должности для портала (ADHOC-49).
 //
-// Все правки — в транзакции под одной рекомендательной блокировкой: две правки администраторов
+// Все правки - в транзакции под одной рекомендательной блокировкой: две правки администраторов
 // параллельно не оставят систему без управления, проверив «кто ещё остался» каждая до другой.
 // Каждая правка пишется в audit_log; хеши, бейджи и пароли в журнал не попадают.
 type UserAdminRepository struct {
@@ -27,10 +27,10 @@ func NewUserAdminRepository(pool *pgxpool.Pool) *UserAdminRepository {
 	return &UserAdminRepository{pool: pool}
 }
 
-// userAdminLockKey — ключ рекомендательной блокировки правок пользователей и должностей.
+// userAdminLockKey - ключ рекомендательной блокировки правок пользователей и должностей.
 const userAdminLockKey = 1020
 
-// Positions — должности: системная первой, дальше по названию; с числом пользователей.
+// Positions - должности: системная первой, дальше по названию; с числом пользователей.
 func (r *UserAdminRepository) Positions(ctx context.Context) ([]model.Position, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT p.id::text, p.name, p.rights, p.is_system, count(u.id)
@@ -55,7 +55,7 @@ func (r *UserAdminRepository) Positions(ctx context.Context) ([]model.Position, 
 	return out, rows.Err()
 }
 
-// CreatePosition заводит должность; название занято — ErrPositionNameTaken.
+// CreatePosition заводит должность; название занято - ErrPositionNameTaken.
 func (r *UserAdminRepository) CreatePosition(ctx context.Context, in model.PositionInput, by string) (string, error) {
 	var id string
 	err := r.inTx(ctx, func(q Querier) error {
@@ -86,7 +86,7 @@ func (r *UserAdminRepository) UpdatePosition(ctx context.Context, id string, in 
 	})
 }
 
-// DeletePosition удаляет должность без пользователей; системную — нет.
+// DeletePosition удаляет должность без пользователей; системную - нет.
 func (r *UserAdminRepository) DeletePosition(ctx context.Context, id, by string) error {
 	return r.inTx(ctx, func(q Querier) error {
 		if err := checkPositionEditable(ctx, q, id); err != nil {
@@ -107,7 +107,7 @@ func (r *UserAdminRepository) DeletePosition(ctx context.Context, id, by string)
 	})
 }
 
-// Users — все пользователи, активные сверху, по ФИО.
+// Users - все пользователи, активные сверху, по ФИО.
 func (r *UserAdminRepository) Users(ctx context.Context) ([]model.UserListItem, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT u.id::text, u.full_name, u.position_id::text, p.name, COALESCE(u.login, ''),
@@ -130,16 +130,16 @@ func (r *UserAdminRepository) Users(ctx context.Context) ([]model.UserListItem, 
 	return out, rows.Err()
 }
 
-// NewUser — пользователь к записи: вход уже разобран сервисом, секрет — хешем.
+// NewUser - пользователь к записи: вход уже разобран сервисом, секрет - хешем.
 type NewUser struct {
 	FullName, PositionID string
 	Login, Username      string // ровно одно не пусто
 	PasswordHash         string
-	BadgeSecretEnc       []byte // зашифрованный секрет бейджа для печати (ADHOC-65); nil — нет
+	BadgeSecretEnc       []byte // зашифрованный секрет бейджа для печати (ADHOC-65); nil - нет
 	By                   string
 }
 
-// CreateUser заводит пользователя. Бейдж или логин заняты — ErrBadgeTaken / ErrUsernameTaken.
+// CreateUser заводит пользователя. Бейдж или логин заняты - ErrBadgeTaken / ErrUsernameTaken.
 func (r *UserAdminRepository) CreateUser(ctx context.Context, u NewUser) (string, error) {
 	var id string
 	err := r.inTx(ctx, func(q Querier) error {
@@ -160,7 +160,7 @@ func (r *UserAdminRepository) CreateUser(ctx context.Context, u NewUser) (string
 	return id, err
 }
 
-// UserChange — правка пользователя к записи; nil — поле не меняется. Новый вход — новый
+// UserChange - правка пользователя к записи; nil - поле не меняется. Новый вход - новый
 // хеш и, для бейджа, новый логин.
 type UserChange struct {
 	ID           string
@@ -169,7 +169,7 @@ type UserChange struct {
 	IsActive     *bool
 	Login        *string
 	PasswordHash *string
-	// BadgeSecretEnc — номер нового бейджа для печати (ADHOC-65); пишется вместе с Login,
+	// BadgeSecretEnc - номер нового бейджа для печати (ADHOC-65); пишется вместе с Login,
 	// nil при новом бейдже стирает прежний номер.
 	BadgeSecretEnc []byte
 	By             string
@@ -225,7 +225,7 @@ func (r *UserAdminRepository) UpdateUser(ctx context.Context, c UserChange) erro
 	})
 }
 
-// IsBadgeUser — входит ли пользователь по бейджу (иначе — по логину и паролю).
+// IsBadgeUser - входит ли пользователь по бейджу (иначе - по логину и паролю).
 func (r *UserAdminRepository) IsBadgeUser(ctx context.Context, id string) (bool, error) {
 	var badge bool
 	err := r.pool.QueryRow(ctx, `SELECT login IS NOT NULL FROM users WHERE id = $1::uuid`, id).Scan(&badge)
@@ -247,7 +247,7 @@ func (r *UserAdminRepository) inTx(ctx context.Context, fn func(Querier) error) 
 	})
 }
 
-// checkPositionEditable — должность есть и не системная.
+// checkPositionEditable - должность есть и не системная.
 func checkPositionEditable(ctx context.Context, q Querier, id string) error {
 	var system bool
 	err := q.QueryRow(ctx, `SELECT is_system FROM positions WHERE id = $1::uuid FOR UPDATE`, id).Scan(&system)
@@ -274,7 +274,7 @@ func checkPositionExists(ctx context.Context, q Querier, id string) error {
 	return nil
 }
 
-// checkAdminsLeft — после правки остался хотя бы один активный пользователь с правом
+// checkAdminsLeft - после правки остался хотя бы один активный пользователь с правом
 // «пользователи»: иначе управлять пользователями и должностями стало бы некому.
 func checkAdminsLeft(ctx context.Context, q Querier) error {
 	var left bool

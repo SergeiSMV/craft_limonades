@@ -9,8 +9,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-// P6-04, с DT50S: позиции «Что взять» — неоморфными плашками; диалог количества показывает,
-// что берут — товар, партию и сколько её в источнике. Ширина — настоящим Inter, длинные
+// P6-04, с DT50S: позиции «Что взять» - неоморфными плашками; диалог количества показывает,
+// что берут - товар, партию и сколько её в источнике. Ширина - настоящим Inter, длинные
 // наименования как в справочнике.
 void main() {
   setUp(LocaleSettings.useDeviceLocale);
@@ -72,7 +72,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('позиции — плашками без переполнения, касание выбирает', (
+  testWidgets('позиции - плашками без переполнения, касание выбирает', (
     tester,
   ) async {
     for (final width in [320.0, 360.0]) {
@@ -109,8 +109,8 @@ void main() {
       );
       expect(tester.takeException(), isNull, reason: 'ширина $width');
       expect(find.text(t.movement.qtyTitle), findsOneWidget);
-      // Во всю ширину с отступом 8 по бокам — как диалоги приёмки.
-      // AlertDialog включает поля вокруг себя — мерим саму плашку диалога.
+      // Во всю ширину с отступом 8 по бокам - как диалоги приёмки.
+      // AlertDialog включает поля вокруг себя - мерим саму плашку диалога.
       final card = find
           .descendant(
             of: find.byType(AlertDialog),

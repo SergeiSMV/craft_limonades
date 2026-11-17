@@ -22,12 +22,12 @@ import '../cells/floor_cell_dialogs.dart';
 import '../settings/access_common.dart';
 import '../ui/portal_button.dart';
 
-/// Страница «Ячейки» (ADHOC-57): полный список ячеек склада, справа — карточка ячейки с
+/// Страница «Ячейки» (ADHOC-57): полный список ячеек склада, справа - карточка ячейки с
 /// галочками этикетки, загрузка и выгрузка `.xlsx` в формате rack_labels, печать трёх PDF.
 ///
-/// Раскладка — по ширине страницы: от [AppSizes.kCellsSideMinPage] карточка стоит справа от
-/// списка и прокручивается отдельно; уже — открывается окном по нажатию на строку.
-/// Права: загрузка — [canImport], печать — [canLabels], галочки — [canEdit]; список и выгрузку
+/// Раскладка - по ширине страницы: от [AppSizes.kCellsSideMinPage] карточка стоит справа от
+/// списка и прокручивается отдельно; уже - открывается окном по нажатию на строку.
+/// Права: загрузка - [canImport], печать - [canLabels], галочки - [canEdit]; список и выгрузку
 /// видит любой с правом раздела.
 class CellsTab extends StatefulWidget {
   const CellsTab({
@@ -71,7 +71,7 @@ class _CellsTabState extends State<CellsTab> {
     super.dispose();
   }
 
-  /// Поиск по адресу — после паузы в наборе.
+  /// Поиск по адресу - после паузы в наборе.
   void onSearch(String text) {
     _debounce?.cancel();
     _debounce = Timer(
@@ -85,7 +85,7 @@ class _CellsTabState extends State<CellsTab> {
     ..hideCurrentSnackBar()
     ..showSnackBar(SnackBar(content: Text(text)));
 
-  /// Загрузка файла; ячейки обновлены — перечитать страницу.
+  /// Загрузка файла; ячейки обновлены - перечитать страницу.
   Future<void> import() async {
     if (await showCellsImportDialog(context)) await _c.load();
   }
@@ -107,7 +107,7 @@ class _CellsTabState extends State<CellsTab> {
     );
   }
 
-  /// Новая напольная ячейка (ADHOC-61): адрес в окне, ответ сервера — уведомлением.
+  /// Новая напольная ячейка (ADHOC-61): адрес в окне, ответ сервера - уведомлением.
   Future<void> addFloorCell() async {
     final address = await showFloorCellAddressDialog(context);
     if (address == null || !mounted) return;
@@ -118,7 +118,7 @@ class _CellsTabState extends State<CellsTab> {
   /// Окно печати PDF.
   Future<void> printLabels() => showCellsPrintDialog(context, _c, widget.save);
 
-  /// Карточка окном — на узкой странице.
+  /// Карточка окном - на узкой странице.
   Future<void> openSheet() => showCellSettingsSheet(
     context,
     _c,
@@ -128,13 +128,13 @@ class _CellsTabState extends State<CellsTab> {
 
   @override
   Widget build(BuildContext context) => DataVersionsListener(
-    // ADHOC-60: ячейки изменились на сервере — перечитать, если нет несохранённых галочек.
+    // ADHOC-60: ячейки изменились на сервере - перечитать, если нет несохранённых галочек.
     domains: const {DataDomain.cells},
     onChanged: _c.reloadIfClean,
     child: _page(),
   );
 
-  /// Страница: панель, список и карточка ячейки — по ширине.
+  /// Страница: панель, список и карточка ячейки - по ширине.
   Widget _page() => ListenableBuilder(
     listenable: _c,
     builder: (context, _) => LayoutBuilder(

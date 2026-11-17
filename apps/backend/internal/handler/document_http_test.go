@@ -112,7 +112,7 @@ func (e *docEnv) do(t *testing.T, method, path, token string) *http.Response {
 	return resp
 }
 
-// Портал — admin-only: без токена 401, под кладовщиком 403.
+// Портал - admin-only: без токена 401, под кладовщиком 403.
 func TestDocumentsHTTP_accessControl(t *testing.T) {
 	e := newDocE2E(t)
 	for _, c := range []struct {
@@ -182,7 +182,7 @@ func TestDocumentsHTTP_lifecycle(t *testing.T) {
 		t.Errorf("после скачивания статус: %v", docs[0]["status"])
 	}
 
-	// «Выполнено» — 204, повтор тоже 204: двойное нажатие не ошибка.
+	// «Выполнено» - 204, повтор тоже 204: двойное нажатие не ошибка.
 	for i := 0; i < 2; i++ {
 		if got := e.do(t, http.MethodPost, "/api/v1/documents/"+e.docID+"/done", e.adminToken).StatusCode; got != http.StatusNoContent {
 			t.Fatalf("отметка (попытка %d): код %d", i+1, got)
@@ -193,7 +193,7 @@ func TestDocumentsHTTP_lifecycle(t *testing.T) {
 	}
 }
 
-// Несуществующий документ — 404 на обеих ручках.
+// Несуществующий документ - 404 на обеих ручках.
 func TestDocumentsHTTP_notFound(t *testing.T) {
 	e := newDocE2E(t)
 	missing := "00000000-0000-0000-0000-0000000000ff"
@@ -209,7 +209,7 @@ func TestDocumentsHTTP_notFound(t *testing.T) {
 func TestDocumentsHTTP_events(t *testing.T) {
 	e := newDocE2E(t)
 
-	// Скачиваем и отмечаем — журнал должен увидеть оба действия под админом.
+	// Скачиваем и отмечаем - журнал должен увидеть оба действия под админом.
 	e.do(t, http.MethodGet, "/api/v1/documents/"+e.docID+"/file.xlsx", e.adminToken)
 	e.do(t, http.MethodPost, "/api/v1/documents/"+e.docID+"/done", e.adminToken)
 
@@ -238,7 +238,7 @@ func TestDocumentsHTTP_events(t *testing.T) {
 		t.Errorf("автор действий в портале: %v / %v, ожидался «Админ»", events[1]["user_name"], events[2]["user_name"])
 	}
 
-	// Журнал — тоже admin-only, и по несуществующему документу это 404, а не пустой список.
+	// Журнал - тоже admin-only, и по несуществующему документу это 404, а не пустой список.
 	if got := e.do(t, http.MethodGet, "/api/v1/documents/"+e.docID+"/events", e.workerToken).StatusCode; got != http.StatusForbidden {
 		t.Errorf("журнал под кладовщиком: код %d, ожидался 403", got)
 	}

@@ -21,7 +21,7 @@ class _FakeRepo implements ProblemRepository {
   final sent = <Map<String, dynamic>>[];
   Either<Failure, void> result = const Right(null);
 
-  /// Id складов — коды справочника: эталон несёт их вместо id, которые выдаёт сервер.
+  /// Id складов - коды справочника: эталон несёт их вместо id, которые выдаёт сервер.
   @override
   Future<List<InternalWarehouse>> markWarehouses() async => const [
     InternalWarehouse(
@@ -48,7 +48,7 @@ class _FakeRepo implements ProblemRepository {
   }
 }
 
-/// Причина справочника по коду — из прежнего списка, как до первой синхронизации.
+/// Причина справочника по коду - из прежнего списка, как до первой синхронизации.
 ProblemReason reason(String code) =>
     fallbackProblemReasons().firstWhere((r) => r.code == code);
 
@@ -78,7 +78,7 @@ class _FakePhotos implements ProblemPhotoRepository {
   }) async => const Left(Failure.network());
 }
 
-/// Камера, которая отдаёт заранее заданный снимок (`null` — съёмку отменили).
+/// Камера, которая отдаёт заранее заданный снимок (`null` - съёмку отменили).
 class _FakeCamera implements PhotoCamera {
   Uint8List? next = Uint8List.fromList([0xFF, 0xD8, 0xFF]);
 
@@ -86,10 +86,10 @@ class _FakeCamera implements PhotoCamera {
   Future<Uint8List?> take() async => next;
 }
 
-/// Эталон формата — тот же файл, что применяет настоящий роутер сервера (P6-07-1).
+/// Эталон формата - тот же файл, что применяет настоящий роутер сервера (P6-07-1).
 const _fixturePath = '../backend/internal/handler/testdata/problem_submit.json';
 
-/// «Проблемы склада» на ТСД (P6-07-2): одна проблема — одна операция `problem_submit`.
+/// «Проблемы склада» на ТСД (P6-07-2): одна проблема - одна операция `problem_submit`.
 void main() {
   const warehouse = '7e000000-0000-4000-8000-0000000000a1';
   const good = '7e000000-0000-4000-8000-0000000000c1';
@@ -187,7 +187,7 @@ void main() {
   });
 
   test(
-    'ячейка приёмки, пустой короб и пустая ячейка — подсказки, а не выбор',
+    'ячейка приёмки, пустой короб и пустая ячейка - подсказки, а не выбор',
     () async {
       final c = await started();
       c.onCell(receiving, const CellView(cellId: 'r', address: 'С-Н-П'));
@@ -202,7 +202,7 @@ void main() {
   );
 
   test(
-    'склад назначения — не тот, где товар уже лежит; единственный подставляется',
+    'склад назначения - не тот, где товар уже лежит; единственный подставляется',
     () async {
       final c = await started();
       c.onBox(box(iwh: 'DEFECT'), cell);
@@ -210,7 +210,7 @@ void main() {
       expect(c.targetsFor(c.state.subject!).map((w) => w.id), ['ISOLATOR']);
       expect(c.state.toWarehouseId, 'ISOLATOR');
 
-      // Часть бракованного короба — товар того же склада, из короба.
+      // Часть бракованного короба - товар того же склада, из короба.
       c.back();
       c.chooseGoods(line(12, iwh: 'DEFECT'), 2);
       final payload = ProblemCubit.payload(
@@ -252,7 +252,7 @@ void main() {
     },
   );
 
-  test('нет связи — в очереди; отказ по существу — с причиной', () async {
+  test('нет связи - в очереди; отказ по существу - с причиной', () async {
     final c = await started();
     c.onBox(box(), cell);
     c.chooseWholeBox();
@@ -281,7 +281,7 @@ void main() {
   });
 
   test(
-    'фото: не больше трёх, отмена съёмки — без снимка, убрать до фиксации',
+    'фото: не больше трёх, отмена съёмки - без снимка, убрать до фиксации',
     () async {
       final c = await started();
       camera.next = null;
@@ -300,7 +300,7 @@ void main() {
   );
 
   test(
-    'фото уходят в очередь вслед за проблемой — и без связи, но не после отказа',
+    'фото уходят в очередь вслед за проблемой - и без связи, но не после отказа',
     () async {
       final c = await started();
       c.onBox(box(), cell);
@@ -331,7 +331,7 @@ void main() {
   );
 
   test(
-    'марками ЧЗ: отмечаются, добавляются, повтор и чужое место — подсказки (CZ-06)',
+    'марками ЧЗ: отмечаются, добавляются, повтор и чужое место - подсказки (CZ-06)',
     () async {
       const m1 = '0104600000000015215M1';
       const m2 = '0104600000000015215M2';

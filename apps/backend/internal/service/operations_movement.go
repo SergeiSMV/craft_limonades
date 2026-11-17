@@ -11,14 +11,14 @@ import (
 	"craftwms/internal/repository"
 )
 
-// ErrInvalidMovementID — идентификатор документа движения не UUID.
+// ErrInvalidMovementID - идентификатор документа движения не UUID.
 var ErrInvalidMovementID = errors.New("movement id must be a UUID")
 
-// movementSubmitPayload — тело операции movement_submit, как его собирает устройство (P6-03).
+// movementSubmitPayload - тело операции movement_submit, как его собирает устройство (P6-03).
 //
-// Строка — ГЕ целиком (`load_unit_id` + `to_cell_id`) ЛИБО товар (`good_id` +
-// `production_date` + `qty`) с одним источником и одним приёмником: источник — ячейка
-// (`from_cell_id`, россыпь) или короб (`from_load_unit_id`), приёмник — ячейка (`to_cell_id`)
+// Строка - ГЕ целиком (`load_unit_id` + `to_cell_id`) ЛИБО товар (`good_id` +
+// `production_date` + `qty`) с одним источником и одним приёмником: источник - ячейка
+// (`from_cell_id`, россыпь) или короб (`from_load_unit_id`), приёмник - ячейка (`to_cell_id`)
 // или короб (`to_load_unit_id`). Ячейку короба устройство не шлёт: сервер знает, где он лежит.
 type movementSubmitPayload struct {
 	MovementID   string `json:"movement_id"`
@@ -33,7 +33,7 @@ type movementSubmitPayload struct {
 		FromLoadUnitID string          `json:"from_load_unit_id"`
 		ToCellID       string          `json:"to_cell_id"`
 		ToLoadUnitID   string          `json:"to_load_unit_id"`
-		// Склад россыпи-источника (P6-07-1); пусто — «Основной». Прежние клиенты его не шлют.
+		// Склад россыпи-источника (P6-07-1); пусто - «Основной». Прежние клиенты его не шлют.
 		InternalWarehouseID string `json:"internal_warehouse_id"`
 		// КИ марок ЧЗ строки товара (CZ-06), по одной на единицу. Прежние клиенты не шлют.
 		Marks []string `json:"marks"`
@@ -43,8 +43,8 @@ type movementSubmitPayload struct {
 // movementSubmit разбирает и проверяет документ движения из очереди устройства (P6-03).
 //
 // Всё, что проверяется без базы, проверяется здесь: идентификаторы по форме, «ГЕ или товар»,
-// ровно один источник и один приёмник у товара, количество и дата. Ошибка формы — отказ по
-// существу, и лучше получить его до открытия транзакции. Автор — из токена, а не из тела.
+// ровно один источник и один приёмник у товара, количество и дата. Ошибка формы - отказ по
+// существу, и лучше получить его до открытия транзакции. Автор - из токена, а не из тела.
 func (s *OperationsService) movementSubmit(ctx context.Context, userID, id string, raw json.RawMessage) (repository.Applied, error) {
 	var p movementSubmitPayload
 	if err := json.Unmarshal(raw, &p); err != nil {
@@ -81,7 +81,7 @@ func (s *OperationsService) movementSubmit(ctx context.Context, userID, id strin
 
 			InternalWarehouseID: strings.TrimSpace(ln.InternalWarehouseID),
 		}
-		// Все идентификаторы строки — UUID или пусто: мусор в них — ошибка формы.
+		// Все идентификаторы строки - UUID или пусто: мусор в них - ошибка формы.
 		for _, v := range []string{line.FromCellID, line.FromLoadUnitID, line.ToCellID, line.ToLoadUnitID, line.GoodID, line.InternalWarehouseID} {
 			if v != "" && !isUUID(v) {
 				return repository.Applied{}, ErrInvalidPayload
@@ -89,7 +89,7 @@ func (s *OperationsService) movementSubmit(ctx context.Context, userID, id strin
 		}
 
 		if line.LoadUnitID != "" {
-			// ГЕ целиком: товарные поля и источник у такой строки — противоречие, а не подсказка.
+			// ГЕ целиком: товарные поля и источник у такой строки - противоречие, а не подсказка.
 			if !isUUID(line.LoadUnitID) {
 				return repository.Applied{}, ErrInvalidLoadUnitID
 			}

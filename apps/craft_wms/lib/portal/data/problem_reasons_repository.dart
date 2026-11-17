@@ -12,11 +12,11 @@ typedef ProblemReasonsDirectory = ({
   List<ResolutionVariant> resolutions,
 });
 
-/// Справочник причин проблем и вариантов решения в портале (ADHOC-55): чтение и ведение —
-/// право «Настройки: причины проблем». Удаления нет — причина и вариант выключаются.
+/// Справочник причин проблем и вариантов решения в портале (ADHOC-55): чтение и ведение -
+/// право «Настройки: причины проблем». Удаления нет - причина и вариант выключаются.
 ///
 /// Ошибки по существу (повтор названия, системная причина, «пересорт» не у пересорта) сервер
-/// объясняет текстом в поле `error` — он приезжает в `ServerFailure.message`.
+/// объясняет текстом в поле `error` - он приезжает в `ServerFailure.message`.
 @lazySingleton
 class ProblemReasonsRepository {
   ProblemReasonsRepository(this._dio);
@@ -55,7 +55,7 @@ class ProblemReasonsRepository {
     ),
   );
 
-  /// Изменить причину; `null` — поле не меняется.
+  /// Изменить причину; `null` - поле не меняется.
   Future<Either<Failure, void>> updateReason(
     String code, {
     String? name,

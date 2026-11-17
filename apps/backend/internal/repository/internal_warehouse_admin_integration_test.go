@@ -10,7 +10,7 @@ import (
 	"craftwms/internal/repository"
 )
 
-// Тесты ADHOC-29: ведение справочника внутренних складов из портала. Фикстура setupMove —
+// Тесты ADHOC-29: ведение справочника внутренних складов из портала. Фикстура setupMove -
 // из movement_integration_test.go.
 
 // Завести, повторить код, переименовать, скрыть и вернуть; склад по умолчанию не скрыть.
@@ -68,7 +68,7 @@ func TestInternalWarehouses_createUpdate(t *testing.T) {
 	}
 }
 
-// Удалить можно только склад без остатка и истории; склад по умолчанию — никогда. Склад «в
+// Удалить можно только склад без остатка и истории; склад по умолчанию - никогда. Склад «в
 // деле» помечен для портала заранее.
 func TestInternalWarehouses_delete(t *testing.T) {
 	mf := setupMove(t)
@@ -82,7 +82,7 @@ func TestInternalWarehouses_delete(t *testing.T) {
 		t.Errorf("повторное удаление: %v", err)
 	}
 
-	// Брак с остатком — после пометки россыпи.
+	// Брак с остатком - после пометки россыпи.
 	defect := mf.iwhByCode(t, "DEFECT")
 	mf.receive(t, nil, 5)
 	mustNoErr(t, mf.problem(t, defect, mf.goodsProblem(1, mf.cellA, "")))

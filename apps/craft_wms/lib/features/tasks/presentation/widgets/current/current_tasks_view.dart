@@ -15,14 +15,14 @@ import '../common/task_format.dart';
 import '../common/tasks_message.dart';
 import 'task_tile.dart';
 
-/// Вкладка «Текущие»: пул и свои взятые задания. Без связи — снимок с пометкой времени.
+/// Вкладка «Текущие»: пул и свои взятые задания. Без связи - снимок с пометкой времени.
 class CurrentTasksView extends StatelessWidget {
   const CurrentTasksView({super.key});
 
-  /// Открыть карточку задания; по возврату список обновляется — задание могли взять,
+  /// Открыть карточку задания; по возврату список обновляется - задание могли взять,
   /// отдать или выполнить.
   ///
-  /// Пересчёт (P10-04) открывается сразу списком ячеек: карточки с позициями у него нет —
+  /// Пересчёт (P10-04) открывается сразу списком ячеек: карточки с позициями у него нет -
   /// работники берут из него ячейки.
   Future<void> openTask(BuildContext context, WarehouseTask task) async {
     final cubit = context.read<CurrentTasksCubit>();
@@ -68,7 +68,7 @@ class CurrentTasksView extends StatelessWidget {
       onRefresh: cubit.load,
       child: ListView(
         padding: AppInsets.h8,
-        // Пустой список тоже тянется вниз — иначе обновить его было бы нечем.
+        // Пустой список тоже тянется вниз - иначе обновить его было бы нечем.
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
           if (state.fromCache && state.syncedAt != null)

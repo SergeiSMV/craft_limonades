@@ -9,8 +9,8 @@ import '../../../../core/theme/semibold_text.dart';
 
 /// Дерево прав с галочками (ADHOC-50): приложение → раздел → действия.
 ///
-/// Галочка группы ставит или снимает все действия внутри; отмечена часть — «полугалочка».
-/// Приложения раскрыты, разделы свёрнуты — раскрываются стрелкой или касанием названия:
+/// Галочка группы ставит или снимает все действия внутри; отмечена часть - «полугалочка».
+/// Приложения раскрыты, разделы свёрнуты - раскрываются стрелкой или касанием названия:
 /// состояние раздела видно по его галочке и без раскрытия.
 class RightsTree extends StatefulWidget {
   const RightsTree({
@@ -32,7 +32,7 @@ class RightsTree extends StatefulWidget {
 class _RightsTreeState extends State<RightsTree> {
   final _tree = rightsTree();
 
-  /// Раскрытые группы — по пути из названий; приложения раскрыты сразу.
+  /// Раскрытые группы - по пути из названий; приложения раскрыты сразу.
   late final Set<String> _open = {for (final app in _tree) app.label};
 
   /// Раскрыть или свернуть группу.
@@ -40,7 +40,7 @@ class _RightsTreeState extends State<RightsTree> {
     () => _open.contains(path) ? _open.remove(path) : _open.add(path),
   );
 
-  /// Галочка узла: все действия отмечены — снять их, иначе — отметить все.
+  /// Галочка узла: все действия отмечены - снять их, иначе - отметить все.
   void toggle(RightNode node) {
     final codes = node.codes;
     final all = codes.every(widget.selected.contains);
@@ -119,7 +119,7 @@ class _RightsTreeState extends State<RightsTree> {
   }
 }
 
-/// Сводка прав для строки должности: по приложению — разделы, где есть хоть одно действие,
+/// Сводка прав для строки должности: по приложению - разделы, где есть хоть одно действие,
 /// например «Портал: Приход, Проблемы склада».
 List<String> rightsSummary(List<String> rights) => [
   for (final app in rightsTree())

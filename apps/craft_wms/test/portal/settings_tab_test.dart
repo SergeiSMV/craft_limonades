@@ -27,8 +27,8 @@ const _profile = Profile(
   rights: [],
 );
 
-/// ADHOC-56: «Настройки» по шаблону Shopify Polaris — группы разделов, одна на экране; раскладка
-/// по ширине вкладки: широко — список групп слева, узко — варианты выбора сверху.
+/// ADHOC-56: «Настройки» по шаблону Shopify Polaris - группы разделов, одна на экране; раскладка
+/// по ширине вкладки: широко - список групп слева, узко - варианты выбора сверху.
 void main() {
   setUp(() async {
     LocaleSettings.useDeviceLocale();
@@ -69,7 +69,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('широко — группы списком слева, на экране одна группа', (
+  testWidgets('широко - группы списком слева, на экране одна группа', (
     tester,
   ) async {
     await pump(tester, width: 1200);
@@ -85,7 +85,7 @@ void main() {
     expect(find.byType(ProblemReasonsSection), findsOneWidget);
   });
 
-  testWidgets('узко — группы вариантами выбора сверху, без переполнения', (
+  testWidgets('узко - группы вариантами выбора сверху, без переполнения', (
     tester,
   ) async {
     await pump(tester, width: 390);

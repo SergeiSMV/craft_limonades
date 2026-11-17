@@ -19,10 +19,10 @@ class CommittedCellTile extends StatelessWidget {
   /// Пройденная ячейка со строками буфера.
   final CommittedCell entry;
 
-  /// Тап по плитке — открыть ячейку на редактирование.
+  /// Тап по плитке - открыть ячейку на редактирование.
   final VoidCallback onTap;
 
-  /// Долгое нажатие — меню (редактировать/удалить).
+  /// Долгое нажатие - меню (редактировать/удалить).
   final VoidCallback onLongPress;
 
   @override

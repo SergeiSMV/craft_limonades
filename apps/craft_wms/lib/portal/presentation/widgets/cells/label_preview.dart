@@ -5,10 +5,10 @@ import '../../../domain/labels/beam_label.dart';
 import '../../../domain/labels/code128.dart';
 
 /// Образец этикетки на балку (ADHOC-57): та же раскладка, что в PDF бэкенда, в масштабе
-/// ширины места. Рамка — линия реза.
+/// ширины места. Рамка - линия реза.
 ///
 /// Как: части и их края считает [beamLayout]; адрес растягивается по горизонтали ровно на
-/// ширину, которую он займёт шрифтом Helvetica-Bold в PDF, — в браузере этого шрифта нет, а
+/// ширину, которую он займёт шрифтом Helvetica-Bold в PDF, - в браузере этого шрифта нет, а
 /// без растяжки образец врал бы о зазорах между адресом, кодом и стрелкой.
 class LabelPreview extends StatelessWidget {
   const LabelPreview({
@@ -90,7 +90,7 @@ class _LabelPainter extends CustomPainter {
     }
   }
 
-  /// Адрес: базовая линия на [baseline], ширина — ровно [width].
+  /// Адрес: базовая линия на [baseline], ширина - ровно [width].
   void _text(Canvas canvas, double x, double baseline, double width, double k) {
     final tp = TextPainter(
       text: TextSpan(

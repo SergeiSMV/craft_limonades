@@ -7,7 +7,7 @@
 # при первом выпуске сертификата.
 #
 # Раскладка URL (ADR-0015): портал отдаётся с диска на корне, API живёт под /api/.
-# Один origin — значит без CORS и с одним сертификатом. Пробы /health и /ready вынесены
+# Один origin - значит без CORS и с одним сертификатом. Пробы /health и /ready вынесены
 # из /api/ намеренно: их дёргают снаружи и из docker-healthcheck, префикс версии им не нужен.
 
 server {
@@ -24,7 +24,7 @@ server {
     location /api/ {
         proxy_pass http://${BACKEND_BIND};
 
-        # Пробрасываем реального клиента — нужно бэкенду для логов и rate limiting.
+        # Пробрасываем реального клиента - нужно бэкенду для логов и rate limiting.
         proxy_set_header Host              $host;
         proxy_set_header X-Real-IP         $remote_addr;
         proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
@@ -44,7 +44,7 @@ server {
     # --- Веб-портал оператора (статика Flutter Web) ---
     # try_files ... /index.html обязателен: маршрутизация у портала клиентская, и прямой
     # переход по внутреннему адресу без этого дал бы 404 от nginx.
-    # Если бандл ещё не залит, каталога нет — API продолжит работать, портал отдаст 404.
+    # Если бандл ещё не залит, каталога нет - API продолжит работать, портал отдаст 404.
     location / {
         root ${PORTAL_ROOT};
         try_files $uri $uri/ /index.html;

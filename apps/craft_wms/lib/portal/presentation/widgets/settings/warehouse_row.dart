@@ -12,7 +12,7 @@ import '../ui/portal_badge.dart';
 import '../ui/portal_button.dart';
 import '../ui/portal_checkbox.dart';
 
-/// Строка склада: имя и код, отметки («По умолчанию», «Скрыт», «Есть остаток») и действия —
+/// Строка склада: имя и код, отметки («По умолчанию», «Скрыт», «Есть остаток») и действия -
 /// переименовать, скрыть или вернуть, удалить. Чего со складом сделать нельзя, того и нет.
 class WarehouseRow extends StatelessWidget {
   const WarehouseRow({
@@ -27,7 +27,7 @@ class WarehouseRow extends StatelessWidget {
 
   final PortalWarehouse warehouse;
 
-  /// Идёт действие с этим складом — кнопки ждут.
+  /// Идёт действие с этим складом - кнопки ждут.
   final bool busy;
   final VoidCallback onRename;
   final VoidCallback onToggle;
@@ -82,7 +82,7 @@ class WarehouseRow extends StatelessWidget {
                       PortalBadge(t.portal.warehouses.markInUse),
                   ],
                 ),
-                // Галочка «разрешить сборку» (P8-02): у системного склада её нет — из него не
+                // Галочка «разрешить сборку» (P8-02): у системного склада её нет - из него не
                 // собирают. Своей строкой под отметками: в узком окне строка не переполняется.
                 if (w.canTogglePicking) ...[
                   AppBoxes.kHeight8,

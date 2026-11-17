@@ -5,8 +5,8 @@ import (
 	"testing"
 )
 
-// Заголовок конверта: `dsn` убирается, остальное и элементы — как были; без `dsn` и без
-// элементов — тоже конверт; не JSON-объект — не конверт (ADHOC-47).
+// Заголовок конверта: `dsn` убирается, остальное и элементы - как были; без `dsn` и без
+// элементов - тоже конверт; не JSON-объект - не конверт (ADHOC-47).
 func TestStripEnvelopeDSN(t *testing.T) {
 	cases := []struct {
 		name, in, want string
@@ -14,7 +14,7 @@ func TestStripEnvelopeDSN(t *testing.T) {
 	}{
 		{name: "с dsn и элементом", in: "{\"dsn\":\"https://wms@h/1\",\"event_id\":\"e1\"}\n{\"type\":\"event\"}\n{}\n",
 			want: "{\"event_id\":\"e1\"}\n{\"type\":\"event\"}\n{}\n"},
-		{name: "без dsn — как есть", in: "{\"event_id\":\"e1\"}\n{}", want: "{\"event_id\":\"e1\"}\n{}"},
+		{name: "без dsn - как есть", in: "{\"event_id\":\"e1\"}\n{}", want: "{\"event_id\":\"e1\"}\n{}"},
 		{name: "только заголовок", in: "{\"dsn\":\"x\"}", want: "{}"},
 		{name: "не объект", in: "[1]\n{}", err: ErrBadEnvelope},
 		{name: "не JSON", in: "привет", err: ErrBadEnvelope},

@@ -5,11 +5,11 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_insets.dart';
 import '../../../../core/theme/semibold_text.dart';
 
-/// Смысл отметки — от него цвет: нейтральная, успех, внимание, справка, критичная.
+/// Смысл отметки - от него цвет: нейтральная, успех, внимание, справка, критичная.
 enum PortalBadgeTone { neutral, success, warning, info, critical }
 
 /// Отметка в строке списка (ADHOC-56, по Shopify Polaris): «Системная», «Скрыт», «По умолчанию».
-/// Маленькая плашка со скруглением 6, а не пилюля, — читается спокойнее рядом с текстом строки.
+/// Маленькая плашка со скруглением 6, а не пилюля, - читается спокойнее рядом с текстом строки.
 class PortalBadge extends StatelessWidget {
   const PortalBadge(
     this.label, {

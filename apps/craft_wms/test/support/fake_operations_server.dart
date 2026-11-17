@@ -4,20 +4,20 @@ import 'dart:typed_data';
 import 'package:craft_wms/core/constants/api_constants.dart';
 import 'package:dio/dio.dart';
 
-/// Фейковый сервер приёма операций — ведёт себя как настоящий бэкенд (P2-08).
+/// Фейковый сервер приёма операций - ведёт себя как настоящий бэкенд (P2-08).
 ///
 /// Что: адаптер dio, который разбирает батч, помнит применённые `operation_id` и отвечает
 ///      `accepted` / `duplicate` / `rejected` по тем же правилам, что Go-сервер.
 /// Зачем: сквозной тест клиентской цепи бессмысленен против заглушки, отвечающей заранее
 ///        заготовленным телом: она подтвердит любой формат запроса, в том числе неверный.
-///        Здесь ответ ЗАВИСИТ от присланных операций, а дедуп — настоящий.
+///        Здесь ответ ЗАВИСИТ от присланных операций, а дедуп - настоящий.
 /// Как: [offline] гасит связь (dio получает ошибку соединения, как при обрыве);
 ///      [applied] показывает, что сервер реально применил.
 ///
 /// Контракт скопирован не с кода, а с проверенного HTTP-теста бэкенда
 /// (`operations_http_test.go`): те же имена полей и те же статусы.
 class FakeOperationsServer implements HttpClientAdapter {
-  /// Связь оборвана — сервер недостижим.
+  /// Связь оборвана - сервер недостижим.
   bool offline = false;
 
   /// `operation_id`, по которым эффект уже применён.
@@ -26,10 +26,10 @@ class FakeOperationsServer implements HttpClientAdapter {
   /// `barcode` → `good_id`: то, что «лежит в справочнике» сервера.
   final Map<String, String> barcodes = {};
 
-  /// Сколько раз батч доходил до сервера — для проверки «очередь ушла одним запросом».
+  /// Сколько раз батч доходил до сервера - для проверки «очередь ушла одним запросом».
   int requests = 0;
 
-  /// Тело последнего батча — для снятия эталона формата.
+  /// Тело последнего батча - для снятия эталона формата.
   Map<String, dynamic>? lastBody;
 
   @override
@@ -81,7 +81,7 @@ class FakeOperationsServer implements HttpClientAdapter {
       case 'bind_barcode':
         final goodId = payload['good_id'] as String;
         final owner = barcodes[code];
-        // Тот же ШК за другим товаром — отказ по существу, как на сервере.
+        // Тот же ШК за другим товаром - отказ по существу, как на сервере.
         if (owner != null && owner != goodId) {
           return {
             'operation_id': id,
@@ -93,7 +93,7 @@ class FakeOperationsServer implements HttpClientAdapter {
       case 'unbind_barcode':
         barcodes.remove(code);
       case 'receipt_submit':
-        // Приёмка (P4-09) справочник не меняет — следствий у фейка нет, только дедуп.
+        // Приёмка (P4-09) справочник не меняет - следствий у фейка нет, только дедуп.
         break;
       default:
         return {

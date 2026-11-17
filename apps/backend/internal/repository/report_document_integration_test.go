@@ -20,7 +20,7 @@ import (
 	"craftwms/migrations"
 )
 
-// Тесты P3-01: документ отчёта — неизменяемый снимок содержимого на момент финала.
+// Тесты P3-01: документ отчёта - неизменяемый снимок содержимого на момент финала.
 // Переиспользуют фикстуру setupStock (склад/ячейки/товар/партия) из stock_integration_test.go.
 
 // mustUser заводит пользователя-исполнителя: сессия ввода остатков ссылается на created_by.
@@ -162,7 +162,7 @@ func TestReportDocument_noDocumentForUnfinishedWork(t *testing.T) {
 
 // Бэкофилл миграции 000009: сессии, закрытые ДО появления снимков, документ всё же получают.
 // Без него список в портале показывал бы записи, которые невозможно скачать. На проде эта ветка
-// выполнится ровно один раз, поэтому проверяется отдельно — накатом схемы по версиям.
+// выполнится ровно один раз, поэтому проверяется отдельно - накатом схемы по версиям.
 func TestReportDocument_migrationBackfillsClosedSessions(t *testing.T) {
 	testcontainers.SkipIfProviderIsNotHealthy(t)
 
@@ -202,7 +202,7 @@ func TestReportDocument_migrationBackfillsClosedSessions(t *testing.T) {
 	}
 	t.Cleanup(pool.Close)
 
-	// Закрытая сессия с одной строкой — как она выглядела бы на проде до миграции.
+	// Закрытая сессия с одной строкой - как она выглядела бы на проде до миграции.
 	var wh, cell, good, user, session string
 	mustScan(t, pool, `INSERT INTO warehouses (code, name) VALUES ('WH9','старый') RETURNING id::text`, &wh)
 	mustScan(t, pool, `INSERT INTO cells (warehouse_id, address) VALUES ($1::uuid,'K-1') RETURNING id::text`, &cell, wh)
@@ -221,7 +221,7 @@ func TestReportDocument_migrationBackfillsClosedSessions(t *testing.T) {
 	if err := m.Migrate(9); err != nil {
 		t.Fatalf("migrate to 9: %v", err)
 	}
-	// Читает документ репозиторий текущей схемы — доводим схему до конца: бэкофилл 9 уже
+	// Читает документ репозиторий текущей схемы - доводим схему до конца: бэкофилл 9 уже
 	// лёг, последующие миграции снимок не меняют, а только дописывают номера (ADHOC-55).
 	if err := m.Up(); err != nil {
 		t.Fatalf("migrate up: %v", err)
@@ -321,7 +321,7 @@ func TestReportDocument_migrationBackfillsJournal(t *testing.T) {
 		t.Fatalf("ожидалось 3 события (created/downloaded/done), получено %d: %+v", len(events), events)
 	}
 	if events[0].Event != model.DocEventCreated || events[0].UserName != "Прошлый" {
-		t.Errorf("создание: %+v — автора берём из операции-источника", events[0])
+		t.Errorf("создание: %+v - автора берём из операции-источника", events[0])
 	}
 	// У скачивания и отметки автор неизвестен: тогда его не записывали, и выдумывать нельзя.
 	for _, e := range events[1:] {

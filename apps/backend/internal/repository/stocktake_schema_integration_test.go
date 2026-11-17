@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// P10-01: схема пересчёта держит свои правила сама — документ с областью, ячейки с этапами,
+// P10-01: схема пересчёта держит свои правила сама - документ с областью, ячейки с этапами,
 // строки «ожидалось / факт» трёх видов (россыпь, короб целиком, товар в коробе), марки,
 // задание вида stocktake. Тест проверяет, что база принимает правильное и отвергает неверное.
 func TestStocktakeSchema(t *testing.T) {
@@ -24,9 +24,9 @@ func TestStocktakeSchema(t *testing.T) {
 	var st, stCell, lu, loose string
 	mustScan(t, pf.pool, `INSERT INTO stocktakes (warehouse_id, scope_kind, created_by)
 		VALUES ($1::uuid, 'cells', $2::uuid) RETURNING id::text`, &st, pf.wh, pf.user)
-	mustOK("область — ячейка", `INSERT INTO stocktake_scope (stocktake_id, cell_id) VALUES ($1::uuid, $2::uuid)`, st, pf.cellB)
-	mustOK("область — товар", `INSERT INTO stocktake_scope (stocktake_id, good_id) VALUES ($1::uuid, $2::uuid)`, st, pf.good)
-	mustOK("область — внутренний склад", `INSERT INTO stocktake_scope (stocktake_id, internal_warehouse_id)
+	mustOK("область - ячейка", `INSERT INTO stocktake_scope (stocktake_id, cell_id) VALUES ($1::uuid, $2::uuid)`, st, pf.cellB)
+	mustOK("область - товар", `INSERT INTO stocktake_scope (stocktake_id, good_id) VALUES ($1::uuid, $2::uuid)`, st, pf.good)
+	mustOK("область - внутренний склад", `INSERT INTO stocktake_scope (stocktake_id, internal_warehouse_id)
 		VALUES ($1::uuid, $2::uuid)`, st, pf.iwhDefect)
 	mustScan(t, pf.pool, `INSERT INTO stocktake_cells (stocktake_id, cell_id, status, taken_by, taken_at, started_at)
 		VALUES ($1::uuid, $2::uuid, 'counting', $3::uuid, now(), now()) RETURNING id::text`, &stCell, st, pf.cellB, pf.user)
@@ -41,7 +41,7 @@ func TestStocktakeSchema(t *testing.T) {
 		VALUES ($1::uuid, $2::uuid, $3::uuid, 1, 1)`, stCell, lu, pf.iwh)
 	mustOK("товар в коробе", `INSERT INTO stocktake_lines (stocktake_cell_id, load_unit_id, good_id, batch_id, internal_warehouse_id, expected_qty)
 		VALUES ($1::uuid, $2::uuid, $3::uuid, $4::uuid, $5::uuid, 12)`, stCell, lu, pf.good, pf.batch, pf.iwh)
-	mustOK("брак той же позиции — своя строка", `INSERT INTO stocktake_lines (stocktake_cell_id, good_id, batch_id, internal_warehouse_id)
+	mustOK("брак той же позиции - своя строка", `INSERT INTO stocktake_lines (stocktake_cell_id, good_id, batch_id, internal_warehouse_id)
 		VALUES ($1::uuid, $2::uuid, $3::uuid, $4::uuid)`, stCell, pf.good, pf.batch, pf.iwhDefect)
 	mustOK("марка ожидалась", `INSERT INTO stocktake_marks (stocktake_cell_id, cis, line_id, expected)
 		VALUES ($1::uuid, '0104600000000017215L1', $2::uuid, true)`, stCell, loose)
@@ -52,7 +52,7 @@ func TestStocktakeSchema(t *testing.T) {
 	mustScan(t, pf.pool, `INSERT INTO suppliers (name) VALUES ('Поставщик') RETURNING id::text`, &supplier)
 	mustScan(t, pf.pool, `INSERT INTO cells (warehouse_id, address) VALUES ($1::uuid, 'X') RETURNING id::text`, &freeCell, pf.wh)
 
-	// Отказы — в одной транзакции на одном соединении: каждый под своей точкой отката, чтобы
+	// Отказы - в одной транзакции на одном соединении: каждый под своей точкой отката, чтобы
 	// ошибка одного не прерывала проверку остальных.
 	tx, err := pf.pool.Begin(ctx)
 	if err != nil {
@@ -65,7 +65,7 @@ func TestStocktakeSchema(t *testing.T) {
 		{"строка области без объекта", `INSERT INTO stocktake_scope (stocktake_id) VALUES ('` + st + `')`},
 		{"повтор строки той же позиции", `INSERT INTO stocktake_lines (stocktake_cell_id, good_id, batch_id, internal_warehouse_id)
 			VALUES ('` + stCell + `', '` + pf.good + `', '` + pf.batch + `', '` + pf.iwh + `')`},
-		{"короб целиком — не штучно", `INSERT INTO stocktake_lines (stocktake_cell_id, load_unit_id, internal_warehouse_id, expected_qty)
+		{"короб целиком - не штучно", `INSERT INTO stocktake_lines (stocktake_cell_id, load_unit_id, internal_warehouse_id, expected_qty)
 			VALUES ('` + stCell + `', gen_random_uuid(), '` + pf.iwh + `', 2)`},
 		{"товар без партии", `INSERT INTO stocktake_lines (stocktake_cell_id, good_id, internal_warehouse_id)
 			VALUES ('` + stCell + `', '` + pf.good + `', '` + pf.iwh + `')`},

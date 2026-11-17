@@ -12,7 +12,7 @@ import (
 	"craftwms/internal/repository"
 )
 
-// Тесты ADHOC-28: история перемещений всего склада для ТСД. Фикстура setupMove — из
+// Тесты ADHOC-28: история перемещений всего склада для ТСД. Фикстура setupMove - из
 // movement_integration_test.go.
 
 // moveAs проводит перемещение от имени user.
@@ -25,8 +25,8 @@ func (mf *moveFixture) moveAs(t *testing.T, user, id string, lines ...repository
 	}
 }
 
-// Лента — всего склада, свежие сверху; фильтр по исполнителю и периоду; подгрузка курсором
-// отдаёт следующую страницу без повторов; исполнители — все, кто перемещал.
+// Лента - всего склада, свежие сверху; фильтр по исполнителю и периоду; подгрузка курсором
+// отдаёт следующую страницу без повторов; исполнители - все, кто перемещал.
 func TestMovementHistory_listFilterAndCursor(t *testing.T) {
 	mf := setupMove(t)
 	ctx := context.Background()
@@ -78,7 +78,7 @@ func TestMovementHistory_listFilterAndCursor(t *testing.T) {
 	}
 }
 
-// Запись показывает строки по порядку и с коробами — в том числе перекладывание внутри
+// Запись показывает строки по порядку и с коробами - в том числе перекладывание внутри
 // ячейки, которого нет в «Движении» для 1С.
 func TestMovementHistory_getShowsBoxesAndInsideCell(t *testing.T) {
 	mf := setupMove(t)

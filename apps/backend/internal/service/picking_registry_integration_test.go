@@ -10,7 +10,7 @@ import (
 	"craftwms/internal/testutil"
 )
 
-// TestPickingRegistry_sampleAgainstCatalog — образец реестра 1С против живого справочника:
+// TestPickingRegistry_sampleAgainstCatalog - образец реестра 1С против живого справочника:
 // код «00-00001101» находит товар «00000001101», признак «маркируемый» доезжает до строки,
 // коды, которых нет в справочнике, попадают в отчёт и помечают заказ.
 func TestPickingRegistry_sampleAgainstCatalog(t *testing.T) {

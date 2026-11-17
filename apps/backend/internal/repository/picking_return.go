@@ -15,14 +15,14 @@ import (
 	"craftwms/internal/model"
 )
 
-// KindPickingReturn — возврат товара из короба отгрузки в ячейку хранения по заданию «вернуть на
+// KindPickingReturn - возврат товара из короба отгрузки в ячейку хранения по заданию «вернуть на
 // места» (P9-07-1).
 const KindPickingReturn = "picking_return"
 
-// returnLine — строка заказа, по которой есть что вернуть на места.
+// returnLine - строка заказа, по которой есть что вернуть на места.
 //
-// moved — сколько вернуть из коробов отгрузки: перенесённое сверх плана (убранная строка и
-// удалённый заказ — план ноль). open — «в сборке» у источника, только у удалённого заказа: у
+// moved - сколько вернуть из коробов отгрузки: перенесённое сверх плана (убранная строка и
+// удалённый заказ - план ноль). open - «в сборке» у источника, только у удалённого заказа: у
 // живого лишний открытый пик возвращает сам кладовщик до «Завершить сборку».
 type returnLine struct {
 	id, name    string
@@ -31,7 +31,7 @@ type returnLine struct {
 
 func (l returnLine) left() decimal.Decimal { return l.moved.Add(l.open) }
 
-// returnLines — что вернуть по строкам заказа; у отгруженного — ничего: товар уехал, правка после
+// returnLines - что вернуть по строкам заказа; у отгруженного - ничего: товар уехал, правка после
 // отгрузки только помечает заказ.
 func returnLines(ctx context.Context, q Querier, orderID string) ([]returnLine, error) {
 	rows, err := q.Query(ctx, `
@@ -92,10 +92,10 @@ func returnTotal(lines []returnLine) decimal.Decimal {
 
 // syncPickingReturnTask приводит задание «вернуть на места» заказа к остатку возврата (P9-07-1).
 //
-// Что: есть что вернуть и нет открытого задания — заводится; вернуть нечего, а задание открыто —
+// Что: есть что вернуть и нет открытого задания - заводится; вернуть нечего, а задание открыто -
 // закрывается. Зачем: остаток считается по пикам и плану, и его меняет не только возврат, но и
 // повторная загрузка реестра (план снова вырос, заказ восстановлен). Как: по заданию уже
-// возвращали или его взяли — оно «выполнено» (кем — исполнитель или последний вернувший); иначе
+// возвращали или его взяли - оно «выполнено» (кем - исполнитель или последний вернувший); иначе
 // задание удаляется: следов работы по нему нет. Вызывается в транзакции, где заказ заблокирован.
 func syncPickingReturnTask(ctx context.Context, q Querier, orderID string) error {
 	lines, err := returnLines(ctx, q, orderID)
@@ -153,8 +153,8 @@ func syncPickingReturnTask(ctx context.Context, q Querier, orderID string) error
 	return nil
 }
 
-// PickingReturnInput — возврат из очереди ТСД: сколько товара перенесённого пика вернуть в
-// ячейку хранения. ReturnID выдаёт устройство; Marks — КИ маркируемого, по одной на единицу.
+// PickingReturnInput - возврат из очереди ТСД: сколько товара перенесённого пика вернуть в
+// ячейку хранения. ReturnID выдаёт устройство; Marks - КИ маркируемого, по одной на единицу.
 type PickingReturnInput struct {
 	ReturnID string
 	PickID   string
@@ -169,14 +169,14 @@ type PickingReturnInput struct {
 // Что под блокировкой заказа, затем пика (тот же порядок, что у «Завершить сборку»):
 //   - заказ не отгружен, пик перенесён в короб отгрузки (открытый возвращают picking_unpick);
 //   - вернуть не больше, чем осталось вернуть по строке и чем есть в пике;
-//   - ячейка — хранения склада заказа (не приёмка и не отгрузка), напольное хранение можно;
-//   - маркируемый — только марками этого пика, по одной на единицу.
+//   - ячейка - хранения склада заказа (не приёмка и не отгрузка), напольное хранение можно;
+//   - маркируемый - только марками этого пика, по одной на единицу.
 //
-// Как: остаток — из `ОТГРУЗКИ` в ячейку той же строкой внутреннего склада, что у пика; из состава
-// короба отгрузки — минус; марки — россыпью в ячейку. Пик уменьшается, весь вернули — «возвращён»:
+// Как: остаток - из `ОТГРУЗКИ` в ячейку той же строкой внутреннего склада, что у пика; из состава
+// короба отгрузки - минус; марки - россыпью в ячейку. Пик уменьшается, весь вернули - «возвращён»:
 // «перенесено» у пиков остаётся равным содержимому коробов, и отгрузка, портал и Excel считают
 // верно без правок. Опустевший короб собранного заказа убирается, короба перенумеровываются, а
-// отметки печати сбрасываются — ярлык «N из M» устарел. Исполнитель задания не проверяется:
+// отметки печати сбрасываются - ярлык «N из M» устарел. Исполнитель задания не проверяется:
 // возврат уже сделан руками.
 func pickingReturn(ctx context.Context, q Querier, in PickingReturnInput) error {
 	var orderID string
@@ -325,7 +325,7 @@ func pickingReturn(ctx context.Context, q Querier, in PickingReturnInput) error 
 		return err
 	}
 
-	// Короба в работе (дособор) кладовщик ещё наполняет — их перенумерует «Завершить сборку».
+	// Короба в работе (дособор) кладовщик ещё наполняет - их перенумерует «Завершить сборку».
 	if st.status == model.PickingStatusPicked || st.deleted {
 		if err := settleBoxesAfterReturn(ctx, q, orderID); err != nil {
 			return err
@@ -334,7 +334,7 @@ func pickingReturn(ctx context.Context, q Querier, in PickingReturnInput) error 
 	return syncPickingReturnTask(ctx, q, orderID)
 }
 
-// guardReturnCell — ячейка возврата: хранения склада заказа, активная, не приёмка и не отгрузка.
+// guardReturnCell - ячейка возврата: хранения склада заказа, активная, не приёмка и не отгрузка.
 func guardReturnCell(ctx context.Context, q Querier, warehouseID, cellID string) error {
 	var ok bool
 	err := q.QueryRow(ctx, `
@@ -352,8 +352,8 @@ func guardReturnCell(ctx context.Context, q Querier, warehouseID, cellID string)
 	return nil
 }
 
-// guardReturnMarks — марки возврата: у маркируемого пика (марки есть) — его марки, по одной на
-// единицу; у немаркируемого — ни одной.
+// guardReturnMarks - марки возврата: у маркируемого пика (марки есть) - его марки, по одной на
+// единицу; у немаркируемого - ни одной.
 func guardReturnMarks(pickMarks, marks []string, qty decimal.Decimal) error {
 	if len(pickMarks) == 0 {
 		if len(marks) > 0 {
@@ -401,7 +401,7 @@ func (r *OperationsRepository) PickingReturn(ctx context.Context, operationID st
 	return applied, missingReference(err)
 }
 
-// ReturnView — что вернуть на места по заказу для экрана ТСД (P9-07-1).
+// ReturnView - что вернуть на места по заказу для экрана ТСД (P9-07-1).
 // Нет такого заказа → ErrPickingOrderNotFound.
 func (r *PickingRepository) ReturnView(ctx context.Context, orderID string) (model.PickingReturnView, error) {
 	var v model.PickingReturnView
@@ -472,7 +472,7 @@ func (r *PickingRepository) ReturnView(ctx context.Context, orderID string) (mod
 	return v, rows.Err()
 }
 
-// ReturnLeft — сколько штук осталось вернуть на места по заказам: id заказа → штук. Заказов без
+// ReturnLeft - сколько штук осталось вернуть на места по заказам: id заказа → штук. Заказов без
 // возврата в ответе нет.
 func (r *PickingRepository) ReturnLeft(ctx context.Context, orderIDs []string) (map[string]decimal.Decimal, error) {
 	return returnLeftOf(ctx, r.pool, orderIDs)

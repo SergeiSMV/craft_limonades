@@ -11,17 +11,17 @@ import (
 	"craftwms/internal/repository"
 )
 
-// ErrInvalidPutawayID — идентификатор документа размещения не UUID.
+// ErrInvalidPutawayID - идентификатор документа размещения не UUID.
 var ErrInvalidPutawayID = errors.New("putaway id must be a UUID")
 
-// ErrInvalidTaskID — задание сеанса не указано или не UUID: размещения без задания нет (P5-02-1).
+// ErrInvalidTaskID - задание сеанса не указано или не UUID: размещения без задания нет (P5-02-1).
 var ErrInvalidTaskID = errors.New("task id must be a UUID")
 
-// putawaySubmitPayload — тело операции putaway_submit, как его собирает устройство (P5-02).
+// putawaySubmitPayload - тело операции putaway_submit, как его собирает устройство (P5-02).
 //
-// Строка — короб (`load_unit_id`) ЛИБО россыпь (`good_id` + `production_date` + `qty`);
+// Строка - короб (`load_unit_id`) ЛИБО россыпь (`good_id` + `production_date` + `qty`);
 // `to_cell_id` обязателен у обеих. Ячейку-источник устройство не шлёт: короб берётся оттуда,
-// где числится, россыпь — из ячейки приёмки склада.
+// где числится, россыпь - из ячейки приёмки склада.
 type putawaySubmitPayload struct {
 	PutawayID   string `json:"putaway_id"`
 	TaskID      string `json:"task_id"`
@@ -40,8 +40,8 @@ type putawaySubmitPayload struct {
 // putawaySubmit разбирает и проверяет сеанс размещения из очереди устройства (P5-02).
 //
 // Всё, что проверяется без базы, проверяется здесь: идентификаторы по форме, «короб или
-// россыпь», количества и даты. Ошибка формы — отказ по существу, и лучше получить его до
-// открытия транзакции. Автор — из токена, а не из тела.
+// россыпь», количества и даты. Ошибка формы - отказ по существу, и лучше получить его до
+// открытия транзакции. Автор - из токена, а не из тела.
 func (s *OperationsService) putawaySubmit(ctx context.Context, userID, id string, raw json.RawMessage) (repository.Applied, error) {
 	var p putawaySubmitPayload
 	if err := json.Unmarshal(raw, &p); err != nil {
@@ -81,7 +81,7 @@ func (s *OperationsService) putawaySubmit(ctx context.Context, userID, id string
 		}
 
 		if luID != "" {
-			// Короб: товарные поля у строки-короба — противоречие, а не подсказка.
+			// Короб: товарные поля у строки-короба - противоречие, а не подсказка.
 			if !isUUID(luID) {
 				return repository.Applied{}, ErrInvalidLoadUnitID
 			}

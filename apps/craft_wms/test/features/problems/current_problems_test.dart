@@ -29,7 +29,7 @@ import '../../support/fake_dio_adapter.dart';
 
 class _MockRepo extends Mock implements ProblemRecordsRepository {}
 
-/// Открытая проблема в ответе `GET /problems/current` — решения ещё нет.
+/// Открытая проблема в ответе `GET /problems/current` - решения ещё нет.
 Map<String, dynamic> openJson(String id) => {
   'id': id,
   'created_at': '2026-10-21T09:00:00Z',
@@ -51,14 +51,14 @@ Map<String, dynamic> openJson(String id) => {
   'status': 'open',
 };
 
-/// ADHOC-35: вкладка «Текущие» — открытые проблемы склада с сервера и свои неотправленные
-/// из очереди; без связи — только свои, с подсказкой.
+/// ADHOC-35: вкладка «Текущие» - открытые проблемы склада с сервера и свои неотправленные
+/// из очереди; без связи - только свои, с подсказкой.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(LocaleSettings.useDeviceLocale);
 
   test(
-    'открытая из ответа: решения нет — «ждёт решения офиса», исполнения нет',
+    'открытая из ответа: решения нет - «ждёт решения офиса», исполнения нет',
     () {
       final p = problemRecordFromJson(openJson('p1'));
       expect(p.isOpen, isTrue);
@@ -68,7 +68,7 @@ void main() {
       expect(
         p.resolvedAtTime,
         p.createdAt,
-        reason: 'день в списке — день фиксации',
+        reason: 'день в списке - день фиксации',
       );
     },
   );
@@ -137,7 +137,7 @@ void main() {
     );
 
     test(
-      'свои неотправленные — с подписями из справочников; известная серверу — '
+      'свои неотправленные - с подписями из справочников; известная серверу - '
       'один раз',
       () async {
         await pendingProblem('mine');
@@ -167,12 +167,12 @@ void main() {
         expect(
           mine.items.single.productionDate,
           '2026-09-26',
-          reason: 'дата очереди — в виде сервера',
+          reason: 'дата очереди - в виде сервера',
         );
       },
     );
 
-    test('без связи — свои неотправленные и причина', () async {
+    test('без связи - свои неотправленные и причина', () async {
       await pendingProblem('mine');
       responses['GET problems/current'] = (o) => throw DioException(
         requestOptions: o,

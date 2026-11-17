@@ -6,13 +6,13 @@ import (
 	"craftwms/internal/model"
 )
 
-// ErrUnknownKind — для документа нет шаблона: значение `kind` в БД не совпало ни с одной формой.
+// ErrUnknownKind - для документа нет шаблона: значение `kind` в БД не совпало ни с одной формой.
 var ErrUnknownKind = fmt.Errorf("неизвестная форма документа")
 
 // BuildDocumentXLSX собирает .xlsx документа по его форме.
 //
 // Здесь единственная развилка «форма → шаблон» во всём бэкенде: новая форма (P4 «Поступление»,
-// P5-04 «Движение») добавляется одной веткой, а вызывающий код — сервис документов и портал —
+// P5-04 «Движение») добавляется одной веткой, а вызывающий код - сервис документов и портал -
 // не меняется вовсе. Данные берутся из снимка, поэтому шаблон видит документ таким, каким его
 // завершили, и не зависит от текущего состояния справочников.
 func BuildDocumentXLSX(doc model.ReportDocument) ([]byte, error) {
@@ -30,7 +30,7 @@ func BuildDocumentXLSX(doc model.ReportDocument) ([]byte, error) {
 	}
 }
 
-// DocumentFilename — имя файла для скачивания: форма, склад и дата документа.
+// DocumentFilename - имя файла для скачивания: форма, склад и дата документа.
 // Латиницей и без пробелов: имя уезжает в заголовок Content-Disposition и в файловую систему
 // оператора, а кириллица там требует кодирования и по-разному переживает браузеры.
 func DocumentFilename(doc model.ReportDocument) string {
@@ -48,7 +48,7 @@ func DocumentFilename(doc model.ReportDocument) string {
 	return fmt.Sprintf("%s-%s-%s.xlsx", prefix, doc.Snapshot.WarehouseCode, doc.CreatedAt.Format("20060102"))
 }
 
-// docNumber — номер для шапки документа; 0 — снимок до ADHOC-55, номера нет, ячейка пуста.
+// docNumber - номер для шапки документа; 0 - снимок до ADHOC-55, номера нет, ячейка пуста.
 func docNumber(prefix string, n int64) string {
 	if n == 0 {
 		return ""

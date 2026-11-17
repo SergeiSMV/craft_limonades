@@ -11,12 +11,12 @@ import (
 	"craftwms/internal/repository"
 )
 
-// pickingPickPayload — тело операции picking_pick, как его собирает ТСД (P9-05).
+// pickingPickPayload - тело операции picking_pick, как его собирает ТСД (P9-05).
 //
-// pick_id выдаёт устройство — по нему пик возвращают (picking_unpick). Источник — ровно один:
-// ячейка (`source_cell_id`, россыпь; склад — `internal_warehouse_id`, пусто — «Основной») или
-// короб хранения (`source_load_unit_id`: его ячейку и склад знает сервер). Партия — датой
-// производства, как в движении; марки — КИ маркируемого товара, по одной на единицу.
+// pick_id выдаёт устройство - по нему пик возвращают (picking_unpick). Источник - ровно один:
+// ячейка (`source_cell_id`, россыпь; склад - `internal_warehouse_id`, пусто - «Основной») или
+// короб хранения (`source_load_unit_id`: его ячейку и склад знает сервер). Партия - датой
+// производства, как в движении; марки - КИ маркируемого товара, по одной на единицу.
 type pickingPickPayload struct {
 	PickID              string          `json:"pick_id"`
 	OrderID             string          `json:"order_id"`
@@ -30,8 +30,8 @@ type pickingPickPayload struct {
 	Marks               []string        `json:"marks"`
 }
 
-// pickingPick разбирает и проверяет пик из очереди ТСД. Автор — из токена; всё, что
-// проверяется без базы, — здесь.
+// pickingPick разбирает и проверяет пик из очереди ТСД. Автор - из токена; всё, что
+// проверяется без базы, - здесь.
 func (s *OperationsService) pickingPick(ctx context.Context, userID, id string, raw json.RawMessage) (repository.Applied, error) {
 	var p pickingPickPayload
 	if err := json.Unmarshal(raw, &p); err != nil {
@@ -121,7 +121,7 @@ func (s *OperationsService) pickingReturn(ctx context.Context, userID, id string
 	return s.repo.PickingReturn(ctx, id, in)
 }
 
-// pickingRejections — отказы сборки по существу (P9-03…P9-05): повтор их не исправит.
+// pickingRejections - отказы сборки по существу (P9-03…P9-05): повтор их не исправит.
 var pickingRejections = []error{
 	model.ErrPickingOrderNotFound, model.ErrPickingOrderDeleted, model.ErrPickingOrderClosed,
 	model.ErrPickingLineNotFound, model.ErrPickingOverPlan, model.ErrPickingSourceDenied,

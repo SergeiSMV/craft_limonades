@@ -6,8 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-// P6-04: лист «Найти короб» — для испорченного ярлыка. Ищет по коду или адресу ячейки,
-// показывает найденное разделами, касание выбирает короб. Ширина — настоящим Inter.
+// P6-04: лист «Найти короб» - для испорченного ярлыка. Ищет по коду или адресу ячейки,
+// показывает найденное разделами, касание выбирает короб. Ширина - настоящим Inter.
 void main() {
   setUp(LocaleSettings.useDeviceLocale);
 
@@ -27,7 +27,7 @@ void main() {
     lines: [ContentLine(goodId: 'g', productionDate: '01-09-2026', qty: 12)],
   );
 
-  /// Выбранный в листе короб — приходит, когда лист закрылся.
+  /// Выбранный в листе короб - приходит, когда лист закрылся.
   LoadUnitView? picked;
 
   Future<void> open(WidgetTester tester, List<String> queries) async {
@@ -61,7 +61,7 @@ void main() {
   }
 
   testWidgets(
-    'ничего не найдено — так и сказано; найденное выбирается касанием',
+    'ничего не найдено - так и сказано; найденное выбирается касанием',
     (tester) async {
       tester.view.physicalSize = const Size(360, 800);
       tester.view.devicePixelRatio = 1;

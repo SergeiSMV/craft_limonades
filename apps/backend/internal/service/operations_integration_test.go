@@ -25,7 +25,7 @@ func opWith(id, kind string, payload map[string]any) service.Operation {
 	return service.Operation{OperationID: id, Kind: kind, Payload: body}
 }
 
-// testUser — автор операций в тестах, где он не проверяется (привязки ШК его не используют).
+// testUser - автор операций в тестах, где он не проверяется (привязки ШК его не используют).
 const testUser = "00000000-0000-4000-8000-000000000001"
 
 // writtenIn достаёт поле written из ответа финала.
@@ -40,7 +40,7 @@ func writtenIn(t *testing.T, raw json.RawMessage) int {
 	return body.Written
 }
 
-// countBarcodes — сколько привязок с таким кодом лежит в базе.
+// countBarcodes - сколько привязок с таким кодом лежит в базе.
 func countBarcodes(t *testing.T, pool *pgxpool.Pool, code string) int {
 	t.Helper()
 	var n int
@@ -51,7 +51,7 @@ func countBarcodes(t *testing.T, pool *pgxpool.Pool, code string) int {
 	return n
 }
 
-// Критерий P2-05: переотправка операции не двоит данные — проверяется на реальной БД.
+// Критерий P2-05: переотправка операции не двоит данные - проверяется на реальной БД.
 func TestOperations_replayIsIdempotent(t *testing.T) {
 	pool := testutil.StartPostgres(t)
 	svc := newOperationsSvc(pool)
@@ -71,7 +71,7 @@ func TestOperations_replayIsIdempotent(t *testing.T) {
 		t.Fatalf("первая: ждали accepted, получили %q (%s)", first[0].Status, first[0].Error)
 	}
 
-	// Та же операция приходит снова — так ведёт себя очередь после оборванного ответа.
+	// Та же операция приходит снова - так ведёт себя очередь после оборванного ответа.
 	second, err := svc.Apply(ctx, testUser, batch)
 	if err != nil {
 		t.Fatalf("переотправка: %v", err)
@@ -120,7 +120,7 @@ func TestOperations_unbindReplayKeepsResult(t *testing.T) {
 		t.Fatalf("после bind+unbind привязок %d, ждали 0", n)
 	}
 
-	// Повтор всего батча: обе операции уже применялись — привязка НЕ должна воскреснуть.
+	// Повтор всего батча: обе операции уже применялись - привязка НЕ должна воскреснуть.
 	replay, err := svc.Apply(ctx, testUser, batch)
 	if err != nil {
 		t.Fatalf("повтор батча: %v", err)
@@ -136,7 +136,7 @@ func TestOperations_unbindReplayKeepsResult(t *testing.T) {
 }
 
 // Две параллельные попытки с одним operation_id: эффект применяется ровно один раз.
-// Сериализацию делает уникальный индекс журнала — отдельной блокировки в коде нет, и это
+// Сериализацию делает уникальный индекс журнала - отдельной блокировки в коде нет, и это
 // проверяется здесь, а не принимается на веру.
 func TestOperations_concurrentReplayAppliesOnce(t *testing.T) {
 	pool := testutil.StartPostgres(t)
@@ -225,16 +225,16 @@ func TestOperations_rejectionLeavesNoMark(t *testing.T) {
 		t.Fatalf("count processed: %v", err)
 	}
 	if marks != 0 {
-		t.Fatalf("отклонённая операция оставила %d отметок — повтор после разбора не сработает", marks)
+		t.Fatalf("отклонённая операция оставила %d отметок - повтор после разбора не сработает", marks)
 	}
 }
 
 // Полный проход ввода остатков ЧЕРЕЗ ОЧЕРЕДЬ и повтор всего батча.
 //
 // Это и есть критерий P2-05, доведённый до наблюдаемого вида. Привязка ШК и строка сессии
-// переживают повтор и без журнала (ON CONFLICT DO NOTHING / DO UPDATE SET — решения P-FS-02/03),
+// переживают повтор и без журнала (ON CONFLICT DO NOTHING / DO UPDATE SET - решения P-FS-02/03),
 // поэтому проверять дедуп на них бессмысленно: тест прошёл бы и на коде без него. А вот ФИНАЛ
-// без журнала на повторе отдаёт 409 «сессия уже закрыта» — успешная работа приезжает на
+// без журнала на повторе отдаёт 409 «сессия уже закрыта» - успешная работа приезжает на
 // устройство отказом и оседает на экране разбора. Здесь проверяется, что повтор получает
 // исходный ответ, а остатки не пересчитываются.
 func TestOperations_stockEntryReplayThroughQueue(t *testing.T) {
@@ -289,7 +289,7 @@ func TestOperations_stockEntryReplayThroughQueue(t *testing.T) {
 		t.Fatalf("остаток после первого прохода: ждали %s, получили %s", want, got)
 	}
 
-	// Ответ не дошёл до устройства — очередь шлёт весь батч заново.
+	// Ответ не дошёл до устройства - очередь шлёт весь батч заново.
 	replay, err := svc.Apply(ctx, env.user, batch)
 	if err != nil {
 		t.Fatalf("повтор батча: %v", err)
@@ -302,7 +302,7 @@ func TestOperations_stockEntryReplayThroughQueue(t *testing.T) {
 	// Повтор финала обязан вернуть ИСХОДНЫЙ ответ, а не отказ «сессия уже закрыта».
 	// Сравниваем разобранное значение, а не байты: ответ едет обратно через jsonb, а тот
 	// пересобирает текст по-своему (пробел после двоеточия, свой порядок ключей). Для клиента
-	// это тот же JSON, для strings.Compare — уже другой.
+	// это тот же JSON, для strings.Compare - уже другой.
 	if got := writtenIn(t, replay[2].Result); got != 1 {
 		t.Fatalf("повтор финала: ждали исходное written=1, получили %d (%s)", got, replay[2].Result)
 	}
@@ -319,6 +319,6 @@ func TestOperations_stockEntryReplayThroughQueue(t *testing.T) {
 		t.Fatalf("count lines: %v", err)
 	}
 	if sessions != 1 || lines != 1 {
-		t.Fatalf("после повтора сессий %d, строк %d — ждали 1 и 1", sessions, lines)
+		t.Fatalf("после повтора сессий %d, строк %d - ждали 1 и 1", sessions, lines)
 	}
 }

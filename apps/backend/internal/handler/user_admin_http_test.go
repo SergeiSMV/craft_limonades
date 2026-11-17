@@ -11,7 +11,7 @@ import (
 // ADHOC-49/50: должности и права через настоящий роутер. Админ заводит должность «Оператор» с
 // действиями «Проблемы склада: смотреть и решать» и пользователя на ней с входом по паролю; оператор
 // видит проблемы, но не документы и не ручки ТСД. Новое право действует сразу, без нового
-// токена; блокировка — тоже. Кладовщику пользователи недоступны.
+// токена; блокировка - тоже. Кладовщику пользователи недоступны.
 func TestUserAdminHTTP_positionRights(t *testing.T) {
 	e := newReceivingE2E(t, nil)
 
@@ -81,7 +81,7 @@ func TestUserAdminHTTP_positionRights(t *testing.T) {
 		t.Fatalf("дать право документов: код %d, %s", code, raw)
 	}
 	if code, _ := e.call(t, http.MethodGet, "/api/v1/documents?kind=receipt", op, ""); code != http.StatusOK {
-		t.Errorf("«Приход» после нового права — с прежним токеном: код %d, ожидался 200", code)
+		t.Errorf("«Приход» после нового права - с прежним токеном: код %d, ожидался 200", code)
 	}
 	if code, _ := e.call(t, http.MethodGet, "/api/v1/documents?kind=movement", op, ""); code != http.StatusForbidden {
 		t.Errorf("«Перемещение» без права: код %d, ожидался 403", code)
@@ -110,9 +110,9 @@ func TestUserAdminHTTP_positionRights(t *testing.T) {
 	}
 }
 
-// ADHOC-49: бейдж нового работника — вход как у всех; занятый бейдж, второй способ входа и
-// чужой способ правки — отказ. Систему нельзя оставить без управления: системную должность не
-// изменить и не удалить, единственного администратора не перевести и не заблокировать, себя —
+// ADHOC-49: бейдж нового работника - вход как у всех; занятый бейдж, второй способ входа и
+// чужой способ правки - отказ. Систему нельзя оставить без управления: системную должность не
+// изменить и не удалить, единственного администратора не перевести и не заблокировать, себя -
 // тоже.
 func TestUserAdminHTTP_guards(t *testing.T) {
 	e := newReceivingE2E(t, nil)
@@ -151,7 +151,7 @@ func TestUserAdminHTTP_guards(t *testing.T) {
 		{"системную должность изменить", http.MethodPatch, "/api/v1/positions/" + model.PositionAdminID,
 			`{"name":"Босс","rights":["portal.receipt.view"]}`, http.StatusConflict},
 		{"системную должность удалить", http.MethodDelete, "/api/v1/positions/" + model.PositionAdminID, "", http.StatusConflict},
-		{"единственного админа — в кладовщики", http.MethodPatch, "/api/v1/users/" + admin,
+		{"единственного админа - в кладовщики", http.MethodPatch, "/api/v1/users/" + admin,
 			`{"position_id":"` + model.PositionWorkerID + `"}`, http.StatusConflict},
 		{"себя заблокировать", http.MethodPatch, "/api/v1/users/" + admin, `{"is_active":false}`, http.StatusConflict},
 		{"нет такого", http.MethodPatch, "/api/v1/users/7f000000-0000-4000-8000-000000000999", `{"full_name":"Х"}`, http.StatusNotFound},
@@ -161,7 +161,7 @@ func TestUserAdminHTTP_guards(t *testing.T) {
 		}
 	}
 
-	// Новый бейдж взамен утерянного: прежний больше не входит, новый — входит.
+	// Новый бейдж взамен утерянного: прежний больше не входит, новый - входит.
 	const newBadge = "5500000999999999"
 	if code, raw := e.call(t, http.MethodPatch, "/api/v1/users/"+worker.ID, e.adminToken, `{"badge":"`+newBadge+`"}`); code != http.StatusNoContent {
 		t.Fatalf("новый бейдж: код %d, %s", code, raw)
@@ -173,7 +173,7 @@ func TestUserAdminHTTP_guards(t *testing.T) {
 		t.Errorf("вход по новому бейджу: код %d", code)
 	}
 
-	// Второй администратор появился — первого уже можно перевести.
+	// Второй администратор появился - первого уже можно перевести.
 	if code, raw := e.call(t, http.MethodPatch, "/api/v1/users/"+worker.ID, e.adminToken,
 		`{"position_id":"`+model.PositionAdminID+`"}`); code != http.StatusNoContent {
 		t.Fatalf("второй админ: код %d, %s", code, raw)
@@ -184,10 +184,10 @@ func TestUserAdminHTTP_guards(t *testing.T) {
 	}
 }
 
-// ADHOC-50: права по действиям. Должность «Приёмщик» — только «ТСД: Приход» и «Приход:
+// ADHOC-50: права по действиям. Должность «Приёмщик» - только «ТСД: Приход» и «Приход:
 // смотреть»: операция приёмки проходит, операция перемещения отклоняется с русским текстом;
 // список «Прихода» виден, скачать и провести нельзя. Пересчёт заводит «Старший» с правом ТСД
-// «Пересчёт: заводить и закрывать» — без прав портала.
+// «Пересчёт: заводить и закрывать» - без прав портала.
 func TestUserAdminHTTP_actionRights(t *testing.T) {
 	e := newReceivingE2E(t, nil)
 	login := func(name, rights string) string {
@@ -217,7 +217,7 @@ func TestUserAdminHTTP_actionRights(t *testing.T) {
 	receiver := login("Приёмщик", `"tsd.receipt","portal.receipt.view"`)
 	code, raw := e.call(t, http.MethodPost, "/api/v1/operations", receiver, `{"operations":[
 		{"operation_id":"7f000000-0000-4000-8000-0000000000e1","kind":"movement_submit","payload":{}}]}`)
-	if code != http.StatusOK || !strings.Contains(string(raw), `"status":"rejected","error":"нет права на эту операцию — обратитесь к администратору"`) {
+	if code != http.StatusOK || !strings.Contains(string(raw), `"status":"rejected","error":"нет права на эту операцию - обратитесь к администратору"`) {
 		t.Errorf("перемещение приёмщиком: код %d, %s", code, raw)
 	}
 	if code, _ := e.call(t, http.MethodGet, "/api/v1/tasks", receiver, ""); code != http.StatusForbidden {

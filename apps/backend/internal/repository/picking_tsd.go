@@ -11,25 +11,25 @@ import (
 	"craftwms/internal/model"
 )
 
-// pickingShortageLockKey — пространство advisory-блокировок пересчёта по нехватке (P9-04); второй
-// ключ — товар. Две отметки «не хватает» по одному товару не заводят два пересчёта.
+// pickingShortageLockKey - пространство advisory-блокировок пересчёта по нехватке (P9-04); второй
+// ключ - товар. Две отметки «не хватает» по одному товару не заводят два пересчёта.
 const pickingShortageLockKey = 1041
 
-// OpenOrders — список «СБОРКА» на ТСД (P9-04): все заказы «новый», «в работе» и — для отгрузки
-// (P9-07) — «собран» любой даты, не удалённые в 1С. Заказ в работе у другого виден занятым, зависший (staleAfter без движения) —
-// свободным. Порядок — дата накладной, затем номер сборки: сначала то, что отгружать раньше.
+// OpenOrders - список «СБОРКА» на ТСД (P9-04): все заказы «новый», «в работе» и - для отгрузки
+// (P9-07) - «собран» любой даты, не удалённые в 1С. Заказ в работе у другого виден занятым, зависший (staleAfter без движения) -
+// свободным. Порядок - дата накладной, затем номер сборки: сначала то, что отгружать раньше.
 func (r *PickingRepository) OpenOrders(ctx context.Context, userID string, staleAfter time.Duration) ([]model.PickingOrderListItem, error) {
 	return r.listOrders(ctx, `o.status IN ('new', 'in_progress', 'picked') AND o.deleted_at IS NULL`,
 		userID, intervalOf(staleAfter))
 }
 
-// ShippedOrders — отгруженные заказы с датой накладной date: раздел «Завершённые» на ТСД.
+// ShippedOrders - отгруженные заказы с датой накладной date: раздел «Завершённые» на ТСД.
 func (r *PickingRepository) ShippedOrders(ctx context.Context, userID string, date time.Time) ([]model.PickingOrderListItem, error) {
 	return r.listOrders(ctx, `o.status = 'shipped' AND o.registry_date = $3::date`,
 		userID, intervalOf(0), date)
 }
 
-// listOrders — строки списка «СБОРКА» по условию where ($1 — кто смотрит, $2 — срок зависания).
+// listOrders - строки списка «СБОРКА» по условию where ($1 - кто смотрит, $2 - срок зависания).
 func (r *PickingRepository) listOrders(ctx context.Context, where string, args ...any) ([]model.PickingOrderListItem, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT o.id::text, o.number, o.registry_date, o.invoice_number, o.order_number,
@@ -61,7 +61,7 @@ func (r *PickingRepository) listOrders(ctx context.Context, where string, args .
 	return out, rows.Err()
 }
 
-// pickingOrderState — состояние заказа под блокировкой строки.
+// pickingOrderState - состояние заказа под блокировкой строки.
 type pickingOrderState struct {
 	status     string
 	deleted    bool
@@ -90,7 +90,7 @@ func lockPickingOrder(ctx context.Context, q Querier, orderID string, staleAfter
 
 // TakeOrder отдаёт заказ кладовщику: свободный, свой повторно или зависший у другого.
 //
-// Повтор своим исполнителем — не ошибка: кладовщик нажал «Взять» дважды или ответ не дошёл.
+// Повтор своим исполнителем - не ошибка: кладовщик нажал «Взять» дважды или ответ не дошёл.
 // Удалённый в 1С, с нераспознанными позициями, собранный и отгруженный не берутся.
 func (r *PickingRepository) TakeOrder(ctx context.Context, orderID, userID string, staleAfter time.Duration) error {
 	return WithinTx(ctx, r.pool, func(q Querier) error {
@@ -115,7 +115,7 @@ func (r *PickingRepository) TakeOrder(ctx context.Context, orderID, userID strin
 			WHERE id = $1::uuid`, orderID, userID); err != nil {
 			return fmt.Errorf("взять заказ сборки: %w", err)
 		}
-		// Зависший у другого — перехват: в журнале видно, у кого забрали.
+		// Зависший у другого - перехват: в журнале видно, у кого забрали.
 		ev := pickingEvent{kind: model.PickingEventTaken}
 		if st.status == model.PickingStatusInProgress {
 			ev.kind, ev.prevUser = model.PickingEventTakenOver, st.assignee
@@ -125,7 +125,7 @@ func (r *PickingRepository) TakeOrder(ctx context.Context, orderID, userID strin
 }
 
 // ReleaseOrder возвращает свой заказ в «новый» без исполнителя; собранное остаётся в коробах,
-// следующий кладовщик продолжает. Заказ уже свободен — не ошибка (повтор).
+// следующий кладовщик продолжает. Заказ уже свободен - не ошибка (повтор).
 func (r *PickingRepository) ReleaseOrder(ctx context.Context, orderID, userID string) error {
 	return WithinTx(ctx, r.pool, func(q Querier) error {
 		st, err := lockPickingOrder(ctx, q, orderID, 0)
@@ -148,7 +148,7 @@ func (r *PickingRepository) ReleaseOrder(ctx context.Context, orderID, userID st
 	})
 }
 
-// heldOrder — заказ в работе у этого кладовщика, под блокировкой; отмечает движение по нему
+// heldOrder - заказ в работе у этого кладовщика, под блокировкой; отмечает движение по нему
 // (last_activity_at): действие по заказу продлевает его от зависания.
 func heldOrder(ctx context.Context, q Querier, orderID, userID string) error {
 	st, err := lockPickingOrder(ctx, q, orderID, 0)
@@ -168,9 +168,9 @@ func heldOrder(ctx context.Context, q Querier, orderID, userID string) error {
 
 // AddBox заводит короб отгрузки заказа с id ярлыка, выданным ТСД, и возвращает его номер в заказе.
 //
-// Короб — грузовая единица без места: товар в него ляжет при «Завершить сборку» (P9-07). Повтор
+// Короб - грузовая единица без места: товар в него ляжет при «Завершить сборку» (P9-07). Повтор
 // с тем же id по тому же заказу отдаёт уже выданный номер (ответ мог не дойти); id, занятый другим
-// коробом, — отказ. Номер — следующий за последним коробом заказа; блокировка заказа держит
+// коробом, - отказ. Номер - следующий за последним коробом заказа; блокировка заказа держит
 // его единственным.
 func (r *PickingRepository) AddBox(ctx context.Context, orderID, userID, loadUnitID string) (int, error) {
 	var seq int
@@ -188,7 +188,7 @@ func (r *PickingRepository) AddBox(ctx context.Context, orderID, userID, loadUni
 		switch {
 		case err == nil && owner != nil && *owner == orderID && dropped:
 			// Пустой короб, убранный при «Завершить сборку» (P9-07), снова в деле при дособоре:
-			// номер — следующий за живыми.
+			// номер - следующий за живыми.
 			return q.QueryRow(ctx, `
 				UPDATE picking_boxes SET dropped_at = NULL, labels_printed = 0,
 				       seq = (SELECT coalesce(max(seq), 0) + 1 FROM picking_boxes
@@ -219,8 +219,8 @@ func (r *PickingRepository) AddBox(ctx context.Context, orderID, userID, loadUni
 }
 
 // DropBox убирает пустой короб отгрузки, заведённый по ошибке: `dropped_at`, как при «Завершить
-// сборку» (удалить нельзя — на короб ссылаются возвращённые пики); живые нумеруются заново 1…M.
-// Только исполнитель и только короб без пиков (кроме возвращённых). Повтор по убранному — успех.
+// сборку» (удалить нельзя - на короб ссылаются возвращённые пики); живые нумеруются заново 1…M.
+// Только исполнитель и только короб без пиков (кроме возвращённых). Повтор по убранному - успех.
 func (r *PickingRepository) DropBox(ctx context.Context, orderID, userID, loadUnitID string) error {
 	return WithinTx(ctx, r.pool, func(q Querier) error {
 		if err := heldOrder(ctx, q, orderID, userID); err != nil {
@@ -267,10 +267,10 @@ func (r *PickingRepository) DropBox(ctx context.Context, orderID, userID, loadUn
 // MarkShortage ставит или снимает у строки заказа отметку «не хватает».
 //
 // Отметка заводит пересчёт позиции (docs/picking.md, «Нехватка»): товар строки в ячейках, где WMS
-// его числит, плюс ячейка реестра; основание — заказ сборки, задание — в общем пуле. Если по
-// товару уже открыт пересчёт по нехватке, второй не заводится — отдаётся номер открытого. Всё —
+// его числит, плюс ячейка реестра; основание - заказ сборки, задание - в общем пуле. Если по
+// товару уже открыт пересчёт по нехватке, второй не заводится - отдаётся номер открытого. Всё -
 // одной транзакцией с отметкой: отметка без пересчёта не остаётся. Снятие отметки пересчёт не
-// отменяет — он уже в пуле, и посчитать товар не вредно.
+// отменяет - он уже в пуле, и посчитать товар не вредно.
 func (r *PickingRepository) MarkShortage(ctx context.Context, orderID, lineID, userID string, shortage bool) (model.PickingShortageResult, error) {
 	var res model.PickingShortageResult
 	err := WithinTx(ctx, r.pool, func(q Querier) error {
@@ -301,7 +301,7 @@ func (r *PickingRepository) MarkShortage(ctx context.Context, orderID, lineID, u
 	return res, err
 }
 
-// shortageStocktake — открытый пересчёт по нехватке товара или новый.
+// shortageStocktake - открытый пересчёт по нехватке товара или новый.
 func shortageStocktake(ctx context.Context, q Querier, orderID, warehouseID, goodID string, registryCellID *string, userID string) (model.PickingShortageResult, error) {
 	var res model.PickingShortageResult
 	if _, err := q.Exec(ctx, `SELECT pg_advisory_xact_lock($1, hashtext($2))`, pickingShortageLockKey, goodID); err != nil {
@@ -329,8 +329,8 @@ func shortageStocktake(ctx context.Context, q Querier, orderID, warehouseID, goo
 	if registryCellID != nil {
 		in.ExtraCellIDs = []string{*registryCellID}
 	}
-	// Считать негде — товара нет ни в одной ячейке, и ячейки реестра нет в WMS. Пустой пересчёт
-	// ничего не посчитает, а отказ откатил бы и саму отметку: проверка — до заведения.
+	// Считать негде - товара нет ни в одной ячейке, и ячейки реестра нет в WMS. Пустой пересчёт
+	// ничего не посчитает, а отказ откатил бы и саму отметку: проверка - до заведения.
 	var countable bool
 	if err := q.QueryRow(ctx, `
 		SELECT $3::uuid IS NOT NULL OR EXISTS (

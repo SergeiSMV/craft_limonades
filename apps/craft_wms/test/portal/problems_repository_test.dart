@@ -14,7 +14,7 @@ ResponseBody _json(String body, int status) => ResponseBody.fromString(
   },
 );
 
-/// P6-07-3: «Проблемы склада» в портале — разбор списка и тело решения.
+/// P6-07-3: «Проблемы склада» в портале - разбор списка и тело решения.
 void main() {
   late Dio dio;
 
@@ -57,7 +57,7 @@ void main() {
     expect(done.resolvedAt, isNotNull);
   });
 
-  test('решение: поля только своего вида; отказ — текст сервера', () async {
+  test('решение: поля только своего вида; отказ - текст сервера', () async {
     final adapter = RecordingAdapter({
       'POST ${ApiConst.problemResolve('p1')}': (_) =>
           ResponseBody.fromString('', 204),

@@ -13,31 +13,31 @@ import (
 	"craftwms/internal/model"
 )
 
-// Ошибки пометки товара другим внутренним складом (P6-07-1). Все — отказ по существу.
+// Ошибки пометки товара другим внутренним складом (P6-07-1). Все - отказ по существу.
 var (
-	// ErrProblemPosted — проблема с этим идентификатором уже зафиксирована.
+	// ErrProblemPosted - проблема с этим идентификатором уже зафиксирована.
 	ErrProblemPosted = errors.New("problem already posted")
-	// ErrEmptyProblem — в проблеме нет ни короба, ни товара с одним источником.
+	// ErrEmptyProblem - в проблеме нет ни короба, ни товара с одним источником.
 	ErrEmptyProblem = errors.New("problem must have a load unit or goods from a cell or a load unit")
-	// ErrUnknownReason — причины нет в справочнике или её ставит только программа.
+	// ErrUnknownReason - причины нет в справочнике или её ставит только программа.
 	ErrUnknownReason = errors.New("неизвестная причина проблемы")
-	// ErrProblemCommentRequired — у причины с обязательным комментарием (ADHOC-55; так у
+	// ErrProblemCommentRequired - у причины с обязательным комментарием (ADHOC-55; так у
 	// «Прочее») комментария нет: без него офису нечего разбирать.
 	ErrProblemCommentRequired = errors.New("у этой причины нужен комментарий")
-	// ErrUnknownInternalWarehouse — склада назначения нет или он скрыт.
+	// ErrUnknownInternalWarehouse - склада назначения нет или он скрыт.
 	ErrUnknownInternalWarehouse = errors.New("unknown or inactive internal warehouse")
-	// ErrSystemInternalWarehouse — склад системный (возврат поставщику, P6-07-3): на него и с него
+	// ErrSystemInternalWarehouse - склад системный (возврат поставщику, P6-07-3): на него и с него
 	// переводит только решение офиса; скрыть и удалить его нельзя.
 	ErrSystemInternalWarehouse = errors.New("system internal warehouse is managed by the program")
-	// ErrSameInternalWarehouse — товар уже числится на складе назначения.
+	// ErrSameInternalWarehouse - товар уже числится на складе назначения.
 	ErrSameInternalWarehouse = errors.New("goods already belong to the target internal warehouse")
 )
 
-// ProblemSubmitInput — проблема склада, собранная устройством (P6-07-1).
+// ProblemSubmitInput - проблема склада, собранная устройством (P6-07-1).
 //
-// Что помечено — ровно одно: короб целиком (LoadUnitID) ЛИБО товар партии с количеством —
-// из россыпи ячейки (CellID; склад россыпи — FromInternalWarehouseID, пусто — по умолчанию)
-// или из короба (FromLoadUnitID; склад — короба). Товар из короба вынимается в россыпь
+// Что помечено - ровно одно: короб целиком (LoadUnitID) ЛИБО товар партии с количеством -
+// из россыпи ячейки (CellID; склад россыпи - FromInternalWarehouseID, пусто - по умолчанию)
+// или из короба (FromLoadUnitID; склад - короба). Товар из короба вынимается в россыпь
 // склада назначения той же ячейки.
 type ProblemSubmitInput struct {
 	ProblemID   string
@@ -58,24 +58,24 @@ type ProblemSubmitInput struct {
 	Comment               string
 	Mark                  string
 
-	// Marks — КИ марок ЧЗ помеченного товара (CZ-06): у маркируемого товара обязательны, по
+	// Marks - КИ марок ЧЗ помеченного товара (CZ-06): у маркируемого товара обязательны, по
 	// одной на единицу. Марки уходят в россыпь склада назначения той же ячейки и запоминают
-	// проблему — решение офиса и отгрузка возврата берут ровно их.
+	// проблему - решение офиса и отгрузка возврата берут ровно их.
 	Marks []string
 
-	// fromIntake — проблему заводит проводка прихода: приёмки (CZ-05) или ввода остатков
-	// (ADHOC-46). Товар может лежать в ячейке приёмки, и это законно — он уходит в «Изолятор»,
+	// fromIntake - проблему заводит проводка прихода: приёмки (CZ-05) или ввода остатков
+	// (ADHOC-46). Товар может лежать в ячейке приёмки, и это законно - он уходит в «Изолятор»,
 	// не дожидаясь размещения.
 	fromIntake bool
-	// fromStocktake — проблему «не найдено» заводит подсчёт ячейки пересчёта (P10-03): склад
-	// назначения — системный «Не найдено», причина — не из выбора на ТСД.
+	// fromStocktake - проблему «не найдено» заводит подсчёт ячейки пересчёта (P10-03): склад
+	// назначения - системный «Не найдено», причина - не из выбора на ТСД.
 	fromStocktake bool
 }
 
-// checkProblemReason — причина проблемы по справочнику (ADHOC-55).
+// checkProblemReason - причина проблемы по справочнику (ADHOC-55).
 //
 // «Не найдено» ставит только пересчёт, пересорт сюда не приходит вовсе (его заводит
-// перепривязка ШК), остальные причины программы (выбытие марки) — только приход. С ТСД — причина,
+// перепривязка ШК), остальные причины программы (выбытие марки) - только приход. С ТСД - причина,
 // которую выбирает кладовщик; выключенная тоже годится: операция могла лежать в очереди
 // устройства, пока офис её выключал, и отказ заставил бы помечать товар заново.
 func checkProblemReason(ctx context.Context, q Querier, in ProblemSubmitInput) error {
@@ -104,10 +104,10 @@ func checkProblemReason(ctx context.Context, q Querier, in ProblemSubmitInput) e
 //
 // Что: короб целиком меняет склад вместе с остатком своего состава; товар переходит строкой
 //
-//	нового склада в той же ячейке (из короба — вынимается в россыпь). Количество не теряется:
-//	перевод — общий примитив transferStock между строками одной ячейки.
+//	нового склада в той же ячейке (из короба - вынимается в россыпь). Количество не теряется:
+//	перевод - общий примитив transferStock между строками одной ячейки.
 //
-// Зачем одной транзакцией: запись проблемы и перевод остатка — один факт; офис решает судьбу
+// Зачем одной транзакцией: запись проблемы и перевод остатка - один факт; офис решает судьбу
 //
 //	товара по записи (P6-07-3), и записи без перевода (или наоборот) быть не должно.
 //
@@ -164,10 +164,10 @@ func problemSubmit(ctx context.Context, q Querier, in ProblemSubmitInput) error 
 	return problemMarks(ctx, q, in, row)
 }
 
-// problemMarks привязывает к проблеме её марки ЧЗ (CZ-06) — после записи проблемы: ссылка
-// марки на проблему — внешний ключ.
+// problemMarks привязывает к проблеме её марки ЧЗ (CZ-06) - после записи проблемы: ссылка
+// марки на проблему - внешний ключ.
 //
-// Короб целиком — все марки короба: они остаются в нём и едут с ним. Товар — марки строки:
+// Короб целиком - все марки короба: они остаются в нём и едут с ним. Товар - марки строки:
 // из россыпи или короба в россыпь склада назначения той же ячейки, туда же, куда остаток.
 func problemMarks(ctx context.Context, q Querier, in ProblemSubmitInput, row problemRow) error {
 	if in.LoadUnitID != "" {
@@ -195,14 +195,14 @@ func problemMarks(ctx context.Context, q Querier, in ProblemSubmitInput, row pro
 	return nil
 }
 
-// problemRow — что о помеченном узнаёт запись: ячейка, склад-источник, партия и количество.
+// problemRow - что о помеченном узнаёт запись: ячейка, склад-источник, партия и количество.
 type problemRow struct {
 	cell, fromIwh, batch string
 	qty                  *string
 }
 
 // problemLoadUnit переводит короб целиком: остаток его состава переходит строкой нового склада
-// в той же ячейке, а склад короба меняется — дальше он переезжает новым складом.
+// в той же ячейке, а склад короба меняется - дальше он переезжает новым складом.
 func problemLoadUnit(ctx context.Context, q Querier, in ProblemSubmitInput) (problemRow, error) {
 	boxes, err := lockPlacedLoadUnits(ctx, q, in.LoadUnitID)
 	if err != nil {
@@ -212,7 +212,7 @@ func problemLoadUnit(ctx context.Context, q Querier, in ProblemSubmitInput) (pro
 	if err := guardProblemPlace(ctx, q, box.cell, box.iwh, in); err != nil {
 		return problemRow{}, err
 	}
-	// Из короба идёт сборка (P9-05): пикнутое числится в нём, но склад пика — прежний. Сменить
+	// Из короба идёт сборка (P9-05): пикнутое числится в нём, но склад пика - прежний. Сменить
 	// метку всего короба значило бы перевести в брак уже собранный товар.
 	if err := guardLoadUnitNotInPicking(ctx, q, in.LoadUnitID); err != nil {
 		return problemRow{}, err
@@ -257,7 +257,7 @@ func problemFromLoadUnit(ctx context.Context, q Querier, in ProblemSubmitInput) 
 	return problemGoods(ctx, q, in, box.cell, box.iwh, batchID)
 }
 
-// problemLoose переводит россыпь ячейки — не больше, чем россыпи склада-источника лежит вне
+// problemLoose переводит россыпь ячейки - не больше, чем россыпи склада-источника лежит вне
 // коробов этого склада.
 func problemLoose(ctx context.Context, q Querier, in ProblemSubmitInput) (problemRow, error) {
 	from := in.FromInternalWarehouseID
@@ -296,7 +296,7 @@ func problemGoods(ctx context.Context, q Querier, in ProblemSubmitInput, cell, f
 	return problemRow{cell: cell, fromIwh: fromIwh, batch: batchID, qty: &qty}, nil
 }
 
-// guardProblemPlace — ячейка склада документа, не ячейка приёмки (кроме проблемы, которую
+// guardProblemPlace - ячейка склада документа, не ячейка приёмки (кроме проблемы, которую
 // заводит сама приёмка, CZ-05), товар не числится уже на складе назначения и не лежит на
 // системном складе.
 func guardProblemPlace(ctx context.Context, q Querier, cell, fromIwh string, in ProblemSubmitInput) error {
@@ -319,7 +319,7 @@ func guardProblemPlace(ctx context.Context, q Querier, cell, fromIwh string, in 
 	return guardNotReceivingCell(ctx, q, cell)
 }
 
-// guardActiveInternalWarehouse — склад назначения существует, не скрыт и не системный:
+// guardActiveInternalWarehouse - склад назначения существует, не скрыт и не системный:
 // на системный склад (возврат поставщику) товар переводит только решение офиса (P6-07-3).
 func guardActiveInternalWarehouse(ctx context.Context, q Querier, id string) error {
 	var active, system bool
@@ -338,7 +338,7 @@ func guardActiveInternalWarehouse(ctx context.Context, q Querier, id string) err
 	return nil
 }
 
-// guardNotSystemSource — товар на системном складе уже в задании возврата: пометить его
+// guardNotSystemSource - товар на системном складе уже в задании возврата: пометить его
 // заново значило бы увести из-под задания (P6-07-3).
 func guardNotSystemSource(ctx context.Context, q Querier, iwh string) error {
 	var system bool
@@ -355,18 +355,18 @@ func guardNotSystemSource(ctx context.Context, q Querier, iwh string) error {
 
 // Ошибки справочника внутренних складов (ADHOC-29).
 var (
-	// ErrInternalWarehouseExists — склад с таким кодом уже есть.
+	// ErrInternalWarehouseExists - склад с таким кодом уже есть.
 	ErrInternalWarehouseExists = errors.New("internal warehouse code already exists")
-	// ErrDefaultInternalWarehouse — склад по умолчанию нельзя скрыть или удалить: приходовать
+	// ErrDefaultInternalWarehouse - склад по умолчанию нельзя скрыть или удалить: приходовать
 	// было бы некуда.
 	ErrDefaultInternalWarehouse = errors.New("default internal warehouse cannot be hidden or deleted")
-	// ErrInternalWarehouseInUse — на складе есть остаток или история: удалить нельзя, только
+	// ErrInternalWarehouseInUse - на складе есть остаток или история: удалить нельзя, только
 	// скрыть.
 	ErrInternalWarehouseInUse = errors.New("internal warehouse has stock or history")
 )
 
-// InternalWarehouseRepository — справочник внутренних складов (P6-07-1, ADHOC-29): чтение для
-// ТСД и портала, ведение — из портала.
+// InternalWarehouseRepository - справочник внутренних складов (P6-07-1, ADHOC-29): чтение для
+// ТСД и портала, ведение - из портала.
 type InternalWarehouseRepository struct {
 	pool *pgxpool.Pool
 }
@@ -376,7 +376,7 @@ func NewInternalWarehouseRepository(pool *pgxpool.Pool) *InternalWarehouseReposi
 	return &InternalWarehouseRepository{pool: pool}
 }
 
-// internalWarehouseSelect — склад с признаком «в деле»: есть строка остатка (даже нулевая —
+// internalWarehouseSelect - склад с признаком «в деле»: есть строка остатка (даже нулевая -
 // это история), короб этого склада или запись проблемы. Внешние ключи этих таблиц и так не
 // дадут его удалить; признак нужен порталу, чтобы не предлагать удаление заведомо зря.
 const internalWarehouseSelect = `
@@ -394,8 +394,8 @@ func scanInternalWarehouse(row pgx.Row) (model.InternalWarehouse, error) {
 	return w, err
 }
 
-// All — все склады, и скрытые: по умолчанию первым, дальше действующие, по имени. Скрытые
-// нужны и ТСД — их остаток всё ещё лежит в ячейках и должен быть подписан.
+// All - все склады, и скрытые: по умолчанию первым, дальше действующие, по имени. Скрытые
+// нужны и ТСД - их остаток всё ещё лежит в ячейках и должен быть подписан.
 func (r *InternalWarehouseRepository) All(ctx context.Context) ([]model.InternalWarehouse, error) {
 	rows, err := r.pool.Query(ctx, internalWarehouseSelect+`
 		ORDER BY w.is_default DESC, w.is_active DESC, w.name`)
@@ -414,7 +414,7 @@ func (r *InternalWarehouseRepository) All(ctx context.Context) ([]model.Internal
 	return out, rows.Err()
 }
 
-// Create заводит склад. Повтор кода — ErrInternalWarehouseExists.
+// Create заводит склад. Повтор кода - ErrInternalWarehouseExists.
 func (r *InternalWarehouseRepository) Create(ctx context.Context, code, name string) (model.InternalWarehouse, error) {
 	var id string
 	err := r.pool.QueryRow(ctx, `
@@ -431,7 +431,7 @@ func (r *InternalWarehouseRepository) Create(ctx context.Context, code, name str
 }
 
 // Update переименовывает склад, скрывает его или возвращает в выбор, разрешает или запрещает
-// сборку из него. nil — поле не меняется. Склад по умолчанию не скрывается; системный склад
+// сборку из него. nil - поле не меняется. Склад по умолчанию не скрывается; системный склад
 // не скрывается и в сборку не разрешается: товар на нём уже не продаётся (возврат, «не найдено»).
 func (r *InternalWarehouseRepository) Update(ctx context.Context, id string, name *string, active, allowPicking *bool) (model.InternalWarehouse, error) {
 	current, err := r.byID(ctx, id)
@@ -455,7 +455,7 @@ func (r *InternalWarehouseRepository) Update(ctx context.Context, id string, nam
 }
 
 // Delete удаляет склад, у которого нет ни остатка, ни истории. Склад по умолчанию не
-// удаляется; склад «в деле» — ErrInternalWarehouseInUse (его скрывают).
+// удаляется; склад «в деле» - ErrInternalWarehouseInUse (его скрывают).
 func (r *InternalWarehouseRepository) Delete(ctx context.Context, id string) error {
 	current, err := r.byID(ctx, id)
 	if err != nil {
@@ -473,7 +473,7 @@ func (r *InternalWarehouseRepository) Delete(ctx context.Context, id string) err
 	_, err = r.pool.Exec(ctx, `DELETE FROM internal_warehouses WHERE id = $1::uuid`, id)
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == "23503" {
-		// Ссылка появилась между проверкой и удалением — тот же отказ.
+		// Ссылка появилась между проверкой и удалением - тот же отказ.
 		return ErrInternalWarehouseInUse
 	}
 	if err != nil {

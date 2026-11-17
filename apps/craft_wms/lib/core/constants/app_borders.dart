@@ -9,7 +9,7 @@ abstract final class AppBorders {
   static const BorderRadius kCircular10 = BorderRadius.all(Radius.circular(10));
   static const BorderRadius kCircular12 = BorderRadius.all(Radius.circular(12)); // зона загрузки, плашки
   static const BorderRadius kCircular16 = BorderRadius.all(Radius.circular(16)); // карточки
-  // Скругление шапки экрана с фон-картинкой — только нижние углы.
+  // Скругление шапки экрана с фон-картинкой - только нижние углы.
   static const BorderRadius kBottom10 = BorderRadius.only(
     bottomLeft: Radius.circular(10),
     bottomRight: Radius.circular(10),

@@ -17,7 +17,7 @@ PortalWarehouse warehouse(String id, {bool isDefault = false}) =>
       inUse: true,
     );
 
-/// ADHOC-56: сборка «Остатков склада» из снимка — суммы по складам, места вдоль стеллажа.
+/// ADHOC-56: сборка «Остатков склада» из снимка - суммы по складам, места вдоль стеллажа.
 void main() {
   final stock = WarehouseStockRepository.build(
     snapshot: ContentsSnapshot(
@@ -57,21 +57,21 @@ void main() {
   );
 
   test(
-    'нулевые строки отброшены, товар не из справочника — с пустым именем',
+    'нулевые строки отброшены, товар не из справочника - с пустым именем',
     () {
       expect(stock.goods.map((s) => s.good.id), ['g3', 'g1']);
       expect(stock.places.containsKey('g2'), isFalse);
     },
   );
 
-  test('без склада — склад по умолчанию; остаток по складу и всего', () {
+  test('без склада - склад по умолчанию; остаток по складу и всего', () {
     final g1 = stock.goods.firstWhere((s) => s.good.id == 'g1');
     expect(g1.qtyOn(null), 8);
     expect(g1.qtyOn('w1'), 3);
     expect(g1.qtyOn('w2'), 5);
   });
 
-  test('места вдоль стеллажа — с адресом, коробом и именем склада', () {
+  test('места вдоль стеллажа - с адресом, коробом и именем склада', () {
     final places = stock.places['g1']!;
     expect(places.map((p) => p.cellAddress), ['A-01', 'A-02']);
     expect(places.first.loadUnitId, isNull);

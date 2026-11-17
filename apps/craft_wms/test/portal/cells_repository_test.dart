@@ -10,7 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../support/fake_dio_adapter.dart';
 
-/// ADHOC-57: репозиторий страницы «Ячейки» — список, правка, выгрузка, печать, загрузка.
+/// ADHOC-57: репозиторий страницы «Ячейки» - список, правка, выгрузка, печать, загрузка.
 void main() {
   late Dio dio;
 
@@ -25,7 +25,7 @@ void main() {
   );
 
   test(
-    'loadSetup — ячейки со стеллажом и признаками, стеллажи; склад SHB',
+    'loadSetup - ячейки со стеллажом и признаками, стеллажи; склад SHB',
     () async {
       final adapter = RecordingAdapter({
         'GET ${ApiConst.cellsSetup}': (_) => jsonResponse({
@@ -67,7 +67,7 @@ void main() {
     },
   );
 
-  test('saveSettings — только изменённые галочки в теле PATCH', () async {
+  test('saveSettings - только изменённые галочки в теле PATCH', () async {
     final adapter = RecordingAdapter({
       'PATCH ${ApiConst.cellsSetup}': (_) =>
           jsonResponse({'cells_updated': 2}, 200),
@@ -87,7 +87,7 @@ void main() {
     });
   });
 
-  test('saveSettings — ответ без cells_updated не ошибка', () async {
+  test('saveSettings - ответ без cells_updated не ошибка', () async {
     dio.httpClientAdapter = RecordingAdapter({
       'PATCH ${ApiConst.cellsSetup}': (_) => jsonResponse({}, 200),
     });
@@ -99,10 +99,10 @@ void main() {
     expect(res.right, 0);
   });
 
-  test('saveSettings — 409 с текстом сервера', () async {
+  test('saveSettings - 409 с текстом сервера', () async {
     dio.httpClientAdapter = RecordingAdapter({
       'PATCH ${ApiConst.cellsSetup}': (_) => jsonResponse({
-        'error': 'часть ячеек не найдена на складе — обновите страницу',
+        'error': 'часть ячеек не найдена на складе - обновите страницу',
       }, 409),
     });
 
@@ -115,7 +115,7 @@ void main() {
     expect(f.message, contains('обновите страницу'));
   });
 
-  test('labelsPdf — POST {kind, cell_ids}, ответ байтами', () async {
+  test('labelsPdf - POST {kind, cell_ids}, ответ байтами', () async {
     final adapter = RecordingAdapter({'POST ${ApiConst.cellLabelsPdf}': pdf});
     dio.httpClientAdapter = adapter;
 
@@ -131,7 +131,7 @@ void main() {
     expect(req.queryParameters['warehouse'], 'SHB');
   });
 
-  test('labelsPdf — 422: текст ошибки разобран из тела-байтов', () async {
+  test('labelsPdf - 422: текст ошибки разобран из тела-байтов', () async {
     dio.httpClientAdapter = RecordingAdapter({
       'POST ${ApiConst.cellLabelsPdf}': (_) => jsonResponse({
         'error': 'этикетки не печатаются: адрес B-1-1-1 не влезает',
@@ -145,7 +145,7 @@ void main() {
     expect(f.message, 'этикетки не печатаются: адрес B-1-1-1 не влезает');
   });
 
-  test('exportCells — GET cells/export.xlsx байтами', () async {
+  test('exportCells - GET cells/export.xlsx байтами', () async {
     final adapter = RecordingAdapter({'GET ${ApiConst.cellsExport}': pdf});
     dio.httpClientAdapter = adapter;
 
@@ -155,7 +155,7 @@ void main() {
     expect(adapter.requests.single.responseType, ResponseType.bytes);
   });
 
-  test('importCells — в отчёте стеллажи', () async {
+  test('importCells - в отчёте стеллажи', () async {
     dio.httpClientAdapter = RecordingAdapter({
       'POST ${ApiConst.importCells}': (_) => jsonResponse({
         'warehouse': 'SHB',
@@ -178,7 +178,7 @@ void main() {
     expect(res.right.skipped.single.row, 5);
   });
 
-  test('нет сети — NetworkFailure', () async {
+  test('нет сети - NetworkFailure', () async {
     dio.httpClientAdapter = RecordingAdapter({
       'GET ${ApiConst.cellsSetup}': (o) => throw DioException(
         requestOptions: o,

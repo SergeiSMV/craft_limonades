@@ -85,7 +85,7 @@ void main() {
       expect(page.total, 3);
     });
 
-    test('пагинация: total по всей выборке, items — по странице', () async {
+    test('пагинация: total по всей выборке, items - по странице', () async {
       final page = await cache.searchGoods(limit: 2, offset: 0);
       expect(page.items.length, 2);
       expect(page.total, 3);

@@ -20,7 +20,7 @@ void main() {
   setUp(() {
     repo = _MockRepo();
     cubit = GoodsListCubit(repo);
-    // Справочники фильтров — пустые (не предмет теста).
+    // Справочники фильтров - пустые (не предмет теста).
     when(() => repo.listGroups()).thenAnswer((_) async => const Right([]));
     when(() => repo.listSuppliers()).thenAnswer((_) async => const Right([]));
   });
@@ -72,7 +72,7 @@ void main() {
       await cubit.loadMore();
 
       expect(cubit.state.goods.map((g) => g.id).toList(), ['a', 'b', 'c', 'd']);
-      expect(cubit.state.hasMore, isFalse); // 4 из 4 — больше не тянем
+      expect(cubit.state.hasMore, isFalse); // 4 из 4 - больше не тянем
       verify(
         () => repo.listGoods(
           query: any(named: 'query'),
@@ -100,7 +100,7 @@ void main() {
       expect(cubit.state.hasMore, isFalse);
       await cubit.loadMore();
 
-      // Только первичный запрос (offset=0) из init — второго не было.
+      // Только первичный запрос (offset=0) из init - второго не было.
       verify(
         () => repo.listGoods(
           query: any(named: 'query'),

@@ -12,7 +12,7 @@ import '../ui/portal_badge.dart';
 import '../ui/portal_checkbox.dart';
 import 'cells_controller.dart';
 
-/// Раскладка колонок списка ячеек — общая у шапки и строк, чтобы они не разошлись.
+/// Раскладка колонок списка ячеек - общая у шапки и строк, чтобы они не разошлись.
 class CellColumns extends StatelessWidget {
   const CellColumns({
     super.key,
@@ -47,8 +47,8 @@ class CellColumns extends StatelessWidget {
   );
 }
 
-/// Строка ячейки (ADHOC-57): колонками или стопкой подписанных строк; нажатие — в фокус и
-/// открыть карточку, галочка — отметить для массовой правки и печати.
+/// Строка ячейки (ADHOC-57): колонками или стопкой подписанных строк; нажатие - в фокус и
+/// открыть карточку, галочка - отметить для массовой правки и печати.
 class CellRow extends StatelessWidget {
   const CellRow({
     super.key,
@@ -63,7 +63,7 @@ class CellRow extends StatelessWidget {
   final bool columns;
   final ValueChanged<CellSetup> onOpen;
 
-  /// Нажали на строку — в фокус и открыть карточку.
+  /// Нажали на строку - в фокус и открыть карточку.
   void open() {
     c.focus(cell.id);
     onOpen(cell);

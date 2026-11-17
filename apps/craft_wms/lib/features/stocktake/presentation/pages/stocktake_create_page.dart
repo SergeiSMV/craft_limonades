@@ -30,8 +30,8 @@ import '../bloc/stocktake_create_cubit.dart';
 import '../widgets/stocktake_format.dart';
 import '../../../../core/utils/doc_number.dart';
 
-/// Новый пересчёт с ТСД (P10-04) — старшему смены (пока admin): ячейки сканом, внутренний
-/// склад или весь склад. Сложные области (группы, матрицы, поставщики, товары) — в портале.
+/// Новый пересчёт с ТСД (P10-04) - старшему смены (пока admin): ячейки сканом, внутренний
+/// склад или весь склад. Сложные области (группы, матрицы, поставщики, товары) - в портале.
 @RoutePage()
 class StocktakeCreatePage extends StatelessWidget {
   const StocktakeCreatePage({super.key});
@@ -90,7 +90,7 @@ class _CreateViewState extends State<_CreateView> with HardwareScanListener {
   @override
   void onHardwareScan(ScanCode code) => onScan(code.raw);
 
-  /// Скан ячейки — в область «ячейки»: из справочника терминала, ячейка приёмки не входит.
+  /// Скан ячейки - в область «ячейки»: из справочника терминала, ячейка приёмки не входит.
   Future<void> onScan(String value) async {
     final code = value.trim();
     _scanController.clear();
@@ -116,7 +116,7 @@ class _CreateViewState extends State<_CreateView> with HardwareScanListener {
     if (mounted) _scanFocus.requestFocus();
   }
 
-  /// «Завести» на складе терминала — склад ячейки приёмки (один склад на терминал).
+  /// «Завести» на складе терминала - склад ячейки приёмки (один склад на терминал).
   Future<void> create() async {
     final res = await getIt<CatalogRepository>().defaultCell();
     if (!mounted) return;
@@ -136,7 +136,7 @@ class _CreateViewState extends State<_CreateView> with HardwareScanListener {
       ..showSnackBar(SnackBar(content: Text(text)));
   }
 
-  /// Итог: заведён — назад к заданиям; отказ — причина.
+  /// Итог: заведён - назад к заданиям; отказ - причина.
   void onState(BuildContext context, StocktakeCreateState state) {
     if (state.created case final c?) {
       snack(t.stocktake.createDone(number: docNumber(DocKind.stocktake, c.number), cells: c.cells));

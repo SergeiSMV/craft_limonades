@@ -14,7 +14,7 @@ import '../../support/fake_scanner_service.dart';
 class _MockRepo extends Mock implements CatalogRepository {}
 
 /// ADHOC-07: нижний лист смены ячейки, как и диалог привязки, не был подписан на поток
-/// сканера — в intent-режиме смена ячейки сканом молча не работала, только ручным вводом.
+/// сканера - в intent-режиме смена ячейки сканом молча не работала, только ручным вводом.
 void main() {
   const cell = Cell(id: 'c2', warehouseId: 'w1', address: 'M1-1-10-1');
   late _MockRepo repo;

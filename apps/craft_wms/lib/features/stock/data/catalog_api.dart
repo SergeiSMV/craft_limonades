@@ -48,7 +48,7 @@ class CatalogApi {
   }
 
   /// Товар по штрихкоду (P-FS-16): скан в строке поиска «Остатков» открывает карточку товара.
-  /// ШК уникален (`barcodes.barcode UNIQUE`), поэтому ответ — ровно один товар.
+  /// ШК уникален (`barcodes.barcode UNIQUE`), поэтому ответ - ровно один товар.
   /// ШК не привязан (404) → `Right(null)`: это не ошибка, а сигнал «показать обычный поиск».
   Future<Either<Failure, Good?>> resolveGoodByBarcode(String code) async {
     try {
@@ -64,11 +64,11 @@ class CatalogApi {
     }
   }
 
-  /// Штрихкоды товара (секция «Штрихкоды» в карточке, P-FS-12). Пустой список — норма.
+  /// Штрихкоды товара (секция «Штрихкоды» в карточке, P-FS-12). Пустой список - норма.
   /// Выдать товару внутренний штрихкод (P4-07).
   ///
   /// Только по сети: код обязан быть уникален во всей системе, а терминал без связи этого
-  /// гарантировать не может — заранее выданных ему диапазонов номеров нет (решение P4-09).
+  /// гарантировать не может - заранее выданных ему диапазонов номеров нет (решение P4-09).
   Future<Either<Failure, IssuedBarcode>> issueInternalBarcode(
     String goodId,
   ) async {
@@ -187,7 +187,7 @@ class CatalogApi {
     return Right(all);
   }
 
-  /// Все товары разом — для наполнения кэша (P2-02). Пагинирует внутри по `maxLimit`.
+  /// Все товары разом - для наполнения кэша (P2-02). Пагинирует внутри по `maxLimit`.
   Future<Either<Failure, List<Good>>> listAllGoods() async {
     const pageSize = 200; // = maxLimit read-API
     final all = <Good>[];
@@ -203,7 +203,7 @@ class CatalogApi {
     return Right(all);
   }
 
-  /// Все привязки ШК разом — справочник для офлайн-кэша (`GET /barcodes`, P2-02).
+  /// Все привязки ШК разом - справочник для офлайн-кэша (`GET /barcodes`, P2-02).
   /// Пагинирует внутри так же, как ячейки: страницами по `maxLimit`, пока не наберётся `total`.
   Future<Either<Failure, List<BarcodeLink>>> listAllBarcodes() async {
     const pageSize = 200; // = maxLimit read-API
@@ -228,13 +228,13 @@ class CatalogApi {
     return Right(all);
   }
 
-  /// Выкидывает null-значения из query — чтобы пустые фильтры не уходили в URL.
+  /// Выкидывает null-значения из query - чтобы пустые фильтры не уходили в URL.
   Map<String, dynamic> _compact(Map<String, dynamic> params) {
     params.removeWhere((_, v) => v == null || (v is String && v.isEmpty));
     return params;
   }
 
-  /// Перевод ошибки dio в доменную Failure — общее правило для всех репозиториев
+  /// Перевод ошибки dio в доменную Failure - общее правило для всех репозиториев
   /// (`core/error/dio_failure.dart`): своё в каждом репозитории уже разошлось однажды.
   Failure _mapError(DioException e) => mapDioError(e);
 }

@@ -36,7 +36,7 @@ class BadgeScanView extends StatelessWidget {
   /// Контроллер поля ввода бейджа.
   final TextEditingController controller;
 
-  /// Фокус поля — держим его на поле, чтобы ловить клавиатурный ввод сканера.
+  /// Фокус поля - держим его на поле, чтобы ловить клавиатурный ввод сканера.
   final FocusNode focusNode;
 
   /// Обработчик изменения значения поля.
@@ -45,11 +45,11 @@ class BadgeScanView extends StatelessWidget {
   /// Обработчик отправки значения поля.
   final ValueChanged<String> onSubmitted;
 
-  /// Тап по полю — включить экранную клавиатуру для ручного ввода.
+  /// Тап по полю - включить экранную клавиатуру для ручного ввода.
   final VoidCallback onTap;
 
   /// Экранная клавиатура запрошена. Пока `false`, IME не открывается вовсе
-  /// (`TextInputType.none`) — сканер шлёт ввод в сфокусированное поле и без неё,
+  /// (`TextInputType.none`) - сканер шлёт ввод в сфокусированное поле и без неё,
   /// а мелькание клавиатуры на ТСД дёргает высоту окна.
   final bool softKeyboard;
 
@@ -68,7 +68,7 @@ class BadgeScanView extends StatelessWidget {
         ),
       ),
       // Прокрутка с `minHeight` во всю высоту: содержимое стоит по центру, пока место есть, и
-      // прокручивается, когда его нет. Без этого экран рвался в ландшафте — там высота 360 dp
+      // прокручивается, когда его нет. Без этого экран рвался в ландшафте - там высота 360 dp
       // против нужных ~485, и колонка переполнялась на 128 px «зеброй». Тот же приём, что у
       // формы логина: обе формы входа ведут себя одинаково при повороте и при клавиатуре.
       child: SafeArea(
@@ -125,7 +125,7 @@ class BadgeScanView extends StatelessWidget {
                         style: SemiboldTextStyles().semiboldInter18.copyWith(
                           color: AppColors.kTileText,
                         ),
-                        // Пускаем только цифры и не больше 16 — сканер/ручной ввод дают чистый бейдж.
+                        // Пускаем только цифры и не больше 16 - сканер/ручной ввод дают чистый бейдж.
                         inputFormatters: [
                           FilteringTextInputFormatter.digitsOnly,
                           LengthLimitingTextInputFormatter(badgeLength),

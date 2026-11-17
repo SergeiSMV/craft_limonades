@@ -2,7 +2,7 @@ package auth
 
 import "testing"
 
-// Хеш и проверка: верный секрет проходит, неверный — нет.
+// Хеш и проверка: верный секрет проходит, неверный - нет.
 func TestHashAndVerifyPassword(t *testing.T) {
 	const secret = "23456781"
 

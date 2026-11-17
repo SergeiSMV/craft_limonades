@@ -13,9 +13,9 @@ typedef CurrentTasks = ({
   DateTime? syncedAt,
 });
 
-/// Задания склада для экранов (P5-02-1): сеть, а без связи — снимок текущих.
+/// Задания склада для экранов (P5-02-1): сеть, а без связи - снимок текущих.
 ///
-/// Взятие, отказ и лента «Завершённые» — только со связью: кто держит задание, знает сервер,
+/// Взятие, отказ и лента «Завершённые» - только со связью: кто держит задание, знает сервер,
 /// а ленту по решению 2026-10-07 офлайн не держим.
 @lazySingleton
 class TasksRepository {
@@ -34,18 +34,18 @@ class TasksRepository {
     }
     if (res.left is! NetworkFailure) return Left(res.left);
     final snapshot = await _cache.read();
-    // Снимка нет совсем — показать нечего, и честнее сказать «нет связи», чем «заданий нет».
+    // Снимка нет совсем - показать нечего, и честнее сказать «нет связи», чем «заданий нет».
     if (snapshot == null) return Left(res.left);
     final (tasks, syncedAt) = snapshot;
     return Right((tasks: tasks, fromCache: true, syncedAt: syncedAt));
   }
 
-  /// Число текущих заданий по снимку на терминале — для плитки главного меню; [allow] —
+  /// Число текущих заданий по снимку на терминале - для плитки главного меню; [allow] -
   /// только виды по правам должности (ADHOC-51).
   Stream<int> watchCurrentCount({bool Function(String kind)? allow}) =>
       _cache.watchCount(allow: allow);
 
-  /// Карточка задания с заходами и журналом — по сети.
+  /// Карточка задания с заходами и журналом - по сети.
   Future<Either<Failure, TaskDetailData>> detail(String id) => _api.detail(id);
 
   /// Взять задание в работу.

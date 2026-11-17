@@ -11,22 +11,22 @@ import (
 	"craftwms/internal/repository"
 )
 
-// ErrEmptyReceiptID — не указан документ приёмки.
+// ErrEmptyReceiptID - не указан документ приёмки.
 //
 // Остальные проверки переиспользуют ошибки, уже заведённые соседними сервисами
 // (ErrEmptyWarehouse, ErrEmptyGoodID, ErrInvalidQuantity, ErrInvalidDate): заводить синонимы
 // значило бы, что хендлеру придётся сопоставлять две ошибки на один смысл. ErrEmptyCell приёмке
-// не нужна — пустая ячейка здесь не ошибка, а просьба подставить умолчание (P4-03).
+// не нужна - пустая ячейка здесь не ошибка, а просьба подставить умолчание (P4-03).
 var ErrEmptyReceiptID = errors.New("receipt id is required")
 
-// ErrNoDefaultCell — у склада нет ячейки приёмки по умолчанию.
+// ErrNoDefaultCell - у склада нет ячейки приёмки по умолчанию.
 //
 // Заводится вместе со складом (сидер при развёртывании, импорт ячеек при новом складе), поэтому
-// её отсутствие — не рабочая ситуация кладовщика, а незавершённое развёртывание: приходовать
+// её отсутствие - не рабочая ситуация кладовщика, а незавершённое развёртывание: приходовать
 // «куда-нибудь» нельзя, и молчаливый выбор произвольной ячейки соврал бы про место хранения.
 var ErrNoDefaultCell = errors.New("warehouse has no default cell")
 
-// receiptRepo — зависимость сервиса от хранилища приёмки.
+// receiptRepo - зависимость сервиса от хранилища приёмки.
 type receiptRepo interface {
 	Create(ctx context.Context, id, warehouseID, supplierID, createdBy string, doc model.SupplierDoc) error
 	AddLine(ctx context.Context, receiptID string, in model.ReceiptLineInput) error
@@ -35,13 +35,13 @@ type receiptRepo interface {
 	Lines(ctx context.Context, receiptID string) ([]model.ReceiptLine, error)
 }
 
-// receiptCellRepo — зависимость сервиса от справочника ячеек: нужна только дефолтная ячейка.
+// receiptCellRepo - зависимость сервиса от справочника ячеек: нужна только дефолтная ячейка.
 // Узкий интерфейс вместо всего CellRepository: приёмке не нужны ни апсерт, ни этикетки.
 type receiptCellRepo interface {
 	DefaultID(ctx context.Context, warehouseID string) (string, error)
 }
 
-// ReceiptService — приёмка: набор документа и его оприходование (P4-02, API — P4-03).
+// ReceiptService - приёмка: набор документа и его оприходование (P4-02, API - P4-03).
 type ReceiptService struct {
 	repo  receiptRepo
 	cells receiptCellRepo
@@ -54,7 +54,7 @@ func NewReceiptService(repo receiptRepo, cells receiptCellRepo) *ReceiptService 
 
 // Start открывает документ приёмки с идентификатором, выданным устройством.
 // Повтор с тем же id безопасен: документ уже есть, второй не заводится.
-// [docNumber], [docDate] — накладная поставщика, обязательна (ADHOC-23).
+// [docNumber], [docDate] - накладная поставщика, обязательна (ADHOC-23).
 func (s *ReceiptService) Start(ctx context.Context, id, warehouseID, supplierID, createdBy, docNumber, docDate string) error {
 	if id == "" {
 		return ErrEmptyReceiptID
@@ -72,9 +72,9 @@ func (s *ReceiptService) Start(ctx context.Context, id, warehouseID, supplierID,
 // AddLine добавляет строку в документ и возвращает ячейку, в которую она легла.
 //
 // Ячейку возвращаем, потому что её мог подставить сервер: кладовщик её не выбирал и обязан
-// увидеть, куда именно принят товар, — иначе умолчание работает вслепую.
+// увидеть, куда именно принят товар, - иначе умолчание работает вслепую.
 //
-// Дата выпуска принимается в транспортном формате DD-MM-YYYY — том же, что у ввода остатков:
+// Дата выпуска принимается в транспортном формате DD-MM-YYYY - том же, что у ввода остатков:
 // кладовщик читает её с упаковки, и разные форматы на двух экранах приводили бы к ошибкам ввода.
 func (s *ReceiptService) AddLine(ctx context.Context, receiptID, goodID, productionDate, cellID, loadUnitID string, qty decimal.Decimal) (string, error) {
 	if receiptID == "" {
@@ -90,9 +90,9 @@ func (s *ReceiptService) AddLine(ctx context.Context, receiptID, goodID, product
 	if err != nil {
 		return "", err
 	}
-	// Ячейка не указана — приходуем в дефолтную ячейку склада документа (решение заказчика:
+	// Ячейка не указана - приходуем в дефолтную ячейку склада документа (решение заказчика:
 	// кладовщик не выбирает место на приёмке). Домен ячейку требует явно и про умолчание не знает
-	// (P4-02) — подставляет его этот слой, ровно здесь.
+	// (P4-02) - подставляет его этот слой, ровно здесь.
 	if cellID == "" {
 		cellID, err = s.defaultCell(ctx, receiptID)
 		if err != nil {
@@ -139,7 +139,7 @@ func (s *ReceiptService) Post(ctx context.Context, receiptID string) (int, error
 	return s.repo.Post(ctx, receiptID)
 }
 
-// Get возвращает шапку документа и его строки — для показа кладовщику.
+// Get возвращает шапку документа и его строки - для показа кладовщику.
 func (s *ReceiptService) Get(ctx context.Context, receiptID string) (model.Receipt, []model.ReceiptLine, error) {
 	if receiptID == "" {
 		return model.Receipt{}, nil, ErrEmptyReceiptID

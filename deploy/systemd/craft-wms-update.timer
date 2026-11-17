@@ -1,5 +1,5 @@
 [Unit]
-# Периодический запуск craft-wms-update.service. Интервал (__INTERVAL__) — из UPDATE_INTERVAL в .env.prod.
+# Периодический запуск craft-wms-update.service. Интервал (__INTERVAL__) - из UPDATE_INTERVAL в .env.prod.
 Description=Craft WMS auto-update timer
 
 [Timer]

@@ -9,7 +9,7 @@ import '../ui/portal_modal.dart';
 import '../ui/portal_input.dart';
 import '../ui/portal_button.dart';
 
-/// Код и имя нового склада; `null` — оператор передумал.
+/// Код и имя нового склада; `null` - оператор передумал.
 typedef WarehouseDraft = ({String code, String name});
 
 /// Диалог «Новый склад»: код (латиница, для отчётов) и имя (как видит кладовщик).
@@ -126,11 +126,11 @@ Future<bool> showDeleteWarehouseDialog(
   return ok ?? false;
 }
 
-/// «Отмена» — текстовая кнопка диалога.
+/// «Отмена» - текстовая кнопка диалога.
 Widget _cancel(BuildContext ctx, {Object? result}) =>
     portalCancel(ctx, label: t.portal.warehouses.cancel, result: result);
 
-/// Содержимое диалога — не шире половины колонки, как история документа.
+/// Содержимое диалога - не шире половины колонки, как история документа.
 class _DialogBody extends StatelessWidget {
   const _DialogBody({required this.children});
 

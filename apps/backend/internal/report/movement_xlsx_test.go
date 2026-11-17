@@ -38,7 +38,7 @@ func movementValue(t *testing.T, raw []byte, cell string) string {
 }
 
 // Шапка: операция, склад, основание (задание, поставщик, его накладная), исполнитель, дата по
-// Москве; таблица — откуда · куда · товар по партиям.
+// Москве; таблица - откуда · куда · товар по партиям.
 func TestBuildMovementXLSX(t *testing.T) {
 	raw, err := BuildMovementXLSX(movementSnap())
 	if err != nil {
@@ -77,7 +77,7 @@ func TestBuildMovementXLSX_noBasis(t *testing.T) {
 	}
 }
 
-// Задание по решению «разместить» (ADHOC-55): основание — проблема склада под её номером,
+// Задание по решению «разместить» (ADHOC-55): основание - проблема склада под её номером,
 // строк поставщика нет.
 func TestBuildMovementXLSX_problemBasis(t *testing.T) {
 	snap := movementSnap()
@@ -98,7 +98,7 @@ func TestBuildMovementXLSX_problemBasis(t *testing.T) {
 	}
 }
 
-// Марка (ADHOC-55) — последней колонкой; строка без марки оставляет её пустой.
+// Марка (ADHOC-55) - последней колонкой; строка без марки оставляет её пустой.
 func TestBuildMovementXLSX_mark(t *testing.T) {
 	snap := movementSnap()
 	snap.Rows[0].Qty, snap.Rows[0].Mark = "1", "0104600000000017215L1"
@@ -130,7 +130,7 @@ func TestBuildDocumentXLSX_movement(t *testing.T) {
 	}
 }
 
-// Операция в шапке — по-человечески для всех трёх движений; незнакомая — как есть.
+// Операция в шапке - по-человечески для всех трёх движений; незнакомая - как есть.
 func TestMovementOperationTitle(t *testing.T) {
 	for op, want := range map[string]string{
 		model.MovementOperationPutaway:   "Размещение",

@@ -18,7 +18,7 @@ import '../widgets/printer_probe/printer_status_card.dart';
 ///
 /// Что: показывает состояние Bluetooth, даёт выбрать принтер из спаренных или найти новый,
 ///      переключить язык команд и напечатать тестовую этикетку.
-/// Зачем: какой язык примет конкретный экземпляр принтера, по документации не выясняется —
+/// Зачем: какой язык примет конкретный экземпляр принтера, по документации не выясняется -
 ///      на дисплее XP-P323B заводской режим обозначен `EZD`, то есть набор эмуляций Zebra,
 ///      в котором TSPL не упомянут. Этот экран и есть инструмент такой проверки: выбрал язык,
 ///      нажал печать, посмотрел, что вышло из принтера.
@@ -38,7 +38,7 @@ class _PrinterProbePageState extends State<PrinterProbePage> {
   final _service = getIt<PrinterService>();
   final _ids = getIt<LoadUnitIdGenerator>();
 
-  /// Идентификатор последнего напечатанного пробного ярлыка — чтобы проверить повторную печать
+  /// Идентификатор последнего напечатанного пробного ярлыка - чтобы проверить повторную печать
   /// тем же кодом, а не новым.
   String? _lastLabelId;
 
@@ -89,7 +89,7 @@ class _PrinterProbePageState extends State<PrinterProbePage> {
     await _refresh();
   }
 
-  /// Забыть принтер — когда его заменили на другой.
+  /// Забыть принтер - когда его заменили на другой.
   Future<void> forgetDevice() async {
     await _run(_service.forget);
     await _refresh();
@@ -102,13 +102,13 @@ class _PrinterProbePageState extends State<PrinterProbePage> {
   }
 
   /// Запомнить размер рулона. Он объявляется принтеру с каждой печатью, поэтому применяется
-  /// сразу — отдельного «сохранить и перезапустить» не нужно.
+  /// сразу - отдельного «сохранить и перезапустить» не нужно.
   Future<void> changeGeometry(LabelGeometry value) async {
     await _service.saveGeometry(value);
     if (mounted) setState(() => _geometry = value);
   }
 
-  /// Напечатать пробный ярлык ГЕ. Первый тап печатает новый код, следующие — тот же:
+  /// Напечатать пробный ярлык ГЕ. Первый тап печатает новый код, следующие - тот же:
   /// так проверяется и печать при создании короба, и повторная печать испорченной наклейки.
   ///
   /// ГЕ на сервере здесь не заводится, поэтому наклейка помечается как пробная (ADHOC-19):
@@ -181,14 +181,14 @@ class _PrinterProbePageState extends State<PrinterProbePage> {
     }
   }
 
-  /// Найденное устройство — в список, без дублей: обнаружение повторяет одно устройство.
+  /// Найденное устройство - в список, без дублей: обнаружение повторяет одно устройство.
   void _onFound(PrinterDevice device) {
     if (!mounted) return;
     if (_found.any((d) => d.address == device.address)) return;
     setState(() => _found.add(device));
   }
 
-  /// Напечатать тестовую этикетку выбранным языком — критерий готовности задачи.
+  /// Напечатать тестовую этикетку выбранным языком - критерий готовности задачи.
   Future<void> printTest() async {
     setState(() => _busy = true);
     final printed = await _run(() => _service.printTestLabel(_language));
@@ -198,10 +198,10 @@ class _PrinterProbePageState extends State<PrinterProbePage> {
     await _refresh();
   }
 
-  /// Выполняет действие, показывая отказ человеку вместо падения. `false` — не удалось.
+  /// Выполняет действие, показывая отказ человеку вместо падения. `false` - не удалось.
   ///
   /// Отдельно от [_fetch], потому что у действия нет результата, и `null` как признак неудачи
-  /// пришлось бы изображать через `void?` — тип, по которому ничего не проверишь.
+  /// пришлось бы изображать через `void?` - тип, по которому ничего не проверишь.
   Future<bool> _run(Future<void> Function() action) async {
     try {
       await action();
@@ -212,7 +212,7 @@ class _PrinterProbePageState extends State<PrinterProbePage> {
     }
   }
 
-  /// Читает значение, показывая отказ человеку вместо падения. `null` — не удалось.
+  /// Читает значение, показывая отказ человеку вместо падения. `null` - не удалось.
   Future<T?> _fetch<T>(Future<T> Function() action) async {
     try {
       return await action();
@@ -224,7 +224,7 @@ class _PrinterProbePageState extends State<PrinterProbePage> {
 
   void _report(Object error) {
     final message = error is PrinterFailure ? error.message : '$error';
-    // Выключенная геолокация чинится в системных настройках — даём кнопку туда (ADHOC-20).
+    // Выключенная геолокация чинится в системных настройках - даём кнопку туда (ADHOC-20).
     if (error is PrinterFailure &&
         error.kind == PrinterFailureKind.locationOff) {
       _snack(
@@ -386,7 +386,7 @@ class _PrinterProbePageState extends State<PrinterProbePage> {
     );
   }
 
-  /// Секция со списком устройств; [empty] — что показать, когда список пуст.
+  /// Секция со списком устройств; [empty] - что показать, когда список пуст.
   Widget _deviceSection(
     String title,
     List<PrinterDevice> devices,

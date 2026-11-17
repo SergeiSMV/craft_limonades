@@ -11,7 +11,7 @@ import (
 
 const cellsSamplePath = "../importer/testdata/cells_sample.xlsx"
 
-// TestImportCells_realFile — полный импорт реального файла ячеек в живой Postgres:
+// TestImportCells_realFile - полный импорт реального файла ячеек в живой Postgres:
 // заводится физический склад + 125 ячеек с признаком floor, дефолтная ячейка приёмки и ячейка отгрузки;
 // повторный импорт идемпотентен.
 func TestImportCells_realFile(t *testing.T) {
@@ -44,7 +44,7 @@ func TestImportCells_realFile(t *testing.T) {
 		t.Errorf("ячеек: ожидалось 127 (125 из файла + приёмка и отгрузка), получено %d", got)
 	}
 	// Дефолтная ячейка заводится импортом, а не человеком: склад без неё означал бы,
-	// что приёмка на нём невозможна (P4-03). В отчёт она не попадает — отчёт про файл.
+	// что приёмка на нём невозможна (P4-03). В отчёт она не попадает - отчёт про файл.
 	var dfltAddress string
 	if err := pool.QueryRow(ctx,
 		`SELECT address FROM cells WHERE is_default`).Scan(&dfltAddress); err != nil {
@@ -53,7 +53,7 @@ func TestImportCells_realFile(t *testing.T) {
 	if dfltAddress != model.DefaultCellAddress {
 		t.Errorf("дефолтная ячейка: %q, ожидалась %q", dfltAddress, model.DefaultCellAddress)
 	}
-	// Ячейка отгрузки (P9-02) — по той же причине: без неё на складе не собрать заказ.
+	// Ячейка отгрузки (P9-02) - по той же причине: без неё на складе не собрать заказ.
 	var shipAddress string
 	if err := pool.QueryRow(ctx,
 		`SELECT address FROM cells WHERE is_shipping`).Scan(&shipAddress); err != nil {
@@ -69,8 +69,8 @@ func TestImportCells_realFile(t *testing.T) {
 	if floors != 25 {
 		t.Errorf("напольных ячеек: ожидалось 25, получено %d", floors)
 	}
-	// Стеллажи (ADHOC-57): 12 из листа racks, у 6 — карточка на стойку; ячейка знает свой стеллаж.
-	// Галочка карточки — у ячеек этих стеллажей без штрих-кода на балке (умолчание листа racks).
+	// Стеллажи (ADHOC-57): 12 из листа racks, у 6 - карточка на стойку; ячейка знает свой стеллаж.
+	// Галочка карточки - у ячеек этих стеллажей без штрих-кода на балке (умолчание листа racks).
 	if rep.RacksCreated != 12 || rep.RacksUpdated != 0 {
 		t.Errorf("стеллажи: ожидалось created=12 updated=0, получено %d и %d", rep.RacksCreated, rep.RacksUpdated)
 	}

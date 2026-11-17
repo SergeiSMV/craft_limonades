@@ -12,12 +12,12 @@ import (
 	"craftwms/internal/model"
 )
 
-// problemReasonsLockKey — рекомендательная блокировка правки справочника причин: две правки
+// problemReasonsLockKey - рекомендательная блокировка правки справочника причин: две правки
 // из портала не перепишут список вариантов причины вперемешку.
 const problemReasonsLockKey = 1030
 
-// ProblemReasonRepository — справочник причин проблем и вариантов решения (ADHOC-55): чтение
-// для ТСД и портала, ведение — из портала. Каждая правка пишется в audit_log.
+// ProblemReasonRepository - справочник причин проблем и вариантов решения (ADHOC-55): чтение
+// для ТСД и портала, ведение - из портала. Каждая правка пишется в audit_log.
 type ProblemReasonRepository struct {
 	pool *pgxpool.Pool
 }
@@ -27,7 +27,7 @@ func NewProblemReasonRepository(pool *pgxpool.Pool) *ProblemReasonRepository {
 	return &ProblemReasonRepository{pool: pool}
 }
 
-// Reasons — все причины, и неактивные, в порядке заведения; у каждой — коды вариантов в порядке
+// Reasons - все причины, и неактивные, в порядке заведения; у каждой - коды вариантов в порядке
 // справочника вариантов.
 func (r *ProblemReasonRepository) Reasons(ctx context.Context) ([]model.ProblemReason, error) {
 	rows, err := r.pool.Query(ctx, `
@@ -47,7 +47,7 @@ func (r *ProblemReasonRepository) Reasons(ctx context.Context) ([]model.ProblemR
 	})
 }
 
-// Resolutions — все варианты решения, и неактивные, в порядке заведения.
+// Resolutions - все варианты решения, и неактивные, в порядке заведения.
 func (r *ProblemReasonRepository) Resolutions(ctx context.Context) ([]model.ProblemResolution, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT id::text, name, action, is_active FROM problem_resolutions ORDER BY ord`)
@@ -61,7 +61,7 @@ func (r *ProblemReasonRepository) Resolutions(ctx context.Context) ([]model.Prob
 	})
 }
 
-// resolutionByID — один вариант решения; нет такого — ErrResolutionNotFound. Общий у
+// resolutionByID - один вариант решения; нет такого - ErrResolutionNotFound. Общий у
 // справочника и решения по проблеме.
 func resolutionByID(ctx context.Context, q Querier, id string) (model.ProblemResolution, error) {
 	var x model.ProblemResolution
@@ -79,7 +79,7 @@ func resolutionByID(ctx context.Context, q Querier, id string) (model.ProblemRes
 
 // SaveReason заводит причину (пустой код) или правит её; возвращает код.
 //
-// Как: одной транзакцией под блокировкой справочника — запись причины и, если список передан,
+// Как: одной транзакцией под блокировкой справочника - запись причины и, если список передан,
 // замена её вариантов целиком. Системную причину выключить нельзя; правило «пересорт только
 // у пересорта» держит триггер базы, его отказ переводится в ErrResolutionRegradeMismatch.
 func (r *ProblemReasonRepository) SaveReason(ctx context.Context, in model.ProblemReasonInput) (string, error) {
@@ -189,7 +189,7 @@ func reasonError(err error) error {
 			return model.ErrResolutionNotFound
 		case "23514":
 			if pgErr.ConstraintName == "" {
-				// Отказ триггера «пересорт только у пересорта» — у RAISE нет имени ограничения.
+				// Отказ триггера «пересорт только у пересорта» - у RAISE нет имени ограничения.
 				return model.ErrResolutionRegradeMismatch
 			}
 			return model.ErrInvalidProblemReason

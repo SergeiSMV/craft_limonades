@@ -13,10 +13,10 @@ import (
 	"craftwms/internal/service"
 )
 
-// defaultLabelsWarehouse — склад по умолчанию для этикеток (на пилоте один — «Шабулина»).
+// defaultLabelsWarehouse - склад по умолчанию для этикеток (на пилоте один - «Шабулина»).
 const defaultLabelsWarehouse = "SHB"
 
-// LabelHandler — PDF этикеток ячеек и карточек на стойку (ADHOC-57, геометрия rack_labels).
+// LabelHandler - PDF этикеток ячеек и карточек на стойку (ADHOC-57, геометрия rack_labels).
 type LabelHandler struct {
 	svc *service.LabelService
 }
@@ -26,16 +26,16 @@ func NewLabelHandler(svc *service.LabelService) *LabelHandler {
 	return &LabelHandler{svc: svc}
 }
 
-// labelsRequest — что печатать: вид PDF и выбранные ячейки (пусто — весь склад).
+// labelsRequest - что печатать: вид PDF и выбранные ячейки (пусто - весь склад).
 type labelsRequest struct {
 	Kind    string   `json:"kind"`
 	CellIDs []string `json:"cell_ids"`
 }
 
-// CellLabelsPDF: POST /api/v1/cells/labels.pdf?warehouse=SHB — тело {"kind": "large"|"small"|"cards",
+// CellLabelsPDF: POST /api/v1/cells/labels.pdf?warehouse=SHB - тело {"kind": "large"|"small"|"cards",
 // "cell_ids": [...]}. POST, а не GET: выборка из тысяч id в адрес не влезает.
 // 200 application/pdf (labels_large.pdf, labels_small.pdf, side_cards.pdf) / 400 / 404 /
-// 409 (чужие ячейки) / 422 (печатать нечего или не влезает — причины в тексте ошибки).
+// 409 (чужие ячейки) / 422 (печатать нечего или не влезает - причины в тексте ошибки).
 func (h *LabelHandler) CellLabelsPDF(w http.ResponseWriter, r *http.Request) {
 	var req labelsRequest
 	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, cellSetupMaxBody)).Decode(&req); err != nil {
@@ -58,7 +58,7 @@ func (h *LabelHandler) CellLabelsPDF(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	case errors.Is(err, repository.ErrForeignCells):
-		writeError(w, http.StatusConflict, "часть ячеек не найдена на складе — обновите страницу")
+		writeError(w, http.StatusConflict, "часть ячеек не найдена на складе - обновите страницу")
 		return
 	case errors.Is(err, labels.ErrNothingToPrint):
 		writeError(w, http.StatusUnprocessableEntity, "в выбранных ячейках нет этикеток этого вида")

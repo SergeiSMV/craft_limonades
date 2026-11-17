@@ -20,9 +20,9 @@ abstract final class CatalogName {
 /// Чтение и запись кэша справочников (P2-02).
 ///
 /// Что: единственное место, где доменные модели превращаются в строки локальной базы и обратно.
-/// Зачем: репозиторий не должен знать про drift, а база — про модели API; иначе замена одного
+/// Зачем: репозиторий не должен знать про drift, а база - про модели API; иначе замена одного
 ///        потянет за собой другое.
-/// Как: запись справочника — всегда полная замена в транзакции (см. [_replace]); чтение
+/// Как: запись справочника - всегда полная замена в транзакции (см. [_replace]); чтение
 ///      повторяет семантику серверного API, чтобы экраны не различали источник данных.
 ///
 /// Лежит рядом с `CatalogRepository`, а не в `core`: обе стороны работают с доменными моделями
@@ -39,7 +39,7 @@ class CatalogCache {
   ///
   /// Именно замена, а не слияние: сервер отдаёт справочник целиком, и удалённые на сервере
   /// записи иначе остались бы в кэше навсегда. Транзакция нужна, чтобы падение посреди записи
-  /// не оставило половину справочника — лучше прежний кэш целиком, чем новый наполовину.
+  /// не оставило половину справочника - лучше прежний кэш целиком, чем новый наполовину.
   Future<void> _replace<T extends Table, D>(
     TableInfo<T, D> table,
     String catalog,
@@ -128,7 +128,7 @@ class CatalogCache {
         .toList(),
   );
 
-  /// Уложить привязки ШК. [entries] — пары «штрихкод → товар».
+  /// Уложить привязки ШК. [entries] - пары «штрихкод → товар».
   Future<void> putBarcodes(
     List<({String barcode, String goodId, String? symbology})> entries,
   ) => _replace(
@@ -146,7 +146,7 @@ class CatalogCache {
   );
 
   /// Признак «маркируемый» у товара в кэше (CZ-05): после правки admin и после привязки ШК
-  /// из марки — карточка и приёмка видят его сразу, не дожидаясь загрузки справочника.
+  /// из марки - карточка и приёмка видят его сразу, не дожидаясь загрузки справочника.
   Future<void> setGoodCzMarked(String goodId, bool marked) =>
       (_db.update(_db.cachedGoods)..where((g) => g.id.equals(goodId))).write(
         CachedGoodsCompanion(czMarked: Value(marked)),
@@ -155,7 +155,7 @@ class CatalogCache {
   /// Точечно добавить привязку, чтобы кэш не отстал до следующей синхронизации. Полной
   /// заменой тут пользоваться нельзя: остальные привязки никуда не делись.
   ///
-  /// [pending] — привязка сделана на устройстве и сервером ещё не подтверждена (P2-06).
+  /// [pending] - привязка сделана на устройстве и сервером ещё не подтверждена (P2-06).
   Future<void> addBarcode({
     required String barcode,
     required String goodId,
@@ -172,19 +172,19 @@ class CatalogCache {
         ),
       );
 
-  /// Снять пометку «ожидает» — сервер подтвердил привязку (P2-06).
+  /// Снять пометку «ожидает» - сервер подтвердил привязку (P2-06).
   Future<void> confirmBarcode(String barcode) =>
       (_db.update(_db.cachedBarcodes)..where((t) => t.barcode.equals(barcode)))
           .write(const CachedBarcodesCompanion(pending: Value(false)));
 
-  /// Точечно снять привязку — после успешной отвязки на сервере.
+  /// Точечно снять привязку - после успешной отвязки на сервере.
   Future<void> removeBarcode(String barcode) => (_db.delete(
     _db.cachedBarcodes,
   )..where((t) => t.barcode.equals(barcode))).go();
 
   //* --- чтение --- *//
 
-  /// Время последней успешной загрузки справочника; `null` — не грузился ни разу.
+  /// Время последней успешной загрузки справочника; `null` - не грузился ни разу.
   Future<DateTime?> syncedAt(String catalog) async {
     final row = await (_db.select(
       _db.catalogSyncMarks,
@@ -206,9 +206,9 @@ class CatalogCache {
   Future<bool> has(String catalog) async =>
       (await loadedCatalogs()).contains(catalog);
 
-  /// Поиск товаров: «все слова присутствуют, порядок не важен» — как на сервере (P-FS-17).
+  /// Поиск товаров: «все слова присутствуют, порядок не важен» - как на сервере (P-FS-17).
   ///
-  /// [groupIds] — уже развёрнутое поддерево групп: разворачивать его здесь нельзя, потому что
+  /// [groupIds] - уже развёрнутое поддерево групп: разворачивать его здесь нельзя, потому что
   /// дерево нужно целиком, а это забота вызывающего ([descendantGroupIds]).
   Future<Paged<Good>> searchGoods({
     String? query,
@@ -251,7 +251,7 @@ class CatalogCache {
     );
   }
 
-  /// Товар по идентификатору; `null` — нет в кэше.
+  /// Товар по идентификатору; `null` - нет в кэше.
   Future<Good?> goodById(String id) async {
     final row = await (_db.select(
       _db.cachedGoods,
@@ -270,7 +270,7 @@ class CatalogCache {
     return {for (final r in rows) r.id: _toGood(r)};
   }
 
-  /// Товар по штрихкоду; `null` — ШК не привязан ни к одному товару в кэше.
+  /// Товар по штрихкоду; `null` - ШК не привязан ни к одному товару в кэше.
   Future<Good?> goodByBarcode(String barcode) async {
     final link = await (_db.select(
       _db.cachedBarcodes,
@@ -311,7 +311,7 @@ class CatalogCache {
         .toList();
   }
 
-  /// Поставщики, при непустом [query] — по вхождению в название.
+  /// Поставщики, при непустом [query] - по вхождению в название.
   Future<List<Supplier>> suppliers({String? query}) async {
     final select = _db.select(_db.cachedSuppliers)
       ..orderBy([(t) => OrderingTerm(expression: t.name)]);
@@ -323,7 +323,7 @@ class CatalogCache {
     return filtered.map((r) => Supplier(id: r.id, name: r.name)).toList();
   }
 
-  /// Ячейки склада: [query] — вхождение в адрес, [isFloor] — только напольные/неновопольные.
+  /// Ячейки склада: [query] - вхождение в адрес, [isFloor] - только напольные/неновопольные.
   Future<List<Cell>> cells({
     String? query,
     String? warehouseId,
@@ -348,7 +348,7 @@ class CatalogCache {
   /// Идентификаторы группы и всех её потомков.
   ///
   /// Зачем: выбор родительской группы должен показывать товары из вложенных, иначе фильтр по
-  /// верхнему уровню даёт пусто. На сервере это рекурсивный CTE (P1-07), здесь — обход дерева
+  /// верхнему уровню даёт пусто. На сервере это рекурсивный CTE (P1-07), здесь - обход дерева
   /// в памяти: групп немного, и грузятся они всё равно целиком.
   static List<String> descendantGroupIds(
     List<NomenclatureGroup> all,

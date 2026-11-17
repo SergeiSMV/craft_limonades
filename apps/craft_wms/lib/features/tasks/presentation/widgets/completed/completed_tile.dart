@@ -14,7 +14,7 @@ import '../../../data/tasks_models.dart';
 import '../common/task_format.dart';
 import '../../../../../core/utils/doc_number.dart';
 
-/// Запись ленты «Завершённые»: задание целиком — номер и вид, основание, исполнители, время.
+/// Запись ленты «Завершённые»: задание целиком - номер и вид, основание, исполнители, время.
 class CompletedTile extends StatelessWidget {
   const CompletedTile({super.key, required this.task, required this.onTap});
 
@@ -78,7 +78,7 @@ class CompletedTile extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  // Пересчёт (ADHOC-58) — область и ход вместо заходов: его заходы — ячейки.
+                  // Пересчёт (ADHOC-58) - область и ход вместо заходов: его заходы - ячейки.
                   if (task.stocktake case final st?) ...[
                     Text(
                       t.stocktake.scope(scope: scopeLabel(st.scopeKind)),

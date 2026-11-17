@@ -25,7 +25,7 @@ ThemeData buildAppTheme() {
 }
 
 /// Тема веб-портала (десктоп) по дизайн-макету: янтарный акцент, шрифт Inter,
-/// светлый фон, скруглённые поля/кнопки. Отдельна от [buildAppTheme] — у портала
+/// светлый фон, скруглённые поля/кнопки. Отдельна от [buildAppTheme] - у портала
 /// свой визуальный язык (не «пальцевый», как на ТСД).
 ThemeData buildPortalTheme() {
   final scheme = ColorScheme.fromSeed(
@@ -41,7 +41,7 @@ ThemeData buildPortalTheme() {
 
   return base.copyWith(
     scaffoldBackgroundColor: AppColors.kBg,
-    // Шрифт Inter — из бандла (assets/fonts/Inter, FontFamily.inter), без google_fonts.
+    // Шрифт Inter - из бандла (assets/fonts/Inter, FontFamily.inter), без google_fonts.
     textTheme: base.textTheme
         .apply(fontFamily: FontFamily.inter, bodyColor: AppColors.kTextMain, displayColor: AppColors.kTextMain),
     // Поля ввода: залитые, скруглённые, янтарный фокус (по макету).
@@ -61,7 +61,7 @@ ThemeData buildPortalTheme() {
         borderSide: BorderSide(color: AppColors.kPrimary, width: AppSizes.kIcon2),
       ),
     ),
-    // Основная кнопка — янтарная, скруглённая.
+    // Основная кнопка - янтарная, скруглённая.
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
         backgroundColor: AppColors.kPrimary,
@@ -74,7 +74,7 @@ ThemeData buildPortalTheme() {
         ),
       ),
     ),
-    // Вторичная кнопка (контур) — янтарный контур/текст.
+    // Вторичная кнопка (контур) - янтарный контур/текст.
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
         foregroundColor: AppColors.kPrimary,

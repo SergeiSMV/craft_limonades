@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// Отправка ошибок приложения (ADHOC-47): DSN из адреса API и что пересылается из `talker`.
 void main() {
   group('DSN из адреса API', () {
-    test('ТСД: абсолютный адрес — тот же сервер, путь API не нужен', () {
+    test('ТСД: абсолютный адрес - тот же сервер, путь API не нужен', () {
       expect(
         ErrorReporting.dsnFor('https://craft.skogi.ru/api/v1/'),
         'https://wms@craft.skogi.ru/1',
@@ -19,7 +19,7 @@ void main() {
       );
     });
 
-    test('портал: относительный адрес — от адреса страницы', () {
+    test('портал: относительный адрес - от адреса страницы', () {
       expect(
         ErrorReporting.dsnFor(
           '/api/v1/',

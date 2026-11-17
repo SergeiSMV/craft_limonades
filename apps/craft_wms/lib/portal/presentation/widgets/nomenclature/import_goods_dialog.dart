@@ -16,7 +16,7 @@ import '../ui/portal_drop_zone.dart';
 import '../ui/portal_modal.dart';
 
 /// Окно «Загрузить из 1С» страницы «Номенклатура склада» (ADHOC-56): выбор `.xls`-выгрузки,
-/// загрузка и отчёт импорта. `true` — справочник обновлён, список страницы надо перечитать.
+/// загрузка и отчёт импорта. `true` - справочник обновлён, список страницы надо перечитать.
 Future<bool> showImportGoodsDialog(BuildContext context) async =>
     await showDialog<bool>(
       context: context,
@@ -34,7 +34,7 @@ class _ImportGoodsDialog extends StatefulWidget {
 class _ImportGoodsDialogState extends State<_ImportGoodsDialog> {
   final _repo = getIt<NomenclatureRepository>();
 
-  /// Выбранный файл: имя и байты (на вебе файла на диске нет — работаем с байтами).
+  /// Выбранный файл: имя и байты (на вебе файла на диске нет - работаем с байтами).
   String? _filename;
   List<int>? _bytes;
 
@@ -54,7 +54,7 @@ class _ImportGoodsDialogState extends State<_ImportGoodsDialog> {
     });
   }
 
-  /// Загрузить выбранный файл; отказ сервера по файлу (нет колонки, не читается) — его текстом.
+  /// Загрузить выбранный файл; отказ сервера по файлу (нет колонки, не читается) - его текстом.
   Future<void> upload() async {
     final bytes = _bytes;
     final filename = _filename;
@@ -74,7 +74,7 @@ class _ImportGoodsDialogState extends State<_ImportGoodsDialog> {
     });
   }
 
-  /// Закрыть окно; после загрузки — с сигналом перечитать список.
+  /// Закрыть окно; после загрузки - с сигналом перечитать список.
   void close() => Navigator.of(context).pop(_report != null);
 
   String _text(Failure f) => switch (f) {
@@ -121,7 +121,7 @@ class _ImportGoodsDialogState extends State<_ImportGoodsDialog> {
             icon: Icons.upload,
             kind: PortalButtonKind.primary,
             busy: _uploading,
-            // Файл ещё не выбран — кнопка открывает выбор, как и сама зона.
+            // Файл ещё не выбран - кнопка открывает выбор, как и сама зона.
             onPressed: _bytes == null ? pickFile : upload,
           ),
       ],
@@ -129,7 +129,7 @@ class _ImportGoodsDialogState extends State<_ImportGoodsDialog> {
   }
 }
 
-/// Отчёт импорта: счётчики и пропущенные строки — каждый факт своей строкой.
+/// Отчёт импорта: счётчики и пропущенные строки - каждый факт своей строкой.
 class _Report extends StatelessWidget {
   const _Report({required this.report});
 

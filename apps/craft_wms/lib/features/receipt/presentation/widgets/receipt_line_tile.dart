@@ -13,7 +13,7 @@ import '../bloc/receipt_models.dart';
 ///
 /// Ячейка показывается у штучных строк: в общем списке они могут лежать в разных ячейках,
 /// и без пометки кладовщик не отличил бы две строки одного товара. На странице короба ячейка
-/// одна на весь короб и стоит в шапке — там её на строке нет.
+/// одна на весь короб и стоит в шапке - там её на строке нет.
 class ReceiptLineTile extends StatelessWidget {
   const ReceiptLineTile({
     super.key,
@@ -24,7 +24,7 @@ class ReceiptLineTile extends StatelessWidget {
 
   final ReceiptLineDraft line;
 
-  /// Адрес ячейки строки; `null` — не показывать (строка короба).
+  /// Адрес ячейки строки; `null` - не показывать (строка короба).
   final String? cellAddress;
   final VoidCallback? onLongPress;
 
@@ -55,7 +55,7 @@ class ReceiptLineTile extends StatelessWidget {
                 color: AppColors.kTextMuted,
               ),
             ),
-            // Марки ЧЗ строки и расхождения — каждое своей строкой (CZ-05).
+            // Марки ЧЗ строки и расхождения - каждое своей строкой (CZ-05).
             if (line.marks.isNotEmpty)
               Text(
                 t.receipt.czMarksLine(count: line.marks.length),

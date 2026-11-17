@@ -9,17 +9,17 @@ import (
 	"craftwms/internal/model"
 )
 
-// Документ «Инвентаризация» (P10-05) — один на пересчёт, в транзакции закрытия.
+// Документ «Инвентаризация» (P10-05) - один на пересчёт, в транзакции закрытия.
 //
 // Остаток WMS к факту приводит подсчёт каждой ячейки; документ нужен 1С: по нему оператор
-// заносит расхождения и отмечает «Выполнено». Строки — все подсчитанные позиции по ячейке,
+// заносит расхождения и отмечает «Выполнено». Строки - все подсчитанные позиции по ячейке,
 // товару, партии и складу WMS: россыпь и состав коробов складываются (1С знает товар, а не
-// короба). Не найденное с проблемой склада помечено, неподсчитанная ячейка — строкой
+// короба). Не найденное с проблемой склада помечено, неподсчитанная ячейка - строкой
 // «не считалась».
 
 // Пометки строк «Инвентаризации».
 const (
-	stocktakeNoteNotFound = "не найдено — проблема склада"
+	stocktakeNoteNotFound = "не найдено - проблема склада"
 	stocktakeNoteSkipped  = "не считалась"
 )
 
@@ -42,7 +42,7 @@ func saveStocktakeDocument(ctx context.Context, q Querier, stocktakeID, userID s
 	return logEvent(ctx, q, documentID, model.DocEventCreated, userID, "")
 }
 
-// stocktakeRowKey — строка документа: ячейка · товар · партия · склад WMS.
+// stocktakeRowKey - строка документа: ячейка · товар · партия · склад WMS.
 type stocktakeRowKey struct{ cell, good, batch, iwh string }
 
 // buildStocktakeSnapshot собирает шапку и строки «Инвентаризации».
@@ -60,7 +60,7 @@ func buildStocktakeSnapshot(ctx context.Context, q Querier, stocktakeID string) 
 	}
 
 	// Товарные строки подсчитанных ячеек (россыпь и состав коробов) и по строке на каждую
-	// неподсчитанную. Не найдено — проблема у строки короба или у марок строки россыпи.
+	// неподсчитанную. Не найдено - проблема у строки короба или у марок строки россыпи.
 	rows, err := q.Query(ctx, `
 		SELECT c.address, sc.status = 'counted',
 		       COALESCE(l.good_id::text, ''), g.code, COALESCE(g.name, ''),
@@ -86,7 +86,7 @@ func buildStocktakeSnapshot(ctx context.Context, q Querier, stocktakeID string) 
 	}
 	defer rows.Close()
 
-	// Строки копятся в порядке запроса (по адресу ячейки); неподсчитанная ячейка — тоже строка,
+	// Строки копятся в порядке запроса (по адресу ячейки); неподсчитанная ячейка - тоже строка,
 	// чтобы она стояла на своём месте среди подсчитанных.
 	type agg struct {
 		row            model.ReportSnapshotRow
@@ -111,7 +111,7 @@ func buildStocktakeSnapshot(ctx context.Context, q Querier, stocktakeID string) 
 			continue
 		}
 		if k.good == "" {
-			continue // подсчитанная ячейка без товара — пустая, строк нет
+			continue // подсчитанная ячейка без товара - пустая, строк нет
 		}
 		a, ok := byKey[k]
 		if !ok {
@@ -150,7 +150,7 @@ func buildStocktakeSnapshot(ctx context.Context, q Querier, stocktakeID string) 
 		if a.expected.IsZero() && a.fact.IsZero() {
 			continue
 		}
-		// Маркируемый товар — строка на марку (ADHOC-55); что марками не покрыто — общей строкой.
+		// Маркируемый товар - строка на марку (ADHOC-55); что марками не покрыто - общей строкой.
 		expected, fact := a.expected, a.fact
 		for _, m := range marks[k] {
 			r := a.row
@@ -176,13 +176,13 @@ func buildStocktakeSnapshot(ctx context.Context, q Querier, stocktakeID string) 
 	return snap, nil
 }
 
-// stocktakeMark — марка строки «Инвентаризации»: ожидалась ли в ячейке и найдена ли.
+// stocktakeMark - марка строки «Инвентаризации»: ожидалась ли в ячейке и найдена ли.
 type stocktakeMark struct {
 	cis             string
 	expected, found bool
 }
 
-// markCount — марка в количестве: 1 или 0.
+// markCount - марка в количестве: 1 или 0.
 func markCount(b bool) decimal.Decimal {
 	if b {
 		return decimal.NewFromInt(1)
@@ -190,11 +190,11 @@ func markCount(b bool) decimal.Decimal {
 	return decimal.Zero
 }
 
-// stocktakeMarks — марки ЧЗ подсчитанных позиций по строке документа (ADHOC-55).
+// stocktakeMarks - марки ЧЗ подсчитанных позиций по строке документа (ADHOC-55).
 //
-// Россыпь и вскрытый короб считаются марками (stocktake_marks): ожидалась — снимок при начале
-// подсчёта, найдена — скан. Короб, подтверждённый целиком, марок в пересчёте не несёт — его
-// марки берутся из состава короба: найдены, если позиция короба сошлась. Позиция короба, найденная частично, марки не делит — кто именно нашёлся, неизвестно,
+// Россыпь и вскрытый короб считаются марками (stocktake_marks): ожидалась - снимок при начале
+// подсчёта, найдена - скан. Короб, подтверждённый целиком, марок в пересчёте не несёт - его
+// марки берутся из состава короба: найдены, если позиция короба сошлась. Позиция короба, найденная частично, марки не делит - кто именно нашёлся, неизвестно,
 // и она остаётся общей строкой.
 func stocktakeMarks(ctx context.Context, q Querier, stocktakeID string) (map[stocktakeRowKey][]stocktakeMark, error) {
 	rows, err := q.Query(ctx, `

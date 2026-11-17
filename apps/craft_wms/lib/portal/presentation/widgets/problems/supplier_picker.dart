@@ -12,8 +12,8 @@ import '../../../../core/utils/search_text.dart';
 import '../../../data/problems_repository.dart';
 import '../ui/portal_input.dart';
 
-/// Выбор поставщика возврата (ADHOC-30, плоский стиль — ADHOC-56): поле поиска и под ним
-/// список строк в рамке с прокруткой, выбранный — полужирным с галочкой. Вместо
+/// Выбор поставщика возврата (ADHOC-30, плоский стиль - ADHOC-56): поле поиска и под ним
+/// список строк в рамке с прокруткой, выбранный - полужирным с галочкой. Вместо
 /// `DropdownMenu` с его темой: поставщиков сотни, и их ищут по словам названия, а не листают.
 class SupplierPicker extends StatefulWidget {
   const SupplierPicker({
@@ -47,7 +47,7 @@ class _SupplierPickerState extends State<SupplierPicker> {
   @override
   Widget build(BuildContext context) {
     final words = searchWords(_query);
-    // Выбранный — первым: подсказка из справочника видна сразу, без прокрутки.
+    // Выбранный - первым: подсказка из справочника видна сразу, без прокрутки.
     final shown =
         [
           for (final s in widget.suppliers)
@@ -114,7 +114,7 @@ class _SupplierPickerState extends State<SupplierPicker> {
   }
 }
 
-/// Строка поставщика: название, у выбранного — полужирное с галочкой справа.
+/// Строка поставщика: название, у выбранного - полужирное с галочкой справа.
 class _SupplierRow extends StatelessWidget {
   const _SupplierRow({
     required this.name,

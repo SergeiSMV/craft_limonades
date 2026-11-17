@@ -23,7 +23,7 @@ func linesError(t *testing.T, err error) *repository.DocumentLinesError {
 	return lines
 }
 
-// Две плохие строки из трёх — в отказе обе, по-русски и названные содержимым; хорошая строка
+// Две плохие строки из трёх - в отказе обе, по-русски и названные содержимым; хорошая строка
 // между ними не проведена: документ откатывается целиком.
 func TestMove_allBadLinesNamed(t *testing.T) {
 	mf := setupMove(t)
@@ -56,7 +56,7 @@ func TestMove_allBadLinesNamed(t *testing.T) {
 	}
 
 	if a, b := mf.qtyOf(t, mf.cellA, mf.batch), mf.qtyOf(t, mf.cellB, mf.batch); a != "17" || b != "12" {
-		t.Errorf("остаток A=%s B=%s, ожидалось 17 и 12 — документ не должен был провестись", a, b)
+		t.Errorf("остаток A=%s B=%s, ожидалось 17 и 12 - документ не должен был провестись", a, b)
 	}
 	var docs string
 	mustScan(t, mf.pool, `SELECT count(*)::text FROM movements WHERE id = $1::uuid`, &docs, mv)
@@ -66,7 +66,7 @@ func TestMove_allBadLinesNamed(t *testing.T) {
 }
 
 // Отклонённая строка откатывается до проверки следующей. Первая строка переносит короб из A
-// и падает уже после переноса: A — ячейка приёмки, проверка источника идёт после переноса.
+// и падает уже после переноса: A - ячейка приёмки, проверка источника идёт после переноса.
 // Вторая берёт товар из того же короба: если откат строки сработал, короб снова в A, и она
 // упирается в ту же ячейку приёмки; без отката короб оказался бы в C, и строка прошла бы.
 func TestMove_rejectedLineRolledBackBeforeNext(t *testing.T) {
@@ -80,7 +80,7 @@ func TestMove_rejectedLineRolledBackBeforeNext(t *testing.T) {
 	)
 	lines := linesError(t, err)
 	if len(lines.Lines) != 2 {
-		t.Fatalf("отклонены %+v, ожидались обе строки: короб после отката первой — снова в A", lines.Lines)
+		t.Fatalf("отклонены %+v, ожидались обе строки: короб после отката первой - снова в A", lines.Lines)
 	}
 	for _, l := range lines.Lines {
 		if !errors.Is(l.Err, repository.ErrReceivingCell) {
@@ -108,7 +108,7 @@ func TestTryLine_sqlErrorDoesNotAbortTransaction(t *testing.T) {
 }
 
 // Размещение: отклонённая строка россыпи не уменьшает остаток задания для следующих строк.
-// Первая строка списывает 6 с задания и падает (ячейка та же), вторая размещает все 10 —
+// Первая строка списывает 6 с задания и падает (ячейка та же), вторая размещает все 10 -
 // без восстановления остатка задания она упёрлась бы в «больше, чем осталось».
 func TestPutaway_rejectedLineKeepsTaskRemainder(t *testing.T) {
 	pf := setupPutaway(t)
@@ -130,7 +130,7 @@ func TestPutaway_rejectedLineKeepsTaskRemainder(t *testing.T) {
 	}
 }
 
-// Отказ документа целиком (не строки) — по-прежнему обычной ошибкой, без списка.
+// Отказ документа целиком (не строки) - по-прежнему обычной ошибкой, без списка.
 func TestMove_documentLevelErrorUnchanged(t *testing.T) {
 	mf := setupMove(t)
 	_, _ = mf.twoBoxes(t)

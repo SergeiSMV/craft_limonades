@@ -14,8 +14,8 @@ import '../ui/portal_choice.dart';
 /// ФИО и должность при правке пользователя.
 typedef UserEdit = ({String fullName, String positionId});
 
-/// Диалог «Новый пользователь» (ADHOC-50): ФИО, должность и вход — бейдж или логин с паролем.
-/// `null` — оператор передумал.
+/// Диалог «Новый пользователь» (ADHOC-50): ФИО, должность и вход - бейдж или логин с паролем.
+/// `null` - оператор передумал.
 Future<UserDraft?> showCreateUserDialog(
   BuildContext context, {
   required List<PortalPosition> positions,
@@ -54,7 +54,7 @@ class _UserDialogState extends State<_UserDialog> {
   final _username = TextEditingController();
   final _password = TextEditingController();
 
-  /// Должность: у нового — «Кладовщик» или первая не системная, если есть.
+  /// Должность: у нового - «Кладовщик» или первая не системная, если есть.
   late String _positionId =
       widget.current?.positionId ??
       (widget.positions.where((p) => !p.isSystem).firstOrNull ??
@@ -62,7 +62,7 @@ class _UserDialogState extends State<_UserDialog> {
           ?.id ??
       '';
 
-  /// Вход нового пользователя: бейдж — по умолчанию, на складе он у всех.
+  /// Вход нового пользователя: бейдж - по умолчанию, на складе он у всех.
   bool _byBadge = true;
 
   /// Выбрать должность.
@@ -71,7 +71,7 @@ class _UserDialogState extends State<_UserDialog> {
   /// Выбрать способ входа.
   void selectBadge(bool byBadge) => setState(() => _byBadge = byBadge);
 
-  /// Сохранить: правка — ФИО и должность; новый — с входом выбранного вида.
+  /// Сохранить: правка - ФИО и должность; новый - с входом выбранного вида.
   void submit() {
     final name = _name.text.trim();
     if (widget.current != null) {
@@ -179,7 +179,7 @@ class _UserDialogState extends State<_UserDialog> {
 }
 
 /// Диалог нового входа взамен прежнего: бейдж ([badge] = true) или пароль. Возвращает
-/// введённое; `null` — оператор передумал.
+/// введённое; `null` - оператор передумал.
 Future<String?> showNewSecretDialog(
   BuildContext context, {
   required bool badge,
@@ -236,7 +236,7 @@ class _Help extends StatelessWidget {
   );
 }
 
-/// Содержимое диалога — не шире половины колонки, как диалоги складов.
+/// Содержимое диалога - не шире половины колонки, как диалоги складов.
 class _Body extends StatelessWidget {
   const _Body({required this.children});
 

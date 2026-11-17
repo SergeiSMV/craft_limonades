@@ -18,7 +18,7 @@ import 'registry_order_block.dart';
 
 /// Окно «Загрузить реестр» раздела «Сборка-отгрузка» (P8-02): выбор файла, предпросмотр сверки
 /// с уже загруженными заказами той же даты и загрузка после подтверждения. Возвращает итог
-/// загрузки; `null` — окно закрыли без загрузки.
+/// загрузки; `null` - окно закрыли без загрузки.
 Future<RegistryPreview?> showRegistryLoadDialog(BuildContext context) =>
     showDialog<RegistryPreview>(
       context: context,
@@ -43,7 +43,7 @@ class _RegistryLoadDialogState extends State<_RegistryLoadDialog> {
   RegistryPreview? _loaded;
   String? _error;
 
-  /// Выбор файла; прежний предпросмотр и ошибка сбрасываются — они про другой файл.
+  /// Выбор файла; прежний предпросмотр и ошибка сбрасываются - они про другой файл.
   Future<void> _pickFile() async {
     final file = await pickFileFromBrowser(accept: '.xlsx');
     if (file == null || !mounted) return;
@@ -152,7 +152,7 @@ class _RegistryLoadDialogState extends State<_RegistryLoadDialog> {
 }
 
 /// Итог сверки: дата, счётчики, нераспознанные коды, отклонённые строки и заказы с правками.
-/// Заказы без изменений не показываются — только их число.
+/// Заказы без изменений не показываются - только их число.
 class _Summary extends StatelessWidget {
   const _Summary({required this.preview, required this.loaded});
 

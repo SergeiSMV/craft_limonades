@@ -8,12 +8,12 @@ import '../../../../tasks/presentation/widgets/common/tasks_filter_sheet.dart';
 import '../../bloc/resolved_problems_cubit.dart';
 
 /// Кнопка фильтра ленты «Завершённые» проблем в шапке раздела, с бейджем числа условий.
-/// Лист — общий с заданиями и перемещениями, только период: по исполнителю и виду лента
+/// Лист - общий с заданиями и перемещениями, только период: по исполнителю и виду лента
 /// решённых проблем не фильтруется.
 class ResolvedFilterButton extends StatelessWidget {
   const ResolvedFilterButton({super.key});
 
-  /// Открыть фильтр и применить выбранное — лента перезагружается отдельным запросом.
+  /// Открыть фильтр и применить выбранное - лента перезагружается отдельным запросом.
   Future<void> openFilter(BuildContext context) async {
     final cubit = context.read<ResolvedProblemsCubit>();
     final picked = await showTasksFilterSheet(

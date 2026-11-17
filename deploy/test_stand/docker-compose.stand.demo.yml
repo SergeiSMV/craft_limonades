@@ -1,9 +1,9 @@
 # Демо-сервер на тестовом стенде (ADHOC-67): бэкенд ТЕКУЩЕЙ ветки в демо-режиме на своей
-# пустой базе — проверка демо-режима до выкатки. Управляется stand.sh demo-up | demo-reset |
+# пустой базе - проверка демо-режима до выкатки. Управляется stand.sh demo-up | demo-reset |
 # demo-down; руками compose не вызывать.
 #
 # Отдельный compose-проект `craft-stand-demo`: своя сеть и свой том, к базе стенда (снимок
-# прода) демо не дотягивается. Портал — тот же бандл, что у стенда (stand.sh portal): о том,
+# прода) демо не дотягивается. Портал - тот же бандл, что у стенда (stand.sh portal): о том,
 # что он на демо, портал узнаёт у сервера.
 
 name: craft-stand-demo
@@ -31,7 +31,7 @@ services:
       APP_PORT: 8080
       LOG_LEVEL: ${STAND_LOG_LEVEL:-debug}
       DATABASE_URL: postgres://demo:demo@db:5432/craft_wms_demo?sslmode=disable
-      JWT_SECRET: ${STAND_JWT_SECRET:?STAND_JWT_SECRET не задан — запускайте через stand.sh}
+      JWT_SECRET: ${STAND_JWT_SECRET:?STAND_JWT_SECRET не задан - запускайте через stand.sh}
       BADGE_KEY: ${STAND_BADGE_KEY:-}
       DEMO_MODE: "true"
       DEMO_RESET_AT: ${STAND_DEMO_RESET_AT:-03:00}

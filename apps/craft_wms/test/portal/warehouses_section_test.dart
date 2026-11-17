@@ -70,14 +70,14 @@ void main() {
 
     expect(find.text(t.portal.warehouses.markDefault), findsOneWidget);
     expect(find.text(t.portal.warehouses.markHidden), findsOneWidget);
-    // «Есть остаток» — у брака; у склада по умолчанию отметки «По умолчанию» достаточно.
+    // «Есть остаток» - у брака; у склада по умолчанию отметки «По умолчанию» достаточно.
     expect(find.text(t.portal.warehouses.markInUse), findsOneWidget);
 
     Iterable<String> tooltips() => tester
         .widgetList<PortalIconButton>(find.byType(PortalIconButton))
         .map((b) => b.tooltip);
-    // Основной — только переименовать; брак — переименовать и скрыть (удалить нельзя: остаток);
-    // старый — переименовать, вернуть и удалить.
+    // Основной - только переименовать; брак - переименовать и скрыть (удалить нельзя: остаток);
+    // старый - переименовать, вернуть и удалить.
     expect(tooltips(), [
       t.portal.warehouses.rename,
       t.portal.warehouses.rename,
@@ -88,7 +88,7 @@ void main() {
     ]);
   });
 
-  testWidgets('скрыть — запрос на сервер и список перечитан; отказ — текстом', (
+  testWidgets('скрыть - запрос на сервер и список перечитан; отказ - текстом', (
     tester,
   ) async {
     when(() => repo.update('defect', isActive: false)).thenAnswer(

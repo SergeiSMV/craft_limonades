@@ -6,12 +6,12 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-// PickingPortalOrder — заказ сборки в списке портала «Сборка-отгрузка» (P8-03): шапка реестра,
+// PickingPortalOrder - заказ сборки в списке портала «Сборка-отгрузка» (P8-03): шапка реестра,
 // статус WMS и пометки, кто держит или собрал заказ, итог плана и факта.
 //
-// План и факт — по живым строкам (убранные реестром не считаются). Факт — открытые пики и
-// перенесённые в короб, возвращённые на место не считаются (как «взято» у ТСД). TakenAt — когда
-// взят в работу; у нового — nil.
+// План и факт - по живым строкам (убранные реестром не считаются). Факт - открытые пики и
+// перенесённые в короб, возвращённые на место не считаются (как «взято» у ТСД). TakenAt - когда
+// взят в работу; у нового - nil.
 type PickingPortalOrder struct {
 	ID                   string
 	Number               int64
@@ -36,28 +36,28 @@ type PickingPortalOrder struct {
 	PlanQty              int
 	FactQty              decimal.Decimal
 	Boxes                int
-	// ReturnLeft — сколько вернуть на места после правки реестра (P9-07-1).
+	// ReturnLeft - сколько вернуть на места после правки реестра (P9-07-1).
 	ReturnLeft decimal.Decimal
-	// OutOfSync — отгруженный заказ расходится с 1С (P9-08): по строке план реестра не равен
+	// OutOfSync - отгруженный заказ расходится с 1С (P9-08): по строке план реестра не равен
 	// отгруженному. Снимается сам, когда повторная загрузка реестра приводит план к факту.
 	OutOfSync bool
 }
 
-// PickingPortalDetail — заказ в окне деталей портала и в выгрузке Excel (P8-03): обе стороны по
-// каждой строке — что было в реестре и что сделано на складе, короба и правки реестра.
+// PickingPortalDetail - заказ в окне деталей портала и в выгрузке Excel (P8-03): обе стороны по
+// каждой строке - что было в реестре и что сделано на складе, короба и правки реестра.
 type PickingPortalDetail struct {
 	Order   PickingPortalOrder
 	Lines   []PickingPortalLine
 	Boxes   []PickingPortalBox
 	Changes []PickingPortalChange
 	Events  []PickingPortalEvent
-	// CZBoxes — целые упаковки ЧЗ в коробах отгрузки (CZ-07): для УПД такая упаковка идёт
+	// CZBoxes - целые упаковки ЧЗ в коробах отгрузки (CZ-07): для УПД такая упаковка идёт
 	// своим кодом агрегации, а не россыпью марок.
 	CZBoxes []PickingCZBox
 }
 
-// PickingCZBox — упаковка ЧЗ, уехавшая целой (CZ-07): не вскрыта, все её марки (и марки
-// вложенных упаковок) — в перенесённых пиках заказа и в одном коробе отгрузки. Вложенная
+// PickingCZBox - упаковка ЧЗ, уехавшая целой (CZ-07): не вскрыта, все её марки (и марки
+// вложенных упаковок) - в перенесённых пиках заказа и в одном коробе отгрузки. Вложенная
 // упаковка целого короба отдельно не числится: короб уже покрывает её марки.
 type PickingCZBox struct {
 	Code  string
@@ -65,7 +65,7 @@ type PickingCZBox struct {
 	Marks []string
 }
 
-// CZBoxByMark — какая целая упаковка заказа держит марку: КИ → упаковка.
+// CZBoxByMark - какая целая упаковка заказа держит марку: КИ → упаковка.
 func (d PickingPortalDetail) CZBoxByMark() map[string]*PickingCZBox {
 	out := map[string]*PickingCZBox{}
 	for i := range d.CZBoxes {
@@ -76,8 +76,8 @@ func (d PickingPortalDetail) CZBoxByMark() map[string]*PickingCZBox {
 	return out
 }
 
-// PickingPortalEvent — событие журнала заказа (P9-07): вид (PickingEvent*), кто сделал и с кого
-// снят или у кого перехвачен заказ; у завершения и отгрузки — коробов и штук.
+// PickingPortalEvent - событие журнала заказа (P9-07): вид (PickingEvent*), кто сделал и с кого
+// снят или у кого перехвачен заказ; у завершения и отгрузки - коробов и штук.
 type PickingPortalEvent struct {
 	Kind     string
 	UserName string
@@ -87,10 +87,10 @@ type PickingPortalEvent struct {
 	At       time.Time
 }
 
-// PickingPortalLine — строка плана и факт по ней.
+// PickingPortalLine - строка плана и факт по ней.
 //
-// BatchDate — партия реестра (nil — FEFO); CellAddress — ячейка реестра, найденная в WMS,
-// RegistryCell — как в файле. Facts — пики строки (кроме возвращённых): партия, откуда, в какой
+// BatchDate - партия реестра (nil - FEFO); CellAddress - ячейка реестра, найденная в WMS,
+// RegistryCell - как в файле. Facts - пики строки (кроме возвращённых): партия, откуда, в какой
 // короб, сколько и марки ЧЗ.
 type PickingPortalLine struct {
 	ID           string
@@ -109,7 +109,7 @@ type PickingPortalLine struct {
 	Facts        []PickingPortalFact
 }
 
-// FactQty — сколько взято по строке.
+// FactQty - сколько взято по строке.
 func (l PickingPortalLine) FactQty() decimal.Decimal {
 	sum := decimal.Zero
 	for _, f := range l.Facts {
@@ -118,12 +118,12 @@ func (l PickingPortalLine) FactQty() decimal.Decimal {
 	return sum
 }
 
-// PickingPickMoved — состояние пика «в коробе отгрузки» (picking_picks.state): после отгрузки
+// PickingPickMoved - состояние пика «в коробе отгрузки» (picking_picks.state): после отгрузки
 // пик остаётся в нём, поэтому перенесённое отгруженного заказа - это отгруженный факт.
 const PickingPickMoved = "moved"
 
-// PickingPortalFact — пик строки: State — picking («в сборке», товар ещё в ячейке) или moved
-// (в коробе отгрузки). BoxSeq — «короб N» заказа.
+// PickingPortalFact - пик строки: State - picking («в сборке», товар ещё в ячейке) или moved
+// (в коробе отгрузки). BoxSeq - «короб N» заказа.
 type PickingPortalFact struct {
 	BatchDate   time.Time
 	CellAddress string
@@ -135,14 +135,14 @@ type PickingPortalFact struct {
 	Marks       []string
 }
 
-// PickingPortalBox — короб отгрузки заказа.
+// PickingPortalBox - короб отгрузки заказа.
 type PickingPortalBox struct {
 	Seq       int
 	ShippedAt *time.Time
 }
 
-// PickingPortalChange — правка заказа повторной загрузкой реестра: вид (PickingChange*), товар
-// и количество до и после; OrderStatus — статус заказа в момент правки.
+// PickingPortalChange - правка заказа повторной загрузкой реестра: вид (PickingChange*), товар
+// и количество до и после; OrderStatus - статус заказа в момент правки.
 type PickingPortalChange struct {
 	Kind        string
 	GoodCode    string
@@ -152,7 +152,7 @@ type PickingPortalChange struct {
 	NewQty      *int
 	OrderStatus string
 	At          time.Time
-	// Reason — откуда правка (PickingChangeReason*, P9-08); считает ClassifyPickingChanges.
+	// Reason - откуда правка (PickingChangeReason*, P9-08); считает ClassifyPickingChanges.
 	Reason string
 }
 
@@ -217,7 +217,7 @@ func ClassifyPickingChanges(d *PickingPortalDetail) {
 	}
 }
 
-// pickingLineKey — строка заказа по тройке «код + партия» (партии нет - любая).
+// pickingLineKey - строка заказа по тройке «код + партия» (партии нет - любая).
 func pickingLineKey(code string, batch *time.Time) string {
 	if batch == nil {
 		return code + "|"

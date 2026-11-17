@@ -13,9 +13,9 @@ import (
 	"craftwms/internal/repository"
 )
 
-// Тесты P6-07-3: решение офиса по проблеме — списать, разместить, вернуть поставщику. Товар
-// проблемы берётся там, где лежит сейчас; решение — целиком и один раз. Фикстура setupMove —
-// из movement_integration_test.go, пометка — из problem_integration_test.go.
+// Тесты P6-07-3: решение офиса по проблеме - списать, разместить, вернуть поставщику. Товар
+// проблемы берётся там, где лежит сейчас; решение - целиком и один раз. Фикстура setupMove -
+// из movement_integration_test.go, пометка - из problem_integration_test.go.
 
 // openProblem фиксирует проблему и возвращает её идентификатор.
 func (mf *moveFixture) openProblem(t *testing.T, to, reason string, in repository.ProblemSubmitInput) string {
@@ -47,7 +47,7 @@ func (mf *moveFixture) supplier(t *testing.T, name string) string {
 }
 
 // Списание россыпи, которая после пометки частью переехала: решение берёт её сначала в ячейке
-// пометки, потом там, куда её перенесли; «Основной» рядом не задет; повтор — отказ.
+// пометки, потом там, куда её перенесли; «Основной» рядом не задет; повтор - отказ.
 func TestProblemResolve_writeOffMovedGoods(t *testing.T) {
 	mf := setupMove(t)
 	defect := mf.iwhByCode(t, "DEFECT")
@@ -82,7 +82,7 @@ func TestProblemResolve_writeOffMovedGoods(t *testing.T) {
 }
 
 // Короб «не нашей марки» размещается: метка снимается с короба и его остатка в той же ячейке.
-// Бой разместить нельзя — только списать.
+// Бой разместить нельзя - только списать.
 func TestProblemResolve_placeBoxAndNotAllowed(t *testing.T) {
 	mf := setupMove(t)
 	iso := mf.iwhByCode(t, "ISOLATOR")
@@ -104,7 +104,7 @@ func TestProblemResolve_placeBoxAndNotAllowed(t *testing.T) {
 
 	breakage := mf.openProblem(t, mf.iwhByCode(t, "DEFECT"), model.ProblemReasonBreakage, mf.goodsProblem(1, mf.cellA, ""))
 	if err := mf.resolve(breakage, model.ResolveProblemInput{Decision: model.ProblemDecisionPlace}); !errors.Is(err, repository.ErrDecisionNotAllowed) {
-		t.Errorf("бой — разместить: %v", err)
+		t.Errorf("бой - разместить: %v", err)
 	}
 }
 
@@ -122,10 +122,10 @@ func TestProblemResolve_placeInReceivingCellOpensPutaway(t *testing.T) {
 	}
 	inReceiving := mf.openProblem(t, iso, model.ProblemReasonForeignMark, mf.goodsProblem(3, mf.cellA, ""))
 	inStorage := mf.openProblem(t, iso, model.ProblemReasonForeignMark, mf.goodsProblem(1, mf.cellC, ""))
-	// Ячейкой приёмки становится A — так лежит товар, изолированный проводкой приёмки.
+	// Ячейкой приёмки становится A - так лежит товар, изолированный проводкой приёмки.
 	mf.setReceiving(t, mf.cellA)
 
-	// Номер проблемы — по порядку заведения, и он же в списке проблем.
+	// Номер проблемы - по порядку заведения, и он же в списке проблем.
 	open, err := repository.NewProblemRepository(mf.pool).Current(ctx)
 	mustNoErr(t, err)
 	numbers := map[string]int64{}
@@ -140,7 +140,7 @@ func TestProblemResolve_placeInReceivingCellOpensPutaway(t *testing.T) {
 	var tasks string
 	mustScan(t, mf.pool, `SELECT count(*)::text FROM warehouse_tasks WHERE problem_id IS NOT NULL`, &tasks)
 	if tasks != "0" {
-		t.Fatalf("товар не в ячейке приёмки — заданий %s, ожидалось 0", tasks)
+		t.Fatalf("товар не в ячейке приёмки - заданий %s, ожидалось 0", tasks)
 	}
 
 	mustNoErr(t, mf.resolve(inReceiving, model.ResolveProblemInput{Decision: model.ProblemDecisionPlace}))
@@ -254,7 +254,7 @@ func TestProblemResolve_supplierReturn(t *testing.T) {
 	}
 }
 
-// Короб перепометили другим складом — у первой проблемы товара на её складе больше нет.
+// Короб перепометили другим складом - у первой проблемы товара на её складе больше нет.
 func TestProblemResolve_goodsMissing(t *testing.T) {
 	mf := setupMove(t)
 	lu := newLU(t, mf.stockFixture, model.LoadUnitBox)
@@ -268,7 +268,7 @@ func TestProblemResolve_goodsMissing(t *testing.T) {
 	}
 }
 
-// Рабочий список: открытая — с составом короба и допустимыми решениями по причине.
+// Рабочий список: открытая - с составом короба и допустимыми решениями по причине.
 func TestProblemList_openBox(t *testing.T) {
 	mf := setupMove(t)
 	lu := newLU(t, mf.stockFixture, model.LoadUnitBox)
@@ -283,8 +283,8 @@ func TestProblemList_openBox(t *testing.T) {
 	}
 }
 
-// ADHOC-34: лента решённых на ТСД — только решённые, свежие решения первыми, курсор продолжает
-// без повторов, окно — по времени решения.
+// ADHOC-34: лента решённых на ТСД - только решённые, свежие решения первыми, курсор продолжает
+// без повторов, окно - по времени решения.
 func TestProblemResolved_feed(t *testing.T) {
 	mf := setupMove(t)
 	defect := mf.iwhByCode(t, "DEFECT")
@@ -317,7 +317,7 @@ func TestProblemResolved_feed(t *testing.T) {
 	})
 	mustNoErr(t, err)
 	if len(next) != 1 || next[0].ID != first {
-		t.Errorf("по курсору — только раньше решённая, без открытой %s: %+v", open, next)
+		t.Errorf("по курсору - только раньше решённая, без открытой %s: %+v", open, next)
 	}
 
 	from := time.Date(2026, 10, 21, 0, 0, 0, 0, time.UTC)
@@ -328,8 +328,8 @@ func TestProblemResolved_feed(t *testing.T) {
 	}
 }
 
-// ADHOC-34: исполнение возврата в ленте — до отгрузки кто и когда отгрузил пусто, после
-// сеанса на ТСД — отгрузивший и время сеанса.
+// ADHOC-34: исполнение возврата в ленте - до отгрузки кто и когда отгрузил пусто, после
+// сеанса на ТСД - отгрузивший и время сеанса.
 func TestProblemResolved_returnShipped(t *testing.T) {
 	mf := setupMove(t)
 	defect := mf.iwhByCode(t, "DEFECT")
@@ -356,7 +356,7 @@ func TestProblemResolved_returnShipped(t *testing.T) {
 	}
 }
 
-// ADHOC-35: «Текущие» на ТСД — только открытые, свежие первыми; у короба — его состав сейчас.
+// ADHOC-35: «Текущие» на ТСД - только открытые, свежие первыми; у короба - его состав сейчас.
 func TestProblemCurrent_openOnly(t *testing.T) {
 	mf := setupMove(t)
 	defect := mf.iwhByCode(t, "DEFECT")
@@ -376,6 +376,6 @@ func TestProblemCurrent_openOnly(t *testing.T) {
 		t.Fatalf("открытые, свежие первыми: %+v", list)
 	}
 	if len(list[0].Items) != 1 || list[0].Items[0].Qty != "12.000" || list[0].Status != model.ProblemStatusOpen {
-		t.Errorf("короб — состав сейчас: %+v", list[0])
+		t.Errorf("короб - состав сейчас: %+v", list[0])
 	}
 }

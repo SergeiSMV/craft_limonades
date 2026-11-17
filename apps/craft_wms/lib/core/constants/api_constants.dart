@@ -1,6 +1,6 @@
 /// Константы для API.
 ///
-/// Маршруты — БЕЗ ведущего `/`, а `BASE_URL` — С завершающим `/` (`.../api/v1/`).
+/// Маршруты - БЕЗ ведущего `/`, а `BASE_URL` - С завершающим `/` (`.../api/v1/`).
 /// Это согласованная пара для dio: `baseUrl` + `path` даёт корректный URL без двойного слэша.
 abstract final class ApiConst {
   /// Имя dart-define-ключа с базовым URL API. Значение приходит из `.env`
@@ -10,10 +10,10 @@ abstract final class ApiConst {
   ///**POST** - запрос на авторизацию по бейджу пользователя
   static const String loginByBadge = 'auth/login';
 
-  ///**POST** - авторизация по логину/паролю (admin/оператор — веб-портал, смартфон)
+  ///**POST** - авторизация по логину/паролю (admin/оператор - веб-портал, смартфон)
   static const String loginByPassword = 'auth/login/password';
 
-  /// Демо-сервер (ADHOC-67): вход без пароля, состояние, сброс. На рабочем сервере — 404.
+  /// Демо-сервер (ADHOC-67): вход без пароля, состояние, сброс. На рабочем сервере - 404.
   static const String loginDemo = 'auth/demo';
   static const String demoStatus = 'demo';
   static const String demoReset = 'demo/reset';
@@ -31,13 +31,13 @@ abstract final class ApiConst {
   static const String importCells = 'import/cells';
 
   ///**POST** - PDF этикеток на балку или карточек на стойку: тело `{kind, cell_ids}`, query
-  /// `warehouse`, ответ — bytes (ADHOC-57)
+  /// `warehouse`, ответ - bytes (ADHOC-57)
   static const String cellLabelsPdf = 'cells/labels.pdf';
 
   ///**GET**/**PATCH** - ячейки и стеллажи страницы «Ячейки», массовая правка галочек (ADHOC-57)
   static const String cellsSetup = 'cells/setup';
 
-  ///**GET** - выгрузка ячеек `.xlsx` в формате rack_labels, ответ — bytes (ADHOC-57)
+  ///**GET** - выгрузка ячеек `.xlsx` в формате rack_labels, ответ - bytes (ADHOC-57)
   static const String cellsExport = 'cells/export.xlsx';
 
   ///**POST** - завести напольную ячейку «*-Н-П» (ADHOC-61): `cells/floor`;
@@ -66,7 +66,7 @@ abstract final class ApiConst {
   /// Путь карточки товара по id: `goods/{id}`.
   static String goodById(String id) => 'goods/$id';
 
-  ///**POST** - привязать ШК к товару (201; 409 — ШК уже за другим товаром): `barcodes`.
+  ///**POST** - привязать ШК к товару (201; 409 - ШК уже за другим товаром): `barcodes`.
   static const String barcodes = 'barcodes';
 
   ///**GET** - товар по штрихкоду (404, если ШК не привязан) · **DELETE** - отвязать ШК (204, P-FS-12): `barcodes/{code}`.
@@ -75,14 +75,14 @@ abstract final class ApiConst {
   ///**GET** - сколько марок ЧЗ с этим ШК на складе (ADHOC-53): `barcodes/{code}/cz-stock`.
   static String barcodeCzStock(String code) => 'barcodes/$code/cz-stock';
 
-  ///**POST** - перепривязать ШК к другому товару с пересортом марок (ADHOC-53; 409 — отказ
+  ///**POST** - перепривязать ШК к другому товару с пересортом марок (ADHOC-53; 409 - отказ
   ///по существу): `barcodes/{code}/regrade`.
   static String barcodeRegrade(String code) => 'barcodes/$code/regrade';
 
   ///**GET** - все ШК товара (секция «Штрихкоды» карточки, P-FS-12): `goods/{id}/barcodes`.
   static String goodBarcodes(String id) => 'goods/$id/barcodes';
 
-  ///**POST** - выдать товару внутренний EAN-13 (P4-07; идемпотентно — повтор вернёт тот же код): `goods/{id}/barcode`.
+  ///**POST** - выдать товару внутренний EAN-13 (P4-07; идемпотентно - повтор вернёт тот же код): `goods/{id}/barcode`.
   static String goodInternalBarcode(String id) => 'goods/$id/barcode';
 
   ///**POST** - checkpoint ячейки в сессии ввода: `stock-entry/sessions/{id}/cells`.
@@ -123,7 +123,7 @@ abstract final class ApiConst {
   ///before_resolved_at + before_id, limit
   static const String problemsResolved = 'problems/resolved';
 
-  /// История перемещений всего склада (ADHOC-28): лента, курсор и фильтр — query.
+  /// История перемещений всего склада (ADHOC-28): лента, курсор и фильтр - query.
   static const String movements = 'movements';
 
   /// Варианты фильтра истории перемещений по исполнителю.
@@ -135,16 +135,16 @@ abstract final class ApiConst {
   /// Справочник внутренних складов (P6-07-1): «Основной», «Брак», «Изолятор» …
   static const String internalWarehouses = 'internal-warehouses';
 
-  /// Внутренний склад — переименовать, скрыть, удалить (ADHOC-29, admin).
+  /// Внутренний склад - переименовать, скрыть, удалить (ADHOC-29, admin).
   static String internalWarehouseById(String id) => 'internal-warehouses/$id';
 
-  /// Справочник причин проблем и вариантов решения (ADHOC-55): GET — весь, и неактивное.
+  /// Справочник причин проблем и вариантов решения (ADHOC-55): GET - весь, и неактивное.
   static const String problemReasons = 'problem-reasons';
 
   /// Правка причины по коду.
   static String problemReasonByCode(String code) => 'problem-reasons/$code';
 
-  /// Варианты решения: POST — завести.
+  /// Варианты решения: POST - завести.
   static const String problemResolutions = 'problem-resolutions';
 
   /// Правка варианта по id.
@@ -222,7 +222,7 @@ abstract final class ApiConst {
   ///**POST** - «Провести» решение по проблеме (204): `problems/{id}/resolve`.
   static String problemResolve(String id) => 'problems/$id/resolve';
 
-  ///**POST** - взять задание (204; 409 — у другого или выполнено): `tasks/{id}/take`.
+  ///**POST** - взять задание (204; 409 - у другого или выполнено): `tasks/{id}/take`.
   static String taskTake(String id) => 'tasks/$id/take';
 
   ///**POST** - отказаться от задания (204): `tasks/{id}/release`.
@@ -244,11 +244,11 @@ abstract final class ApiConst {
   static String loadUnitHistory(String id) => 'load-units/$id/history';
 
   ///**GET** - карточка ГЕ короба ЧЗ по коду `00`+SSCC с его этикетки (CZ-06):
-  /// `load-units/cz/{code}`. Код — только цифры, в пути безопасен.
+  /// `load-units/cz/{code}`. Код - только цифры, в пути безопасен.
   static String loadUnitByCzCode(String code) => 'load-units/cz/$code';
 
   ///**POST** - скан марки «Честного знака» или кода короба: данные ЧЗ, товар, место в WMS,
-  /// состав (CZ-04): `cz/scan`. Код — в теле: в КИ бывают `/`, `%`, `"`.
+  /// состав (CZ-04): `cz/scan`. Код - в теле: в КИ бывают `/`, `%`, `"`.
   static const String czScan = 'cz/scan';
 
   ///**POST** - пачка сканов марок и кодов коробов одним запросом в ЧЗ (ADHOC-70):
@@ -259,7 +259,7 @@ abstract final class ApiConst {
   static String goodCzMarked(String id) => 'goods/$id/cz-marked';
 
   ///**PUT / GET** - фото к проблеме склада (ADHOC-45): `problems/{id}/photos/{photoId}`.
-  /// PUT — тело сам снимок, идемпотентно по id фото; GET — снимок как есть.
+  /// PUT - тело сам снимок, идемпотентно по id фото; GET - снимок как есть.
   static String problemPhoto(String problemId, String photoId) =>
       'problems/$problemId/photos/$photoId';
 

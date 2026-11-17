@@ -7,9 +7,9 @@ import '../../../../core/constants/app_sizes.dart';
 /// Страница-список портала (ADHOC-56, страница-индекс Shopify Polaris): панель поиска и фильтров
 /// закреплена сверху, прокручивается только список под ней.
 ///
-/// Как: ширина — по центру, не шире [AppSizes.kPortalListMaxWidth]; панель и список растянуты
-/// на эту ширину и выровнены по одним краям. Уже [AppSizes.kPortalCompactWidth] — поля меньше.
-/// [header] — над панелью, тоже закреплён: переключатель видов страницы («Инвентаризация»).
+/// Как: ширина - по центру, не шире [AppSizes.kPortalListMaxWidth]; панель и список растянуты
+/// на эту ширину и выровнены по одним краям. Уже [AppSizes.kPortalCompactWidth] - поля меньше.
+/// [header] - над панелью, тоже закреплён: переключатель видов страницы («Инвентаризация»).
 class PortalListPage extends StatelessWidget {
   const PortalListPage({
     super.key,
@@ -57,7 +57,7 @@ class PortalListPage extends StatelessWidget {
   );
 }
 
-/// По центру, не шире [AppSizes.kPortalListMaxWidth], содержимое — на всю эту ширину: панель
+/// По центру, не шире [AppSizes.kPortalListMaxWidth], содержимое - на всю эту ширину: панель
 /// начинается от левого края таблицы, а не центрируется по своей ширине.
 class _Width extends StatelessWidget {
   const _Width({required this.child});

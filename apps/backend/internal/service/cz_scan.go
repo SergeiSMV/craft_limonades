@@ -12,7 +12,7 @@ import (
 )
 
 // Пределы раскрытия упаковки: сколько кодов в одном запросе к ЧЗ и сколько уровней вложенности.
-// Паллета → короб → групповая упаковка → единица — три спуска; пять — с запасом, но не бесконечно,
+// Паллета → короб → групповая упаковка → единица - три спуска; пять - с запасом, но не бесконечно,
 // если ЧЗ вдруг вернёт цикл.
 const (
 	czChunk    = czMaxCodes
@@ -23,13 +23,13 @@ const (
 var (
 	czBoxCode  = regexp.MustCompile(`^00[0-9]{18}$`)
 	czCISCode  = regexp.MustCompile(`^01[0-9]{14}21.+$`)
-	czAIMIdent = regexp.MustCompile(`^\][A-Za-z][0-9A-Za-z]`) // ]d2, ]C1, ]Q3 — префикс сканера
+	czAIMIdent = regexp.MustCompile(`^\][A-Za-z][0-9A-Za-z]`) // ]d2, ]C1, ]Q3 - префикс сканера
 )
 
 // NormalizeCZCode приводит скан к ключу ЧЗ: срезает префикс AIM, разделители GS по краям и
 // криптохвост после GS. Возвращает ErrCZBadCode, если это ни марка, ни код короба.
 //
-// Зачем на сервере: ТСД отдаёт код как есть — с префиксом AIM, если сканер так настроен, и с
+// Зачем на сервере: ТСД отдаёт код как есть - с префиксом AIM, если сканер так настроен, и с
 // GS внутри марки (DT50S, CZ-01). Разобрать в одном месте дешевле, чем в каждом клиенте.
 func NormalizeCZCode(raw string) (string, error) {
 	code := strings.Trim(strings.TrimSpace(raw), gs)
@@ -42,9 +42,9 @@ func NormalizeCZCode(raw string) (string, error) {
 	return "", fmt.Errorf("%w: %q", model.ErrCZBadCode, raw)
 }
 
-// Scan — что ТСД показывает по скану марки или кода агрегата (CZ-04).
+// Scan - что ТСД показывает по скану марки или кода агрегата (CZ-04).
 //
-// Как: код → данные ЧЗ. Единица — товар по GTIN и что знает WMS о марке. Упаковка — её ГЕ,
+// Как: код → данные ЧЗ. Единица - товар по GTIN и что знает WMS о марке. Упаковка - её ГЕ,
 // если это принятый короб, и состав, раскрытый до единиц и сведённый по товару и партии.
 // Связь нужна всегда: ЧЗ читается только онлайн.
 func (s *CZService) Scan(ctx context.Context, raw string) (model.CZScan, error) {
@@ -62,8 +62,8 @@ func (s *CZService) Scan(ctx context.Context, raw string) (model.CZScan, error) 
 	return s.scanInfo(ctx, code, info, gtinGoods{})
 }
 
-// scanInfo — скан по уже прочитанному ответу ЧЗ: общее у одиночного скана и пачки (ADHOC-70).
-// goods — товары по GTIN, уже найденные в этом запросе: пачка марок одного товара ищет его
+// scanInfo - скан по уже прочитанному ответу ЧЗ: общее у одиночного скана и пачки (ADHOC-70).
+// goods - товары по GTIN, уже найденные в этом запросе: пачка марок одного товара ищет его
 // в справочнике один раз.
 func (s *CZService) scanInfo(ctx context.Context, code string, info model.CisInfo, goods gtinGoods) (model.CZScan, error) {
 	out := model.CZScan{Code: code, Info: info, Discrepancy: s.discrepancy(info)}
@@ -91,7 +91,7 @@ func (s *CZService) scanInfo(ctx context.Context, code string, info model.CisInf
 	return out, nil
 }
 
-// gtinGoods — товары справочника по GTIN в пределах одного запроса: найденный товар и ШК,
+// gtinGoods - товары справочника по GTIN в пределах одного запроса: найденный товар и ШК,
 // который предложить привязать, если GTIN незнаком.
 type gtinGoods map[string]gtinGood
 
@@ -100,7 +100,7 @@ type gtinGood struct {
 	bind string
 }
 
-// lookup — товар по GTIN: из уже найденных в запросе, иначе из справочника (с запоминанием).
+// lookup - товар по GTIN: из уже найденных в запросе, иначе из справочника (с запоминанием).
 func (g gtinGoods) lookup(ctx context.Context, s *CZService, gtin string) (*model.CZGoodRef, string, error) {
 	if hit, ok := g[gtin]; ok {
 		return hit.good, hit.bind, nil
@@ -113,7 +113,7 @@ func (g gtinGoods) lookup(ctx context.Context, s *CZService, gtin string) (*mode
 	return good, bind, nil
 }
 
-// oneInfo — ответ ЧЗ по одному коду. Отказ ЧЗ по коду в пакетном ответе — «не найден» с его
+// oneInfo - ответ ЧЗ по одному коду. Отказ ЧЗ по коду в пакетном ответе - «не найден» с его
 // текстом: кладовщику нужна причина, а не пустая карточка.
 func (s *CZService) oneInfo(ctx context.Context, code string) (model.CisInfo, error) {
 	items, err := s.client.CisesInfo(ctx, []string{code})
@@ -130,8 +130,8 @@ func (s *CZService) oneInfo(ctx context.Context, code string) (model.CisInfo, er
 	return it, nil
 }
 
-// goodByGTIN — товар справочника по GTIN; незнакомый GTIN — не ошибка: ТСД предложит
-// привязать ШК (bind — EAN-13, GTIN-14 без ведущего нуля).
+// goodByGTIN - товар справочника по GTIN; незнакомый GTIN - не ошибка: ТСД предложит
+// привязать ШК (bind - EAN-13, GTIN-14 без ведущего нуля).
 func (s *CZService) goodByGTIN(ctx context.Context, gtin string) (*model.CZGoodRef, string, error) {
 	if gtin == "" || s.marks == nil {
 		return nil, "", nil
@@ -150,7 +150,7 @@ func (s *CZService) goodByGTIN(ctx context.Context, gtin string) (*model.CZGoodR
 //
 // Зачем: товар марки записан при её приходе, и остаток считается по нему. Если ШК из марки
 // потом отвязали, поиск по GTIN товара не найдёт, и марка, лежащая на складе, выглядела бы
-// незнакомой. Отвязанный ШК называется отдельно — ТСД предложит вернуть привязку.
+// незнакомой. Отвязанный ШК называется отдельно - ТСД предложит вернуть привязку.
 func (s *CZService) markGood(ctx context.Context, out *model.CZScan) error {
 	if out.Good != nil && out.Good.ID == out.Mark.GoodID {
 		return nil
@@ -164,7 +164,7 @@ func (s *CZService) markGood(ctx context.Context, out *model.CZScan) error {
 	return nil
 }
 
-// ean13FromGTIN — EAN-13 из GTIN-14 с ведущим нулём; иначе GTIN как есть.
+// ean13FromGTIN - EAN-13 из GTIN-14 с ведущим нулём; иначе GTIN как есть.
 func ean13FromGTIN(gtin string) string {
 	if len(gtin) == 14 && gtin[0] == '0' {
 		return gtin[1:]
@@ -172,7 +172,7 @@ func ean13FromGTIN(gtin string) string {
 	return gtin
 }
 
-// markInWMS — марка в WMS; не числится — nil без ошибки.
+// markInWMS - марка в WMS; не числится - nil без ошибки.
 func (s *CZService) markInWMS(ctx context.Context, cis string) (*model.CZMark, error) {
 	if s.marks == nil {
 		return nil, nil
@@ -187,7 +187,7 @@ func (s *CZService) markInWMS(ctx context.Context, cis string) (*model.CZMark, e
 	return &m, nil
 }
 
-// boxInWMS — ГЕ принятого короба ЧЗ; короб не принят — пустая строка без ошибки.
+// boxInWMS - ГЕ принятого короба ЧЗ; короб не принят - пустая строка без ошибки.
 func (s *CZService) boxInWMS(ctx context.Context, code string) (string, error) {
 	if s.marks == nil {
 		return "", nil
@@ -203,15 +203,15 @@ func (s *CZService) boxInWMS(ctx context.Context, code string) (string, error) {
 //
 // Как: ЧЗ по упаковке отдаёт только КИ вложенных. Они дочитываются пачками по czChunk; что
 // оказалось упаковкой, спускается на уровень ниже. Единицы сводятся по GTIN и дате
-// производства единицы — партии (ADR-0017). Товар по GTIN ищется один раз на GTIN.
+// производства единицы - партии (ADR-0017). Товар по GTIN ищется один раз на GTIN.
 func (s *CZService) expand(ctx context.Context, children []string, out *model.CZScan, goods gtinGoods) error {
-	// Расхождение — часть ключа: чужие или выбывшие единицы уходят в проблему отдельно от
+	// Расхождение - часть ключа: чужие или выбывшие единицы уходят в проблему отдельно от
 	// своих той же партии, поэтому и строкой показываются отдельно (CZ-05).
 	type key struct{ gtin, date, discrepancy string }
 	lines := map[key]*model.CZCompositionLine{}
-	// Упаковка каждого запрошенного кода — по тому, чьим ребёнком он пришёл, а не по полю
+	// Упаковка каждого запрошенного кода - по тому, чьим ребёнком он пришёл, а не по полю
 	// parent ответа ЧЗ: так ссылка всегда ведёт на код, который знает и приёмка (CZ-05).
-	// Вложенный короб (короб в паллете) упаковкой приёмки не считается — его единицы
+	// Вложенный короб (короб в паллете) упаковкой приёмки не считается - его единицы
 	// числятся в упаковке над ним.
 	parentOf := map[string]string{}
 	for _, c := range children {
@@ -287,7 +287,7 @@ func (s *CZService) expand(ctx context.Context, children []string, out *model.CZ
 	return nil
 }
 
-// discrepancy — расхождение кода с ЧЗ на приёмке (CZ-05): владелец — не наша организация,
+// discrepancy - расхождение кода с ЧЗ на приёмке (CZ-05): владелец - не наша организация,
 // или марка не в обороте. Владельца сверяем, только если наш ИНН задан; у кода без статуса или
 // владельца (ЧЗ их не прислал) расхождения не выдумываем.
 func (s *CZService) discrepancy(it model.CisInfo) string {
@@ -300,7 +300,7 @@ func (s *CZService) discrepancy(it model.CisInfo) string {
 	return ""
 }
 
-// dateOnly — дата из метки времени ЧЗ (`2026-10-12T00:00:00.000Z` → `2026-10-12`).
+// dateOnly - дата из метки времени ЧЗ (`2026-10-12T00:00:00.000Z` → `2026-10-12`).
 func dateOnly(ts string) string {
 	if len(ts) >= 10 {
 		return ts[:10]

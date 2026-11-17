@@ -12,7 +12,7 @@ import (
 	"craftwms/internal/picking"
 )
 
-// TaskOrder — заказ сборки со строками плана и взятым по каждой строке (P9-03).
+// TaskOrder - заказ сборки со строками плана и взятым по каждой строке (P9-03).
 // Нет такого заказа → ErrNotFound.
 func (r *PickingRepository) TaskOrder(ctx context.Context, orderID string) (model.PickingTaskOrder, error) {
 	var o model.PickingTaskOrder
@@ -29,8 +29,8 @@ func (r *PickingRepository) TaskOrder(ctx context.Context, orderID string) (mode
 		return o, fmt.Errorf("заказ сборки: %w", err)
 	}
 
-	// Взятое по строке — пики в сборке и уже перенесённые в короб: возвращённые на место снова
-	// в плане. Наименование — из 1С, единица и «маркируемый» — из справочника.
+	// Взятое по строке - пики в сборке и уже перенесённые в короб: возвращённые на место снова
+	// в плане. Наименование - из 1С, единица и «маркируемый» - из справочника.
 	rows, err := r.pool.Query(ctx, `
 		SELECT l.id::text, l.line_no, l.good_id::text, l.good_code, l.good_name,
 		       coalesce(g.uom, ''), coalesce(g.cz_marked, false),
@@ -90,7 +90,7 @@ func (r *PickingRepository) TaskOrder(ctx context.Context, orderID string) (mode
 	return o, err
 }
 
-// openPicks — открытые пики заказа с марками (P9-06), в порядке пика.
+// openPicks - открытые пики заказа с марками (P9-06), в порядке пика.
 func (r *PickingRepository) openPicks(ctx context.Context, orderID string) ([]model.PickingOpenPick, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT p.id::text, p.line_id::text, p.box_id::text, c.address,
@@ -123,12 +123,12 @@ func (r *PickingRepository) openPicks(ctx context.Context, orderID string) ([]mo
 	return out, rows.Err()
 }
 
-// Sources — откуда можно собирать товары goodIDs на складе warehouseID (P9-03).
+// Sources - откуда можно собирать товары goodIDs на складе warehouseID (P9-03).
 //
 // Что: россыпь ячеек и короба хранения с доступным > 0. Где: активные ячейки склада, кроме
 // служебных (`ПРИЁМКА`, `ОТГРУЗКА`), напольное хранение входит; только внутренние склады с
-// галочкой «разрешить сборку». Доступное — остаток минус «в сборке» (открытые пики) того же
-// источника: россыпь — пики без короба, короб — пики из этого короба. Россыпь — остаток склада
+// галочкой «разрешить сборку». Доступное - остаток минус «в сборке» (открытые пики) того же
+// источника: россыпь - пики без короба, короб - пики из этого короба. Россыпь - остаток склада
 // в ячейке минус состав коробов того же склада в ней (правило looseStock).
 //
 // Короба отгрузки (picking_boxes) источником не бывают: их товар уже собран.

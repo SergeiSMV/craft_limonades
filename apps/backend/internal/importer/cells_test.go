@@ -9,7 +9,7 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
-// TestParseCells_sample — образец тестов (125 ячеек M1-…, 12 стеллажей) в формате rack_labels:
+// TestParseCells_sample - образец тестов (125 ячеек M1-…, 12 стеллажей) в формате rack_labels:
 // признаки размера, стрелки и штрих-кода, стеллажи с карточкой; колонки barcode_value, copies,
 // print читаются без ошибок.
 func TestParseCells_sample(t *testing.T) {
@@ -50,7 +50,7 @@ func TestParseCells_sample(t *testing.T) {
 	}
 }
 
-// TestParseCells_rackLabelsFile — настоящий файл проекта rack_labels (522 ячейки, 66 стеллажей)
+// TestParseCells_rackLabelsFile - настоящий файл проекта rack_labels (522 ячейки, 66 стеллажей)
 // загружается без отказов и с теми же итогами, что считал скрипт.
 func TestParseCells_rackLabelsFile(t *testing.T) {
 	res := parseFile(t, "testdata/rack_labels_sample.xlsx")
@@ -80,7 +80,7 @@ func TestParseCells_rackLabelsFile(t *testing.T) {
 	}
 }
 
-// TestParseCells_rejectedRows — проблемные строки уходят в отчёт с причиной, остальные принимаются.
+// TestParseCells_rejectedRows - проблемные строки уходят в отчёт с причиной, остальные принимаются.
 func TestParseCells_rejectedRows(t *testing.T) {
 	data := buildXLSX(t,
 		[][]any{
@@ -132,7 +132,7 @@ func TestParseCells_rejectedRows(t *testing.T) {
 	}
 }
 
-// TestParseCells_withoutRacksSheet — без листа racks стеллаж берётся из колонки как есть.
+// TestParseCells_withoutRacksSheet - без листа racks стеллаж берётся из колонки как есть.
 func TestParseCells_withoutRacksSheet(t *testing.T) {
 	data := buildXLSX(t, [][]any{{"cell_id", "rack_id", "size"}, {"A-1-1-1", "A-01", "large"}}, nil)
 	res, err := ParseCells(bytes.NewReader(data))
@@ -142,15 +142,15 @@ func TestParseCells_withoutRacksSheet(t *testing.T) {
 	if res.HasRacksSheet || len(res.Cells) != 1 || res.Cells[0].RackCode != "A-01" || len(res.Errors) != 0 {
 		t.Errorf("результат: %+v", res)
 	}
-	// Ни листа racks, ни колонки side_card — галочка карточки файлом не задана.
+	// Ни листа racks, ни колонки side_card - галочка карточки файлом не задана.
 	if res.Cells[0].SideCard != nil {
 		t.Errorf("side_card без листа racks: %v, ждали nil", *res.Cells[0].SideCard)
 	}
 }
 
-// TestParseCells_sideCard — галочка карточки у ячейки (решение 2026-11-05): по умолчанию — карточка
+// TestParseCells_sideCard - галочка карточки у ячейки (решение 2026-11-05): по умолчанию - карточка
 // стеллажа с листа racks и ячейка без штрих-кода на балке; колонка side_card листа cells главнее;
-// карточка у ячейки без стеллажа и нераспознанное значение — в отчёт.
+// карточка у ячейки без стеллажа и нераспознанное значение - в отчёт.
 func TestParseCells_sideCard(t *testing.T) {
 	data := buildXLSX(t,
 		[][]any{
@@ -162,8 +162,8 @@ func TestParseCells_sideCard(t *testing.T) {
 			{"B-1-1-1", "B-01", "large", false, ""},    // стеллаж без карточки → нет
 			{"B-1-2-1", "B-01", "large", false, "да"},  // колонка главнее стеллажа → да
 			{"C-1-1-1", "", "large", false, ""},        // без стеллажа → нет
-			{"C-1-2-1", "", "large", false, false},     // без стеллажа, явное «нет» — допустимо
-			{"C-1-3-1", "", "large", false, true},      // без стеллажа, «да» — противоречие
+			{"C-1-2-1", "", "large", false, false},     // без стеллажа, явное «нет» - допустимо
+			{"C-1-3-1", "", "large", false, true},      // без стеллажа, «да» - противоречие
 			{"C-1-4-1", "A-01", "large", false, "может"},
 		},
 		[][]any{{"rack_id", "side_card"}, {"A-01", true}, {"B-01", false}})
@@ -188,7 +188,7 @@ func TestParseCells_sideCard(t *testing.T) {
 		t.Errorf("отчёт: %+v", res.Errors)
 	}
 
-	// Колонка side_card без листа racks: заданное значение берётся, пустое — не задано (nil).
+	// Колонка side_card без листа racks: заданное значение берётся, пустое - не задано (nil).
 	data = buildXLSX(t, [][]any{
 		{"cell_id", "rack_id", "size", "side_card"},
 		{"A-1-1-1", "A-01", "large", true},
@@ -202,7 +202,7 @@ func TestParseCells_sideCard(t *testing.T) {
 	}
 }
 
-// TestBuildCellsXLSX_roundTrip — выгрузка читается разбором обратно в те же ячейки: галочка
+// TestBuildCellsXLSX_roundTrip - выгрузка читается разбором обратно в те же ячейки: галочка
 // карточки из колонки листа cells главнее листа racks, так что ячейка стеллажа с карточкой без
 // галочки и ячейка со штрих-кодом с галочкой сохраняют своё значение.
 func TestBuildCellsXLSX_roundTrip(t *testing.T) {
@@ -234,7 +234,7 @@ func TestBuildCellsXLSX_roundTrip(t *testing.T) {
 
 func boolPtr(v bool) *bool { return &v }
 
-// sameRow сравнивает строки ячеек по значениям (SideCard — указатель).
+// sameRow сравнивает строки ячеек по значениям (SideCard - указатель).
 func sameRow(a, b CellRow) bool {
 	if (a.SideCard == nil) != (b.SideCard == nil) || (a.SideCard != nil && *a.SideCard != *b.SideCard) {
 		return false
@@ -243,7 +243,7 @@ func sameRow(a, b CellRow) bool {
 	return a == b
 }
 
-// TestParseCells_badFile — не xlsx, нет листа cells, нет обязательной колонки → ошибка, а не
+// TestParseCells_badFile - не xlsx, нет листа cells, нет обязательной колонки → ошибка, а не
 // тихая загрузка пустоты.
 func TestParseCells_badFile(t *testing.T) {
 	if _, err := ParseCells(strings.NewReader("не xlsx")); err == nil {
@@ -259,7 +259,7 @@ func TestParseCells_badFile(t *testing.T) {
 	}
 }
 
-// TestParseBool — словарь булевых значений rack_labels.
+// TestParseBool - словарь булевых значений rack_labels.
 func TestParseBool(t *testing.T) {
 	cases := map[string]struct {
 		val, ok bool
@@ -311,7 +311,7 @@ func buildXLSX(t *testing.T, cells, racks [][]any) []byte {
 	return save(t, f)
 }
 
-// buildXLSXSheet — книга с одним листом произвольного имени.
+// buildXLSXSheet - книга с одним листом произвольного имени.
 func buildXLSXSheet(t *testing.T, name string, rows [][]any) []byte {
 	t.Helper()
 	f := excelize.NewFile()

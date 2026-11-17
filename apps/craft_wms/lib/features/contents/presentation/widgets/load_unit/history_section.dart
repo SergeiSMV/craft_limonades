@@ -18,13 +18,13 @@ import '../../../domain/contents_entities.dart';
 import '../../bloc/load_unit_history_cubit.dart';
 import '../common/contents_message.dart';
 
-/// Блок «История» карточки короба (P5-05-1, ADHOC-32): приёмка, переносы и изменения состава —
-/// что доложили и что вынули. Только со связью — без неё
+/// Блок «История» карточки короба (P5-05-1, ADHOC-32): приёмка, переносы и изменения состава -
+/// что доложили и что вынули. Только со связью - без неё
 /// блок так и говорит, остальная карточка при этом из снимка.
 ///
-/// Раскрывающаяся плашка, свёрнутая по умолчанию, — как «Штрихкоды» в карточке товара:
+/// Раскрывающаяся плашка, свёрнутая по умолчанию, - как «Штрихкоды» в карточке товара:
 /// у короба, который много переносили, история длиннее всего остального на экране и
-/// оттесняла бы вниз содержимое — то, ради чего карточку открывают.
+/// оттесняла бы вниз содержимое - то, ради чего карточку открывают.
 class HistorySection extends StatelessWidget {
   const HistorySection({super.key});
 
@@ -71,7 +71,7 @@ class HistorySection extends StatelessWidget {
   }
 }
 
-/// История по порядку: создание, приёмка, затем переносы и изменения состава вперемешку —
+/// История по порядку: создание, приёмка, затем переносы и изменения состава вперемешку -
 /// по времени, как это происходило на складе.
 class _History extends StatelessWidget {
   const _History({required this.history});
@@ -126,7 +126,7 @@ class _History extends StatelessWidget {
   }
 
   /// Переносы и изменения состава одной лентой по времени; при равном времени перенос
-  /// раньше — короб сначала встал на место, потом с ним работали.
+  /// раньше - короб сначала встал на место, потом с ним работали.
   List<Object> _timeline() {
     final all = <(DateTime, int, Object)>[
       for (final m in history.moves) (m.at, 0, m),
@@ -167,14 +167,14 @@ class _History extends StatelessWidget {
     _by(m.userName, m.at),
   ];
 
-  /// Номер операции переноса, ПМ-… (ADHOC-55); `null` — номера нет.
+  /// Номер операции переноса, ПМ-… (ADHOC-55); `null` - номера нет.
   static String? _operationNumber(LoadUnitMove m) {
     final kind = operationDocKind(m.operation);
     if (kind == null || m.operationNumber == 0) return null;
     return docNumber(kind, m.operationNumber);
   }
 
-  /// Изменение состава: что произошло и сколько, построчно — товар с партией, кто и когда.
+  /// Изменение состава: что произошло и сколько, построчно - товар с партией, кто и когда.
   List<Widget> _content(LoadUnitContentChange c) {
     final qty = fmtQty(c.qty);
     final box = c.peerLoadUnitId == null

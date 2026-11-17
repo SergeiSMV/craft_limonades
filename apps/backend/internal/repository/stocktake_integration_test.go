@@ -13,8 +13,8 @@ import (
 	"craftwms/internal/repository"
 )
 
-// stocktakeFixture — склад для пересчёта: A — ячейка приёмки, B и C — хранение, D — пустая.
-// Второй товар (маркируемый) — в дочерней группе и у поставщика: на нём проверяются области,
+// stocktakeFixture - склад для пересчёта: A - ячейка приёмки, B и C - хранение, D - пустая.
+// Второй товар (маркируемый) - в дочерней группе и у поставщика: на нём проверяются области,
 // которые считают только свой товар.
 type stocktakeFixture struct {
 	*putawayFixture
@@ -69,7 +69,7 @@ func (fx *stocktakeFixture) box(t *testing.T, cell string, qty int64) string {
 	return lu
 }
 
-// mark кладёт марку второго товара россыпью в ячейку (без остатка — его кладёт put).
+// mark кладёт марку второго товара россыпью в ячейку (без остатка - его кладёт put).
 func (fx *stocktakeFixture) mark(t *testing.T, cell, cis string) {
 	t.Helper()
 	if _, err := fx.pool.Exec(context.Background(), `
@@ -85,7 +85,7 @@ func (fx *stocktakeFixture) create(kind string, objects ...string) (model.Stockt
 	})
 }
 
-// cellsOf — ячейки пересчёта по адресу: адрес → id ячейки пересчёта.
+// cellsOf - ячейки пересчёта по адресу: адрес → id ячейки пересчёта.
 func (fx *stocktakeFixture) cellsOf(t *testing.T, stocktakeID string) map[string]string {
 	t.Helper()
 	rows, err := fx.pool.Query(context.Background(), `
@@ -102,7 +102,7 @@ func (fx *stocktakeFixture) cellsOf(t *testing.T, stocktakeID string) map[string
 	return out
 }
 
-// takeBy отдаёт ячейку пересчёта работнику — взятие ячейки приходит с P10-03.
+// takeBy отдаёт ячейку пересчёта работнику - взятие ячейки приходит с P10-03.
 func (fx *stocktakeFixture) takeBy(t *testing.T, stCell, user string) {
 	t.Helper()
 	if _, err := fx.pool.Exec(context.Background(), `
@@ -112,7 +112,7 @@ func (fx *stocktakeFixture) takeBy(t *testing.T, stCell, user string) {
 	}
 }
 
-// marksIn — сколько марок записано в снимок ячейки пересчёта.
+// marksIn - сколько марок записано в снимок ячейки пересчёта.
 func (fx *stocktakeFixture) marksIn(t *testing.T, stCell string) int {
 	t.Helper()
 	var n int
@@ -127,11 +127,11 @@ func (fx *stocktakeFixture) cellStatus(t *testing.T, stCell string) string {
 	return s
 }
 
-// P10-02: область разворачивается в ячейки — каждая своим правилом; ячейка приёмки не входит;
+// P10-02: область разворачивается в ячейки - каждая своим правилом; ячейка приёмки не входит;
 // пересчёт получает одно общее задание в пуле.
 func TestStocktake_createExpandsScope(t *testing.T) {
 	fx := setupStocktake(t)
-	fx.put(t, fx.cellA, fx.good, fx.batch, fx.iwh, 3) // приёмка — не считается
+	fx.put(t, fx.cellA, fx.good, fx.batch, fx.iwh, 3) // приёмка - не считается
 	fx.put(t, fx.cellB, fx.good, fx.batch, fx.iwh, 5)
 	fx.put(t, fx.cellC, fx.good2, fx.batch2, fx.iwhDefect, 2)
 
@@ -141,7 +141,7 @@ func TestStocktake_createExpandsScope(t *testing.T) {
 		objects []string
 		want    []string
 	}{
-		{"весь склад — и пустая ячейка", model.StocktakeScopeAll, nil, []string{"B", "C", "D"}},
+		{"весь склад - и пустая ячейка", model.StocktakeScopeAll, nil, []string{"B", "C", "D"}},
 		{"выбранные ячейки", model.StocktakeScopeCells, []string{fx.cellD}, []string{"D"}},
 		{"матрица с поддеревом", model.StocktakeScopeGroup, []string{fx.parentGroup}, []string{"C"}},
 		{"поставщик", model.StocktakeScopeSupplier, []string{fx.supplier}, []string{"C"}},
@@ -172,7 +172,7 @@ func TestStocktake_createExpandsScope(t *testing.T) {
 	}
 }
 
-// P10-02: неверная область — отказ, и ничего не остаётся: ни документа, ни задания.
+// P10-02: неверная область - отказ, и ничего не остаётся: ни документа, ни задания.
 func TestStocktake_createRejects(t *testing.T) {
 	fx := setupStocktake(t)
 	var otherWh, foreignCell string
@@ -203,7 +203,7 @@ func TestStocktake_createRejects(t *testing.T) {
 	}
 }
 
-// P10-02: снимок снимается при начале подсчёта ячейки — россыпь по складам, короб целиком,
+// P10-02: снимок снимается при начале подсчёта ячейки - россыпь по складам, короб целиком,
 // марки россыпью; повтор снимок не трогает; чужую ячейку начать нельзя.
 func TestStocktake_startCountSnapshot(t *testing.T) {
 	fx := setupStocktake(t)
@@ -231,7 +231,7 @@ func TestStocktake_startCountSnapshot(t *testing.T) {
 	snap, err := fx.repo.StartCount(ctx, stCell, fx.user)
 	mustNoErr(t, err)
 	if len(snap.Positions) != 4 || fx.marksIn(t, stCell) != 2 {
-		t.Errorf("снимок: позиций %d, марок %d — ожидалось 4 и 2", len(snap.Positions), fx.marksIn(t, stCell))
+		t.Errorf("снимок: позиций %d, марок %d - ожидалось 4 и 2", len(snap.Positions), fx.marksIn(t, stCell))
 	}
 	for _, p := range snap.Positions {
 		if (p.Kind == model.StocktakePositionBox) != (p.LoadUnitID != nil && p.GoodID == nil) {
@@ -243,10 +243,10 @@ func TestStocktake_startCountSnapshot(t *testing.T) {
 		args []any
 		want string
 	}{
-		"россыпь «Основного» — без короба": {`SELECT expected_qty::int::text FROM stocktake_lines
+		"россыпь «Основного» - без короба": {`SELECT expected_qty::int::text FROM stocktake_lines
 			WHERE stocktake_cell_id = $1::uuid AND good_id = $2::uuid AND load_unit_id IS NULL AND internal_warehouse_id = $3::uuid`,
 			[]any{stCell, fx.good, fx.iwh}, "5"},
-		"россыпь «Брака» — своей строкой": {`SELECT expected_qty::int::text FROM stocktake_lines
+		"россыпь «Брака» - своей строкой": {`SELECT expected_qty::int::text FROM stocktake_lines
 			WHERE stocktake_cell_id = $1::uuid AND good_id = $2::uuid AND internal_warehouse_id = $3::uuid`,
 			[]any{stCell, fx.good, fx.iwhDefect}, "2"},
 		"короб целиком": {`SELECT expected_qty::int::text FROM stocktake_lines
@@ -271,7 +271,7 @@ func TestStocktake_startCountSnapshot(t *testing.T) {
 	var lineID, again string
 	mustScan(t, fx.pool, `SELECT min(id::text) FROM stocktake_lines WHERE stocktake_cell_id = $1::uuid`, &lineID, stCell)
 	if snap2, err := fx.repo.StartCount(ctx, stCell, fx.user); err != nil || len(snap2.Positions) != len(snap.Positions) {
-		t.Errorf("повтор: %+v, %v — ожидалось %d позиций", snap2, err, len(snap.Positions))
+		t.Errorf("повтор: %+v, %v - ожидалось %d позиций", snap2, err, len(snap.Positions))
 	}
 	mustScan(t, fx.pool, `SELECT min(id::text) FROM stocktake_lines WHERE stocktake_cell_id = $1::uuid`, &again, stCell)
 	if again != lineID {
@@ -295,7 +295,7 @@ func TestStocktake_snapshotAreaGoodsOnly(t *testing.T) {
 	snap, err := fx.repo.StartCount(context.Background(), stCell, fx.user)
 	mustNoErr(t, err)
 	if len(snap.Positions) != 1 || fx.marksIn(t, stCell) != 1 {
-		t.Errorf("снимок по поставщику: позиций %d, марок %d — ожидалось 1 и 1", len(snap.Positions), fx.marksIn(t, stCell))
+		t.Errorf("снимок по поставщику: позиций %d, марок %d - ожидалось 1 и 1", len(snap.Positions), fx.marksIn(t, stCell))
 	}
 	var foreign string
 	mustScan(t, fx.pool, `SELECT count(*)::text FROM stocktake_lines
@@ -305,8 +305,8 @@ func TestStocktake_snapshotAreaGoodsOnly(t *testing.T) {
 	}
 }
 
-// P10-02: движение через ячейку на подсчёте сбивает его — остаток, состав и место короба,
-// марка; движение в другой ячейке не трогает. Сбитую ячейку начинают заново — снимок свежий.
+// P10-02: движение через ячейку на подсчёте сбивает его - остаток, состав и место короба,
+// марка; движение в другой ячейке не трогает. Сбитую ячейку начинают заново - снимок свежий.
 func TestStocktake_movementDisruptsCount(t *testing.T) {
 	fx := setupStocktake(t)
 	ctx := context.Background()
@@ -363,7 +363,7 @@ func TestStocktake_movementDisruptsCount(t *testing.T) {
 		restart(c.stCell)
 	}
 
-	// Свежий снимок: в D теперь короб и марка с нулём россыпи — учёт её остатка остался в C.
+	// Свежий снимок: в D теперь короб и марка с нулём россыпи - учёт её остатка остался в C.
 	var expectedBox string
 	mustScan(t, fx.pool, `SELECT count(*)::text FROM stocktake_lines WHERE stocktake_cell_id = $1::uuid
 		AND load_unit_id = $2::uuid`, &expectedBox, stD, lu)
@@ -372,7 +372,7 @@ func TestStocktake_movementDisruptsCount(t *testing.T) {
 	}
 }
 
-// P10-02: начало подсчёта ждёт идущее движение ячейки и видит его результат — иначе движение
+// P10-02: начало подсчёта ждёт идущее движение ячейки и видит его результат - иначе движение
 // не попало бы ни в снимок, ни под пометку «сбит».
 func TestStocktake_startCountWaitsForMovement(t *testing.T) {
 	fx := setupStocktake(t)
@@ -407,6 +407,6 @@ func TestStocktake_startCountWaitsForMovement(t *testing.T) {
 	mustScan(t, fx.pool, `SELECT expected_qty::int::text FROM stocktake_lines WHERE stocktake_cell_id = $1::uuid`,
 		&expected, stCell)
 	if expected != "7" || fx.cellStatus(t, stCell) != "counting" {
-		t.Errorf("снимок %s, ячейка %s — ожидалось 7 и counting", expected, fx.cellStatus(t, stCell))
+		t.Errorf("снимок %s, ячейка %s - ожидалось 7 и counting", expected, fx.cellStatus(t, stCell))
 	}
 }

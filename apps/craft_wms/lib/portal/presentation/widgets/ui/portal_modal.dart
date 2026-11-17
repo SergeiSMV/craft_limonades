@@ -11,9 +11,9 @@ import 'portal_button.dart';
 
 /// Диалог портала в плоском стиле (ADHOC-56, модальное окно Shopify Polaris).
 ///
-/// Что: белое окно — шапка с заголовком и крестиком, содержимое, подвал с действиями справа;
+/// Что: белое окно - шапка с заголовком и крестиком, содержимое, подвал с действиями справа;
 ///      шапку и подвал отделяют линии.
-/// Как: ширина — не больше [AppSizes.kPortalDialogWidth], на телефоне — во всю ширину с полями;
+/// Как: ширина - не больше [AppSizes.kPortalDialogWidth], на телефоне - во всю ширину с полями;
 ///      длинное содержимое прокручивается, шапка и подвал остаются на месте. Крестик закрывает
 ///      окно без результата, как «Отмена».
 class PortalModal extends StatelessWidget {
@@ -90,7 +90,7 @@ class PortalModal extends StatelessWidget {
   }
 }
 
-/// «Отмена» диалога — текстовая кнопка, закрывает с [result].
+/// «Отмена» диалога - текстовая кнопка, закрывает с [result].
 Widget portalCancel(
   BuildContext context, {
   required String label,
@@ -101,7 +101,7 @@ Widget portalCancel(
   onPressed: () => Navigator.of(context).pop(result),
 );
 
-/// Подпись поля диалога — над полем или группой вариантов.
+/// Подпись поля диалога - над полем или группой вариантов.
 class PortalFieldLabel extends StatelessWidget {
   const PortalFieldLabel(this.text, {super.key});
 

@@ -11,7 +11,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 // P6-04: карточка «в руках» и поле скана не переполняются на ширине ТСД. Найдено на DT50S:
-// у короба в руках три кнопки в одну строку уезжали за край на 104 px. Ширины — настоящим
+// у короба в руках три кнопки в одну строку уезжали за край на 104 px. Ширины - настоящим
 // Inter и темой приложения: тестовый шрифт шире почти вдвое.
 void main() {
   setUp(LocaleSettings.useDeviceLocale);
@@ -31,7 +31,7 @@ void main() {
   );
   const holds = <String, MoveHold>{
     'короб': MoveHold.source(place: box, contents: <ContentLine>[]),
-    // Выбран вручную — четыре действия: товар, ячейка, перепечатать ярлык, положить обратно.
+    // Выбран вручную - четыре действия: товар, ячейка, перепечатать ярлык, положить обратно.
     'короб вручную': MoveHold.source(
       place: box,
       contents: <ContentLine>[],
@@ -50,7 +50,7 @@ void main() {
   };
 
   testWidgets('без переполнения на ширине ТСД', (tester) async {
-    // DT50S — 360 логических точек; 320 — с запасом на крупный шрифт системы.
+    // DT50S - 360 логических точек; 320 - с запасом на крупный шрифт системы.
     for (final width in [320.0, 360.0]) {
       tester.view.physicalSize = Size(width, 800);
       tester.view.devicePixelRatio = 1;

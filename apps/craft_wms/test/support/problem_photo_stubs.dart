@@ -8,7 +8,7 @@ import 'package:craft_wms/features/problems/presentation/bloc/record_photos_cubi
 import 'package:either_dart/either.dart';
 import 'package:uuid/uuid.dart';
 
-/// Очередь фото проблем в памяти (ADHOC-45): для экранов, которые её показывают, — карточка
+/// Очередь фото проблем в памяти (ADHOC-45): для экранов, которые её показывают, - карточка
 /// проблемы и «Несинхронизированное».
 class FakeProblemPhotos implements ProblemPhotoRepository {
   final queued = <String, List<ProblemPhotoShot>>{};
@@ -43,7 +43,7 @@ class NoPhotoCamera implements PhotoCamera {
   Future<Uint8List?> take() async => null;
 }
 
-/// Зарегистрировать фото проблем в getIt — очередь в памяти и cubit карточки.
+/// Зарегистрировать фото проблем в getIt - очередь в памяти и cubit карточки.
 FakeProblemPhotos registerProblemPhotoStubs() {
   final photos = FakeProblemPhotos();
   if (getIt.isRegistered<ProblemPhotoRepository>()) {

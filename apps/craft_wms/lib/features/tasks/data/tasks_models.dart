@@ -3,14 +3,14 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'tasks_models.freezed.dart';
 part 'tasks_models.g.dart';
 
-/// Модели раздела «ЗАДАНИЯ» (P5-02-1) — ответы `GET /tasks…`. Количества приходят строкой
-/// (decimal с бэкенда), даты партий — DD-MM-YYYY, как на упаковке.
+/// Модели раздела «ЗАДАНИЯ» (P5-02-1) - ответы `GET /tasks…`. Количества приходят строкой
+/// (decimal с бэкенда), даты партий - DD-MM-YYYY, как на упаковке.
 
-/// Вид задания. Набор растёт вместе с операциями: P10 — пересчёт.
+/// Вид задания. Набор растёт вместе с операциями: P10 - пересчёт.
 abstract final class TaskKind {
   static const putaway = 'putaway';
 
-  /// Отгрузить возврат поставщику (ADHOC-31): позиции — проблемы, решённые офисом возвратом.
+  /// Отгрузить возврат поставщику (ADHOC-31): позиции - проблемы, решённые офисом возвратом.
   static const supplierReturn = 'supplier_return';
 
   /// Пересчёт (P10-04): задание общее, работники берут из него ячейки.
@@ -19,12 +19,12 @@ abstract final class TaskKind {
   /// Вернуть на места товар заказа сборки после правки реестра (P9-07-1).
   static const pickingReturn = 'picking_return';
 
-  /// Все виды — варианты фильтра ленты «Завершённые».
+  /// Все виды - варианты фильтра ленты «Завершённые».
   static const all = [putaway, supplierReturn, stocktake, pickingReturn];
 }
 
 /// Заказ сборки задания «вернуть на места» (P9-07-1): номер сборки, накладная и заказ 1С,
-/// основание — удалён ли заказ или когда его изменил реестр, сколько осталось вернуть.
+/// основание - удалён ли заказ или когда его изменил реестр, сколько осталось вернуть.
 @freezed
 abstract class TaskPicking with _$TaskPicking {
   const factory TaskPicking({
@@ -42,14 +42,14 @@ abstract class TaskPicking with _$TaskPicking {
       _$TaskPickingFromJson(json);
 }
 
-/// Пересчёт задания — номер, вид области и ход: сколько ячеек всего и сколько подсчитано.
+/// Пересчёт задания - номер, вид области и ход: сколько ячеек всего и сколько подсчитано.
 @freezed
 abstract class TaskStocktake with _$TaskStocktake {
   const factory TaskStocktake({
     required int number,
     @JsonKey(name: 'scope_kind') required String scopeKind,
 
-    /// Кто завёл пересчёт — у такого задания автор человек, а не система.
+    /// Кто завёл пересчёт - у такого задания автор человек, а не система.
     @JsonKey(name: 'created_by') @Default('') String createdBy,
     @Default(0) int cells,
     @Default(0) int counted,
@@ -59,7 +59,7 @@ abstract class TaskStocktake with _$TaskStocktake {
       _$TaskStocktakeFromJson(json);
 }
 
-/// Статус задания так, как его видит этот кладовщик: чужое зависшее — «новое».
+/// Статус задания так, как его видит этот кладовщик: чужое зависшее - «новое».
 abstract final class TaskStatus {
   static const fresh = 'new';
   static const inProgress = 'in_progress';
@@ -94,8 +94,8 @@ abstract class TaskContent with _$TaskContent {
 }
 
 /// Позиция задания: короб ([loadUnitId] + [contents]) ЛИБО россыпь ([good] …). У возврата
-/// поставщику (ADHOC-31) — ещё проблема-основание [problemId] и ячейка [cell], где позиция
-/// лежит сейчас; [placed] у возврата — «отгружено».
+/// поставщику (ADHOC-31) - ещё проблема-основание [problemId] и ячейка [cell], где позиция
+/// лежит сейчас; [placed] у возврата - «отгружено».
 @freezed
 abstract class TaskItem with _$TaskItem {
   const factory TaskItem({
@@ -110,7 +110,7 @@ abstract class TaskItem with _$TaskItem {
     @JsonKey(name: 'problem_id') String? problemId,
     @Default('') String cell,
 
-    /// Код короба ЧЗ (`00`+SSCC), если короб позиции — транспортный короб ЧЗ (CZ-06): ярлыка
+    /// Код короба ЧЗ (`00`+SSCC), если короб позиции - транспортный короб ЧЗ (CZ-06): ярлыка
     /// WMS у него нет, его узнают сканом этикетки ЧЗ.
     @JsonKey(name: 'cz_code') String? czCode,
 
@@ -120,14 +120,14 @@ abstract class TaskItem with _$TaskItem {
 
   const TaskItem._();
 
-  /// Позиция — короб целиком.
+  /// Позиция - короб целиком.
   bool get isBox => loadUnitId != null;
 
   factory TaskItem.fromJson(Map<String, dynamic> json) =>
       _$TaskItemFromJson(json);
 }
 
-/// Проблема склада — основание задания на размещение по решению «разместить» (ADHOC-55).
+/// Проблема склада - основание задания на размещение по решению «разместить» (ADHOC-55).
 @freezed
 abstract class TaskProblem with _$TaskProblem {
   const factory TaskProblem({required String id, required int number}) =
@@ -150,21 +150,21 @@ abstract class WarehouseTask with _$WarehouseTask {
     @Default('') String supplier,
     @JsonKey(name: 'received_at') DateTime? receivedAt,
 
-    /// Документ поставщика приёмки-основания (ADHOC-23); дата — DD-MM-YYYY. `null` — нет.
+    /// Документ поставщика приёмки-основания (ADHOC-23); дата - DD-MM-YYYY. `null` - нет.
     @JsonKey(name: 'doc_number') String? docNumber,
     @JsonKey(name: 'doc_date') String? docDate,
 
-    /// Проблема-основание размещения (ADHOC-55); `null` — основание другое.
+    /// Проблема-основание размещения (ADHOC-55); `null` - основание другое.
     TaskProblem? problem,
     @JsonKey(name: 'assignee_name') @Default('') String assigneeName,
     @JsonKey(name: 'taken_at') DateTime? takenAt,
     @JsonKey(name: 'created_at') required DateTime createdAt,
 
-    /// Пересчёт задания вида `stocktake` (P10-04); `null` — у других видов.
+    /// Пересчёт задания вида `stocktake` (P10-04); `null` - у других видов.
     @JsonKey(name: 'stocktake_id') String? stocktakeId,
     TaskStocktake? stocktake,
 
-    /// Заказ сборки задания «вернуть на места» (P9-07-1); `null` — у других видов.
+    /// Заказ сборки задания «вернуть на места» (P9-07-1); `null` - у других видов.
     TaskPicking? picking,
     @Default(<TaskItem>[]) List<TaskItem> items,
   }) = _WarehouseTask;
@@ -193,7 +193,7 @@ abstract class TaskUser with _$TaskUser {
       _$TaskUserFromJson(json);
 }
 
-/// Запись ленты «Завершённые» — задание целиком.
+/// Запись ленты «Завершённые» - задание целиком.
 @freezed
 abstract class CompletedTask with _$CompletedTask {
   const factory CompletedTask({
@@ -202,20 +202,20 @@ abstract class CompletedTask with _$CompletedTask {
     required String kind,
     @Default('') String supplier,
 
-    /// Документ поставщика приёмки-основания (ADHOC-23); дата — DD-MM-YYYY. `null` — нет.
+    /// Документ поставщика приёмки-основания (ADHOC-23); дата - DD-MM-YYYY. `null` - нет.
     @JsonKey(name: 'doc_number') String? docNumber,
     @JsonKey(name: 'doc_date') String? docDate,
     // Строкой, а не DateTime: это и курсор подгрузки, и сервер ждёт его ровно в том виде,
-    // в каком отдал, — до наносекунд. Перевод в DateTime и обратно их терял бы.
+    // в каком отдал, - до наносекунд. Перевод в DateTime и обратно их терял бы.
     @JsonKey(name: 'completed_at') required String completedAt,
     @Default(<TaskUser>[]) List<TaskUser> executors,
     @Default(0) int sessions,
 
-    /// Проблема-основание размещения (ADHOC-55); `null` — основание другое.
+    /// Проблема-основание размещения (ADHOC-55); `null` - основание другое.
     TaskProblem? problem,
 
-    /// Пересчёт задания вида `stocktake` (ADHOC-58); у пересчёта [sessions] — подсчитанные
-    /// ячейки, [executors] — кто считал.
+    /// Пересчёт задания вида `stocktake` (ADHOC-58); у пересчёта [sessions] - подсчитанные
+    /// ячейки, [executors] - кто считал.
     TaskStocktake? stocktake,
 
     /// Заказ сборки задания «вернуть на места» (P9-07-1).
@@ -224,7 +224,7 @@ abstract class CompletedTask with _$CompletedTask {
 
   const CompletedTask._();
 
-  /// Момент завершения — для показа и разделителей по дате.
+  /// Момент завершения - для показа и разделителей по дате.
   DateTime get completedAtTime => DateTime.parse(completedAt);
 
   factory CompletedTask.fromJson(Map<String, dynamic> json) =>
@@ -270,7 +270,7 @@ abstract final class TaskEventKind {
   static const session = 'session';
   static const completed = 'completed';
 
-  /// Ячейка пересчёта подсчитана (ADHOC-58): кто и какую — [TaskEvent.cell].
+  /// Ячейка пересчёта подсчитана (ADHOC-58): кто и какую - [TaskEvent.cell].
   static const cellCounted = 'cell_counted';
 }
 
@@ -311,7 +311,7 @@ abstract class CompletedFilter with _$CompletedFilter {
 
   const CompletedFilter._();
 
-  /// Сколько условий задано — для бейджа на кнопке фильтра.
+  /// Сколько условий задано - для бейджа на кнопке фильтра.
   int get activeCount =>
       (from != null || to != null ? 1 : 0) +
       (executor != null ? 1 : 0) +

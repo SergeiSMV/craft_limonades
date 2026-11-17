@@ -12,7 +12,7 @@ import (
 
 // Тесты P5-04: «Движение» рождается в транзакции размещения.
 
-// Сеанс размещения публикует «Движение»: основание — задание и приёмка с накладной, короба
+// Сеанс размещения публикует «Движение»: основание - задание и приёмка с накладной, короба
 // разложены по составу и сложены с россыпью той же партии и той же пары ячеек.
 func TestPutaway_publishesMovementDocument(t *testing.T) {
 	pf := setupPutaway(t)
@@ -44,7 +44,7 @@ func TestPutaway_publishesMovementDocument(t *testing.T) {
 		s.Executor != "Кладовщик" || s.WarehouseCode != "WH1" {
 		t.Errorf("шапка: %+v", s)
 	}
-	// 12 + 5 + 12 из A в B — одна строка: 1С короба не различает.
+	// 12 + 5 + 12 из A в B - одна строка: 1С короба не различает.
 	if len(s.Rows) != 1 {
 		t.Fatalf("строк %d, ожидалась одна: %+v", len(s.Rows), s.Rows)
 	}
@@ -66,7 +66,7 @@ func TestPutaway_publishesMovementDocument(t *testing.T) {
 	}
 }
 
-// Каждый сеанс — свой документ; отклонённый сеанс документа не оставляет.
+// Каждый сеанс - свой документ; отклонённый сеанс документа не оставляет.
 func TestPutaway_movementDocumentPerSession(t *testing.T) {
 	pf := setupPutaway(t)
 	lu := newLU(t, pf.stockFixture, model.LoadUnitBox)

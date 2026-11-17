@@ -19,7 +19,7 @@ import '../common/pending_mark.dart';
 import 'reprint_button.dart';
 
 /// Карточка короба: короткий код, где лежит, что внутри (P5-05); перепечатка ярлыка
-/// и история (P5-05-1); товар в коробе ведёт в свою карточку. Тянется вниз — перечитать.
+/// и история (P5-05-1); товар в коробе ведёт в свою карточку. Тянется вниз - перечитать.
 class LoadUnitBody extends StatelessWidget {
   const LoadUnitBody({
     super.key,
@@ -41,7 +41,7 @@ class LoadUnitBody extends StatelessWidget {
   /// Открыть карточку товара из строки содержимого.
   final void Function(ContentLine line) onOpenGood;
 
-  /// Блок истории — со своим состоянием, поэтому приходит готовым виджетом.
+  /// Блок истории - со своим состоянием, поэтому приходит готовым виджетом.
   final Widget history;
 
   @override
@@ -77,7 +77,7 @@ class LoadUnitBody extends StatelessWidget {
     );
   }
 
-  /// «Не найден»: без связи — с оговоркой, что короб мог появиться после загрузки снимка.
+  /// «Не найден»: без связи - с оговоркой, что короб мог появиться после загрузки снимка.
   String _notFound() => switch (data.freshness) {
     FromSnapshot(asOf: final asOf?) => t.contents.notFoundSnapshot(
       time: shortDateTime(asOf),
@@ -85,7 +85,7 @@ class LoadUnitBody extends StatelessWidget {
     _ => t.contents.notFound,
   };
 
-  /// Шапка: где короб лежит и пометки. Код короба — в заголовке экрана (ADHOC-21): он
+  /// Шапка: где короб лежит и пометки. Код короба - в заголовке экрана (ADHOC-21): он
   /// известен до загрузки и не должен повторяться в теле.
   Widget _header(LoadUnitView lu) => DetailCard(
     padding: AppInsets.all12,

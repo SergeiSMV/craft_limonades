@@ -10,7 +10,7 @@ import (
 
 // Тесты P4-01: схема грузовой единицы и её состава.
 // Кода поверх неё ещё нет (репозиторий появится в P4-03), поэтому проверяются инварианты самой
-// схемы — то, на что дальше будет опираться домен приёмки.
+// схемы - то, на что дальше будет опираться домен приёмки.
 // Переиспользуют фикстуру setupStock (склад/ячейки/товар/партия) из stock_integration_test.go.
 
 // newLU заводит ГЕ с идентификатором, выданным «устройством», и возвращает его.
@@ -24,7 +24,7 @@ func newLU(t *testing.T, fx *stockFixture, kind string) string {
 	return id
 }
 
-// Базовый случай: ГЕ с составом хранится и читается — это и есть критерий задачи.
+// Базовый случай: ГЕ с составом хранится и читается - это и есть критерий задачи.
 func TestLoadUnits_unitWithContent(t *testing.T) {
 	fx := setupStock(t)
 	ctx := context.Background()
@@ -50,14 +50,14 @@ func TestLoadUnits_unitWithContent(t *testing.T) {
 	}
 	// Свежая ГЕ ещё не размещена и никуда не вложена.
 	if cell != nil || parent != nil {
-		t.Errorf("свежая ГЕ: cell=%v parent=%v — ожидались NULL", cell, parent)
+		t.Errorf("свежая ГЕ: cell=%v parent=%v - ожидались NULL", cell, parent)
 	}
 	if !strings.HasPrefix(qty, "12.5") {
 		t.Errorf("количество в составе: %q", qty)
 	}
 }
 
-// Грань состава: повторное вложение того же товара той же партии — это одна строка,
+// Грань состава: повторное вложение того же товара той же партии - это одна строка,
 // количество в ней меняется. Иначе состав ГЕ разъехался бы на дубли.
 func TestLoadUnits_contentGrainIsUnique(t *testing.T) {
 	fx := setupStock(t)
@@ -69,10 +69,10 @@ func TestLoadUnits_contentGrainIsUnique(t *testing.T) {
 		t.Fatalf("первое вложение: %v", err)
 	}
 	if _, err := fx.pool.Exec(ctx, ins, lu, fx.good, fx.batch, 5); err == nil {
-		t.Fatal("вторая строка по той же грани прошла — грань не работает")
+		t.Fatal("вторая строка по той же грани прошла - грань не работает")
 	}
 
-	// Штатный путь — upsert по грани: количество увеличивается, строка остаётся одна.
+	// Штатный путь - upsert по грани: количество увеличивается, строка остаётся одна.
 	if _, err := fx.pool.Exec(ctx, `
 		INSERT INTO lu_content (load_unit_id, good_id, batch_id, qty)
 		VALUES ($1::uuid,$2::uuid,$3::uuid,$4)
@@ -91,7 +91,7 @@ func TestLoadUnits_contentGrainIsUnique(t *testing.T) {
 	}
 }
 
-// Вложенность: короб кладётся в паллету, и удаление паллеты не уносит короба —
+// Вложенность: короб кладётся в паллету, и удаление паллеты не уносит короба -
 // физически они никуда не делись.
 func TestLoadUnits_nesting(t *testing.T) {
 	fx := setupStock(t)
@@ -116,14 +116,14 @@ func TestLoadUnits_nesting(t *testing.T) {
 		t.Errorf("после удаления паллеты parent_id = %v, ожидался NULL", *parent)
 	}
 
-	// ГЕ не может быть вложена сама в себя — это оборвало бы обход состава.
+	// ГЕ не может быть вложена сама в себя - это оборвало бы обход состава.
 	if _, err := fx.pool.Exec(ctx,
 		`UPDATE load_units SET parent_id = id WHERE id = $1::uuid`, box); err == nil {
 		t.Error("ГЕ разрешили стать своим родителем")
 	}
 }
 
-// Удаление ГЕ уносит её состав: оболочка без содержимого — мусор, который потом join'ится в пустоту.
+// Удаление ГЕ уносит её состав: оболочка без содержимого - мусор, который потом join'ится в пустоту.
 func TestLoadUnits_deleteCascadesContent(t *testing.T) {
 	fx := setupStock(t)
 	ctx := context.Background()
@@ -147,7 +147,7 @@ func TestLoadUnits_deleteCascadesContent(t *testing.T) {
 }
 
 // Ограничения-сторожа: чужой тип, чужой статус, отрицательное количество и партия не своего
-// товара не должны попадать в базу — на эти инварианты будет опираться домен приёмки.
+// товара не должны попадать в базу - на эти инварианты будет опираться домен приёмки.
 func TestLoadUnits_guards(t *testing.T) {
 	fx := setupStock(t)
 	ctx := context.Background()
@@ -167,7 +167,7 @@ func TestLoadUnits_guards(t *testing.T) {
 		t.Error("отрицательное количество прошло")
 	}
 
-	// Партия принадлежит другому товару — составной FK обязан это поймать.
+	// Партия принадлежит другому товару - составной FK обязан это поймать.
 	var otherGood, otherBatch string
 	mustScan(t, fx.pool, `INSERT INTO goods (name, uom) VALUES ('Другой','шт') RETURNING id::text`, &otherGood)
 	mustScan(t, fx.pool, `INSERT INTO batches (good_id, production_date) VALUES ($1::uuid,'2026-03-03') RETURNING id::text`,
@@ -175,6 +175,6 @@ func TestLoadUnits_guards(t *testing.T) {
 	if _, err := fx.pool.Exec(ctx, `
 		INSERT INTO lu_content (load_unit_id, good_id, batch_id, qty)
 		VALUES ($1::uuid,$2::uuid,$3::uuid,1)`, lu, fx.good, otherBatch); err == nil {
-		t.Error("партия чужого товара прошла — составной FK не работает")
+		t.Error("партия чужого товара прошла - составной FK не работает")
 	}
 }

@@ -12,25 +12,25 @@ part 'stocktake_cells_cubit.freezed.dart';
 /// Загрузка списка ячеек пересчёта.
 enum StocktakeCellsStatus { loading, loaded, error }
 
-/// Подсказка по скану ячейки или действию — один раз.
+/// Подсказка по скану ячейки или действию - один раз.
 sealed class CellsNotice {
   const CellsNotice();
 }
 
-/// Отсканированной ячейки нет среди свободных и своих — её держит другой или она не из этого
+/// Отсканированной ячейки нет среди свободных и своих - её держит другой или она не из этого
 /// пересчёта.
 final class CellsNoticeNotHere extends CellsNotice {
   const CellsNoticeNotHere(this.address);
   final String address;
 }
 
-/// Ячейку взяли — работник идёт к ней.
+/// Ячейку взяли - работник идёт к ней.
 final class CellsNoticeTaken extends CellsNotice {
   const CellsNoticeTaken(this.address);
   final String address;
 }
 
-/// Действие не удалось — причина [failure].
+/// Действие не удалось - причина [failure].
 final class CellsNoticeFailed extends CellsNotice {
   const CellsNoticeFailed(this.failure);
   final Failure failure;
@@ -41,7 +41,7 @@ final class CellsNoticeClosed extends CellsNotice {
   const CellsNoticeClosed();
 }
 
-/// Ячейки пересчёта для работника (P10-04): свободные и свои; без связи — свои черновики.
+/// Ячейки пересчёта для работника (P10-04): свободные и свои; без связи - свои черновики.
 @freezed
 abstract class StocktakeCellsState with _$StocktakeCellsState {
   const factory StocktakeCellsState({
@@ -49,13 +49,13 @@ abstract class StocktakeCellsState with _$StocktakeCellsState {
     StocktakeInfo? info,
     @Default(<StocktakeCell>[]) List<StocktakeCell> cells,
 
-    /// Незавершённые подсчёты на терминале — продолжить без связи.
+    /// Незавершённые подсчёты на терминале - продолжить без связи.
     @Default(<StocktakeCount>[]) List<StocktakeCount> drafts,
     Failure? failure,
     @Default(false) bool busy,
     CellsNotice? notice,
 
-    /// Начатая ячейка — экран открывает подсчёт и сбрасывает поле.
+    /// Начатая ячейка - экран открывает подсчёт и сбрасывает поле.
     StocktakeCellView? started,
   }) = _StocktakeCellsState;
 
@@ -72,11 +72,11 @@ abstract class StocktakeCellsState with _$StocktakeCellsState {
   ];
 }
 
-/// Ячейки пересчёта (P10-04): список, взять, отказаться, скан ячейки на месте — и старшему
+/// Ячейки пересчёта (P10-04): список, взять, отказаться, скан ячейки на месте - и старшему
 /// смены закрыть пересчёт.
 ///
-/// Скан адреса ячейки — главный путь: свободная берётся и сразу начинается, своя — начинается.
-/// Так работник, дойдя до полки, не тыкает в список. Касание свободной — взять заранее, чтобы
+/// Скан адреса ячейки - главный путь: свободная берётся и сразу начинается, своя - начинается.
+/// Так работник, дойдя до полки, не тыкает в список. Касание свободной - взять заранее, чтобы
 /// к ней не пошёл другой.
 @injectable
 class StocktakeCellsCubit extends Cubit<StocktakeCellsState> {
@@ -86,7 +86,7 @@ class StocktakeCellsCubit extends Cubit<StocktakeCellsState> {
   final StocktakeRepository _repo;
   final String stocktakeId;
 
-  /// Загрузить ход и ячейки. Без связи — черновики этого пересчёта на терминале.
+  /// Загрузить ход и ячейки. Без связи - черновики этого пересчёта на терминале.
   Future<void> load() async {
     final info = await _repo.stocktake(stocktakeId);
     final cells = await _repo.cells(stocktakeId);
@@ -116,7 +116,7 @@ class StocktakeCellsCubit extends Cubit<StocktakeCellsState> {
     );
   }
 
-  /// Взять свободную ячейку — к ней не пойдёт другой.
+  /// Взять свободную ячейку - к ней не пойдёт другой.
   Future<void> take(StocktakeCell cell) async {
     if (state.busy) return;
     emit(state.copyWith(busy: true));
@@ -148,7 +148,7 @@ class StocktakeCellsCubit extends Cubit<StocktakeCellsState> {
     await load();
   }
 
-  /// Скан ячейки на месте: свободная берётся, своя — начинается; снимок — в [started].
+  /// Скан ячейки на месте: свободная берётся, своя - начинается; снимок - в [started].
   Future<void> scanCell(String address) async {
     if (state.busy) return;
     final a = address.toLowerCase();
@@ -190,7 +190,7 @@ class StocktakeCellsCubit extends Cubit<StocktakeCellsState> {
   /// Подсказка показана.
   void clearNotice() => emit(state.copyWith(notice: null));
 
-  /// Закрыть пересчёт (старший смены); [force] — с неподсчитанными ячейками.
+  /// Закрыть пересчёт (старший смены); [force] - с неподсчитанными ячейками.
   Future<void> closeStocktake({required bool force}) async {
     if (state.busy) return;
     emit(state.copyWith(busy: true));

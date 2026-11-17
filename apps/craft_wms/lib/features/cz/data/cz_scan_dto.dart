@@ -50,7 +50,7 @@ CzScanResult czScanFromJson(Map<String, dynamic> j) {
 }
 
 /// Разбор ответа `POST cz/scan/batch` (ADHOC-70): `{items: [{requested, scan | status, error}]}`.
-/// Формат закреплён эталоном сервера `testdata/cz_scan_batch.json`. Отказ по коду — как
+/// Формат закреплён эталоном сервера `testdata/cz_scan_batch.json`. Отказ по коду - как
 /// ответ сервера с его кодом и текстом, чтобы экран говорил то же, что при одиночном скане.
 List<CzScanBatchItem> czScanBatchFromJson(Map<String, dynamic> j) => [
   for (final raw in (j['items'] as List?) ?? const [])
@@ -75,7 +75,7 @@ CzScanBatchItem _batchItem(Map<String, dynamic> j) {
 /// Непустая строка или `null`: сервер опускает пустые поля, но и пустую строку считаем «нет».
 String? _text(Object? v) => v is String && v.isNotEmpty ? v : null;
 
-/// Вид кода: неизвестное значение считаем маркой — карточка товара покажет то, что есть.
+/// Вид кода: неизвестное значение считаем маркой - карточка товара покажет то, что есть.
 CzCodeKind _kind(String? v) => switch (v) {
   'BOX' => CzCodeKind.box,
   'GROUP' => CzCodeKind.group,
@@ -111,5 +111,5 @@ CzCompositionLine _line(Map<String, dynamic> j) => CzCompositionLine(
   discrepancy: _text(j['discrepancy']),
 );
 
-/// Дата ЧЗ днём (`YYYY-MM-DD`); пусто или не дата — `null`.
+/// Дата ЧЗ днём (`YYYY-MM-DD`); пусто или не дата - `null`.
 DateTime? _day(Object? v) => v is String ? DateTime.tryParse(v) : null;

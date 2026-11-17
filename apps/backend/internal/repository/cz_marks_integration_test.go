@@ -11,15 +11,15 @@ import (
 	"craftwms/internal/repository"
 )
 
-// Марки и агрегаты ЧЗ (CZ-03): критерий задачи — марка и агрегат хранятся с привязкой к месту
+// Марки и агрегаты ЧЗ (CZ-03): критерий задачи - марка и агрегат хранятся с привязкой к месту
 // на складе. Одна база на все случаи (фикстура setupStock), коды у случаев свои.
-// КИ и SSCC — по образцу живого короба пива, прочитанного на проде в CZ-02.
+// КИ и SSCC - по образцу живого короба пива, прочитанного на проде в CZ-02.
 func TestCZMarks(t *testing.T) {
 	fx := setupStock(t)
 	ctx := context.Background()
 	repo := repository.NewCZMarkRepository(fx.pool)
 
-	// placedBox — ГЕ короба, размещённая в ячейке A.
+	// placedBox - ГЕ короба, размещённая в ячейке A.
 	placedBox := func(t *testing.T) string {
 		t.Helper()
 		lu := newLU(t, fx, "box")
@@ -33,7 +33,7 @@ func TestCZMarks(t *testing.T) {
 		return model.CZMark{CIS: cis, GoodID: fx.good, BatchID: fx.batch, LoadUnitID: lu, AggregateCode: agg}
 	}
 
-	t.Run("короб ЧЗ — ГЕ с составом", func(t *testing.T) {
+	t.Run("короб ЧЗ - ГЕ с составом", func(t *testing.T) {
 		lu := placedBox(t)
 		box := model.CZAggregate{Code: "00146801691100407293", Kind: model.CZAggregateBox, LoadUnitID: lu}
 		group := model.CZAggregate{Code: "0104612728200189215grp001", Kind: model.CZAggregateGroup, ParentCode: box.Code}
@@ -50,7 +50,7 @@ func TestCZMarks(t *testing.T) {
 		if got, err := repo.LoadUnitByCZCode(ctx, box.Code); err != nil || got != lu {
 			t.Fatalf("ГЕ по SSCC = %q, %v; want %s", got, err, lu)
 		}
-		// Марка знает товар, партию, GTIN и место — ячейку своего короба.
+		// Марка знает товар, партию, GTIN и место - ячейку своего короба.
 		m, err := repo.MarkByCIS(ctx, "0104612728200172215>!jNgg")
 		if err != nil {
 			t.Fatal(err)
@@ -63,7 +63,7 @@ func TestCZMarks(t *testing.T) {
 		if got, err := repo.MarksOfLoadUnit(ctx, lu); err != nil || len(got) != 3 {
 			t.Fatalf("марки короба: %d, %v", len(got), err)
 		}
-		// Состав по ЧЗ: в коробе — упаковка и одна марка напрямую, в упаковке — две марки.
+		// Состав по ЧЗ: в коробе - упаковка и одна марка напрямую, в упаковке - две марки.
 		bc, err := repo.AggregateContents(ctx, box.Code)
 		if err != nil {
 			t.Fatal(err)
@@ -120,7 +120,7 @@ func TestCZMarks(t *testing.T) {
 		}
 	})
 
-	t.Run("место марки — ровно одно", func(t *testing.T) {
+	t.Run("место марки - ровно одно", func(t *testing.T) {
 		lu := placedBox(t)
 		twoPlaces := model.CZMark{CIS: "0104612728200172215twoplac", GoodID: fx.good, BatchID: fx.batch,
 			LoadUnitID: lu, CellID: fx.cellA, InternalWarehouseID: fx.iwh}
@@ -138,7 +138,7 @@ func TestCZMarks(t *testing.T) {
 		if _, err := repo.MarkByCIS(ctx, "0104612728200172215unknown"); !errors.Is(err, model.ErrCZMarkNotFound) {
 			t.Fatalf("марка: %v", err)
 		}
-		// Групповая упаковка — не ГЕ: по её коду ГЕ не найти.
+		// Групповая упаковка - не ГЕ: по её коду ГЕ не найти.
 		if _, err := repo.LoadUnitByCZCode(ctx, "0104612728200189215grp001"); !errors.Is(err, model.ErrCZAggregateNotFound) {
 			t.Fatalf("ГЕ по коду упаковки: %v", err)
 		}
@@ -161,7 +161,7 @@ func TestCZMarks(t *testing.T) {
 	})
 }
 
-// CZ-05: признак «маркируемый» — в справочнике и поиске по ШК, правка admin, привязка ШК из
+// CZ-05: признак «маркируемый» - в справочнике и поиске по ШК, правка admin, привязка ШК из
 // марки ставит его сама (долг 16, признак по факту).
 func TestCZGoodMarked(t *testing.T) {
 	fx := setupStock(t)
@@ -190,7 +190,7 @@ func TestCZGoodMarked(t *testing.T) {
 		t.Fatalf("нет товара: %v", err)
 	}
 
-	// Обычная привязка ШК признак не ставит, привязка из марки — ставит.
+	// Обычная привязка ШК признак не ставит, привязка из марки - ставит.
 	ops := repository.NewOperationsRepository(fx.pool)
 	if _, err := ops.BindBarcode(ctx, uuid.NewString(), repository.BarcodeBindInput{
 		GoodID: fx.good, Barcode: "4600000000017"}); err != nil || marked() {
@@ -206,7 +206,7 @@ func TestCZGoodMarked(t *testing.T) {
 		t.Fatalf("товар по ШК: %+v, %v", g, err)
 	}
 
-	// ADHOC-59: пока марка товара на складе, признак не снять; ушла со склада — снимается.
+	// ADHOC-59: пока марка товара на складе, признак не снять; ушла со склада - снимается.
 	const cis = "0104612728200172215Adhoc59"
 	if err := repo.SaveMarks(ctx, []model.CZMark{{CIS: cis, GoodID: fx.good, BatchID: fx.batch,
 		CellID: fx.cellA, InternalWarehouseID: fx.iwh}}); err != nil {

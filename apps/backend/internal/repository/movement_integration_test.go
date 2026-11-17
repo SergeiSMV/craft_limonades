@@ -12,12 +12,12 @@ import (
 	"craftwms/internal/repository"
 )
 
-// Тесты P6-02: перенос ГЕ перемещением. Критерий задачи — состав едет вместе с ГЕ.
-// Фикстура setupPutaway — из putaway_integration_test.go: A — ячейка приёмки, B — хранения;
+// Тесты P6-02: перенос ГЕ перемещением. Критерий задачи - состав едет вместе с ГЕ.
+// Фикстура setupPutaway - из putaway_integration_test.go: A - ячейка приёмки, B - хранения;
 // здесь добавляются вторая ячейка хранения C и ячейка приёмки R.
 //
 // Движение из ячейки приёмки и в неё запрещено (P6-05), а тесты движения берут товар из A,
-// куда его кладёт приёмка. Поэтому A — ячейка приёмки только на время оприходования, после
+// куда его кладёт приёмка. Поэтому A - ячейка приёмки только на время оприходования, после
 // него флаг переходит к R: проводить каждый тест через задание на размещение незачем.
 
 type moveFixture struct {
@@ -69,7 +69,7 @@ func luTo(lu, cell string) repository.MovementLineInput {
 	return repository.MovementLineInput{LoadUnitID: lu, ToCellID: cell}
 }
 
-// qtyOf — остаток партии batch товара фикстуры в ячейке (склад по умолчанию).
+// qtyOf - остаток партии batch товара фикстуры в ячейке (склад по умолчанию).
 func (mf *moveFixture) qtyOf(t *testing.T, cell, batch string) string {
 	t.Helper()
 	q, err := repository.NewStockRepository(mf.pool).GetQty(context.Background(), model.StockKey{
@@ -250,9 +250,9 @@ func TestMove_rejections(t *testing.T) {
 	}
 }
 
-// Тесты P6-03: ветка товара. Источник и приёмник — россыпь ячейки или короб в любых сочетаниях.
+// Тесты P6-03: ветка товара. Источник и приёмник - россыпь ячейки или короб в любых сочетаниях.
 
-// goodsLine — строка товара фикстуры партии 01.01 с одним источником и одним приёмником.
+// goodsLine - строка товара фикстуры партии 01.01 с одним источником и одним приёмником.
 func (mf *moveFixture) goodsLine(qty int64, fromCell, fromLU, toCell, toLU string) repository.MovementLineInput {
 	return repository.MovementLineInput{
 		GoodID: mf.good, ProductionDate: "2026-01-01", Qty: decimal.NewFromInt(qty),
@@ -260,7 +260,7 @@ func (mf *moveFixture) goodsLine(qty int64, fromCell, fromLU, toCell, toLU strin
 	}
 }
 
-// luQty — количество товара фикстуры партии 01.01 в коробе.
+// luQty - количество товара фикстуры партии 01.01 в коробе.
 func (mf *moveFixture) luQty(t *testing.T, lu string) string {
 	t.Helper()
 	var q string
@@ -329,7 +329,7 @@ func TestMove_replenishMovesGoods(t *testing.T) {
 	}
 }
 
-// Источник проверяется под блокировкой: из короба — не больше его состава, из россыпи — не
+// Источник проверяется под блокировкой: из короба - не больше его состава, из россыпи - не
 // больше остатка ячейки за вычетом её коробов, несуществующей партии в источнике нет.
 func TestMove_goodsRejections(t *testing.T) {
 	mf := setupMove(t)
@@ -404,7 +404,7 @@ func TestReplenish_wholeLoadUnit(t *testing.T) {
 	}
 }
 
-// Ячейка приёмки — ни источник, ни приёмник движения: её разносит задание на размещение.
+// Ячейка приёмки - ни источник, ни приёмник движения: её разносит задание на размещение.
 // Запрет одинаков для перемещения и пополнения, для короба целиком и для товара.
 func TestMove_receivingCellRejected(t *testing.T) {
 	mf := setupMove(t)
@@ -412,7 +412,7 @@ func TestMove_receivingCellRejected(t *testing.T) {
 	placed := newLU(t, mf.stockFixture, model.LoadUnitBox)
 	mf.receive(t, []string{placed}, 5) // A: короб 12 + россыпь 5
 
-	// В ячейку приёмки R — короб 12 и россыпь 5 настоящей приёмкой: R сейчас ячейка приёмки.
+	// В ячейку приёмки R - короб 12 и россыпь 5 настоящей приёмкой: R сейчас ячейка приёмки.
 	inR := newLU(t, mf.stockFixture, model.LoadUnitBox)
 	repo := repository.NewReceiptRepository(mf.pool)
 	receipt := uuid.NewString()

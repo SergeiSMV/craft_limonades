@@ -1,4 +1,4 @@
--- Откат ADHOC-46. Короба, марки и остаток, заведённые финалом, остаются на складе — уходит только
+-- Откат ADHOC-46. Короба, марки и остаток, заведённые финалом, остаются на складе - уходит только
 -- то, что о них знает сессия: строки сессии в коробах, марки и короба сессии, ссылка журнала.
 
 ALTER TABLE placements DROP COLUMN IF EXISTS stock_entry_session_id;
@@ -11,7 +11,7 @@ ALTER TABLE placements ADD CONSTRAINT placements_source_check
 
 DROP TABLE IF EXISTS stock_entry_marks;
 
--- Строки в коробах прежняя грань не различит с россыпью — их нет и в прежней модели.
+-- Строки в коробах прежняя грань не различит с россыпью - их нет и в прежней модели.
 DELETE FROM stock_entry_lines WHERE load_unit_id IS NOT NULL;
 ALTER TABLE stock_entry_lines DROP CONSTRAINT IF EXISTS stock_entry_lines_facet_key;
 ALTER TABLE stock_entry_lines DROP CONSTRAINT IF EXISTS stock_entry_lines_load_unit_fkey;

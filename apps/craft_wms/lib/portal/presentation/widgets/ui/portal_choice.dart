@@ -7,8 +7,8 @@ import '../../../../core/theme/regular_text.dart';
 import '../../../../core/theme/semibold_text.dart';
 
 /// Вариант выбора одного из нескольких (ADHOC-56): действие варианта решения, способ входа.
-/// Выбранный — тёмная заливка, как главная кнопка; остальные — белые с рамкой.
-/// Со счётчиком ([count]) — быстрый фильтр списка: «Ожидают 1С 3».
+/// Выбранный - тёмная заливка, как главная кнопка; остальные - белые с рамкой.
+/// Со счётчиком ([count]) - быстрый фильтр списка: «Ожидают 1С 3».
 class PortalChoice extends StatelessWidget {
   const PortalChoice({
     super.key,
@@ -22,7 +22,7 @@ class PortalChoice extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
-  /// Сколько строк под вариантом; `null` — без счётчика.
+  /// Сколько строк под вариантом; `null` - без счётчика.
   final int? count;
 
   @override
@@ -46,7 +46,7 @@ class PortalChoice extends StatelessWidget {
               text: label,
               children: [
                 if (count != null)
-                  // Счётчик приглушён: читается подпись, число — уточнение к ней.
+                  // Счётчик приглушён: читается подпись, число - уточнение к ней.
                   TextSpan(
                     text: '  $count',
                     style: RegularTextStyles().regularInter13.copyWith(

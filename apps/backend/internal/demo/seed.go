@@ -1,9 +1,9 @@
-// Package demo — данные демо-сервера (ADHOC-67): выдуманный склад, по которому можно пройти
+// Package demo - данные демо-сервера (ADHOC-67): выдуманный склад, по которому можно пройти
 // все разделы ТСД и портала.
 //
 // Зачем данные заводятся через репозитории и операции очереди, а не готовым SQL-дампом: дамп
 // отстал бы от схемы с первой же миграцией, а здесь приход, размещение, проблемы и реестр идут
-// тем же кодом, что у склада. Поменялась операция — поменялись и демо-данные; разошлись —
+// тем же кодом, что у склада. Поменялась операция - поменялись и демо-данные; разошлись -
 // падает интеграционный тест сидера в CI, а не показ.
 package demo
 
@@ -21,14 +21,14 @@ import (
 	"craftwms/internal/repository"
 )
 
-// msk — время склада. Москва без перехода на летнее время, а в образе нет tzdata.
+// msk - время склада. Москва без перехода на летнее время, а в образе нет tzdata.
 var msk = time.FixedZone("MSK", 3*60*60)
 
-// seeder — состояние одного заполнения: id заведённого, нужные следующим шагам.
+// seeder - состояние одного заполнения: id заведённого, нужные следующим шагам.
 type seeder struct {
 	ctx  context.Context
 	pool *pgxpool.Pool
-	now  time.Time // «сейчас» по Москве: даты партий и реестра — от него
+	now  time.Time // «сейчас» по Москве: даты партий и реестра - от него
 	ops  *repository.OperationsRepository
 
 	warehouseID string
@@ -75,14 +75,14 @@ func Seed(ctx context.Context, pool *pgxpool.Pool, now time.Time) error {
 	return nil
 }
 
-// scan — одно значение запросом (id заведённого и т. п.).
+// scan - одно значение запросом (id заведённого и т. п.).
 func (s *seeder) scan(sql string, args ...any) (string, error) {
 	var v string
 	err := s.pool.QueryRow(s.ctx, sql, args...).Scan(&v)
 	return v, err
 }
 
-// users — два кладовщика для истории: приёмку и сборку в демо делали «люди», а не админ.
+// users - два кладовщика для истории: приёмку и сборку в демо делали «люди», а не админ.
 // Войти под ними нельзя: секрет бейджа случайный и нигде не записан.
 func (s *seeder) users() error {
 	var err error
@@ -112,14 +112,14 @@ func (s *seeder) user(login, name, positionID string, active bool) (string, erro
 		VALUES ($1, $2, $3, $4::uuid, $5) RETURNING id::text`, login, hash, name, positionID, active)
 }
 
-// demoUser отмечает конец заполнения: демо-пользователь включается, его created_at — время сброса.
+// demoUser отмечает конец заполнения: демо-пользователь включается, его created_at - время сброса.
 func (s *seeder) demoUser() error {
 	_, err := s.pool.Exec(s.ctx, `UPDATE users SET is_active = true, created_at = now() WHERE id = $1::uuid`,
 		s.adminID)
 	return err
 }
 
-// date — дата «сегодня минус days» строкой ISO: даты производства партий и документов.
+// date - дата «сегодня минус days» строкой ISO: даты производства партий и документов.
 func (s *seeder) date(days int) string {
 	return s.now.AddDate(0, 0, -days).Format(time.DateOnly)
 }

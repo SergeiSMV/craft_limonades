@@ -15,9 +15,9 @@ import 'access_common.dart';
 
 /// Раздел «Внутренние склады» в настройках портала (ADHOC-29).
 ///
-/// Что: склады, которыми кладовщик помечает товар на ТСД («Брак», «Изолятор» …), — завести,
+/// Что: склады, которыми кладовщик помечает товар на ТСД («Брак», «Изолятор» …), - завести,
 /// переименовать, скрыть или вернуть в выбор, удалить. «Основной» (склад по умолчанию) только
-/// переименовывается. Склад с остатком или историей не удаляется — его скрывают: остаток
+/// переименовывается. Склад с остатком или историей не удаляется - его скрывают: остаток
 /// остаётся и на ТСД подписан, но новым товаром склад больше не помечают.
 class WarehousesSection extends StatefulWidget {
   const WarehousesSection({super.key});
@@ -32,7 +32,7 @@ class _WarehousesSectionState extends State<WarehousesSection> {
   List<PortalWarehouse>? _items;
   bool _loading = true;
 
-  /// Склад, с которым идёт действие; пустая строка — заводится новый.
+  /// Склад, с которым идёт действие; пустая строка - заводится новый.
   String? _busyId;
   String? _error;
 
@@ -56,7 +56,7 @@ class _WarehousesSectionState extends State<WarehousesSection> {
     });
   }
 
-  /// Завести склад: код и имя — в диалоге.
+  /// Завести склад: код и имя - в диалоге.
   Future<void> create() async {
     final draft = await showCreateWarehouseDialog(context);
     if (draft == null || !mounted) return;
@@ -78,7 +78,7 @@ class _WarehousesSectionState extends State<WarehousesSection> {
   Future<void> togglePicking(PortalWarehouse w) =>
       _run(w.id, () => _repo.update(w.id, allowPicking: !w.allowPicking));
 
-  /// Удалить склад без остатка и истории — после подтверждения.
+  /// Удалить склад без остатка и истории - после подтверждения.
   Future<void> delete(PortalWarehouse w) async {
     if (!await showDeleteWarehouseDialog(context, name: w.name) || !mounted) {
       return;
@@ -86,7 +86,7 @@ class _WarehousesSectionState extends State<WarehousesSection> {
     await _run(w.id, () => _repo.delete(w.id));
   }
 
-  /// Выполнить действие и перечитать список; отказ сервера — текстом под списком.
+  /// Выполнить действие и перечитать список; отказ сервера - текстом под списком.
   Future<void> _run(
     String id,
     Future<Either<Failure, Object?>> Function() action,
@@ -116,7 +116,7 @@ class _WarehousesSectionState extends State<WarehousesSection> {
   };
 
   /// Настройки изменились на сервере (ADHOC-60): перечитать список. Пока идёт своё действие,
-  /// не перечитывать — оно само перечитает список по завершении. Правка в открытом окне не
+  /// не перечитывать - оно само перечитает список по завершении. Правка в открытом окне не
   /// страдает: окно держит свою копию данных, а список под ним остаётся на экране до ответа.
   void onDataChanged() {
     if (_busyId != null) return;

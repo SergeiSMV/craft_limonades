@@ -8,7 +8,7 @@ class NavItem {
   final String label;
   final Widget body;
 
-  /// Пояснение к разделу — под заголовком в шапке; `null` — без пояснения.
+  /// Пояснение к разделу - под заголовком в шапке; `null` - без пояснения.
   final String? description;
 }
 

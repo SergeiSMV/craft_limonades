@@ -28,7 +28,7 @@ class _MockConnectivity extends Mock implements Connectivity {}
 ///
 /// Собрано из НАСТОЯЩИХ частей: локальная база drift, очередь операций, кэш справочников,
 /// движок синхронизации, отправщик, транспорт поверх настоящего dio. Подменён только сам
-/// сервер — и подменён не заглушкой с заготовленным ответом, а фейком, который разбирает
+/// сервер - и подменён не заглушкой с заготовленным ответом, а фейком, который разбирает
 /// присланный батч и ведёт свой дедуп по `operation_id`. Заглушка подтвердила бы любой формат
 /// запроса, в том числе неверный; этот отвечает по тем же правилам, что проверенный HTTP-тест
 /// бэкенда, поэтому расхождение форматов здесь видно.
@@ -90,7 +90,7 @@ void main() {
       expect(
         res.isLeft,
         isTrue,
-        reason: 'отправить не удалось — так и говорим',
+        reason: 'отправить не удалось - так и говорим',
       );
       expect(engine.link.value, LinkState.offline);
       final pending = await cached(good.id);
@@ -123,7 +123,7 @@ void main() {
       expect(
         confirmed.single.pending,
         isFalse,
-        reason: 'сервер подтвердил — пометке больше нечего ждать',
+        reason: 'сервер подтвердил - пометке больше нечего ждать',
       );
       expect(await outbox.pendingCount(), 0);
     },
@@ -145,7 +145,7 @@ void main() {
     expect(
       again.sent,
       1,
-      reason: 'для очереди duplicate — успех: дело сделано',
+      reason: 'для очереди duplicate - успех: дело сделано',
     );
     expect(
       again.rejected,
@@ -175,7 +175,7 @@ void main() {
     expect(
       await outbox.pendingCount(),
       0,
-      reason: 'повтор не поможет — из очереди выбыла',
+      reason: 'повтор не поможет - из очереди выбыла',
     );
     final rejected = await outbox.watchRejected().first;
     expect(rejected, hasLength(1), reason: 'видна на экране разбора');
@@ -187,7 +187,7 @@ void main() {
     expect(
       engine.link.value,
       LinkState.online,
-      reason: 'сервер ответил — это не потеря связи',
+      reason: 'сервер ответил - это не потеря связи',
     );
   });
 
@@ -207,7 +207,7 @@ void main() {
       final drained = await engine.drain();
 
       expect(drained.sent, 3);
-      expect(server.requests, 1, reason: 'три операции — один запрос');
+      expect(server.requests, 1, reason: 'три операции - один запрос');
       expect(
         server.barcodes[code],
         otherGood.id,
@@ -222,7 +222,7 @@ void main() {
     server.offline = true;
     await repo.bindBarcode(goodId: good.id, barcode: code);
 
-    // Новый движок на той же базе — как после перезапуска процесса.
+    // Новый движок на той же базе - как после перезапуска процесса.
     final restarted = SyncEngine(
       OutboxRepository(db, const Uuid()),
       OutboxSender(

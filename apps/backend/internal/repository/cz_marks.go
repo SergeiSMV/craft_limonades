@@ -13,10 +13,10 @@ import (
 	"craftwms/internal/model"
 )
 
-// CZMarkRepository — марки и агрегаты Честного знака на складе (CZ-03).
+// CZMarkRepository - марки и агрегаты Честного знака на складе (CZ-03).
 //
 // Что: запись короба ЧЗ с составом, марок россыпью и чтение «где лежит марка», «что в коробе»,
-// «что в упаковке ЧЗ». Каждая запись — и функция на Querier: приёмка (CZ-05) и движение
+// «что в упаковке ЧЗ». Каждая запись - и функция на Querier: приёмка (CZ-05) и движение
 // (CZ-06) пишут марки в одной транзакции со своим документом и остатком.
 type CZMarkRepository struct {
 	pool *pgxpool.Pool
@@ -29,7 +29,7 @@ func NewCZMarkRepository(pool *pgxpool.Pool) *CZMarkRepository {
 
 // ReceiveBox сохраняет транспортный короб ЧЗ, его групповые упаковки и марки одной
 // транзакцией: короб ЧЗ без части марок означал бы, что «что в коробе» отвечает неправду.
-// ГЕ короба (box.LoadUnitID) должна уже существовать — её заводит приёмка.
+// ГЕ короба (box.LoadUnitID) должна уже существовать - её заводит приёмка.
 func (r *CZMarkRepository) ReceiveBox(ctx context.Context, box model.CZAggregate, groups []model.CZAggregate, marks []model.CZMark) error {
 	return WithinTx(ctx, r.pool, func(q Querier) error {
 		if err := insertCZAggregate(ctx, q, box); err != nil {
@@ -49,7 +49,7 @@ func (r *CZMarkRepository) SaveMarks(ctx context.Context, marks []model.CZMark) 
 	return WithinTx(ctx, r.pool, func(q Querier) error { return insertCZMarks(ctx, q, marks) })
 }
 
-// insertCZAggregate заводит агрегат ЧЗ. Повтор кода или вторая ГЕ у короба — ErrCZAggregateExists:
+// insertCZAggregate заводит агрегат ЧЗ. Повтор кода или вторая ГЕ у короба - ErrCZAggregateExists:
 // один короб ЧЗ принимают один раз.
 func insertCZAggregate(ctx context.Context, q Querier, a model.CZAggregate) error {
 	_, err := q.Exec(ctx, `
@@ -65,7 +65,7 @@ func insertCZAggregate(ctx context.Context, q Querier, a model.CZAggregate) erro
 	return nil
 }
 
-// insertCZMarks заводит марки. Статус по умолчанию — на складе. Повтор КИ —
+// insertCZMarks заводит марки. Статус по умолчанию - на складе. Повтор КИ -
 // ErrCZMarkExists с этим КИ: марка уникальна, и вызывающему нужно знать, какая именно.
 func insertCZMarks(ctx context.Context, q Querier, marks []model.CZMark) error {
 	for _, m := range marks {
@@ -89,15 +89,15 @@ func insertCZMarks(ctx context.Context, q Querier, marks []model.CZMark) error {
 	return nil
 }
 
-// isUniqueViolation — нарушение уникальности (код Postgres 23505).
+// isUniqueViolation - нарушение уникальности (код Postgres 23505).
 func isUniqueViolation(err error) bool {
 	var pgErr *pgconn.PgError
 	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }
 
-// LoadUnitByCZCode — ГЕ транспортного короба ЧЗ по его коду (`00`+SSCC со штрихкода GS1-128):
+// LoadUnitByCZCode - ГЕ транспортного короба ЧЗ по его коду (`00`+SSCC со штрихкода GS1-128):
 // так скан короба на ТСД находит ГЕ без своего QR-ярлыка.
-// ErrCZAggregateNotFound — кода нет или это не короб с ГЕ.
+// ErrCZAggregateNotFound - кода нет или это не короб с ГЕ.
 func (r *CZMarkRepository) LoadUnitByCZCode(ctx context.Context, code string) (string, error) {
 	var id string
 	err := r.pool.QueryRow(ctx, `
@@ -112,8 +112,8 @@ func (r *CZMarkRepository) LoadUnitByCZCode(ctx context.Context, code string) (s
 	return id, nil
 }
 
-// czMarkSelect — чтение марки с местом её короба и адресом ячейки. Место короба берётся из
-// load_units: у марки оно не хранится (место ГЕ — только load_units.cell_id). Адрес — ячейки
+// czMarkSelect - чтение марки с местом её короба и адресом ячейки. Место короба берётся из
+// load_units: у марки оно не хранится (место ГЕ - только load_units.cell_id). Адрес - ячейки
 // короба или своей ячейки россыпи: ТСД показывает место адресом, а не идентификатором.
 const czMarkSelect = `
 	SELECT m.cis, m.gtin, m.good_id::text, m.batch_id::text, m.status,
@@ -132,7 +132,7 @@ func scanCZMark(row pgx.Row) (model.CZMark, error) {
 	return m, err
 }
 
-// MarkByCIS — марка по КИ: товар, партия, статус и где лежит.
+// MarkByCIS - марка по КИ: товар, партия, статус и где лежит.
 func (r *CZMarkRepository) MarkByCIS(ctx context.Context, cis string) (model.CZMark, error) {
 	m, err := scanCZMark(r.pool.QueryRow(ctx, czMarkSelect+` WHERE m.cis = $1`, cis))
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -144,17 +144,17 @@ func (r *CZMarkRepository) MarkByCIS(ctx context.Context, cis string) (model.CZM
 	return m, nil
 }
 
-// MarksOfLoadUnit — марки, лежащие в ГЕ.
+// MarksOfLoadUnit - марки, лежащие в ГЕ.
 func (r *CZMarkRepository) MarksOfLoadUnit(ctx context.Context, loadUnitID string) ([]model.CZMark, error) {
 	return queryCZMarks(ctx, r.pool, czMarkSelect+` WHERE m.load_unit_id = $1::uuid ORDER BY m.cis`, loadUnitID)
 }
 
-// LooseMarksOfCell — марки россыпью в ячейке (без коробов: их марки — у ГЕ).
+// LooseMarksOfCell - марки россыпью в ячейке (без коробов: их марки - у ГЕ).
 func (r *CZMarkRepository) LooseMarksOfCell(ctx context.Context, cellID string) ([]model.CZMark, error) {
 	return queryCZMarks(ctx, r.pool, czMarkSelect+` WHERE m.cell_id = $1::uuid ORDER BY m.cis`, cellID)
 }
 
-// queryCZMarks — список марок по запросу на базе czMarkSelect.
+// queryCZMarks - список марок по запросу на базе czMarkSelect.
 func queryCZMarks(ctx context.Context, q Querier, sql string, args ...any) ([]model.CZMark, error) {
 	rows, err := q.Query(ctx, sql, args...)
 	if err != nil {
@@ -172,9 +172,9 @@ func queryCZMarks(ctx context.Context, q Querier, sql string, args ...any) ([]mo
 	return out, rows.Err()
 }
 
-// AggregateContents — агрегат ЧЗ и его состав по ЧЗ: вложенные упаковки и марки, которые в нём
+// AggregateContents - агрегат ЧЗ и его состав по ЧЗ: вложенные упаковки и марки, которые в нём
 // числятся. Это состав по документам ЧЗ, а не по месту: изъятая из короба марка остаётся в
-// составе, пока ЧЗ не расформировал упаковку, — короб при этом помечен вскрытым (CZ-06).
+// составе, пока ЧЗ не расформировал упаковку, - короб при этом помечен вскрытым (CZ-06).
 func (r *CZMarkRepository) AggregateContents(ctx context.Context, code string) (model.CZAggregateContents, error) {
 	var out model.CZAggregateContents
 	agg, err := scanCZAggregate(r.pool.QueryRow(ctx, czAggregateSelect+` WHERE code = $1`, code))
@@ -207,7 +207,7 @@ func (r *CZMarkRepository) AggregateContents(ctx context.Context, code string) (
 	return out, err
 }
 
-// czAggregateSelect — чтение агрегата ЧЗ.
+// czAggregateSelect - чтение агрегата ЧЗ.
 const czAggregateSelect = `
 	SELECT code, kind, COALESCE(parent_code, ''), COALESCE(load_unit_id::text, ''), opened_at
 	FROM cz_aggregates`
@@ -223,11 +223,11 @@ func scanCZAggregate(row pgx.Row) (model.CZAggregate, error) {
 	return a, nil
 }
 
-// SetGoodCZMarked — признак «маркируемый» у товара (CZ-05, правка admin).
-// ErrCZGoodNotFound — товара нет (или id не UUID: такого товара тоже нет).
-// ErrCZGoodHasMarks — признак снимают, а марки товара лежат на складе (ADHOC-59).
+// SetGoodCZMarked - признак «маркируемый» у товара (CZ-05, правка admin).
+// ErrCZGoodNotFound - товара нет (или id не UUID: такого товара тоже нет).
+// ErrCZGoodHasMarks - признак снимают, а марки товара лежат на складе (ADHOC-59).
 //
-// Как: проверка марок — в том же UPDATE, а не отдельным запросом перед ним: марку могут
+// Как: проверка марок - в том же UPDATE, а не отдельным запросом перед ним: марку могут
 // принять между проверкой и правкой, и товар с маркой на складе остался бы немаркируемым.
 // Ставить признак можно всегда.
 func (r *CZMarkRepository) SetGoodCZMarked(ctx context.Context, goodID string, marked bool) error {
@@ -255,7 +255,7 @@ func (r *CZMarkRepository) SetGoodCZMarked(ctx context.Context, goodID string, m
 }
 
 // markGoodsCZ ставит признак «маркируемый» товарам, у которых приняли марку или привязали ШК
-// из марки (CZ-05, долг 16: признак по факту). Снимает его только admin — здесь только ставим.
+// из марки (CZ-05, долг 16: признак по факту). Снимает его только admin - здесь только ставим.
 func markGoodsCZ(ctx context.Context, q Querier, goodIDs []string) error {
 	if len(goodIDs) == 0 {
 		return nil
@@ -268,16 +268,16 @@ func markGoodsCZ(ctx context.Context, q Querier, goodIDs []string) error {
 	return nil
 }
 
-// GoodByGTIN — товар справочника по GTIN марки.
+// GoodByGTIN - товар справочника по GTIN марки.
 //
-// Как: GTIN-14 единицы — это её EAN-13 с ведущим нулём (марка пива 04612728200172 ↔ ШК
+// Как: GTIN-14 единицы - это её EAN-13 с ведущим нулём (марка пива 04612728200172 ↔ ШК
 // 4612728200172), поэтому ищем в barcodes и полный GTIN, и его же без нуля. Совпадение по
-// полному GTIN — первым. ErrCZUnknownGTIN — товара с таким ШК нет: марка «не того товара».
+// полному GTIN - первым. ErrCZUnknownGTIN - товара с таким ШК нет: марка «не того товара».
 func (r *CZMarkRepository) GoodByGTIN(ctx context.Context, gtin string) (model.CZGoodRef, error) {
 	return goodByGTIN(ctx, r.pool, gtin)
 }
 
-// GoodRef — товар по id: как его называет скан марки (ADHOC-53).
+// GoodRef - товар по id: как его называет скан марки (ADHOC-53).
 func (r *CZMarkRepository) GoodRef(ctx context.Context, goodID string) (model.CZGoodRef, error) {
 	g := model.CZGoodRef{ID: goodID}
 	if err := r.pool.QueryRow(ctx, `SELECT name FROM goods WHERE id = $1::uuid`, goodID).
@@ -287,7 +287,7 @@ func (r *CZMarkRepository) GoodRef(ctx context.Context, goodID string) (model.CZ
 	return g, nil
 }
 
-// goodByGTIN — GoodByGTIN на Querier, для приёмки внутри транзакции (CZ-05).
+// goodByGTIN - GoodByGTIN на Querier, для приёмки внутри транзакции (CZ-05).
 func goodByGTIN(ctx context.Context, q Querier, gtin string) (model.CZGoodRef, error) {
 	short := gtin
 	if len(gtin) == 14 && gtin[0] == '0' {

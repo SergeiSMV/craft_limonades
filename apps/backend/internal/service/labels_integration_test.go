@@ -17,8 +17,8 @@ import (
 
 func pdfPages(pdf []byte) int { return bytes.Count(pdf, []byte("/Type /Page\n")) }
 
-// TestCellLabelsPDF — настоящий файл rack_labels: весь склад печатается теми же листами, что
-// у скрипта (большая балка 492 этикетки — 123 листа, малая 30 — 5, карточек 45 — 23), выборка
+// TestCellLabelsPDF - настоящий файл rack_labels: весь склад печатается теми же листами, что
+// у скрипта (большая балка 492 этикетки - 123 листа, малая 30 - 5, карточек 45 - 23), выборка
 // печатает только своё, ошибки выборки различимы.
 func TestCellLabelsPDF(t *testing.T) {
 	pool := testutil.StartPostgres(t)
@@ -40,7 +40,7 @@ func TestCellLabelsPDF(t *testing.T) {
 		}
 	}
 
-	// Ячейки выборки: большая балка, малая балка — по адресу из файла.
+	// Ячейки выборки: большая балка, малая балка - по адресу из файла.
 	setup, err := newCellSetupSvc(pool).Setup(ctx, "SHB")
 	if err != nil {
 		t.Fatal(err)
@@ -60,7 +60,7 @@ func TestCellLabelsPDF(t *testing.T) {
 	if pdf, _, err := svc.CellLabelsPDF(ctx, "SHB", service.LabelKindLarge, []string{large.ID, small.ID, large.ID}); err != nil || pdfPages(pdf) != 1 {
 		t.Errorf("выборка на большую балку: %v, листов %d", err, pdfPages(pdf))
 	}
-	// Карточка стеллажа выбранной ячейки — одна карточка, один лист.
+	// Карточка стеллажа выбранной ячейки - одна карточка, один лист.
 	if pdf, _, err := svc.CellLabelsPDF(ctx, "SHB", service.LabelKindCards, []string{large.ID}); err != nil || pdfPages(pdf) != 1 {
 		t.Errorf("карточка выборки: %v, листов %d", err, pdfPages(pdf))
 	}

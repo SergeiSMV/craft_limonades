@@ -26,7 +26,7 @@ CellSetup cell(
 /// ADHOC-57: образец этикетки совпадает с PDF бэкенда, порядок и сводные галочки страницы.
 /// Эталонные числа сняты с `internal/labels` (Go) на тех же адресах.
 void main() {
-  group('Code128 — как у бэкенда', () {
+  group('Code128 - как у бэкенда', () {
     test('ширина в модулях', () {
       expect(code128Modules('B-1-1-12'), 123);
       expect(code128Modules('M1-10-3-7'), 134);
@@ -49,7 +49,7 @@ void main() {
     });
   });
 
-  group('единый кегль — как beamSizes бэкенда', () {
+  group('единый кегль - как beamSizes бэкенда', () {
     const set = [
       (address: 'B-1-1-12', floor: true),
       (address: 'B-12-4-10', floor: false),
@@ -64,7 +64,7 @@ void main() {
       },
     );
 
-    test('без штрих-кода — потолок профиля', () {
+    test('без штрих-кода - потолок профиля', () {
       final f = beamFont(BeamProfile.large, const [
         (address: 'M1-10-3-7', floor: false),
       ], barcode: false);
@@ -75,7 +75,7 @@ void main() {
       );
     });
 
-    test('ниже capMin — кегль уменьшается шагом 1 пт, пока не влезет', () {
+    test('ниже capMin - кегль уменьшается шагом 1 пт, пока не влезет', () {
       const pt = 25.4 / 72;
       final p = BeamProfile.small;
       final f = beamFont(p, const [
@@ -87,14 +87,14 @@ void main() {
       expect(steps, closeTo(steps.roundToDouble(), 1e-9));
     });
 
-    test('код шире этикетки — fits = false', () {
+    test('код шире этикетки - fits = false', () {
       final f = beamFont(BeamProfile.small, [
         (address: '${'B-12-' * 12}1', floor: true),
       ], barcode: true);
       expect(f.fits, isFalse);
     });
 
-    test('три части прижаты к полям, две — по центру', () {
+    test('три части прижаты к полям, две - по центру', () {
       final p = BeamProfile.large;
       final three = beamLayout(p, 'B-1-1-12', 20, floor: true, barcode: true);
       expect(three.first.$2, p.pad);
@@ -133,7 +133,7 @@ void main() {
     );
 
     test(
-      'порядок наклейки: стеллаж, позиция, ярусы сверху вниз; без стеллажа — в конце',
+      'порядок наклейки: стеллаж, позиция, ярусы сверху вниз; без стеллажа - в конце',
       () {
         expect(view.cells.map((c) => c.id), ['b', 'c', 'e', 'a', 'd']);
         expect(view.racks.map((r) => r.code), ['B-2', 'B-10']);
@@ -182,7 +182,7 @@ void main() {
       expect(view.aggregate([byId['e']!], CellFlag.sideCard), isFalse);
     });
 
-    test('«на карточке» — сводная только по ячейкам со стеллажом', () {
+    test('«на карточке» - сводная только по ячейкам со стеллажом', () {
       final byId = {for (final c in view.cells) c.id: c};
       // d без стеллажа: у неё галочки не бывает, на сводную не влияет.
       expect(
@@ -192,7 +192,7 @@ void main() {
       expect(view.aggregate([byId['d']!], CellFlag.sideCard), isFalse);
     });
 
-    test('счётчики печати: карточка — на стеллаж с ячейками «на карточке»', () {
+    test('счётчики печати: карточка - на стеллаж с ячейками «на карточке»', () {
       final n = view.printCounts(view.cells);
       expect((n.large, n.small, n.cards), (3, 2, 2));
       final byId = {for (final c in view.cells) c.id: c};

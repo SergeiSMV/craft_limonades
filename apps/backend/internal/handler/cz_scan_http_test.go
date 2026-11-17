@@ -15,7 +15,7 @@ import (
 )
 
 // Тесты CZ-04, шаг 2: POST /api/v1/cz/scan через настоящий роутер. Ответы по марке и коробу
-// обязаны совпасть с эталонами testdata/cz_scan_mark.json и cz_scan_box.json — их же
+// обязаны совпасть с эталонами testdata/cz_scan_mark.json и cz_scan_box.json - их же
 // разбирает клиент ТСД.
 
 const (
@@ -31,7 +31,7 @@ const (
 	scanOwner  = `ООО "ТД "КРАФТОВЫЕ ЛИМОНАДЫ"`
 )
 
-// scanCZClient — True API с ответами живого короба пива (CZ-02).
+// scanCZClient - True API с ответами живого короба пива (CZ-02).
 type scanCZClient struct{ czClientStub }
 
 func (scanCZClient) CisesInfo(_ context.Context, codes []string) ([]model.CisInfo, error) {
@@ -57,7 +57,7 @@ func (scanCZClient) CisesInfo(_ context.Context, codes []string) ([]model.CisInf
 	return out, nil
 }
 
-// scanCZMarks — WMS знает товар, марку в коробе и сам короб.
+// scanCZMarks - WMS знает товар, марку в коробе и сам короб.
 type scanCZMarks struct{}
 
 func (scanCZMarks) GoodByGTIN(context.Context, string) (model.CZGoodRef, error) {
@@ -106,7 +106,7 @@ func TestCZScan_wireFormat(t *testing.T) {
 				t.Fatalf("ответ не разбирается: %v", err)
 			}
 			if !reflect.DeepEqual(got, want) {
-				t.Fatalf("ответ разошёлся с эталоном testdata/%s — сверьте формат с тем, что "+
+				t.Fatalf("ответ разошёлся с эталоном testdata/%s - сверьте формат с тем, что "+
 					"разбирает клиент.\nПолучено: %s", tc.golden, rec.Body)
 			}
 		})
@@ -179,9 +179,9 @@ func TestCZScan_discrepancy(t *testing.T) {
 	}
 }
 
-// ADHOC-70: пачка сканов. Ответ по каждому коду — в порядке присланных: марка (как со
+// ADHOC-70: пачка сканов. Ответ по каждому коду - в порядке присланных: марка (как со
 // сканера DT50S), короб, марка, которой нет в ЧЗ, обычный ШК. Формат закреплён эталоном
-// testdata/cz_scan_batch.json — его же разбирает клиент ТСД.
+// testdata/cz_scan_batch.json - его же разбирает клиент ТСД.
 func TestCZScanBatch_wireFormat(t *testing.T) {
 	router, _, worker := czRouter(t, service.NewCZService(scanCZClient{}, scanCZMarks{}))
 	body, _ := json.Marshal(map[string][]string{"codes": {

@@ -37,7 +37,7 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       ACCESS_TTL: ${ACCESS_TTL:-12h}
       REFRESH_TTL: ${REFRESH_TTL:-720h}
-      # Ключ номеров бейджей для печати на ТСД (ADHOC-65); пусто — печать бейджей выключена.
+      # Ключ номеров бейджей для печати на ТСД (ADHOC-65); пусто - печать бейджей выключена.
       BADGE_KEY: ${BADGE_KEY:-}
     depends_on:
       db:
@@ -46,7 +46,7 @@ services:
       - "8080"   # порт виден только внутри сети compose; наружу ходим через nginx
     healthcheck:
       # «Жив», когда backend отвечает на /health. wget -O /dev/null работает и в BusyBox, и в GNU.
-      # Адрес 127.0.0.1 (а не localhost) — чтобы проверка не ушла в IPv6 ::1, где сервис не слушает.
+      # Адрес 127.0.0.1 (а не localhost) - чтобы проверка не ушла в IPv6 ::1, где сервис не слушает.
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/health"]
       interval: 5s
       timeout: 3s

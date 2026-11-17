@@ -8,9 +8,9 @@ import (
 
 // Шрифт адресов с кириллицей (ADHOC-61): напольная ячейка «D-Н-П».
 //
-// Зачем: этикетки рисуются core-шрифтом Helvetica-Bold — его метрики совпадают с rack_labels,
-// но кириллицы в нём нет (core-шрифты PDF — cp1252). Адрес с кириллицей печатается
-// встроенным DejaVu Sans Condensed Bold (свободная лицензия Bitstream Vera, файл — из поставки
+// Зачем: этикетки рисуются core-шрифтом Helvetica-Bold - его метрики совпадают с rack_labels,
+// но кириллицы в нём нет (core-шрифты PDF - cp1252). Адрес с кириллицей печатается
+// встроенным DejaVu Sans Condensed Bold (свободная лицензия Bitstream Vera, файл - из поставки
 // go-pdf/fpdf); латинские адреса остаются на Helvetica, напечатанные этикетки не меняются.
 //
 //go:embed fonts/DejaVuSansCondensed-Bold.ttf
@@ -23,7 +23,7 @@ func addCyrFont(pdf *fpdf.Fpdf) {
 	pdf.AddUTF8FontFromBytes(cyrFontName, "", cyrFontTTF)
 }
 
-// needsCyrFont — в строке есть символы вне ASCII: core-шрифт их не нарисует.
+// needsCyrFont - в строке есть символы вне ASCII: core-шрифт их не нарисует.
 func needsCyrFont(text string) bool {
 	for _, r := range text {
 		if r > 0x7e {
@@ -33,7 +33,7 @@ func needsCyrFont(text string) bool {
 	return false
 }
 
-// setAddressFont — шрифт под строку адреса: Helvetica-Bold или, для кириллицы, DejaVu.
+// setAddressFont - шрифт под строку адреса: Helvetica-Bold или, для кириллицы, DejaVu.
 func setAddressFont(pdf *fpdf.Fpdf, text string, sizePt float64) {
 	if needsCyrFont(text) {
 		pdf.SetFont(cyrFontName, "", sizePt)

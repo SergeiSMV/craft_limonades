@@ -7,8 +7,8 @@ import '../theme/regular_text.dart';
 import '../theme/semibold_text.dart';
 
 /// Выпуклая неоморфная плашка-кнопка строки: наименование, подпись под ним, число справа
-/// (P6-04). Вид — как у товара в «Остатках» (вкладка «Товары», содержимое короба и ячейки):
-/// выбираемая позиция — это кнопка, и выглядит она кнопкой.
+/// (P6-04). Вид - как у товара в «Остатках» (вкладка «Товары», содержимое короба и ячейки):
+/// выбираемая позиция - это кнопка, и выглядит она кнопкой.
 class NeumorphicLineTile extends StatelessWidget {
   const NeumorphicLineTile({
     super.key,
@@ -23,7 +23,7 @@ class NeumorphicLineTile extends StatelessWidget {
   final String title;
   final String? subtitle;
 
-  /// Число справа — количество.
+  /// Число справа - количество.
   final String? trailing;
 
   /// Отметка строки под подписью - заметнее подписи, цветом [noteColor] (например, «не хватает»

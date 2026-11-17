@@ -15,7 +15,7 @@ import '../widgets/scanner_probe/scan_event_tile.dart';
 ///
 /// Что: показывает результат опроса устройства и живой поток событий декодера со всеми extras.
 /// Зачем: набор и типы extras у прошивок Urovo расходятся, а проверить их можно только на живом
-///        устройстве в intent-режиме — по документации не сходится. Этот экран и есть инструмент
+///        устройстве в intent-режиме - по документации не сходится. Этот экран и есть инструмент
 ///        такой проверки: переключил режим в настройках сканера, отсканировал, увидел сырьё.
 /// Как: подписка на сырой поток [ScannerService.rawEvents]; свежие события сверху, накопленное
 ///      чистится кнопкой.
@@ -31,7 +31,7 @@ class ScannerProbePage extends StatefulWidget {
 }
 
 class _ScannerProbePageState extends State<ScannerProbePage> {
-  /// Сколько событий держим на экране: диагностика — про последние сканы, а не про журнал.
+  /// Сколько событий держим на экране: диагностика - про последние сканы, а не про журнал.
   static const _maxEvents = 50;
 
   final _service = getIt<ScannerService>();
@@ -43,7 +43,7 @@ class _ScannerProbePageState extends State<ScannerProbePage> {
   @override
   void initState() {
     super.initState();
-    // Опрос уже сделан при старте приложения — берём кэш, иначе спрашиваем заново.
+    // Опрос уже сделан при старте приложения - берём кэш, иначе спрашиваем заново.
     _probe = _service.lastProbe ?? ScannerProbe.none;
     if (_service.lastProbe == null) {
       _service.probe().then((probe) {
@@ -59,7 +59,7 @@ class _ScannerProbePageState extends State<ScannerProbePage> {
     super.dispose();
   }
 
-  /// Пришло событие декодера — кладём сверху и подрезаем хвост.
+  /// Пришло событие декодера - кладём сверху и подрезаем хвост.
   void _onEvent(RawScanEvent event) {
     if (!mounted) return;
     setState(() {
@@ -85,7 +85,7 @@ class _ScannerProbePageState extends State<ScannerProbePage> {
         ],
       ),
       body: ListView.builder(
-        // +2 — сводка опроса и подсказка над списком событий.
+        // +2 - сводка опроса и подсказка над списком событий.
         itemCount: _events.length + 2,
         itemBuilder: (context, index) {
           if (index == 0) return ProbeSummaryCard(probe: _probe);

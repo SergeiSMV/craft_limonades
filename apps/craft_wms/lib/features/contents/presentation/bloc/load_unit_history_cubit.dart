@@ -26,7 +26,7 @@ final class HistoryFailed extends HistoryState {
   final Failure failure;
 }
 
-/// История короба — только со связью: журнал размещений растёт без конца, и на терминал
+/// История короба - только со связью: журнал размещений растёт без конца, и на терминал
 /// его не тянем (P5-05-1).
 @injectable
 class LoadUnitHistoryCubit extends Cubit<HistoryState> {

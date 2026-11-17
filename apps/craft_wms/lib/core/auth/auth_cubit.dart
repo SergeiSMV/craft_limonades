@@ -18,10 +18,10 @@ sealed class AuthState with _$AuthState {
   /// Идёт вход (показываем прогресс, блокируем кнопку).
   const factory AuthState.authenticating() = AuthAuthenticating;
 
-  /// Вошли — держим профиль текущего пользователя.
+  /// Вошли - держим профиль текущего пользователя.
   const factory AuthState.authenticated(Profile profile) = AuthAuthenticated;
 
-  /// Не вошли; failure — причина последней неудачи (для показа ошибки).
+  /// Не вошли; failure - причина последней неудачи (для показа ошибки).
   const factory AuthState.unauthenticated([Failure? failure]) = AuthUnauthenticated;
 }
 
@@ -33,10 +33,10 @@ class AuthCubit extends Cubit<AuthState> {
   final AuthRepository _repo;
 
   /// Тихое восстановление сессии при старте приложения (авто-рефреш).
-  /// Что: если в secure storage есть токены — проверяем их через `/auth/me`.
+  /// Что: если в secure storage есть токены - проверяем их через `/auth/me`.
   /// Зачем: кладовщик не должен пересканировать бейдж после перезапуска ТСД.
   /// Как: нет токенов → сразу на вход; есть → `me()` (интерсептор сам обновит
-  ///      access по refresh при 401). Успех → authenticated; отказ (refresh протух —
+  ///      access по refresh при 401). Успех → authenticated; отказ (refresh протух -
   ///      интерсептор уже почистил хранилище; или нет сети) → unauthenticated.
   Future<void> restore() async {
     if (!await _repo.hasSession()) {
@@ -48,7 +48,7 @@ class AuthCubit extends Cubit<AuthState> {
       emit(AuthState.authenticated(result.right));
       return;
     }
-    // Сети нет — пробуем локальную сессию: без этого терминал, перезагруженный вне зоны
+    // Сети нет - пробуем локальную сессию: без этого терминал, перезагруженный вне зоны
     // Wi-Fi, упирается в экран входа, и офлайн-кэш становится недостижим (P2-02).
     // Отказ сервера (протухший refresh) сюда не попадает: там ошибка не сетевая.
     if (result.left is NetworkFailure) {
@@ -63,7 +63,7 @@ class AuthCubit extends Cubit<AuthState> {
 
   /// Вход по бейджу: делегируем репозиторию и превращаем Either в состояние.
   /// Защита от повторного сабмита: экран входа шлёт submit и на автосабмите (16 цифр),
-  /// и на Enter — без гарда это два `/auth/login`. Пока идёт вход — игнорируем повтор.
+  /// и на Enter - без гарда это два `/auth/login`. Пока идёт вход - игнорируем повтор.
   Future<void> login(String badge) async {
     if (state is AuthAuthenticating) return;
     emit(const AuthState.authenticating());

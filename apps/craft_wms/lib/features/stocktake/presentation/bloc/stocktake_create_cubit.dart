@@ -8,11 +8,11 @@ import '../../domain/stocktake_repository.dart';
 
 part 'stocktake_create_cubit.freezed.dart';
 
-/// Ячейка области — адрес для показа и id для сервера.
+/// Ячейка области - адрес для показа и id для сервера.
 typedef ScopeCell = ({String id, String address});
 
-/// Заведение пересчёта на ТСД (P10-04): старший смены (пока admin) выбирает простую область —
-/// ячейки сканом, внутренний склад или весь склад. Группы, матрицы, поставщики и товары —
+/// Заведение пересчёта на ТСД (P10-04): старший смены (пока admin) выбирает простую область -
+/// ячейки сканом, внутренний склад или весь склад. Группы, матрицы, поставщики и товары -
 /// в портале (P10-05).
 @freezed
 abstract class StocktakeCreateState with _$StocktakeCreateState {
@@ -27,7 +27,7 @@ abstract class StocktakeCreateState with _$StocktakeCreateState {
 
   const StocktakeCreateState._();
 
-  /// Область задана: ячейки — хотя бы одна, склад — выбран, весь склад — всегда.
+  /// Область задана: ячейки - хотя бы одна, склад - выбран, весь склад - всегда.
   bool get ready => switch (scopeKind) {
     StocktakeScope.cells => cells.isNotEmpty,
     StocktakeScope.internalWarehouse => internalWarehouseId != null,
@@ -45,7 +45,7 @@ class StocktakeCreateCubit extends Cubit<StocktakeCreateState> {
   void selectScope(String kind) =>
       emit(state.copyWith(scopeKind: kind, failure: null));
 
-  /// Добавить отсканированную ячейку; повтор — без изменений.
+  /// Добавить отсканированную ячейку; повтор - без изменений.
   void addCell(ScopeCell cell) {
     if (state.cells.any((c) => c.id == cell.id)) return;
     emit(state.copyWith(cells: [...state.cells, cell], failure: null));

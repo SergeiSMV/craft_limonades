@@ -12,7 +12,7 @@ import (
 	"craftwms/internal/repository"
 )
 
-// Тесты CZ-06: марки ЧЗ при перемещении и размещении. Критерий задачи — на любой момент
+// Тесты CZ-06: марки ЧЗ при перемещении и размещении. Критерий задачи - на любой момент
 // известно, где лежит каждая марка и вскрыт ли агрегат.
 
 // Коды фикстуры марок: короб ЧЗ, групповая упаковка в нём, марки в упаковке (g1, g2), марка
@@ -30,8 +30,8 @@ var czLoose = []string{
 	"0104600000000017215L4", "0104600000000017215L5",
 }
 
-// czMoveFixture — фикстура перемещения (twoBoxes): короб boxA в A — короб ЧЗ с марками, boxB
-// в B — свой короб с QR; товар маркируемый.
+// czMoveFixture - фикстура перемещения (twoBoxes): короб boxA в A - короб ЧЗ с марками, boxB
+// в B - свой короб с QR; товар маркируемый.
 type czMoveFixture struct {
 	*moveFixture
 	boxA, boxB string
@@ -69,14 +69,14 @@ func setupCZMove(t *testing.T) *czMoveFixture {
 	return &czMoveFixture{moveFixture: mf, boxA: boxA, boxB: boxB}
 }
 
-// markLine — строка товара фикстуры с марками: количество — их число.
+// markLine - строка товара фикстуры с марками: количество - их число.
 func (cf *czMoveFixture) markLine(fromCell, fromLU, toCell, toLU string, marks ...string) repository.MovementLineInput {
 	ln := cf.goodsLine(int64(len(marks)), fromCell, fromLU, toCell, toLU)
 	ln.Marks = marks
 	return ln
 }
 
-// placeOf — где лежит марка: «lu:<id>» в коробе, «cell:<id>» россыпью, «нет» — не на складе.
+// placeOf - где лежит марка: «lu:<id>» в коробе, «cell:<id>» россыпью, «нет» - не на складе.
 func (cf *czMoveFixture) placeOf(t *testing.T, cis string) string {
 	t.Helper()
 	var p string
@@ -88,7 +88,7 @@ func (cf *czMoveFixture) placeOf(t *testing.T, cis string) string {
 	return p
 }
 
-// opened — вскрыт ли агрегат ЧЗ.
+// opened - вскрыт ли агрегат ЧЗ.
 func (cf *czMoveFixture) opened(t *testing.T, code string) bool {
 	t.Helper()
 	var o string
@@ -96,7 +96,7 @@ func (cf *czMoveFixture) opened(t *testing.T, code string) bool {
 	return o == "true"
 }
 
-// lineErr — причина отказа единственной плохой строки документа.
+// lineErr - причина отказа единственной плохой строки документа.
 func lineErr(t *testing.T, err error) error {
 	t.Helper()
 	var lines *repository.DocumentLinesError
@@ -107,7 +107,7 @@ func lineErr(t *testing.T, err error) error {
 }
 
 // Маркируемый товар без марок не двигается; марок не столько, сколько единиц, марка не из
-// источника, чужая партия — отказ строки, и ничего не меняется.
+// источника, чужая партия - отказ строки, и ничего не меняется.
 func TestCZMove_rejectsWithoutProperMarks(t *testing.T) {
 	cf := setupCZMove(t)
 
@@ -122,7 +122,7 @@ func TestCZMove_rejectsWithoutProperMarks(t *testing.T) {
 		t.Errorf("марок меньше количества: %v", err)
 	}
 
-	// Марка короба — не россыпь ячейки.
+	// Марка короба - не россыпь ячейки.
 	_, err = cf.move(t, uuid.NewString(), cf.markLine(cf.cellA, "", cf.cellC, "", czB1))
 	if !errors.Is(lineErr(t, err), model.ErrCZMarkNotAtSource) {
 		t.Errorf("марка не из источника: %v", err)
@@ -143,7 +143,7 @@ func TestCZMove_rejectsWithoutProperMarks(t *testing.T) {
 	}
 }
 
-// Россыпь марками: марки переезжают туда же, куда остаток; из короба в короб — в короб.
+// Россыпь марками: марки переезжают туда же, куда остаток; из короба в короб - в короб.
 func TestCZMove_marksFollowLooseGoods(t *testing.T) {
 	cf := setupCZMove(t)
 
@@ -171,7 +171,7 @@ func TestCZMove_marksFollowLooseGoods(t *testing.T) {
 }
 
 // Вскрытие: марка, вынутая из групповой упаковки, вскрывает и упаковку, и короб ЧЗ; упаковка,
-// вынутая целиком, остаётся целой, а короб — вскрыт. Перенос короба целиком ничего не вскрывает
+// вынутая целиком, остаётся целой, а короб - вскрыт. Перенос короба целиком ничего не вскрывает
 // и марки внутри не трогает.
 func TestCZMove_openingAggregates(t *testing.T) {
 	t.Run("короб целиком", func(t *testing.T) {
@@ -217,7 +217,7 @@ func TestCZMove_openingAggregates(t *testing.T) {
 	})
 }
 
-// Размещение россыпи маркируемого товара — только марками, марки уходят из ячейки приёмки
+// Размещение россыпи маркируемого товара - только марками, марки уходят из ячейки приёмки
 // в ячейку хранения.
 func TestCZPutaway_looseByMarks(t *testing.T) {
 	pf := setupPutaway(t)

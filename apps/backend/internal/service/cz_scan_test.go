@@ -12,7 +12,7 @@ import (
 )
 
 // Тесты CZ-04, шаг 1: скан марки и короба над подставными ЧЗ и хранилищем марок.
-// Коды — по образцу живого короба пива, прочитанного на проде в CZ-02.
+// Коды - по образцу живого короба пива, прочитанного на проде в CZ-02.
 
 const (
 	beerGTIN = "04612728200172"
@@ -20,7 +20,7 @@ const (
 	beerMark = "0104612728200172215AmxPmd"
 )
 
-// scanClient — фальшивый True API: ответы по кодам и журнал запросов.
+// scanClient - фальшивый True API: ответы по кодам и журнал запросов.
 type scanClient struct {
 	infos map[string]model.CisInfo
 	calls [][]string
@@ -41,13 +41,13 @@ func (c *scanClient) CisesInfo(_ context.Context, codes []string) ([]model.CisIn
 func (c *scanClient) TokenExpiry() (time.Time, bool)     { return time.Time{}, false }
 func (c *scanClient) SignerHealth(context.Context) error { return nil }
 
-// unit — ответ ЧЗ по единице.
+// unit - ответ ЧЗ по единице.
 func unit(cis, gtin, name, produced string) model.CisInfo {
 	return model.CisInfo{RequestedCis: cis, Cis: cis, Gtin: gtin, ProductName: name,
 		PackageType: "UNIT", PackageLevel: "UNIT", ProducedDate: produced + "T00:00:00.000Z"}
 }
 
-// scanMarks — хранилище марок в памяти; goodCalls — сколько раз искали товар по GTIN.
+// scanMarks - хранилище марок в памяти; goodCalls - сколько раз искали товар по GTIN.
 type scanMarks struct {
 	goods     map[string]model.CZGoodRef
 	marks     map[string]model.CZMark
@@ -118,7 +118,7 @@ func TestScanMark(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		// Наименование ЧЗ и товар справочника — разные поля и могут не совпадать.
+		// Наименование ЧЗ и товар справочника - разные поля и могут не совпадать.
 		if got.Code != beerMark || got.Info.ProductName != "Голубые Гавайи 30 л" ||
 			got.Good == nil || got.Good.ID != "g1" || got.BindBarcode != "" ||
 			got.Mark == nil || got.Mark.LoadUnitID != "lu1" || !got.Mark.ReceivedAt.Equal(received) ||
@@ -127,7 +127,7 @@ func TestScanMark(t *testing.T) {
 		}
 	})
 
-	// ADHOC-53: ШК из марки отвязали, а марка на складе — товар из записи марки, привязку
+	// ADHOC-53: ШК из марки отвязали, а марка на складе - товар из записи марки, привязку
 	// предлагают вернуть, а не завести новую.
 	t.Run("марка в WMS, ШК отвязан", func(t *testing.T) {
 		marks := &scanMarks{marks: map[string]model.CZMark{beerMark: {CIS: beerMark, GoodID: "g7"}}}
@@ -141,7 +141,7 @@ func TestScanMark(t *testing.T) {
 		}
 	})
 
-	t.Run("GTIN незнаком — привязать EAN-13", func(t *testing.T) {
+	t.Run("GTIN незнаком - привязать EAN-13", func(t *testing.T) {
 		got, err := NewCZService(client, &scanMarks{}).Scan(context.Background(), beerMark)
 		if err != nil {
 			t.Fatal(err)
@@ -160,7 +160,7 @@ func TestScanBox(t *testing.T) {
 		group: {RequestedCis: group, Cis: group, Gtin: "04612728200189", PackageType: "GROUP",
 			PackageLevel: "LEVEL1", ProducedDate: "2026-10-14T07:19:00.000Z",
 			Child: []string{"0104612728200172215u2", "0104612728200172215u3"}},
-		// Партия — дата производства единицы, а не упаковки: u3 из другой партии.
+		// Партия - дата производства единицы, а не упаковки: u3 из другой партии.
 		"0104612728200172215u1": unit("0104612728200172215u1", beerGTIN, "Голубые Гавайи 30 л", "2026-10-12"),
 		"0104612728200172215u2": unit("0104612728200172215u2", beerGTIN, "Голубые Гавайи 30 л", "2026-10-12"),
 		"0104612728200172215u3": unit("0104612728200172215u3", beerGTIN, "Голубые Гавайи 30 л", "2026-10-13"),
@@ -184,7 +184,7 @@ func TestScanBox(t *testing.T) {
 		second.ProducedDate != "2026-10-13" || second.Count != 1 {
 		t.Fatalf("состав = %+v", got.Composition)
 	}
-	// Упаковка и место каждой единицы — для агрегатов и aggregate_code приёмки (CZ-05).
+	// Упаковка и место каждой единицы - для агрегатов и aggregate_code приёмки (CZ-05).
 	if len(got.Groups) != 1 || got.Groups[0].Code != group || got.Groups[0].ParentCode != beerBox {
 		t.Fatalf("упаковки = %+v", got.Groups)
 	}
@@ -243,7 +243,7 @@ func TestScanErrors(t *testing.T) {
 	if _, err := s.Scan(context.Background(), beerMark); !errors.Is(err, model.ErrCZNotFound) {
 		t.Fatalf("марки нет в ЧЗ: %v", err)
 	}
-	// Без хранилища марок (нет БД) — только данные ЧЗ.
+	// Без хранилища марок (нет БД) - только данные ЧЗ.
 	client := &scanClient{infos: map[string]model.CisInfo{beerMark: unit(beerMark, beerGTIN, "Пиво", "2026-10-12")}}
 	got, err := NewCZService(client, nil).Scan(context.Background(), beerMark)
 	if err != nil || got.Good != nil || got.Mark != nil || got.BindBarcode != "" {
@@ -251,7 +251,7 @@ func TestScanErrors(t *testing.T) {
 	}
 }
 
-// CZ-05: расхождение с ЧЗ на приёмке — чужой владелец или марка не в обороте.
+// CZ-05: расхождение с ЧЗ на приёмке - чужой владелец или марка не в обороте.
 func TestScanDiscrepancy(t *testing.T) {
 	const ours = "6234203222"
 	mark := func(owner, status string) model.CisInfo {
@@ -265,7 +265,7 @@ func TestScanDiscrepancy(t *testing.T) {
 		{"наша, в обороте", ours, "INTRODUCED", ours, ""},
 		{"чужой владелец", "7700000000", "INTRODUCED", ours, model.CZDiscrepancyForeignMark},
 		{"выбыла", ours, "RETIRED", ours, model.CZDiscrepancyRetired},
-		{"наш ИНН не задан — владелец не сверяется", "7700000000", "INTRODUCED", "", ""},
+		{"наш ИНН не задан - владелец не сверяется", "7700000000", "INTRODUCED", "", ""},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -278,7 +278,7 @@ func TestScanDiscrepancy(t *testing.T) {
 	}
 }
 
-// В составе короба выбывшие единицы — отдельной строкой, а не вместе со своими той же партии.
+// В составе короба выбывшие единицы - отдельной строкой, а не вместе со своими той же партии.
 func TestScanBoxDiscrepancyLines(t *testing.T) {
 	ok1 := unit("0104612728200172215ok1", beerGTIN, "Пиво", "2026-10-12")
 	ok2 := unit("0104612728200172215ok2", beerGTIN, "Пиво", "2026-10-12")

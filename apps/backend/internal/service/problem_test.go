@@ -28,7 +28,7 @@ func (f *fakeProblemRepo) Resolve(_ context.Context, in model.ResolveProblemInpu
 	return nil
 }
 
-// fakeResolutionID — вариант «Списать» справочника в подделке; другие id — не найдены.
+// fakeResolutionID - вариант «Списать» справочника в подделке; другие id - не найдены.
 const fakeResolutionID = "7b000000-0000-4000-8000-000000000001"
 
 func (f *fakeProblemRepo) Resolution(_ context.Context, id string) (model.ProblemResolution, error) {
@@ -38,7 +38,7 @@ func (f *fakeProblemRepo) Resolution(_ context.Context, id string) (model.Proble
 	return model.ProblemResolution{ID: id, Name: "Списать", Action: model.ProblemDecisionWriteOff, IsActive: true}, nil
 }
 
-// P6-07-3: форма решения проверяется до базы — у списания документ 1С, у возврата поставщик,
+// P6-07-3: форма решения проверяется до базы - у списания документ 1С, у возврата поставщик,
 // чужие поля и неизвестное решение отклоняются.
 func TestProblemService_resolveValidation(t *testing.T) {
 	const id = "8f4c2b1e-0d3a-4c5b-9e6f-1a2b3c4d5e6f"
@@ -81,7 +81,7 @@ func TestProblemService_resolveValidation(t *testing.T) {
 	}
 }
 
-// ADHOC-55: решение вариантом справочника — форма проверяется по действию варианта, а
+// ADHOC-55: решение вариантом справочника - форма проверяется по действию варианта, а
 // действие подставляет сервис; неизвестный вариант и чужое действие отклоняются.
 func TestProblemService_resolveByResolution(t *testing.T) {
 	const id = "8f4c2b1e-0d3a-4c5b-9e6f-1a2b3c4d5e6f"
@@ -109,7 +109,7 @@ func TestProblemService_resolveByResolution(t *testing.T) {
 	}
 }
 
-// ADHOC-34: лента решённых на ТСД — окно дат по складу (to включительно), курсор только с id,
+// ADHOC-34: лента решённых на ТСД - окно дат по складу (to включительно), курсор только с id,
 // предел страницы.
 func TestProblemService_resolvedFeed(t *testing.T) {
 	repo := &fakeProblemRepo{}

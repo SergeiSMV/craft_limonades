@@ -9,9 +9,9 @@ import '../../../../core/theme/semibold_text.dart';
 import '../../../../core/utils/qty_format.dart';
 import '../../domain/entry_models.dart';
 
-/// Строка буфера: товар · партия · количество (с единицей). ШК на строке не хранится — привязки
+/// Строка буфера: товар · партия · количество (с единицей). ШК на строке не хранится - привязки
 /// живут отдельно (уровень товара), поэтому и метки ШК на строке нет. Марки ЧЗ строки и
-/// расхождения с ЧЗ — каждое своей строкой (ADHOC-46).
+/// расхождения с ЧЗ - каждое своей строкой (ADHOC-46).
 class LineTile extends StatelessWidget {
   const LineTile({super.key, required this.line, this.onLongPress});
 

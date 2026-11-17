@@ -14,7 +14,7 @@ import '../ui/portal_button.dart';
 
 /// Строки справочника причин проблем и вариантов решения (ADHOC-55).
 
-/// Действие варианта решения — что делает программа.
+/// Действие варианта решения - что делает программа.
 String resolutionActionLabel(String action) => switch (action) {
   ProblemDecision.writeOff => t.portal.problemReasons.actionWriteOff,
   ProblemDecision.place => t.portal.problemReasons.actionPlace,
@@ -25,7 +25,7 @@ String resolutionActionLabel(String action) => switch (action) {
 };
 
 /// Строка причины: название, отметки и варианты решения; изменить, выключить или включить.
-/// Системную причину не выключить — кнопки нет.
+/// Системную причину не выключить - кнопки нет.
 class ProblemReasonRow extends StatelessWidget {
   const ProblemReasonRow({
     super.key,

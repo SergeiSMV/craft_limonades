@@ -13,7 +13,7 @@ enum HistoryStatus { initial, loading, loaded, error }
 
 /// Состояние вкладки «Завершённые» перемещения: лента, фильтр и варианты исполнителя.
 ///
-/// Фильтр — тот же `CompletedFilter`, что у заданий (вид не используется): лист фильтра
+/// Фильтр - тот же `CompletedFilter`, что у заданий (вид не используется): лист фильтра
 /// общий, и кладовщик видит один и тот же фильтр в обоих разделах.
 @freezed
 abstract class MovementHistoryState with _$MovementHistoryState {
@@ -29,14 +29,14 @@ abstract class MovementHistoryState with _$MovementHistoryState {
 }
 
 /// Cubit ленты истории перемещений (ADHOC-28): всего склада, только онлайн, подгрузка
-/// курсором, фильтр по периоду и исполнителю — отдельным запросом к серверу.
+/// курсором, фильтр по периоду и исполнителю - отдельным запросом к серверу.
 @injectable
 class MovementHistoryCubit extends Cubit<MovementHistoryState> {
   MovementHistoryCubit(this._repo) : super(const MovementHistoryState());
 
   final MovementHistoryRepository _repo;
 
-  /// Размер страницы. Курсор — последняя показанная запись, а не смещение: перемещения,
+  /// Размер страницы. Курсор - последняя показанная запись, а не смещение: перемещения,
   /// проведённые во время просмотра, не сдвигают уже загруженные страницы.
   static const pageSize = 30;
 
@@ -71,7 +71,7 @@ class MovementHistoryCubit extends Cubit<MovementHistoryState> {
     );
   }
 
-  /// Следующая страница. Неудача подгрузки не роняет ленту в ошибку — уже показанное
+  /// Следующая страница. Неудача подгрузки не роняет ленту в ошибку - уже показанное
   /// остаётся, а следующий скролл повторит запрос.
   Future<void> loadMore() async {
     if (state.loadingMore ||
@@ -99,13 +99,13 @@ class MovementHistoryCubit extends Cubit<MovementHistoryState> {
     );
   }
 
-  /// Применить фильтр — лента перезагружается с первой страницы.
+  /// Применить фильтр - лента перезагружается с первой страницы.
   Future<void> setFilter(CompletedFilter filter) async {
     emit(state.copyWith(filter: filter));
     await load();
   }
 
-  /// Варианты фильтра по исполнителю. Не загрузились — фильтр по исполнителю просто пуст.
+  /// Варианты фильтра по исполнителю. Не загрузились - фильтр по исполнителю просто пуст.
   Future<void> loadExecutors() async {
     final res = await _repo.executors();
     if (isClosed) return;
@@ -127,7 +127,7 @@ sealed class HistoryEntry {
   const HistoryEntry();
 }
 
-/// Разделитель — день, к которому относятся записи под ним.
+/// Разделитель - день, к которому относятся записи под ним.
 class HistoryDay extends HistoryEntry {
   const HistoryDay(this.day);
   final DateTime day;
@@ -140,7 +140,7 @@ class HistoryRecord extends HistoryEntry {
 }
 
 /// Раскладывает ленту по дням, как чат: разделитель перед первой записью каждого дня.
-/// День — по часам терминала, как у «Завершённых» заданий.
+/// День - по часам терминала, как у «Завершённых» заданий.
 List<HistoryEntry> groupHistoryByDay(List<MoveRecord> items) {
   final out = <HistoryEntry>[];
   DateTime? current;

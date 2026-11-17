@@ -10,9 +10,9 @@ import '../../../../../core/widgets/neumorphic_choice.dart';
 import '../../bloc/goods_list_cubit.dart';
 
 /// Фильтр «склады» в листе фильтров «Остатков» (ADHOC-33): внутренние склады с множественным
-/// выбором, по умолчанию — все. Вкладок по складам нет: складов может быть много.
+/// выбором, по умолчанию - все. Вкладок по складам нет: складов может быть много.
 ///
-/// Склад «Основной» в соглашении терминала — `null`, поэтому вариант для него — `null`, а не id.
+/// Склад «Основной» в соглашении терминала - `null`, поэтому вариант для него - `null`, а не id.
 class WarehouseFilter extends StatelessWidget {
   const WarehouseFilter({super.key});
 
@@ -53,6 +53,6 @@ class WarehouseFilter extends StatelessWidget {
     );
   }
 
-  /// Склад в фильтре: «Основной» — `null`, остальные — id.
+  /// Склад в фильтре: «Основной» - `null`, остальные - id.
   static String? _key(String id, bool isDefault) => isDefault ? null : id;
 }

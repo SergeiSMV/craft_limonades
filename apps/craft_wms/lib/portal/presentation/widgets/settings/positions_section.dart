@@ -15,10 +15,10 @@ import '../ui/portal_button.dart';
 
 /// Раздел «Должности» в настройках портала (ADHOC-50).
 ///
-/// Что: должности и их права — завести, изменить, удалить пустую. «Администратор» — все права,
+/// Что: должности и их права - завести, изменить, удалить пустую. «Администратор» - все права,
 /// не меняется. Сохранение, которое оставило бы систему без управления пользователями, сервер
-/// отклоняет с объяснением — оно показывается под списком.
-/// [changes] — общий счётчик правок раздела «Пользователи»: число людей на должностях меняется
+/// отклоняет с объяснением - оно показывается под списком.
+/// [changes] - общий счётчик правок раздела «Пользователи»: число людей на должностях меняется
 /// оттуда, и список перечитывается.
 class PositionsSection extends StatefulWidget {
   const PositionsSection({super.key, required this.changes});
@@ -35,7 +35,7 @@ class _PositionsSectionState extends State<PositionsSection> {
   List<PortalPosition>? _items;
   bool _loading = true;
 
-  /// Должность, с которой идёт действие; пустая строка — заводится новая.
+  /// Должность, с которой идёт действие; пустая строка - заводится новая.
   String? _busyId;
   String? _error;
 
@@ -83,7 +83,7 @@ class _PositionsSectionState extends State<PositionsSection> {
     await _run(p.id, () => _repo.updatePosition(p.id, d.name, d.rights));
   }
 
-  /// Удалить должность без пользователей — после подтверждения.
+  /// Удалить должность без пользователей - после подтверждения.
   Future<void> delete(PortalPosition p) async {
     if (!await showDeletePositionDialog(context, name: p.name) || !mounted) {
       return;
@@ -91,7 +91,7 @@ class _PositionsSectionState extends State<PositionsSection> {
     await _run(p.id, () => _repo.deletePosition(p.id));
   }
 
-  /// Выполнить действие; успех — сигнал разделу «Пользователи» (там видны названия) и
+  /// Выполнить действие; успех - сигнал разделу «Пользователи» (там видны названия) и
   /// перечитать свой список.
   Future<void> _run(
     String id,
@@ -112,7 +112,7 @@ class _PositionsSectionState extends State<PositionsSection> {
   }
 
   /// Настройки изменились на сервере (ADHOC-60): перечитать список. Пока идёт своё действие,
-  /// не перечитывать — оно само перечитает список по завершении. Правка в открытом окне не
+  /// не перечитывать - оно само перечитает список по завершении. Правка в открытом окне не
   /// страдает: окно держит свою копию данных, а список под ним остаётся на экране до ответа.
   void onDataChanged() {
     if (_busyId != null) return;

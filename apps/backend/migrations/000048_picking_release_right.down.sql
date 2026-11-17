@@ -1,4 +1,4 @@
--- P8-03 откат: право снятия заказа снимается с должностей, ограничение — как в миграции 46.
+-- P8-03 откат: право снятия заказа снимается с должностей, ограничение - как в миграции 46.
 UPDATE positions SET rights = array_remove(rights, 'portal.picking.release');
 ALTER TABLE positions DROP CONSTRAINT positions_rights_check;
 ALTER TABLE positions ADD CONSTRAINT positions_rights_check CHECK (rights <@ ARRAY[

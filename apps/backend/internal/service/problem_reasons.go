@@ -9,10 +9,10 @@ import (
 	"craftwms/internal/model"
 )
 
-// problemReasonNameMax — предел названия причины и варианта в символах.
+// problemReasonNameMax - предел названия причины и варианта в символах.
 const problemReasonNameMax = 100
 
-// problemReasonRepo — зависимость сервиса справочника причин.
+// problemReasonRepo - зависимость сервиса справочника причин.
 type problemReasonRepo interface {
 	Reasons(ctx context.Context) ([]model.ProblemReason, error)
 	Resolutions(ctx context.Context) ([]model.ProblemResolution, error)
@@ -20,8 +20,8 @@ type problemReasonRepo interface {
 	SaveResolution(ctx context.Context, in model.ProblemResolutionInput) (string, error)
 }
 
-// ProblemReasonService — справочник причин проблем склада и вариантов решения (ADHOC-55): ТСД
-// читает причины для пометки, портал ведёт и то и другое. Удаления нет — только «неактивен».
+// ProblemReasonService - справочник причин проблем склада и вариантов решения (ADHOC-55): ТСД
+// читает причины для пометки, портал ведёт и то и другое. Удаления нет - только «неактивен».
 type ProblemReasonService struct {
 	repo problemReasonRepo
 }
@@ -31,19 +31,19 @@ func NewProblemReasonService(repo problemReasonRepo) *ProblemReasonService {
 	return &ProblemReasonService{repo: repo}
 }
 
-// Reasons — все причины, и неактивные: ТСД подписывает ими и старые проблемы.
+// Reasons - все причины, и неактивные: ТСД подписывает ими и старые проблемы.
 func (s *ProblemReasonService) Reasons(ctx context.Context) ([]model.ProblemReason, error) {
 	return s.repo.Reasons(ctx)
 }
 
-// Resolutions — все варианты решения, и неактивные.
+// Resolutions - все варианты решения, и неактивные.
 func (s *ProblemReasonService) Resolutions(ctx context.Context) ([]model.ProblemResolution, error) {
 	return s.repo.Resolutions(ctx)
 }
 
 // SaveReason проверяет форму причины и записывает её; возвращает код.
 //
-// У новой причины обязательны название и хотя бы один вариант; у правки — только то, что
+// У новой причины обязательны название и хотя бы один вариант; у правки - только то, что
 // передано, но пустым список вариантов не становится: решить такую проблему было бы нечем.
 func (s *ProblemReasonService) SaveReason(ctx context.Context, in model.ProblemReasonInput) (string, error) {
 	in.Code = strings.TrimSpace(in.Code)

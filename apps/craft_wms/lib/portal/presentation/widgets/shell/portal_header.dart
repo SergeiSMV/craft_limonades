@@ -10,7 +10,7 @@ import '../../../../core/theme/semibold_text.dart';
 import '../ui/portal_button.dart';
 
 /// Шапка страницы (ADHOC-56, заголовок страницы Shopify Polaris): название раздела, пояснение
-/// под ним и выход справа; на узком окне слева — кнопка меню.
+/// под ним и выход справа; на узком окне слева - кнопка меню.
 class PortalHeader extends StatelessWidget {
   const PortalHeader({
     super.key,
@@ -22,11 +22,11 @@ class PortalHeader extends StatelessWidget {
 
   final String title;
 
-  /// Пояснение к разделу под заголовком; `null` — без пояснения.
+  /// Пояснение к разделу под заголовком; `null` - без пояснения.
   final String? description;
   final VoidCallback onLogout;
 
-  /// Узкое окно: меню в выдвижной панели, в шапке — кнопка, которая её открывает.
+  /// Узкое окно: меню в выдвижной панели, в шапке - кнопка, которая её открывает.
   final bool showMenu;
 
   /// Открыть выдвижное меню. Шапка лежит внутри каркаса, поэтому он находится по контексту.

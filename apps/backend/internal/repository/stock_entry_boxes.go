@@ -13,21 +13,21 @@ import (
 
 // Отказы строк ввода остатков с коробами и марками (ADHOC-46).
 var (
-	// ErrLoadUnitExists — короб с этим QR уже заведён на складе: проход его не пересчитывает.
+	// ErrLoadUnitExists - короб с этим QR уже заведён на складе: проход его не пересчитывает.
 	ErrLoadUnitExists = errors.New("load unit already exists")
-	// ErrEntryDuplicate — короб, упаковка или марка уже введены в другой ячейке этого прохода.
+	// ErrEntryDuplicate - короб, упаковка или марка уже введены в другой ячейке этого прохода.
 	ErrEntryDuplicate = errors.New("already entered in another cell of the session")
-	// ErrEntryCellHasMarks — в ячейке лежат марки россыпью того же товара и партии: SET россыпи
+	// ErrEntryCellHasMarks - в ячейке лежат марки россыпью того же товара и партии: SET россыпи
 	// разошёлся бы с числом марок.
 	ErrEntryCellHasMarks = errors.New("cell already has loose marks of this good and batch")
-	// ErrEntryEmptyBox — короб прохода без товара.
+	// ErrEntryEmptyBox - короб прохода без товара.
 	ErrEntryEmptyBox = errors.New("stock entry box has no goods")
 )
 
 //* --- Содержимое ячейки в сессии --- *//
 
-// clearSessionCell удаляет содержимое ячейки в сессии: короба (с ними — строки в коробах и их
-// марки), строки россыпи (с ними — марки), упаковки ЧЗ.
+// clearSessionCell удаляет содержимое ячейки в сессии: короба (с ними - строки в коробах и их
+// марки), строки россыпи (с ними - марки), упаковки ЧЗ.
 func clearSessionCell(ctx context.Context, q Querier, sessionID, cellID string) error {
 	for _, sql := range []string{
 		`DELETE FROM stock_entry_load_units WHERE session_id = $1::uuid AND cell_id = $2::uuid`,
@@ -41,7 +41,7 @@ func clearSessionCell(ctx context.Context, q Querier, sessionID, cellID string) 
 	return nil
 }
 
-// insertSessionCZ записывает короба и упаковки ЧЗ ячейки в сессию — до строк: строка ссылается
+// insertSessionCZ записывает короба и упаковки ЧЗ ячейки в сессию - до строк: строка ссылается
 // на свой короб внешним ключом.
 func insertSessionCZ(ctx context.Context, q Querier, sessionID string, in StockEntryCellInput) error {
 	for _, lu := range in.LoadUnits {
@@ -76,8 +76,8 @@ func insertSessionMarks(ctx context.Context, q Querier, sessionID, lineID string
 	return nil
 }
 
-// loadSessionCells читает содержимое сессии по ячейкам — в виде тех же входов, что присылает
-// checkpoint: финал проверяет и проводит их тем же кодом. Ячейки — в порядке id: номера
+// loadSessionCells читает содержимое сессии по ячейкам - в виде тех же входов, что присылает
+// checkpoint: финал проверяет и проводит их тем же кодом. Ячейки - в порядке id: номера
 // проблем и порядок журнала не должны зависеть от обхода словаря.
 func loadSessionCells(ctx context.Context, q Querier, sessionID string) ([]StockEntryCellInput, error) {
 	byCell := map[string]*StockEntryCellInput{}
@@ -178,7 +178,7 @@ func loadSessionCells(ctx context.Context, q Querier, sessionID string) ([]Stock
 	return out, nil
 }
 
-// sessionMarks — марки сессии по строкам.
+// sessionMarks - марки сессии по строкам.
 func sessionMarks(ctx context.Context, q Querier, sessionID string) (map[string][]model.ReceiptMark, error) {
 	rows, err := q.Query(ctx, `
 		SELECT line_id::text, cis, COALESCE(aggregate_code, ''), COALESCE(discrepancy, '')
@@ -202,7 +202,7 @@ func sessionMarks(ctx context.Context, q Querier, sessionID string) (map[string]
 
 //* --- Отказы строк --- *//
 
-// guardEntryCell — отказы строк одной ячейки (checkpoint).
+// guardEntryCell - отказы строк одной ячейки (checkpoint).
 func guardEntryCell(ctx context.Context, q Querier, sessionID string, in StockEntryCellInput, inSession bool) error {
 	bad, total, err := entryCellRejections(ctx, q, sessionID, in, inSession)
 	if err != nil {
@@ -214,7 +214,7 @@ func guardEntryCell(ctx context.Context, q Querier, sessionID string, in StockEn
 	return nil
 }
 
-// guardSessionCells — отказы строк всех ячеек сессии (финал), одним списком.
+// guardSessionCells - отказы строк всех ячеек сессии (финал), одним списком.
 func guardSessionCells(ctx context.Context, q Querier, sessionID string, cells []StockEntryCellInput) error {
 	var bad []LineRejection
 	total := 0
@@ -237,9 +237,9 @@ func guardSessionCells(ctx context.Context, q Querier, sessionID string, cells [
 
 // entryCellRejections проверяет ячейку прохода и возвращает её плохие строки и число строк.
 //
-// Строки ячейки для кладовщика — её короба, упаковки и строки товара; каждая проверяется
+// Строки ячейки для кладовщика - её короба, упаковки и строки товара; каждая проверяется
 // целиком, чтобы назвать все плохие сразу (ADHOC-40).
-// [inSession] — проверять и повторы с другими ячейками прохода: на checkpoint ячейка ещё не
+// [inSession] - проверять и повторы с другими ячейками прохода: на checkpoint ячейка ещё не
 // в сессии, на финале она уже там, и сравнивать её с ней самой нельзя.
 func entryCellRejections(ctx context.Context, q Querier, sessionID string, in StockEntryCellInput, inSession bool) ([]LineRejection, int, error) {
 	var bad []LineRejection
@@ -307,7 +307,7 @@ func entryCellRejections(ctx context.Context, q Querier, sessionID string, in St
 	return bad, n, nil
 }
 
-// guardEntryBox — короб прохода ещё не заведён ни на складе, ни в другой ячейке прохода.
+// guardEntryBox - короб прохода ещё не заведён ни на складе, ни в другой ячейке прохода.
 func guardEntryBox(ctx context.Context, q Querier, sessionID string, lu LoadUnitInput, inSession bool) error {
 	var exists bool
 	if err := q.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM load_units WHERE id = $1::uuid)`,
@@ -341,7 +341,7 @@ func guardEntryBox(ctx context.Context, q Querier, sessionID string, lu LoadUnit
 	return nil
 }
 
-// guardEntryGroup — групповая упаковка ЧЗ ещё не заведена ни на складе, ни в другой ячейке.
+// guardEntryGroup - групповая упаковка ЧЗ ещё не заведена ни на складе, ни в другой ячейке.
 func guardEntryGroup(ctx context.Context, q Querier, sessionID, code string, inSession bool) error {
 	var exists bool
 	if err := q.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM cz_aggregates WHERE code = $1)`,
@@ -365,10 +365,10 @@ func guardEntryGroup(ctx context.Context, q Querier, sessionID, code string, inS
 	return nil
 }
 
-// guardEntryLine — строка товара ячейки.
+// guardEntryLine - строка товара ячейки.
 //
-// Маркируемый товар — только марками, ровно по марке на единицу; марка ещё не в учёте и не в
-// другой ячейке прохода; в ячейке нет марок россыпью этого товара и партии на «Основном» — SET
+// Маркируемый товар - только марками, ровно по марке на единицу; марка ещё не в учёте и не в
+// другой ячейке прохода; в ячейке нет марок россыпью этого товара и партии на «Основном» - SET
 // остатка грани их бы не учёл. Строка с нулём маркируемого товара допустима: она обнуляет грань,
 // если марок россыпью в ячейке нет.
 func guardEntryLine(ctx context.Context, q Querier, sessionID, cellID, iwh string, ln StockEntryLineInput, marked, inSession bool) error {
@@ -417,7 +417,7 @@ func guardEntryLine(ctx context.Context, q Querier, sessionID, cellID, iwh strin
 	return nil
 }
 
-// entryMarkedGoods — какие товары ячейки маркируемые: признак в справочнике или марки в любой
+// entryMarkedGoods - какие товары ячейки маркируемые: признак в справочнике или марки в любой
 // строке этого товара в ячейке (марка сделает его маркируемым на финале, CZ-05).
 func entryMarkedGoods(ctx context.Context, q Querier, lines []StockEntryLineInput) (map[string]bool, error) {
 	marked := map[string]bool{}
@@ -446,15 +446,15 @@ func entryMarkedGoods(ctx context.Context, q Querier, lines []StockEntryLineInpu
 	return marked, rows.Err()
 }
 
-// entryRejections — ошибки, которыми отказывает строка ввода остатков. Ссылка в никуда
-// (несуществующий товар) — тоже отказ строки, а не сбой.
+// entryRejections - ошибки, которыми отказывает строка ввода остатков. Ссылка в никуда
+// (несуществующий товар) - тоже отказ строки, а не сбой.
 var entryRejections = []error{
 	ErrLoadUnitExists, ErrEntryDuplicate, ErrEntryCellHasMarks, ErrEntryEmptyBox,
 	model.ErrCZAggregateExists, model.ErrCZMarkExists,
 	model.ErrCZMarksRequired, model.ErrCZMarksQtyMismatch,
 }
 
-// isEntryRejection — отказ ли это строки ввода остатков.
+// isEntryRejection - отказ ли это строки ввода остатков.
 func isEntryRejection(err error) bool {
 	for _, target := range entryRejections {
 		if errors.Is(err, target) {
@@ -464,7 +464,7 @@ func isEntryRejection(err error) bool {
 	return false
 }
 
-// entryBoxText — короб прохода для человека: его ГЕ ещё нет, поэтому по входу, а не по базе.
+// entryBoxText - короб прохода для человека: его ГЕ ещё нет, поэтому по входу, а не по базе.
 func entryBoxText(lu LoadUnitInput) string {
 	if lu.CZCode != "" {
 		return czBoxText(lu.CZCode)
@@ -474,7 +474,7 @@ func entryBoxText(lu LoadUnitInput) string {
 
 //* --- Финал: остаток, короба, ЧЗ --- *//
 
-// entryFacet — грань остатка, которой коснулся проход: ячейка · товар · партия на «Основном».
+// entryFacet - грань остатка, которой коснулся проход: ячейка · товар · партия на «Основном».
 type entryFacet struct {
 	cellID, goodID, productionDate string
 }
@@ -525,7 +525,7 @@ func setSessionStock(ctx context.Context, q Querier, cells []StockEntryCellInput
 	return batches, len(keys), nil
 }
 
-// placeSessionBoxes наполняет короба прохода и кладёт их в ячейки — через общую функцию
+// placeSessionBoxes наполняет короба прохода и кладёт их в ячейки - через общую функцию
 // размещения, она же пишет первую строку журнала с источником «ввод остатков».
 func placeSessionBoxes(ctx context.Context, q Querier, sessionID string, cells []StockEntryCellInput, batches map[entryFacet]string) error {
 	var author string
@@ -559,7 +559,7 @@ func placeSessionBoxes(ctx context.Context, q Querier, sessionID string, cells [
 }
 
 // receiveSessionCZ записывает короба ЧЗ, упаковки и марки прохода и заводит проблемы по маркам
-// с расхождением — общим приходом ЧЗ, как приёмка (CZ-05).
+// с расхождением - общим приходом ЧЗ, как приёмка (CZ-05).
 func receiveSessionCZ(ctx context.Context, q Querier, sessionID string, cells []StockEntryCellInput) error {
 	in := CZIntakeInput{}
 	if err := q.QueryRow(ctx, `

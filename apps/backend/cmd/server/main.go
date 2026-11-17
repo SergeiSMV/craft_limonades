@@ -1,9 +1,9 @@
-// Package main — точка входа backend-сервиса Craft WMS.
+// Package main - точка входа backend-сервиса Craft WMS.
 //
-// P0-02: каркас HTTP-сервиса — конфиг из окружения, структурированный логгер,
+// P0-02: каркас HTTP-сервиса - конфиг из окружения, структурированный логгер,
 // chi-роутер и graceful shutdown.
 // P0-03: подключение к PostgreSQL (пул pgx) + readiness-проба /ready.
-// Бизнес-логики пока нет — это «розетка», в которую дальше подключаются auth и операции.
+// Бизнес-логики пока нет - это «розетка», в которую дальше подключаются auth и операции.
 package main
 
 import (
@@ -31,23 +31,23 @@ import (
 	"craftwms/internal/trueapi"
 )
 
-// shutdownTimeout — сколько ждём завершения текущих запросов при мягкой остановке.
+// shutdownTimeout - сколько ждём завершения текущих запросов при мягкой остановке.
 const shutdownTimeout = 10 * time.Second
 
 func main() {
-	// 1. Конфиг из окружения — один бинарь для dev/prod, меняется только окружение.
+	// 1. Конфиг из окружения - один бинарь для dev/prod, меняется только окружение.
 	cfg := config.Load()
 
 	// 2. Отправка ошибок в Bugsink (ADHOC-42): без SENTRY_DSN выключена. Включается до
-	//    логгера — тот на каждой ошибке спрашивает, есть ли куда отправлять.
+	//    логгера - тот на каждой ошибке спрашивает, есть ли куда отправлять.
 	monitored, monErr := observability.Init(observability.Options{
 		DSN:         cfg.SentryDSN,
 		Environment: cfg.SentryEnvironment,
 		Release:     cfg.SentryRelease,
 	})
 
-	// 3. Общий структурированный JSON-логгер (пишет в stdout — стандарт для контейнеров).
-	//    Ошибки журнала он же отправляет в Bugsink — с пользователем запроса из контекста.
+	// 3. Общий структурированный JSON-логгер (пишет в stdout - стандарт для контейнеров).
+	//    Ошибки журнала он же отправляет в Bugsink - с пользователем запроса из контекста.
 	log := newLogger(cfg.LogLevel)
 	slog.SetDefault(log)
 	if monErr != nil {
@@ -58,7 +58,7 @@ func main() {
 	}
 	defer observability.Flush(2 * time.Second)
 
-	// 3. Пул соединений к БД. Если DATABASE_URL пуст — стартуем без БД (удобно для локальной
+	// 3. Пул соединений к БД. Если DATABASE_URL пуст - стартуем без БД (удобно для локальной
 	//    отладки каркаса); /ready в этом случае вернёт 503.
 	var pool *pgxpool.Pool
 	if cfg.DatabaseURL != "" {
@@ -71,7 +71,7 @@ func main() {
 		defer pool.Close()
 
 		// Ранняя проверка доступности БД. Не роняем сервис при неудаче: процесс живой,
-		// а неготовность видно по /ready — так контейнер не флапает из-за кратких сбоев БД.
+		// а неготовность видно по /ready - так контейнер не флапает из-за кратких сбоев БД.
 		pingCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		if err := pool.Ping(pingCtx); err != nil {
 			log.Warn("database unreachable at startup", "error", err)
@@ -80,31 +80,31 @@ func main() {
 		}
 		cancel()
 	} else {
-		log.Warn("DATABASE_URL is empty — starting without database")
+		log.Warn("DATABASE_URL is empty - starting without database")
 	}
 
-	// handler.Pinger — интерфейс; передаём nil-интерфейс, если пула нет (иначе /ready паникнет).
+	// handler.Pinger - интерфейс; передаём nil-интерфейс, если пула нет (иначе /ready паникнет).
 	var pinger handler.Pinger
 	if pool != nil {
 		pinger = pool
 	}
 
-	// 4. Менеджер JWT-токенов. Секрет — из env; если пуст, генерируем эфемерный (токены не
-	//    переживут рестарт, но каркас запустится — удобно для локальной отладки).
+	// 4. Менеджер JWT-токенов. Секрет - из env; если пуст, генерируем эфемерный (токены не
+	//    переживут рестарт, но каркас запустится - удобно для локальной отладки).
 	secret := cfg.JWTSecret
 	if secret == "" {
 		secret = randomSecret()
-		log.Warn("JWT_SECRET is empty — using ephemeral secret (tokens won't survive restart)")
+		log.Warn("JWT_SECRET is empty - using ephemeral secret (tokens won't survive restart)")
 	}
 	tokens := auth.NewTokenManager(secret, cfg.AccessTTL, cfg.RefreshTTL)
 
-	// Шифр номеров бейджей для печати на ТСД (ADHOC-65). Ключа нет или он неверный — вход
+	// Шифр номеров бейджей для печати на ТСД (ADHOC-65). Ключа нет или он неверный - вход
 	// работает как прежде, номера не запоминаются, печать бейджей отвечает «не настроена».
 	var badges *auth.BadgeCipher
 	if cfg.BadgeKey == "" {
-		log.Warn("BADGE_KEY is empty — badge printing is disabled")
+		log.Warn("BADGE_KEY is empty - badge printing is disabled")
 	} else if c, err := auth.NewBadgeCipher(cfg.BadgeKey); err != nil {
-		log.Error("BADGE_KEY is invalid — badge printing is disabled", "error", err)
+		log.Error("BADGE_KEY is invalid - badge printing is disabled", "error", err)
 	} else {
 		badges = c
 	}
@@ -115,7 +115,7 @@ func main() {
 	if pool != nil {
 		users := repository.NewUserRepository(pool)
 		svc.Auth = service.NewAuthService(users, tokens, badges)
-		// Права должности — для проверок по праву на каждой ручке (ADHOC-49).
+		// Права должности - для проверок по праву на каждой ручке (ADHOC-49).
 		svc.Rights = users
 		// Пользователи и должности в портале (ADHOC-49).
 		svc.Users = service.NewUserAdminService(repository.NewUserAdminRepository(pool), badges)
@@ -167,16 +167,16 @@ func main() {
 		svc.PickingPortal = service.NewPickingPortalService(repository.NewPickingRepository(pool), repository.NewWarehouseRepository(pool))
 		// Просмотр содержимого ячеек и коробов на ТСД (P5-05).
 		svc.Contents = service.NewContentsService(repository.NewContentsRepository(pool))
-		// Версии данных по областям — заголовок каждого ответа API (ADHOC-60).
+		// Версии данных по областям - заголовок каждого ответа API (ADHOC-60).
 		svc.DataVersions = repository.NewDataVersionRepository(pool)
 	} else {
-		log.Warn("no database — auth, import and catalog endpoints disabled")
+		log.Warn("no database - auth, import and catalog endpoints disabled")
 	}
 
 	// Честный знак (CZ-02): БД не нужна, только подписант на хосте. Без CZ_SIGNER_SOCKET
-	// клиента нет, и ручки ЧЗ отвечают «не настроен» — локальный стек и стенд как раньше.
+	// клиента нет, и ручки ЧЗ отвечают «не настроен» - локальный стек и стенд как раньше.
 	var czClient *trueapi.Client
-	// Хранилище марок (CZ-03) — только с БД; явный nil интерфейса, если пула нет.
+	// Хранилище марок (CZ-03) - только с БД; явный nil интерфейса, если пула нет.
 	var czMarks service.CZMarks
 	if pool != nil {
 		czMarks = repository.NewCZMarkRepository(pool)
@@ -191,7 +191,7 @@ func main() {
 		svc.CZ = service.NewCZService(czClient, czMarks).WithOwnerINN(cfg.CZOwnerINN)
 		log.Info("chestny znak enabled", "api", cfg.CZAPIURL, "signer", cfg.CZSignerSocket)
 		if cfg.CZOwnerINN == "" {
-			log.Warn("CZ_OWNER_INN is empty — mark owner is not checked on receipt")
+			log.Warn("CZ_OWNER_INN is empty - mark owner is not checked on receipt")
 		}
 	} else {
 		// Явный nil интерфейса: *trueapi.Client(nil) внутри интерфейса не был бы nil.
@@ -199,7 +199,7 @@ func main() {
 	}
 
 	// Демо-режим (ADHOC-67): DEMO_MODE=true и база «…_demo». Пустая база заполняется при
-	// старте, дальше — ночной сброс по DEMO_RESET_AT и кнопка администратора. На любой другой
+	// старте, дальше - ночной сброс по DEMO_RESET_AT и кнопка администратора. На любой другой
 	// базе режим не включается, и ручек демо нет.
 	var demoSvc *service.DemoService
 	if cfg.DemoMode && pool != nil {
@@ -223,7 +223,7 @@ func main() {
 	}
 
 	// Ошибки ТСД и портала (ADHOC-47): пересылка в проект Bugsink `app`. Без CLIENT_SENTRY_DSN
-	// события приложений отбрасываются. Неверный DSN — работаем без пересылки, как с SENTRY_DSN.
+	// события приложений отбрасываются. Неверный DSN - работаем без пересылки, как с SENTRY_DSN.
 	if relay, err := observability.NewRelay(cfg.ClientSentryDSN); err != nil {
 		log.Warn("client error relay disabled: bad CLIENT_SENTRY_DSN", "error", err)
 	} else if relay != nil {
@@ -239,12 +239,12 @@ func main() {
 		ReadHeaderTimeout: 5 * time.Second, // защита от медленных клиентов (Slowloris)
 	}
 
-	// 6. Контекст, отменяемый по SIGINT/SIGTERM — сигнал начать мягкую остановку
+	// 6. Контекст, отменяемый по SIGINT/SIGTERM - сигнал начать мягкую остановку
 	//    (SIGTERM прилетает при `docker compose down` / редеплое).
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	// Фоновое обновление токена ЧЗ: первый токен — сразу при старте, дальше до истечения.
+	// Фоновое обновление токена ЧЗ: первый токен - сразу при старте, дальше до истечения.
 	if czClient != nil {
 		go czClient.Run(ctx)
 	}
@@ -256,7 +256,7 @@ func main() {
 	// 7. Запускаем приём соединений в отдельной горутине, чтобы main мог ждать сигнал.
 	go func() {
 		log.Info("backend listening", "addr", srv.Addr, "log_level", cfg.LogLevel.String())
-		// ErrServerClosed — штатное завершение после Shutdown, ошибкой не считаем.
+		// ErrServerClosed - штатное завершение после Shutdown, ошибкой не считаем.
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Error("server failed", "error", err)
 			stop() // будим main для завершения процесса
@@ -268,7 +268,7 @@ func main() {
 	log.Info("shutdown signal received, draining connections")
 
 	// 9. Graceful shutdown: перестаём принимать новые соединения и даём текущим запросам
-	//    до-обработаться в пределах таймаута. Зачем: не рвать операцию на полуслове —
+	//    до-обработаться в пределах таймаута. Зачем: не рвать операцию на полуслове -
 	//    в WMS это критично для консистентности остатков. Пул БД закроется по defer.
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
@@ -281,13 +281,13 @@ func main() {
 
 // newLogger собирает JSON-логгер slog с заданным уровнем.
 //
-// Поверх JSON — обработчик Bugsink (ADHOC-42): записи уровня error уходят и событием.
+// Поверх JSON - обработчик Bugsink (ADHOC-42): записи уровня error уходят и событием.
 func newLogger(level slog.Level) *slog.Logger {
 	json := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level})
 	return slog.New(observability.NewHandler(json, requestUser))
 }
 
-// requestUser — пользователь запроса для события Bugsink: его кладёт в контекст middleware
+// requestUser - пользователь запроса для события Bugsink: его кладёт в контекст middleware
 // аутентификации.
 func requestUser(ctx context.Context) (id, role string, ok bool) {
 	id, ok = appmw.UserIDFromContext(ctx)

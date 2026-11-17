@@ -10,33 +10,33 @@ import (
 	"craftwms/internal/repository"
 )
 
-// czGroupPayload — групповая упаковка ЧЗ в теле прихода: приёмки (CZ-05) или ячейки ввода
+// czGroupPayload - групповая упаковка ЧЗ в теле прихода: приёмки (CZ-05) или ячейки ввода
 // остатков (ADHOC-46).
 type czGroupPayload struct {
 	Code       string `json:"code"`
-	ParentCode string `json:"parent_code"` // короб или упаковка того же прихода; пусто — сама по себе
+	ParentCode string `json:"parent_code"` // короб или упаковка того же прихода; пусто - сама по себе
 }
 
-// czMarkPayload — марка ЧЗ строки прихода (CZ-05, ADHOC-46).
+// czMarkPayload - марка ЧЗ строки прихода (CZ-05, ADHOC-46).
 type czMarkPayload struct {
 	CIS           string `json:"cis"`
-	AggregateCode string `json:"aggregate_code"` // упаковка ЧЗ того же прихода; пусто — россыпью
-	Discrepancy   string `json:"discrepancy"`    // расхождение со скана; пусто — нет
+	AggregateCode string `json:"aggregate_code"` // упаковка ЧЗ того же прихода; пусто - россыпью
+	Discrepancy   string `json:"discrepancy"`    // расхождение со скана; пусто - нет
 }
 
-// czMaxNesting — предел спуска от упаковки к коробу: короб → упаковка → упаковка с запасом.
-// Цикл parent_code в теле — испорченная операция, а не повод зависнуть.
+// czMaxNesting - предел спуска от упаковки к коробу: короб → упаковка → упаковка с запасом.
+// Цикл parent_code в теле - испорченная операция, а не повод зависнуть.
 const czMaxNesting = 5
 
-// czIntake — проверка данных ЧЗ прихода без базы: приёмки (CZ-05) и ячейки ввода остатков
+// czIntake - проверка данных ЧЗ прихода без базы: приёмки (CZ-05) и ячейки ввода остатков
 // (ADHOC-46).
 //
 // Что: коды коробов и упаковок по форме, вложенность упаковок только в упаковки того же
-// прихода, марки — по форме, без повторов, в своём коробе и не больше количества строки.
-// Зачем здесь: всё это ошибка формы — отказ до открытия транзакции, а не нарушение ключа на
+// прихода, марки - по форме, без повторов, в своём коробе и не больше количества строки.
+// Зачем здесь: всё это ошибка формы - отказ до открытия транзакции, а не нарушение ключа на
 // середине вставки. Совпадение GTIN марки с товаром строки проверяет проводка: нужна база.
 type czIntake struct {
-	parent map[string]string // код упаковки → в какой упаковке лежит ("" — верхний уровень)
+	parent map[string]string // код упаковки → в какой упаковке лежит ("" - верхний уровень)
 	boxLU  map[string]string // код короба ЧЗ → его ГЕ
 	seen   map[string]bool   // КИ, уже встреченные в теле
 	groups []model.CZAggregate
@@ -71,7 +71,7 @@ func newCZIntake(lus []repository.LoadUnitInput, groups []czGroupPayload) (*czIn
 			Code: code, Kind: model.CZAggregateGroup, ParentCode: c.parent[code],
 		})
 	}
-	// Родитель — упаковка того же прихода; иначе ссылка в никуда упёрлась бы во внешний ключ.
+	// Родитель - упаковка того же прихода; иначе ссылка в никуда упёрлась бы во внешний ключ.
 	for _, g := range c.groups {
 		if _, err := c.rootBox(g.Code); err != nil {
 			return nil, err
@@ -80,7 +80,7 @@ func newCZIntake(lus []repository.LoadUnitInput, groups []czGroupPayload) (*czIn
 	return c, nil
 }
 
-// rootBox — короб ЧЗ, в котором (через упаковки) лежит упаковка code; пусто — ни в каком.
+// rootBox - короб ЧЗ, в котором (через упаковки) лежит упаковка code; пусто - ни в каком.
 func (c *czIntake) rootBox(code string) (string, error) {
 	for range czMaxNesting {
 		parent, ok := c.parent[code]
@@ -98,8 +98,8 @@ func (c *czIntake) rootBox(code string) (string, error) {
 	return "", ErrInvalidPayload
 }
 
-// marks проверяет марки строки: форма КИ, расхождение из списка, упаковка — того же прихода,
-// марка из короба ЧЗ — в строке этого короба, без повторов по всему телу, не больше qty.
+// marks проверяет марки строки: форма КИ, расхождение из списка, упаковка - того же прихода,
+// марка из короба ЧЗ - в строке этого короба, без повторов по всему телу, не больше qty.
 func (c *czIntake) marks(in []czMarkPayload, lineLU string, qty decimal.Decimal) ([]model.ReceiptMark, error) {
 	if len(in) == 0 {
 		return nil, nil
@@ -131,7 +131,7 @@ func (c *czIntake) marks(in []czMarkPayload, lineLU string, qty decimal.Decimal)
 			if err != nil {
 				return nil, err
 			}
-			// Короб ЧЗ — это ГЕ: его марка не может лежать россыпью или в чужом коробе.
+			// Короб ЧЗ - это ГЕ: его марка не может лежать россыпью или в чужом коробе.
 			if box != "" && c.boxLU[box] != lineLU {
 				return nil, ErrInvalidPayload
 			}

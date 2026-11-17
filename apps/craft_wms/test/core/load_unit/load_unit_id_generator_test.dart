@@ -14,7 +14,7 @@ void main() {
     expect(ids.toSet().length, ids.length);
   });
 
-  test('выданный идентификатор — канонический UUID в нижнем регистре', () {
+  test('выданный идентификатор - канонический UUID в нижнем регистре', () {
     final id = generator.newId();
     expect(id, matches(RegExp(r'^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$')));
   });
@@ -27,7 +27,7 @@ void main() {
 
   test('свежий ярлык распознаётся сканером как грузовая единица', () {
     // Смысл задачи целиком: то, что мы печатаем, устройство обязано узнавать. Разъедься
-    // генератор и разбор — терминал перестал бы понимать собственные наклейки.
+    // генератор и разбор - терминал перестал бы понимать собственные наклейки.
     final payload = generator.newLabelPayload();
     expect(classifyScan(payload), ScanKind.cargoUnit);
     expect(ScanCode(raw: payload).loadUnitId, loadUnitIdFrom(payload));

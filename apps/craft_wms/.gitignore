@@ -33,7 +33,7 @@ migrate_working_dir/
 /build/
 /coverage/
 
-# Сгенерированное build_runner (freezed / json / auto_route / injectable / slang / flutter_gen) —
+# Сгенерированное build_runner (freezed / json / auto_route / injectable / slang / flutter_gen) -
 # регенерируется командой `dart run build_runner build`, в репозиторий не коммитим.
 *.freezed.dart
 *.g.dart

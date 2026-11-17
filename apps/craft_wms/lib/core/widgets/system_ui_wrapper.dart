@@ -2,15 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 /// Стиль иконок/текста системного статусбара.
-/// [light] — светлые (белые) иконки (для тёмного фона),
-/// [dark] — тёмные (чёрные) иконки (для светлого фона).
+/// [light] - светлые (белые) иконки (для тёмного фона),
+/// [dark] - тёмные (чёрные) иконки (для светлого фона).
 enum StatusBarStyle { light, dark }
 
 /// Обёртка, задающая стиль системного статусбара для экрана.
 ///
 /// Что: оборачивает любой Scaffold и выставляет цвет иконок/текста статусбара.
 /// Зачем: на тёмных брендовых экранах (splash/login) нужен светлый статусбар,
-///        на светлых — тёмный; единое место вместо дублей SystemUiOverlayStyle.
+///        на светлых - тёмный; единое место вместо дублей SystemUiOverlayStyle.
 /// Как: AnnotatedRegion применяет стиль, пока экран на переднем плане.
 ///
 /// Пример:
@@ -35,7 +35,7 @@ class SystemUiWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Важно: во Flutter Brightness.light = СВЕТЛЫЕ (белые) иконки — контринтуитивно.
+    // Важно: во Flutter Brightness.light = СВЕТЛЫЕ (белые) иконки - контринтуитивно.
     final isLight = style == StatusBarStyle.light;
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(

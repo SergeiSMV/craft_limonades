@@ -9,10 +9,10 @@ import '../../../stock/data/catalog_models.dart';
 /// Подписи «Проблем склада» для человека.
 
 /// Причина по коду, когда названия из справочника нет (ADHOC-55): прежняя подпись причины,
-/// заведённой миграцией; незнакомый код — как есть.
+/// заведённой миграцией; незнакомый код - как есть.
 String reasonLabelOf(String code) => fallbackReasonName(code) ?? code;
 
-/// Короб: «Короб D35F AE87 · Брак» — склад, если не «Основной».
+/// Короб: «Короб D35F AE87 · Брак» - склад, если не «Основной».
 String boxLabel(LoadUnitView box) => withWarehouse(
   t.problems.box(code: boxCode(box.id)),
   box.internalWarehouseName,

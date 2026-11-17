@@ -11,14 +11,14 @@ import (
 	"craftwms/internal/model"
 )
 
-// ErrLoadUnitNotFound — нет грузовой единицы с таким идентификатором.
+// ErrLoadUnitNotFound - нет грузовой единицы с таким идентификатором.
 //
-// Сама ошибка живёт в домене (model.ErrLoadUnitNotFound, P5-05): здесь — тот же объект под
+// Сама ошибка живёт в домене (model.ErrLoadUnitNotFound, P5-05): здесь - тот же объект под
 // прежним именем, чтобы существующие проверки errors.Is не разошлись, пока их переводят
 // на домен (долг 21).
 var ErrLoadUnitNotFound = model.ErrLoadUnitNotFound
 
-// LoadUnitRepository — грузовая единица: заведение короба и его чтение (P4-01, P4-03).
+// LoadUnitRepository - грузовая единица: заведение короба и его чтение (P4-01, P4-03).
 type LoadUnitRepository struct {
 	pool *pgxpool.Pool
 }
@@ -31,14 +31,14 @@ func NewLoadUnitRepository(pool *pgxpool.Pool) *LoadUnitRepository {
 // Create заводит ГЕ с идентификатором, выданным устройством, идемпотентно.
 //
 // Зачем id с устройства: короб получает QR-ярлык в момент сборки, в том числе без сети (P4-04),
-// и серверный идентификатор взять неоткуда — напечатанный ярлык уже уехал на коробе.
+// и серверный идентификатор взять неоткуда - напечатанный ярлык уже уехал на коробе.
 // Повтор с тем же id ничего не меняет: очередь устройства повторяет операцию до подтверждения,
 // и второй короб на том же ярлыке означал бы две ГЕ на одну наклейку.
 func (r *LoadUnitRepository) Create(ctx context.Context, id, kind string) error {
 	return createLoadUnit(ctx, r.pool, id, kind)
 }
 
-// createLoadUnit — низкоуровневое заведение ГЕ на Querier, чтобы приёмка из очереди устройства
+// createLoadUnit - низкоуровневое заведение ГЕ на Querier, чтобы приёмка из очереди устройства
 // (P4-09) заводила свои короба в одной транзакции с документом.
 func createLoadUnit(ctx context.Context, q Querier, id, kind string) error {
 	_, err := q.Exec(ctx, `

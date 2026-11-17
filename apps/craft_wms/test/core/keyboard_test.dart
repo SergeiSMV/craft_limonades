@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Регрессия: при возврате на экран Flutter восстанавливает фокус последнему
-/// сфокусированному полю — и экранная клавиатура всплывает сама. [dismissKeyboard],
+/// сфокусированному полю - и экранная клавиатура всплывает сама. [dismissKeyboard],
 /// вызванный перед переходом, должен это снимать.
 void main() {
   /// Прогоняет сценарий «фокус в поле → переход на другой экран → возврат» и возвращает,
@@ -69,7 +69,7 @@ void main() {
     expect(await focusAfterReturn(tester, dismissBeforePush: false), isTrue);
   });
 
-  testWidgets('dismissKeyboard перед переходом — на возврате поле без фокуса', (
+  testWidgets('dismissKeyboard перед переходом - на возврате поле без фокуса', (
     tester,
   ) async {
     expect(await focusAfterReturn(tester, dismissBeforePush: true), isFalse);

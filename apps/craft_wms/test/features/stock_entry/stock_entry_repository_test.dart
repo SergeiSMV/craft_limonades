@@ -58,7 +58,7 @@ void main() {
     expect((body['lines'] as List).single['production_date'], '15-01-2026');
   });
 
-  // Отказ строк (ADHOC-46): сервер отвечает 422 с текстом — он доходит до экрана как есть.
+  // Отказ строк (ADHOC-46): сервер отвечает 422 с текстом - он доходит до экрана как есть.
   test('checkpoint → 422: текст отказа в ServerFailure', () async {
     final repo = repoWith({
       'POST ${ApiConst.stockEntryCells("sess-1")}': (_) =>

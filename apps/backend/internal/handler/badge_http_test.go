@@ -13,13 +13,13 @@ import (
 const testBadgeKey = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
 
 // ADHOC-65: «Бейджи» на ТСД через настоящий роутер. Номер запоминается при выдаче в портале и
-// при входе по бейджу; уровни прав: свой — только себя, «кроме администратора» — всех, кроме
-// «Администратора», «Администратор» — всех. Номер без сохранения — 409, раскрытие — в журнале.
+// при входе по бейджу; уровни прав: свой - только себя, «кроме администратора» - всех, кроме
+// «Администратора», «Администратор» - всех. Номер без сохранения - 409, раскрытие - в журнале.
 func TestBadgeHTTP_printScopes(t *testing.T) {
 	e := newReceivingE2E(t, nil)
 	ctx := context.Background()
 
-	// Старший смены — должность с правом «бейджи всех, кроме администратора», бейдж выдан в портале.
+	// Старший смены - должность с правом «бейджи всех, кроме администратора», бейдж выдан в портале.
 	code, raw := e.call(t, http.MethodPost, "/api/v1/positions", e.adminToken,
 		`{"name":"Старший смены","rights":["tsd.receipt","tsd.badges.staff"]}`)
 	if code != http.StatusCreated {
@@ -40,7 +40,7 @@ func TestBadgeHTTP_printScopes(t *testing.T) {
 	mustJSON(t, raw, &lead)
 	leadToken := e.login(t, "2000000011112222")
 
-	// Кладовщик заведён до ADHOC-65: хеш есть, номера нет — пока не войдёт.
+	// Кладовщик заведён до ADHOC-65: хеш есть, номера нет - пока не войдёт.
 	hash, err := auth.HashPassword("33334444")
 	if err != nil {
 		t.Fatalf("хеш: %v", err)
@@ -77,7 +77,7 @@ func TestBadgeHTTP_printScopes(t *testing.T) {
 		t.Errorf("свой бейдж: %s", raw)
 	}
 
-	// Кладовщик вошёл по бейджу — номер запомнился; право «свой» — только себя.
+	// Кладовщик вошёл по бейджу - номер запомнился; право «свой» - только себя.
 	if code, raw := e.call(t, http.MethodPatch, "/api/v1/positions/7a000000-0000-4000-8000-000000000002", e.adminToken,
 		`{"name":"Кладовщик","rights":["tsd.receipt","tsd.badges.own"]}`); code != http.StatusNoContent {
 		t.Fatalf("права кладовщика: код %d, %s", code, raw)

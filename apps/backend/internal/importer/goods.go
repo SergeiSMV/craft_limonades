@@ -1,5 +1,5 @@
-// Package importer — разбор файлов-выгрузок 1С (.xls) в структуры для загрузки в БД.
-// Пока — номенклатура (goods): парсер иерархии групп + товаров.
+// Package importer - разбор файлов-выгрузок 1С (.xls) в структуры для загрузки в БД.
+// Пока - номенклатура (goods): парсер иерархии групп + товаров.
 package importer
 
 import (
@@ -14,19 +14,19 @@ import (
 	"github.com/extrame/xls"
 )
 
-// mangledDateCode — «Код», испорченный extrame/xls: числовую ячейку с пользовательским
+// mangledDateCode - «Код», испорченный extrame/xls: числовую ячейку с пользовательским
 // числовым форматом (formatNo >= 164) библиотека принимает за дату и печатает RFC3339
 // (напр. код 12246 → «1933-07-11T00:00:00Z», см. XfRk.String в extrame/xls). Ловим ровно
 // этот вид, чтобы не трогать нормальные коды.
 var mangledDateCode = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$`)
 
-// excelEpoch — база системы дат 1900 (Excel/1С на Windows): serial 1 = 1899-12-31, т.е. день 0 =
+// excelEpoch - база системы дат 1900 (Excel/1С на Windows): serial 1 = 1899-12-31, т.е. день 0 =
 // 1899-12-30. От неё же считает timeFromExcelTime в extrame/xls, поэтому обратное преобразование корректно.
 var excelEpoch = time.Date(1899, 12, 30, 0, 0, 0, 0, time.UTC)
 
 // demangleCode восстанавливает исходный числовой «Код», если extrame/xls отдал его датой
 // (см. mangledDateCode): обратное преобразование даты → Excel-serial (число дней от 1899-12-30).
-// Так ключ апсерта остаётся стабильным и совпадает с реальным кодом 1С. Иначе — строка как есть.
+// Так ключ апсерта остаётся стабильным и совпадает с реальным кодом 1С. Иначе - строка как есть.
 // ⚠ Хак завязан на поведение extrame/xls; срабатывает только на точный RFC3339-формат.
 func demangleCode(s string) string {
 	if !mangledDateCode.MatchString(s) {
@@ -40,35 +40,35 @@ func demangleCode(s string) string {
 	return strconv.FormatInt(serial, 10)
 }
 
-// GroupNode — узел пути групп номенклатуры (из строки-раздела файла).
+// GroupNode - узел пути групп номенклатуры (из строки-раздела файла).
 type GroupNode struct {
 	Code string // «Код» группы из 1С
 	Name string
 }
 
-// GoodRow — распарсенный товар с путём групп от корня до его непосредственной группы.
+// GoodRow - распарсенный товар с путём групп от корня до его непосредственной группы.
 type GoodRow struct {
-	Code      string      // «Код» товара из 1С — ключ апсерта
+	Code      string      // «Код» товара из 1С - ключ апсерта
 	Name      string      // «Наименование»
 	FullName  string      // «Полное наименование»
 	UOM       string      // «Ед.» (единица измерения)
 	Supplier  string      // «Поставщик» (строкой; дедуп на загрузке)
-	GroupPath []GroupNode // путь групп сверху вниз (последняя — группа товара)
+	GroupPath []GroupNode // путь групп сверху вниз (последняя - группа товара)
 }
 
-// RowError — строка файла, которую не удалось принять, с причиной (попадает в отчёт импорта).
+// RowError - строка файла, которую не удалось принять, с причиной (попадает в отчёт импорта).
 type RowError struct {
 	Row     int    `json:"row"` // номер строки в файле (1-based, как в Excel)
 	Message string `json:"message"`
 }
 
-// ParseResult — итог парсинга: принятые товары и отклонённые строки.
+// ParseResult - итог парсинга: принятые товары и отклонённые строки.
 type ParseResult struct {
 	Goods  []GoodRow
 	Errors []RowError
 }
 
-// Имена колонок (нормализованные: нижний регистр, обрезаны пробелы). Маппинг по заголовку —
+// Имена колонок (нормализованные: нижний регистр, обрезаны пробелы). Маппинг по заголовку -
 // устойчив к порядку колонок и к лишним колонкам в выгрузке.
 const (
 	colCode     = "код"
@@ -107,7 +107,7 @@ func ParseGoods(r io.ReadSeeker) (*ParseResult, error) {
 		if row == nil {
 			continue
 		}
-		// «Код» — восстанавливаем, если extrame/xls испортил его в дату (числовой формат ячейки).
+		// «Код» - восстанавливаем, если extrame/xls испортил его в дату (числовой формат ячейки).
 		code := demangleCode(cellAt(row, cols, colCode))
 		name := cellAt(row, cols, colName)
 		full := cellAt(row, cols, colFullName)
@@ -121,7 +121,7 @@ func ParseGoods(r io.ReadSeeker) (*ParseResult, error) {
 		// Строка-раздел: нет «Полного наименования» → группа, углубляем путь.
 		if full == "" {
 			if code == "" || name == "" {
-				res.Errors = append(res.Errors, RowError{Row: i + 1, Message: "раздел без Кода или Наименования — пропущен"})
+				res.Errors = append(res.Errors, RowError{Row: i + 1, Message: "раздел без Кода или Наименования - пропущен"})
 				continue
 			}
 			path = append(path, GroupNode{Code: code, Name: name})
@@ -130,7 +130,7 @@ func ParseGoods(r io.ReadSeeker) (*ParseResult, error) {
 
 		// Строка-товар. Без Кода апсерт невозможен → в отчёт, пропуск.
 		if code == "" {
-			res.Errors = append(res.Errors, RowError{Row: i + 1, Message: fmt.Sprintf("товар без Кода (%q) — пропущен", name)})
+			res.Errors = append(res.Errors, RowError{Row: i + 1, Message: fmt.Sprintf("товар без Кода (%q) - пропущен", name)})
 			continue
 		}
 		res.Goods = append(res.Goods, GoodRow{
@@ -176,7 +176,7 @@ func cellAt(row *xls.Row, cols map[string]int, colName string) string {
 func norm(s string) string { return strings.ToLower(strings.TrimSpace(stripControl(s))) }
 
 // stripControl удаляет управляющие байты (C0 и DEL), включая NUL (0x00). Зачем: extrame/xls иногда
-// оставляет в строке 0x00 — остаток UTF-16-паддинга исходного .xls; Postgres не принимает 0x00 в
+// оставляет в строке 0x00 - остаток UTF-16-паддинга исходного .xls; Postgres не принимает 0x00 в
 // колонке text (SQLSTATE 22021), из-за чего падал импорт. В значениях номенклатуры управляющих
 // символов быть не должно, поэтому выкидываем их все (табы/переводы строк тоже).
 func stripControl(s string) string {

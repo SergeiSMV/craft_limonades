@@ -27,9 +27,9 @@ import '../widgets/current/current_tasks_view.dart';
 
 /// Раздел «ЗАДАНИЯ» (P5-02-1): вкладки «Текущие» и «Завершённые».
 ///
-/// Шапка — как у «Приёмки»: фон-картинка, заголовок с возвратом и фильтр выбранной вкладки.
+/// Шапка - как у «Приёмки»: фон-картинка, заголовок с возвратом и фильтр выбранной вкладки.
 /// Переключатель вкладок закреплён в теле над списком и не уезжает при прокрутке.
-/// «Текущие» грузятся сразу и работают без связи (снимок на терминале); «Завершённые» —
+/// «Текущие» грузятся сразу и работают без связи (снимок на терминале); «Завершённые» -
 /// только онлайн и грузятся при первом открытии вкладки, а не вместе с разделом.
 @RoutePage()
 class TasksPage extends StatelessWidget {
@@ -42,7 +42,7 @@ class TasksPage extends StatelessWidget {
         BlocProvider(create: (_) => getIt<CurrentTasksCubit>()..load()),
         BlocProvider(create: (_) => getIt<CompletedTasksCubit>()),
       ],
-      // Задания изменились на сервере (ADHOC-60) — «Текущие» перечитываются при ближайшем
+      // Задания изменились на сервере (ADHOC-60) - «Текущие» перечитываются при ближайшем
       // ответе сервера, без опроса.
       child: Builder(
         builder: (context) => DataVersionsListener(
@@ -77,11 +77,11 @@ class _TasksViewState extends State<_TasksView> {
   /// Вернуться на главный экран.
   void goBack() => context.router.maybePop();
 
-  /// Заводить пересчёт — право «Задания: пересчёт — заводить и закрывать» (ADHOC-51).
+  /// Заводить пересчёт - право «Задания: пересчёт - заводить и закрывать» (ADHOC-51).
   bool get _canCreateStocktake =>
       sessionCan(context, Rights.tsdStocktakeManage);
 
-  /// Завести пересчёт; по возврату «Текущие» обновляются — появилось новое задание.
+  /// Завести пересчёт; по возврату «Текущие» обновляются - появилось новое задание.
   Future<void> createStocktake() async {
     final current = context.read<CurrentTasksCubit>();
     await context.router.push(const StocktakeCreateRoute());
@@ -126,7 +126,7 @@ class _TasksViewState extends State<_TasksView> {
                 children: const [CurrentTasksView(), CompletedFeed()],
               ),
             ),
-            // Завести пересчёт (P10-04) — старшему смены, по праву должности.
+            // Завести пересчёт (P10-04) - старшему смены, по праву должности.
             if (_tab == 0 && _canCreateStocktake)
               Padding(
                 padding: AppInsets.all16,

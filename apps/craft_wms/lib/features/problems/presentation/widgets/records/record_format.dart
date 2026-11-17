@@ -9,11 +9,11 @@ import '../problem_format.dart';
 
 /// Подписи проблем склада в списках «Текущие» и «Завершённые» (ADHOC-34, ADHOC-35).
 ///
-/// Каждый факт — своей строкой со своей подписью («Партия: …», «Количество: …», «Место: …»):
+/// Каждый факт - своей строкой со своей подписью («Партия: …», «Количество: …», «Место: …»):
 /// склеенная через «·» строка читается как одно поле.
 
-/// Что решил офис — повелительно: «Списать», «Разместить в «Основной»», «Вернуть поставщику».
-/// Незнакомое решение (новое на сервере) — как есть.
+/// Что решил офис - повелительно: «Списать», «Разместить в «Основной»», «Вернуть поставщику».
+/// Незнакомое решение (новое на сервере) - как есть.
 String decisionLabel(String decision) => switch (decision) {
   ProblemDecision.writeOff => t.problems.decisionWriteOff,
   ProblemDecision.place => t.problems.decisionPlace,
@@ -22,10 +22,10 @@ String decisionLabel(String decision) => switch (decision) {
   _ => decision,
 };
 
-/// Что сделано по решению — совершённым видом: «Списано», «Размещено в «Основной»»,
-/// «Отгружено поставщику»; возврат, который склад ещё не отгрузил, — «Ждёт отгрузки».
+/// Что сделано по решению - совершённым видом: «Списано», «Размещено в «Основной»»,
+/// «Отгружено поставщику»; возврат, который склад ещё не отгрузил, - «Ждёт отгрузки».
 ///
-/// У открытой — где она сейчас: «Ожидает отправки» (своя, сервер о ней не знает) или «Ждёт
+/// У открытой - где она сейчас: «Ожидает отправки» (своя, сервер о ней не знает) или «Ждёт
 /// решения офиса».
 String outcomeLabel(ProblemRecord p) => switch (p.decision) {
   _ when p.pending => t.problems.pendingSend,
@@ -38,14 +38,14 @@ String outcomeLabel(ProblemRecord p) => switch (p.decision) {
   _ => p.decision,
 };
 
-/// Подробности решения: у возврата — кому и каким заданием.
+/// Подробности решения: у возврата - кому и каким заданием.
 List<String> decisionLines(ProblemRecord p) => [
   if (p.supplierName case final s?) t.problems.supplierLine(supplier: s),
   if (p.returnTaskNumber case final n?)
     t.problems.taskLine(number: docNumber(DocKind.task, n)),
 ];
 
-/// Подробности исполнения: у списания — документ 1С, у возврата — номер отгрузки.
+/// Подробности исполнения: у списания - документ 1С, у возврата - номер отгрузки.
 List<String> executionLines(ProblemRecord p) => [
   if ((p.docNumber, p.docDate) case (final n?, final d?))
     t.problems.docLine(number: n, date: isoToDisplayDate(d)),
@@ -53,7 +53,7 @@ List<String> executionLines(ProblemRecord p) => [
     t.problems.shipmentLine(number: docNumber(DocKind.returnShipment, n)),
 ];
 
-/// Кто и когда зафиксировал: своя неотправленная — «на этом терминале».
+/// Кто и когда зафиксировал: своя неотправленная - «на этом терминале».
 String createdMeta(ProblemRecord p) => p.pending
     ? t.problems.createdMetaPending(time: fullDateTime(p.createdAt))
     : t.problems.createdMeta(
@@ -61,8 +61,8 @@ String createdMeta(ProblemRecord p) => p.pending
         time: fullDateTime(p.createdAt),
       );
 
-/// Кто и когда исполнил решение. Списание и размещение исполняет само «Провести» в портале —
-/// решивший; возврат — тот, кто отгрузил на ТСД. Возврат не отгружен — `null`.
+/// Кто и когда исполнил решение. Списание и размещение исполняет само «Провести» в портале -
+/// решивший; возврат - тот, кто отгрузил на ТСД. Возврат не отгружен - `null`.
 String? executedMeta(ProblemRecord p) {
   if (p.isOpen) return null;
   if (p.decision == ProblemDecision.supplierReturn) {
@@ -86,11 +86,11 @@ String numberLabel(ProblemRecord p) => switch (p.number) {
   null => t.problems.numberPending,
 };
 
-/// Причина проблемы: название по справочнику (ADHOC-55), без него — прежняя подпись кода.
+/// Причина проблемы: название по справочнику (ADHOC-55), без него - прежняя подпись кода.
 String reasonText(ProblemRecord p) =>
     p.reasonName.isNotEmpty ? p.reasonName : reasonLabelOf(p.reason);
 
-/// Решение офиса: название выбранного варианта (ADHOC-55), у старого сервера — по действию.
+/// Решение офиса: название выбранного варианта (ADHOC-55), у старого сервера - по действию.
 String resolutionText(ProblemRecord p) =>
     p.resolutionName.isNotEmpty ? p.resolutionName : decisionLabel(p.decision);
 
@@ -101,8 +101,8 @@ String subjectLabel(ProblemRecord p) {
   return p.items.isEmpty ? '' : p.items.first.goodName;
 }
 
-/// Подробности предмета: у короба — сколько позиций; у товара — партия и количество (решение
-/// могло взять товар из нескольких ячеек — количество суммарное).
+/// Подробности предмета: у короба - сколько позиций; у товара - партия и количество (решение
+/// могло взять товар из нескольких ячеек - количество суммарное).
 List<String> subjectLines(ProblemRecord p) {
   if (p.items.isEmpty) return const [];
   if (p.loadUnitId != null) {

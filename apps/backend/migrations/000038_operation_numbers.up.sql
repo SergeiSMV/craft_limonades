@@ -1,19 +1,19 @@
 -- ADHOC-55: номер у каждой операции и каждого документа для 1С.
 --
--- Правило пользователя: ни операции, ни документа без номера — номером на объект ссылаются в
--- разговоре, в поиске портала и в основании другого документа. В базе — число, счётчик вида;
+-- Правило пользователя: ни операции, ни документа без номера - номером на объект ссылаются в
+-- разговоре, в поиске портала и в основании другого документа. В базе - число, счётчик вида;
 -- префикс и шесть цифр добавляет показ («ПМ-000001»). Существующие записи нумеруются по
 -- порядку проведения (заведения), дальше номер выдаёт база.
 --
 -- Счётчик у каждого вида свой:
---   приёмка ПР, размещение РЗ, ввод остатков ВО, отгрузка возврата ВП — identity таблицы;
---   перемещение ПМ и пополнение ПП — одна таблица movements, у каждого вида своя
+--   приёмка ПР, размещение РЗ, ввод остатков ВО, отгрузка возврата ВП - identity таблицы;
+--   перемещение ПМ и пополнение ПП - одна таблица movements, у каждого вида своя
 --     последовательность, номер ставит триггер по виду;
---   документы 1С — одна таблица report_documents, у каждой формы своя последовательность:
+--   документы 1С - одна таблица report_documents, у каждой формы своя последовательность:
 --     «Поступление» ДП, «Движение» ДД, «Ввод остатков» ДВ, «Инвентаризация» ДИ.
 -- Задания (ЗД), пересчёты (ИН) и проблемы (ПБ) номер уже имеют.
 
--- Приёмка — ПР, по времени заведения.
+-- Приёмка - ПР, по времени заведения.
 ALTER TABLE receipts ADD COLUMN number bigint;
 UPDATE receipts x SET number = n.rn
 FROM (SELECT id, row_number() OVER (ORDER BY created_at, id) AS rn FROM receipts) n
@@ -27,9 +27,9 @@ BEGIN
     EXECUTE format('ALTER TABLE receipts ALTER COLUMN number RESTART WITH %s',
                    (SELECT COALESCE(max(number), 0) + 1 FROM receipts));
 END $$;
-COMMENT ON COLUMN receipts.number IS 'ADHOC-55: номер приёмки — счётчик вида, показ с префиксом «ПР».';
+COMMENT ON COLUMN receipts.number IS 'ADHOC-55: номер приёмки - счётчик вида, показ с префиксом «ПР».';
 
--- Размещение (сеанс по заданию) — РЗ, по времени проведения.
+-- Размещение (сеанс по заданию) - РЗ, по времени проведения.
 ALTER TABLE putaways ADD COLUMN number bigint;
 UPDATE putaways x SET number = n.rn
 FROM (SELECT id, row_number() OVER (ORDER BY posted_at, id) AS rn FROM putaways) n
@@ -43,9 +43,9 @@ BEGIN
     EXECUTE format('ALTER TABLE putaways ALTER COLUMN number RESTART WITH %s',
                    (SELECT COALESCE(max(number), 0) + 1 FROM putaways));
 END $$;
-COMMENT ON COLUMN putaways.number IS 'ADHOC-55: номер сеанса размещения — счётчик вида, показ с префиксом «РЗ».';
+COMMENT ON COLUMN putaways.number IS 'ADHOC-55: номер сеанса размещения - счётчик вида, показ с префиксом «РЗ».';
 
--- Ввод остатков (сессия прохода) — ВО, по времени заведения.
+-- Ввод остатков (сессия прохода) - ВО, по времени заведения.
 ALTER TABLE stock_entry_sessions ADD COLUMN number bigint;
 UPDATE stock_entry_sessions x SET number = n.rn
 FROM (SELECT id, row_number() OVER (ORDER BY created_at, id) AS rn FROM stock_entry_sessions) n
@@ -59,9 +59,9 @@ BEGIN
     EXECUTE format('ALTER TABLE stock_entry_sessions ALTER COLUMN number RESTART WITH %s',
                    (SELECT COALESCE(max(number), 0) + 1 FROM stock_entry_sessions));
 END $$;
-COMMENT ON COLUMN stock_entry_sessions.number IS 'ADHOC-55: номер сессии ввода остатков — счётчик вида, показ с префиксом «ВО».';
+COMMENT ON COLUMN stock_entry_sessions.number IS 'ADHOC-55: номер сессии ввода остатков - счётчик вида, показ с префиксом «ВО».';
 
--- Отгрузка возврата поставщику — ВП, по времени проведения.
+-- Отгрузка возврата поставщику - ВП, по времени проведения.
 ALTER TABLE supplier_return_shipments ADD COLUMN number bigint;
 UPDATE supplier_return_shipments x SET number = n.rn
 FROM (SELECT id, row_number() OVER (ORDER BY posted_at, id) AS rn FROM supplier_return_shipments) n
@@ -75,9 +75,9 @@ BEGIN
     EXECUTE format('ALTER TABLE supplier_return_shipments ALTER COLUMN number RESTART WITH %s',
                    (SELECT COALESCE(max(number), 0) + 1 FROM supplier_return_shipments));
 END $$;
-COMMENT ON COLUMN supplier_return_shipments.number IS 'ADHOC-55: номер отгрузки возврата — счётчик вида, показ с префиксом «ВП».';
+COMMENT ON COLUMN supplier_return_shipments.number IS 'ADHOC-55: номер отгрузки возврата - счётчик вида, показ с префиксом «ВП».';
 
--- Перемещение — ПМ, пополнение — ПП: свой счётчик у каждого вида.
+-- Перемещение - ПМ, пополнение - ПП: свой счётчик у каждого вида.
 CREATE SEQUENCE movements_move_number_seq;
 CREATE SEQUENCE movements_replenish_number_seq;
 ALTER TABLE movements ADD COLUMN number bigint;
@@ -101,9 +101,9 @@ BEGIN
 END $$;
 CREATE TRIGGER movements_set_number BEFORE INSERT ON movements
     FOR EACH ROW EXECUTE FUNCTION movements_set_number();
-COMMENT ON COLUMN movements.number IS 'ADHOC-55: номер документа движения — счётчик своего вида: перемещение «ПМ», пополнение «ПП».';
+COMMENT ON COLUMN movements.number IS 'ADHOC-55: номер документа движения - счётчик своего вида: перемещение «ПМ», пополнение «ПП».';
 
--- Документы для 1С — свой номер у формы.
+-- Документы для 1С - свой номер у формы.
 CREATE SEQUENCE report_documents_receipt_number_seq;
 CREATE SEQUENCE report_documents_movement_number_seq;
 CREATE SEQUENCE report_documents_stock_entry_number_seq;
@@ -133,10 +133,10 @@ BEGIN
 END $$;
 CREATE TRIGGER report_documents_set_number BEFORE INSERT ON report_documents
     FOR EACH ROW EXECUTE FUNCTION report_documents_set_number();
-COMMENT ON COLUMN report_documents.number IS 'ADHOC-55: номер документа 1С — счётчик своей формы: «Поступление» ДП, «Движение» ДД, «Ввод остатков» ДВ, «Инвентаризация» ДИ.';
+COMMENT ON COLUMN report_documents.number IS 'ADHOC-55: номер документа 1С - счётчик своей формы: «Поступление» ДП, «Движение» ДД, «Ввод остатков» ДВ, «Инвентаризация» ДИ.';
 
 -- Документы, сформированные до нумерации, получают номер своей операции в снимок: снимок
--- замораживает содержимое, а номер операции — ссылка на неё, он у неё уже есть. Без этого
+-- замораживает содержимое, а номер операции - ссылка на неё, он у неё уже есть. Без этого
 -- документ в портале нельзя было бы найти по номеру операции.
 UPDATE report_documents d SET snapshot = d.snapshot || jsonb_build_object('source_number', o.number)
 FROM (

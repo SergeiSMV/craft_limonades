@@ -13,9 +13,9 @@ import '../../../../../core/utils/date_time_format.dart';
 import '../../../domain/problem_records.dart';
 import 'record_format.dart';
 
-/// Запись списка проблем — «Текущие» (ADHOC-35) и «Завершённые» (ADHOC-34): где проблема
+/// Запись списка проблем - «Текущие» (ADHOC-35) и «Завершённые» (ADHOC-34): где проблема
 /// сейчас (ожидает отправки, ждёт решения, что сделано), что помечали, место, причина; у
-/// открытой — кто зафиксировал. Каждое своей строкой; справа — время решения или фиксации. Вид — как у записи «Завершённых» заданий и перемещений.
+/// открытой - кто зафиксировал. Каждое своей строкой; справа - время решения или фиксации. Вид - как у записи «Завершённых» заданий и перемещений.
 class ProblemRecordTile extends StatelessWidget {
   const ProblemRecordTile({
     super.key,
@@ -48,7 +48,7 @@ class ProblemRecordTile extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Решённая — галочка; открытая и своя неотправленная — часы: ещё в работе.
+            // Решённая - галочка; открытая и своя неотправленная - часы: ещё в работе.
             Icon(
               problem.isOpen
                   ? MdiIcons.clockOutline

@@ -31,7 +31,7 @@ PortalStockGood good(String id, String name, Map<String, double> by) =>
       byWarehouse: by,
     );
 
-/// ADHOC-56: «Остатки склада» — остаток в строке, поиск и склад отбирают в памяти.
+/// ADHOC-56: «Остатки склада» - остаток в строке, поиск и склад отбирают в памяти.
 void main() {
   late _MockRepo repo;
 
@@ -118,7 +118,7 @@ void main() {
     expect(find.text('Сухарики'), findsNothing);
   });
 
-  testWidgets('поиск — по словам наименования', (tester) async {
+  testWidgets('поиск - по словам наименования', (tester) async {
     await pump(tester);
     await tester.enterText(
       find.descendant(
@@ -139,7 +139,7 @@ void main() {
     verify(() => repo.load(refresh: any(named: 'refresh'))).called(2);
   });
 
-  testWidgets('карточка — наличие по местам хранения и итог', (tester) async {
+  testWidgets('карточка - наличие по местам хранения и итог', (tester) async {
     await pump(tester);
     await tester.tap(find.text('Чипсы'));
     await tester.pumpAndSettle();

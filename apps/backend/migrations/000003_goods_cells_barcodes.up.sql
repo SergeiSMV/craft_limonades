@@ -1,8 +1,8 @@
--- P1-01: справочники склада — warehouses, cells, goods, barcodes. Зон нет.
--- Ячейка принадлежит складу напрямую; товар опознаётся суррогатным id (external_id/code — бизнес-ключи из 1С);
+-- P1-01: справочники склада - warehouses, cells, goods, barcodes. Зон нет.
+-- Ячейка принадлежит складу напрямую; товар опознаётся суррогатным id (external_id/code - бизнес-ключи из 1С);
 -- один товар → много ШК. Триггер updated_at переиспользуем из 000001 (set_updated_at()).
 
--- Склады. Пилот — один склад, но справочник заводим сразу (адресация ячеек идёт от него).
+-- Склады. Пилот - один склад, но справочник заводим сразу (адресация ячеек идёт от него).
 CREATE TABLE warehouses (
     id         uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
     code       text        NOT NULL UNIQUE,   -- короткий код склада (напр. 'WH1') для адресации/отчётов
@@ -21,7 +21,7 @@ CREATE TABLE cells (
     id           uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
     warehouse_id uuid        NOT NULL REFERENCES warehouses(id),  -- склад-владелец ячейки
     address      text        NOT NULL,                            -- адрес ячейки «С-Н-П» (стеллаж-секция-полка) в рамках склада
-    type         text        NOT NULL DEFAULT 'storage',          -- тип ячейки «на вырост» (storage/receiving/shipping/...); без CHECK — значения устаканятся к P4/P5
+    type         text        NOT NULL DEFAULT 'storage',          -- тип ячейки «на вырост» (storage/receiving/shipping/...); без CHECK - значения устаканятся к P4/P5
     is_active    boolean     NOT NULL DEFAULT true,
     created_at   timestamptz NOT NULL DEFAULT now(),
     updated_at   timestamptz NOT NULL DEFAULT now(),
@@ -34,12 +34,12 @@ CREATE TRIGGER cells_set_updated_at
     BEFORE UPDATE ON cells
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
--- Номенклатура (товары). Ключ — внутренний суррогатный id (обмен с 1С через Excel, не REST,
--- поэтому 1С-GUID не гарантирован). external_id и code — бизнес-ключи для сверки/идемпотентного импорта.
+-- Номенклатура (товары). Ключ - внутренний суррогатный id (обмен с 1С через Excel, не REST,
+-- поэтому 1С-GUID не гарантирован). external_id и code - бизнес-ключи для сверки/идемпотентного импорта.
 CREATE TABLE goods (
     id          uuid        PRIMARY KEY DEFAULT gen_random_uuid(),  -- внутренний ключ; на него ссылаются barcodes/stock/операции
     external_id uuid,                                               -- GUID номенклатуры из 1С; NULL, если его нет в файле импорта
-    code        text,                                              -- код/артикул из 1С; резервный бизнес-ключ (UNIQUE не ставим — уникальность 1С не гарантирует)
+    code        text,                                              -- код/артикул из 1С; резервный бизнес-ключ (UNIQUE не ставим - уникальность 1С не гарантирует)
     name        text        NOT NULL,                              -- наименование (в отчёты/на экран)
     uom         text        NOT NULL,                              -- единица измерения строкой ('шт', 'кг')
     is_active   boolean     NOT NULL DEFAULT true,

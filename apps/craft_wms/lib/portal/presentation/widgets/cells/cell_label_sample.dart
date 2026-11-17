@@ -15,7 +15,7 @@ import 'label_preview.dart';
 /// галочками, размер этикетки и высота букв.
 ///
 /// Как: кегль единый на все этикетки склада того же размера балки и того же «со штрих-кодом /
-/// без» — как в PDF; поэтому набор для кегля — весь склад, где у этой ячейки уже стоят
+/// без» - как в PDF; поэтому набор для кегля - весь склад, где у этой ячейки уже стоят
 /// несохранённые галочки.
 class CellLabelSample extends StatelessWidget {
   const CellLabelSample({super.key, required this.c, required this.cell});
@@ -37,7 +37,7 @@ class CellLabelSample extends StatelessWidget {
           for (final x in c.view!.cells)
             if (x.id == cell.id) now else x,
         ].where(
-          // Напольные (ADHOC-61) печатаются с QR — своя группа кегля, как в PDF.
+          // Напольные (ADHOC-61) печатаются с QR - своя группа кегля, как в PDF.
           (x) =>
               !x.isFloorStorage &&
               x.labelSmall == now.labelSmall &&

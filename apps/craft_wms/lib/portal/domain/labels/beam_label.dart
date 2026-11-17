@@ -1,9 +1,9 @@
 import 'code128.dart';
 
-/// Этикетка на балку для образца в портале (ADHOC-57) — геометрия один в один с бэкендом
-/// (`internal/labels/geometry.go`, `render.go`), а тот — с rack_labels. Все размеры — в мм.
+/// Этикетка на балку для образца в портале (ADHOC-57) - геометрия один в один с бэкендом
+/// (`internal/labels/geometry.go`, `render.go`), а тот - с rack_labels. Все размеры - в мм.
 ///
-/// Что: профиль балки, единый кегль набора и раскладка частей «код — адрес — стрелка».
+/// Что: профиль балки, единый кегль набора и раскладка частей «код - адрес - стрелка».
 /// Зачем: оператор видит, как ляжет адрес на этикетку и какой высоты будут буквы, до печати.
 /// Как: ширина адреса считается по метрикам Helvetica-Bold (те же, что у core-шрифта PDF),
 ///      поэтому кегль совпадает с печатным.
@@ -21,11 +21,11 @@ const _capRatio = 0.718;
 /// Пункт в мм: шаг уменьшения кегля, когда адрес не влезает.
 const _pt = 25.4 / 72;
 
-/// Меньше кегль адреса не уменьшается — тогда «не влезает» (`minFontPt` бэкенда).
+/// Меньше кегль адреса не уменьшается - тогда «не влезает» (`minFontPt` бэкенда).
 const _minFont = 1 * _pt;
 
 /// Ширины символов ASCII 32…126 Helvetica-Bold на 1000 единиц кегля (метрики core-шрифта PDF,
-/// взяты из fpdf бэкенда). Символ вне таблицы — шириной «M».
+/// взяты из fpdf бэкенда). Символ вне таблицы - шириной «M».
 // dart format off
 const _helveticaBold = <int>[
   278, 333, 474, 556, 556, 889, 722, 238, 333, 333, 389, 584, 278, 333, 278, 278,
@@ -47,7 +47,7 @@ double textEm(String text) {
   return sum / 1000;
 }
 
-/// Профиль балки — large или small из config.yaml rack_labels.
+/// Профиль балки - large или small из config.yaml rack_labels.
 class BeamProfile {
   const BeamProfile._({
     required this.rows,
@@ -91,7 +91,7 @@ class BeamProfile {
   final double pad; // внутреннее поле
   final double gap; // зазор между кодом, адресом и стрелкой
   final double capMax; // высота прописной, потолок
-  final double capMin; // ниже — кегль уменьшается шагом 1 пт
+  final double capMin; // ниже - кегль уменьшается шагом 1 пт
   final double module; // ширина модуля штрих-кода
   final double quiet; // защитная зона кода с каждой стороны
   final double barcodeHeight;
@@ -100,7 +100,7 @@ class BeamProfile {
 
   double get height => _workHeight / rows;
 
-  /// Полная ширина кода с защитными зонами; адрес не кодируется — `null`.
+  /// Полная ширина кода с защитными зонами; адрес не кодируется - `null`.
   double? barcodeWidth(String value) {
     final n = code128Modules(value);
     return n == null ? null : n * module + 2 * quiet;
@@ -139,8 +139,8 @@ BeamFont beamFont(
   return _fitSize(textEm(widest), avail, p);
 }
 
-/// Кегль строки шириной [em] (в кеглях) по месту [avail]: цель — потолок профиля, ужимается
-/// ровно до места. Ниже `capMin` — от него вниз шагом 1 пт, пока не влезет. Как `fitSize`
+/// Кегль строки шириной [em] (в кеглях) по месту [avail]: цель - потолок профиля, ужимается
+/// ровно до места. Ниже `capMin` - от него вниз шагом 1 пт, пока не влезет. Как `fitSize`
 /// бэкенда.
 BeamFont _fitSize(double em, double avail, BeamProfile p) {
   var size = p.capMax / _capRatio;
@@ -175,8 +175,8 @@ List<(BeamPart, double, double)> beamLayout(
   for (final part in parts) {
     band += part.$2;
   }
-  // Три части — крайние прижаты к полям, адрес между ними (код и стрелка на одном месте у
-  // всех этикеток стеллажа); две или одна — строка по центру.
+  // Три части - крайние прижаты к полям, адрес между ними (код и стрелка на одном месте у
+  // всех этикеток стеллажа); две или одна - строка по центру.
   final justify = barcode && parts.length > 2;
   var x = justify ? p.pad : (kLabelWidth - band) / 2;
   final extra = justify

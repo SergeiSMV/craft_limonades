@@ -11,7 +11,7 @@ void main() {
   const label = 'CWLU1:$id';
 
   group('classifyScan', () {
-    test('сплошные цифры от 8 знаков — штрихкод товара', () {
+    test('сплошные цифры от 8 знаков - штрихкод товара', () {
       expect(classifyScan('4607091380001'), ScanKind.good); // EAN-13
       expect(classifyScan('20015467'), ScanKind.good); // EAN-8
       expect(classifyScan('12345678901234'), ScanKind.good); // ITF-14
@@ -22,7 +22,7 @@ void main() {
       expect(classifyScan('С-Н-П'), ScanKind.cell);
     });
 
-    test('ярлык грузовой единицы — по формату полезной нагрузки', () {
+    test('ярлык грузовой единицы - по формату полезной нагрузки', () {
       expect(classifyScan(label), ScanKind.cargoUnit);
       // Регистр схемы и UUID не важен: этикетку мог напечатать другой инструмент.
       expect(classifyScan('cwlu1:$id'), ScanKind.cargoUnit);
@@ -40,29 +40,29 @@ void main() {
     });
 
     test('голый UUID за ярлык ГЕ не принимаем', () {
-      // Без префикса UUID подходит под форму адреса ячейки (сегменты через дефис) — ровно то
+      // Без префикса UUID подходит под форму адреса ячейки (сегменты через дефис) - ровно то
       // столкновение, из-за которого признак принадлежности и вынесен в сами данные.
       expect(classifyScan(id), isNot(ScanKind.cargoUnit));
       expect(classifyScan(id), ScanKind.cell);
     });
 
-    test('ярлык ГЕ незнакомой версии — не грузовая единица', () {
+    test('ярлык ГЕ незнакомой версии - не грузовая единица', () {
       // Прочесть такой ярлык приложение не может: что внутри новой версии, оно не знает.
-      // Но и молчать об этом нельзя — см. тест readLoadUnitPayload ниже.
+      // Но и молчать об этом нельзя - см. тест readLoadUnitPayload ниже.
       expect(classifyScan('CWLU2:$id'), isNot(ScanKind.cargoUnit));
     });
 
     test(
-      'DataMatrix («Честный знак») — марка, а не грузовая единица и не товар',
+      'DataMatrix («Честный знак») - марка, а не грузовая единица и не товар',
       () {
         // CZ-04: КИ = `01` + GTIN (14 цифр) + `21` + серийный. Раньше уходил в «не распознан».
         expect(classifyScan('0104607044660205215Ab7'), ScanKind.czMark);
-        // Без `21` после GTIN — не марка: обычные сплошные цифры остаются товаром.
+        // Без `21` после GTIN - не марка: обычные сплошные цифры остаются товаром.
         expect(classifyScan('01046070446602052'), ScanKind.good);
       },
     );
 
-    test('короткие цифры и произвольный текст — не распознаны', () {
+    test('короткие цифры и произвольный текст - не распознаны', () {
       expect(classifyScan('1234567'), ScanKind.unknown);
       expect(classifyScan('арахис'), ScanKind.unknown);
       expect(classifyScan('   '), ScanKind.unknown);
@@ -90,14 +90,14 @@ void main() {
     });
 
     test('ярлык ГЕ отдаёт чистый идентификатор', () {
-      // На сервер уезжает UUID без префикса: префикс — свойство этикетки.
+      // На сервер уезжает UUID без префикса: префикс - свойство этикетки.
       expect(const ScanCode(raw: label).loadUnitId, id);
       expect(const ScanCode(raw: '4607044660205').loadUnitId, isNull);
     });
   });
 
   group('символика как подсказка', () {
-    test('QR по имени распознаётся — для объяснения человеку', () {
+    test('QR по имени распознаётся - для объяснения человеку', () {
       expect(isQrSymbology('QRCode'), isTrue);
       expect(isQrSymbology('qr_code'), isTrue);
       expect(isQrSymbology('Code128'), isFalse);
@@ -113,7 +113,7 @@ void main() {
     });
   });
 
-  // CZ-04: коды «Честного знака» — по образцу живого короба пива, прочитанного на проде.
+  // CZ-04: коды «Честного знака» - по образцу живого короба пива, прочитанного на проде.
   group('коды «Честного знака»', () {
     const mark = '0104612728200172215AmxPmd';
     const box = '00146801691100407293';
@@ -125,11 +125,11 @@ void main() {
       expect(czMarkFrom(raw), mark);
     });
 
-    test('марка без букв в серийном — всё равно марка, а не ШК товара', () {
+    test('марка без букв в серийном - всё равно марка, а не ШК товара', () {
       expect(classifyScan('0104612728200172211234567'), ScanKind.czMark);
     });
 
-    test('код короба `00`+SSCC — короб ЧЗ, а не ШК товара', () {
+    test('код короба `00`+SSCC - короб ЧЗ, а не ШК товара', () {
       // 20 сплошных цифр: без отдельного вида ТСД предлагал привязать его к товару.
       expect(classifyScan(box), ScanKind.czBox);
       expect(classifyScan(']C1$box'), ScanKind.czBox);

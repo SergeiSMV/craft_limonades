@@ -39,7 +39,7 @@ void main() {
   );
 
   test(
-    'без связи отдаётся снимок последнего ответа — с позициями и составом',
+    'без связи отдаётся снимок последнего ответа - с позициями и составом',
     () async {
       when(() => api.current()).thenAnswer((_) async => Right([serverTask()]));
       final online = await repo.current();
@@ -53,12 +53,12 @@ void main() {
       expect(offline.isRight, isTrue);
       expect(offline.right.fromCache, isTrue);
       expect(offline.right.syncedAt, isNotNull);
-      // Снимок обязан пережить запись и чтение без потерь — по нему задание выполняется офлайн.
+      // Снимок обязан пережить запись и чтение без потерь - по нему задание выполняется офлайн.
       expect(offline.right.tasks.single, serverTask());
     },
   );
 
-  test('без связи и без снимка — «нет связи», а не пустой список', () async {
+  test('без связи и без снимка - «нет связи», а не пустой список', () async {
     when(
       () => api.current(),
     ).thenAnswer((_) async => const Left(Failure.network()));
@@ -83,7 +83,7 @@ void main() {
       ).thenAnswer((_) async => const Left(Failure.network()));
       final offline = await repo.current();
 
-      // Пустой снимок — это «заданий нет», а не «нет связи»: список был получен.
+      // Пустой снимок - это «заданий нет», а не «нет связи»: список был получен.
       expect(offline.isRight, isTrue);
       expect(offline.right.tasks, isEmpty);
     },
@@ -106,7 +106,7 @@ void main() {
     () async {
       final counts = <int>[];
       final sub = repo.watchCurrentCount().listen(counts.add);
-      await pumpEventQueue(); // первое значение — до любого снимка
+      await pumpEventQueue(); // первое значение - до любого снимка
 
       when(() => api.current()).thenAnswer((_) async => Right([serverTask()]));
       await repo.current();
@@ -118,7 +118,7 @@ void main() {
       await pumpEventQueue();
       await sub.cancel();
 
-      // До первого снимка — 0, затем 1, затем снова 0: задание ушло из текущих.
+      // До первого снимка - 0, затем 1, затем снова 0: задание ушло из текущих.
       expect(counts.first, 0);
       expect(counts, containsAllInOrder([1, 0]));
     },
@@ -160,7 +160,7 @@ void main() {
         reason: 'частичный сеанс возвращает задание в пул',
       );
 
-      // Остаток положен — задание уходит из текущих, как уйдёт на сервере.
+      // Остаток положен - задание уходит из текущих, как уйдёт на сервере.
       await cache.applyPutaway(
         taskId: task.id,
         boxes: const {},
@@ -195,7 +195,7 @@ void main() {
     },
   );
 
-  test('счётчик плитки — только разрешённые виды заданий (ADHOC-51)', () async {
+  test('счётчик плитки - только разрешённые виды заданий (ADHOC-51)', () async {
     final cache = TasksCache(db);
     final stocktake = serverTask().copyWith(id: 's1', kind: TaskKind.stocktake);
     await cache.replace([serverTask(), stocktake], DateTime(2026, 10, 26));

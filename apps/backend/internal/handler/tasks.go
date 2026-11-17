@@ -16,7 +16,7 @@ import (
 	"craftwms/internal/service"
 )
 
-// TaskHandler — задания для склада на ТСД (P5-02-1): текущие, карточка, взятие и отказ,
+// TaskHandler - задания для склада на ТСД (P5-02-1): текущие, карточка, взятие и отказ,
 // лента «Завершённые». Сотруднику: задания выполняет кладовщик.
 type TaskHandler struct {
 	svc *service.TaskService
@@ -27,7 +27,7 @@ func NewTaskHandler(svc *service.TaskService) *TaskHandler {
 	return &TaskHandler{svc: svc}
 }
 
-// productionDateLayout — дата партии в транспорте: DD-MM-YYYY, как на упаковке (и в приёмке).
+// productionDateLayout - дата партии в транспорте: DD-MM-YYYY, как на упаковке (и в приёмке).
 const productionDateLayout = "02-01-2006"
 
 type taskGoodResponse struct {
@@ -43,7 +43,7 @@ type taskContentResponse struct {
 	Qty            decimal.Decimal  `json:"qty"`
 }
 
-// taskItemResponse — позиция задания: короб (load_unit_id + contents) ЛИБО россыпь (good …).
+// taskItemResponse - позиция задания: короб (load_unit_id + contents) ЛИБО россыпь (good …).
 type taskItemResponse struct {
 	LineNo         int                   `json:"line_no"`
 	LoadUnitID     *string               `json:"load_unit_id,omitempty"`
@@ -52,10 +52,10 @@ type taskItemResponse struct {
 	ProductionDate *string               `json:"production_date,omitempty"`
 	Qty            *decimal.Decimal      `json:"qty,omitempty"`
 	Remaining      *decimal.Decimal      `json:"remaining,omitempty"`
-	Placed         bool                  `json:"placed"` // у возврата — «отгружено»
-	// Короб ЧЗ (CZ-06): код `00`+SSCC — короб узнаётся сканом этикетки ЧЗ.
+	Placed         bool                  `json:"placed"` // у возврата - «отгружено»
+	// Короб ЧЗ (CZ-06): код `00`+SSCC - короб узнаётся сканом этикетки ЧЗ.
 	CZCode *string `json:"cz_code,omitempty"`
-	// Марки позиции возврата россыпью (CZ-06, долг 30): отгрузка — сканом каждой.
+	// Марки позиции возврата россыпью (CZ-06, долг 30): отгрузка - сканом каждой.
 	Marks []string `json:"marks,omitempty"`
 	// Позиция возврата (ADHOC-31): проблема-основание и где лежит сейчас.
 	ProblemID *string `json:"problem_id,omitempty"`
@@ -66,27 +66,27 @@ type taskResponse struct {
 	ID          string  `json:"id"`
 	Number      int64   `json:"number"`
 	Kind        string  `json:"kind"`
-	Status      string  `json:"status"` // как его видит запросивший: чужое зависшее — new
+	Status      string  `json:"status"` // как его видит запросивший: чужое зависшее - new
 	WarehouseID string  `json:"warehouse_id"`
 	ReceiptID   *string `json:"receipt_id"`
-	Supplier    string  `json:"supplier"`    // пусто — без поставщика
+	Supplier    string  `json:"supplier"`    // пусто - без поставщика
 	ReceivedAt  *string `json:"received_at"` // RFC3339
-	DocNumber   *string `json:"doc_number"`  // накладная приёмки (ADHOC-23); null — нет
+	DocNumber   *string `json:"doc_number"`  // накладная приёмки (ADHOC-23); null - нет
 	DocDate     *string `json:"doc_date"`    // DD-MM-YYYY
-	// Проблема-основание размещения по решению «разместить» (ADHOC-55); нет — основание другое.
+	// Проблема-основание размещения по решению «разместить» (ADHOC-55); нет - основание другое.
 	Problem      *taskProblemResponse `json:"problem,omitempty"`
 	AssigneeName string               `json:"assignee_name"`
 	TakenAt      *string              `json:"taken_at"`
 	CreatedAt    string               `json:"created_at"`
-	// Пересчёт задания вида stocktake (P10-03); null — у других видов.
+	// Пересчёт задания вида stocktake (P10-03); null - у других видов.
 	StocktakeID *string                `json:"stocktake_id"`
 	Stocktake   *taskStocktakeResponse `json:"stocktake,omitempty"` // ход пересчёта (P10-04)
-	// Заказ сборки задания «вернуть на места» (P9-07-1); нет — у других видов.
+	// Заказ сборки задания «вернуть на места» (P9-07-1); нет - у других видов.
 	Picking *taskPickingResponse `json:"picking,omitempty"`
 	Items   []taskItemResponse   `json:"items"`
 }
 
-// taskPickingResponse — заказ-основание возврата на места: номер сборки, накладная и заказ 1С,
+// taskPickingResponse - заказ-основание возврата на места: номер сборки, накладная и заказ 1С,
 // удалён ли, когда изменён реестром, сколько осталось вернуть.
 type taskPickingResponse struct {
 	OrderID       string          `json:"order_id"`
@@ -108,7 +108,7 @@ func toTaskPicking(p *model.TaskPickingInfo) *taskPickingResponse {
 		ChangedAt: formatTimePtr(p.ChangedAt), Left: p.Left}
 }
 
-// taskProblemResponse — проблема-основание задания на размещение (ADHOC-55).
+// taskProblemResponse - проблема-основание задания на размещение (ADHOC-55).
 type taskProblemResponse struct {
 	ID     string `json:"id"`
 	Number int64  `json:"number"`
@@ -150,7 +150,7 @@ type taskSessionResponse struct {
 	Lines     []taskSessionLineResponse `json:"lines"`
 }
 
-// taskEventResponse — запись журнала задания. user — пусто у системных событий.
+// taskEventResponse - запись журнала задания. user - пусто у системных событий.
 type taskEventResponse struct {
 	Event     string  `json:"event"`
 	User      string  `json:"user"`
@@ -171,20 +171,20 @@ type completedTaskResponse struct {
 	Number      int64              `json:"number"`
 	Kind        string             `json:"kind"`
 	Supplier    string             `json:"supplier"`
-	DocNumber   *string            `json:"doc_number"`   // накладная приёмки (ADHOC-23); null — нет
+	DocNumber   *string            `json:"doc_number"`   // накладная приёмки (ADHOC-23); null - нет
 	DocDate     *string            `json:"doc_date"`     // DD-MM-YYYY
-	CompletedAt string             `json:"completed_at"` // RFC3339Nano — он же курсор подгрузки
+	CompletedAt string             `json:"completed_at"` // RFC3339Nano - он же курсор подгрузки
 	Executors   []taskUserResponse `json:"executors"`
 	Sessions    int                `json:"sessions"`
-	// Проблема-основание размещения (ADHOC-55); нет — основание другое.
+	// Проблема-основание размещения (ADHOC-55); нет - основание другое.
 	Problem *taskProblemResponse `json:"problem,omitempty"`
-	// Пересчёт задания вида stocktake (ADHOC-58); у пересчёта sessions — подсчитанные ячейки.
+	// Пересчёт задания вида stocktake (ADHOC-58); у пересчёта sessions - подсчитанные ячейки.
 	Stocktake *taskStocktakeResponse `json:"stocktake,omitempty"`
 	// Заказ сборки задания «вернуть на места» (P9-07-1).
 	Picking *taskPickingResponse `json:"picking,omitempty"`
 }
 
-// Current: GET /api/v1/tasks — текущие задания: пул и свои взятые, с позициями.
+// Current: GET /api/v1/tasks - текущие задания: пул и свои взятые, с позициями.
 // ТСД кладёт ответ в кэш: по нему задание выполняется без связи.
 func (h *TaskHandler) Current(w http.ResponseWriter, r *http.Request) {
 	userID, _ := appmw.UserIDFromContext(r.Context())
@@ -201,7 +201,7 @@ func (h *TaskHandler) Current(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// Get: GET /api/v1/tasks/{id} — карточка задания: позиции, заходы, журнал событий. 200 / 404.
+// Get: GET /api/v1/tasks/{id} - карточка задания: позиции, заходы, журнал событий. 200 / 404.
 func (h *TaskHandler) Get(w http.ResponseWriter, r *http.Request) {
 	userID, _ := appmw.UserIDFromContext(r.Context())
 	d, err := h.svc.Detail(r.Context(), chi.URLParam(r, "id"), userID)
@@ -246,14 +246,14 @@ func (h *TaskHandler) Get(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// Take: POST /api/v1/tasks/{id}/take — взять в работу. 204 / 404 / 409 (у другого или выполнено).
-// Повтор своим исполнителем — тоже 204.
+// Take: POST /api/v1/tasks/{id}/take - взять в работу. 204 / 404 / 409 (у другого или выполнено).
+// Повтор своим исполнителем - тоже 204.
 func (h *TaskHandler) Take(w http.ResponseWriter, r *http.Request) {
 	userID, _ := appmw.UserIDFromContext(r.Context())
 	h.writeTaskResult(w, r, h.svc.Take(r.Context(), chi.URLParam(r, "id"), userID), "take")
 }
 
-// Release: POST /api/v1/tasks/{id}/release — отказаться: задание уходит в пул. 204 / 404 / 409.
+// Release: POST /api/v1/tasks/{id}/release - отказаться: задание уходит в пул. 204 / 404 / 409.
 func (h *TaskHandler) Release(w http.ResponseWriter, r *http.Request) {
 	userID, _ := appmw.UserIDFromContext(r.Context())
 	h.writeTaskResult(w, r, h.svc.Release(r.Context(), chi.URLParam(r, "id"), userID), "release")
@@ -275,7 +275,7 @@ func (h *TaskHandler) writeTaskResult(w http.ResponseWriter, r *http.Request, er
 	}
 }
 
-// Completed: GET /api/v1/tasks/completed — лента «Завершённые», свежие сверху.
+// Completed: GET /api/v1/tasks/completed - лента «Завершённые», свежие сверху.
 //
 // Параметры: from, to (YYYY-MM-DD, по времени склада; to включается), executor (id), kind,
 // before_completed_at + before_id (курсор: последняя показанная запись), limit. 200 / 400.
@@ -312,7 +312,7 @@ func (h *TaskHandler) Completed(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// Executors: GET /api/v1/tasks/executors — варианты фильтра ленты по исполнителю.
+// Executors: GET /api/v1/tasks/executors - варианты фильтра ленты по исполнителю.
 func (h *TaskHandler) Executors(w http.ResponseWriter, r *http.Request) {
 	users, err := h.svc.Executors(r.Context())
 	if err != nil {
@@ -327,7 +327,7 @@ func (h *TaskHandler) Executors(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// toTaskStocktake — пересчёт задания для ответа; nil — задание не пересчёт.
+// toTaskStocktake - пересчёт задания для ответа; nil - задание не пересчёт.
 func toTaskStocktake(st *model.TaskStocktakeInfo) *taskStocktakeResponse {
 	if st == nil {
 		return nil

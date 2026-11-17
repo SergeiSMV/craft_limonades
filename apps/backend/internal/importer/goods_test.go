@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// TestParseGoods_realSample — парсинг реальной выгрузки 1С (Кальмары.xls в testdata):
+// TestParseGoods_realSample - парсинг реальной выгрузки 1С (Кальмары.xls в testdata):
 // правильно отделены разделы от товаров, собран путь групп, кириллица цела.
 func TestParseGoods_realSample(t *testing.T) {
 	f, err := os.Open("testdata/nomenclature_sample.xls")
@@ -53,7 +53,7 @@ func TestParseGoods_realSample(t *testing.T) {
 		}
 	}
 
-	// Все товары в этом файле — одна ветка (тот же путь групп).
+	// Все товары в этом файле - одна ветка (тот же путь групп).
 	for i, gg := range res.Goods {
 		if len(gg.GroupPath) != 3 || gg.GroupPath[2].Code != "5046" {
 			t.Errorf("товар %d: ожидалась группа 5046 в пути, получено %+v", i, gg.GroupPath)
@@ -63,7 +63,7 @@ func TestParseGoods_realSample(t *testing.T) {
 		}
 	}
 
-	// В образце два разных поставщика (ТОРГМАРКЕТ и Вялкин) — проверим, что оба встречаются.
+	// В образце два разных поставщика (ТОРГМАРКЕТ и Вялкин) - проверим, что оба встречаются.
 	suppliers := map[string]bool{}
 	for _, gg := range res.Goods {
 		suppliers[gg.Supplier] = true
@@ -73,7 +73,7 @@ func TestParseGoods_realSample(t *testing.T) {
 	}
 }
 
-// TestParseGoods_mangledDateCodes — файл, где extrame/xls портит числовой «Код» в дату
+// TestParseGoods_mangledDateCodes - файл, где extrame/xls портит числовой «Код» в дату
 // (Каскад розлив.xls: у ячеек кода пользовательский числовой формат). Проверяем, что коды
 // восстановлены в числа (demangleCode), а не остались RFC3339-датами.
 func TestParseGoods_mangledDateCodes(t *testing.T) {
@@ -91,7 +91,7 @@ func TestParseGoods_mangledDateCodes(t *testing.T) {
 		t.Fatal("ожидались товары, получено 0")
 	}
 
-	// Все коды товаров и групп пути — числовые (не даты).
+	// Все коды товаров и групп пути - числовые (не даты).
 	numeric := func(s string) bool {
 		for _, r := range s {
 			if r < '0' || r > '9' {
@@ -111,7 +111,7 @@ func TestParseGoods_mangledDateCodes(t *testing.T) {
 		}
 	}
 
-	// Точечно: товар «Яблочный сад …» — код-дата 1933-07-11 → Excel-serial 12246.
+	// Точечно: товар «Яблочный сад …» - код-дата 1933-07-11 → Excel-serial 12246.
 	var found bool
 	for _, g := range res.Goods {
 		if g.Code == "12246" {
@@ -124,12 +124,12 @@ func TestParseGoods_mangledDateCodes(t *testing.T) {
 	}
 }
 
-// TestDemangleCode — обратное преобразование испорченной даты в Excel-serial; обычные коды не трогаются.
+// TestDemangleCode - обратное преобразование испорченной даты в Excel-serial; обычные коды не трогаются.
 func TestDemangleCode(t *testing.T) {
 	cases := map[string]string{
 		"1933-07-11T00:00:00Z": "12246", // дата → serial
 		"1899-12-31T00:00:00Z": "1",     // граница системы 1900
-		"16121":                "16121", // обычный код — как есть
+		"16121":                "16121", // обычный код - как есть
 		"":                     "",
 		"5046":                 "5046",
 	}
@@ -141,10 +141,10 @@ func TestDemangleCode(t *testing.T) {
 }
 
 // stripControl должен убирать управляющие байты, включая NUL (0x00), который валил импорт
-// (Postgres не принимает 0x00 в text). Обычный текст — без изменений.
+// (Postgres не принимает 0x00 в text). Обычный текст - без изменений.
 func TestStripControl(t *testing.T) {
 	cases := map[string]string{
-		"Мясные\x00 снеки": "Мясные снеки",   // NUL внутри — вырезан
+		"Мясные\x00 снеки": "Мясные снеки",   // NUL внутри - вырезан
 		"код14900\x00":     "код14900",       // хвостовой NUL
 		"a\x01b\x1fc\x7fd": "abcd",           // прочие C0 + DEL
 		"Кальмар кольца":   "Кальмар кольца", // чистый текст не трогаем

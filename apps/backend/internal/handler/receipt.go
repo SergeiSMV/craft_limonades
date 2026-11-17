@@ -16,8 +16,8 @@ import (
 	"craftwms/internal/service"
 )
 
-// ReceiptHandler — HTTP-обработчики приёмки (P4-03): документ, строка сканом, оприходование.
-// Доступ — любой аутентифицированный сотрудник: приёмку ведёт кладовщик на ТСД.
+// ReceiptHandler - HTTP-обработчики приёмки (P4-03): документ, строка сканом, оприходование.
+// Доступ - любой аутентифицированный сотрудник: приёмку ведёт кладовщик на ТСД.
 type ReceiptHandler struct {
 	svc *service.ReceiptService
 	lu  *service.LoadUnitService
@@ -28,10 +28,10 @@ func NewReceiptHandler(svc *service.ReceiptService, lu *service.LoadUnitService)
 	return &ReceiptHandler{svc: svc, lu: lu}
 }
 
-// createReceiptRequest — тело POST /receipts.
+// createReceiptRequest - тело POST /receipts.
 //
 // ReceiptID приходит С УСТРОЙСТВА: приёмка начинается на ТСД, в том числе без сети, и серверный
-// идентификатор взять неоткуда — кладовщик не смог бы продолжить начатый документ (P4-02).
+// идентификатор взять неоткуда - кладовщик не смог бы продолжить начатый документ (P4-02).
 // SupplierID необязателен: бывает внутреннее поступление и возврат.
 type createReceiptRequest struct {
 	ReceiptID   string `json:"receipt_id"`
@@ -41,8 +41,8 @@ type createReceiptRequest struct {
 	DocDate     string `json:"doc_date"`   // DD-MM-YYYY
 }
 
-// Create: POST /api/v1/receipts — открыть документ приёмки. 201 {receipt_id} / 400.
-// created_by — id аутентифицированного пользователя из токена, а не из тела: иначе устройство
+// Create: POST /api/v1/receipts - открыть документ приёмки. 201 {receipt_id} / 400.
+// created_by - id аутентифицированного пользователя из токена, а не из тела: иначе устройство
 // могло бы записать приёмку на другого человека.
 func (h *ReceiptHandler) Create(w http.ResponseWriter, r *http.Request) {
 	userID, ok := appmw.UserIDFromContext(r.Context())
@@ -62,10 +62,10 @@ func (h *ReceiptHandler) Create(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, map[string]string{"receipt_id": req.ReceiptID})
 }
 
-// addLineRequest — тело POST /receipts/{id}/lines.
+// addLineRequest - тело POST /receipts/{id}/lines.
 //
-// CellID пуст — приходуем в дефолтную ячейку склада (решение заказчика: кладовщик не выбирает
-// место на приёмке). LoadUnitID пуст — товар принимают россыпью: грузовая единица добровольна.
+// CellID пуст - приходуем в дефолтную ячейку склада (решение заказчика: кладовщик не выбирает
+// место на приёмке). LoadUnitID пуст - товар принимают россыпью: грузовая единица добровольна.
 type addLineRequest struct {
 	GoodID         string          `json:"good_id"`
 	ProductionDate string          `json:"production_date"` // DD-MM-YYYY, как на упаковке
@@ -74,11 +74,11 @@ type addLineRequest struct {
 	LoadUnitID     string          `json:"load_unit_id"`
 }
 
-// AddLine: POST /api/v1/receipts/{id}/lines — добавить строку сканом.
+// AddLine: POST /api/v1/receipts/{id}/lines - добавить строку сканом.
 // 200 {accepted} / 400 / 404(нет документа/товара/ГЕ) / 409(документ проведён).
 //
 // Повторный скан той же комбинации (товар · партия · ячейка · ГЕ) увеличивает количество,
-// а не плодит строки — поэтому ответ один и тот же и на первый скан, и на повторный.
+// а не плодит строки - поэтому ответ один и тот же и на первый скан, и на повторный.
 func (h *ReceiptHandler) AddLine(w http.ResponseWriter, r *http.Request) {
 	receiptID := chi.URLParam(r, "id")
 	var req addLineRequest
@@ -97,10 +97,10 @@ func (h *ReceiptHandler) AddLine(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"cell_id": cellID})
 }
 
-// Post: POST /api/v1/receipts/{id}/post — оприходовать документ.
+// Post: POST /api/v1/receipts/{id}/post - оприходовать документ.
 // 200 {posted, status} / 404(нет документа) / 409(уже проведён, пуст, короб в двух ячейках).
 //
-// Повтор здесь опасен — оприходование ДОБАВЛЯЕТ к остатку, — и закрыт статусом: второй вызов
+// Повтор здесь опасен - оприходование ДОБАВЛЯЕТ к остатку, - и закрыт статусом: второй вызов
 // получает 409, а не удваивает приход (P4-02).
 func (h *ReceiptHandler) Post(w http.ResponseWriter, r *http.Request) {
 	receiptID := chi.URLParam(r, "id")
@@ -112,7 +112,7 @@ func (h *ReceiptHandler) Post(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"posted": posted, "status": model.ReceiptPosted})
 }
 
-// receiptResponse — документ приёмки для показа кладовщику.
+// receiptResponse - документ приёмки для показа кладовщику.
 type receiptResponse struct {
 	ReceiptID   string              `json:"receipt_id"`
 	WarehouseID string              `json:"warehouse_id"`
@@ -122,7 +122,7 @@ type receiptResponse struct {
 	Lines       []receiptLineOutput `json:"lines"`
 }
 
-// receiptLineOutput — строка документа с наименованием товара и адресом ячейки: на экране ТСД
+// receiptLineOutput - строка документа с наименованием товара и адресом ячейки: на экране ТСД
 // кладовщик видит их, а не идентификаторы.
 type receiptLineOutput struct {
 	GoodID      string          `json:"good_id"`
@@ -134,7 +134,7 @@ type receiptLineOutput struct {
 	Qty         decimal.Decimal `json:"qty"`
 }
 
-// Get: GET /api/v1/receipts/{id} — шапка документа и его строки. 200 / 404.
+// Get: GET /api/v1/receipts/{id} - шапка документа и его строки. 200 / 404.
 func (h *ReceiptHandler) Get(w http.ResponseWriter, r *http.Request) {
 	receiptID := chi.URLParam(r, "id")
 	rc, lines, err := h.svc.Get(r.Context(), receiptID)
@@ -157,18 +157,18 @@ func (h *ReceiptHandler) Get(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// createLoadUnitRequest — тело POST /load-units. Kind пуст → короб: приёмка собирает короба,
-// паллета — явный выбор.
+// createLoadUnitRequest - тело POST /load-units. Kind пуст → короб: приёмка собирает короба,
+// паллета - явный выбор.
 type createLoadUnitRequest struct {
 	LoadUnitID string `json:"load_unit_id"`
 	Kind       string `json:"kind"`
 }
 
-// CreateLoadUnit: POST /api/v1/load-units — завести ГЕ с идентификатором из QR ярлыка.
+// CreateLoadUnit: POST /api/v1/load-units - завести ГЕ с идентификатором из QR ярлыка.
 // 201 {load_unit_id} / 400.
 //
 // Отдельной ручкой, а не полем строки приёмки: короб собирают и печатают ему ярлык ДО того,
-// как в него положили первую позицию, и ГЕ живёт дальше приёмки — её двигают в P5 и P6.
+// как в него положили первую позицию, и ГЕ живёт дальше приёмки - её двигают в P5 и P6.
 func (h *ReceiptHandler) CreateLoadUnit(w http.ResponseWriter, r *http.Request) {
 	var req createLoadUnitRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -182,7 +182,7 @@ func (h *ReceiptHandler) CreateLoadUnit(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusCreated, map[string]string{"load_unit_id": req.LoadUnitID})
 }
 
-// loadUnitResponse — шапка ГЕ для показа кладовщику.
+// loadUnitResponse - шапка ГЕ для показа кладовщику.
 type loadUnitResponse struct {
 	LoadUnitID string  `json:"load_unit_id"`
 	Kind       string  `json:"kind"`
@@ -191,7 +191,7 @@ type loadUnitResponse struct {
 	ParentID   *string `json:"parent_id"`
 }
 
-// GetLoadUnit: GET /api/v1/load-units/{id} — что за короб отсканировали. 200 / 400 / 404.
+// GetLoadUnit: GET /api/v1/load-units/{id} - что за короб отсканировали. 200 / 400 / 404.
 func (h *ReceiptHandler) GetLoadUnit(w http.ResponseWriter, r *http.Request) {
 	lu, err := h.lu.Get(r.Context(), chi.URLParam(r, "id"))
 	if err != nil {
@@ -206,9 +206,9 @@ func (h *ReceiptHandler) GetLoadUnit(w http.ResponseWriter, r *http.Request) {
 
 // receiptError маппит ошибки сервиса/репозитория в HTTP-коды.
 //
-// Граница 404/409 проведена по смыслу для кладовщика: 404 — «того, что ты отсканировал, нет»
-// (документ, товар, короб), 409 — «оно есть, но в таком состоянии этого делать нельзя»
-// (документ проведён, пуст, короб числится в двух ячейках). Отсутствие дефолтной ячейки —
+// Граница 404/409 проведена по смыслу для кладовщика: 404 - «того, что ты отсканировал, нет»
+// (документ, товар, короб), 409 - «оно есть, но в таком состоянии этого делать нельзя»
+// (документ проведён, пуст, короб числится в двух ячейках). Отсутствие дефолтной ячейки -
 // 500: это незавершённое развёртывание, а не ошибка человека, и чинится не на терминале.
 func receiptError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {

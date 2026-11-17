@@ -32,7 +32,7 @@ func countRows(t *testing.T, pool *pgxpool.Pool, table string) int {
 	return n
 }
 
-// TestImportGoods_realFile — полный импорт реальной выгрузки в живой Postgres:
+// TestImportGoods_realFile - полный импорт реальной выгрузки в живой Postgres:
 // заводятся группы (дерево), поставщики (дедуп), товары; повторный импорт идемпотентен.
 func TestImportGoods_realFile(t *testing.T) {
 	pool := testutil.StartPostgres(t)

@@ -13,7 +13,7 @@ import '../../bloc/movement_history_cubit.dart';
 import 'move_record_tile.dart';
 
 /// Лента «Завершённые» перемещения (ADHOC-28): перемещения всего склада по дням, свежие
-/// сверху, подгрузка у конца ленты. Только со связью — офлайн лента не хранится. Вид — как
+/// сверху, подгрузка у конца ленты. Только со связью - офлайн лента не хранится. Вид - как
 /// у «Завершённых» заданий: кладовщик листает обе ленты одинаково.
 class MoveHistoryFeed extends StatefulWidget {
   const MoveHistoryFeed({super.key});
@@ -34,7 +34,7 @@ class _MoveHistoryFeedState extends State<MoveHistoryFeed> {
     return false;
   }
 
-  /// Открыть запись — что, откуда и куда перемещено.
+  /// Открыть запись - что, откуда и куда перемещено.
   void openRecord(MoveRecord record) {
     context.router.push(MovementRecordRoute(movementId: record.id));
   }

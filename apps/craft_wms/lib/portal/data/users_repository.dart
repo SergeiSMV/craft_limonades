@@ -26,7 +26,7 @@ class PortalPosition {
   final String id;
   final String name;
 
-  /// Действующие права; у системной — все.
+  /// Действующие права; у системной - все.
   final List<String> rights;
 
   /// «Администратор»: все права, не меняется и не удаляется.
@@ -40,7 +40,7 @@ class PortalPosition {
 }
 
 /// Пользователь глазами портала (ADHOC-50). Секрета бейджа и пароля портал не видит: у бейджа
-/// — только логин (первые 8 цифр).
+/// - только логин (первые 8 цифр).
 class PortalUser {
   const PortalUser({
     required this.id,
@@ -67,7 +67,7 @@ class PortalUser {
   final String positionId;
   final String positionName;
 
-  /// Первые 8 цифр бейджа; пусто — вход по логину и паролю.
+  /// Первые 8 цифр бейджа; пусто - вход по логину и паролю.
   final String login;
   final String username;
   final bool isActive;
@@ -76,7 +76,7 @@ class PortalUser {
   bool get byBadge => login.isNotEmpty;
 }
 
-/// Новый пользователь: ровно один вход — [badge] или [username] с [password].
+/// Новый пользователь: ровно один вход - [badge] или [username] с [password].
 typedef UserDraft = ({
   String fullName,
   String positionId,
@@ -88,7 +88,7 @@ typedef UserDraft = ({
 /// Пользователи и должности в портале (ADHOC-50); право «пользователи и должности».
 ///
 /// Отказы по существу (занятый бейдж, последний администратор, должность с людьми) сервер
-/// объясняет текстом в поле `error` — он приезжает в `ServerFailure.message`.
+/// объясняет текстом в поле `error` - он приезжает в `ServerFailure.message`.
 @lazySingleton
 class UsersRepository {
   UsersRepository(this._dio);
@@ -154,7 +154,7 @@ class UsersRepository {
     ),
   );
 
-  /// Изменить пользователя; `null` — поле не меняется.
+  /// Изменить пользователя; `null` - поле не меняется.
   Future<Either<Failure, void>> updateUser(
     String id, {
     String? fullName,

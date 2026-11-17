@@ -1,16 +1,16 @@
-# Честный знак на стенде (ADHOC-54) — подключается stand.sh поверх docker-compose.stand.yml,
+# Честный знак на стенде (ADHOC-54) - подключается stand.sh поверх docker-compose.stand.yml,
 # только при STAND_CZ=on.
 #
 # Подписант с КриптоПро и ключом живёт на боевом сервере. Контейнер cz-tunnel держит SSH
 # к нему от пользователя cz-tunnel (deploy/stand-cz-access.sh: только локальный проброс)
 # и выставляет сокет подписанта в общий том. Бэкенд стенда видит его по тому же пути, что
-# на проде, и получает токен True API сам — тем же кодом.
+# на проде, и получает токен True API сам - тем же кодом.
 #
 # Сами запросы к True API стенд тоже выпускает через этот SSH (SOCKS, -D): с адреса сервера,
-# как прод. С машины разработчика напрямую они не надёжны — VPN-клиент на Mac (sing-box)
+# как прод. С машины разработчика напрямую они не надёжны - VPN-клиент на Mac (sing-box)
 # вешал TLS к markirovka.crpt.ru из VM colima, хотя с самого Mac сайт открывался.
 #
-# Туннель — контейнер, а не `ssh -L` на Mac: сокет с macOS внутрь VM colima не пробрасывается.
+# Туннель - контейнер, а не `ssh -L` на Mac: сокет с macOS внутрь VM colima не пробрасывается.
 
 services:
   cz-tunnel:
@@ -22,9 +22,9 @@ services:
       - ./cz:/cz:ro                      # ключ стенда и ключ хоста прода (stand.sh cz-setup)
       - cz_signer:/run/cz-signer
     environment:
-      CZ_SSH: ${STAND_CZ_SSH:?STAND_CZ_SSH не задан — запускайте через stand.sh}
+      CZ_SSH: ${STAND_CZ_SSH:?STAND_CZ_SSH не задан - запускайте через stand.sh}
     # Ключ копируется с правами 600: с общего тома macOS права не те, и ssh его отверг бы.
-    # BindMask 0111 — сокет 0666: бэкенд работает не от root. Обрыв — ssh выходит, compose
+    # BindMask 0111 - сокет 0666: бэкенд работает не от root. Обрыв - ssh выходит, compose
     # поднимает его заново.
     entrypoint: ["/bin/sh", "-c"]
     command:
@@ -49,8 +49,8 @@ services:
     environment:
       CZ_SIGNER_SOCKET: /run/cz-signer/sign.sock
       CZ_OWNER_INN: ${STAND_CZ_OWNER_INN:-}
-      # Исходящий HTTPS бэкенда — через сервер (Go берёт прокси из окружения). Подписант —
-      # unix-сокет со своим транспортом, база — не HTTP: прокси их не касается.
+      # Исходящий HTTPS бэкенда - через сервер (Go берёт прокси из окружения). Подписант -
+      # unix-сокет со своим транспортом, база - не HTTP: прокси их не касается.
       HTTPS_PROXY: socks5://cz-tunnel:1080
     volumes:
       - cz_signer:/run/cz-signer

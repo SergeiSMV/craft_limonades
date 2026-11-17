@@ -12,14 +12,14 @@ import (
 
 // Ошибки сервиса остатков.
 var (
-	// ErrInvalidQuantity — количество движения должно быть строго положительным.
+	// ErrInvalidQuantity - количество движения должно быть строго положительным.
 	// Направление (приход/расход) задаёт операция, а не знак числа.
 	ErrInvalidQuantity = errors.New("quantity must be positive")
-	// ErrInsufficientStock — списание/перенос больше, чем есть на грани (ячейка×товар×партия).
+	// ErrInsufficientStock - списание/перенос больше, чем есть на грани (ячейка×товар×партия).
 	ErrInsufficientStock = errors.New("insufficient stock")
 )
 
-// stockRepo — то, что StockService нужно от хранилища (зависимость от интерфейса).
+// stockRepo - то, что StockService нужно от хранилища (зависимость от интерфейса).
 type stockRepo interface {
 	Add(ctx context.Context, key model.StockKey, qty decimal.Decimal) error
 	Set(ctx context.Context, key model.StockKey, qty decimal.Decimal) error
@@ -28,7 +28,7 @@ type stockRepo interface {
 	GetQty(ctx context.Context, key model.StockKey) (decimal.Decimal, error)
 }
 
-// StockService — доменные операции над остатком: приход, расход, перенос между ячейками.
+// StockService - доменные операции над остатком: приход, расход, перенос между ячейками.
 // Атомарность обеспечивает репозиторий (одиночные upsert/guarded-update и транзакция в Transfer);
 // сервис отвечает за валидацию и маппинг ошибок хранилища в доменные.
 type StockService struct {
@@ -40,7 +40,7 @@ func NewStockService(stock stockRepo) *StockService {
 	return &StockService{stock: stock}
 }
 
-// Receive — приход: положить qty товара (партии) в ячейку.
+// Receive - приход: положить qty товара (партии) в ячейку.
 func (s *StockService) Receive(ctx context.Context, key model.StockKey, qty decimal.Decimal) error {
 	if !qty.IsPositive() {
 		return ErrInvalidQuantity
@@ -48,9 +48,9 @@ func (s *StockService) Receive(ctx context.Context, key model.StockKey, qty deci
 	return s.stock.Add(ctx, key, qty)
 }
 
-// SetLine — установить остаток грани (ячейка×товар×партия) в ТОЧНОЕ значение qty (SET, ввод
+// SetLine - установить остаток грани (ячейка×товар×партия) в ТОЧНОЕ значение qty (SET, ввод
 // остатков P-FastStart): «в ячейке ровно столько». В отличие от Receive/Issue направление не
-// задаётся — это перезапись. Отрицательное отклоняем; ноль допустим (напр. после Undo строки).
+// задаётся - это перезапись. Отрицательное отклоняем; ноль допустим (напр. после Undo строки).
 func (s *StockService) SetLine(ctx context.Context, key model.StockKey, qty decimal.Decimal) error {
 	if qty.IsNegative() {
 		return ErrInvalidQuantity
@@ -58,7 +58,7 @@ func (s *StockService) SetLine(ctx context.Context, key model.StockKey, qty deci
 	return s.stock.Set(ctx, key, qty)
 }
 
-// Issue — расход: снять qty товара (партии) из ячейки. Не хватило → ErrInsufficientStock.
+// Issue - расход: снять qty товара (партии) из ячейки. Не хватило → ErrInsufficientStock.
 func (s *StockService) Issue(ctx context.Context, key model.StockKey, qty decimal.Decimal) error {
 	if !qty.IsPositive() {
 		return ErrInvalidQuantity
@@ -66,10 +66,10 @@ func (s *StockService) Issue(ctx context.Context, key model.StockKey, qty decima
 	return mapStockErr(s.stock.Remove(ctx, key, qty))
 }
 
-// Transfer — перенести qty товара (партии) из ячейки fromCell в toCell (атомарно).
+// Transfer - перенести qty товара (партии) из ячейки fromCell в toCell (атомарно).
 //
 // Учётная принадлежность (внутренний склад) при переносе НЕ меняется: перемещение отвечает
-// на вопрос «где лежит», а не «чей это остаток». Перевод между внутренними складами —
+// на вопрос «где лежит», а не «чей это остаток». Перевод между внутренними складами -
 // отдельная операция, потому что это учётное решение человека, а не следствие переноса коробки.
 func (s *StockService) Transfer(ctx context.Context, fromCell, toCell, goodID, batchID, internalWarehouseID string, qty decimal.Decimal) error {
 	if !qty.IsPositive() {

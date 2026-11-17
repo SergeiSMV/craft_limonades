@@ -55,7 +55,7 @@ void main() {
     );
   });
 
-  test('правка admin: сервер принял — кэш и экран с новым признаком', () async {
+  test('правка admin: сервер принял - кэш и экран с новым признаком', () async {
     patchAnswers(
       () async => Response(
         requestOptions: RequestOptions(path: ''),
@@ -80,7 +80,7 @@ void main() {
     await cubit.close();
   });
 
-  test('без связи признак прежний — и на экране, и в кэше', () async {
+  test('без связи признак прежний - и на экране, и в кэше', () async {
     patchAnswers(
       () async => throw DioException(
         requestOptions: RequestOptions(path: ''),
@@ -98,7 +98,7 @@ void main() {
     await cubit.close();
   });
 
-  test('привязка ШК из марки помечает товар сразу, обычная — нет', () async {
+  test('привязка ШК из марки помечает товар сразу, обычная - нет', () async {
     final effects = OutboxEffects(
       cache,
       FakeContentsSnapshotSync(),

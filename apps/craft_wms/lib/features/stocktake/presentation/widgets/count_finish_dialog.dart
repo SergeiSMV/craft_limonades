@@ -9,8 +9,8 @@ import '../../../../core/theme/regular_text.dart';
 import '../../../../core/utils/date_time_format.dart';
 import '../../domain/stocktake_count.dart';
 
-/// Подтверждение «Ячейка посчитана» (P10-04) — одно, со списком того, что не нашли: короба
-/// уйдут в «Не найдено», россыпь — недостачей. `true` — отправить.
+/// Подтверждение «Ячейка посчитана» (P10-04) - одно, со списком того, что не нашли: короба
+/// уйдут в «Не найдено», россыпь - недостачей. `true` - отправить.
 Future<bool> showCountFinishDialog(
   BuildContext context,
   StocktakeCount count,

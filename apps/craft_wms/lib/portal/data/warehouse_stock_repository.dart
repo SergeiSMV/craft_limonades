@@ -20,10 +20,10 @@ class PortalStockPlace {
     this.onDefaultWarehouse = true,
   });
 
-  /// Адрес ячейки; ячейки нет в справочнике — пусто.
+  /// Адрес ячейки; ячейки нет в справочнике - пусто.
   final String cellAddress;
 
-  /// Короб; `null` — россыпью.
+  /// Короб; `null` - россыпью.
   final String? loadUnitId;
 
   /// Дата партии, DD-MM-YYYY.
@@ -32,7 +32,7 @@ class PortalStockPlace {
   final String warehouseId;
   final String warehouseName;
 
-  /// На складе по умолчанию: в карточке такое место склад не подписывает — как на ТСД,
+  /// На складе по умолчанию: в карточке такое место склад не подписывает - как на ТСД,
   /// пометка нужна только у брака и других особых складов.
   final bool onDefaultWarehouse;
 }
@@ -43,10 +43,10 @@ class PortalStockGood {
 
   final Good good;
 
-  /// Количество по внутренним складам — по id склада.
+  /// Количество по внутренним складам - по id склада.
   final Map<String, double> byWarehouse;
 
-  /// Сколько товара на складе [warehouseId]; `null` — на всех.
+  /// Сколько товара на складе [warehouseId]; `null` - на всех.
   double qtyOn(String? warehouseId) {
     var total = 0.0;
     for (final e in byWarehouse.entries) {
@@ -68,10 +68,10 @@ class PortalStock {
   /// Момент, на который согласован снимок.
   final DateTime asOf;
 
-  /// Товары с остатком больше нуля — по наименованию.
+  /// Товары с остатком больше нуля - по наименованию.
   final List<PortalStockGood> goods;
 
-  /// Места товара — по id товара, вдоль стеллажа: по адресу, россыпь раньше коробов, по партии.
+  /// Места товара - по id товара, вдоль стеллажа: по адресу, россыпь раньше коробов, по партии.
   final Map<String, List<PortalStockPlace>> places;
   final List<PortalWarehouse> warehouses;
 }
@@ -80,10 +80,10 @@ class PortalStock {
 /// (`GET /contents/snapshot`), со справочниками товаров, ячеек и внутренних складов.
 ///
 /// Зачем снимок, а не отдельный отчёт: в нём и россыпь, и содержимое коробов, согласованные на
-/// один момент, — те же цифры, что видит кладовщик. Снимок несёт только идентификаторы, поэтому
+/// один момент, - те же цифры, что видит кладовщик. Снимок несёт только идентификаторы, поэтому
 /// имена подставляются здесь, в памяти; на масштабе пилота это сотни строк.
 /// Последний собранный результат держится в памяти: карточка товара в «Номенклатуре» берёт места
-/// из него, не скачивая склад заново на каждое открытие. [load] с `refresh` — свежий снимок.
+/// из него, не скачивая склад заново на каждое открытие. [load] с `refresh` - свежий снимок.
 @lazySingleton
 class WarehouseStockRepository {
   WarehouseStockRepository(this._contents, this._catalog, this._warehouses);
@@ -94,7 +94,7 @@ class WarehouseStockRepository {
 
   PortalStock? _last;
 
-  /// Остатки склада; без [refresh] — последний собранный результат, если он есть.
+  /// Остатки склада; без [refresh] - последний собранный результат, если он есть.
   Future<Either<Failure, PortalStock>> load({bool refresh = true}) async {
     final cached = _last;
     if (!refresh && cached != null) return Right(cached);
@@ -117,10 +117,10 @@ class WarehouseStockRepository {
     return Right(stock);
   }
 
-  /// Сборка остатков из снимка и справочников — отдельно от сети, чтобы проверять тестом.
+  /// Сборка остатков из снимка и справочников - отдельно от сети, чтобы проверять тестом.
   ///
-  /// Склад строки без склада (сервер до P6-07) — склад по умолчанию. Товара нет в справочнике
-  /// (заведён после его загрузки) — строка всё равно попадает в список, с пустым наименованием:
+  /// Склад строки без склада (сервер до P6-07) - склад по умолчанию. Товара нет в справочнике
+  /// (заведён после его загрузки) - строка всё равно попадает в список, с пустым наименованием:
   /// остаток важнее подписи.
   static PortalStock build({
     required ContentsSnapshot snapshot,
@@ -188,7 +188,7 @@ class WarehouseStockRepository {
     );
   }
 
-  /// Вдоль стеллажа: по адресу ячейки, в ячейке — россыпь, затем короба; внутри — по партии.
+  /// Вдоль стеллажа: по адресу ячейки, в ячейке - россыпь, затем короба; внутри - по партии.
   static int _alongRack(PortalStockPlace a, PortalStockPlace b) {
     final byCell = a.cellAddress.compareTo(b.cellAddress);
     if (byCell != 0) return byCell;

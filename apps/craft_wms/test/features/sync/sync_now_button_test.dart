@@ -62,7 +62,7 @@ void main() {
 
   // Три исхода, которые кладовщик обязан различать. Одно общее «готово» на все три означало
   // бы, что после «готово» очередь может остаться полной.
-  testWidgets('всё ушло — сообщение с числом отправленных', (tester) async {
+  testWidgets('всё ушло - сообщение с числом отправленных', (tester) async {
     stubDrain(sent: 2);
     await pump(tester);
 
@@ -73,7 +73,7 @@ void main() {
     expect(find.text(t.syncQueue.syncResultSent(count: 2)), findsOneWidget);
   });
 
-  testWidgets('часть застряла — сообщение про остаток, а не «готово»', (
+  testWidgets('часть застряла - сообщение про остаток, а не «готово»', (
     tester,
   ) async {
     stubDrain(sent: 1, remaining: 3);
@@ -86,7 +86,7 @@ void main() {
     expect(find.text(t.syncQueue.syncResultStuck(count: 3)), findsOneWidget);
   });
 
-  testWidgets('сервер отклонил — говорим об этом отдельно', (tester) async {
+  testWidgets('сервер отклонил - говорим об этом отдельно', (tester) async {
     stubDrain(sent: 1, rejected: 2);
     await pump(tester);
 
@@ -97,7 +97,7 @@ void main() {
     expect(find.text(t.syncQueue.syncResultRejected(count: 2)), findsOneWidget);
   });
 
-  testWidgets('отправлять было нечего — так и говорим', (tester) async {
+  testWidgets('отправлять было нечего - так и говорим', (tester) async {
     stubDrain();
     await pump(tester);
 
@@ -108,7 +108,7 @@ void main() {
     expect(find.text(t.syncQueue.syncResultNothing), findsOneWidget);
   });
 
-  // Повторное нажатие упёрлось бы в защиту от повторного входа и вернуло «отправлено 0» —
+  // Повторное нажатие упёрлось бы в защиту от повторного входа и вернуло «отправлено 0» -
   // ответ, который читается как «ничего не ушло». Та же ловушка, что чинилась в ADHOC-10.
   testWidgets('во время прохода кнопка погашена', (tester) async {
     stubDrain();

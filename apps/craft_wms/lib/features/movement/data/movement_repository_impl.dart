@@ -14,7 +14,7 @@ import '../domain/movement_repository.dart';
 /// Хранилище незавершённого сеанса перемещения (P6-04).
 ///
 /// До «Завершить» сеанс существует только здесь: перенесённое не должно пропасть из учёта из-за
-/// разряда батареи посередине. Отдельный класс — ради живой пометки на плитке главного меню.
+/// разряда батареи посередине. Отдельный класс - ради живой пометки на плитке главного меню.
 @lazySingleton
 class MovementDraftStore extends DraftSlot {
   MovementDraftStore(AppDatabase db) : super(db, 'movement');
@@ -23,9 +23,9 @@ class MovementDraftStore extends DraftSlot {
 /// Отправка сеанса перемещения тем же путём, что приёмка и размещение (P6-04).
 ///
 /// Что: ставит сеанс в очередь одной операцией `movement_submit` и сразу пробует отправить.
-/// Не дошёл сейчас — уйдёт сам при появлении связи. Снимок содержимого склада обновляет
+/// Не дошёл сейчас - уйдёт сам при появлении связи. Снимок содержимого склада обновляет
 /// подтверждение операции (`OutboxEffects`), а до него свою операцию поверх снимка
-/// накладывает чтение содержимого — короб без связи уже «лежит» там, куда его перенесли.
+/// накладывает чтение содержимого - короб без связи уже «лежит» там, куда его перенесли.
 @LazySingleton(as: MovementRepository)
 class MovementRepositoryImpl implements MovementRepository {
   MovementRepositoryImpl(
@@ -51,7 +51,7 @@ class MovementRepositoryImpl implements MovementRepository {
       kind: OutboxKind.movementSubmit,
       payload: payload,
     );
-    // Слепок — до отправки: отказ может прийти и сразу, и позже, из движка синхронизации.
+    // Слепок - до отправки: отказ может прийти и сразу, и позже, из движка синхронизации.
     await _sent.save(operationId, session);
     final operation = await _outbox.byOperationId(operationId);
     if (operation == null) {
@@ -70,7 +70,7 @@ class MovementRepositoryImpl implements MovementRepository {
     if (session == null) return ReopenOutcome.lost;
     final operation = await _outbox.byOperationId(operationId);
     // Новый документ: тот же идентификатор сервер мог бы счесть уже проведённым другим путём,
-    // а исправленный сеанс — это новая отправка.
+    // а исправленный сеанс - это новая отправка.
     await _drafts.save({
       ...session,
       'movement_id': _ids.newId(),

@@ -9,18 +9,18 @@ import (
 
 // DataVersionRepository читает версии данных по областям (ADHOC-60, миграция 43).
 //
-// Версии повышают триггеры в транзакциях правок; здесь только чтение — его делает middleware
+// Версии повышают триггеры в транзакциях правок; здесь только чтение - его делает middleware
 // на каждый ответ API, поэтому запрос один и по крошечной таблице.
 type DataVersionRepository struct {
 	pool *pgxpool.Pool
 }
 
-// NewDataVersionRepository — репозиторий версий данных.
+// NewDataVersionRepository - репозиторий версий данных.
 func NewDataVersionRepository(pool *pgxpool.Pool) *DataVersionRepository {
 	return &DataVersionRepository{pool: pool}
 }
 
-// DataVersions — версии всех областей: область → счётчик.
+// DataVersions - версии всех областей: область → счётчик.
 func (r *DataVersionRepository) DataVersions(ctx context.Context) (map[string]int64, error) {
 	rows, err := r.pool.Query(ctx, `SELECT domain, version FROM data_versions`)
 	if err != nil {

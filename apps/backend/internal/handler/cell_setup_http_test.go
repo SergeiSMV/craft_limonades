@@ -9,8 +9,8 @@ import (
 	"craftwms/internal/importer"
 )
 
-// ADHOC-57: страница «Ячейки» через настоящий роутер. Смотреть и выгружать — с правом раздела
-// «Ячейки», менять галочки — с правом «Ячейки: изменять настройки»; кладовщику без них — 403.
+// ADHOC-57: страница «Ячейки» через настоящий роутер. Смотреть и выгружать - с правом раздела
+// «Ячейки», менять галочки - с правом «Ячейки: изменять настройки»; кладовщику без них - 403.
 func TestCellSetupHTTP(t *testing.T) {
 	e := newReceivingE2E(t, nil)
 
@@ -24,7 +24,7 @@ func TestCellSetupHTTP(t *testing.T) {
 		}
 	}
 
-	// Список: ячейка приёмки не показывается, у M1-1-1-1 — умолчания.
+	// Список: ячейка приёмки не показывается, у M1-1-1-1 - умолчания.
 	code, body := e.call(t, http.MethodGet, "/api/v1/cells/setup?warehouse=SHB", e.adminToken, "")
 	var setup struct {
 		Warehouse string `json:"warehouse"`
@@ -63,7 +63,7 @@ func TestCellSetupHTTP(t *testing.T) {
 		t.Errorf("неизвестный склад: %d", code)
 	}
 
-	// Выгрузка — файл формата rack_labels с изменённой галочкой.
+	// Выгрузка - файл формата rack_labels с изменённой галочкой.
 	code, body = e.call(t, http.MethodGet, "/api/v1/cells/export.xlsx", e.adminToken, "")
 	if code != http.StatusOK {
 		t.Fatalf("выгрузка: %d %s", code, body)
@@ -74,7 +74,7 @@ func TestCellSetupHTTP(t *testing.T) {
 	}
 }
 
-// ADHOC-57: печать — POST с видом и выборкой; кладовщику без права «печатать» — 403.
+// ADHOC-57: печать - POST с видом и выборкой; кладовщику без права «печатать» - 403.
 func TestCellLabelsHTTP(t *testing.T) {
 	e := newReceivingE2E(t, nil)
 	const path = "/api/v1/cells/labels.pdf?warehouse=SHB"

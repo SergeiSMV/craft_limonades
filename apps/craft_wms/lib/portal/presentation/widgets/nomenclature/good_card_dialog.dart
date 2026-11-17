@@ -21,13 +21,13 @@ import '../ui/portal_button.dart';
 import '../ui/portal_card.dart';
 import '../ui/portal_modal.dart';
 
-/// Карточка товара (ADHOC-56), как карточка товара на ТСД — только просмотр: отметки,
+/// Карточка товара (ADHOC-56), как карточка товара на ТСД - только просмотр: отметки,
 /// реквизиты (каждый своей подписанной строкой), все штрихкоды и, с [withPlaces], наличие по
 /// местам хранения с итогом. Привязка и отвязка ШК, признак ЧЗ и пересорт остаются на ТСД:
 /// их делают у товара в руках.
 ///
-/// [withPlaces] — по праву «Остатки склада: смотреть». Места берутся из последнего снимка
-/// склада ([WarehouseStockRepository]); снимка ещё нет — он загружается.
+/// [withPlaces] - по праву «Остатки склада: смотреть». Места берутся из последнего снимка
+/// склада ([WarehouseStockRepository]); снимка ещё нет - он загружается.
 Future<void> showGoodCardDialog(
   BuildContext context,
   Good good, {
@@ -91,7 +91,7 @@ class _GoodCardDialogState extends State<_GoodCardDialog> {
     _ => t.portal.login.errorUnknown,
   };
 
-  /// Места хранения строками и итог; пусто — «Нет остатков».
+  /// Места хранения строками и итог; пусто - «Нет остатков».
   Widget _placesCard(Good good) {
     final g = t.portal.goods;
     final places = _places;
@@ -164,7 +164,7 @@ class _GoodCardDialogState extends State<_GoodCardDialog> {
           PortalFieldLabel(g.cardProps),
           PortalCard(
             children: [
-              // Полное наименование 1С — только если оно отличается от краткого.
+              // Полное наименование 1С - только если оно отличается от краткого.
               if (fullName != null &&
                   fullName.isNotEmpty &&
                   fullName != good.name)
@@ -216,7 +216,7 @@ class _GoodCardDialogState extends State<_GoodCardDialog> {
   }
 }
 
-/// Реквизит строкой: подпись слева, значение справа; уже — значение под подписью.
+/// Реквизит строкой: подпись слева, значение справа; уже - значение под подписью.
 class _Prop extends StatelessWidget {
   const _Prop(this.label, this.value);
 
@@ -283,8 +283,8 @@ class _BarcodeRow extends StatelessWidget {
   );
 }
 
-/// Место хранения строкой, как на ТСД: адрес ячейки, под ним короб и партия — каждый своей
-/// подписанной строкой, склад — отметкой (только не основной); количество справа.
+/// Место хранения строкой, как на ТСД: адрес ячейки, под ним короб и партия - каждый своей
+/// подписанной строкой, склад - отметкой (только не основной); количество справа.
 class _PlaceRow extends StatelessWidget {
   const _PlaceRow({required this.place});
 

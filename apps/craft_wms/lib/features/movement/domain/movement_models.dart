@@ -3,12 +3,12 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'movement_models.freezed.dart';
 part 'movement_models.g.dart';
 
-/// Сущности перемещения на ТСД (P6-04). Слой `domain` фичи: ни Flutter, ни сети, ни базы —
+/// Сущности перемещения на ТСД (P6-04). Слой `domain` фичи: ни Flutter, ни сети, ни базы -
 /// только данные сеанса. JSON нужен черновику: сеанс переживает выход с экрана и перезапуск.
 
 /// Место на складе: россыпь ячейки ИЛИ короб в ячейке.
 ///
-/// Короб на сервер уходит своим идентификатором — ячейку сервер знает сам; здесь она нужна
+/// Короб на сервер уходит своим идентификатором - ячейку сервер знает сам; здесь она нужна
 /// человеку (адрес в строке сеанса) и проверкам на терминале (ячейка приёмки, другой склад).
 @freezed
 abstract class MovePlace with _$MovePlace {
@@ -17,7 +17,7 @@ abstract class MovePlace with _$MovePlace {
     @JsonKey(name: 'cell_address') required String cellAddress,
     @JsonKey(name: 'load_unit_id') String? loadUnitId,
 
-    /// Склад короба (P6-07-2); `null` — «Основной» или не короб. Товар кладётся в короб
+    /// Склад короба (P6-07-2); `null` - «Основной» или не короб. Товар кладётся в короб
     /// только того же склада.
     @JsonKey(name: 'internal_warehouse_id') String? internalWarehouseId,
   }) = _MovePlace;
@@ -26,8 +26,8 @@ abstract class MovePlace with _$MovePlace {
 
   bool get isBox => loadUnitId != null;
 
-  /// То же ли это место. Короб — по себе самому, где бы он ни лежал: переехав в сеансе, он
-  /// остаётся тем же коробом со своим составом. Россыпь — по ячейке.
+  /// То же ли это место. Короб - по себе самому, где бы он ни лежал: переехав в сеансе, он
+  /// остаётся тем же коробом со своим составом. Россыпь - по ячейке.
   bool samePlace(MovePlace other) => isBox || other.isBox
       ? loadUnitId == other.loadUnitId
       : cellId == other.cellId;
@@ -36,7 +36,7 @@ abstract class MovePlace with _$MovePlace {
       _$MovePlaceFromJson(json);
 }
 
-/// Товар строки — то, что нужно показать человеку.
+/// Товар строки - то, что нужно показать человеку.
 @freezed
 abstract class MoveGood with _$MoveGood {
   const factory MoveGood({
@@ -50,7 +50,7 @@ abstract class MoveGood with _$MoveGood {
       _$MoveGoodFromJson(json);
 }
 
-/// Строка сеанса: ГЕ целиком ЛИБО товар (партия, количество) — откуда и куда.
+/// Строка сеанса: ГЕ целиком ЛИБО товар (партия, количество) - откуда и куда.
 @freezed
 abstract class MoveLine with _$MoveLine {
   const factory MoveLine({
@@ -58,20 +58,20 @@ abstract class MoveLine with _$MoveLine {
     @JsonKey(name: 'load_unit_id') String? loadUnitId,
     MoveGood? good,
 
-    /// Дата партии, DD-MM-YYYY — в транспортном виде, как её несут сервер и снимок.
+    /// Дата партии, DD-MM-YYYY - в транспортном виде, как её несут сервер и снимок.
     @JsonKey(name: 'production_date') String? productionDate,
     double? qty,
     required MovePlace from,
     required MovePlace to,
 
-    /// Склад товара (P6-07-2): «Брак», «Изолятор» …; `null` — «Основной».
+    /// Склад товара (P6-07-2): «Брак», «Изолятор» …; `null` - «Основной».
     @JsonKey(name: 'internal_warehouse_id') String? internalWarehouseId,
 
     /// Как склад товара показывается человеку.
     @JsonKey(name: 'internal_warehouse_name') String? internalWarehouseName,
 
     /// КИ марок ЧЗ строки (CZ-06): маркируемый товар двигается только марками, по одной на
-    /// единицу; количество строки — их число.
+    /// единицу; количество строки - их число.
     @Default(<String>[]) List<String> marks,
   }) = _MoveLine;
 

@@ -10,17 +10,17 @@ import (
 	"craftwms/internal/model"
 )
 
-// ErrInvalidInternalWarehouse — код или имя склада не годятся: код — латиница в верхнем
-// регистре, цифры и «_» до 20 знаков, имя — непустое, до 100 символов.
+// ErrInvalidInternalWarehouse - код или имя склада не годятся: код - латиница в верхнем
+// регистре, цифры и «_» до 20 знаков, имя - непустое, до 100 символов.
 var ErrInvalidInternalWarehouse = errors.New("invalid internal warehouse code or name")
 
-// internalWarehouseCode — код склада для отчётов и импорта: коротко и без пробелов.
+// internalWarehouseCode - код склада для отчётов и импорта: коротко и без пробелов.
 var internalWarehouseCode = regexp.MustCompile(`^[A-Z0-9_]{1,20}$`)
 
-// internalWarehouseNameMax — предел имени в символах.
+// internalWarehouseNameMax - предел имени в символах.
 const internalWarehouseNameMax = 100
 
-// internalWarehouseRepo — зависимость сервиса внутренних складов.
+// internalWarehouseRepo - зависимость сервиса внутренних складов.
 type internalWarehouseRepo interface {
 	All(ctx context.Context) ([]model.InternalWarehouse, error)
 	Create(ctx context.Context, code, name string) (model.InternalWarehouse, error)
@@ -28,7 +28,7 @@ type internalWarehouseRepo interface {
 	Delete(ctx context.Context, id string) error
 }
 
-// InternalWarehouseService — справочник внутренних складов (P6-07-1, ADHOC-29): ТСД читает
+// InternalWarehouseService - справочник внутренних складов (P6-07-1, ADHOC-29): ТСД читает
 // его, чтобы пометить товар браком и подписать помеченное; портал заводит, переименовывает,
 // скрывает и удаляет склады, кроме склада по умолчанию.
 type InternalWarehouseService struct {
@@ -40,12 +40,12 @@ func NewInternalWarehouseService(repo internalWarehouseRepo) *InternalWarehouseS
 	return &InternalWarehouseService{repo: repo}
 }
 
-// List — все склады, и скрытые: склад по умолчанию первым.
+// List - все склады, и скрытые: склад по умолчанию первым.
 func (s *InternalWarehouseService) List(ctx context.Context) ([]model.InternalWarehouse, error) {
 	return s.repo.All(ctx)
 }
 
-// Create заводит склад. Код приводится к верхнему регистру: «defect» и «DEFECT» — один код.
+// Create заводит склад. Код приводится к верхнему регистру: «defect» и «DEFECT» - один код.
 func (s *InternalWarehouseService) Create(ctx context.Context, code, name string) (model.InternalWarehouse, error) {
 	code = strings.ToUpper(strings.TrimSpace(code))
 	name = strings.TrimSpace(name)
@@ -56,7 +56,7 @@ func (s *InternalWarehouseService) Create(ctx context.Context, code, name string
 }
 
 // Update переименовывает склад, скрывает его или возвращает в выбор, разрешает или запрещает
-// сборку из него. nil — не меняется.
+// сборку из него. nil - не меняется.
 func (s *InternalWarehouseService) Update(ctx context.Context, id string, name *string, active, allowPicking *bool) (model.InternalWarehouse, error) {
 	if !isUUID(id) {
 		return model.InternalWarehouse{}, ErrInvalidInternalWarehouse

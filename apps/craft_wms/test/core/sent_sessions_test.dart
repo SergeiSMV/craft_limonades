@@ -20,7 +20,7 @@ class _MockTasks extends Mock implements TasksRepository {}
 
 class _FixedIds extends Mock implements LoadUnitIdGenerator {}
 
-/// Слепки отправленных сеансов и «Исправить» (ADHOC-41, долг 26) — на настоящей локальной базе.
+/// Слепки отправленных сеансов и «Исправить» (ADHOC-41, долг 26) - на настоящей локальной базе.
 void main() {
   late AppDatabase db;
   late OutboxRepository outbox;
@@ -57,7 +57,7 @@ void main() {
   }
 
   test(
-    '«Исправить»: сеанс — черновик с новым документом и причиной, операции нет',
+    '«Исправить»: сеанс - черновик с новым документом и причиной, операции нет',
     () async {
       final id = await rejected();
 
@@ -81,7 +81,7 @@ void main() {
   );
 
   test(
-    'идёт другой сеанс — его черновик не затираем, операция остаётся',
+    'идёт другой сеанс - его черновик не затираем, операция остаётся',
     () async {
       final id = await rejected();
       await drafts.save({'movement_id': 'current', 'lines': <Object>[]});
@@ -95,7 +95,7 @@ void main() {
   );
 
   test(
-    'слепка нет (операция старой сборки) — восстанавливать нечего',
+    'слепка нет (операция старой сборки) - восстанавливать нечего',
     () async {
       final id = await rejected(withSession: false);
       expect(await movement.reopenRejected(id), ReopenOutcome.lost);
@@ -122,7 +122,7 @@ void main() {
   });
 
   test(
-    'размещение: сеанс возвращается в своё задание, номер задания — для подсказки',
+    'размещение: сеанс возвращается в своё задание, номер задания - для подсказки',
     () async {
       final putawayDrafts = PutawayDraftStore(db);
       final ids = _FixedIds();

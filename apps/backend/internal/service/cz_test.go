@@ -62,7 +62,7 @@ func TestCZServiceStatus(t *testing.T) {
 func TestCZServiceCisesInfoNormalizesCodes(t *testing.T) {
 	f := &fakeCZClient{}
 	s := NewCZService(f, nil)
-	// Марка со сканера — с GS и криптохвостом; пустые строки и пробелы — мусор ввода.
+	// Марка со сканера - с GS и криптохвостом; пустые строки и пробелы - мусор ввода.
 	in := []string{" 0104600000000017215abc\x1d93dGVz ", "", "   ", "00146000000000000017"}
 	got, err := s.CisesInfo(context.Background(), in)
 	if err != nil {

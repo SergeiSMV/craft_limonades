@@ -18,7 +18,7 @@ import 'cell_search_field.dart';
 import 'committed_cell_tile.dart';
 
 /// Выбор ячейки: поле скана/ввода адреса с инлайн-автокомплитом (локальная фильтрация по загруженному
-/// справочнику ячеек) + список пройденных ячеек (тап — редактировать) + кнопка «Завершить ввод».
+/// справочнику ячеек) + список пройденных ячеек (тап - редактировать) + кнопка «Завершить ввод».
 /// Все данные локальны до финала (вариант A).
 class CellSelectView extends StatefulWidget {
   const CellSelectView({super.key, required this.committed});
@@ -48,7 +48,7 @@ class _CellSelectViewState extends State<CellSelectView>
 
   StockEntryCubit get _cubit => context.read<StockEntryCubit>();
 
-  /// Загрузить все ячейки склада разом (пилот — один склад). При ошибке справочник останется пустым,
+  /// Загрузить все ячейки склада разом (пилот - один склад). При ошибке справочник останется пустым,
   /// а резолв адреса упадёт на серверный фоллбэк в [_submitAddress].
   Future<void> _loadCells() async {
     final res = await _repo.listAllCells();
@@ -60,7 +60,7 @@ class _CellSelectViewState extends State<CellSelectView>
     if (res.isLeft) _snack(t.stockEntry.cellsLoadFailed);
   }
 
-  /// Точное совпадение адреса (регистронезависимо) среди списка; null — не нашли.
+  /// Точное совпадение адреса (регистронезависимо) среди списка; null - не нашли.
   Cell? _matchExact(Iterable<Cell> cells, String address) {
     final a = address.toLowerCase();
     for (final c in cells) {
@@ -69,15 +69,15 @@ class _CellSelectViewState extends State<CellSelectView>
     return null;
   }
 
-  /// Код с аппаратного сканера (intent-режим) — тот же путь, что у ввода в поле.
+  /// Код с аппаратного сканера (intent-режим) - тот же путь, что у ввода в поле.
   @override
   void onHardwareScan(ScanCode code) => _submitAddress(code.raw);
 
-  /// Резолв ячейки по введённому/сканированному адресу (точное совпадение). Основной путь — локально
-  /// по загруженному справочнику; если он пуст (загрузка не удалась/не завершилась) — серверный фоллбэк,
+  /// Резолв ячейки по введённому/сканированному адресу (точное совпадение). Основной путь - локально
+  /// по загруженному справочнику; если он пуст (загрузка не удалась/не завершилась) - серверный фоллбэк,
   /// чтобы скан работал даже без справочника.
   ///
-  /// Классификация подключается только после неудачного резолва: справочник — источник истины, и
+  /// Классификация подключается только после неудачного резолва: справочник - источник истины, и
   /// реальный адрес ячейки должен сработать, даже если его форма ни на что не похожа. Зато когда
   /// ячейка не нашлась, а код опознан как штрихкод товара, сообщение говорит суть, а не «не найдена».
   ///
@@ -204,7 +204,7 @@ class _CellSelectViewState extends State<CellSelectView>
             onSubmit: _submitAddress,
           ),
 
-          /// Заголовок секции пройденных ячеек — только если хоть одна уже закрыта.
+          /// Заголовок секции пройденных ячеек - только если хоть одна уже закрыта.
           if (committed.isNotEmpty) ...[
             AppBoxes.kHeight16,
             Text(
@@ -221,7 +221,7 @@ class _CellSelectViewState extends State<CellSelectView>
             child: ListView.builder(
               padding: EdgeInsets.zero,
               itemCount: committed.length,
-              // Свежая пройденная ячейка — сверху.
+              // Свежая пройденная ячейка - сверху.
               itemBuilder: (context, i) {
                 final entry = committed[committed.length - 1 - i];
                 return CommittedCellTile(

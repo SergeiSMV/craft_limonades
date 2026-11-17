@@ -36,7 +36,7 @@ func (fx *stocktakeFixture) submit(stCell string, boxes []string, loose ...model
 	})
 }
 
-// qty — остаток позиции (вместе с коробами — как в stock).
+// qty - остаток позиции (вместе с коробами - как в stock).
 func (fx *stocktakeFixture) qty(t *testing.T, cell, good, batch, iwh string) string {
 	t.Helper()
 	q, err := repository.NewStockRepository(fx.pool).GetQty(context.Background(), model.StockKey{
@@ -58,8 +58,8 @@ func fact(good, date, iwh string, qty int64, marks ...string) model.StocktakeLoo
 		Qty: decimal.NewFromInt(qty), Marks: marks}
 }
 
-// P10-03: подсчёт приводит остаток к факту сразу — недостача, излишек новой партией,
-// не названная позиция «Брака» — ноль; каждая правка — строкой audit_log.
+// P10-03: подсчёт приводит остаток к факту сразу - недостача, излишек новой партией,
+// не названная позиция «Брака» - ноль; каждая правка - строкой audit_log.
 func TestStocktakeCount_shortageAndSurplus(t *testing.T) {
 	fx := setupStocktake(t)
 	fx.put(t, fx.cellB, fx.good, fx.batch, fx.iwh, 5)
@@ -78,7 +78,7 @@ func TestStocktakeCount_shortageAndSurplus(t *testing.T) {
 		&batch3, fx.good)
 	for what, c := range map[string]struct{ got, want string }{
 		"недостача «Основного»": {fx.qty(t, fx.cellB, fx.good, fx.batch, fx.iwh), "3"},
-		"«Брак» не назван — 0":  {fx.qty(t, fx.cellB, fx.good, fx.batch, fx.iwhDefect), "0"},
+		"«Брак» не назван - 0":  {fx.qty(t, fx.cellB, fx.good, fx.batch, fx.iwhDefect), "0"},
 		"излишек новой партией": {fx.qty(t, fx.cellB, fx.good, batch3, fx.iwh), "4"},
 		"ячейка подсчитана":     {fx.cellStatus(t, cells["B"]), "counted"},
 	} {
@@ -109,14 +109,14 @@ func TestStocktakeCount_shortageAndSurplus(t *testing.T) {
 		t.Errorf("строки пересчёта: %v (%+v)", got, lines)
 	}
 
-	// Повтор операции эффекта не повторяет, второй подсчёт той же ячейки — отказ.
+	// Повтор операции эффекта не повторяет, второй подсчёт той же ячейки - отказ.
 	if _, err := fx.submit(cells["B"], nil); !errors.Is(err, model.ErrStocktakeCellCounted) {
 		t.Errorf("второй подсчёт: ожидался ErrStocktakeCellCounted, получено %v", err)
 	}
 }
 
-// P10-03: короб из снимка не найден — проблема «не найдено», короб на складе «Не найдено»;
-// учётный короб из другой ячейки переносится сюда журналом размещений; неизвестный — отказ.
+// P10-03: короб из снимка не найден - проблема «не найдено», короб на складе «Не найдено»;
+// учётный короб из другой ячейки переносится сюда журналом размещений; неизвестный - отказ.
 // «Нашлось» офиса возвращает короб в «Основной».
 func TestStocktakeCount_boxes(t *testing.T) {
 	fx := setupStocktake(t)
@@ -129,7 +129,7 @@ func TestStocktakeCount_boxes(t *testing.T) {
 		t.Fatalf("неизвестный короб: ожидался ErrStocktakeUnknownBox, получено %v", err)
 	}
 	if s := fx.cellStatus(t, cells["B"]); s != "counting" {
-		t.Errorf("отказ оставил ячейку %s — ожидалось counting", s)
+		t.Errorf("отказ оставил ячейку %s - ожидалось counting", s)
 	}
 
 	applied, err := fx.submit(cells["B"], []string{foreign})
@@ -160,12 +160,12 @@ func TestStocktakeCount_boxes(t *testing.T) {
 	}
 	mustScan(t, fx.pool, `SELECT internal_warehouse_id::text FROM load_units WHERE id = $1::uuid`, &lostIwh, lost)
 	if lostIwh != fx.iwh {
-		t.Errorf("после «нашлось» короб на складе %s — ожидался «Основной»", lostIwh)
+		t.Errorf("после «нашлось» короб на складе %s - ожидался «Основной»", lostIwh)
 	}
 }
 
-// P10-03: маркируемый товар — марками. Не найденная марка — проблема «не найдено» с этой
-// маркой; марка из другой ячейки переносится сюда с единицей остатка; марки нет на складе —
+// P10-03: маркируемый товар - марками. Не найденная марка - проблема «не найдено» с этой
+// маркой; марка из другой ячейки переносится сюда с единицей остатка; марки нет на складе -
 // отказ.
 func TestStocktakeCount_marks(t *testing.T) {
 	fx := setupStocktake(t)
@@ -262,7 +262,7 @@ func TestStocktakeCount_rejects(t *testing.T) {
 }
 
 // P10-03: ячейку держит один работник; зависшую взятую берёт другой; отказ отбрасывает подсчёт;
-// закрыть с неподсчитанными ячейками — только с подтверждением, задание уходит в выполненные.
+// закрыть с неподсчитанными ячейками - только с подтверждением, задание уходит в выполненные.
 func TestStocktake_takeReleaseClose(t *testing.T) {
 	fx := setupStocktake(t)
 	ctx := context.Background()
@@ -279,7 +279,7 @@ func TestStocktake_takeReleaseClose(t *testing.T) {
 	free, err := fx.repo.Cells(ctx, st.ID, other, service8h)
 	mustNoErr(t, err)
 	if len(free) != 1 || free[0].Address != "D" {
-		t.Errorf("другому видны %+v — ожидалась только D", free)
+		t.Errorf("другому видны %+v - ожидалась только D", free)
 	}
 	if _, err := fx.pool.Exec(ctx, `UPDATE stocktake_cells SET taken_at = now() - interval '9 hours'
 		WHERE id = $1::uuid`, cells["B"]); err != nil {
@@ -318,12 +318,12 @@ func TestStocktake_takeReleaseClose(t *testing.T) {
 	}
 }
 
-// service8h — срок зависания взятой ячейки, как в сервисе.
+// service8h - срок зависания взятой ячейки, как в сервисе.
 const service8h = 8 * time.Hour
 
-// P10-05: закрытие публикует «Инвентаризацию» — по ячейке, товару, партии, складу: россыпь и
-// состав коробов вместе (короб не найден — недостача его состава с пометкой), неподсчитанная
-// ячейка — строкой «не считалась».
+// P10-05: закрытие публикует «Инвентаризацию» - по ячейке, товару, партии, складу: россыпь и
+// состав коробов вместе (короб не найден - недостача его состава с пометкой), неподсчитанная
+// ячейка - строкой «не считалась».
 func TestStocktake_closePublishesInventory(t *testing.T) {
 	fx := setupStocktake(t)
 	ctx := context.Background()
@@ -348,8 +348,8 @@ func TestStocktake_closePublishesInventory(t *testing.T) {
 	}
 	b, d := rows[0], rows[1]
 	if b.CellAddress != "B" || b.Expected != "17" || b.Fact != "3" || b.Diff != "-14" ||
-		b.Note != "не найдено — проблема склада" || b.InternalWarehouse == "" {
-		t.Errorf("строка B: %+v — ожидалось 17 (5 россыпью + 12 в коробе), факт 3", b)
+		b.Note != "не найдено - проблема склада" || b.InternalWarehouse == "" {
+		t.Errorf("строка B: %+v - ожидалось 17 (5 россыпью + 12 в коробе), факт 3", b)
 	}
 	if d.CellAddress != "D" || d.Note != "не считалась" || d.Expected != "" {
 		t.Errorf("строка D: %+v", d)

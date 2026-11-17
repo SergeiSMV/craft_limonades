@@ -9,7 +9,7 @@ import '../../../../core/theme/regular_text.dart';
 /// Что сделать с насчитанным.
 enum LineMenuAction { edit, remove }
 
-/// Меню насчитанного — тот же лист, что у строки «Ввода остатков»: исправить и убрать.
+/// Меню насчитанного - тот же лист, что у строки «Ввода остатков»: исправить и убрать.
 Future<LineMenuAction?> showLineMenuSheet(
   BuildContext context, {
   required bool canEdit,

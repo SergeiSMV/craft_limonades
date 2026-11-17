@@ -7,7 +7,7 @@ import (
 )
 
 // ADHOC-29: справочник внутренних складов через настоящий роутер. Читает любой сотрудник
-// (и скрытые — ТСД подписывает их остаток), ведёт только admin.
+// (и скрытые - ТСД подписывает их остаток), ведёт только admin.
 func TestInternalWarehousesHTTP_adminManages(t *testing.T) {
 	e := newReceivingE2E(t, nil)
 
@@ -40,7 +40,7 @@ func TestInternalWarehousesHTTP_adminManages(t *testing.T) {
 		t.Errorf("скрыть: %d %s", code, body)
 	}
 
-	// Скрытый остаётся в справочнике для ТСД — с признаком.
+	// Скрытый остаётся в справочнике для ТСД - с признаком.
 	code, body = e.call(t, http.MethodGet, "/api/v1/internal-warehouses", e.workerToken, "")
 	var list []struct {
 		ID        string `json:"id"`

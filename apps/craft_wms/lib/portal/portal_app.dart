@@ -35,14 +35,14 @@ class PortalApp extends StatelessWidget {
         localizationsDelegates: GlobalMaterialLocalizations.delegates,
         home: BlocBuilder<AuthCubit, AuthState>(
           builder: (context, state) => switch (state) {
-            // Портал — по праву «вход в портал» и хотя бы одному разделу (ADHOC-49).
+            // Портал - по праву «вход в портал» и хотя бы одному разделу (ADHOC-49).
             AuthAuthenticated(:final profile) =>
               PortalShell.hasSections(profile)
                   ? PortalShell(profile: profile)
                   : const _AdminOnlyView(),
-            // unknown — тихое восстановление сессии при старте (не мигаем формой входа).
+            // unknown - тихое восстановление сессии при старте (не мигаем формой входа).
             AuthUnknown() => const _LoadingView(),
-            // unauthenticated / authenticating — форма входа сама показывает спиннер на кнопке.
+            // unauthenticated / authenticating - форма входа сама показывает спиннер на кнопке.
             _ => const PortalLoginPage(),
           },
         ),
@@ -65,7 +65,7 @@ class _LoadingView extends StatefulWidget {
 
 class _LoadingViewState extends State<_LoadingView>
     with SingleTickerProviderStateMixin {
-  /// Два оборот за секунду — достаточно заметно, без «дёрганья».
+  /// Два оборот за секунду - достаточно заметно, без «дёрганья».
   static const _spinDuration = Duration(seconds: 2);
 
   /// Контроллер анимации вращения.
@@ -116,7 +116,7 @@ class _LoadingViewState extends State<_LoadingView>
 class _AdminOnlyView extends StatelessWidget {
   const _AdminOnlyView();
 
-  /// Выход — вернёт форму входа.
+  /// Выход - вернёт форму входа.
   void _logout(BuildContext context) => context.read<AuthCubit>().logout();
 
   @override

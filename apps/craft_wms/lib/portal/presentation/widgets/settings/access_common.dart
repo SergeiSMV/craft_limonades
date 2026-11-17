@@ -8,7 +8,7 @@ import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../ui/portal_card.dart';
 
-/// Общее разделов настроек (ADHOC-50, плоский стиль — ADHOC-56).
+/// Общее разделов настроек (ADHOC-50, плоский стиль - ADHOC-56).
 
 /// Текст ошибки: отказ по существу сервер объясняет сам.
 String accessErrorText(Failure f) => switch (f) {
@@ -20,8 +20,8 @@ String accessErrorText(Failure f) => switch (f) {
   _ => t.portal.login.errorUnknown,
 };
 
-/// Карточка со списком раздела: строки через разделитель, пока список грузится — индикатор,
-/// отказ сервера — последней строкой. Индикатор — только до первой загрузки: при перечитывании
+/// Карточка со списком раздела: строки через разделитель, пока список грузится - индикатор,
+/// отказ сервера - последней строкой. Индикатор - только до первой загрузки: при перечитывании
 /// после правки список остаётся на месте.
 class SettingsListCard extends StatelessWidget {
   const SettingsListCard({
@@ -56,7 +56,7 @@ class SettingsListCard extends StatelessWidget {
   );
 }
 
-/// Текст ошибки — под списком раздела или в диалоге.
+/// Текст ошибки - под списком раздела или в диалоге.
 class AccessError extends StatelessWidget {
   const AccessError(this.text, {super.key});
 

@@ -9,7 +9,7 @@ import '../../../../core/theme/semibold_text.dart';
 import '../../../../core/widgets/neumorphic_action_button.dart';
 import '../bloc/supplier_return_cubit.dart';
 
-/// Итог отгрузки: проведена, ушла в очередь, отклонена. Одна кнопка — вернуться к заданию.
+/// Итог отгрузки: проведена, ушла в очередь, отклонена. Одна кнопка - вернуться к заданию.
 class ReturnOutcomeView extends StatelessWidget {
   const ReturnOutcomeView({
     super.key,

@@ -1,4 +1,4 @@
-// Package middleware — общие HTTP-middleware сервиса (логирование, в будущем auth и rate limiting).
+// Package middleware - общие HTTP-middleware сервиса (логирование, в будущем auth и rate limiting).
 package middleware
 
 import (
@@ -9,7 +9,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 )
 
-// RequestLogger — middleware структурированного логирования HTTP-запросов.
+// RequestLogger - middleware структурированного логирования HTTP-запросов.
 //
 // Что: пишет по одной записи на каждый обработанный запрос.
 // Зачем: базовая наблюдаемость и отладка; фундамент будущего журнала операций.

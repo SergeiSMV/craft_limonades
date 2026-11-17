@@ -8,9 +8,9 @@ import '../../../../core/theme/semibold_text.dart';
 
 /// Раздел с подписью (ADHOC-56, шаблон настроек Shopify Polaris).
 ///
-/// Что: слева — заголовок, пояснение и действие раздела («Добавить»), справа — карточка.
+/// Что: слева - заголовок, пояснение и действие раздела («Добавить»), справа - карточка.
 /// Как: раскладка зависит от ширины, которая досталась разделу, а не от экрана: от
-///      [AppSizes.kAnnotatedWidth] — две колонки 2 : 5, уже — подпись над карточкой. Поэтому
+///      [AppSizes.kAnnotatedWidth] - две колонки 2 : 5, уже - подпись над карточкой. Поэтому
 ///      раздел ведёт себя одинаково в широком окне, в узком и на телефоне.
 class PortalAnnotatedSection extends StatelessWidget {
   const PortalAnnotatedSection({
@@ -24,7 +24,7 @@ class PortalAnnotatedSection extends StatelessWidget {
   final String title;
   final String description;
 
-  /// Действие раздела под пояснением; `null` — без действия.
+  /// Действие раздела под пояснением; `null` - без действия.
   final Widget? action;
   final Widget child;
 

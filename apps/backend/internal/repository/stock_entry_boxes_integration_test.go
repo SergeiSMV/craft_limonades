@@ -13,11 +13,11 @@ import (
 	"craftwms/internal/repository"
 )
 
-// Тесты ADHOC-46: короба с QR, короба ЧЗ и марки во «Вводе остатков». Критерий — после финала
-// короба лежат в своих ячейках, марки — в коробах или россыпью, остаток грани сходится с
+// Тесты ADHOC-46: короба с QR, короба ЧЗ и марки во «Вводе остатков». Критерий - после финала
+// короба лежат в своих ячейках, марки - в коробах или россыпью, остаток грани сходится с
 // россыпью и составом коробов; отказ строки не меняет ничего.
 
-// entryFixture — фикстура прохода: склад перемещения (A, B, C, ячейка приёмки R) и сессия.
+// entryFixture - фикстура прохода: склад перемещения (A, B, C, ячейка приёмки R) и сессия.
 type entryFixture struct {
 	*moveFixture
 	repo    *repository.StockEntryRepository
@@ -29,7 +29,7 @@ func setupEntry(t *testing.T) *entryFixture {
 	ef := &entryFixture{moveFixture: setupMove(t)}
 	ef.repo = repository.NewStockEntryRepository(ef.pool)
 	ef.session = ef.newSession(t)
-	// GTIN марок фикстуры (`04600000000017`) — ШК товара: проводка сверяет марку с товаром строки.
+	// GTIN марок фикстуры (`04600000000017`) - ШК товара: проводка сверяет марку с товаром строки.
 	if _, err := ef.pool.Exec(context.Background(),
 		`INSERT INTO barcodes (good_id, barcode) VALUES ($1::uuid, '4600000000017')`, ef.good); err != nil {
 		t.Fatalf("ШК товара: %v", err)
@@ -44,7 +44,7 @@ func (ef *entryFixture) newSession(t *testing.T) string {
 	return id
 }
 
-// line — строка товара фикстуры партии 2026-01-01; марки — её единицы.
+// line - строка товара фикстуры партии 2026-01-01; марки - её единицы.
 func entryLine(good string, qty int64, lu string, marks ...string) repository.StockEntryLineInput {
 	ln := repository.StockEntryLineInput{
 		GoodID: good, ProductionDate: "2026-01-01", Qty: decimal.NewFromInt(qty), LoadUnitID: lu,
@@ -67,7 +67,7 @@ func (ef *entryFixture) count(t *testing.T, sql string, args ...any) string {
 	return n
 }
 
-// Свой короб и россыпь в ячейке, где уже лежит короб: остаток грани — россыпь + новый короб +
+// Свой короб и россыпь в ячейке, где уже лежит короб: остаток грани - россыпь + новый короб +
 // состав лежавшего; новый короб размещён с источником «ввод остатков».
 func TestStockEntry_boxAndLoose(t *testing.T) {
 	ef := setupEntry(t)
@@ -86,7 +86,7 @@ func TestStockEntry_boxAndLoose(t *testing.T) {
 		t.Fatalf("финал: %v", err)
 	}
 	if written != 1 {
-		t.Fatalf("граней: %d, ждали 1 (россыпь и короб — одна грань)", written)
+		t.Fatalf("граней: %d, ждали 1 (россыпь и короб - одна грань)", written)
 	}
 	if got := ef.qtyOf(t, ef.cellB, ef.batch); got != "19" {
 		t.Fatalf("остаток B: %s, ждали 3 + 4 + 12 = 19", got)
@@ -104,7 +104,7 @@ func TestStockEntry_boxAndLoose(t *testing.T) {
 	if got := ef.count(t, `SELECT qty::int::text FROM lu_content WHERE load_unit_id = $1::uuid`, boxB); got != "12" {
 		t.Fatalf("состав лежавшего короба: %s", got)
 	}
-	// Документ — одна строка грани.
+	// Документ - одна строка грани.
 	if got := ef.count(t, `
 		SELECT jsonb_array_length(snapshot->'rows')::text FROM report_documents WHERE source_id = $1::uuid`,
 		ef.session); got != "1" {
@@ -113,7 +113,7 @@ func TestStockEntry_boxAndLoose(t *testing.T) {
 }
 
 // Короб ЧЗ с упаковкой и марки россыпью, одна с расхождением: марки на местах, агрегаты
-// заведены, товар маркируемый, марка с расхождением — проблемой в «Изоляторе».
+// заведены, товар маркируемый, марка с расхождением - проблемой в «Изоляторе».
 func TestStockEntry_czBoxAndMarks(t *testing.T) {
 	ef := setupEntry(t)
 	box := uuid.NewString()
@@ -152,7 +152,7 @@ func TestStockEntry_czBoxAndMarks(t *testing.T) {
 	if got := ef.count(t, `SELECT cz_marked::text FROM goods WHERE id = $1::uuid`, ef.good); got != "true" {
 		t.Fatal("товар не стал маркируемым")
 	}
-	// Остаток C на «Основном»: 3 в коробе + 1 россыпью; одна марка — в «Изоляторе».
+	// Остаток C на «Основном»: 3 в коробе + 1 россыпью; одна марка - в «Изоляторе».
 	if got := ef.qtyOf(t, ef.cellC, ef.batch); got != "4" {
 		t.Fatalf("остаток C: %s, ждали 4", got)
 	}
@@ -205,7 +205,7 @@ func TestStockEntry_rejections(t *testing.T) {
 	}
 }
 
-// Повтор того же короба и марки в другой ячейке прохода — отказ; повторный checkpoint ячейки
+// Повтор того же короба и марки в другой ячейке прохода - отказ; повторный checkpoint ячейки
 // заменяет её: убранный короб на финале не появляется.
 func TestStockEntry_cellReplacedAndDuplicates(t *testing.T) {
 	ef := setupEntry(t)
@@ -223,7 +223,7 @@ func TestStockEntry_cellReplacedAndDuplicates(t *testing.T) {
 		t.Fatalf("короб в двух ячейках: %v", err)
 	}
 
-	// Та же ячейка ещё раз — уже без короба.
+	// Та же ячейка ещё раз - уже без короба.
 	mustNoErr(t, ef.checkpoint(t, repository.StockEntryCellInput{
 		CellID: ef.cellB,
 		Lines:  []repository.StockEntryLineInput{entryLine(ef.good, 2, "")},
@@ -239,7 +239,7 @@ func TestStockEntry_cellReplacedAndDuplicates(t *testing.T) {
 	}
 }
 
-// Короб или марку, введённые проходом, между checkpoint и финалом завела приёмка — финал
+// Короб или марку, введённые проходом, между checkpoint и финалом завела приёмка - финал
 // отказывает и ничего не проводит.
 func TestStockEntry_finalizeRechecks(t *testing.T) {
 	ef := setupEntry(t)
@@ -273,7 +273,7 @@ func TestLineRejection_czBoxLabel(t *testing.T) {
 	}
 }
 
-// setupCZMoveOn — марки фикстуры CZ-06 поверх фикстуры прохода (тот же склад и товар).
+// setupCZMoveOn - марки фикстуры CZ-06 поверх фикстуры прохода (тот же склад и товар).
 func setupCZMoveOn(t *testing.T, ef *entryFixture) *czMoveFixture {
 	t.Helper()
 	cf := &czMoveFixture{moveFixture: ef.moveFixture}

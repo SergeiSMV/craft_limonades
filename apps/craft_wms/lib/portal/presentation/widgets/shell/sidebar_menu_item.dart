@@ -8,7 +8,7 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/theme/semibold_text.dart';
 
-/// Заголовок секции меню — мелкий приглушённый текст над пунктами.
+/// Заголовок секции меню - мелкий приглушённый текст над пунктами.
 class SidebarSectionTitle extends StatelessWidget {
   const SidebarSectionTitle(this.title, {super.key});
 
@@ -29,7 +29,7 @@ class SidebarSectionTitle extends StatelessWidget {
 }
 
 /// Пункт меню (ADHOC-56, навигация Shopify Polaris): иконка и подпись, высота 36.
-/// Выбранный — белая плашка и полужирная подпись, остальные подсвечиваются при наведении.
+/// Выбранный - белая плашка и полужирная подпись, остальные подсвечиваются при наведении.
 class SidebarMenuItem extends StatelessWidget {
   const SidebarMenuItem({
     super.key,

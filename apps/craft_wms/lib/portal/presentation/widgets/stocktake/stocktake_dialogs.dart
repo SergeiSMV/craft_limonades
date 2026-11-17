@@ -19,8 +19,8 @@ import '../ui/portal_button.dart';
 import '../ui/portal_modal.dart';
 import 'stocktake_labels.dart';
 
-/// Подтверждение закрытия пересчёта (P10-05, плоский стиль — ADHOC-56): неподсчитанные
-/// ячейки называются числом. `true` — закрыть; «Отмена» и крестик — отказ.
+/// Подтверждение закрытия пересчёта (P10-05, плоский стиль - ADHOC-56): неподсчитанные
+/// ячейки называются числом. `true` - закрыть; «Отмена» и крестик - отказ.
 Future<bool> showStocktakeCloseDialog(
   BuildContext context,
   PortalStocktake s,
@@ -53,7 +53,7 @@ Future<bool> showStocktakeCloseDialog(
   return ok ?? false;
 }
 
-/// Ход пересчёта (P10-05, плоский стиль — ADHOC-56): ячейки — адрес, статус, кто держит.
+/// Ход пересчёта (P10-05, плоский стиль - ADHOC-56): ячейки - адрес, статус, кто держит.
 /// Длинный список прокручивается в окне, шапка и подвал окна остаются на месте.
 Future<void> showStocktakeProgressDialog(
   BuildContext context,

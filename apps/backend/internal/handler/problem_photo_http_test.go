@@ -17,7 +17,7 @@ import (
 // Фото к проблеме склада (ADHOC-45): загрузка с ТСД, повтор из очереди, предел в три снимка,
 // закрытие после решения офиса, отдача снимка и перечень фото в списках проблем.
 
-// jpegBytes — «снимок» JPEG: сервер узнаёт тип по сигнатуре в начале, остальное — содержимое.
+// jpegBytes - «снимок» JPEG: сервер узнаёт тип по сигнатуре в начале, остальное - содержимое.
 func jpegBytes(fill string) []byte {
 	return append([]byte{0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 'J', 'F', 'I', 'F', 0x00}, []byte(fill)...)
 }
@@ -41,7 +41,7 @@ func (e *rcvEnv) putPhoto(t *testing.T, problemID, photoID string, body []byte) 
 	return resp.StatusCode, string(raw)
 }
 
-// foreignMarkProblem — открытая проблема «чужая марка», заведённая приёмкой (CZ-05).
+// foreignMarkProblem - открытая проблема «чужая марка», заведённая приёмкой (CZ-05).
 func foreignMarkProblem(t *testing.T, e *rcvEnv) string {
 	t.Helper()
 	good := seedCZGood(t, e, "")
@@ -64,7 +64,7 @@ func TestProblemPhotoHTTP_uploadLimitAndClose(t *testing.T) {
 	if code, body := e.putPhoto(t, problem, first, jpegBytes("один")); code != http.StatusNoContent {
 		t.Fatalf("первое фото: %d %s", code, body)
 	}
-	// Повтор из очереди ТСД (ответ потерялся) — успех без второй записи.
+	// Повтор из очереди ТСД (ответ потерялся) - успех без второй записи.
 	if code, body := e.putPhoto(t, problem, first, jpegBytes("один")); code != http.StatusNoContent {
 		t.Fatalf("повтор: %d %s", code, body)
 	}
@@ -92,7 +92,7 @@ func TestProblemPhotoHTTP_uploadLimitAndClose(t *testing.T) {
 		t.Fatalf("снимок: %d %q %q", resp.StatusCode, resp.Header.Get("Content-Type"), resp.Header.Get("Cache-Control"))
 	}
 
-	// Фото — в списках проблем, первым — первое снятое.
+	// Фото - в списках проблем, первым - первое снятое.
 	code, body := e.call(t, http.MethodGet, "/api/v1/problems/current", e.workerToken, "")
 	var current []struct {
 		Photos []string `json:"photos"`
@@ -102,7 +102,7 @@ func TestProblemPhotoHTTP_uploadLimitAndClose(t *testing.T) {
 		t.Fatalf("фото в «Текущих»: %d %s", code, body)
 	}
 
-	// Решение офиса закрывает проблему для новых фото; повтор уже принятого — по-прежнему успех.
+	// Решение офиса закрывает проблему для новых фото; повтор уже принятого - по-прежнему успех.
 	if code, body := e.call(t, http.MethodPost, "/api/v1/problems/"+problem+"/resolve", e.adminToken,
 		`{"decision":"place"}`); code != http.StatusNoContent {
 		t.Fatalf("решение: %d %s", code, body)
@@ -137,7 +137,7 @@ func TestProblemPhotoHTTP_rejections(t *testing.T) {
 			}
 		})
 	}
-	// Тот же id фото у другой проблемы — конфликт, а не перезапись чужого снимка.
+	// Тот же id фото у другой проблемы - конфликт, а не перезапись чужого снимка.
 	photo := uuid.NewString()
 	if code, _ := e.putPhoto(t, problem, photo, jpegBytes("x")); code != http.StatusNoContent {
 		t.Fatalf("фото: %d", code)
@@ -148,7 +148,7 @@ func TestProblemPhotoHTTP_rejections(t *testing.T) {
 	}
 }
 
-// foreignMarkProblemAgain — вторая проблема той же приёмкой другой марки.
+// foreignMarkProblemAgain - вторая проблема той же приёмкой другой марки.
 func foreignMarkProblemAgain(t *testing.T, e *rcvEnv) string {
 	t.Helper()
 	good := e.scalar(t, `SELECT id::text FROM goods LIMIT 1`)

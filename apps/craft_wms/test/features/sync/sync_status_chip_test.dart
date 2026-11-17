@@ -49,14 +49,14 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets('пустая очередь — тихая галочка без числа', (tester) async {
+  testWidgets('пустая очередь - тихая галочка без числа', (tester) async {
     await pump(tester, pending: 0, rejected: 0);
 
     expect(find.byIcon(Icons.cloud_done_outlined), findsOneWidget);
     expect(
       find.text('0'),
       findsNothing,
-      reason: 'ноль на значке — шум: и так видно, что всё отправлено',
+      reason: 'ноль на значке - шум: и так видно, что всё отправлено',
     );
   });
 
@@ -76,11 +76,11 @@ void main() {
     expect(
       find.text('5'),
       findsOneWidget,
-      reason: 'на значке — вся очередь, а не одна её половина',
+      reason: 'на значке - вся очередь, а не одна её половина',
     );
   });
 
-  // Показать «3 ждут» и не дать ничего с этим сделать — тревога без выхода.
+  // Показать «3 ждут» и не дать ничего с этим сделать - тревога без выхода.
   testWidgets('нажатие ведёт на разбор', (tester) async {
     var tapped = 0;
     await pump(tester, pending: 1, rejected: 0, onTap: () => tapped++);

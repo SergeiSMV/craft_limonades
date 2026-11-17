@@ -21,7 +21,7 @@ class CurrentProblemsState {
 }
 
 /// Cubit вкладки «Текущие» в «Проблемах склада» (ADHOC-35): открытые проблемы всего склада
-/// с сервера и свои неотправленные из очереди. Без связи — только свои, с подсказкой.
+/// с сервера и свои неотправленные из очереди. Без связи - только свои, с подсказкой.
 @injectable
 class CurrentProblemsCubit extends Cubit<CurrentProblemsState> {
   CurrentProblemsCubit(this._repo) : super(const CurrentProblemsState());

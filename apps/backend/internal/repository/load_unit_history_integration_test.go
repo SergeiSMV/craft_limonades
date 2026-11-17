@@ -11,8 +11,8 @@ import (
 	"craftwms/internal/repository"
 )
 
-// ADHOC-32: история короба видит не только переносы, но и состав — что вынули, что доложили,
-// что ушло при пометке части короба и что списано. Фикстуры — movement/problem тестов.
+// ADHOC-32: история короба видит не только переносы, но и состав - что вынули, что доложили,
+// что ушло при пометке части короба и что списано. Фикстуры - movement/problem тестов.
 func TestLoadUnitHistory_contentEvents(t *testing.T) {
 	mf := setupMove(t)
 	defect := mf.iwhByCode(t, "DEFECT")

@@ -11,7 +11,7 @@ class MainActivity : FlutterActivity() {
      *
      * Оба моста берут `applicationContext`, а не активити: их BroadcastReceiver'ы живут по подписке
      * из Dart, и привязка к активити давала бы утечку при пересоздании экрана. Разрешения мосты
-     * поэтому не запрашивают — диалог требует активити, и этим занимается Dart.
+     * поэтому не запрашивают - диалог требует активити, и этим занимается Dart.
      */
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)

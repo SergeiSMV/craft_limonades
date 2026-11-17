@@ -4,9 +4,9 @@ import '../../../core/error/failure.dart';
 import 'stocktake_models.dart';
 
 /// Пересчёт на ТСД (P10-04): ячейки, взятие, начало подсчёта, отправка факта, черновики, а
-/// старшему смены — заведение и закрытие.
+/// старшему смены - заведение и закрытие.
 ///
-/// Взять ячейку, отказаться и начать подсчёт — только со связью: кто держит ячейку и что в ней
+/// Взять ячейку, отказаться и начать подсчёт - только со связью: кто держит ячейку и что в ней
 /// ожидалось, знает сервер. Факт ячейки уходит операцией очереди и работает без связи.
 abstract interface class StocktakeRepository {
   /// Пересчёт с ходом выполнения.
@@ -25,21 +25,21 @@ abstract interface class StocktakeRepository {
   Future<Either<Failure, StocktakeCellView>> start(String cellId);
 
   /// Поставить факт ячейки в очередь операцией `stocktake_cell_submit` и попробовать
-  /// отправить. `Right` — сервер провёл; `Left(RejectedFailure)` — отказ по существу; любой
-  /// другой `Left` — связи нет, факт в очереди и уйдёт сам. Черновик снимается в любом случае:
+  /// отправить. `Right` - сервер провёл; `Left(RejectedFailure)` - отказ по существу; любой
+  /// другой `Left` - связи нет, факт в очереди и уйдёт сам. Черновик снимается в любом случае:
   /// работа либо на сервере, либо в очереди, либо ячейку считают заново.
   Future<Either<Failure, void>> submit(
     String cellId,
     Map<String, dynamic> payload,
   );
 
-  /// Черновик подсчёта ячейки; `null` — нет.
+  /// Черновик подсчёта ячейки; `null` - нет.
   Future<Map<String, dynamic>?> loadDraft(String cellId);
 
   /// Сохранить черновик подсчёта ячейки (перезаписывает предыдущий).
   Future<void> saveDraft(String cellId, Map<String, dynamic> draft);
 
-  /// Черновики подсчёта ячеек пересчёта [stocktakeId] — продолжить без связи.
+  /// Черновики подсчёта ячеек пересчёта [stocktakeId] - продолжить без связи.
   Future<List<Map<String, dynamic>>> drafts(String stocktakeId);
 
   /// Завести пересчёт по области (старший смены).
@@ -49,6 +49,6 @@ abstract interface class StocktakeRepository {
     List<String> objectIds,
   });
 
-  /// Закрыть пересчёт; [force] — с неподсчитанными ячейками.
+  /// Закрыть пересчёт; [force] - с неподсчитанными ячейками.
   Future<Either<Failure, void>> close(String id, {required bool force});
 }

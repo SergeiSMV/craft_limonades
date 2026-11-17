@@ -27,7 +27,7 @@ void main() {
   setUp(() {
     dio = Dio(BaseOptions(baseUrl: 'https://api.test'));
     storage = _MockTokenStorage();
-    // Профиль сохраняется при каждом успешном /auth/me — он нужен для входа без сети (P2-02).
+    // Профиль сохраняется при каждом успешном /auth/me - он нужен для входа без сети (P2-02).
     when(() => storage.saveProfile(any())).thenAnswer((_) async {});
     when(() => storage.saveLastContact(any())).thenAnswer((_) async {});
   });
@@ -154,7 +154,7 @@ void main() {
       return AuthRepository(dio, storage);
     }
 
-    test('контакт час назад — пускаем', () async {
+    test('контакт час назад - пускаем', () async {
       final repo = repoWithContact(now.subtract(const Duration(hours: 1)));
 
       final profile = await repo.offlineSession(now: now);
@@ -162,13 +162,13 @@ void main() {
       expect(profile?.login, '10000000');
     });
 
-    test('ровно на границе суток — ещё пускаем', () async {
+    test('ровно на границе суток - ещё пускаем', () async {
       final repo = repoWithContact(now.subtract(AuthRepository.offlineLoginWindow));
 
       expect(await repo.offlineSession(now: now), isNotNull);
     });
 
-    test('контакт больше суток назад — не пускаем, хотя refresh жив', () async {
+    test('контакт больше суток назад - не пускаем, хотя refresh жив', () async {
       final repo = repoWithContact(
         now.subtract(const Duration(hours: 24, minutes: 1)),
       );
@@ -176,7 +176,7 @@ void main() {
       expect(await repo.offlineSession(now: now), isNull);
     });
 
-    test('отметки контакта нет — не пускаем', () async {
+    test('отметки контакта нет - не пускаем', () async {
       // Приложение обновлено с версии без отметки: первый вход со связью её заведёт.
       final repo = repoWithContact(null);
 

@@ -102,7 +102,7 @@ class _Option extends StatelessWidget {
   final String hint;
   final bool canEdit;
 
-  /// Галочка применима к выбору; нет — серая и не нажимается.
+  /// Галочка применима к выбору; нет - серая и не нажимается.
   final bool enabled;
 
   /// Нажали на галочку или подпись.

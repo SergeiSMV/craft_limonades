@@ -1,5 +1,5 @@
--- P1-02: партии (batches) и остатки (stock) — ядро учёта.
--- Партия = товар + дата выпуска (крипто-маркировки нет). Остаток — в разрезе
+-- P1-02: партии (batches) и остатки (stock) - ядро учёта.
+-- Партия = товар + дата выпуска (крипто-маркировки нет). Остаток - в разрезе
 -- ячейка × товар × партия → количество. Триггер updated_at переиспользуем из 000001.
 
 -- Партии. Партия принадлежит конкретному товару и определяется датой выпуска.
@@ -18,7 +18,7 @@ CREATE TRIGGER batches_set_updated_at
     BEFORE UPDATE ON batches
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
--- Остатки. Грань — (ячейка, товар, партия) → количество. good_id держим денормализованно
+-- Остатки. Грань - (ячейка, товар, партия) → количество. good_id держим денормализованно
 -- (быстрый запрос «где и сколько товара X» без join к batches); согласованность с товаром
 -- партии гарантирует составной FK ниже. Валидность good_id обеспечивается транзитивно
 -- через batches.good_id → goods, поэтому отдельный FK stock.good_id → goods не нужен.
@@ -36,7 +36,7 @@ CREATE TABLE stock (
     FOREIGN KEY (batch_id, good_id) REFERENCES batches(id, good_id)
 );
 
-CREATE INDEX stock_good_id_idx  ON stock (good_id);   -- «где и сколько товара X» — главный учётный запрос
+CREATE INDEX stock_good_id_idx  ON stock (good_id);   -- «где и сколько товара X» - главный учётный запрос
 CREATE INDEX stock_batch_id_idx ON stock (batch_id);  -- остатки партии + обслуживание составного FK
 
 CREATE TRIGGER stock_set_updated_at

@@ -11,8 +11,8 @@ import (
 	"craftwms/internal/model"
 )
 
-// stocktakeCellSelect — ячейка пересчёта, как её видит $1: зависшая чужая взятая (не начата
-// дольше срока $2) показывается свободной — её снова можно взять.
+// stocktakeCellSelect - ячейка пересчёта, как её видит $1: зависшая чужая взятая (не начата
+// дольше срока $2) показывается свободной - её снова можно взять.
 const stocktakeCellSelect = `
 	SELECT sc.id::text, sc.stocktake_id::text, sc.cell_id::text, c.address,
 	       CASE WHEN sc.status = 'taken' AND sc.taken_by <> $1::uuid
@@ -67,8 +67,8 @@ func (r *StocktakeRepository) Get(ctx context.Context, id, userID string, staleA
 	return st, nil
 }
 
-// Lines — строки пересчёта для портала (окно «Ход»): по ячейкам — что ожидалось по снимку и что
-// посчитано. Подсчитанная ячейка без строк — по учёту там ничего не было и ничего не нашли.
+// Lines - строки пересчёта для портала (окно «Ход»): по ячейкам - что ожидалось по снимку и что
+// посчитано. Подсчитанная ячейка без строк - по учёту там ничего не было и ничего не нашли.
 func (r *StocktakeRepository) Lines(ctx context.Context, id string) ([]model.StocktakeLine, error) {
 	var exists bool
 	if err := r.pool.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM stocktakes WHERE id = $1::uuid)`, id).
@@ -106,7 +106,7 @@ func (r *StocktakeRepository) Lines(ctx context.Context, id string) ([]model.Sto
 }
 
 // Cells возвращает ячейки пересчёта, которые работник может считать: свободные (и зависшие
-// чужие) и свои — взятые, на подсчёте, сбитые. Подсчитанные и чужие в работе не показываются:
+// чужие) и свои - взятые, на подсчёте, сбитые. Подсчитанные и чужие в работе не показываются:
 // к ним не пойдут.
 func (r *StocktakeRepository) Cells(ctx context.Context, stocktakeID, userID string, staleAfter time.Duration) ([]model.StocktakeCell, error) {
 	if err := guardStocktakeExists(ctx, r.pool, stocktakeID); err != nil {
@@ -135,7 +135,7 @@ func guardStocktakeExists(ctx context.Context, q Querier, id string) error {
 	return nil
 }
 
-// lockedStocktakeCell — ячейка пересчёта под блокировкой с состоянием её пересчёта.
+// lockedStocktakeCell - ячейка пересчёта под блокировкой с состоянием её пересчёта.
 type lockedStocktakeCell struct {
 	cell, status, stocktake, stocktakeStatus, scopeKind, warehouse string
 	number                                                         int64
@@ -143,7 +143,7 @@ type lockedStocktakeCell struct {
 	stale                                                          bool
 }
 
-// lockStocktakeCell блокирует строку ячейки пересчёта. Зависшая — взята, не начата и держится
+// lockStocktakeCell блокирует строку ячейки пересчёта. Зависшая - взята, не начата и держится
 // дольше staleAfter.
 func lockStocktakeCell(ctx context.Context, q Querier, id string, staleAfter time.Duration) (lockedStocktakeCell, error) {
 	var c lockedStocktakeCell
@@ -169,18 +169,18 @@ func lockStocktakeCell(ctx context.Context, q Querier, id string, staleAfter tim
 	return c, nil
 }
 
-// stocktakeClosed — статус закрытого пересчёта.
+// stocktakeClosed - статус закрытого пересчёта.
 const stocktakeClosed = "closed"
 
-// mine — ячейку держит этот работник.
+// mine - ячейку держит этот работник.
 func (c lockedStocktakeCell) mine(userID string) bool {
 	return c.takenBy != nil && *c.takenBy == userID
 }
 
-// Take отдаёт ячейку пересчёта работнику (P10-03) — только со связью: кто держит ячейку, знает
+// Take отдаёт ячейку пересчёта работнику (P10-03) - только со связью: кто держит ячейку, знает
 // сервер, иначе двое пошли бы к одной полке.
 //
-// Свободную и зависшую чужую — берёт; свою — повтор, не ошибка; чужую в работе — отказ.
+// Свободную и зависшую чужую - берёт; свою - повтор, не ошибка; чужую в работе - отказ.
 func (r *StocktakeRepository) Take(ctx context.Context, id, userID string, staleAfter time.Duration) error {
 	return WithinTx(ctx, r.pool, func(q Querier) error {
 		c, err := lockStocktakeCell(ctx, q, id, staleAfter)
@@ -205,7 +205,7 @@ func (r *StocktakeRepository) Take(ctx context.Context, id, userID string, stale
 }
 
 // Release возвращает свою ячейку пересчёта в общий список (P10-03). Начатый подсчёт
-// отбрасывается вместе со снимком: следующий работник снимет свой. Ячейка уже свободна — повтор.
+// отбрасывается вместе со снимком: следующий работник снимет свой. Ячейка уже свободна - повтор.
 func (r *StocktakeRepository) Release(ctx context.Context, id, userID string) error {
 	return WithinTx(ctx, r.pool, func(q Querier) error {
 		c, err := lockStocktakeCell(ctx, q, id, 0)
@@ -234,7 +234,7 @@ func (r *StocktakeRepository) Release(ctx context.Context, id, userID string) er
 }
 
 // CellView возвращает свою ячейку пересчёта с позициями снимка (P10-03): что искать, без
-// количеств — слепой счёт. Позиции есть, пока ячейка на подсчёте.
+// количеств - слепой счёт. Позиции есть, пока ячейка на подсчёте.
 func (r *StocktakeRepository) CellView(ctx context.Context, id, userID string) (model.StocktakeCellView, error) {
 	rows, err := r.pool.Query(ctx, stocktakeCellSelect+` WHERE sc.id = $3::uuid`, userID, intervalOf(0), id)
 	if err != nil {
@@ -257,7 +257,7 @@ func (r *StocktakeRepository) CellView(ctx context.Context, id, userID string) (
 	return out, nil
 }
 
-// stocktakePositions — позиции снимка ячейки пересчёта: короба, затем россыпь по товару и партии.
+// stocktakePositions - позиции снимка ячейки пересчёта: короба, затем россыпь по товару и партии.
 func stocktakePositions(ctx context.Context, q Querier, stocktakeCellID string) ([]model.StocktakePosition, error) {
 	rows, err := q.Query(ctx, `
 		SELECT l.load_unit_id::text, cza.code, l.good_id::text, COALESCE(g.code, ''),
@@ -289,7 +289,7 @@ func stocktakePositions(ctx context.Context, q Querier, stocktakeCellID string) 
 	return out, rows.Err()
 }
 
-// Close закрывает пересчёт (P10-03): задание уходит в «Завершённые», в портал — документ
+// Close закрывает пересчёт (P10-03): задание уходит в «Завершённые», в портал - документ
 // «Инвентаризация» (P10-05).
 //
 // Остаток к факту приводит подсчёт каждой ячейки, а не закрытие: закрытие подводит итог.
@@ -322,7 +322,7 @@ func (r *StocktakeRepository) Close(ctx context.Context, id, userID string, forc
 			WHERE id = $1::uuid`, id, userID); err != nil {
 			return fmt.Errorf("закрыть пересчёт: %w", err)
 		}
-		// Документ «Инвентаризация» для 1С (P10-05) — в той же транзакции: закрытый пересчёт без
+		// Документ «Инвентаризация» для 1С (P10-05) - в той же транзакции: закрытый пересчёт без
 		// документа невозможен, как и документ по незакрытому.
 		if err := saveStocktakeDocument(ctx, q, id, userID); err != nil {
 			return err
@@ -342,12 +342,12 @@ func (r *StocktakeRepository) Close(ctx context.Context, id, userID string, forc
 	return uncounted, nil
 }
 
-// CountingInCell — подсчёт, который сейчас идёт в ячейке склада (ADHOC-48); nil — не идёт.
+// CountingInCell - подсчёт, который сейчас идёт в ячейке склада (ADHOC-48); nil - не идёт.
 //
 // Что: номер пересчёта, адрес ячейки, кто считает и с какого времени.
-// Зачем: ТСД перед движением через ячейку предупреждает кладовщика — движение собьёт подсчёт.
-// Как: только `counting` открытого пересчёта — у взятой и не начатой снимка ещё нет, сбивать
-// нечего. Ячейка может быть в двух открытых пересчётах — берётся начатый последним.
+// Зачем: ТСД перед движением через ячейку предупреждает кладовщика - движение собьёт подсчёт.
+// Как: только `counting` открытого пересчёта - у взятой и не начатой снимка ещё нет, сбивать
+// нечего. Ячейка может быть в двух открытых пересчётах - берётся начатый последним.
 func (r *StocktakeRepository) CountingInCell(ctx context.Context, cellID string) (*model.CellUnderCount, error) {
 	var c model.CellUnderCount
 	err := r.pool.QueryRow(ctx, `
@@ -368,8 +368,8 @@ func (r *StocktakeRepository) CountingInCell(ctx context.Context, cellID string)
 	return &c, nil
 }
 
-// List — пересчёты для портала (P10-05): открытые сверху, свежие первыми; status — `open`
-// (не закрытые), `closed` или пусто — все.
+// List - пересчёты для портала (P10-05): открытые сверху, свежие первыми; status - `open`
+// (не закрытые), `closed` или пусто - все.
 func (r *StocktakeRepository) List(ctx context.Context, status string) ([]model.StocktakeListItem, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT st.id::text, st.number, st.scope_kind, st.status, COALESCE(u.full_name, ''),

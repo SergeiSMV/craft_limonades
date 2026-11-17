@@ -14,11 +14,11 @@ class _MockEngine extends Mock implements SyncEngine {}
 /// Индикатор синхронизации (P2-07): какой сигнал показывать и откуда он берётся.
 void main() {
   group('правило приоритета сигнала', () {
-    test('пустая очередь — всё отправлено', () {
+    test('пустая очередь - всё отправлено', () {
       expect(const SyncStatusState().badge, SyncBadge.allSent);
     });
 
-    test('ожидающие — «ждёт отправки»', () {
+    test('ожидающие - «ждёт отправки»', () {
       expect(const SyncStatusState(pending: 3).badge, SyncBadge.waiting);
     });
 
@@ -33,7 +33,7 @@ void main() {
     );
 
     // Отклонённые не уйдут сами. Пока их не разобрали, «всё отправлено» было бы неправдой,
-    // а «отправляю» — обещанием, которого никто не выполнит.
+    // а «отправляю» - обещанием, которого никто не выполнит.
     test('отклонённые важнее всего, даже во время отправки', () {
       expect(
         const SyncStatusState(pending: 3, rejected: 1, syncing: true).badge,
@@ -41,14 +41,14 @@ void main() {
       );
     });
 
-    test('на значке — общее число строк очереди', () {
+    test('на значке - общее число строк очереди', () {
       expect(const SyncStatusState(pending: 3, rejected: 2).total, 5);
     });
   });
 
   group('пометка «нет связи»', () {
     // Показываем её только там, где она что-то объясняет.
-    test('при непустой очереди — показываем', () {
+    test('при непустой очереди - показываем', () {
       expect(
         const SyncStatusState(pending: 1, link: LinkState.offline).showOffline,
         isTrue,
@@ -122,7 +122,7 @@ void main() {
       await cubit.close();
     });
 
-    // Слушатель, переживший close, вызвал бы emit на закрытом cubit — а это исключение
+    // Слушатель, переживший close, вызвал бы emit на закрытом cubit - а это исключение
     // в тот момент, когда экран уже ушёл и поймать его некому.
     test('после close изменение движка ничего не роняет', () async {
       final cubit = SyncStatusCubit(outbox, engine);

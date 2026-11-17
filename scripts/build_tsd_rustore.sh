@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# build_tsd_rustore.sh — релизный APK ТСД для RuStore (ADHOC-66).
+# build_tsd_rustore.sh - релизный APK ТСД для RuStore (ADHOC-66).
 #
 # Что: собирает боевое приложение «КЛ: Склад» релизом, подписанным ключом приложения, и
 #      проверяет результат до загрузки в RuStore Консоль.
 # Зачем: RuStore примет версию, только если подпись совпадает с первой загруженной и versionCode
-#        растёт; APK с отладочной подписью (нет android/key.properties) загружать нельзя — его
+#        растёт; APK с отладочной подписью (нет android/key.properties) загружать нельзя - его
 #        не обновить.
 # Демо: в сборку входит адрес демо-сервера (DEMO_BASE_URL), иначе кнопки «Демо-режим» нет.
 # Как: flutter build apk --release только под ARM (терминалы ARM, x86_64 нужен лишь эмулятору),
-#      затем apksigner — подпись не отладочная, aapt2 — пакет, версия и разрешения.
+#      затем apksigner - подпись не отладочная, aapt2 - пакет, версия и разрешения.
 #
 # Запуск из корня репозитория: bash scripts/build_tsd_rustore.sh
 # Результат: apps/craft_wms/build/app/outputs/flutter-apk/app-release.apk

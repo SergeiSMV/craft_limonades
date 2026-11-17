@@ -7,15 +7,15 @@ import (
 	"github.com/go-pdf/fpdf"
 )
 
-// Cell — ячейка для этикетки на балку.
+// Cell - ячейка для этикетки на балку.
 type Cell struct {
 	Address string
 	IsFloor bool // нижняя ячейка: стрелка вниз справа от адреса
 	Barcode bool // штрих-код слева от адреса
-	QR      bool // QR слева от адреса вместо штрих-кода — напольная ячейка (ADHOC-61)
+	QR      bool // QR слева от адреса вместо штрих-кода - напольная ячейка (ADHOC-61)
 }
 
-// codeKind — что стоит слева от адреса: ничего, Code128 или QR. По нему этикетки делятся на
+// codeKind - что стоит слева от адреса: ничего, Code128 или QR. По нему этикетки делятся на
 // группы с общим кеглем: код отбирает ширину, и общий кегль срезал бы адрес там, где кода нет.
 type codeKind int
 
@@ -35,19 +35,19 @@ func (c Cell) code() codeKind {
 	return codeNone
 }
 
-// CardRow — строка карточки на стойку: адрес и позиция стеллажа (между позициями — пунктир).
+// CardRow - строка карточки на стойку: адрес и позиция стеллажа (между позициями - пунктир).
 type CardRow struct {
 	Address  string
 	Position int
 }
 
-// Card — карточка стеллажа: строки сверху вниз, как стеллаж выглядит из прохода.
+// Card - карточка стеллажа: строки сверху вниз, как стеллаж выглядит из прохода.
 type Card struct {
 	Rack string
 	Rows []CardRow
 }
 
-// newPDF — лист A4 без полей и автопереноса: всё раскладывается вручную в мм.
+// newPDF - лист A4 без полей и автопереноса: всё раскладывается вручную в мм.
 func newPDF(title string) (*fpdf.Fpdf, measurer) {
 	pdf := fpdf.New("P", "mm", "A4", "")
 	pdf.SetMargins(0, 0, 0)
@@ -69,25 +69,25 @@ func output(pdf *fpdf.Fpdf) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// BeamLabels — PDF этикеток на балку одного размера (small — малая балка).
+// BeamLabels - PDF этикеток на балку одного размера (small - малая балка).
 //
-// items — что печатать, в порядке наклейки. set — все ячейки склада этого размера: по ним
-// считается единый кегль (uniform_font), отдельно для этикеток со штрих-кодом и без — код
-// отбирает ширину, и общий кегль срезал бы адрес там, где кода нет. Набор — весь склад, а не
+// items - что печатать, в порядке наклейки. set - все ячейки склада этого размера: по ним
+// считается единый кегль (uniform_font), отдельно для этикеток со штрих-кодом и без - код
+// отбирает ширину, и общий кегль срезал бы адрес там, где кода нет. Набор - весь склад, а не
 // выборка печати: перепечатанная этикетка обязана совпасть с соседними на стеллаже.
-// Не влезает или нечитаемый код — *FitError с причинами, PDF не строится.
+// Не влезает или нечитаемый код - *FitError с причинами, PDF не строится.
 func BeamLabels(small bool, items, set []Cell) ([]byte, error) {
 	if len(items) == 0 {
 		return nil, ErrNothingToPrint
 	}
-	p, title := largeBeam, "Адресные этикетки — большая балка"
+	p, title := largeBeam, "Адресные этикетки - большая балка"
 	if small {
-		p, title = smallBeam, "Адресные этикетки — малая балка"
+		p, title = smallBeam, "Адресные этикетки - малая балка"
 	}
 	pdf, width := newPDF(title)
 	sizes, problems := beamSizes(p, set, width)
 	for _, c := range items {
-		if _, ok := sizes[c.code()]; !ok { // ячейка вне набора — считаем по ней самой
+		if _, ok := sizes[c.code()]; !ok { // ячейка вне набора - считаем по ней самой
 			s, pr := beamSizes(p, []Cell{c}, width)
 			sizes[c.code()], problems = s[c.code()], append(problems, pr...)
 		}
@@ -112,7 +112,7 @@ func BeamLabels(small bool, items, set []Cell) ([]byte, error) {
 	return output(pdf)
 }
 
-// beamSizes — единый кегль (пт) по группам «без кода / штрих-код / QR» набора и причины, если не
+// beamSizes - единый кегль (пт) по группам «без кода / штрих-код / QR» набора и причины, если не
 // влезает.
 func beamSizes(p beamProfile, set []Cell, width measurer) (map[codeKind]float64, []string) {
 	sizes := map[codeKind]float64{}
@@ -154,7 +154,7 @@ func beamSizes(p beamProfile, set []Cell, width measurer) (map[codeKind]float64,
 	return sizes, problems
 }
 
-// barcodeWidth — полная ширина кода с защитными зонами, мм.
+// barcodeWidth - полная ширина кода с защитными зонами, мм.
 func barcodeWidth(value string, module, quiet float64) (float64, error) {
 	n, err := c128Modules(value)
 	if err != nil {
@@ -163,14 +163,14 @@ func barcodeWidth(value string, module, quiet float64) (float64, error) {
 	return float64(n)*module + 2*quiet, nil
 }
 
-// moduleProblems — пороги считывания: модуль не уже 0,25 мм, защитная зона не меньше 10 модулей.
+// moduleProblems - пороги считывания: модуль не уже 0,25 мм, защитная зона не меньше 10 модулей.
 func moduleProblems(value string, module, quiet float64) []string {
 	if _, err := c128Modules(value); err != nil {
 		return []string{err.Error()}
 	}
 	var out []string
 	if module < minModule-1e-9 {
-		out = append(out, fmt.Sprintf("штрих-код %s: штрих %.3f мм уже %g мм — сканер будет промахиваться", value, module, minModule))
+		out = append(out, fmt.Sprintf("штрих-код %s: штрих %.3f мм уже %g мм - сканер будет промахиваться", value, module, minModule))
 	}
 	if quiet < quietRatio*module-1e-9 {
 		out = append(out, fmt.Sprintf("штрих-код %s: защитная зона %g мм меньше %.2f мм", value, quiet, quietRatio*module))
@@ -178,11 +178,11 @@ func moduleProblems(value string, module, quiet float64) []string {
 	return out
 }
 
-// drawBeam — одна этикетка на балку; (x, y) — левый верхний угол.
+// drawBeam - одна этикетка на балку; (x, y) - левый верхний угол.
 //
-// Как в rack_labels: со штрих-кодом всё стоит в одну строку «код — адрес — стрелка»; если
-// частей три — крайние прижаты к полям, адрес посередине между ними (код и стрелка стоят на
-// одном месте у всех этикеток стеллажа), если две — строка по центру. Без кода — адрес и
+// Как в rack_labels: со штрих-кодом всё стоит в одну строку «код - адрес - стрелка»; если
+// частей три - крайние прижаты к полям, адрес посередине между ними (код и стрелка стоят на
+// одном месте у всех этикеток стеллажа), если две - строка по центру. Без кода - адрес и
 // стрелка по центру.
 func drawBeam(pdf *fpdf.Fpdf, x, y, w float64, c Cell, p beamProfile, sizePt float64, width measurer) error {
 	cy := y + p.heightM/2
@@ -254,7 +254,7 @@ func drawBeam(pdf *fpdf.Fpdf, x, y, w float64, c Cell, p beamProfile, sizePt flo
 	return nil
 }
 
-// drawBarcode — Code128 вектором: штрихи — залитые прямоугольники; (x, y) — левый верхний угол
+// drawBarcode - Code128 вектором: штрихи - залитые прямоугольники; (x, y) - левый верхний угол
 // первого штриха, без защитной зоны.
 func drawBarcode(pdf *fpdf.Fpdf, value string, x, y, module, h float64) error {
 	bars, err := c128Bars(value)
@@ -267,7 +267,7 @@ func drawBarcode(pdf *fpdf.Fpdf, value string, x, y, module, h float64) error {
 	return nil
 }
 
-// drawArrow — стрелка вниз «блоком» с центром (cx, cy): стержень и широкая головка.
+// drawArrow - стрелка вниз «блоком» с центром (cx, cy): стержень и широкая головка.
 func drawArrow(pdf *fpdf.Fpdf, cx, cy, w, h float64) {
 	sw, head := w*arrowShaft, h*arrowHead
 	top, bot := cy-h/2, cy+h/2
@@ -278,7 +278,7 @@ func drawArrow(pdf *fpdf.Fpdf, cx, cy, w, h float64) {
 	}, "F")
 }
 
-// cutMarks — метки реза на полях листа по границам сетки cols × rows ячеек cw × ch.
+// cutMarks - метки реза на полях листа по границам сетки cols × rows ячеек cw × ch.
 func cutMarks(pdf *fpdf.Fpdf, cols, rows int, cw, ch float64) {
 	pdf.SetLineWidth(cutWidth)
 	pdf.SetDrawColor(0, 0, 0)

@@ -7,7 +7,7 @@ import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/semibold_text.dart';
 import '../bloc/movement_state.dart';
 
-/// Итог сеанса: проведён, ушёл в очередь, отклонён. Одна кнопка — вернуться в меню.
+/// Итог сеанса: проведён, ушёл в очередь, отклонён. Одна кнопка - вернуться в меню.
 class MoveOutcomeView extends StatelessWidget {
   const MoveOutcomeView({
     super.key,
@@ -21,7 +21,7 @@ class MoveOutcomeView extends StatelessWidget {
   final String? reason;
   final VoidCallback onDone;
 
-  /// Вернуть отклонённый сеанс в правку (ADHOC-41); `null` — исправлять нечего.
+  /// Вернуть отклонённый сеанс в правку (ADHOC-41); `null` - исправлять нечего.
   final VoidCallback? onFix;
 
   @override

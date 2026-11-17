@@ -23,7 +23,7 @@ MoveRecord record(String id, String postedAt) => MoveRecord(
   goods: 2,
 );
 
-/// ADHOC-28: история перемещений всего склада — разбор ответа сервера, лента с подгрузкой
+/// ADHOC-28: история перемещений всего склада - разбор ответа сервера, лента с подгрузкой
 /// и фильтром, строки записи только для чтения.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -58,7 +58,7 @@ void main() {
     });
 
     test(
-      'строка: короб целиком и товар из короба в россыпь — строкой сеанса',
+      'строка: короб целиком и товар из короба в россыпь - строкой сеанса',
       () {
         final box = lineFromJson({
           'load_unit_id': 'lu1',
@@ -97,7 +97,7 @@ void main() {
         ),
     ];
 
-    test('следующая страница — после последней показанной записи', () async {
+    test('следующая страница - после последней показанной записи', () async {
       final repo = _MockRepo();
       final first = page(MovementHistoryCubit.pageSize);
       when(
@@ -120,7 +120,7 @@ void main() {
       await cubit.loadMore();
 
       expect(cubit.state.items, hasLength(MovementHistoryCubit.pageSize + 2));
-      expect(cubit.state.hasMore, isFalse, reason: 'короткая страница — конец');
+      expect(cubit.state.hasMore, isFalse, reason: 'короткая страница - конец');
       await cubit.close();
     });
 
@@ -159,7 +159,7 @@ void main() {
       },
     );
 
-    test('нет связи — ошибка сети, лента не хранится офлайн', () async {
+    test('нет связи - ошибка сети, лента не хранится офлайн', () async {
       final repo = _MockRepo();
       when(
         () => repo.page(
@@ -176,7 +176,7 @@ void main() {
       await cubit.close();
     });
 
-    test('исполнители — для общего листа фильтра', () async {
+    test('исполнители - для общего листа фильтра', () async {
       final repo = _MockRepo();
       when(() => repo.executors()).thenAnswer(
         (_) async => const Right([MoveUser(id: 'u1', fullName: 'Иванов Иван')]),
@@ -207,7 +207,7 @@ void main() {
     });
   });
 
-  testWidgets('строки записи — по порядку проведения и без «Убрать»', (
+  testWidgets('строки записи - по порядку проведения и без «Убрать»', (
     tester,
   ) async {
     const a = MovePlace(cellId: 'c1', cellAddress: 'M1-5-3-3');

@@ -10,15 +10,15 @@ import (
 	"strings"
 )
 
-// ErrBadgeKey — ключ бейджей задан неверно: нужно 64 шестнадцатеричных знака (32 байта).
+// ErrBadgeKey - ключ бейджей задан неверно: нужно 64 шестнадцатеричных знака (32 байта).
 var ErrBadgeKey = errors.New("BADGE_KEY: нужно 64 шестнадцатеричных знака (openssl rand -hex 32)")
 
-// errBadgeOpen — шифртекст не расшифровался: другой ключ, чужая строка или порча.
+// errBadgeOpen - шифртекст не расшифровался: другой ключ, чужая строка или порча.
 var errBadgeOpen = errors.New("номер бейджа не расшифровался")
 
-// BadgeCipher — шифрование секрета бейджа для печати (ADHOC-65).
+// BadgeCipher - шифрование секрета бейджа для печати (ADHOC-65).
 //
-// Что: AES-256-GCM, nonce — в начале шифртекста, связанные данные — логин (первые 8 цифр).
+// Что: AES-256-GCM, nonce - в начале шифртекста, связанные данные - логин (первые 8 цифр).
 // Зачем: бейдж печатается тем же номером, что выдан, а хеш argon2 (им проверяется вход) номер
 // не возвращает. Логин в связанных данных привязывает шифртекст к своей строке: подложенный
 // от другого пользователя не расшифруется. Ключ живёт только в окружении бэкенда, в базе и
@@ -44,7 +44,7 @@ func NewBadgeCipher(hexKey string) (*BadgeCipher, error) {
 	return &BadgeCipher{aead: aead}, nil
 }
 
-// Seal шифрует секрет бейджа логином-связанными данными; nonce — случайный, в начале.
+// Seal шифрует секрет бейджа логином-связанными данными; nonce - случайный, в начале.
 func (c *BadgeCipher) Seal(login, secret string) ([]byte, error) {
 	nonce := make([]byte, c.aead.NonceSize())
 	if _, err := rand.Read(nonce); err != nil {
@@ -53,7 +53,7 @@ func (c *BadgeCipher) Seal(login, secret string) ([]byte, error) {
 	return c.aead.Seal(nonce, nonce, []byte(secret), []byte(login)), nil
 }
 
-// Open расшифровывает секрет бейджа; ошибка — не тот ключ, не та строка или порча.
+// Open расшифровывает секрет бейджа; ошибка - не тот ключ, не та строка или порча.
 func (c *BadgeCipher) Open(login string, sealed []byte) (string, error) {
 	n := c.aead.NonceSize()
 	if len(sealed) <= n {

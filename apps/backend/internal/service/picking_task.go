@@ -13,7 +13,7 @@ import (
 	"craftwms/internal/repository"
 )
 
-// pickingTaskRepo — узкий интерфейс хранилища сборки для подбора.
+// pickingTaskRepo - узкий интерфейс хранилища сборки для подбора.
 type pickingTaskRepo interface {
 	TaskOrder(ctx context.Context, orderID string) (model.PickingTaskOrder, error)
 	Sources(ctx context.Context, warehouseID string, goodIDs []string) ([]picking.Source, error)
@@ -31,11 +31,11 @@ type pickingTaskRepo interface {
 	ShipOrder(ctx context.Context, orderID, userID string, boxIDs []string) (model.PickingShipment, error)
 }
 
-// PickingTaskService — задание на сборку (P9-03): заказ с планом и подбором источников.
+// PickingTaskService - задание на сборку (P9-03): заказ с планом и подбором источников.
 //
-// Задание сборки — сам заказ (P9-02): отдельной строки в заданиях склада у него нет. Сервис
-// проверяет, что заказ можно собирать, и строит подбор по текущему остатку — партия и ячейка
-// реестра, иначе FEFO и ячейка WMS (пакет picking). Резерва нет: подбор — подсказка на момент
+// Задание сборки - сам заказ (P9-02): отдельной строки в заданиях склада у него нет. Сервис
+// проверяет, что заказ можно собирать, и строит подбор по текущему остатку - партия и ячейка
+// реестра, иначе FEFO и ячейка WMS (пакет picking). Резерва нет: подбор - подсказка на момент
 // запроса, остаток проверяет пик (P9-05).
 type PickingTaskService struct {
 	repo pickingTaskRepo
@@ -46,23 +46,23 @@ func NewPickingTaskService(repo pickingTaskRepo) *PickingTaskService {
 	return &PickingTaskService{repo: repo}
 }
 
-// PickingTask — заказ с подбором по строкам. Lines — в порядке плана; у убранной реестром
-// строки подбора нет (Suggestion — nil).
+// PickingTask - заказ с подбором по строкам. Lines - в порядке плана; у убранной реестром
+// строки подбора нет (Suggestion - nil).
 type PickingTask struct {
 	Order model.PickingTaskOrder
 	Lines []PickingTaskLine
 }
 
-// PickingTaskLine — строка плана и её подбор.
+// PickingTaskLine - строка плана и её подбор.
 type PickingTaskLine struct {
 	Line       model.PickingTaskLine
 	Suggestion *picking.Suggestion
 }
 
-// Task — заказ, готовый к сборке, с подбором источников.
+// Task - заказ, готовый к сборке, с подбором источников.
 //
 // Отказ: заказа нет, он удалён в 1С, в нём есть нераспознанные позиции (сборка не начинается,
-// пока не обновят номенклатуру и не загрузят реестр повторно) или он уже собран/отгружен —
+// пока не обновят номенклатуру и не загрузят реестр повторно) или он уже собран/отгружен -
 // дособор после правки реестра возвращает заказ в «в работе» сам (P8-02).
 func (s *PickingTaskService) Task(ctx context.Context, orderID string) (PickingTask, error) {
 	if !isUUID(orderID) {
@@ -94,7 +94,7 @@ func (s *PickingTaskService) Task(ctx context.Context, orderID string) (PickingT
 	return buildPickingTask(o, sources), nil
 }
 
-// pickable — можно ли собирать заказ.
+// pickable - можно ли собирать заказ.
 func pickable(o model.PickingTaskOrder) error {
 	switch {
 	case o.Deleted:

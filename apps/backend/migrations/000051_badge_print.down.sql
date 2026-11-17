@@ -1,4 +1,4 @@
--- ADHOC-65: откат печати бейджей — права и сохранённые номера.
+-- ADHOC-65: откат печати бейджей - права и сохранённые номера.
 UPDATE positions SET rights = array_remove(array_remove(array_remove(rights,
     'tsd.badges.own'), 'tsd.badges.staff'), 'tsd.badges.all');
 ALTER TABLE positions DROP CONSTRAINT positions_rights_check;

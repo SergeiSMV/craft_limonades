@@ -11,7 +11,7 @@ import (
 	"craftwms/internal/service"
 )
 
-// BadgeHandler — «Бейджи» на ТСД (ADHOC-65): кого пользователь вправе печатать и номер к печати.
+// BadgeHandler - «Бейджи» на ТСД (ADHOC-65): кого пользователь вправе печатать и номер к печати.
 // Онлайн: номер раскрывает только сервер, и каждое раскрытие пишется в журнал.
 type BadgeHandler struct {
 	svc *service.BadgeService
@@ -27,7 +27,7 @@ type badgeHolderResponse struct {
 	FullName     string `json:"full_name"`
 	PositionName string `json:"position_name"`
 	IsAdmin      bool   `json:"is_admin"`
-	Stored       bool   `json:"stored"` // номер сохранён — можно печатать
+	Stored       bool   `json:"stored"` // номер сохранён - можно печатать
 }
 
 type badgeResponse struct {
@@ -36,7 +36,7 @@ type badgeResponse struct {
 	Badge    string `json:"badge"` // 16 цифр
 }
 
-// Holders: GET /api/v1/badges — сотрудники, чьи бейджи можно печатать, по ФИО.
+// Holders: GET /api/v1/badges - сотрудники, чьи бейджи можно печатать, по ФИО.
 func (h *BadgeHandler) Holders(w http.ResponseWriter, r *http.Request) {
 	items, err := h.svc.Holders(r.Context(), currentUser(r))
 	if err != nil {
@@ -50,7 +50,7 @@ func (h *BadgeHandler) Holders(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// Badge: GET /api/v1/badges/{id} — номер бейджа к печати; 403 / 404 / 409 (не сохранён) / 503
+// Badge: GET /api/v1/badges/{id} - номер бейджа к печати; 403 / 404 / 409 (не сохранён) / 503
 // (ключ не задан).
 func (h *BadgeHandler) Badge(w http.ResponseWriter, r *http.Request) {
 	b, err := h.svc.Badge(r.Context(), currentUser(r), chi.URLParam(r, "id"))
@@ -58,12 +58,12 @@ func (h *BadgeHandler) Badge(w http.ResponseWriter, r *http.Request) {
 		badgeError(w, r, err)
 		return
 	}
-	// Номер — секрет входа: ни в кэш прокси, ни в кэш клиента.
+	// Номер - секрет входа: ни в кэш прокси, ни в кэш клиента.
 	w.Header().Set("Cache-Control", "no-store")
 	writeJSON(w, http.StatusOK, badgeResponse{UserID: b.UserID, FullName: b.FullName, Badge: b.Number})
 }
 
-// badgeError — ответ на ошибку печати бейджей; текст — для экрана ТСД.
+// badgeError - ответ на ошибку печати бейджей; текст - для экрана ТСД.
 func badgeError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
 	case errors.Is(err, model.ErrBadgeForbidden):

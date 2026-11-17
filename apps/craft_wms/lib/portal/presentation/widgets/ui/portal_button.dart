@@ -7,16 +7,16 @@ import '../../../../core/constants/app_insets.dart';
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/theme/semibold_text.dart';
 
-/// Вид кнопки портала: главная — тёмная заливка, обычная — белая с рамкой, текстовая — без фона.
+/// Вид кнопки портала: главная - тёмная заливка, обычная - белая с рамкой, текстовая - без фона.
 enum PortalButtonKind { primary, secondary, plain }
 
 /// Кнопка с подписью в плоском стиле (ADHOC-56, по Shopify Polaris).
 ///
-/// Что: «Добавить», «Сохранить», «Отмена» — высота 32, подпись 13.
-/// Как: главное действие экрана или диалога — [PortalButtonKind.primary], одно на место;
-///      остальные — [PortalButtonKind.secondary]; отмена — [PortalButtonKind.plain]. Пока
-///      действие идёт ([busy]), вместо иконки — индикатор, и кнопка не нажимается. Без
-///      [onPressed] кнопка недоступна — бледная, как «Сохранить» без изменений.
+/// Что: «Добавить», «Сохранить», «Отмена» - высота 32, подпись 13.
+/// Как: главное действие экрана или диалога - [PortalButtonKind.primary], одно на место;
+///      остальные - [PortalButtonKind.secondary]; отмена - [PortalButtonKind.plain]. Пока
+///      действие идёт ([busy]), вместо иконки - индикатор, и кнопка не нажимается. Без
+///      [onPressed] кнопка недоступна - бледная, как «Сохранить» без изменений.
 class PortalButton extends StatelessWidget {
   const PortalButton({
     super.key,
@@ -29,14 +29,14 @@ class PortalButton extends StatelessWidget {
 
   final String label;
 
-  /// `null` — кнопка недоступна.
+  /// `null` - кнопка недоступна.
   final VoidCallback? onPressed;
   final PortalButtonKind kind;
 
-  /// Иконка перед подписью; `null` — только подпись.
+  /// Иконка перед подписью; `null` - только подпись.
   final IconData? icon;
 
-  /// Действие идёт — индикатор на месте иконки, кнопка не нажимается.
+  /// Действие идёт - индикатор на месте иконки, кнопка не нажимается.
   final bool busy;
 
   @override
@@ -115,7 +115,7 @@ class PortalButton extends StatelessWidget {
 }
 
 /// Кнопка-иконка без подложки (ADHOC-56): действие строки списка, меню и выход в шапке.
-/// Подсветка — только при наведении; подпись действия — во всплывающей подсказке.
+/// Подсветка - только при наведении; подпись действия - во всплывающей подсказке.
 class PortalIconButton extends StatelessWidget {
   const PortalIconButton({
     super.key,
@@ -129,7 +129,7 @@ class PortalIconButton extends StatelessWidget {
   final String tooltip;
   final VoidCallback onPressed;
 
-  /// Действие идёт — индикатор вместо иконки.
+  /// Действие идёт - индикатор вместо иконки.
   final bool busy;
 
   @override

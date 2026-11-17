@@ -14,11 +14,11 @@ dev-context-archive.md
 version.md
 scripts/roadmap_flatten.lua
 
-# Environment / секреты — никогда не коммитим
+# Environment / секреты - никогда не коммитим
 .env
 .env.local
 .env.*.local
-# боевые секреты прод-деплоя (шаблон — infra/.env.prod.example)
+# боевые секреты прод-деплоя (шаблон - infra/.env.prod.example)
 infra/.env.prod
 
 # Бэкапы БД (deploy/pg-backup.sh)
@@ -37,7 +37,7 @@ infra/.env.prod
 # CommandKit related
 **/*.cmdk
 
-# Go — бинари, случайно собранные `go build ./cmd/X` в корне модуля
+# Go - бинари, случайно собранные `go build ./cmd/X` в корне модуля
 /apps/backend/bin/
 /apps/backend/server
 /apps/backend/migrate
@@ -56,5 +56,5 @@ coverage.out
 /report.docx
 /git-report.sh
 
-# Токен True API разведки ЧЗ (CZ-01) — секрет, не коммитить
+# Токен True API разведки ЧЗ (CZ-01) - секрет, не коммитить
 scripts/cz-probe/.token

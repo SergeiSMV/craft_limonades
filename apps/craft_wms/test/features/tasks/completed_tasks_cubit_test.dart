@@ -53,7 +53,7 @@ void main() {
         expect(
           cubit.state.hasMore,
           isFalse,
-          reason: 'короткая страница — конец ленты',
+          reason: 'короткая страница - конец ленты',
         );
         await cubit.close();
       },

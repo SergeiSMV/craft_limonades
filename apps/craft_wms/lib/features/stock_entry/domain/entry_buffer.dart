@@ -2,8 +2,8 @@ import '../../cz/domain/cz_intake.dart';
 import '../../stock/data/catalog_models.dart';
 import 'entry_models.dart';
 
-/// Правила буфера ячейки прохода — чистые функции без состояния, чтобы проверяться без cubit.
-/// Грань строки — (товар, дата, короб): совпавшая грань копит количество (и марки), иначе —
+/// Правила буфера ячейки прохода - чистые функции без состояния, чтобы проверяться без cubit.
+/// Грань строки - (товар, дата, короб): совпавшая грань копит количество (и марки), иначе -
 /// новая строка.
 
 /// Добавить [qty] товара партии [date] россыпью или в короб [boxId].
@@ -26,7 +26,7 @@ List<EntryLineDraft> addEntryQty(
   return out;
 }
 
-/// Положить марки ЧЗ в строки россыпью или в короб [boxId]: каждая марка — единица.
+/// Положить марки ЧЗ в строки россыпью или в короб [boxId]: каждая марка - единица.
 List<EntryLineDraft> addEntryMarks(
   List<EntryLineDraft> lines,
   List<CzIntakeLine> add, {
@@ -78,7 +78,7 @@ List<EntryLineDraft> mergeEntryLines(
   return out;
 }
 
-/// Есть ли среди марок [add] уже введённые в проходе ([pass] — все строки прохода) или повтор
+/// Есть ли среди марок [add] уже введённые в проходе ([pass] - все строки прохода) или повтор
 /// внутри самих [add]: одну бутылку дважды не ввести.
 bool entryMarksTaken(Iterable<EntryLineDraft> pass, List<CzIntakeLine> add) {
   final taken = {

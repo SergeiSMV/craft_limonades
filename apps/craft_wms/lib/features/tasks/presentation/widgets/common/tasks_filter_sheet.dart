@@ -12,10 +12,10 @@ import 'task_format.dart';
 
 /// Открыть лист фильтра заданий. Возвращает выбранный фильтр или null, если лист закрыли.
 ///
-/// [kindOnly] — только вид задания: так фильтруются «Текущие» (период и исполнитель им
-/// пока не нужны — задание текущее, пока его не выполнили). [showKind] = false — без вида:
+/// [kindOnly] - только вид задания: так фильтруются «Текущие» (период и исполнитель им
+/// пока не нужны - задание текущее, пока его не выполнили). [showKind] = false - без вида:
 /// так лист служит истории перемещений (ADHOC-28), где видов заданий нет. [showExecutor] =
-/// false — без исполнителя: так лист служит ленте решённых проблем (ADHOC-34), только период.
+/// false - без исполнителя: так лист служит ленте решённых проблем (ADHOC-34), только период.
 Future<CompletedFilter?> showTasksFilterSheet(
   BuildContext context, {
   required CompletedFilter current,
@@ -37,7 +37,7 @@ Future<CompletedFilter?> showTasksFilterSheet(
 );
 
 /// Лист фильтра заданий: период (быстрые и произвольный), исполнитель, вид задания.
-/// Условия собираются в черновик и применяются кнопкой — список обновляется один раз,
+/// Условия собираются в черновик и применяются кнопкой - список обновляется один раз,
 /// а не на каждое касание.
 class _TasksFilterSheet extends StatefulWidget {
   const _TasksFilterSheet({
@@ -91,14 +91,14 @@ class _TasksFilterSheetState extends State<_TasksFilterSheet> {
     );
   }
 
-  /// Выбрать исполнителя (null — все).
+  /// Выбрать исполнителя (null - все).
   void setExecutor(String? id) => setState(
     () => _draft = _draft.copyWith(
       executor: widget.executors.where((u) => u.id == id).firstOrNull,
     ),
   );
 
-  /// Выбрать вид задания (null — все).
+  /// Выбрать вид задания (null - все).
   void setKind(String? kind) =>
       setState(() => _draft = _draft.copyWith(kind: kind));
 

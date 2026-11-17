@@ -8,11 +8,11 @@ import '../../../../tasks/presentation/widgets/common/tasks_filter_sheet.dart';
 import '../../bloc/movement_history_cubit.dart';
 
 /// Кнопка фильтра ленты «Завершённые» перемещения в шапке раздела, с бейджем числа условий.
-/// Лист — общий с заданиями, без вида: период и исполнитель.
+/// Лист - общий с заданиями, без вида: период и исполнитель.
 class MoveHistoryFilterButton extends StatelessWidget {
   const MoveHistoryFilterButton({super.key});
 
-  /// Открыть фильтр и применить выбранное — лента перезагружается отдельным запросом.
+  /// Открыть фильтр и применить выбранное - лента перезагружается отдельным запросом.
   Future<void> openFilter(BuildContext context) async {
     final cubit = context.read<MovementHistoryCubit>();
     if (cubit.state.executors.isEmpty) await cubit.loadExecutors();

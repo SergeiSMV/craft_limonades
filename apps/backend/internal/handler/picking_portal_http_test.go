@@ -13,8 +13,8 @@ import (
 	"craftwms/internal/service"
 )
 
-// P8-03: ручки «Сборка-отгрузка» портала через роутер — кладовщику без прав портала 403 на
-// каждую; без даты накладной — 400 до похода в базу. Данные — в TestPickingPortal_live.
+// P8-03: ручки «Сборка-отгрузка» портала через роутер - кладовщику без прав портала 403 на
+// каждую; без даты накладной - 400 до похода в базу. Данные - в TestPickingPortal_live.
 func TestPickingPortalHTTP_rights(t *testing.T) {
 	tokens := auth.NewTokenManager("test-secret", time.Hour, 24*time.Hour)
 	admin, err := tokens.IssueAccess("00000000-0000-4000-8000-0000000000a1", string(model.RoleAdmin))

@@ -6,24 +6,24 @@ import (
 	"time"
 )
 
-// errInvalidFeedWindow — период или курсор ленты не разобран. Сервисы лент отдают наружу
-// свою ошибку фильтра, эта — внутренняя.
+// errInvalidFeedWindow - период или курсор ленты не разобран. Сервисы лент отдают наружу
+// свою ошибку фильтра, эта - внутренняя.
 var errInvalidFeedWindow = errors.New("invalid feed window")
 
-// feedWindow — период и курсор ленты («Завершённые» задания, история перемещений), разобранные
+// feedWindow - период и курсор ленты («Завершённые» задания, история перемещений), разобранные
 // из транспортного вида.
 type feedWindow struct {
 	From, To *time.Time // To не включается: день «по» уже прибавлен целиком
 	Before   *time.Time // курсор: момент последней показанной записи
-	BeforeID string     // и её id — момент у двух записей может совпасть
+	BeforeID string     // и её id - момент у двух записей может совпасть
 	Limit    int
 }
 
 // parseFeedWindow разбирает период и курсор ленты.
 //
-// Даты — 'YYYY-MM-DD' по времени склада (МСК): «день» в фильтре — день склада, а не UTC
-// сервера; `to` включается целиком. Курсор — момент (RFC3339) и id последней записи, без id
-// не принимается. Limit приводится к [1, max], ноль — значение по умолчанию.
+// Даты - 'YYYY-MM-DD' по времени склада (МСК): «день» в фильтре - день склада, а не UTC
+// сервера; `to` включается целиком. Курсор - момент (RFC3339) и id последней записи, без id
+// не принимается. Limit приводится к [1, max], ноль - значение по умолчанию.
 func parseFeedWindow(from, to, before, beforeID string, limit, defLimit, maxLimit int) (feedWindow, error) {
 	w := feedWindow{BeforeID: strings.TrimSpace(beforeID), Limit: limit}
 	if w.Limit <= 0 {

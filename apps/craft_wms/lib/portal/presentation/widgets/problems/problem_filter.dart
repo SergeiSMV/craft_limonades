@@ -3,7 +3,7 @@ import '../../../../core/utils/search_text.dart';
 import '../../../data/problems_repository.dart';
 import 'problem_labels.dart';
 
-/// Фильтр рабочего списка «Проблемы склада» (P6-07-3): открытые — то, что ждёт решения офиса.
+/// Фильтр рабочего списка «Проблемы склада» (P6-07-3): открытые - то, что ждёт решения офиса.
 enum ProblemFilter {
   open,
   resolved,
@@ -17,12 +17,12 @@ enum ProblemFilter {
   };
 }
 
-/// Счётчики фильтров — по всему списку, без учёта поиска.
+/// Счётчики фильтров - по всему списку, без учёта поиска.
 Map<ProblemFilter, int> countProblems(List<PortalProblem> list) => {
   for (final f in ProblemFilter.values) f: list.where(f.accepts).length,
 };
 
-/// Проблемы под фильтр и поиск: все слова запроса — в номере, товаре, коде, ячейке, коробе,
+/// Проблемы под фильтр и поиск: все слова запроса - в номере, товаре, коде, ячейке, коробе,
 /// причине, комментарии, складах, авторе или поставщике.
 List<PortalProblem> applyProblemFilter(
   List<PortalProblem> list, {

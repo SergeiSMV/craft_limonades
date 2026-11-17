@@ -28,10 +28,10 @@ const (
 	czsGroup = "0114612728200179215Grp0001"
 )
 
-// czsMark — КИ марки воды с номером n.
+// czsMark - КИ марки воды с номером n.
 func czsMark(n int) string { return fmt.Sprintf("0104612728200172215Mark%04d", n) }
 
-// czEnv — стенд сборки P9-09D плюс приёмка: ячейка приёмки, поставщик, маркируемая вода и
+// czEnv - стенд сборки P9-09D плюс приёмка: ячейка приёмки, поставщик, маркируемая вода и
 // очередь операций, как её собирает main.
 type czEnv struct {
 	*pickEnv
@@ -71,7 +71,7 @@ func (e *czEnv) apply(kind string, payload any) {
 	}
 }
 
-// receive — приёмка, как её шлёт ТСД: короб ЧЗ одним сканом в A-1 (упаковка с марками 1-2 и
+// receive - приёмка, как её шлёт ТСД: короб ЧЗ одним сканом в A-1 (упаковка с марками 1-2 и
 // марка 3 прямо в коробе) и марки 4-5 россыпью в ячейку приёмки; партия 01.09.2026.
 func (e *czEnv) receive() {
 	e.t.Helper()
@@ -103,7 +103,7 @@ func (e *czEnv) putAwayLoose() {
 	})
 }
 
-// places — место каждой марки: «N@LU» в коробе ЧЗ, «N@BOX» в коробе отгрузки, «N@ячейка»
+// places - место каждой марки: «N@LU» в коробе ЧЗ, «N@BOX» в коробе отгрузки, «N@ячейка»
 // россыпью, «N:статус» не на складе; через пробел по номеру.
 func (e *czEnv) places() string {
 	e.t.Helper()
@@ -116,13 +116,13 @@ func (e *czEnv) places() string {
 		FROM cz_marks m LEFT JOIN cells c ON c.id = m.cell_id`, e.box)
 }
 
-// opened — вскрытые упаковки ЧЗ: «BOX», «GROUP» или оба через пробел.
+// opened - вскрытые упаковки ЧЗ: «BOX», «GROUP» или оба через пробел.
 func (e *czEnv) opened() string {
 	e.t.Helper()
 	return e.scan(`SELECT coalesce(string_agg(kind, ' ' ORDER BY kind), '') FROM cz_aggregates WHERE opened_at IS NOT NULL`)
 }
 
-// pickMarks — пик воды марками операцией очереди: из короба ЧЗ (lu) или россыпью из ячейки.
+// pickMarks - пик воды марками операцией очереди: из короба ЧЗ (lu) или россыпью из ячейки.
 func (e *czEnv) pickMarks(order, box, cell, lu string, marks ...int) {
 	e.t.Helper()
 	cis := make([]string, len(marks))
@@ -140,7 +140,7 @@ func (e *czEnv) pickMarks(order, box, cell, lu string, marks ...int) {
 	e.apply(repository.KindPickingPick, in)
 }
 
-// upd — лист «Марки для УПД» выгрузки за дату реестра: строки «заказ код вид» без шапки.
+// upd - лист «Марки для УПД» выгрузки за дату реестра: строки «заказ код вид» без шапки.
 func (e *czEnv) upd() []string {
 	e.t.Helper()
 	day, err := time.Parse(time.DateOnly, e.scan(`SELECT min(registry_date)::text FROM picking_orders`))
@@ -171,7 +171,7 @@ func (e *czEnv) upd() []string {
 	return out
 }
 
-// TestCZScenario_wholeBoxShipped — короб ЧЗ уезжает целым, россыпь - марками.
+// TestCZScenario_wholeBoxShipped - короб ЧЗ уезжает целым, россыпь - марками.
 //
 // Приёмка: короб ЧЗ одним сканом в A-1, россыпь в ячейку приёмки, товар стал маркируемым.
 // Размещение: россыпь марками в B-1, короб не тронут. Сборка: заказ 15601 - короб ЧЗ сканом
@@ -215,7 +215,7 @@ func TestCZScenario_wholeBoxShipped(t *testing.T) {
 	}
 }
 
-// TestCZScenario_openedBox — вскрытый короб уезжает марками, целая упаковка в нём - своим кодом.
+// TestCZScenario_openedBox - вскрытый короб уезжает марками, целая упаковка в нём - своим кодом.
 //
 // Перемещение вынуло марку 3 из короба ЧЗ в B-1: короб вскрыт, групповая упаковка цела. Заказ
 // 15601 собран упаковкой (марки 1-2) и маркой 3 из B-1 - в УПД упаковка своим кодом с марками,
@@ -254,7 +254,7 @@ func TestCZScenario_openedBox(t *testing.T) {
 	}
 }
 
-// TestCZScenario_partialBox — короб ЧЗ, взятый частично, вскрывается на «Завершить сборку».
+// TestCZScenario_partialBox - короб ЧЗ, взятый частично, вскрывается на «Завершить сборку».
 //
 // Заказ на 2: марки 1 (из упаковки) и 3 из короба ЧЗ. До завершения короб цел - марки ещё в
 // ГЕ, «в сборке». После завершения короб и упаковка вскрыты, марка 2 осталась в коробе ЧЗ.

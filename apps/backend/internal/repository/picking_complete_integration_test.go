@@ -14,14 +14,14 @@ import (
 	"craftwms/internal/testutil"
 )
 
-// TestPickingComplete — «Завершить сборку», ярлыки и отгрузка по живой базе (P9-07).
+// TestPickingComplete - «Завершить сборку», ярлыки и отгрузка по живой базе (P9-07).
 //
 // Заказ: 8 шт. лимонада (5 россыпью из A-1 и 3 из короба хранения в B-1) и 2 шт. маркируемой
 // воды (взята одна марка). Три короба отгрузки, второй пустой. Завершение без «не хватает» по
-// воде — отказ со списком; с отметкой — заказ «собран частично», пустой короб убран, третий стал
-// вторым, остаток переехал в `ОТГРУЗКУ`, марка — в короб, короба — в `ОТГРУЗКУ`. Ярлык печатается
-// один раз, повтор — с правом. Отгрузка не всех коробов — отказ; всех — товар и короба ушли со
-// склада, марка отгружена. В журнале событий — взял, завершил, отгрузил.
+// воде - отказ со списком; с отметкой - заказ «собран частично», пустой короб убран, третий стал
+// вторым, остаток переехал в `ОТГРУЗКУ`, марка - в короб, короба - в `ОТГРУЗКУ`. Ярлык печатается
+// один раз, повтор - с правом. Отгрузка не всех коробов - отказ; всех - товар и короба ушли со
+// склада, марка отгружена. В журнале событий - взял, завершил, отгрузил.
 func TestPickingComplete(t *testing.T) {
 	pool := testutil.StartPostgres(t)
 	ctx := context.Background()
@@ -99,7 +99,7 @@ func TestPickingComplete(t *testing.T) {
 	pick(repository.PickingPickInput{LineID: mline, BoxID: box3, SourceCellID: cellA, Qty: decimal.NewFromInt(1),
 		Marks: []string{mark1}})
 
-	// Не у своего исполнителя и с недособранной водой без «не хватает» — отказ.
+	// Не у своего исполнителя и с недособранной водой без «не хватает» - отказ.
 	if _, err := pk.CompleteOrder(ctx, order, other); !errors.Is(err, model.ErrPickingOrderNotYours) {
 		t.Fatalf("чужой заказ: %v", err)
 	}
@@ -146,7 +146,7 @@ func TestPickingComplete(t *testing.T) {
 		t.Fatalf("перенесённых пиков %s", v)
 	}
 
-	// Ярлыки: первый раз — без права, повтор — только с правом.
+	// Ярлыки: первый раз - без права, повтор - только с правом.
 	if _, err := pk.PrintLabels(ctx, order, []string{box1, box3}, false); err != nil {
 		t.Fatalf("ярлыки: %v", err)
 	}
@@ -160,7 +160,7 @@ func TestPickingComplete(t *testing.T) {
 		t.Fatalf("ярлык убранного короба: %v", err)
 	}
 
-	// Отгрузка: не все короба — отказ; все — товар ушёл, марка отгружена; повтор — не ошибка.
+	// Отгрузка: не все короба - отказ; все - товар ушёл, марка отгружена; повтор - не ошибка.
 	if _, err := pk.ShipOrder(ctx, order, user, []string{box1}); !errors.Is(err, model.ErrPickingShipBoxes) {
 		t.Fatalf("не все короба: %v", err)
 	}
@@ -187,7 +187,7 @@ func TestPickingComplete(t *testing.T) {
 	}
 }
 
-// TestPickingEvents — журнал событий взятия, отказа, перехвата зависшего и снятия старшим (P9-07).
+// TestPickingEvents - журнал событий взятия, отказа, перехвата зависшего и снятия старшим (P9-07).
 func TestPickingEvents(t *testing.T) {
 	pool := testutil.StartPostgres(t)
 	ctx := context.Background()
@@ -211,7 +211,7 @@ func TestPickingEvents(t *testing.T) {
 		func() error { return pk.TakeOrder(ctx, order, ann, 0) },
 		func() error { return pk.ReleaseOrder(ctx, order, ann) },
 		func() error { return pk.TakeOrder(ctx, order, ann, 0) },
-		// Зависший (срок 0 — сразу) у Анны берёт Борис.
+		// Зависший (срок 0 - сразу) у Анны берёт Борис.
 		func() error { return pk.TakeOrder(ctx, order, bob, 0) },
 		func() error { return pk.ForceReleaseOrder(ctx, order, lead) },
 	}
@@ -228,7 +228,7 @@ func TestPickingEvents(t *testing.T) {
 	}
 }
 
-// TestPickingCompleteAllShort — «не хватает» по всем позициям: ничего не взято, завершение без
+// TestPickingCompleteAllShort - «не хватает» по всем позициям: ничего не взято, завершение без
 // отметки - отказ «завершать нечего»; с отметкой - заказ собран частично без коробов (пустой короб
 // убран), отгрузка пустым набором закрывает его, короб с ярлыком - отказ.
 func TestPickingCompleteAllShort(t *testing.T) {
@@ -291,7 +291,7 @@ func TestPickingCompleteAllShort(t *testing.T) {
 	}
 }
 
-// TestPickingSyncAfterShipment — сверка с 1С (P9-08): заказ отгружен пустым (по позиции «не
+// TestPickingSyncAfterShipment - сверка с 1С (P9-08): заказ отгружен пустым (по позиции «не
 // хватает») - расходится с 1С. Реестр убирает позицию - строка плана отгруженного заказа
 // обновляется, заказ сходится с 1С, правка - «приведено к факту», возврата на места нет; следующая
 // загрузка видит уже новый план и правку не повторяет.

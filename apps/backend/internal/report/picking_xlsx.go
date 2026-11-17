@@ -11,9 +11,9 @@ import (
 	"craftwms/internal/model"
 )
 
-// Листы выгрузки «Сборка-отгрузка» (P8-03): «Сборка» — заказы блоками с позициями, как в окне
-// деталей портала; «Заказы» — строка на заказ для сверки; «Правки» — правки реестра; «Марки для
-// УПД» — коды ЧЗ собранного и отгруженного построчно (CZ-07).
+// Листы выгрузки «Сборка-отгрузка» (P8-03): «Сборка» - заказы блоками с позициями, как в окне
+// деталей портала; «Заказы» - строка на заказ для сверки; «Правки» - правки реестра; «Марки для
+// УПД» - коды ЧЗ собранного и отгруженного построчно (CZ-07).
 const (
 	pickingMainSheet    = "Сборка"
 	pickingOrdersSheet  = "Заказы"
@@ -45,7 +45,7 @@ var (
 	pickingMarkWidths = []float64{12, 12, 12, 30, 10, 14, 44, 12, 34, 16}
 )
 
-// PickingStatusTitle — статус заказа сборки для человека; незнакомый — как есть.
+// PickingStatusTitle - статус заказа сборки для человека; незнакомый - как есть.
 func PickingStatusTitle(status string) string {
 	switch status {
 	case model.PickingStatusNew:
@@ -61,7 +61,7 @@ func PickingStatusTitle(status string) string {
 	}
 }
 
-// pickingChangeTitle — вид правки реестра для человека.
+// pickingChangeTitle - вид правки реестра для человека.
 func pickingChangeTitle(kind string) string {
 	switch kind {
 	case model.PickingChangeLineAdded:
@@ -79,7 +79,7 @@ func pickingChangeTitle(kind string) string {
 	}
 }
 
-// pickingFlags — пометки заказа одной ячейкой: «собран частично», «нераспознанные позиции»…
+// pickingFlags - пометки заказа одной ячейкой: «собран частично», «нераспознанные позиции»…
 func pickingFlags(o model.PickingPortalOrder) string {
 	var flags []string
 	if o.IsPartial {
@@ -97,7 +97,7 @@ func pickingFlags(o model.PickingPortalOrder) string {
 	return strings.Join(flags, ", ")
 }
 
-// PickingSyncTitle — сверка отгруженного заказа с 1С (P9-08): «расходится» - план реестра не
+// PickingSyncTitle - сверка отгруженного заказа с 1С (P9-08): «расходится» - план реестра не
 // равен отгруженному, «сходится» - равен; у неотгруженного сверять нечего - пусто.
 func PickingSyncTitle(o model.PickingPortalOrder) string {
 	switch {
@@ -110,7 +110,7 @@ func PickingSyncTitle(o model.PickingPortalOrder) string {
 	}
 }
 
-// PickingChangeReasonTitle — откуда правка реестра (P9-08).
+// PickingChangeReasonTitle - откуда правка реестра (P9-08).
 func PickingChangeReasonTitle(reason string) string {
 	switch reason {
 	case model.PickingChangeReasonOrder:
@@ -128,13 +128,13 @@ func PickingChangeReasonTitle(reason string) string {
 
 // BuildPickingXLSX собирает выгрузку «Сборка-отгрузка» за дату накладной date (P8-03).
 //
-// Что: все заказы даты на момент выгрузки — статус WMS и то же, что в окне деталей портала.
+// Что: все заказы даты на момент выгрузки - статус WMS и то же, что в окне деталей портала.
 // Зачем: простое скачивание для офиса, не документ для «Провести»: в 1С по нему ничего не
-// проводится. Как: лист «Сборка» — заказ блоком (шапка построчно с подписями, затем позиции с
-// заголовком колонок), позиция — план реестра и факт склада; факт по партии, ячейке и коробу —
-// своей строкой, марка ЧЗ — своей строкой под фактом, целая упаковка ЧЗ — строкой с кодом
-// агрегации и её марками ниже (CZ-07). Листы «Заказы» и «Правки» — для сверки и фильтров,
-// «Марки для УПД» — коды ЧЗ собранного и отгруженного для УПД.
+// проводится. Как: лист «Сборка» - заказ блоком (шапка построчно с подписями, затем позиции с
+// заголовком колонок), позиция - план реестра и факт склада; факт по партии, ячейке и коробу -
+// своей строкой, марка ЧЗ - своей строкой под фактом, целая упаковка ЧЗ - строкой с кодом
+// агрегации и её марками ниже (CZ-07). Листы «Заказы» и «Правки» - для сверки и фильтров,
+// «Марки для УПД» - коды ЧЗ собранного и отгруженного для УПД.
 func BuildPickingXLSX(date time.Time, orders []model.PickingPortalDetail) ([]byte, error) {
 	f := excelize.NewFile()
 	defer func() { _ = f.Close() }()
@@ -194,7 +194,7 @@ func BuildPickingXLSX(date time.Time, orders []model.PickingPortalDetail) ([]byt
 }
 
 // writePickingOrderBlock пишет заказ на лист «Сборка»: шапку построчно («Заказ», «Накладная»,
-// «Клиент»…, каждая правка реестра — своей строкой), заголовок колонок и позиции.
+// «Клиент»…, каждая правка реестра - своей строкой), заголовок колонок и позиции.
 func writePickingOrderBlock(w *sheetWriter, st pickingStyles, d model.PickingPortalDetail) {
 	const sheet = pickingMainSheet
 	o := d.Order
@@ -206,7 +206,7 @@ func writePickingOrderBlock(w *sheetWriter, st pickingStyles, d model.PickingPor
 	if o.OrderDate != nil {
 		orderLine += " от " + o.OrderDate.Format("02.01.2006")
 	}
-	// Исполнитель — кто держит заказ в работе, у собранного — кто и когда завершил сборку: обоих
+	// Исполнитель - кто держит заказ в работе, у собранного - кто и когда завершил сборку: обоих
 	// сразу не бывает, поэтому одна строка.
 	worker := o.AssigneeName
 	if o.PickedByName != "" {
@@ -216,7 +216,7 @@ func writePickingOrderBlock(w *sheetWriter, st pickingStyles, d model.PickingPor
 		}
 	}
 	w.styled(sheet, st.order, "Сборка", model.DocNumber(model.DocPrefixPicking, o.Number))
-	// Исполнитель — всегда, пустая строка тоже ответ: заказ никто не взял. Коробов — числом, чтобы
+	// Исполнитель - всегда, пустая строка тоже ответ: заказ никто не взял. Коробов - числом, чтобы
 	// Excel не ругался на «число как текст».
 	head := []struct {
 		name  string
@@ -257,7 +257,7 @@ func writePickingOrderBlock(w *sheetWriter, st pickingStyles, d model.PickingPor
 			continue
 		}
 		for i, g := range groups {
-			// План позиции — только в первой строке: остальные строки — продолжение факта.
+			// План позиции - только в первой строке: остальные строки - продолжение факта.
 			lead := make([]any, len(plan))
 			if i == 0 {
 				copy(lead, plan)
@@ -282,14 +282,14 @@ func writePickingOrderBlock(w *sheetWriter, st pickingStyles, d model.PickingPor
 	}
 }
 
-// czCode — строка кода ЧЗ под фактом: марка или код целой упаковки с пометкой.
+// czCode - строка кода ЧЗ под фактом: марка или код целой упаковки с пометкой.
 type czCode struct {
 	code string
 	note string
 }
 
-// czCodes раскладывает марки факта для УПД (CZ-07): марки целой упаковки — строкой с её кодом
-// агрегации и самими марками сразу ниже (на месте первой из них), остальные — как есть.
+// czCodes раскладывает марки факта для УПД (CZ-07): марки целой упаковки - строкой с её кодом
+// агрегации и самими марками сразу ниже (на месте первой из них), остальные - как есть.
 func czCodes(marks []string, byMark map[string]*model.PickingCZBox) []czCode {
 	in := make(map[string]bool, len(marks))
 	for _, cis := range marks {
@@ -317,7 +317,7 @@ func czCodes(marks []string, byMark map[string]*model.PickingCZBox) []czCode {
 	return out
 }
 
-// czBoxTitle — вид упаковки ЧЗ для человека.
+// czBoxTitle - вид упаковки ЧЗ для человека.
 func czBoxTitle(kind string) string {
 	if kind == model.CZAggregateGroup {
 		return "упаковка ЧЗ"
@@ -325,7 +325,7 @@ func czBoxTitle(kind string) string {
 	return "короб ЧЗ"
 }
 
-// czInBoxTitle — вид марки внутри целой упаковки ЧЗ.
+// czInBoxTitle - вид марки внутри целой упаковки ЧЗ.
 func czInBoxTitle(kind string) string {
 	if kind == model.CZAggregateGroup {
 		return "в упаковке ЧЗ"
@@ -344,7 +344,7 @@ func joinNotes(notes ...string) string {
 	return strings.Join(out, "; ")
 }
 
-// markRef — марка в перенесённом пике: позиция и партия.
+// markRef - марка в перенесённом пике: позиция и партия.
 type markRef struct {
 	line  model.PickingPortalLine
 	batch time.Time
@@ -352,11 +352,11 @@ type markRef struct {
 
 // writePickingMarks пишет коды ЧЗ заказа на лист «Марки для УПД» (CZ-07).
 //
-// Что: только собранный и отгруженный заказ и только перенесённое в короба отгрузки — то, что
-// уедет или уехало клиенту. Строка — заказ, товар, партия и код. Целая упаковка ЧЗ — строкой со
-// своим кодом агрегации (вид «короб ЧЗ»), её марки — сразу ниже (вид «в коробе ЧЗ»); марки
-// вскрытого короба и россыпи — по одной (вид «марка»). Зачем: оператор делает УПД по этому
-// листу. Как: в порядке позиций и пиков; упаковка — один раз, на месте первой её марки, даже
+// Что: только собранный и отгруженный заказ и только перенесённое в короба отгрузки - то, что
+// уедет или уехало клиенту. Строка - заказ, товар, партия и код. Целая упаковка ЧЗ - строкой со
+// своим кодом агрегации (вид «короб ЧЗ»), её марки - сразу ниже (вид «в коробе ЧЗ»); марки
+// вскрытого короба и россыпи - по одной (вид «марка»). Зачем: оператор делает УПД по этому
+// листу. Как: в порядке позиций и пиков; упаковка - один раз, на месте первой её марки, даже
 // если её марки разошлись по позициям (две партии одного товара).
 func writePickingMarks(w *sheetWriter, d model.PickingPortalDetail) {
 	o := d.Order
@@ -394,8 +394,8 @@ func writePickingMarks(w *sheetWriter, d model.PickingPortalDetail) {
 			continue
 		}
 		done[box.Code] = true
-		// Партия упаковки — общая партия её марок; разные партии в одной упаковке — пусто,
-		// партия каждой марки — в её строке.
+		// Партия упаковки - общая партия её марок; разные партии в одной упаковке - пусто,
+		// партия каждой марки - в её строке.
 		batch := ref.batch.Format("02.01.2006")
 		for _, m := range box.Marks {
 			if refs[m].batch.Format("02.01.2006") != batch {
@@ -410,7 +410,7 @@ func writePickingMarks(w *sheetWriter, d model.PickingPortalDetail) {
 	}
 }
 
-// factGroup — факт позиции по партии, ячейке-источнику и коробу: сумма пиков и их марки.
+// factGroup - факт позиции по партии, ячейке-источнику и коробу: сумма пиков и их марки.
 type factGroup struct {
 	batch time.Time
 	cell  string
@@ -419,7 +419,7 @@ type factGroup struct {
 	marks []string
 }
 
-// groupFacts сводит пики позиции по партии, ячейке и коробу — в порядке первого пика.
+// groupFacts сводит пики позиции по партии, ячейке и коробу - в порядке первого пика.
 func groupFacts(facts []model.PickingPortalFact) []*factGroup {
 	var out []*factGroup
 	at := map[string]*factGroup{}
@@ -438,7 +438,7 @@ func groupFacts(facts []model.PickingPortalFact) []*factGroup {
 	return out
 }
 
-// pickingLineComment — что по позиции надо знать офису, через «; »: нет в номенклатуре, ячейки
+// pickingLineComment - что по позиции надо знать офису, через «; »: нет в номенклатуре, ячейки
 // реестра нет в WMS, убрана реестром, «не хватает», сколько ещё «в сборке» (не в коробе),
 // замена партии реестра.
 func pickingLineComment(l model.PickingPortalLine) string {
@@ -474,7 +474,7 @@ func pickingLineComment(l model.PickingPortalLine) string {
 	return strings.Join(notes, "; ")
 }
 
-// pickingChangeText — правка реестра для человека: «Изменено количество: 2 → 3».
+// pickingChangeText - правка реестра для человека: «Изменено количество: 2 → 3».
 func pickingChangeText(c model.PickingPortalChange) string {
 	good := strings.TrimSpace(c.GoodCode + " " + c.GoodName)
 	switch c.Kind {
@@ -496,7 +496,7 @@ func intText(v *int) string {
 	return fmt.Sprint(*v)
 }
 
-// batchOrAny — партия реестра; без партии — «любая» (FEFO), как в окне деталей.
+// batchOrAny - партия реестра; без партии - «любая» (FEFO), как в окне деталей.
 func batchOrAny(t *time.Time) string {
 	if t == nil {
 		return "любая"
@@ -504,7 +504,7 @@ func batchOrAny(t *time.Time) string {
 	return t.Format("02.01.2006")
 }
 
-// pickingStyles — оформление листа «Сборка»: заголовок файла, строка номера сборки, подписи
+// pickingStyles - оформление листа «Сборка»: заголовок файла, строка номера сборки, подписи
 // шапки заказа и их значения, заголовок колонок.
 type pickingStyles struct {
 	title, order, label, value, head int
@@ -526,7 +526,7 @@ func newPickingStyles(f *excelize.File) (pickingStyles, error) {
 	if st.label, err = f.NewStyle(&excelize.Style{Font: bold}); err != nil {
 		return st, fmt.Errorf("стиль: %w", err)
 	}
-	// Значение шапки — по левому краю, и число тоже (иначе «Коробов» уезжает вправо).
+	// Значение шапки - по левому краю, и число тоже (иначе «Коробов» уезжает вправо).
 	if st.value, err = f.NewStyle(&excelize.Style{Alignment: &excelize.Alignment{Horizontal: "left"}}); err != nil {
 		return st, fmt.Errorf("стиль: %w", err)
 	}
@@ -540,12 +540,12 @@ func newPickingStyles(f *excelize.File) (pickingStyles, error) {
 	return st, nil
 }
 
-// PickingXLSXName — имя файла выгрузки: дата накладной в имени, по ней файлы и различают.
+// PickingXLSXName - имя файла выгрузки: дата накладной в имени, по ней файлы и различают.
 func PickingXLSXName(warehouseCode string, date time.Time) string {
 	return fmt.Sprintf("sborka-%s-%s.xlsx", warehouseCode, date.Format("20060102"))
 }
 
-// trimQty — количество без лишних нулей: 3, 2.5.
+// trimQty - количество без лишних нулей: 3, 2.5.
 func trimQty(v float64) string {
 	return strings.TrimRight(strings.TrimRight(fmt.Sprintf("%.3f", v), "0"), ".")
 }
@@ -589,8 +589,8 @@ func (w *sheetWriter) row(sheet string, values ...any) {
 	}
 }
 
-// label пишет строку «подпись — значение» шапки заказа: подпись — в A:B (узкая «№» её не
-// вмещает) жирным, значение — в C и дальше на всю ширину позиций, по левому краю.
+// label пишет строку «подпись - значение» шапки заказа: подпись - в A:B (узкая «№» её не
+// вмещает) жирным, значение - в C и дальше на всю ширину позиций, по левому краю.
 func (w *sheetWriter) label(sheet string, st pickingStyles, name string, value any) {
 	r := w.pair(sheet, name, value)
 	_ = w.f.SetCellStyle(sheet, cellName(1, r), cellName(2, r), st.label)
@@ -598,7 +598,7 @@ func (w *sheetWriter) label(sheet string, st pickingStyles, name string, value a
 }
 
 // styled пишет значения в следующую строку листа и оформляет её целиком. Пара значений
-// (заголовок, номер сборки) — как строка шапки, но заливка идёт через весь блок.
+// (заголовок, номер сборки) - как строка шапки, но заливка идёт через весь блок.
 func (w *sheetWriter) styled(sheet string, style int, values ...any) {
 	if len(values) == 2 && sheet == pickingMainSheet {
 		r := w.pair(sheet, values[0], values[1])
@@ -610,7 +610,7 @@ func (w *sheetWriter) styled(sheet string, style int, values ...any) {
 	_ = w.f.SetCellStyle(sheet, cellName(1, r), cellName(len(values), r), style)
 }
 
-// pair — строка шапки листа «Сборка»: подпись в объединённых A:B, значение — C до последней
+// pair - строка шапки листа «Сборка»: подпись в объединённых A:B, значение - C до последней
 // колонки позиций. Возвращает номер строки.
 func (w *sheetWriter) pair(sheet string, name, value any) int {
 	if w.rows == nil {

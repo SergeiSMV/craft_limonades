@@ -60,32 +60,32 @@ abstract final class AppSizes {
 
   //* --- Web-портал (layout) ---------------------------------------------- *//
   static const double kSidebarWidth = 240; // боковая панель портала (ADHOC-56)
-  // Окно портала уже — меню уезжает в выдвижную панель (ADHOC-25); порог md Polaris (ADHOC-56).
+  // Окно портала уже - меню уезжает в выдвижную панель (ADHOC-25); порог md Polaris (ADHOC-56).
   static const double kPortalCompactWidth = 768;
   // Плоский стиль портала (ADHOC-56).
   static const double kControlHeight = 32; // кнопка, поле ввода
   static const double kNavItemHeight = 36; // пункт бокового меню
-  // Подпись раздела слева от карточки — при ширине от этой; уже — над карточкой.
+  // Подпись раздела слева от карточки - при ширине от этой; уже - над карточкой.
   static const double kAnnotatedWidth = 720;
-  // Разделы настроек списком слева — при ширине от этой; уже — вкладками сверху.
+  // Разделы настроек списком слева - при ширине от этой; уже - вкладками сверху.
   static const double kSettingsNavWidth = 960;
   static const double kSettingsNavColumn = 200; // колонка разделов настроек
   static const double kSettingsMaxWidth = 1160; // предел ширины страницы настроек
-  // Меню фильтра списка (ADHOC-56): не шире и не выше — длинный справочник прокручивается.
+  // Меню фильтра списка (ADHOC-56): не шире и не выше - длинный справочник прокручивается.
   static const double kPortalSelectMenuWidth = 440;
   static const double kPortalSelectMenuMargin = 32; // меню уже экрана на поля по краям
   // Подписи пункта меню не достаётся: отступы пункта (24), галочка (16) с зазором, поля меню.
   static const double kPortalSelectItemReserve = 64;
   static const double kPortalSelectMenuHeight = 360;
-  // Номенклатура склада (ADHOC-56): от этой ширины карточки — колонками, уже — строками.
+  // Номенклатура склада (ADHOC-56): от этой ширины карточки - колонками, уже - строками.
   static const double kGoodsColumnsWidth = 720;
   static const double kGoodsColCode = 96; // колонка «Код»
   static const double kGoodsColUom = 56; // колонка «Ед.»
   static const double kGoodsColQty = 104; // колонка «Остаток» (с единицей)
   static const double kGoodCardLabel = 184; // подпись реквизита в карточке товара
   static const double kPortalListMaxWidth = 1200; // предел ширины страницы-списка
-  // Ячейки (ADHOC-57): карточка ячейки справа от списка — при ширине страницы от порога; уже —
-  // окном по нажатию на строку. Список колонками — от своей ширины карточки, уже — строками.
+  // Ячейки (ADHOC-57): карточка ячейки справа от списка - при ширине страницы от порога; уже -
+  // окном по нажатию на строку. Список колонками - от своей ширины карточки, уже - строками.
   static const double kCellsSideWidth = 340;
   static const double kCellsSearchWidth = 260; // поиск по адресу на панели
   static const double kCellsSideMinPage = 960;
@@ -94,26 +94,26 @@ abstract final class AppSizes {
   static const double kCellsColTier = 48; // колонка «Ярус»
   static const double kCellsColPos = 64; // колонка «Позиция»
   static const double kCellsColBeam = 96; // колонка «Балка»
-  static const int kCellsRackPreview = 4; // стеллажей выборки называем, остальные — числом
+  static const int kCellsRackPreview = 4; // стеллажей выборки называем, остальные - числом
   static const double kPortalCheckbox = 18; // галочка портала
   static const double kPortalCheckboxMark = 14; // галочка или черта внутри
   static const double kDisabledOpacity = 0.5; // недоступная кнопка портала
-  // Строка документа уже — кнопки уходят под текст, иначе заголовку остаётся пара букв.
-  // Таблица документов (ADHOC-26) — пороги по ширине самой таблицы: от «полных действий» —
-  // кнопки с подписями, уже — иконками; уже минимума (телефон) — строки вместо таблицы.
+  // Строка документа уже - кнопки уходят под текст, иначе заголовку остаётся пара букв.
+  // Таблица документов (ADHOC-26) - пороги по ширине самой таблицы: от «полных действий» -
+  // кнопки с подписями, уже - иконками; уже минимума (телефон) - строки вместо таблицы.
   static const double kDocTableFullActionsWidth = 900;
-  // Минимум — сумма минимумов колонок с компактными действиями (~780) с запасом: уже него таблица
+  // Минимум - сумма минимумов колонок с компактными действиями (~780) с запасом: уже него таблица
   // шире своей плашки, и плашка молча обрезала бы действия.
   static const double kDocTableMinWidth = 840;
   static const double kDocSearchMaxWidth = 460; // поле поиска над таблицей
   // Колонки: документ и контрагент делят остаток долями, но не уже минимума; время, статус
-  // и действия — по содержимому.
+  // и действия - по содержимому.
   static const double kColDoc = 2;
   static const double kColParty = 3;
   static const double kColDocMin = 140;
   static const double kColPartyMin = 180;
-  // Таблица заказов «Сборка-отгрузка» (P8-03): уже минимума — строки вместо таблицы; заказ и
-  // клиент делят остаток долями, но не уже минимума; статус, исполнитель и план/факт — по
+  // Таблица заказов «Сборка-отгрузка» (P8-03): уже минимума - строки вместо таблицы; заказ и
+  // клиент делят остаток долями, но не уже минимума; статус, исполнитель и план/факт - по
   // содержимому.
   static const double kPickingTableMinWidth = 840;
   static const double kColPickingOrder = 2;
@@ -121,7 +121,7 @@ abstract final class AppSizes {
   static const double kColPickingOrderMin = 140;
   static const double kColPickingClientMin = 200;
   static const double kHeaderHeight = 72; // верхняя панель контента
-  // Неактивная позиция на ТСД — серая, пока не отсканировано её место (ADHOC-31).
+  // Неактивная позиция на ТСД - серая, пока не отсканировано её место (ADHOC-31).
   static const double kInactiveOpacity = 0.45;
   // Календарь портала в диалоге (ADHOC-30): ширина и высота сетки месяца.
   static const double kPortalCalendarWidth = 320;
@@ -139,7 +139,7 @@ abstract final class AppSizes {
   static const double kFormWidth = 480; // правая панель формы входа
   static const double kFormHeight = 700; // высота правой панели формы входа
   static const double kBrandMaxWidth = 500; // бренд-текст на панели входа
-  static const double kLoginFieldHeight = 48; // поле логина и пароля — в рост прежних
+  static const double kLoginFieldHeight = 48; // поле логина и пароля - в рост прежних
 
   //* --- ТСД: главное меню (плитки) --------------------------------------- *//
   static const double kMenuTileSpacing = 12; // зазор между плитками сетки

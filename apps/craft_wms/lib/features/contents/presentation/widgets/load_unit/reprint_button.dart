@@ -11,7 +11,7 @@ import '../../../../../core/constants/app_sizes.dart';
 import '../../../../../core/gen/strings.g.dart';
 import '../../../../../core/theme/semibold_text.dart';
 
-/// Кнопка «Перепечатать ярлык» во всю ширину (P5-05-1) — в стиле «Привязать штрихкод»
+/// Кнопка «Перепечатать ярлык» во всю ширину (P5-05-1) - в стиле «Привязать штрихкод»
 /// карточки товара. Пока идёт печать, вместо иконки крутилка и нажатие не принимается.
 class ReprintButton extends StatelessWidget {
   const ReprintButton({super.key, required this.busy, required this.onPressed});

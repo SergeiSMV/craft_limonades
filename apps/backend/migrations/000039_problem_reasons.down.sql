@@ -1,5 +1,5 @@
 -- ADHOC-55: откат справочника причин и вариантов. Проблемы с причинами, заведёнными в портале,
--- прежняя схема не выражает — они получают «Прочее»; решение — прежним действием (`decision`).
+-- прежняя схема не выражает - они получают «Прочее»; решение - прежним действием (`decision`).
 UPDATE positions SET rights = array_remove(rights, 'portal.settings.problem_reasons');
 ALTER TABLE positions DROP CONSTRAINT positions_rights_check;
 ALTER TABLE positions ADD CONSTRAINT positions_rights_check CHECK (rights <@ ARRAY[

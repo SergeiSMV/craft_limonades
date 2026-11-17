@@ -33,7 +33,7 @@ import '../widgets/receipt_scan_field.dart';
 /// целиком), удаляют позиции и сам короб. Отдельная страница, а не переключатель «текущий
 /// короб» в общем списке: переключатель легко забыть, и товар молча уезжал бы не в тот короб.
 ///
-/// Cubit приходит от общего списка: короб — часть той же приёмки, и правки здесь сразу
+/// Cubit приходит от общего списка: короб - часть той же приёмки, и правки здесь сразу
 /// ложатся в её черновик.
 @RoutePage()
 class ReceiptBoxPage extends StatelessWidget {
@@ -71,7 +71,7 @@ class _ReceiptBoxViewState extends State<_ReceiptBoxView>
   @override
   String? get scanBoxId => widget.boxId;
 
-  /// Ярлык другого короба этой приёмки — переходим в него, не возвращаясь в общий список:
+  /// Ярлык другого короба этой приёмки - переходим в него, не возвращаясь в общий список:
   /// так раскладывают товар по нескольким коробам подряд.
   @override
   void onBoxScanned(String boxId) {
@@ -94,7 +94,7 @@ class _ReceiptBoxViewState extends State<_ReceiptBoxView>
   @override
   void onCellChosen(Cell cell) => cubit.setBoxCell(widget.boxId, cell);
 
-  /// Удалить короб с позициями — после подтверждения: ярлык уже мог быть напечатан.
+  /// Удалить короб с позициями - после подтверждения: ярлык уже мог быть напечатан.
   Future<void> _deleteBox() async {
     final ok = await showBindPromptDialog(
       context,
@@ -114,16 +114,16 @@ class _ReceiptBoxViewState extends State<_ReceiptBoxView>
   Widget build(BuildContext context) {
     final state = context.watch<ReceiptCubit>().state;
     final box = state.boxById(widget.boxId);
-    // Короб удалён — страница уже закрывается, рисовать нечего.
+    // Короб удалён - страница уже закрывается, рисовать нечего.
     if (box == null) return const SizedBox.shrink();
     final lines = state
         .linesOf(box.id)
         .reversed
-        .toList(); // свежая строка — сверху
+        .toList(); // свежая строка - сверху
     final cellText = box.cell == null
         ? t.receipt.cellDefault(address: state.defaultCell?.address ?? '')
         : t.receipt.cell(address: box.cell!.address);
-    // «Назад» — после марок, ещё не легших в короб (ADHOC-70).
+    // «Назад» - после марок, ещё не легших в короб (ADHOC-70).
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: czOnPop,
@@ -161,7 +161,7 @@ class _ReceiptBoxViewState extends State<_ReceiptBoxView>
                         icon: MdiIcons.cogTransfer,
                       ),
                     ),
-                    // У короба ЧЗ своя этикетка поставщика с SSCC — ярлык не нужен (CZ-05).
+                    // У короба ЧЗ своя этикетка поставщика с SSCC - ярлык не нужен (CZ-05).
                     if (!box.isCz) ...[
                       AppBoxes.kWidth8,
                       BarIconButton(

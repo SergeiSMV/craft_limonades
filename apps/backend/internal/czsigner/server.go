@@ -8,26 +8,26 @@ import (
 	"net/http"
 )
 
-// maxDataSize — предел тела /sign. Строка auth/key — десятки байт; предел защищает
+// maxDataSize - предел тела /sign. Строка auth/key - десятки байт; предел защищает
 // подписант от случайной отправки чего-то большого.
 const maxDataSize = 64 << 10
 
-// healthData — что подписывает пробная подпись /health. Смысла не несёт, проверяет цепочку
+// healthData - что подписывает пробная подпись /health. Смысла не несёт, проверяет цепочку
 // «сертификат найден → ключ открылся → подпись вышла».
 var healthData = []byte("cz-signer health")
 
-// Signer — то, что умеет подписывать; в службе — Cryptcp, в тестах — подстановка.
+// Signer - то, что умеет подписывать; в службе - Cryptcp, в тестах - подстановка.
 type Signer interface {
 	Sign(ctx context.Context, data []byte) ([]byte, error)
 }
 
-// NewHandler — HTTP-обработчик подписанта. Слушает unix-сокет, поэтому авторизации нет:
+// NewHandler - HTTP-обработчик подписанта. Слушает unix-сокет, поэтому авторизации нет:
 // доступ к сокету даёт группа файла (см. cmd/cz-signer).
 //
-//	POST /sign   — тело: байты для подписи; ответ: подпись DER (application/octet-stream).
-//	GET  /health — пробная подпись; 200 — подписант готов подписывать.
+//	POST /sign   - тело: байты для подписи; ответ: подпись DER (application/octet-stream).
+//	GET  /health - пробная подпись; 200 - подписант готов подписывать.
 //
-// Ошибки — JSON {"error": "..."}: 400 — пустое или слишком большое тело, 503 — подписать
+// Ошибки - JSON {"error": "..."}: 400 - пустое или слишком большое тело, 503 - подписать
 // не удалось. Подробность (вывод cryptcp) уходит только в журнал службы.
 func NewHandler(log *slog.Logger, s Signer) http.Handler {
 	mux := http.NewServeMux()
@@ -62,7 +62,7 @@ func NewHandler(log *slog.Logger, s Signer) http.Handler {
 	return mux
 }
 
-// writeError — ответ-ошибка в JSON.
+// writeError - ответ-ошибка в JSON.
 func writeError(w http.ResponseWriter, code int, msg string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)

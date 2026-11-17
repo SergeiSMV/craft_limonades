@@ -14,16 +14,16 @@ import 'doc_form.dart';
 import 'doc_row_actions.dart';
 import 'doc_status_chip.dart';
 
-/// Таблица документов в карточке (ADHOC-26, плоский стиль — ADHOC-56): «Документ», контрагент
+/// Таблица документов в карточке (ADHOC-26, плоский стиль - ADHOC-56): «Документ», контрагент
 /// (если он есть у формы), время операции, статус в 1С, действия.
 ///
-/// Каждое поле — в своей колонке: документы сравниваются взглядом сверху вниз. Склада нет —
+/// Каждое поле - в своей колонке: документы сравниваются взглядом сверху вниз. Склада нет -
 /// на пилоте он один.
 ///
 /// Действия за край не уходят никогда: при нехватке места ужимаются «Документ» и контрагент
 /// (до своего минимума), а уже [AppSizes.kDocTableFullActionsWidth] кнопки «.xlsx» и «Провести»
 /// становятся иконками с подсказкой. Уже [AppSizes.kDocTableMinWidth] (телефон) вместо
-/// таблицы — строки [DocCard] в той же карточке.
+/// таблицы - строки [DocCard] в той же карточке.
 class DocTable extends StatelessWidget {
   const DocTable({
     super.key,
@@ -38,14 +38,14 @@ class DocTable extends StatelessWidget {
 
   final DocForm form;
 
-  /// Строки после фильтра и поиска; пусто — «Ничего не найдено».
+  /// Строки после фильтра и поиска; пусто - «Ничего не найдено».
   final List<PortalDoc> docs;
 
   /// id документов, по которым идёт скачивание / проведение.
   final Set<String> downloading;
   final Set<String> posting;
 
-  /// Действия; `null` — у должности нет права (ADHOC-50), кнопки нет.
+  /// Действия; `null` - у должности нет права (ADHOC-50), кнопки нет.
   final ValueChanged<PortalDoc>? onDownload;
   final ValueChanged<PortalDoc>? onPost;
   final ValueChanged<PortalDoc>? onHistory;
@@ -79,7 +79,7 @@ class DocTable extends StatelessWidget {
     );
   }
 
-  /// «Ничего не найдено» — поиск и фильтр отсекли всё.
+  /// «Ничего не найдено» - поиск и фильтр отсекли всё.
   Widget _notFound([EdgeInsets padding = AppInsets.cardRow]) => Padding(
     padding: padding,
     child: Text(
@@ -90,7 +90,7 @@ class DocTable extends StatelessWidget {
     ),
   );
 
-  /// Шапка, строки и, если ничего не нашлось, — подпись под шапкой. [compact] — действия
+  /// Шапка, строки и, если ничего не нашлось, - подпись под шапкой. [compact] - действия
   /// иконками.
   Widget _table(bool compact) {
     final hasParty = form.partyTitle != null;
@@ -110,7 +110,7 @@ class DocTable extends StatelessWidget {
                 FixedColumnWidth(AppSizes.kColPartyMin),
                 FlexColumnWidth(AppSizes.kColParty),
               ),
-            // Время и статус — по содержимому: самая широкая дата и самый широкий бейдж
+            // Время и статус - по содержимому: самая широкая дата и самый широкий бейдж
             // задают колонку, текст не обрезается ни при каком шрифте и масштабе.
             (hasParty ? 2 : 1): const IntrinsicColumnWidth(),
             (hasParty ? 3 : 2): const IntrinsicColumnWidth(),
@@ -153,7 +153,7 @@ class DocTable extends StatelessWidget {
     );
   }
 
-  /// Строка документа. Проведённый — приглушён: работы по нему больше нет.
+  /// Строка документа. Проведённый - приглушён: работы по нему больше нет.
   TableRow _row(PortalDoc doc, {required bool last, required bool compact}) {
     final posted = isPosted(doc);
     return TableRow(

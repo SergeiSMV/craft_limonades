@@ -37,7 +37,7 @@ class StockEntryPage extends StatelessWidget {
 class _StockEntryView extends StatelessWidget {
   const _StockEntryView();
 
-  /// Единая обработка «назад» (кнопка в шапке и системный жест/кнопка). Вариант A — всё в памяти до
+  /// Единая обработка «назад» (кнопка в шапке и системный жест/кнопка). Вариант A - всё в памяти до
   /// финала, поэтому «назад» разбирается по состоянию прохода:
   /// - в ячейке → возврат к списку ячеек (`finishCell`, работа ячейки сохраняется), не выход;
   /// - на списке с непустым просчётом → выход, проход остаётся сохранённым;
@@ -60,13 +60,13 @@ class _StockEntryView extends StatelessWidget {
       if (!context.mounted) return;
     }
     final s = cubit.state;
-    if (s.busy) return; // идёт финал — не мешаем
+    if (s.busy) return; // идёт финал - не мешаем
     if (s.finished) {
       Navigator.of(context).pop();
       return;
     }
     if (s.cell != null) {
-      cubit.finishCell(); // назад к списку ячеек — просчёт ячейки сохраняется
+      cubit.finishCell(); // назад к списку ячеек - просчёт ячейки сохраняется
       return;
     }
     if (s.committedCells.isNotEmpty) {
@@ -78,7 +78,7 @@ class _StockEntryView extends StatelessWidget {
     Navigator.of(context).pop();
   }
 
-  /// Отбросить проход по явному требованию — единственный способ потерять его намеренно.
+  /// Отбросить проход по явному требованию - единственный способ потерять его намеренно.
   Future<void> _onDiscard(BuildContext context) async {
     final cubit = context.read<StockEntryCubit>();
     if (!await _confirmDiscard(context)) return;
@@ -86,7 +86,7 @@ class _StockEntryView extends StatelessWidget {
     if (context.mounted) Navigator.of(context).pop();
   }
 
-  /// Диалог подтверждения отбрасывания прохода — действие необратимо.
+  /// Диалог подтверждения отбрасывания прохода - действие необратимо.
   Future<bool> _confirmDiscard(BuildContext context) async {
     final res = await showDialog<bool>(
       context: context,
@@ -110,7 +110,7 @@ class _StockEntryView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // canPop: false — перехватываем и системный «назад», и стрелку в шапке единым [_onBack].
+    // canPop: false - перехватываем и системный «назад», и стрелку в шапке единым [_onBack].
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
@@ -122,7 +122,7 @@ class _StockEntryView extends StatelessWidget {
           listenWhen: (p, c) => c.failure != null && p.failure != c.failure,
           listener: (context, state) {
             final failure = state.failure!;
-            // Отказ строк (ADHOC-46): сервер называет все плохие строки ячейки списком — в
+            // Отказ строк (ADHOC-46): сервер называет все плохие строки ячейки списком - в
             // снекбар он не поместится, а кладовщику по нему исправлять ячейку.
             if (failure is ServerFailure &&
                 failure.statusCode == 422 &&
@@ -173,7 +173,7 @@ class _StockEntryView extends StatelessWidget {
               title: PageHeader(
                 title: t.stockEntry.title,
                 goBack: () => _onBack(context),
-                // Отбрасывание — редкое и необратимое действие, поэтому в меню, а не кнопкой
+                // Отбрасывание - редкое и необратимое действие, поэтому в меню, а не кнопкой
                 // рядом с «Завершить ввод»: там его задели бы случайно.
                 trailing: BlocBuilder<StockEntryCubit, StockEntryState>(
                   buildWhen: (p, c) =>
@@ -218,7 +218,7 @@ class _StockEntryView extends StatelessWidget {
   }
 }
 
-/// Тело: финальный экран / выбор ячейки / работа с ячейкой — по состоянию.
+/// Тело: финальный экран / выбор ячейки / работа с ячейкой - по состоянию.
 class _Body extends StatelessWidget {
   const _Body();
 

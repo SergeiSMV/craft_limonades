@@ -1,14 +1,14 @@
-# Прод/пилотный стек Craft WMS: postgres + backend. БЕЗ nginx-контейнера —
+# Прод/пилотный стек Craft WMS: postgres + backend. БЕЗ nginx-контейнера -
 # reverse-proxy и TLS на проде делает ХОСТОВЫЙ nginx (см. deploy/10-nginx-vhost.sh).
 #
 # Отличия от dev (infra/docker-compose.yml):
 #   - backend берётся ГОТОВЫМ образом из GHCR (не собирается на месте);
 #   - postgres НЕ публикует порт наружу (доступ только внутри сети compose);
-#   - backend публикуется на loopback (${BACKEND_BIND}) — снаружи не виден, только хостовый nginx;
-#   - restart: unless-stopped — переживает перезагрузку сервера.
+#   - backend публикуется на loopback (${BACKEND_BIND}) - снаружи не виден, только хостовый nginx;
+#   - restart: unless-stopped - переживает перезагрузку сервера.
 #
 # Запуск: docker compose --env-file infra/.env.prod -f infra/docker-compose.prod.yml up -d
-# (обёрнуто в deploy/20-deploy.sh). Все параметры среды — в infra/.env.prod (портируемо).
+# (обёрнуто в deploy/20-deploy.sh). Все параметры среды - в infra/.env.prod (портируемо).
 
 name: craft-wms
 
@@ -43,36 +43,36 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       ACCESS_TTL: ${ACCESS_TTL:-12h}
       REFRESH_TTL: ${REFRESH_TTL:-720h}
-      # Ниже — только для разового `seed` (docker compose run ... seed); сервису не мешают.
+      # Ниже - только для разового `seed` (docker compose run ... seed); сервису не мешают.
       ADMIN_BADGE: ${ADMIN_BADGE:-}
       ADMIN_FULL_NAME: ${ADMIN_FULL_NAME:-}
       ADMIN_USERNAME: ${ADMIN_USERNAME:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       # Физический склад пилота (P4-03): сид заводит его и дефолтную ячейку приёмки «С-Н-П».
-      # Пусто — берутся значения по умолчанию из кода (SHB / Шабулина).
+      # Пусто - берутся значения по умолчанию из кода (SHB / Шабулина).
       WAREHOUSE_CODE: ${WAREHOUSE_CODE:-}
       WAREHOUSE_NAME: ${WAREHOUSE_NAME:-}
-      # Отправка ошибок в Bugsink (ADHOC-42). Пусто — выключена. DSN — внутренний адрес
+      # Отправка ошибок в Bugsink (ADHOC-42). Пусто - выключена. DSN - внутренний адрес
       # сети compose (http://<ключ>@bugsink:8000/<проект>): события наружу не выходят.
       SENTRY_DSN: ${SENTRY_DSN:-}
       SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-prod}
       SENTRY_RELEASE: ${SENTRY_RELEASE:-}
-      # Проект Bugsink для ошибок ТСД и портала (ADHOC-47); пусто — события отбрасываются.
+      # Проект Bugsink для ошибок ТСД и портала (ADHOC-47); пусто - события отбрасываются.
       CLIENT_SENTRY_DSN: ${CLIENT_SENTRY_DSN:-}
-      # Честный знак (CZ-02). CZ_SIGNER_SOCKET пуст — чтение ЧЗ выключено. Сокет подписанта
-      # (служба на хосте) — в каталоге /run/cz-signer, смонтированном ниже.
+      # Честный знак (CZ-02). CZ_SIGNER_SOCKET пуст - чтение ЧЗ выключено. Сокет подписанта
+      # (служба на хосте) - в каталоге /run/cz-signer, смонтированном ниже.
       CZ_SIGNER_SOCKET: ${CZ_SIGNER_SOCKET:-}
       CZ_API_URL: ${CZ_API_URL:-https://markirovka.crpt.ru/api/v3/true-api}
       CZ_TOKEN_REFRESH_BEFORE: ${CZ_TOKEN_REFRESH_BEFORE:-1h}
-      # ИНН нашей организации в ЧЗ (CZ-05): марка другого владельца на приёмке — расхождение.
+      # ИНН нашей организации в ЧЗ (CZ-05): марка другого владельца на приёмке - расхождение.
       CZ_OWNER_INN: ${CZ_OWNER_INN:-}
     # Группа сокета подписанта: GID группы cz-signer хоста (пишет deploy/_lib.sh). Без
-    # подписанта — nogroup (65534), не дающая ничего.
+    # подписанта - nogroup (65534), не дающая ничего.
     group_add:
       - "${CZ_SIGNER_GID:-65534}"
     volumes:
       # Только каталог сокета подписанта ЧЗ, на чтение: ключ и КриптоПро в контейнер не попадают.
-      # Писать в сокет можно и при :ro — запись в сокет не меняет файловую систему.
+      # Писать в сокет можно и при :ro - запись в сокет не меняет файловую систему.
       - /run/cz-signer:/run/cz-signer:ro
     depends_on:
       db:
@@ -90,9 +90,9 @@ services:
 
   # --- Bugsink: сбор ошибок бэкенда (ADHOC-42) ---
   # Профиль monitoring: поднимается, только когда в .env.prod задан BUGSINK_SECRET_KEY
-  # (обёртка compose() в deploy/_lib.sh включает профиль сама). Без него стек — как раньше.
+  # (обёртка compose() в deploy/_lib.sh включает профиль сама). Без него стек - как раньше.
   # Своя база: SQLite в томе Docker Bugsink не рекомендует, а рабочий Postgres (его дамп
-  # и проверку восстановления) история ошибок не задевает. Её не бэкапим — потерять не страшно.
+  # и проверку восстановления) история ошибок не задевает. Её не бэкапим - потерять не страшно.
   bugsink-db:
     image: postgres:16-alpine
     profiles: [monitoring]
@@ -129,7 +129,7 @@ services:
       SITE_TITLE: Craft WMS · ошибки
       # Регистрации нет: входит только админ (и кого он заведёт сам).
       USER_REGISTRATION: CB_ADMINS
-      # Письма об ошибках — через SMTP-ящик для алертов.
+      # Письма об ошибках - через SMTP-ящик для алертов.
       EMAIL_HOST: ${BUGSINK_EMAIL_HOST:-}
       EMAIL_PORT: ${BUGSINK_EMAIL_PORT:-587}
       EMAIL_HOST_USER: ${BUGSINK_EMAIL_USER:-}

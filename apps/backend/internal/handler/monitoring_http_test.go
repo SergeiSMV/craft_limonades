@@ -14,7 +14,7 @@ import (
 	"craftwms/internal/model"
 )
 
-// Проверка мониторинга (ADHOC-43): проверочная ошибка — только админу. Без Bugsink (тесты)
+// Проверка мониторинга (ADHOC-43): проверочная ошибка - только админу. Без Bugsink (тесты)
 // ответ честно говорит, что отправка выключена, а запись в журнал всё равно есть.
 func TestMonitoringTest_adminOnly(t *testing.T) {
 	tokens := auth.NewTokenManager("test-secret", time.Hour, 24*time.Hour)
@@ -56,6 +56,6 @@ func TestMonitoringTest_adminOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 	if body.Reporting || body.RequestID == "" {
-		t.Errorf("ответ: %+v — без DSN отправка выключена, request_id обязателен", body)
+		t.Errorf("ответ: %+v - без DSN отправка выключена, request_id обязателен", body)
 	}
 }

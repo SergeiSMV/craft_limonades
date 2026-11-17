@@ -28,11 +28,11 @@ import '../widgets/line_tile.dart';
 /// Страница короба ячейки прохода (ADHOC-46): только содержимое этого короба.
 ///
 /// Здесь сканы ложатся в короб, отсюда печатают его ярлык и удаляют короб. Отдельная
-/// страница, а не переключатель «текущий короб» — тот же приём, что у приёмки (ADHOC-18):
-/// переключатель легко забыть, и товар молча уезжал бы не в тот короб. Ячейка у короба —
+/// страница, а не переключатель «текущий короб» - тот же приём, что у приёмки (ADHOC-18):
+/// переключатель легко забыть, и товар молча уезжал бы не в тот короб. Ячейка у короба -
 /// ячейка прохода: короб переезжает только вместе с ней.
 ///
-/// Cubit приходит от экрана ячейки: короб — часть того же прохода и его черновика.
+/// Cubit приходит от экрана ячейки: короб - часть того же прохода и его черновика.
 @RoutePage()
 class EntryBoxPage extends StatelessWidget {
   const EntryBoxPage({super.key, required this.cubit, required this.boxId});
@@ -64,7 +64,7 @@ class _EntryBoxViewState extends State<_EntryBoxView>
   @override
   String? get scanBoxId => widget.boxId;
 
-  /// Ярлык другого короба этой ячейки — переходим в него, не возвращаясь в ячейку: так
+  /// Ярлык другого короба этой ячейки - переходим в него, не возвращаясь в ячейку: так
   /// раскладывают товар по нескольким коробам подряд.
   @override
   void onBoxScanned(String boxId) {
@@ -95,7 +95,7 @@ class _EntryBoxViewState extends State<_EntryBoxView>
     refocusScan();
   }
 
-  /// Удалить короб с позициями — после подтверждения: ярлык уже мог быть напечатан.
+  /// Удалить короб с позициями - после подтверждения: ярлык уже мог быть напечатан.
   Future<void> _deleteBox() async {
     final ok = await showBindPromptDialog(
       context,
@@ -115,13 +115,13 @@ class _EntryBoxViewState extends State<_EntryBoxView>
   Widget build(BuildContext context) {
     final state = context.watch<StockEntryCubit>().state;
     final box = state.boxById(widget.boxId);
-    // Короб удалён — страница уже закрывается, рисовать нечего.
+    // Короб удалён - страница уже закрывается, рисовать нечего.
     if (box == null) return const SizedBox.shrink();
     final lines = state
         .linesOf(box.id)
         .reversed
-        .toList(); // свежая строка — сверху
-    // «Назад» — после марок, ещё не легших в короб (ADHOC-70).
+        .toList(); // свежая строка - сверху
+    // «Назад» - после марок, ещё не легших в короб (ADHOC-70).
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: czOnPop,
@@ -163,7 +163,7 @@ class _EntryBoxViewState extends State<_EntryBoxView>
                         ),
                       ),
                     ),
-                    // У короба ЧЗ своя этикетка поставщика с SSCC — ярлык не нужен.
+                    // У короба ЧЗ своя этикетка поставщика с SSCC - ярлык не нужен.
                     if (!box.isCz) ...[
                       AppBoxes.kWidth8,
                       BarIconButton(

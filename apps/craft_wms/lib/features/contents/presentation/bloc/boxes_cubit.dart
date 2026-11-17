@@ -9,7 +9,7 @@ import '../../domain/contents_repository.dart';
 
 /// Стадия вкладки «Короба».
 enum BoxesStatus {
-  /// Вкладку ещё не открывали — ничего не грузили.
+  /// Вкладку ещё не открывали - ничего не грузили.
   initial,
   loading,
   ready,
@@ -30,13 +30,13 @@ class BoxesState {
 
   final BoxesStatus status;
 
-  /// Список коробов склада или выдача поиска — смотря по [query].
+  /// Список коробов склада или выдача поиска - смотря по [query].
   final Viewed<List<LoadUnitView>>? data;
 
   /// Строка поиска как набрана.
   final String query;
 
-  /// В строке не код короба — поиск не запускался.
+  /// В строке не код короба - поиск не запускался.
   final bool invalidQuery;
   final Failure? failure;
 
@@ -61,11 +61,11 @@ class BoxesState {
 /// Вкладка «Короба» в «Остатках» (P5-05-1): список коробов из снимка и поиск по короткому коду.
 ///
 /// Открытие вкладки и «потянуть вниз» сначала обновляют снимок с сервера: со связью кладовщик
-/// видит склад на сейчас, без связи — снимок с подписью, на когда он.
+/// видит склад на сейчас, без связи - снимок с подписью, на когда он.
 @injectable
 class BoxesCubit extends Cubit<BoxesState> {
   BoxesCubit(this._repo, this._snapshot) : super(const BoxesState()) {
-    // Снимок обновился по любому поводу (очередь, версии данных — ADHOC-60) — список
+    // Снимок обновился по любому поводу (очередь, версии данных - ADHOC-60) - список
     // перечитывается из кэша. Выдача поиска идёт с сервера и остаётся как есть.
     _updates = _snapshot.updated.listen((_) {
       if (state.status == BoxesStatus.ready && !state.searching) {
@@ -80,13 +80,13 @@ class BoxesCubit extends Cubit<BoxesState> {
   final ContentsRepository _repo;
   final ContentsSnapshotSync _snapshot;
 
-  /// Пауза набора перед поиском — как у поиска товаров: не спрашивать сервер на каждый знак.
+  /// Пауза набора перед поиском - как у поиска товаров: не спрашивать сервер на каждый знак.
   static const _debounce = Duration(milliseconds: 400);
 
   Timer? _timer;
 
-  /// Чем кончилось последнее обновление снимка; `null` — обновился. Список перечитывается из
-  /// снимка и при очистке поиска — подпись берётся отсюда, а не «обновляли ли только что»:
+  /// Чем кончилось последнее обновление снимка; `null` - обновился. Список перечитывается из
+  /// снимка и при очистке поиска - подпись берётся отсюда, а не «обновляли ли только что»:
   /// иначе после очистки поиска при живой связи экран писал «нет связи» (ADHOC-22).
   Failure? _refreshFailure;
 
@@ -104,14 +104,14 @@ class BoxesCubit extends Cubit<BoxesState> {
     await _show();
   }
 
-  /// Набор в строке поиска — поиск после паузы.
+  /// Набор в строке поиска - поиск после паузы.
   void setQueryDebounced(String text) {
     _timer?.cancel();
     emit(state.copyWith(query: text, invalidQuery: false));
     _timer = Timer(_debounce, () => unawaited(_show()));
   }
 
-  /// Ввод завершён — искать сразу.
+  /// Ввод завершён - искать сразу.
   Future<void> submitQuery(String text) async {
     _timer?.cancel();
     emit(state.copyWith(query: text, invalidQuery: false));
@@ -134,7 +134,7 @@ class BoxesCubit extends Cubit<BoxesState> {
     }
     final query = state.query;
     final res = await _repo.searchLoadUnits(code);
-    // Пока шёл запрос, строку могли поменять — устаревшую выдачу не показываем.
+    // Пока шёл запрос, строку могли поменять - устаревшую выдачу не показываем.
     if (isClosed || state.query != query) return;
     emit(
       res.fold(

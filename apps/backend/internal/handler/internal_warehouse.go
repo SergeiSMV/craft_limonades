@@ -13,8 +13,8 @@ import (
 	"craftwms/internal/service"
 )
 
-// InternalWarehouseHandler — справочник внутренних складов (P6-07-1, ADHOC-29). Читает любой
-// сотрудник (ТСД помечает брак и подписывает его), ведёт — только admin из портала.
+// InternalWarehouseHandler - справочник внутренних складов (P6-07-1, ADHOC-29). Читает любой
+// сотрудник (ТСД помечает брак и подписывает его), ведёт - только admin из портала.
 type InternalWarehouseHandler struct {
 	svc *service.InternalWarehouseService
 }
@@ -30,10 +30,10 @@ type internalWarehouseResponse struct {
 	Name      string `json:"name"`
 	IsDefault bool   `json:"is_default"`
 	IsActive  bool   `json:"is_active"` // скрытый не предлагается для пометки, но подписывается
-	InUse     bool   `json:"in_use"`    // есть остаток или история — удалить нельзя, только скрыть
+	InUse     bool   `json:"in_use"`    // есть остаток или история - удалить нельзя, только скрыть
 	// Роль системного склада (P6-07-3): не скрыть, не удалить, при пометке не выбрать.
 	SystemRole string `json:"system_role,omitempty"`
-	// AllowPicking — галочка «разрешить сборку» (P8-02): из товара склада собирают заказы.
+	// AllowPicking - галочка «разрешить сборку» (P8-02): из товара склада собирают заказы.
 	AllowPicking bool `json:"allow_picking"`
 }
 
@@ -41,7 +41,7 @@ func toInternalWarehouseResponse(w model.InternalWarehouse) internalWarehouseRes
 	return internalWarehouseResponse(w)
 }
 
-// List: GET /api/v1/internal-warehouses — все склады, и скрытые, по умолчанию первым.
+// List: GET /api/v1/internal-warehouses - все склады, и скрытые, по умолчанию первым.
 func (h *InternalWarehouseHandler) List(w http.ResponseWriter, r *http.Request) {
 	items, err := h.svc.List(r.Context())
 	if err != nil {
@@ -56,7 +56,7 @@ func (h *InternalWarehouseHandler) List(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusOK, out)
 }
 
-// Create: POST /api/v1/internal-warehouses {code, name} — завести склад. 201 / 400 / 409.
+// Create: POST /api/v1/internal-warehouses {code, name} - завести склад. 201 / 400 / 409.
 func (h *InternalWarehouseHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Code string `json:"code"`
@@ -74,7 +74,7 @@ func (h *InternalWarehouseHandler) Create(w http.ResponseWriter, r *http.Request
 	writeJSON(w, http.StatusCreated, toInternalWarehouseResponse(created))
 }
 
-// Update: PATCH /api/v1/internal-warehouses/{id} {name?, is_active?, allow_picking?} —
+// Update: PATCH /api/v1/internal-warehouses/{id} {name?, is_active?, allow_picking?} -
 // переименовать, скрыть или вернуть в выбор, разрешить или запретить сборку. 200 / 400 / 404 / 409.
 func (h *InternalWarehouseHandler) Update(w http.ResponseWriter, r *http.Request) {
 	var req struct {
@@ -94,7 +94,7 @@ func (h *InternalWarehouseHandler) Update(w http.ResponseWriter, r *http.Request
 	writeJSON(w, http.StatusOK, toInternalWarehouseResponse(updated))
 }
 
-// Delete: DELETE /api/v1/internal-warehouses/{id} — удалить склад без остатка и истории.
+// Delete: DELETE /api/v1/internal-warehouses/{id} - удалить склад без остатка и истории.
 // 204 / 400 / 404 / 409.
 func (h *InternalWarehouseHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	if err := h.svc.Delete(r.Context(), chi.URLParam(r, "id")); err != nil {
@@ -104,11 +104,11 @@ func (h *InternalWarehouseHandler) Delete(w http.ResponseWriter, r *http.Request
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// internalWarehouseError — ответ на ошибку ведения справочника; текст — для оператора портала.
+// internalWarehouseError - ответ на ошибку ведения справочника; текст - для оператора портала.
 func internalWarehouseError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
 	case errors.Is(err, service.ErrInvalidInternalWarehouse):
-		writeError(w, http.StatusBadRequest, "код — латиница, цифры и «_» до 20 знаков; имя — до 100 символов")
+		writeError(w, http.StatusBadRequest, "код - латиница, цифры и «_» до 20 знаков; имя - до 100 символов")
 	case errors.Is(err, repository.ErrUnknownInternalWarehouse):
 		writeError(w, http.StatusNotFound, "склад не найден")
 	case errors.Is(err, repository.ErrInternalWarehouseExists):
@@ -118,7 +118,7 @@ func internalWarehouseError(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, repository.ErrSystemInternalWarehouse):
 		writeError(w, http.StatusConflict, "системный склад нельзя скрыть, удалить или разрешить к сборке")
 	case errors.Is(err, repository.ErrInternalWarehouseInUse):
-		writeError(w, http.StatusConflict, "на складе есть остаток или история — его можно только скрыть")
+		writeError(w, http.StatusConflict, "на складе есть остаток или история - его можно только скрыть")
 	default:
 		slog.ErrorContext(r.Context(), "internal warehouse change failed", "error", err)
 		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")

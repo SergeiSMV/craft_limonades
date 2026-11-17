@@ -7,7 +7,7 @@ import (
 	"craftwms/internal/repository"
 )
 
-// P9-02: схема сборки держит свои правила сама — заказ со статусами WMS и исполнителем, строки
+// P9-02: схема сборки держит свои правила сама - заказ со статусами WMS и исполнителем, строки
 // плана по тройке «заказ + код + партия», история правок, короба отгрузки «N из M», пики
 // россыпью и из короба, марки пика; ячейка отгрузки одна на склад и не ячейка приёмки.
 // Тест проверяет, что база принимает правильное и отвергает неверное.
@@ -87,7 +87,7 @@ func TestPickingSchema(t *testing.T) {
 		WHERE id = $1::uuid`, order, pf.user)
 	mustOK("изменён в 1С после отгрузки", `UPDATE picking_orders SET changed_after_shipment = true WHERE id = $1::uuid`, order)
 
-	// Сборка разрешена складу по умолчанию («Основной», миграция), новый склад — запрещён.
+	// Сборка разрешена складу по умолчанию («Основной», миграция), новый склад - запрещён.
 	var mainAllowed, defectAllowed bool
 	if err := pf.pool.QueryRow(ctx, `SELECT
 		    (SELECT allow_picking FROM internal_warehouses WHERE is_default),
@@ -99,7 +99,7 @@ func TestPickingSchema(t *testing.T) {
 		t.Errorf("сборка: основной склад %v (ждали true), новый склад %v (ждали false)", mainAllowed, defectAllowed)
 	}
 
-	// Отказы — в одной транзакции на одном соединении, каждый под своей точкой отката.
+	// Отказы - в одной транзакции на одном соединении, каждый под своей точкой отката.
 	tx, err := pf.pool.Begin(ctx)
 	if err != nil {
 		t.Fatalf("begin: %v", err)

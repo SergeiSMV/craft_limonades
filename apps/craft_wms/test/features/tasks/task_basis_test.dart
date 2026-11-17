@@ -4,7 +4,7 @@ import 'package:craft_wms/features/tasks/data/tasks_models.dart';
 import 'package:craft_wms/features/tasks/presentation/widgets/common/task_format.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// Основание задания (ADHOC-23): документ поставщика, а у заданий до ADHOC-23 — приёмка по дате.
+/// Основание задания (ADHOC-23): документ поставщика, а у заданий до ADHOC-23 - приёмка по дате.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(LocaleSettings.useDeviceLocale);
@@ -26,7 +26,7 @@ void main() {
     createdAt: DateTime(2026, 10, 5, 12),
   );
 
-  test('с документом — номер и дата документа', () {
+  test('с документом - номер и дата документа', () {
     expect(
       taskBasis(task(number: 'ТН-1042/2', date: '01-10-2026')),
       t.tasks.basisDoc(
@@ -41,14 +41,14 @@ void main() {
     );
   });
 
-  test('без документа (до ADHOC-23) — приёмка по дате оприходования', () {
+  test('без документа (до ADHOC-23) - приёмка по дате оприходования', () {
     expect(
       taskBasis(task()),
       t.tasks.basisReceipt(date: '05.10.2026', supplier: 'ИП Березин'),
     );
   });
 
-  test('по решению «разместить» — номер проблемы склада (ADHOC-55)', () {
+  test('по решению «разместить» - номер проблемы склада (ADHOC-55)', () {
     final json = {
       'id': 't2',
       'number': 8,
@@ -68,7 +68,7 @@ void main() {
     );
   });
 
-  test('пересчёт — сам пересчёт, а не «приёмка от <дата>» (ADHOC-58)', () {
+  test('пересчёт - сам пересчёт, а не «приёмка от <дата>» (ADHOC-58)', () {
     final stocktake = {
       'number': 12,
       'scope_kind': 'all',
@@ -112,7 +112,7 @@ void main() {
     );
   });
 
-  test('подсчёт ячейки в журнале задания — адрес ячейки (ADHOC-58)', () {
+  test('подсчёт ячейки в журнале задания - адрес ячейки (ADHOC-58)', () {
     final ev = TaskEvent.fromJson({
       'event': 'cell_counted',
       'user': 'Кладовщик',

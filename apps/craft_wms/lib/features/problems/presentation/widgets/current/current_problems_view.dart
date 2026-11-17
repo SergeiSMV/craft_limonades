@@ -16,18 +16,18 @@ import '../records/record_days.dart';
 import '../records/record_tile.dart';
 
 /// Вкладка «Текущие» в «Проблемах склада» (ADHOC-35): открытые проблемы всего склада по дням
-/// фиксации, свои неотправленные — сверху; внизу «Добавить» — к фиксации новой проблемы.
+/// фиксации, свои неотправленные - сверху; внизу «Добавить» - к фиксации новой проблемы.
 ///
-/// Список склада — только со связью; без неё видны свои неотправленные и подсказка: свои —
+/// Список склада - только со связью; без неё видны свои неотправленные и подсказка: свои -
 /// из очереди терминала, и кладовщик видит, что зафиксированное без сети не пропало.
 class CurrentProblemsView extends StatelessWidget {
   const CurrentProblemsView({super.key, this.onAdd});
 
   /// Перейти к фиксации новой проблемы.
-  /// «Пометить товар»; `null` — у должности нет права помечать (ADHOC-51), кнопки нет.
+  /// «Пометить товар»; `null` - у должности нет права помечать (ADHOC-51), кнопки нет.
   final VoidCallback? onAdd;
 
-  /// Открыть карточку — всё уже пришло в списке, запроса нет.
+  /// Открыть карточку - всё уже пришло в списке, запроса нет.
   void openProblem(BuildContext context, ProblemRecord problem) =>
       context.router.push(ProblemRecordRoute(problem: problem));
 
@@ -83,7 +83,7 @@ class CurrentProblemsView extends StatelessWidget {
       child: ListView.builder(
         padding: AppInsets.h8,
         physics: const AlwaysScrollableScrollPhysics(),
-        // Первым — подсказка, если список склада не получен: видны только свои.
+        // Первым - подсказка, если список склада не получен: видны только свои.
         itemCount: entries.length + (failure != null ? 1 : 0),
         itemBuilder: (context, i) {
           if (failure != null) {

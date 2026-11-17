@@ -9,35 +9,35 @@ import (
 	"craftwms/internal/model"
 )
 
-// czScanResponse — ответ `POST /api/v1/cz/scan`: всё, что ТСД показывает по скану марки или
-// кода короба. Формат закреплён эталонами testdata/cz_scan_mark.json и cz_scan_box.json —
+// czScanResponse - ответ `POST /api/v1/cz/scan`: всё, что ТСД показывает по скану марки или
+// кода короба. Формат закреплён эталонами testdata/cz_scan_mark.json и cz_scan_box.json -
 // их же разбирает клиент.
 type czScanResponse struct {
 	Code string `json:"code"`
-	// Kind — вид кода по ЧЗ: UNIT — марка единицы, GROUP — групповая упаковка, BOX — короб.
+	// Kind - вид кода по ЧЗ: UNIT - марка единицы, GROUP - групповая упаковка, BOX - короб.
 	Kind string     `json:"kind"`
 	CZ   czScanInfo `json:"cz"`
-	// Good — товар справочника по GTIN; null — GTIN незнаком, тогда BindBarcode — какой ШК
+	// Good - товар справочника по GTIN; null - GTIN незнаком, тогда BindBarcode - какой ШК
 	// предложить привязать (EAN-13).
 	Good        *czGoodResponse `json:"good"`
 	BindBarcode string          `json:"bind_barcode,omitempty"`
-	// UnboundBarcode — марка в WMS, а её ШК не привязан (ADHOC-53): товар — из записи марки.
+	// UnboundBarcode - марка в WMS, а её ШК не привязан (ADHOC-53): товар - из записи марки.
 	UnboundBarcode string `json:"unbound_barcode,omitempty"`
-	// Mark — марка в WMS; null — не числится. LoadUnitID — принятый короб ЧЗ (ГЕ).
+	// Mark - марка в WMS; null - не числится. LoadUnitID - принятый короб ЧЗ (ГЕ).
 	Mark       *czMarkResponse `json:"mark"`
 	LoadUnitID string          `json:"load_unit_id,omitempty"`
-	// Discrepancy — расхождение с ЧЗ (CZ-05): foreign_mark / retired; нет — поля нет.
+	// Discrepancy - расхождение с ЧЗ (CZ-05): foreign_mark / retired; нет - поля нет.
 	Discrepancy string                      `json:"discrepancy,omitempty"`
 	Composition []czCompositionLineResponse `json:"composition"`
 	Units       int                         `json:"units"`
 	Unreadable  []string                    `json:"unreadable"`
-	// Groups — групповые упаковки внутри (CZ-05), Parents — КИ единицы → её упаковка:
+	// Groups - групповые упаковки внутри (CZ-05), Parents - КИ единицы → её упаковка:
 	// приёмка заводит из них агрегаты и aggregate_code марок.
 	Groups  []czGroupResponse `json:"groups"`
 	Parents map[string]string `json:"parents"`
 }
 
-// czScanInfo — данные ЧЗ по коду; даты — днём (YYYY-MM-DD), время ЧЗ складу не нужно.
+// czScanInfo - данные ЧЗ по коду; даты - днём (YYYY-MM-DD), время ЧЗ складу не нужно.
 type czScanInfo struct {
 	ProductName    string `json:"product_name,omitempty"`
 	Gtin           string `json:"gtin,omitempty"`
@@ -55,7 +55,7 @@ type czGoodResponse struct {
 	Name string `json:"name"`
 }
 
-// czMarkResponse — что о марке знает WMS: история марки в CZ-04 — приход и текущее место.
+// czMarkResponse - что о марке знает WMS: история марки в CZ-04 - приход и текущее место.
 type czMarkResponse struct {
 	Status              string `json:"status"`
 	LoadUnitID          string `json:"load_unit_id,omitempty"`
@@ -63,7 +63,7 @@ type czMarkResponse struct {
 	CellID              string `json:"cell_id,omitempty"`
 	InternalWarehouseID string `json:"internal_warehouse_id,omitempty"`
 	AggregateCode       string `json:"aggregate_code,omitempty"`
-	// CellAddress — адрес ячейки, где марка лежит (короба или своей); пусто — нет места.
+	// CellAddress - адрес ячейки, где марка лежит (короба или своей); пусто - нет места.
 	CellAddress string    `json:"cell_address,omitempty"`
 	ReceivedAt  time.Time `json:"received_at"`
 }
@@ -78,10 +78,10 @@ type czCompositionLineResponse struct {
 	Discrepancy  string          `json:"discrepancy,omitempty"`
 }
 
-// Scan: POST /api/v1/cz/scan {code} — скан марки или кода короба (CZ-04).
+// Scan: POST /api/v1/cz/scan {code} - скан марки или кода короба (CZ-04).
 //
-// Код — как со сканера: префикс AIM и криптохвост сервис срежет сам. Код в теле, а не в пути:
-// в КИ бывают `/`, `%`, `"`. Только онлайн — ЧЗ без связи не читается.
+// Код - как со сканера: префикс AIM и криптохвост сервис срежет сам. Код в теле, а не в пути:
+// в КИ бывают `/`, `%`, `"`. Только онлайн - ЧЗ без связи не читается.
 func (h *CZHandler) Scan(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Code string `json:"code"`
@@ -158,7 +158,7 @@ func toCZScanResponse(s model.CZScan) czScanResponse {
 	return out
 }
 
-// czGroupResponse — групповая упаковка внутри сканированной (CZ-05).
+// czGroupResponse - групповая упаковка внутри сканированной (CZ-05).
 type czGroupResponse struct {
 	Code       string `json:"code"`
 	ParentCode string `json:"parent_code"`
@@ -171,7 +171,7 @@ func toCZGood(g *model.CZGoodRef) *czGoodResponse {
 	return &czGoodResponse{ID: g.ID, Name: g.Name}
 }
 
-// czDay — дата из метки времени ЧЗ (`2026-10-12T00:00:00.000Z` → `2026-10-12`).
+// czDay - дата из метки времени ЧЗ (`2026-10-12T00:00:00.000Z` → `2026-10-12`).
 func czDay(ts string) string {
 	if len(ts) >= 10 {
 		return ts[:10]
@@ -179,8 +179,8 @@ func czDay(ts string) string {
 	return ts
 }
 
-// czScanBatchItem — ответ пачки по одному коду (ADHOC-70): скан или отказ по этому коду.
-// Requested — код, как его прислал ТСД; Status и Error — как ответила бы `cz/scan` на этот код.
+// czScanBatchItem - ответ пачки по одному коду (ADHOC-70): скан или отказ по этому коду.
+// Requested - код, как его прислал ТСД; Status и Error - как ответила бы `cz/scan` на этот код.
 type czScanBatchItem struct {
 	Requested string          `json:"requested"`
 	Scan      *czScanResponse `json:"scan"`
@@ -188,12 +188,12 @@ type czScanBatchItem struct {
 	Error     string          `json:"error,omitempty"`
 }
 
-// ScanBatch: POST /api/v1/cz/scan/batch {codes: [...]} — скан пачки марок и кодов коробов
+// ScanBatch: POST /api/v1/cz/scan/batch {codes: [...]} - скан пачки марок и кодов коробов
 // одним запросом в ЧЗ (ADHOC-70).
 //
-// Ответ — `{items: [...]}` по одному на присланный код, в том же порядке; формат закреплён
-// эталоном testdata/cz_scan_batch.json. Отказ по коду — в его элементе, отказ чтения целиком
-// (ЧЗ недоступен, не настроен, неверное тело) — ошибка запроса, как у `cz/scan`.
+// Ответ - `{items: [...]}` по одному на присланный код, в том же порядке; формат закреплён
+// эталоном testdata/cz_scan_batch.json. Отказ по коду - в его элементе, отказ чтения целиком
+// (ЧЗ недоступен, не настроен, неверное тело) - ошибка запроса, как у `cz/scan`.
 func (h *CZHandler) ScanBatch(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Codes []string `json:"codes"`

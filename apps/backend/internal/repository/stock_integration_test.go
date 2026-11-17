@@ -23,18 +23,18 @@ import (
 	"craftwms/migrations"
 )
 
-// stockFixture — поднятый Postgres со схемой и минимальным справочником для тестов остатка.
+// stockFixture - поднятый Postgres со схемой и минимальным справочником для тестов остатка.
 type stockFixture struct {
 	pool         *pgxpool.Pool
 	cellA, cellB string
 	good, batch  string
-	iwh          string // внутренний склад по умолчанию (ADR-0016) — часть грани остатка
+	iwh          string // внутренний склад по умолчанию (ADR-0016) - часть грани остатка
 	iwhDefect    string // «брак»: одна ячейка держит оба остатка одновременно
 }
 
 // setupStock поднимает одноразовый Postgres (testcontainers), накатывает миграции и
 // заводит склад + две ячейки + товар + партию. Пропускается, если Docker недоступен
-// (локально без colima) — в CI Docker есть, тест отработает.
+// (локально без colima) - в CI Docker есть, тест отработает.
 func setupStock(t *testing.T) *stockFixture {
 	t.Helper()
 	testcontainers.SkipIfProviderIsNotHealthy(t) // нет Docker → t.Skip, а не падение
@@ -58,7 +58,7 @@ func setupStock(t *testing.T) *stockFixture {
 		t.Fatalf("connection string: %v", err)
 	}
 
-	// Миграции — той же встроенной ФС, что и прод (migrations.FS); pgx5:// как в cmd/migrate.
+	// Миграции - той же встроенной ФС, что и прод (migrations.FS); pgx5:// как в cmd/migrate.
 	src, err := iofs.New(migrations.FS, ".")
 	if err != nil {
 		t.Fatalf("источник миграций: %v", err)
@@ -85,7 +85,7 @@ func setupStock(t *testing.T) *stockFixture {
 	mustScan(t, pool, `INSERT INTO cells (warehouse_id, address) VALUES ($1::uuid,'B') RETURNING id::text`, &fx.cellB, wh)
 	mustScan(t, pool, `INSERT INTO goods (name, uom) VALUES ('Товар','шт') RETURNING id::text`, &fx.good)
 	mustScan(t, pool, `INSERT INTO batches (good_id, production_date) VALUES ($1::uuid,'2026-01-01') RETURNING id::text`, &fx.batch, fx.good)
-	// Внутренние склады заводит миграция 000013 — берём их по флагу и коду, а не по id.
+	// Внутренние склады заводит миграция 000013 - берём их по флагу и коду, а не по id.
 	mustScan(t, pool, `SELECT id::text FROM internal_warehouses WHERE is_default`, &fx.iwh)
 	mustScan(t, pool, `SELECT id::text FROM internal_warehouses WHERE code = 'DEFECT'`, &fx.iwhDefect)
 	return fx
@@ -150,8 +150,8 @@ func TestStock_TransferAtomic(t *testing.T) {
 	assertQty(t, repo, fx.keyB(), "4") // приход НЕ применился (транзакция откатилась)
 }
 
-// TestStock_ConcurrentIssue — ⚠ ключевой тест: N параллельных списаний по 1 из остатка 100.
-// Ровно 100 должны пройти, 100 — получить ErrInsufficientStock, итог = 0, минуса нет.
+// TestStock_ConcurrentIssue - ⚠ ключевой тест: N параллельных списаний по 1 из остатка 100.
+// Ровно 100 должны пройти, 100 - получить ErrInsufficientStock, итог = 0, минуса нет.
 func TestStock_ConcurrentIssue(t *testing.T) {
 	fx := setupStock(t)
 	repo := repository.NewStockRepository(fx.pool)

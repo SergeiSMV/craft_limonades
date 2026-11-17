@@ -9,8 +9,8 @@ import '../../../contents/domain/contents_entities.dart';
 import '../bloc/problem_state.dart';
 import 'problem_format.dart';
 
-/// Что пометить в отсканированном: в коробе — его целиком или товар из него; в ячейке —
-/// её короб (откроется он) или товар россыпи. Строки разных складов — разные позиции.
+/// Что пометить в отсканированном: в коробе - его целиком или товар из него; в ячейке -
+/// её короб (откроется он) или товар россыпи. Строки разных складов - разные позиции.
 class ProblemChoice extends StatelessWidget {
   const ProblemChoice({
     super.key,

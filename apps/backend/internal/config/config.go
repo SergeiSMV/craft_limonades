@@ -1,6 +1,6 @@
-// Package config — загрузка конфигурации сервиса из переменных окружения.
+// Package config - загрузка конфигурации сервиса из переменных окружения.
 //
-// Зачем: один и тот же бинарь работает в dev/prod — различается только окружение
+// Зачем: один и тот же бинарь работает в dev/prod - различается только окружение
 // (те же значения, что лежат в .env из P0-01). Хардкода настроек в коде нет.
 package config
 
@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-// Config — набор настроек сервиса, считывается один раз при старте.
+// Config - набор настроек сервиса, считывается один раз при старте.
 type Config struct {
 	AppPort     string     // порт HTTP-сервера (env APP_PORT)
 	LogLevel    slog.Level // уровень логирования (env LOG_LEVEL: debug|info|warn|error)
@@ -22,22 +22,22 @@ type Config struct {
 	AccessTTL  time.Duration // время жизни access-токена (env ACCESS_TTL), дефолт 12h
 	RefreshTTL time.Duration // время жизни refresh-токена (env REFRESH_TTL), дефолт 720h (30 дней)
 
-	// Отправка ошибок в Bugsink (ADHOC-42); SentryDSN пуст — отправка выключена.
+	// Отправка ошибок в Bugsink (ADHOC-42); SentryDSN пуст - отправка выключена.
 	SentryDSN         string // адрес проекта Bugsink (env SENTRY_DSN)
 	SentryEnvironment string // окружение событий (env SENTRY_ENVIRONMENT), дефолт prod
-	SentryRelease     string // версия сборки (env SENTRY_RELEASE); пусто — без версии
-	// ClientSentryDSN — проект Bugsink для ошибок ТСД и портала (env CLIENT_SENTRY_DSN,
-	// ADHOC-47); пусто — события приложений отбрасываются.
+	SentryRelease     string // версия сборки (env SENTRY_RELEASE); пусто - без версии
+	// ClientSentryDSN - проект Bugsink для ошибок ТСД и портала (env CLIENT_SENTRY_DSN,
+	// ADHOC-47); пусто - события приложений отбрасываются.
 	ClientSentryDSN string
 
-	// Честный знак (CZ-02); CZSignerSocket пуст — чтение ЧЗ выключено.
+	// Честный знак (CZ-02); CZSignerSocket пуст - чтение ЧЗ выключено.
 	CZSignerSocket  string        // сокет подписанта cz-signer (env CZ_SIGNER_SOCKET)
-	CZAPIURL        string        // адрес True API (env CZ_API_URL), дефолт — боевой
+	CZAPIURL        string        // адрес True API (env CZ_API_URL), дефолт - боевой
 	CZRefreshBefore time.Duration // за сколько до истечения обновлять токен (env CZ_TOKEN_REFRESH_BEFORE), дефолт 1h
-	CZOwnerINN      string        // ИНН нашей организации в ЧЗ (env CZ_OWNER_INN); пусто — владельца марки не сверяем
+	CZOwnerINN      string        // ИНН нашей организации в ЧЗ (env CZ_OWNER_INN); пусто - владельца марки не сверяем
 
-	// BadgeKey — ключ шифрования номеров бейджей для печати на ТСД (env BADGE_KEY, ADHOC-65):
-	// 64 шестнадцатеричных знака. Пусто — номера не сохраняются и печать бейджей недоступна.
+	// BadgeKey - ключ шифрования номеров бейджей для печати на ТСД (env BADGE_KEY, ADHOC-65):
+	// 64 шестнадцатеричных знака. Пусто - номера не сохраняются и печать бейджей недоступна.
 	BadgeKey string
 
 	// Демо-режим (ADHOC-67): тот же бинарь на отдельной базе с выдуманными данными. Включается
@@ -47,7 +47,7 @@ type Config struct {
 }
 
 // Load читает конфиг из окружения, подставляя безопасные значения по умолчанию.
-// Как: каждое поле — отдельная переменная env; отсутствие переменной не роняет старт,
+// Как: каждое поле - отдельная переменная env; отсутствие переменной не роняет старт,
 // а даёт разумный дефолт (удобно для локального запуска вне docker).
 func Load() Config {
 	return Config{
@@ -75,7 +75,7 @@ func Load() Config {
 	}
 }
 
-// parseDuration разбирает строку длительности (напр. "12h", "720h"); при ошибке — дефолт.
+// parseDuration разбирает строку длительности (напр. "12h", "720h"); при ошибке - дефолт.
 func parseDuration(s string, def time.Duration) time.Duration {
 	d, err := time.ParseDuration(strings.TrimSpace(s))
 	if err != nil {

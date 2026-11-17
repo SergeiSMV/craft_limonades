@@ -23,13 +23,13 @@ import (
 	"craftwms/internal/testutil"
 )
 
-// Полный цикл приёмки через НАСТОЯЩИЙ HTTP-слой (P4-03) — это и есть критерий задачи.
+// Полный цикл приёмки через НАСТОЯЩИЙ HTTP-слой (P4-03) - это и есть критерий задачи.
 //
 // Домен покрыт в P4-02, но между ним и терминалом лежит то, что сервисные тесты не видят:
 // разбор тела, авторизация, коды ответов и подстановка дефолтной ячейки. Разъедься имя поля
-// или код ответа — сервисные тесты остались бы зелёными, а приёмка на ТСД не работала бы.
+// или код ответа - сервисные тесты остались бы зелёными, а приёмка на ТСД не работала бы.
 
-// rcEnv — поднятый роутер с настоящей БД и настоящей авторизацией.
+// rcEnv - поднятый роутер с настоящей БД и настоящей авторизацией.
 type rcHTTPEnv struct {
 	srv       *httptest.Server
 	pool      *pgxpool.Pool
@@ -118,7 +118,7 @@ func (e *rcHTTPEnv) do(t *testing.T, method, path, body string) (int, map[string
 	return resp.StatusCode, parsed
 }
 
-// stockQty читает остаток в ячейке на складе по умолчанию — туда приходует приёмка.
+// stockQty читает остаток в ячейке на складе по умолчанию - туда приходует приёмка.
 func (e *rcHTTPEnv) stockQty(t *testing.T, cellID string) string {
 	t.Helper()
 	var qty string
@@ -150,7 +150,7 @@ func TestReceiptHTTP_unauthorized(t *testing.T) {
 }
 
 // Ветка «россыпь»: скан неизвестного ШК → привязка → строка без ячейки → оприходование.
-// Ячейку кладовщик не указывает — товар обязан лечь в дефолтную.
+// Ячейку кладовщик не указывает - товар обязан лечь в дефолтную.
 func TestReceiptHTTP_looseGoodsWithBarcodeBinding(t *testing.T) {
 	e := newReceiptE2E(t)
 	const barcode = "4600000000048"
@@ -159,7 +159,7 @@ func TestReceiptHTTP_looseGoodsWithBarcodeBinding(t *testing.T) {
 	if code, _ := e.do(t, http.MethodGet, "/api/v1/barcodes/"+barcode, ""); code != http.StatusNotFound {
 		t.Fatalf("неизвестный ШК: ждали 404, получили %d", code)
 	}
-	// Кладовщик выбирает товар — привязка идёт существующей ручкой (P-FS-03), своей у приёмки нет.
+	// Кладовщик выбирает товар - привязка идёт существующей ручкой (P-FS-03), своей у приёмки нет.
 	bind := fmt.Sprintf(`{"good_id":%q,"barcode":%q,"symbology":"ean13"}`, e.good, barcode)
 	if code, body := e.do(t, http.MethodPost, "/api/v1/barcodes", bind); code != http.StatusCreated && code != http.StatusOK {
 		t.Fatalf("привязка ШК: код %d, тело %+v", code, body)
@@ -200,12 +200,12 @@ func TestReceiptHTTP_looseGoodsWithBarcodeBinding(t *testing.T) {
 		t.Fatalf("остаток после оприходования: %s, ожидалось 12.500", got)
 	}
 
-	// Повтор оприходования не удваивает приход — это главное, что защищает статус (P4-02).
+	// Повтор оприходования не удваивает приход - это главное, что защищает статус (P4-02).
 	if code, _ := e.do(t, http.MethodPost, "/api/v1/receipts/"+receipt+"/post", ""); code != http.StatusConflict {
 		t.Fatalf("повтор оприходования: ждали 409, получили %d", code)
 	}
 	if got := e.stockQty(t, e.cellDflt); got != "12.500" {
-		t.Fatalf("остаток после повтора: %s — приход удвоился", got)
+		t.Fatalf("остаток после повтора: %s - приход удвоился", got)
 	}
 }
 
@@ -220,7 +220,7 @@ func TestReceiptHTTP_loadUnitBranch(t *testing.T) {
 		t.Fatalf("завести ГЕ: код %d, тело %+v", code, body)
 	}
 	// Повтор безопасен: очередь устройства повторяет операцию до подтверждения, а ярлык уже
-	// наклеен на короб — второй ГЕ на ту же наклейку быть не должно.
+	// наклеен на короб - второй ГЕ на ту же наклейку быть не должно.
 	if code, _ := e.do(t, http.MethodPost, "/api/v1/load-units",
 		fmt.Sprintf(`{"load_unit_id":%q,"kind":"box"}`, lu)); code != http.StatusCreated {
 		t.Fatalf("повтор заведения ГЕ: код %d", code)
@@ -263,7 +263,7 @@ func TestReceiptHTTP_loadUnitBranch(t *testing.T) {
 	}
 }
 
-// Скан ярлыка, которого система не знает, — рабочая ситуация кладовщика, а не сбой БД:
+// Скан ярлыка, которого система не знает, - рабочая ситуация кладовщика, а не сбой БД:
 // он обязан получить внятный 404, а не 500 от нарушения внешнего ключа.
 func TestReceiptHTTP_unknownLoadUnitIsNotFound(t *testing.T) {
 	e := newReceiptE2E(t)

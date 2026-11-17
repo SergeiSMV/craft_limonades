@@ -15,10 +15,10 @@ import (
 	"craftwms/internal/testutil"
 )
 
-// TestPickingPortal_live — раздел портала «Сборка-отгрузка» по живой базе (P8-03): заказы на дату
-// (удалённый — с пометкой, в конце), детали план/факт с партией, марками и коробом, убранная
+// TestPickingPortal_live - раздел портала «Сборка-отгрузка» по живой базе (P8-03): заказы на дату
+// (удалённый - с пометкой, в конце), детали план/факт с партией, марками и коробом, убранная
 // строка, правки реестра, снятие заказа с исполнителя (пики и короба остаются, прежний
-// кладовщик — «не у вас в работе»), собранный не снимается, выгрузка Excel по листам.
+// кладовщик - «не у вас в работе»), собранный не снимается, выгрузка Excel по листам.
 func TestPickingPortal_live(t *testing.T) {
 	pool := testutil.StartPostgres(t)
 	ctx := context.Background()
@@ -56,7 +56,7 @@ func TestPickingPortal_live(t *testing.T) {
 	}
 	o1 := order("15512", "2026-11-09")
 	gone := order("15513", "2026-11-09")
-	order("15514", "2026-11-10") // другая дата — не в списке
+	order("15514", "2026-11-10") // другая дата - не в списке
 	exec(`UPDATE picking_orders SET deleted_at = now() WHERE id = $1`, gone)
 	line := scan(`INSERT INTO picking_order_lines (order_id,line_no,good_code,good_name,good_id,batch_date,registry_cell,plan_qty)
 		VALUES ($1,1,'00000016147','Лимонад 1С',$2,'2026-10-01','A-1',3) RETURNING id::text`, o1, good)
@@ -80,7 +80,7 @@ func TestPickingPortal_live(t *testing.T) {
 	svc := NewPickingPortalService(repository.NewPickingRepository(pool), repository.NewWarehouseRepository(pool))
 	date := time.Date(2026, 11, 9, 0, 0, 0, 0, time.UTC)
 
-	// Список даты: живой заказ первым, удалённый — в конце с пометкой; другая дата не видна.
+	// Список даты: живой заказ первым, удалённый - в конце с пометкой; другая дата не видна.
 	list, err := svc.Orders(ctx, "SHB", date)
 	if err != nil || len(list) != 2 || list[0].ID != o1 || !list[1].Deleted {
 		t.Fatalf("список: %+v, %v", list, err)
@@ -113,7 +113,7 @@ func TestPickingPortal_live(t *testing.T) {
 		t.Fatalf("нет заказа: %v", err)
 	}
 
-	// Снятие: заказ «новый» без исполнителя, пик и короб на месте; повтор — не ошибка; Анна на
+	// Снятие: заказ «новый» без исполнителя, пик и короб на месте; повтор - не ошибка; Анна на
 	// следующем действии узнаёт, что заказ не у неё.
 	if err := svc.Release(ctx, o1, ann); err != nil {
 		t.Fatalf("снять: %v", err)
@@ -135,8 +135,8 @@ func TestPickingPortal_live(t *testing.T) {
 		t.Fatalf("снять собранный: %v", err)
 	}
 
-	// Выгрузка: лист «Сборка» — заказ блоком с позициями (план, факт по партии и ячейке, короб,
-	// комментарий, марка), «Заказы» — строка на заказ, «Правки».
+	// Выгрузка: лист «Сборка» - заказ блоком с позициями (план, факт по партии и ячейке, короб,
+	// комментарий, марка), «Заказы» - строка на заказ, «Правки».
 	data, name, err := svc.ExportXLSX(ctx, "SHB", date)
 	if err != nil || name != "sborka-SHB-20261109.xlsx" {
 		t.Fatalf("выгрузка: %s, %v", name, err)

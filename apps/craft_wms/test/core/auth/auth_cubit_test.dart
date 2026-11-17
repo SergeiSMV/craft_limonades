@@ -66,8 +66,8 @@ void main() {
         return AuthCubit(repo);
       },
       act: (cubit) {
-        cubit.login(badge); // первый — эмитит authenticating и ждёт
-        cubit.login(badge); // второй — state уже authenticating → игнор
+        cubit.login(badge); // первый - эмитит authenticating и ждёт
+        cubit.login(badge); // второй - state уже authenticating → игнор
       },
       wait: const Duration(milliseconds: 20),
       expect: () => const [

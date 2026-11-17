@@ -61,7 +61,7 @@ void main() {
     await db.close();
   });
 
-  test('строка в коробе и россыпью — разные грани', () async {
+  test('строка в коробе и россыпью - разные грани', () async {
     final box = cubit.newBox();
     await cubit.addLine(good: lemon, date: '15.08.2026', qty: 4);
     await cubit.addLine(good: lemon, date: '15.08.2026', qty: 6, boxId: box);
@@ -93,7 +93,7 @@ void main() {
     expect(cubit.state.linesOf(box).single.good.id, 'gB');
   });
 
-  test('короб ЧЗ и марка — один раз на весь проход', () {
+  test('короб ЧЗ и марка - один раз на весь проход', () {
     cubit.addCzBox(
       code: sscc,
       lines: [

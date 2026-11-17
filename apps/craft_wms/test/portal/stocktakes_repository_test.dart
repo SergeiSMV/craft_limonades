@@ -1,9 +1,9 @@
 import 'package:craft_wms/portal/data/stocktakes_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// P10-05: дерево групп номенклатуры для выбора области — родитель, затем поддерево, по имени.
+/// P10-05: дерево групп номенклатуры для выбора области - родитель, затем поддерево, по имени.
 void main() {
-  test('группы — обходом дерева с глубиной', () {
+  test('группы - обходом дерева с глубиной', () {
     final flat = flattenGroups([
       {'id': 'snacks', 'name': 'Снеки', 'parent_id': 'matrix'},
       {'id': 'matrix', 'name': '4/ Матрица РЫБА-СНЭКИ', 'parent_id': null},

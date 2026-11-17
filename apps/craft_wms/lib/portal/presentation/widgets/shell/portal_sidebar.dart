@@ -110,7 +110,7 @@ class PortalSidebar extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        // Должность (ADHOC-49); у сервера без должностей — роль.
+                        // Должность (ADHOC-49); у сервера без должностей - роль.
                         profile.position.isEmpty
                             ? profile.role
                             : profile.position,

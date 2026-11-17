@@ -15,7 +15,7 @@ import (
 	"craftwms/internal/service"
 )
 
-// demoOrderLine — строка «Реестра» 1С: накладная, заказ, клиент, адрес, код товара, количество.
+// demoOrderLine - строка «Реестра» 1С: накладная, заказ, клиент, адрес, код товара, количество.
 type demoOrderLine struct {
 	invoice, order, client, address, code string
 	qty                                   int
@@ -23,14 +23,14 @@ type demoOrderLine struct {
 
 // Выдуманные клиенты реестра: адреса городов без улиц.
 var (
-	// demoShipped — реестр на вчера: первый заказ собран и отгружен (раздел «Собраны» и
+	// demoShipped - реестр на вчера: первый заказ собран и отгружен (раздел «Собраны» и
 	// «Завершённые», журнал в портале), второй остался новым.
 	demoShipped = []demoOrderLine{
 		{"Д-0101", "З-5501", "ООО «Ромашка»", "Тула", "90101", 12},
 		{"Д-0101", "З-5501", "ООО «Ромашка»", "Тула", "90103", 6},
 		{"Д-0102", "З-5502", "ИП Васильков", "Рязань", "90201", 2},
 	}
-	// demoTomorrow — реестр на завтра: новые заказы для сборки на ТСД.
+	// demoTomorrow - реестр на завтра: новые заказы для сборки на ТСД.
 	demoTomorrow = []demoOrderLine{
 		{"Д-0201", "З-5601", "ООО «Ромашка»", "Тула", "90101", 24},
 		{"Д-0201", "З-5601", "ООО «Ромашка»", "Тула", "90102", 12},
@@ -44,7 +44,7 @@ var (
 	}
 )
 
-// picking — реестры на сборку загружаются так же, как оператор загружает файл 1С в портале;
+// picking - реестры на сборку загружаются так же, как оператор загружает файл 1С в портале;
 // вчерашний заказ собирается по подбору, завершается и отгружается операциями ТСД.
 func (s *seeder) picking() error {
 	pk := repository.NewPickingRepository(s.pool)
@@ -74,7 +74,7 @@ func (s *seeder) picking() error {
 	return s.shipOrder(service.NewPickingTaskService(pk), orderID, s.borisID)
 }
 
-// shipOrder — сборка заказа кладовщиком: взять, короб отгрузки, пик по подбору операцией
+// shipOrder - сборка заказа кладовщиком: взять, короб отгрузки, пик по подбору операцией
 // очереди, «Завершить сборку», ярлыки, отгрузка сканом всех коробов.
 func (s *seeder) shipOrder(task *service.PickingTaskService, orderID, userID string) error {
 	if err := task.Take(s.ctx, orderID, userID); err != nil {
@@ -120,7 +120,7 @@ func (s *seeder) shipOrder(task *service.PickingTaskService, orderID, userID str
 	return err
 }
 
-// registryFile — «Реестр» в формате выгрузки 1С: лист «Реестр», 14 столбцов, даты числом Excel.
+// registryFile - «Реестр» в формате выгрузки 1С: лист «Реестр», 14 столбцов, даты числом Excel.
 func registryFile(lines []demoOrderLine, day time.Time) ([]byte, error) {
 	f := excelize.NewFile()
 	defer func() { _ = f.Close() }()
@@ -151,14 +151,14 @@ func registryFile(lines []demoOrderLine, day time.Time) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// excelDate — дата числом Excel (дней от 30.12.1899): так 1С пишет даты в реестр.
+// excelDate - дата числом Excel (дней от 30.12.1899): так 1С пишет даты в реестр.
 func excelDate(day time.Time) int {
 	base := time.Date(1899, 12, 30, 0, 0, 0, 0, time.UTC)
 	d := time.Date(day.Year(), day.Month(), day.Day(), 0, 0, 0, 0, time.UTC)
 	return int(d.Sub(base).Hours() / 24)
 }
 
-// goodName — наименование товара демо-справочника по коду (для столбца «Товар» реестра).
+// goodName - наименование товара демо-справочника по коду (для столбца «Товар» реестра).
 func goodName(code string) string {
 	for _, g := range demoGoods {
 		if g.code == code {

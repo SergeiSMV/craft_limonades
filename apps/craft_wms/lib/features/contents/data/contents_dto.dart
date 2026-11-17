@@ -3,16 +3,16 @@ import '../domain/contents_entities.dart';
 /// Разбор ответов `GET /contents/snapshot`, `GET /cells/{id}/contents`,
 /// `GET /load-units/{id}/card` (P5-05) в сущности домена и строки снимка.
 ///
-/// Руками, а не json_serializable: ответов три, домен — простые классы без кодогенерации,
+/// Руками, а не json_serializable: ответов три, домен - простые классы без кодогенерации,
 /// и разбор в одном месте нагляднее аннотаций на двух слоях. Формат снимка закреплён
 /// эталоном `apps/backend/internal/handler/testdata/contents_snapshot.json`.
 
 /// Количество приходит строкой (decimal с сервера).
 double _qty(Object? raw) => double.tryParse('$raw') ?? 0;
 
-/// Строка содержимого карточки или ячейки — с наименованием товара. Склад строки — свой
-/// у россыпи, у содержимого короба — [warehouseId] короба. Id склада — как прислал сервер;
-/// к соглашению терминала («Основной» — `null`) его приводит репозиторий.
+/// Строка содержимого карточки или ячейки - с наименованием товара. Склад строки - свой
+/// у россыпи, у содержимого короба - [warehouseId] короба. Id склада - как прислал сервер;
+/// к соглашению терминала («Основной» - `null`) его приводит репозиторий.
 ContentLine contentLineFromJson(
   Map<String, dynamic> j, {
   String? warehouseId,
@@ -116,16 +116,16 @@ class SnapshotLoadUnit {
   final DateTime createdAt;
   final List<SnapshotLine> lines;
 
-  /// Склад короба целиком (P6-07-2); пусто — сервер до P6-07-1.
+  /// Склад короба целиком (P6-07-2); пусто - сервер до P6-07-1.
   final String internalWarehouseId;
 
-  /// Код короба ЧЗ (`00`+SSCC) и вскрыт ли он (CZ-06); `null` — свой короб с QR.
+  /// Код короба ЧЗ (`00`+SSCC) и вскрыт ли он (CZ-06); `null` - свой короб с QR.
   final String? czCode;
   final bool czOpened;
 }
 
 /// Марка ЧЗ на складе из снимка (CZ-06): в коробе ([loadUnitId]) или россыпью ([cellId]
-/// со складом [internalWarehouseId]). [aggregateCode] — упаковка ЧЗ, в которой марка пришла.
+/// со складом [internalWarehouseId]). [aggregateCode] - упаковка ЧЗ, в которой марка пришла.
 class SnapshotMark {
   const SnapshotMark({
     required this.cis,
@@ -215,7 +215,7 @@ class ContentsSnapshot {
   final List<SnapshotLoadUnit> loadUnits;
   final List<SnapshotLoose> loose;
 
-  /// Марки ЧЗ на складе (CZ-06); пусто — сервер до CZ-06.
+  /// Марки ЧЗ на складе (CZ-06); пусто - сервер до CZ-06.
   final List<SnapshotMark> marks;
 }
 
@@ -255,7 +255,7 @@ LoadUnitHistory historyFromJson(Map<String, dynamic> j) {
           operationNumber: (m['operation_number'] as num?)?.toInt() ?? 0,
         ),
     ],
-    // Сервер до ADHOC-32 состава в истории не отдаёт — пусто, а не ошибка.
+    // Сервер до ADHOC-32 состава в истории не отдаёт - пусто, а не ошибка.
     contents: [
       for (final c in j['contents'] as List? ?? const [])
         LoadUnitContentChange(

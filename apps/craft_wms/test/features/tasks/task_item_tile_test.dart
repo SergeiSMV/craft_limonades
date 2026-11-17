@@ -5,7 +5,7 @@ import 'package:craft_wms/features/tasks/presentation/widgets/detail/task_item_t
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// Позиция задания (ADHOC-21): неоморфная плашка, касание открывает короб или товар —
+/// Позиция задания (ADHOC-21): неоморфная плашка, касание открывает короб или товар -
 /// в том числе уже размещённое.
 void main() {
   setUp(LocaleSettings.useDeviceLocale);

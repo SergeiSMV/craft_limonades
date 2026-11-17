@@ -33,7 +33,7 @@ import '../../../sync/presentation/widgets/sync_status_chip.dart';
 import '../widgets/sync_indicator.dart';
 
 /// Главное меню ТСД (P1-07): шапка (сотрудник · склад) + сетка плиток операций.
-/// Плитки — по правам должности; заглушек нет (плитка «История» убрана, ADHOC-65).
+/// Плитки - по правам должности; заглушек нет (плитка «История» убрана, ADHOC-65).
 @RoutePage()
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -56,7 +56,7 @@ class HomePage extends StatelessWidget {
 
   /// Обновить справочники вручную: перечитать их с сервера в локальный кэш.
   ///
-  /// Нужно, когда на портале только что загрузили номенклатуру или напечатали новые ячейки, —
+  /// Нужно, когда на портале только что загрузили номенклатуру или напечатали новые ячейки, -
   /// ждать следующего входа в приложение ради этого незачем.
   Future<void> refreshCatalogs(BuildContext context) async {
     final messenger = ScaffoldMessenger.of(context);
@@ -142,7 +142,7 @@ class HomePage extends StatelessWidget {
   /// Разметка меню. Вынесена из [build], чтобы провайдер состояния синхронизации стоял выше
   /// дерева, которое его читает.
   Widget _buildScaffold(BuildContext context, Profile? profile) {
-    // Плитки — по правам должности (ADHOC-51); без профиля (вход ещё идёт) — все.
+    // Плитки - по правам должности (ADHOC-51); без профиля (вход ещё идёт) - все.
     bool can(String right, [List<String> more = const []]) =>
         profile?.can(right, more) ?? true;
     return SystemUiWrapper(
@@ -155,7 +155,7 @@ class HomePage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Шапка: слева — сотрудник (ФИО), справа — склад + меню (логи/выход).
+                // Шапка: слева - сотрудник (ФИО), справа - склад + меню (логи/выход).
                 Row(
                   children: [
                     Expanded(
@@ -185,7 +185,7 @@ class HomePage extends StatelessWidget {
 
                     SyncIndicator(running: getIt<CatalogSyncService>().running),
 
-                    // Очередь и связь — на виду, а не только в служебном меню (P2-07).
+                    // Очередь и связь - на виду, а не только в служебном меню (P2-07).
                     SyncStatusChip(onTap: () => goToSyncQueue(context)),
 
                     PopupMenuButton<void>(
@@ -286,7 +286,7 @@ class HomePage extends StatelessWidget {
                 // Новая версия из RuStore, скачанная в фоне (ADHOC-69): в меню никто не стоит
                 // посреди операции, поэтому кнопка и проверка - здесь и на экране входа.
                 AppUpdateButton(queueHint: t.homeScreen.updateQueue),
-                // Ни одного права ТСД у должности — вместо плиток объяснение (ADHOC-51).
+                // Ни одного права ТСД у должности - вместо плиток объяснение (ADHOC-51).
                 if (profile != null && !profile.can(Rights.tsd))
                   const Expanded(child: _NoTsdAccess())
                 else
@@ -312,7 +312,7 @@ class HomePage extends StatelessWidget {
                           onTap: () => openReceipt(context),
                         ),
                       ),
-                      // Пометка незавершённого перемещения — та же, что у приёмки (P6-04).
+                      // Пометка незавершённого перемещения - та же, что у приёмки (P6-04).
                       if (can(Rights.tsdMovement))
                       PendingPassBuilder(
                         watch: getIt<MovementDraftStore>().watchHasDraft,
@@ -325,7 +325,7 @@ class HomePage extends StatelessWidget {
                           onTap: () => openMovement(context),
                         ),
                       ),
-                      // Счётчик текущих заданий — из снимка на терминале, работает без связи.
+                      // Счётчик текущих заданий - из снимка на терминале, работает без связи.
                       if (can(Rights.tsdPutaway, [
                         Rights.tsdStocktakeCount,
                         Rights.tsdStocktakeManage,
@@ -343,9 +343,9 @@ class HomePage extends StatelessWidget {
                       ),
                       // Пометка незавершённого прохода: вход в «Ввод остатков» лежит внутри
                       // «Остатков», и кладовщик должен увидеть незакрытый проход уже отсюда.
-                      // Плитка рисует пометку сама — обёртка снаружи уводила кружок в зазор
+                      // Плитка рисует пометку сама - обёртка снаружи уводила кружок в зазор
                       // между плитками.
-                      // «Ввод остатков» открывается из «Остатков» — плитка нужна и ему.
+                      // «Ввод остатков» открывается из «Остатков» - плитка нужна и ему.
                       if (can(Rights.tsdStockView, [
                         Rights.tsdStockCzMarked,
                         Rights.tsdStockEntry,
@@ -393,7 +393,7 @@ class HomePage extends StatelessWidget {
   }
 }
 
-/// Нет ни одного права на ТСД (ADHOC-51): войти можно, работать — нет; выйти — меню профиля.
+/// Нет ни одного права на ТСД (ADHOC-51): войти можно, работать - нет; выйти - меню профиля.
 class _NoTsdAccess extends StatelessWidget {
   const _NoTsdAccess();
 

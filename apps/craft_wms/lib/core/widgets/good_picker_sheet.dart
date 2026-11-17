@@ -17,9 +17,9 @@ import '../theme/semibold_text.dart';
 /// Нижний лист выбора товара из номенклатуры (поиск с дебаунсом).
 ///
 /// Живёт в `core/widgets`, потому что нужен двум фичам: «Ввод остатков» открывает его, когда
-/// отсканированный ШК не привязан, а «Остатки» — когда кладовщик согласился привязать такой ШК
+/// отсканированный ШК не привязан, а «Остатки» - когда кладовщик согласился привязать такой ШК
 /// (ADHOC-06). Держать его в `stock_entry` значило бы тянуть импорт из одной фичи в другую;
-/// от самого `stock_entry` лист не зависит — ему нужен только справочник товаров.
+/// от самого `stock_entry` лист не зависит - ему нужен только справочник товаров.
 class GoodPickerSheet extends StatefulWidget {
   const GoodPickerSheet({super.key, required this.repo});
 
@@ -171,7 +171,7 @@ class _GoodPickerSheetState extends State<GoodPickerSheet> {
                     ),
                   )
                 : NotificationListener<ScrollNotification>(
-                    // Ближе 400px к концу — тянем следующую страницу (loadMore защищён от повторов).
+                    // Ближе 400px к концу - тянем следующую страницу (loadMore защищён от повторов).
                     onNotification: (n) {
                       if (n.metrics.pixels >= n.metrics.maxScrollExtent - 400) {
                         _loadMore();

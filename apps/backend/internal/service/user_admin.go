@@ -11,7 +11,7 @@ import (
 	"craftwms/internal/repository"
 )
 
-// userAdminRepo — что сервису пользователей нужно от хранилища (ADHOC-49).
+// userAdminRepo - что сервису пользователей нужно от хранилища (ADHOC-49).
 type userAdminRepo interface {
 	Positions(ctx context.Context) ([]model.Position, error)
 	CreatePosition(ctx context.Context, in model.PositionInput, by string) (string, error)
@@ -23,22 +23,22 @@ type userAdminRepo interface {
 	IsBadgeUser(ctx context.Context, id string) (bool, error)
 }
 
-// UserAdminService — пользователи и должности в портале (ADHOC-49): форма ввода, способ
-// входа и хеш секрета. Последнего администратора и системную должность бережёт репозиторий —
+// UserAdminService - пользователи и должности в портале (ADHOC-49): форма ввода, способ
+// входа и хеш секрета. Последнего администратора и системную должность бережёт репозиторий -
 // в той же транзакции, что и правку.
 type UserAdminService struct {
 	repo userAdminRepo
-	// badges — шифр номеров бейджей для печати (ADHOC-65); nil — номер не сохраняется.
+	// badges - шифр номеров бейджей для печати (ADHOC-65); nil - номер не сохраняется.
 	badges *auth.BadgeCipher
 }
 
-// NewUserAdminService создаёт сервис пользователей и должностей; badges — шифр номеров
-// бейджей для печати на ТСД (nil — выданный номер не запоминается).
+// NewUserAdminService создаёт сервис пользователей и должностей; badges - шифр номеров
+// бейджей для печати на ТСД (nil - выданный номер не запоминается).
 func NewUserAdminService(repo userAdminRepo, badges *auth.BadgeCipher) *UserAdminService {
 	return &UserAdminService{repo: repo, badges: badges}
 }
 
-// sealBadge — зашифрованный секрет выданного бейджа для печати; без ключа — nil.
+// sealBadge - зашифрованный секрет выданного бейджа для печати; без ключа - nil.
 func (s *UserAdminService) sealBadge(badge string) ([]byte, error) {
 	if s.badges == nil {
 		return nil, nil
@@ -46,7 +46,7 @@ func (s *UserAdminService) sealBadge(badge string) ([]byte, error) {
 	return s.badges.Seal(badge[:8], badge[8:])
 }
 
-// Ограничения ввода: название должности — как в схеме, пароль — не короче 8 символов.
+// Ограничения ввода: название должности - как в схеме, пароль - не короче 8 символов.
 const (
 	positionNameMax = 64
 	fullNameMax     = 200
@@ -55,10 +55,10 @@ const (
 	passwordMin     = 8
 )
 
-// Rights — все права в порядке показа.
+// Rights - все права в порядке показа.
 func (s *UserAdminService) Rights() []string { return slices.Clone(model.Rights) }
 
-// Positions — должности с действующими правами и числом пользователей.
+// Positions - должности с действующими правами и числом пользователей.
 func (s *UserAdminService) Positions(ctx context.Context) ([]model.Position, error) {
 	return s.repo.Positions(ctx)
 }
@@ -92,13 +92,13 @@ func (s *UserAdminService) DeletePosition(ctx context.Context, id, by string) er
 	return s.repo.DeletePosition(ctx, id, by)
 }
 
-// Users — все пользователи, и заблокированные.
+// Users - все пользователи, и заблокированные.
 func (s *UserAdminService) Users(ctx context.Context) ([]model.UserListItem, error) {
 	return s.repo.Users(ctx)
 }
 
-// CreateUser заводит пользователя: ровно один способ входа — бейдж (16 цифр: логин — первые
-// 8, секрет — последние 8, как при входе) или логин с паролем.
+// CreateUser заводит пользователя: ровно один способ входа - бейдж (16 цифр: логин - первые
+// 8, секрет - последние 8, как при входе) или логин с паролем.
 func (s *UserAdminService) CreateUser(ctx context.Context, in model.UserCreateInput) (string, error) {
 	name, ok := normalizeFullName(in.FullName)
 	if !ok || !isUUID(in.PositionID) {
@@ -131,7 +131,7 @@ func (s *UserAdminService) CreateUser(ctx context.Context, in model.UserCreateIn
 	return s.repo.CreateUser(ctx, u)
 }
 
-// UpdateUser правит пользователя. Новый бейдж — только у входящего по бейджу, новый пароль —
+// UpdateUser правит пользователя. Новый бейдж - только у входящего по бейджу, новый пароль -
 // только у входящего по логину: способ входа не меняется. Себя заблокировать нельзя.
 func (s *UserAdminService) UpdateUser(ctx context.Context, in model.UserUpdateInput) error {
 	if !isUUID(in.ID) {
@@ -170,7 +170,7 @@ func (s *UserAdminService) UpdateUser(ctx context.Context, in model.UserUpdateIn
 			}
 			login := (*in.Badge)[:8]
 			c.Login, c.PasswordHash = &login, &hash
-			// Новый бейдж заменяет и сохранённый номер: без ключа — пусто, а не прежний.
+			// Новый бейдж заменяет и сохранённый номер: без ключа - пусто, а не прежний.
 			if c.BadgeSecretEnc, err = s.sealBadge(*in.Badge); err != nil {
 				return err
 			}
@@ -190,7 +190,7 @@ func (s *UserAdminService) UpdateUser(ctx context.Context, in model.UserUpdateIn
 	return s.repo.UpdateUser(ctx, c)
 }
 
-// normalizePosition — название без крайних пробелов, права — известные, без повторов, в
+// normalizePosition - название без крайних пробелов, права - известные, без повторов, в
 // порядке показа.
 func normalizePosition(in model.PositionInput) (model.PositionInput, error) {
 	name := strings.TrimSpace(in.Name)

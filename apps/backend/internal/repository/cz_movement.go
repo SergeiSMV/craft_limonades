@@ -11,7 +11,7 @@ import (
 	"craftwms/internal/model"
 )
 
-// markPlace — место марки на складе (CZ-06): в коробе (loadUnitID) ЛИБО россыпью в ячейке
+// markPlace - место марки на складе (CZ-06): в коробе (loadUnitID) ЛИБО россыпью в ячейке
 // (cellID) строкой внутреннего склада iwh. Ячейку марки в коробе хранит короб, не марка.
 type markPlace struct {
 	loadUnitID string
@@ -19,8 +19,8 @@ type markPlace struct {
 	iwh        string
 }
 
-// nonNilMarks — марки строки для колонки `marks` (ADHOC-55): nil-срез pgx пишет как NULL, а
-// колонка NOT NULL — строка без марок хранит пустой массив.
+// nonNilMarks - марки строки для колонки `marks` (ADHOC-55): nil-срез pgx пишет как NULL, а
+// колонка NOT NULL - строка без марок хранит пустой массив.
 func nonNilMarks(marks []string) []string {
 	if marks == nil {
 		return []string{}
@@ -28,7 +28,7 @@ func nonNilMarks(marks []string) []string {
 	return marks
 }
 
-// placeOf — место для строки товара: короб, если он есть, иначе россыпь ячейки.
+// placeOf - место для строки товара: короб, если он есть, иначе россыпь ячейки.
 func placeOf(loadUnitID, cellID, iwh string) markPlace {
 	if loadUnitID != "" {
 		return markPlace{loadUnitID: loadUnitID}
@@ -36,7 +36,7 @@ func placeOf(loadUnitID, cellID, iwh string) markPlace {
 	return markPlace{cellID: cellID, iwh: iwh}
 }
 
-// lockedMark — марка под блокировкой: чья она и где лежит сейчас.
+// lockedMark - марка под блокировкой: чья она и где лежит сейчас.
 type lockedMark struct {
 	cis, good, batch, status string
 	place                    markPlace
@@ -51,12 +51,12 @@ type lockedMark struct {
 //
 // Зачем здесь, а не в вызывающих: перемещение, размещение россыпи и пометка проблемы двигают
 //
-//	товар по-разному, а правило «где лежит марка» одно — две копии разошлись бы.
+//	товар по-разному, а правило «где лежит марка» одно - две копии разошлись бы.
 //
-// Как: марки блокируются (FOR UPDATE) в порядке КИ — два документа с одними марками не
+// Как: марки блокируются (FOR UPDATE) в порядке КИ - два документа с одними марками не
 //
 //	сцепятся; каждая обязана быть на складе, своего товара и партии и лежать в источнике.
-//	Немаркируемый товар без марок проходит как раньше; марки при нём — тоже учитываются:
+//	Немаркируемый товар без марок проходит как раньше; марки при нём - тоже учитываются:
 //	товар мог стать маркируемым позже.
 func moveMarks(ctx context.Context, q Querier, goodID, batchID string, marks []string, qty decimal.Decimal, from, to markPlace) error {
 	if len(marks) == 0 {
@@ -101,7 +101,7 @@ func moveMarks(ctx context.Context, q Querier, goodID, batchID string, marks []s
 	return openTouchedAggregates(ctx, q, marks)
 }
 
-// lockMarks блокирует марки по КИ и возвращает их состояние. Хоть одной нет — ErrCZMarkNotAtSource:
+// lockMarks блокирует марки по КИ и возвращает их состояние. Хоть одной нет - ErrCZMarkNotAtSource:
 // марки, которой склад не знает, нет и в источнике.
 func lockMarks(ctx context.Context, q Querier, marks []string) ([]lockedMark, error) {
 	rows, err := q.Query(ctx, `
@@ -137,22 +137,22 @@ func lockMarks(ctx context.Context, q Querier, marks []string) ([]lockedMark, er
 //
 // Что: проверяются упаковки, в которых пришли тронутые марки, и упаковки над ними (групповая
 //
-//	внутри короба). Упаковка вскрыта, если хоть одна её марка — прямо или во вложенной
-//	упаковке — ушла со склада, лежит не в коробе ЧЗ, которым упаковка является, или (у
+//	внутри короба). Упаковка вскрыта, если хоть одна её марка - прямо или во вложенной
+//	упаковке - ушла со склада, лежит не в коробе ЧЗ, которым упаковка является, или (у
 //	групповой упаковки) лежит не там же, где остальные её марки.
 //
 // Зачем по факту, а не «каждое изъятие»: групповую упаковку целиком перекладывают одним
 //
-//	сканом, и она остаётся целой; вынутая из неё бутылка — вскрывает.
+//	сканом, и она остаётся целой; вынутая из неё бутылка - вскрывает.
 //
-// Как: одним UPDATE; вскрытие не снимается — `opened_at` ставится один раз. Вложенность —
+// Как: одним UPDATE; вскрытие не снимается - `opened_at` ставится один раз. Вложенность -
 //
 //	на один уровень (групповая в коробе), глубже в пилоте её нет (CZ-01).
 func openTouchedAggregates(ctx context.Context, q Querier, marks []string) error {
 	return openAggregates(ctx, q, marks, false)
 }
 
-// openAggregatesShipped — то же при «Завершить сборку» (CZ-07): короб ЧЗ не вскрыт, если все
+// openAggregatesShipped - то же при «Завершить сборку» (CZ-07): короб ЧЗ не вскрыт, если все
 // его марки легли вместе в один короб отгрузки. Целый короб уезжает клиенту своим кодом
 // агрегации, а не россыпью марок, хотя его марки и сменили ГЕ. Вызывать один раз после
 // переноса всех пиков заказа: марки короба могли прийти разными пиками.
@@ -160,8 +160,8 @@ func openAggregatesShipped(ctx context.Context, q Querier, marks []string) error
 	return openAggregates(ctx, q, marks, true)
 }
 
-// openAggregates — общий UPDATE вскрытия. together=false — короб ЧЗ (упаковка с ГЕ) вскрыт,
-// если марка лежит не в нём; together=true — короб, как и групповая упаковка, вскрыт, только
+// openAggregates - общий UPDATE вскрытия. together=false - короб ЧЗ (упаковка с ГЕ) вскрыт,
+// если марка лежит не в нём; together=true - короб, как и групповая упаковка, вскрыт, только
 // если его марки лежат не вместе.
 func openAggregates(ctx context.Context, q Querier, marks []string, together bool) error {
 	if _, err := q.Exec(ctx, `

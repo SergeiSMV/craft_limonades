@@ -19,7 +19,7 @@ import (
 	"craftwms/internal/service"
 )
 
-// Эталон формата размещения (P5-02, P5-02-1) — серверная половина контракта; клиентская
+// Эталон формата размещения (P5-02, P5-02-1) - серверная половина контракта; клиентская
 // появится вместе с выполнением задания на ТСД (P5-03). Настоящий роутер применяет ровно это
 // тело: короб и россыпь задания уезжают из ячейки приёмки «С-Н-П» по ячейкам хранения.
 func TestPutawayHTTP_clientWireFormat(t *testing.T) {
@@ -54,7 +54,7 @@ func TestPutawayHTTP_clientWireFormat(t *testing.T) {
 		t.Fatalf("ячейка эталона: %v", err)
 	}
 
-	// Приёмка кладёт короб (12) и россыпь (3) в ячейку приёмки — из неё рождается задание.
+	// Приёмка кладёт короб (12) и россыпь (3) в ячейку приёмки - из неё рождается задание.
 	receipt := `{"operations":[{"operation_id":"` + uuid.NewString() + `","kind":"receipt_submit","payload":{"doc_number":"ТН-1","doc_date":"01-10-2026",
 		"receipt_id":"` + uuid.NewString() + `","warehouse_id":"` + p.WarehouseID + `",
 		"load_units":[{"id":"` + box + `","kind":"box"}],
@@ -65,7 +65,7 @@ func TestPutawayHTTP_clientWireFormat(t *testing.T) {
 		t.Fatalf("приёмка под эталон не применилась: %v", got)
 	}
 	// Идентификатор задания выдаёт сервер; эталону нужен постоянный. Позиции переезжают на
-	// задание с id эталона, рождённое приёмкой — удаляется.
+	// задание с id эталона, рождённое приёмкой - удаляется.
 	for _, sql := range []string{
 		`INSERT INTO warehouse_tasks (id, kind, warehouse_id) SELECT $1::uuid, kind, warehouse_id FROM warehouse_tasks`,
 		`UPDATE putaway_task_items SET task_id = $1::uuid`,
@@ -78,7 +78,7 @@ func TestPutawayHTTP_clientWireFormat(t *testing.T) {
 
 	if got := e.operations(t, string(raw)); len(got) != 1 || got[0] != service.StatusAccepted {
 		t.Fatalf("эталонное размещение не применилось: %v.\n"+
-			"Формат разошёлся — сверьте testdata/putaway_submit.json с тем, что шлёт клиент.", got)
+			"Формат разошёлся - сверьте testdata/putaway_submit.json с тем, что шлёт клиент.", got)
 	}
 
 	if d, c1, c2 := e.qtyIn(t, e.cellDefault, good), e.qtyIn(t, looseTo, good), e.qtyIn(t, boxTo, good); d != "0.000" || c1 != "3.000" || c2 != "12.000" {
@@ -100,12 +100,12 @@ func readFixture(t *testing.T, name string) []byte {
 	return raw
 }
 
-// Сценарные тесты размещения (P5-06D): весь путь через настоящий роутер — приёмка рождает
+// Сценарные тесты размещения (P5-06D): весь путь через настоящий роутер - приёмка рождает
 // задание, кладовщик разносит его сеансами с ТСД, оператор получает «Движение» в портале.
 // Итог каждого шага проверяется там, где его увидят люди: остаток по ячейкам, задание в
 // разделе «Задания», снимок содержимого склада на терминале, документ и сам .xlsx.
 
-// putawayEnv — окружение приёмки плюс вторая ячейка хранения, товар и второй кладовщик.
+// putawayEnv - окружение приёмки плюс вторая ячейка хранения, товар и второй кладовщик.
 type putawayEnv struct {
 	*rcvEnv
 	cell2        string
@@ -164,7 +164,7 @@ func (e *putawayEnv) receive(t *testing.T) (box1, box2 string, task taskView) {
 	return box1, box2, tasks[0]
 }
 
-// taskView — задание глазами раздела «Задания» на ТСД.
+// taskView - задание глазами раздела «Задания» на ТСД.
 type taskView struct {
 	ID           string `json:"id"`
 	Number       int64  `json:"number"`
@@ -177,7 +177,7 @@ type taskView struct {
 	} `json:"items"`
 }
 
-// tasks — текущие задания так, как их видит кладовщик с этим токеном.
+// tasks - текущие задания так, как их видит кладовщик с этим токеном.
 func (e *putawayEnv) tasks(t *testing.T, token string) []taskView {
 	t.Helper()
 	code, raw := e.call(t, http.MethodGet, "/api/v1/tasks", token, "")
@@ -188,7 +188,7 @@ func (e *putawayEnv) tasks(t *testing.T, token string) []taskView {
 	return out
 }
 
-// putaway — тело операции сеанса размещения: короба и россыпь партии 02.09.
+// putaway - тело операции сеанса размещения: короба и россыпь партии 02.09.
 func (e *putawayEnv) putaway(taskID, putawayID string, lines ...string) string {
 	return jsonf(`{"operations":[{"operation_id":%q,"kind":"putaway_submit","payload":{
 		"putaway_id":%q,"task_id":%q,"warehouse_id":%q,"lines":[%s]}}]}`,
@@ -203,13 +203,13 @@ func (e *putawayEnv) looseLine(qty int, cell string) string {
 	return jsonf(`{"good_id":%q,"production_date":"02-09-2026","qty":%d,"to_cell_id":%q}`, e.good, qty, cell)
 }
 
-// stock — остаток товара по ячейкам приёмки, M1-1-1-1 и M1-1-1-2.
+// stock - остаток товара по ячейкам приёмки, M1-1-1-1 и M1-1-1-2.
 func (e *putawayEnv) stock(t *testing.T) string {
 	t.Helper()
 	return e.qtyIn(t, e.cellDefault, e.good) + " / " + e.qtyIn(t, e.cell1, e.good) + " / " + e.qtyIn(t, e.cell2, e.good)
 }
 
-// movementDocs — документы «Движение» глазами портала.
+// movementDocs - документы «Движение» глазами портала.
 func (e *rcvEnv) movementDocs(t *testing.T) []map[string]any {
 	t.Helper()
 	code, raw := e.call(t, http.MethodGet, "/api/v1/documents?kind="+model.ReportKindMovement, e.adminToken, "")
@@ -249,7 +249,7 @@ func (e *rcvEnv) movementXLSX(t *testing.T, docID string) (map[string]string, []
 	return nil, nil
 }
 
-// snapshot — содержимое склада так, как его загрузит терминал: где какой короб и сколько
+// snapshot - содержимое склада так, как его загрузит терминал: где какой короб и сколько
 // россыпи в какой ячейке.
 func (e *putawayEnv) snapshot(t *testing.T) (boxCells map[string]string, loose map[string]string) {
 	t.Helper()
@@ -278,8 +278,8 @@ func (e *putawayEnv) snapshot(t *testing.T) (boxCells map[string]string, loose m
 }
 
 // Полный цикл в два сеанса. Кладовщик берёт задание, разносит один короб и часть россыпи и
-// жмёт «Завершить» — задание возвращается в пул остатком, в портале первое «Движение».
-// Второй сеанс разносит остальное — задание выполнено, второе «Движение». После каждого
+// жмёт «Завершить» - задание возвращается в пул остатком, в портале первое «Движение».
+// Второй сеанс разносит остальное - задание выполнено, второе «Движение». После каждого
 // сеанса остаток, задание, снимок терминала и документ говорят одно и то же.
 func TestPutawayHTTP_fullCycleInTwoSessions(t *testing.T) {
 	e := newPutawayE2E(t)
@@ -321,7 +321,7 @@ func TestPutawayHTTP_fullCycleInTwoSessions(t *testing.T) {
 	if boxCells[box1] != e.cell1 || boxCells[box2] != e.cellDefault {
 		t.Errorf("снимок, короба: %v", boxCells)
 	}
-	// Россыпь ячейки приёмки — за вычетом короба 2, который лежит там же.
+	// Россыпь ячейки приёмки - за вычетом короба 2, который лежит там же.
 	if loose[e.cellDefault] != "3" || loose[e.cell2] != "2" {
 		t.Errorf("снимок, россыпь: %v", loose)
 	}
@@ -341,7 +341,7 @@ func TestPutawayHTTP_fullCycleInTwoSessions(t *testing.T) {
 		{"С-Н-П", "M1-1-1-2", "16121", "Кальмар", "02.09.2026", "2"},
 	})
 
-	// Сеанс 2 — сменщик разносит остаток: короб 2 и 3 россыпью → M1-1-1-2.
+	// Сеанс 2 - сменщик разносит остаток: короб 2 и 3 россыпью → M1-1-1-2.
 	if got := e.operations(t, e.putaway(task.ID, uuid.NewString(),
 		boxLine(box2, e.cell2), e.looseLine(3, e.cell2))); got[0] != service.StatusAccepted {
 		t.Fatalf("сеанс 2: %v", got)
@@ -357,7 +357,7 @@ func TestPutawayHTTP_fullCycleInTwoSessions(t *testing.T) {
 		`SELECT status FROM warehouse_tasks WHERE id = $1::uuid`, task.ID).Scan(&status); err != nil || status != model.TaskDone {
 		t.Errorf("статус задания: %q (%v)", status, err)
 	}
-	// В карточке задания — оба захода.
+	// В карточке задания - оба захода.
 	code, raw := e.call(t, http.MethodGet, "/api/v1/tasks/"+task.ID, e.workerToken, "")
 	var detail struct {
 		Sessions []any `json:"sessions"`
@@ -375,7 +375,7 @@ func TestPutawayHTTP_fullCycleInTwoSessions(t *testing.T) {
 }
 
 // Отказы не оставляют следов. Сеанс, в котором одна строка нарушает задание, не проводится
-// целиком — даже его законные строки; чужой короб и выполненное задание отклоняются. После
+// целиком - даже его законные строки; чужой короб и выполненное задание отклоняются. После
 // всех отказов склад, задание и портал такие же, как до них.
 func TestPutawayHTTP_rejectionsLeaveNoTrace(t *testing.T) {
 	e := newPutawayE2E(t)
@@ -431,7 +431,7 @@ func TestPutawayHTTP_rejectionsLeaveNoTrace(t *testing.T) {
 // Перехват и обрыв ответа. Кладовщик взял задание и ушёл без связи; через 8 часов задание
 // считается зависшим, и его берёт сменщик. Когда связь у первого появляется, его сеанс
 // принимается: это уже сделанная физическая работа. Ответ теряется, терминал шлёт тот же батч
-// ещё раз — повтор получает «уже принято», товар не переезжает дважды, документ один.
+// ещё раз - повтор получает «уже принято», товар не переезжает дважды, документ один.
 func TestPutawayHTTP_hijackedTaskAndReplay(t *testing.T) {
 	e := newPutawayE2E(t)
 	box1, box2, task := e.receive(t)
@@ -442,7 +442,7 @@ func TestPutawayHTTP_hijackedTaskAndReplay(t *testing.T) {
 	if code, _ := e.call(t, http.MethodPost, path+"/take", e.worker2Token, ""); code != http.StatusConflict {
 		t.Fatalf("взять чужое свежее: %d, ожидался 409", code)
 	}
-	// 8 часов без отправок — задание зависло и снова видно всем «новым».
+	// 8 часов без отправок - задание зависло и снова видно всем «новым».
 	if _, err := e.pool.Exec(context.Background(),
 		`UPDATE warehouse_tasks SET last_activity_at = now() - interval '9 hours' WHERE id = $1::uuid`, task.ID); err != nil {
 		t.Fatal(err)
@@ -475,7 +475,7 @@ func TestPutawayHTTP_hijackedTaskAndReplay(t *testing.T) {
 	}
 	header, rows := e.movementXLSX(t, docs[0]["id"].(string))
 	if header["Исполнитель"] != "Кладовщик" {
-		t.Errorf("исполнитель — тот, кто размещал: %q", header["Исполнитель"])
+		t.Errorf("исполнитель - тот, кто размещал: %q", header["Исполнитель"])
 	}
 	assertRows(t, rows, [][]string{
 		{"С-Н-П", "M1-1-1-1", "16121", "Кальмар", "01.09.2026", "24"},

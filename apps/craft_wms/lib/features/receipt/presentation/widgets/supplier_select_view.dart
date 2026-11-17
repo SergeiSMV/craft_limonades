@@ -16,10 +16,10 @@ import '../../../stock/data/catalog_repository.dart';
 import '../bloc/receipt_cubit.dart';
 import 'supplier_doc_dialog.dart';
 
-/// Первый шаг приёмки — поставщик.
+/// Первый шаг приёмки - поставщик.
 ///
 /// Список из локального справочника: поставщика выбирают у машины, где связи может не быть.
-/// «Без поставщика» стоит первым пунктом, а не прячется: внутреннее поступление и возврат —
+/// «Без поставщика» стоит первым пунктом, а не прячется: внутреннее поступление и возврат -
 /// обычные случаи, а выдуманный «прочий поставщик» всплыл бы в отчёте как настоящий.
 class SupplierSelectView extends StatefulWidget {
   const SupplierSelectView({super.key});
@@ -48,7 +48,7 @@ class _SupplierSelectViewState extends State<SupplierSelectView> {
     super.dispose();
   }
 
-  /// Загрузить справочник поставщиков целиком: их немного, фильтр — в памяти.
+  /// Загрузить справочник поставщиков целиком: их немного, фильтр - в памяти.
   Future<void> _load() async {
     final res = await _repo.listSuppliers();
     if (!mounted) return;
@@ -70,13 +70,13 @@ class _SupplierSelectViewState extends State<SupplierSelectView> {
     return _all.where((s) => s.name.toLowerCase().contains(q)).toList();
   }
 
-  /// Начать приёмку от выбранного поставщика (`null` — без поставщика).
+  /// Начать приёмку от выбранного поставщика (`null` - без поставщика).
   ///
-  /// Сначала — документ поставщика (ADHOC-23): без него приёмка не начинается. Отмена окна
+  /// Сначала - документ поставщика (ADHOC-23): без него приёмка не начинается. Отмена окна
   /// оставляет на выборе поставщика.
   ///
   /// Клавиатуру поиска убираем ДО перехода (ADHOC-18): иначе она остаётся на рабочем экране,
-  /// где не нужна вовсе — поле скана её не вызывает, — и съедает половину высоты. На DT50S
+  /// где не нужна вовсе - поле скана её не вызывает, - и съедает половину высоты. На DT50S
   /// подсказка пустого списка переполнялась под ней на 37 точек.
   Future<void> _choose(Supplier? supplier) async {
     dismissKeyboard();
@@ -133,7 +133,7 @@ class _SupplierSelectViewState extends State<SupplierSelectView> {
     );
   }
 
-  /// Вдавленное поле поиска — как поле адреса в «Вводе остатков».
+  /// Вдавленное поле поиска - как поле адреса в «Вводе остатков».
   Widget _searchField() => Padding(
     padding: AppInsets.h8,
     child: Neumorphic(
@@ -169,7 +169,7 @@ class _SupplierSelectViewState extends State<SupplierSelectView> {
   );
 }
 
-/// Плитка поставщика — выпуклая, как плитки ячеек в «Вводе остатков».
+/// Плитка поставщика - выпуклая, как плитки ячеек в «Вводе остатков».
 class _SupplierTile extends StatelessWidget {
   const _SupplierTile({
     required this.title,

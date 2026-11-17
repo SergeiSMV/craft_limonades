@@ -11,7 +11,7 @@ import (
 	"craftwms/internal/model"
 )
 
-// ProblemPhotoRepository — фото к проблемам склада (ADHOC-45).
+// ProblemPhotoRepository - фото к проблемам склада (ADHOC-45).
 type ProblemPhotoRepository struct {
 	pool *pgxpool.Pool
 }
@@ -21,12 +21,12 @@ func NewProblemPhotoRepository(pool *pgxpool.Pool) *ProblemPhotoRepository {
 	return &ProblemPhotoRepository{pool: pool}
 }
 
-// Save сохраняет снимок проблемы — идемпотентно по его идентификатору.
+// Save сохраняет снимок проблемы - идемпотентно по его идентификатору.
 //
-// Как: проблема блокируется на время записи — без этого две загрузки одновременно увидели бы
+// Как: проблема блокируется на время записи - без этого две загрузки одновременно увидели бы
 // по два фото и обе легли бы четвёртым и пятым. Повтор того же снимка (очередь ТСД не узнала
-// ответ) — успех без второй записи, даже если проблему за это время решили: снимок уже есть.
-// Новый снимок — только к открытой проблеме и не больше [model.ProblemPhotoMax].
+// ответ) - успех без второй записи, даже если проблему за это время решили: снимок уже есть.
+// Новый снимок - только к открытой проблеме и не больше [model.ProblemPhotoMax].
 func (r *ProblemPhotoRepository) Save(ctx context.Context, in model.ProblemPhotoInput) error {
 	return WithinTx(ctx, r.pool, func(q Querier) error {
 		var status string
@@ -71,7 +71,7 @@ func (r *ProblemPhotoRepository) Save(ctx context.Context, in model.ProblemPhoto
 	})
 }
 
-// Get — снимок проблемы целиком. ErrPhotoNotFound — нет такого фото у этой проблемы.
+// Get - снимок проблемы целиком. ErrPhotoNotFound - нет такого фото у этой проблемы.
 func (r *ProblemPhotoRepository) Get(ctx context.Context, problemID, photoID string) (model.ProblemPhoto, error) {
 	var p model.ProblemPhoto
 	err := r.pool.QueryRow(ctx, `

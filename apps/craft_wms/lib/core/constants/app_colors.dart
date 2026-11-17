@@ -20,12 +20,12 @@ abstract final class AppColors {
   // Палитра из макета: янтарь-акцент + лайм + тёмный slate + светлый фон.
   static const Color kPrimary = Color(
     0xFFF59E0B,
-  ); // янтарь — основной акцент, кнопки
+  ); // янтарь - основной акцент, кнопки
   static const Color kPrimaryHover = Color(0xFFD97706); // янтарь при наведении
   static const Color kPrimarySoft = Color(
     0xFFFFFBEB,
   ); // светлая заливка (иконки-плашки, hover-зоны)
-  static const Color kSecondary = Color(0xFF84CC16); // лайм — логотип, аватар
+  static const Color kSecondary = Color(0xFF84CC16); // лайм - логотип, аватар
 
   static const Color kSidebarBg = Color(
     0xFF1E293B,
@@ -64,8 +64,8 @@ abstract final class AppColors {
   ); // ошибки, деструктивные действия
 
   //* --- Портал: плоский стиль по Shopify Polaris (ADHOC-56) -------------- *//
-  // Светлые плоские поверхности, тонкие рамки, без объёмных теней. Фон области — kBg,
-  // карточки — kCardBg, рамки — kBorder.
+  // Светлые плоские поверхности, тонкие рамки, без объёмных теней. Фон области - kBg,
+  // карточки - kCardBg, рамки - kBorder.
   static const Color kNavBg = Color(0xFFE8EDF3); // боковая панель
   static const Color kNavHover = Color(0xFFDDE3EA); // пункт меню при наведении
   static const Color kDivider = Color(0xFFEEF2F6); // разделитель строк в карточке
@@ -74,7 +74,7 @@ abstract final class AppColors {
   static const Color kButtonPrimaryHover = Color(0xFF0F172A);
   static const Color kFocus = Color(0xFF2563EB); // рамка поля в фокусе
   static const Color kCardShadow = Color(0x140F172A); // нижняя тень карточки
-  static const Color kPopoverBg = Color(0xFFF8FAFC); // выпадающее меню — чуть темнее карточки
+  static const Color kPopoverBg = Color(0xFFF8FAFC); // выпадающее меню - чуть темнее карточки
   static const Color kBadgeNeutralBg = Color(0xFFE2E8F0);
   static const Color kBadgeNeutralText = Color(0xFF334155);
   static const Color kBadgeCriticalBg = Color(0xFFFEE2E2);
@@ -82,12 +82,12 @@ abstract final class AppColors {
 
   //* --- ТСД: плитки главного меню (по макету) ---------------------------- *//
   // Цветовое кодирование операций на устройстве: крупные плитки, белый текст/иконка.
-  static const Color kTileReceipt = Color(0xFF7964A2); // ПРИХОД — сиреневый
-  static const Color kTileMovement = Color(0xFF2E6DA4); // ПЕРЕМЕЩЕНИЕ — синий
-  static const Color kTileTasks = Color(0xFFE67E22); // ЗАДАНИЯ — оранжевый
-  static const Color kTileFind = Color(0xFF6C757D); // НАЙТИ — серый
-  static const Color kTileStock = Color(0xFF16A085); // ОСТАТКИ — бирюзовый
-  static const Color kTileProblems = Color(0xFFC0392B); // ПРОБЛЕМЫ — красный
+  static const Color kTileReceipt = Color(0xFF7964A2); // ПРИХОД - сиреневый
+  static const Color kTileMovement = Color(0xFF2E6DA4); // ПЕРЕМЕЩЕНИЕ - синий
+  static const Color kTileTasks = Color(0xFFE67E22); // ЗАДАНИЯ - оранжевый
+  static const Color kTileFind = Color(0xFF6C757D); // НАЙТИ - серый
+  static const Color kTileStock = Color(0xFF16A085); // ОСТАТКИ - бирюзовый
+  static const Color kTileProblems = Color(0xFFC0392B); // ПРОБЛЕМЫ - красный
   static const Color kTilePicking = Color(0xFF27AE60); // СБОРКА - зелёный
   static const Color kTileText = Color(0xFFFFFFFF); // текст/иконка на плитке
 

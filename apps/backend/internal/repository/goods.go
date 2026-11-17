@@ -9,7 +9,7 @@ import (
 	"craftwms/internal/model"
 )
 
-// GoodsRepository — доступ к таблице goods (номенклатура). Пока — апсерт под импорт;
+// GoodsRepository - доступ к таблице goods (номенклатура). Пока - апсерт под импорт;
 // чтение/поиск/пагинация добавятся в P1-06.
 type GoodsRepository struct {
 	pool *pgxpool.Pool
@@ -21,11 +21,11 @@ func NewGoodsRepository(pool *pgxpool.Pool) *GoodsRepository {
 }
 
 // Upsert заводит/обновляет товар по «Коду» из 1С (ключ апсерта). Возвращает created=true,
-// если строка была вставлена (новый товар), false — если обновлена (повторный импорт).
-// groupID/supplierID — nil, если не заданы. Идемпотентно: повторный импорт того же файла не двоит.
+// если строка была вставлена (новый товар), false - если обновлена (повторный импорт).
+// groupID/supplierID - nil, если не заданы. Идемпотентно: повторный импорт того же файла не двоит.
 func (r *GoodsRepository) Upsert(ctx context.Context, q Querier, code, name, fullName, uom string, groupID, supplierID *string) (bool, error) {
 	var inserted bool
-	// (xmax = 0) — идиома Postgres: у только что вставленной строки xmax=0 → created=true;
+	// (xmax = 0) - идиома Postgres: у только что вставленной строки xmax=0 → created=true;
 	// у обновлённой по ON CONFLICT xmax≠0 → created=false.
 	err := q.QueryRow(ctx, `
 		INSERT INTO goods (code, name, full_name, uom, group_id, supplier_id)
@@ -46,21 +46,21 @@ func (r *GoodsRepository) Upsert(ctx context.Context, q Querier, code, name, ful
 
 // ByCodes находит товары справочника по кодам 1С (формат справочника, model.NormalizeGoodCode).
 //
-// Что: код → товар. Зачем: сопоставление строк «Реестра» на сборку (P9-01) — одним запросом на
+// Что: код → товар. Зачем: сопоставление строк «Реестра» на сборку (P9-01) - одним запросом на
 // весь файл, а не запросом на строку (в реестре за день ~900 строк). Как: код справочника,
 // дополненный нулями до 11 знаков, `= ANY($1)` (P8-02: в справочнике коды без ведущих нулей);
 // код в goods уникален (ON CONFLICT (code) у Upsert). Признак
-// is_active не фильтруется: код — идентичность товара, а неактивный товар может лежать на
+// is_active не фильтруется: код - идентичность товара, а неактивный товар может лежать на
 // складе. Кодов, которых нет в справочнике, в ответе нет.
 func (r *GoodsRepository) ByCodes(ctx context.Context, codes []string) (map[string]model.RegistryGood, error) {
 	out := make(map[string]model.RegistryGood, len(codes))
 	if len(codes) == 0 {
 		return out, nil
 	}
-	// Импорт номенклатуры берёт «Код» из .xls числом — ведущие нули теряются («13657», а не
-	// «00000013657»). Поэтому сравнение — по коду, дополненному нулями до model.GoodCodeLen, и
-	// ключ ответа — он же, а Code в ответе — код справочника как есть. Индекса по выражению нет:
-	// справочник — сотни строк, запрос на реестр один.
+	// Импорт номенклатуры берёт «Код» из .xls числом - ведущие нули теряются («13657», а не
+	// «00000013657»). Поэтому сравнение - по коду, дополненному нулями до model.GoodCodeLen, и
+	// ключ ответа - он же, а Code в ответе - код справочника как есть. Индекса по выражению нет:
+	// справочник - сотни строк, запрос на реестр один.
 	rows, err := r.pool.Query(ctx, `
 		SELECT id::text, code, name, cz_marked, lpad(code, $2, '0')
 		FROM goods

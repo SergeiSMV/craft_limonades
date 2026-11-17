@@ -5,11 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// ADHOC-50: дерево прав с галочками в карточке должности. Галочка раздела ставит все его
-/// действия и повторным нажатием снимает; часть отмечена — «полугалочка».
+/// действия и повторным нажатием снимает; часть отмечена - «полугалочка».
 void main() {
   setUp(LocaleSettings.useDeviceLocale);
 
-  testWidgets('раздел отмечается и снимается целиком; часть — полугалочка', (
+  testWidgets('раздел отмечается и снимается целиком; часть - полугалочка', (
     tester,
   ) async {
     var selected = <String>{};
@@ -65,7 +65,7 @@ void main() {
     await tapBox(receipt);
     expect(selected, isEmpty, reason: 'повторное нажатие снимает раздел');
 
-    // Раскрыть раздел и отметить одно действие — у раздела полугалочка.
+    // Раскрыть раздел и отметить одно действие - у раздела полугалочка.
     await tester.tap(find.text(receipt));
     await tester.pumpAndSettle();
     await tapBox(t.rights.docPost);
@@ -75,7 +75,7 @@ void main() {
     expect(selected, isEmpty, reason: 'действие снимается повторным нажатием');
   });
 
-  test('сводка для строки должности — разделы по приложениям', () {
+  test('сводка для строки должности - разделы по приложениям', () {
     expect(
       rightsSummary([
         Rights.receiptPost,

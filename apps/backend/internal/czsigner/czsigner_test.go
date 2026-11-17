@@ -15,11 +15,11 @@ import (
 	"time"
 )
 
-// Тесты CZ-02, шаг 1: подписант с подставным cryptcp — КриптоПро на машине разработчика нет.
+// Тесты CZ-02, шаг 1: подписант с подставным cryptcp - КриптоПро на машине разработчика нет.
 
 // fakeCryptcp пишет в каталог теста shell-скрипт вместо cryptcp. Скрипт запоминает свои
 // аргументы в args.txt, а «подписью» кладёт префикс SIG: + входные данные в последний аргумент.
-// body — тело скрипта до подписи: им тесты задают отказ или зависание.
+// body - тело скрипта до подписи: им тесты задают отказ или зависание.
 func fakeCryptcp(t *testing.T, body string) (path, argsFile string) {
 	t.Helper()
 	dir := t.TempDir()
@@ -49,7 +49,7 @@ func TestCryptcpSign(t *testing.T) {
 		t.Fatalf("signature = %q", sig)
 	}
 
-	// Аргументы — как в разведке CZ-01, плюс пароль; входной и выходной файлы — последними.
+	// Аргументы - как в разведке CZ-01, плюс пароль; входной и выходной файлы - последними.
 	raw, _ := os.ReadFile(argsFile)
 	args := strings.Fields(string(raw))
 	want := []string{"-sign", "-uMy", "-thumbprint", "70e8", "-nochain", "-cadesbes", "-attached", "-der", "-pin", "secret"}
@@ -96,7 +96,7 @@ func TestCryptcpSignFailures(t *testing.T) {
 	}
 }
 
-// stubSigner — подпись без cryptcp для тестов обработчика.
+// stubSigner - подпись без cryptcp для тестов обработчика.
 type stubSigner struct{ err error }
 
 func (s stubSigner) Sign(_ context.Context, data []byte) ([]byte, error) {
@@ -190,7 +190,7 @@ func TestListenUnixStaleSocket(t *testing.T) {
 	}
 	_ = ln2.Close()
 
-	// Обычный файл на месте сокета — не трогаем.
+	// Обычный файл на месте сокета - не трогаем.
 	plain := filepath.Join(dir, "plain")
 	_ = os.WriteFile(plain, []byte("x"), 0o600)
 	if _, err := ListenUnix(plain); err == nil {

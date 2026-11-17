@@ -20,7 +20,7 @@ var stocktakeHeaders = []string{
 	"Ожидалось", "Факт", "Расхождение", "Пометка", "Марка",
 }
 
-// stocktakeScopeNames — вид области пересчёта для шапки документа.
+// stocktakeScopeNames - вид области пересчёта для шапки документа.
 var stocktakeScopeNames = map[string]string{
 	model.StocktakeScopeCells:             "ячейки",
 	model.StocktakeScopeGroup:             "группа номенклатуры",
@@ -33,9 +33,9 @@ var stocktakeScopeNames = map[string]string{
 // BuildStocktakeXLSX собирает .xlsx «Инвентаризации» по снимку документа (P10-05).
 //
 // Раскладка: шапка (пересчёт, склад, область, кто закрыл, дата) и таблица всех подсчитанных
-// позиций — ожидалось, факт, расхождение; второй лист — только строки с расхождением и
-// пометками: по нему расхождения заносят в 1С. Короба в документе развёрнуты в состав — 1С знает
-// товар, а не короба; неподсчитанная ячейка — строкой «не считалась».
+// позиций - ожидалось, факт, расхождение; второй лист - только строки с расхождением и
+// пометками: по нему расхождения заносят в 1С. Короба в документе развёрнуты в состав - 1С знает
+// товар, а не короба; неподсчитанная ячейка - строкой «не считалась».
 func BuildStocktakeXLSX(s model.ReportSnapshot) ([]byte, error) {
 	f := excelize.NewFile()
 	defer func() { _ = f.Close() }()
@@ -74,7 +74,7 @@ func BuildStocktakeXLSX(s model.ReportSnapshot) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// writeStocktakeSheet пишет на лист шапку и таблицу строк — через строку после шапки.
+// writeStocktakeSheet пишет на лист шапку и таблицу строк - через строку после шапки.
 func writeStocktakeSheet(f *excelize.File, sheet string, header [][2]string, rows []model.ReportSnapshotRow) {
 	for r, kv := range header {
 		_ = f.SetCellValue(sheet, cellName(1, r+1), kv[0])
@@ -100,7 +100,7 @@ func writeStocktakeSheet(f *excelize.File, sheet string, header [][2]string, row
 	}
 }
 
-// stocktakeQty — число для числовой ячейки; пусто (строка «не считалась») — пустая ячейка.
+// stocktakeQty - число для числовой ячейки; пусто (строка «не считалась») - пустая ячейка.
 func stocktakeQty(s string) any {
 	if s == "" {
 		return ""

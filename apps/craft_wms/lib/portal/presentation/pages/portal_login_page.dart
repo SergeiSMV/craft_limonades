@@ -129,7 +129,7 @@ class _FormPanel extends StatelessWidget {
   /// коллбэк на отправку формы
   final VoidCallback onSubmit;
 
-  /// Вход в демо (ADHOC-67); не `null` — сервер демо: вместо логина и пароля одна кнопка.
+  /// Вход в демо (ADHOC-67); не `null` - сервер демо: вместо логина и пароля одна кнопка.
   final VoidCallback? onDemo;
 
   @override
@@ -204,7 +204,7 @@ class _FormPanel extends StatelessWidget {
             ),
             AppBoxes.kHeight24,
 
-            /// кнопка входа — главная кнопка портала во всю ширину формы (ADHOC-56)
+            /// кнопка входа - главная кнопка портала во всю ширину формы (ADHOC-56)
             PortalButton(
               label: t.portal.login.submit,
               icon: Icons.login,
@@ -219,7 +219,7 @@ class _FormPanel extends StatelessWidget {
   }
 }
 
-/// Поле ввода с подписью сверху — поле портала в плоском стиле (ADHOC-56), как в диалогах.
+/// Поле ввода с подписью сверху - поле портала в плоском стиле (ADHOC-56), как в диалогах.
 class _LabeledField extends StatelessWidget {
   const _LabeledField({
     required this.label,

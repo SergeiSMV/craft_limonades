@@ -19,8 +19,8 @@ import '../../bloc/goods_list_cubit.dart';
 
 /// Виджет результат: список товаров / индикатор / ошибка / пусто.
 ///
-/// В «Остатках» (ADHOC-33) у строки — количество на выбранных складах и пометка «ожидает
-/// отправки», над списком — подпись, на когда снимок; «потянуть вниз» обновляет снимок.
+/// В «Остатках» (ADHOC-33) у строки - количество на выбранных складах и пометка «ожидает
+/// отправки», над списком - подпись, на когда снимок; «потянуть вниз» обновляет снимок.
 class GoodsResult extends StatelessWidget {
   const GoodsResult({super.key});
 
@@ -43,7 +43,7 @@ class GoodsResult extends StatelessWidget {
   }
 
   /// Повторить загрузку товаров (после ошибки или «потянуть вниз»). Вызывается из колбэка,
-  /// поэтому только `read` — `watch` допустим лишь внутри build.
+  /// поэтому только `read` - `watch` допустим лишь внутри build.
   Future<void> retryLoad(BuildContext context) =>
       context.read<GoodsListCubit>().refresh();
 
@@ -91,7 +91,7 @@ class GoodsResult extends StatelessWidget {
         ),
         Expanded(
           child: NotificationListener<ScrollNotification>(
-            // Ближе 400px к концу — тянем следующую страницу (loadMore защищён от повторов).
+            // Ближе 400px к концу - тянем следующую страницу (loadMore защищён от повторов).
             onNotification: (n) {
               if (n.metrics.pixels >= n.metrics.maxScrollExtent - 400) {
                 context.read<GoodsListCubit>().loadMore();

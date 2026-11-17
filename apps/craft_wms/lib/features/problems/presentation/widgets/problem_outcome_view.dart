@@ -7,7 +7,7 @@ import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/semibold_text.dart';
 import '../bloc/problem_state.dart';
 
-/// Итог фиксации: проведена, ушла в очередь, отклонена. «Ещё проблема» — следующая, без
+/// Итог фиксации: проведена, ушла в очередь, отклонена. «Ещё проблема» - следующая, без
 /// выхода в меню: брак обычно находят не по одной позиции.
 class ProblemOutcomeView extends StatelessWidget {
   const ProblemOutcomeView({

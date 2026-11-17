@@ -25,10 +25,10 @@ import '../ui/portal_list_page.dart';
 
 /// Вкладка «Сборка-отгрузка» (P8-02, P8-03): заказы реестра 1С за дату накладной.
 ///
-/// Что: календарь (по умолчанию завтра — сборка идёт «сегодня на завтра»), список заказов со
+/// Что: календарь (по умолчанию завтра - сборка идёт «сегодня на завтра»), список заказов со
 /// статусом WMS, окно деталей по нажатию, загрузка реестра и выгрузка Excel даты.
 /// Как: список перечитывается, когда на сервере меняется сборка (ADHOC-60): кладовщик берёт и
-/// собирает заказ на ТСД — статус и факт в списке обновляются при ближайшем ответе сервера.
+/// собирает заказ на ТСД - статус и факт в списке обновляются при ближайшем ответе сервера.
 /// После загрузки реестра календарь переходит на дату его накладных.
 class PickingTab extends StatefulWidget {
   const PickingTab({
@@ -39,7 +39,7 @@ class PickingTab extends StatefulWidget {
     required this.canRelease,
   });
 
-  /// Смотреть заказы и детали (или снимать с исполнителя — без просмотра не снять).
+  /// Смотреть заказы и детали (или снимать с исполнителя - без просмотра не снять).
   final bool canView;
 
   /// Загружать реестр; без права кнопки нет.
@@ -48,7 +48,7 @@ class PickingTab extends StatefulWidget {
   /// Выгружать Excel.
   final bool canDownload;
 
-  /// Снимать заказ с исполнителя — кнопка в окне деталей.
+  /// Снимать заказ с исполнителя - кнопка в окне деталей.
   final bool canRelease;
 
   @override
@@ -58,7 +58,7 @@ class PickingTab extends StatefulWidget {
 class _PickingTabState extends State<PickingTab> {
   final _repo = getIt<PickingOrdersRepository>();
 
-  /// Дата накладной; по умолчанию — завтра.
+  /// Дата накладной; по умолчанию - завтра.
   late DateTime _date = _tomorrow();
 
   bool _loading = true;
@@ -83,7 +83,7 @@ class _PickingTabState extends State<PickingTab> {
     return DateTime(now.year, now.month, now.day + 1);
   }
 
-  /// Загрузить заказы даты. [quiet] — перечитывание по версиям данных: список остаётся на
+  /// Загрузить заказы даты. [quiet] - перечитывание по версиям данных: список остаётся на
   /// экране до ответа, ошибка его не подменяет.
   Future<void> _load({bool quiet = false}) async {
     if (!widget.canView) {
@@ -98,7 +98,7 @@ class _PickingTabState extends State<PickingTab> {
       });
     }
     final res = await _repo.orders(date);
-    // Ответ по прошлой дате, пока оператор уже выбрал другую, — не показываем.
+    // Ответ по прошлой дате, пока оператор уже выбрал другую, - не показываем.
     if (!mounted || date != _date || (quiet && res.isLeft)) return;
     setState(() {
       _loading = false;
@@ -126,7 +126,7 @@ class _PickingTabState extends State<PickingTab> {
     _load();
   }
 
-  /// Загрузить реестр; после загрузки — на дату его накладных.
+  /// Загрузить реестр; после загрузки - на дату его накладных.
   Future<void> _openLoad() async {
     final res = await showRegistryLoadDialog(context);
     if (res == null || !mounted) return;
@@ -144,7 +144,7 @@ class _PickingTabState extends State<PickingTab> {
     if (mounted) _load(quiet: true);
   }
 
-  /// Выгрузить Excel всех заказов даты — простое скачивание.
+  /// Выгрузить Excel всех заказов даты - простое скачивание.
   Future<void> _download() async {
     if (_downloading) return;
     setState(() => _downloading = true);
@@ -182,7 +182,7 @@ class _PickingTabState extends State<PickingTab> {
     child: PortalListPage(toolbar: _toolbar(), body: _body()),
   );
 
-  /// Календарь слева, загрузка и выгрузка — рядом; на узком экране переносятся.
+  /// Календарь слева, загрузка и выгрузка - рядом; на узком экране переносятся.
   Widget _toolbar() {
     final p = t.portal.picking;
     return Wrap(
@@ -237,7 +237,7 @@ class _PickingTabState extends State<PickingTab> {
     );
   }
 
-  /// Заказы даты; вместо них — загрузка, ошибка или пусто.
+  /// Заказы даты; вместо них - загрузка, ошибка или пусто.
   Widget _body() {
     final p = t.portal.picking;
     if (!widget.canView) return _message(p.noView);
@@ -271,7 +271,7 @@ class _PickingTabState extends State<PickingTab> {
     return PickingOrderTable(orders: orders, onOpen: _open);
   }
 
-  /// Сообщение вместо списка — карточкой под панелью.
+  /// Сообщение вместо списка - карточкой под панелью.
   Widget _message(String text) => PortalCard(
     children: [
       Padding(

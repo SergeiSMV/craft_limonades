@@ -11,10 +11,10 @@ import (
 	"craftwms/internal/repository"
 )
 
-// Тесты ADHOC-31: отгрузка возврата поставщику. Фикстуры — из movement_integration_test.go
+// Тесты ADHOC-31: отгрузка возврата поставщику. Фикстуры - из movement_integration_test.go
 // и problem_decision_integration_test.go.
 
-// returnTask — задание возврата, в которое легла проблема.
+// returnTask - задание возврата, в которое легла проблема.
 func (mf *moveFixture) returnTask(t *testing.T, problemID string) string {
 	t.Helper()
 	var id string
@@ -29,7 +29,7 @@ func (mf *moveFixture) ship(task string, problems ...string) (int, error) {
 	})
 }
 
-// Россыпь возврата переехала после решения — отгрузка находит её и на новом месте; позиция,
+// Россыпь возврата переехала после решения - отгрузка находит её и на новом месте; позиция,
 // добавленная офисом во время сеанса, оставляет задание в пуле; отгруженную второй раз и чужую
 // не отгрузить; последний сеанс выполняет задание.
 func TestReturnShipment_movedGoodsAndSettle(t *testing.T) {
@@ -50,14 +50,14 @@ func TestReturnShipment_movedGoodsAndSettle(t *testing.T) {
 	second := mf.openProblem(t, defect, model.ProblemReasonExpired, mf.goodsProblem(1, mf.cellA, ""))
 	mustNoErr(t, mf.resolve(second, back))
 	if mf.returnTask(t, second) != task {
-		t.Fatal("второй возврат того же поставщика — не в открытом задании")
+		t.Fatal("второй возврат того же поставщика - не в открытом задании")
 	}
 
 	if n, err := mf.ship(task, first); err != nil || n != 1 {
 		t.Fatalf("отгрузка первой позиции: %d %v", n, err)
 	}
 	// Товар одной партии на складе возврата неразличим: отгрузка, как и место позиции на ТСД,
-	// начинает с ячейки, куда товар положило решение (A — там уже возврат второй проблемы),
+	// начинает с ячейки, куда товар положило решение (A - там уже возврат второй проблемы),
 	// и добирает недостающее по адресам (C).
 	if c, a := mf.qtyIn(t, mf.cellC, ret), mf.qtyIn(t, mf.cellA, ret); c != "1" || a != "0" {
 		t.Errorf("возврат C %s, A %s; ожидалось 1 и 0", c, a)

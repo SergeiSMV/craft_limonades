@@ -12,7 +12,7 @@ import (
 	"craftwms/internal/repository"
 )
 
-// Репозитории, нужные импорту (зависимости через интерфейсы). Все Upsert принимают Querier —
+// Репозитории, нужные импорту (зависимости через интерфейсы). Все Upsert принимают Querier -
 // чтобы весь импорт шёл в одной транзакции (всё-или-ничего).
 type (
 	groupRepo interface {
@@ -35,7 +35,7 @@ type (
 	}
 )
 
-// ImportService — загрузка справочников из файлов: номенклатура (1С .xls) и ячейки склада (.xlsx).
+// ImportService - загрузка справочников из файлов: номенклатура (1С .xls) и ячейки склада (.xlsx).
 type ImportService struct {
 	pool       *pgxpool.Pool
 	groups     groupRepo
@@ -50,7 +50,7 @@ func NewImportService(pool *pgxpool.Pool, groups groupRepo, suppliers supplierRe
 	return &ImportService{pool: pool, groups: groups, suppliers: suppliers, goods: goods, warehouses: warehouses, cells: cells}
 }
 
-// ImportReport — итог импорта номенклатуры (отдаётся клиенту).
+// ImportReport - итог импорта номенклатуры (отдаётся клиенту).
 type ImportReport struct {
 	GoodsCreated int                 `json:"goods_created"` // новых товаров
 	GoodsUpdated int                 `json:"goods_updated"` // обновлённых (повторный импорт)
@@ -60,11 +60,11 @@ type ImportReport struct {
 }
 
 // ImportGoods разбирает .xls-выгрузку номенклатуры и загружает её в БД (группы→поставщики→товары)
-// в одной транзакции. Проблемные строки не валят импорт — попадают в отчёт (Skipped).
+// в одной транзакции. Проблемные строки не валят импорт - попадают в отчёт (Skipped).
 func (s *ImportService) ImportGoods(ctx context.Context, r io.ReadSeeker) (*ImportReport, error) {
 	parsed, err := importer.ParseGoods(r)
 	if err != nil {
-		return nil, err // не смогли прочитать файл/нет обязательной колонки — на уровень выше как 4xx
+		return nil, err // не смогли прочитать файл/нет обязательной колонки - на уровень выше как 4xx
 	}
 
 	report := &ImportReport{Skipped: parsed.Errors}
@@ -76,7 +76,7 @@ func (s *ImportService) ImportGoods(ctx context.Context, r io.ReadSeeker) (*Impo
 		for _, g := range parsed.Goods {
 			if g.UOM == "" {
 				report.Skipped = append(report.Skipped, importer.RowError{
-					Message: fmt.Sprintf("товар %q без единицы измерения — пропущен", g.Code)})
+					Message: fmt.Sprintf("товар %q без единицы измерения - пропущен", g.Code)})
 				continue
 			}
 
@@ -130,7 +130,7 @@ func (s *ImportService) ImportGoods(ctx context.Context, r io.ReadSeeker) (*Impo
 	return report, nil
 }
 
-// CellsImportReport — итог загрузки ячеек склада (отдаётся клиенту).
+// CellsImportReport - итог загрузки ячеек склада (отдаётся клиенту).
 type CellsImportReport struct {
 	Warehouse    string              `json:"warehouse"`     // code физического склада, в который загрузили
 	CellsCreated int                 `json:"cells_created"` // новых ячеек
@@ -141,23 +141,23 @@ type CellsImportReport struct {
 }
 
 // ImportCells загружает .xlsx ячеек в формате rack_labels (листы cells и racks) в один
-// физический склад (warehouseCode/warehouseName — параметры, склада в файле нет) одной транзакцией.
+// физический склад (warehouseCode/warehouseName - параметры, склада в файле нет) одной транзакцией.
 //
 // Как: сначала стеллажи листа racks, затем названные только в листе cells (без листа racks);
-// затем ячейки со ссылкой на стеллаж, настройками этикетки и галочкой карточки — её парсер уже
+// затем ячейки со ссылкой на стеллаж, настройками этикетки и галочкой карточки - её парсер уже
 // свёл из колонки ячейки и карточки стеллажа (у стеллажа своей галочки в базе нет). Ячейки, которых нет в файле, не трогаются и не удаляются. Внутренний
-// склад (основной/брак) здесь не участвует — это измерение остатка, не ячейки (ADR-0016).
-// Проблемные строки не валят загрузку — попадают в отчёт (Skipped).
+// склад (основной/брак) здесь не участвует - это измерение остатка, не ячейки (ADR-0016).
+// Проблемные строки не валят загрузку - попадают в отчёт (Skipped).
 func (s *ImportService) ImportCells(ctx context.Context, r io.Reader, warehouseCode, warehouseName string) (*CellsImportReport, error) {
 	parsed, err := importer.ParseCells(r)
 	if err != nil {
-		return nil, err // не смогли прочитать файл/нет обязательной колонки — на уровень выше как 4xx
+		return nil, err // не смогли прочитать файл/нет обязательной колонки - на уровень выше как 4xx
 	}
 
 	report := &CellsImportReport{Warehouse: warehouseCode, Skipped: parsed.Errors}
 
 	txErr := repository.WithinTx(ctx, s.pool, func(q repository.Querier) error {
-		// Физический склад — один на файл: апсертим по code до ячеек, id используем для всех строк.
+		// Физический склад - один на файл: апсертим по code до ячеек, id используем для всех строк.
 		warehouseID, err := s.warehouses.Upsert(ctx, q, warehouseCode, warehouseName)
 		if err != nil {
 			return err
@@ -206,14 +206,14 @@ func (s *ImportService) ImportCells(ctx context.Context, r io.Reader, warehouseC
 				report.CellsUpdated++
 			}
 		}
-		// Дефолтная ячейка приёмки — каждому складу, в том числе появившемуся этим импортом:
+		// Дефолтная ячейка приёмки - каждому складу, в том числе появившемуся этим импортом:
 		// без неё приёмка на новом складе упёрлась бы в «некуда приходовать» (P4-03).
 		// После цикла, а не до: если ячейка есть в самом файле, счётчики отчёта считают её строкой
-		// файла, а не нашей добавкой — отчёт обязан сходиться с тем, что человек загрузил.
+		// файла, а не нашей добавкой - отчёт обязан сходиться с тем, что человек загрузил.
 		if _, err := s.cells.EnsureDefault(ctx, q, warehouseID); err != nil {
 			return err
 		}
-		// Ячейка отгрузки (P9-02) — туда же и по той же причине: без неё не собрать заказ.
+		// Ячейка отгрузки (P9-02) - туда же и по той же причине: без неё не собрать заказ.
 		if _, err := s.cells.EnsureShipping(ctx, q, warehouseID); err != nil {
 			return err
 		}

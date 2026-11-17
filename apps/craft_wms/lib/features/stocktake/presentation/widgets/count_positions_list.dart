@@ -12,7 +12,7 @@ import 'stocktake_format.dart';
 
 /// Позиции подсчёта ячейки (P10-04): короба, россыпь снимка и насчитанное сверх учёта.
 ///
-/// Количеств «по учёту» нет — слепой счёт: кладовщик видит, что искать, и то, что насчитал сам.
+/// Количеств «по учёту» нет - слепой счёт: кладовщик видит, что искать, и то, что насчитал сам.
 /// Найденное отмечено галочкой справа.
 class CountPositionsList extends StatelessWidget {
   const CountPositionsList({
@@ -26,16 +26,16 @@ class CountPositionsList extends StatelessWidget {
 
   final StocktakeCount count;
 
-  /// Как склад показывается человеку; `null` — «Основной», не подписывается.
+  /// Как склад показывается человеку; `null` - «Основной», не подписывается.
   final String? Function(String? id) warehouseName;
 
-  /// Касание позиции россыпи — посчитать её без скана.
+  /// Касание позиции россыпи - посчитать её без скана.
   final ValueChanged<StocktakePosition> onTapPosition;
 
-  /// Долгое нажатие на насчитанное — исправить или убрать.
+  /// Долгое нажатие на насчитанное - исправить или убрать.
   final ValueChanged<CountLine> onLongPressLine;
 
-  /// Касание найденного короба — снять отметку.
+  /// Касание найденного короба - снять отметку.
   final ValueChanged<CountBox> onLongPressBox;
 
   @override
@@ -73,7 +73,7 @@ class CountPositionsList extends StatelessWidget {
         .where((b) => b.loadUnitId == p.loadUnitId!.toLowerCase())
         .firstOrNull;
     final name = warehouseName(p.internalWarehouseId);
-    // Ненайденный короб касанием не отмечается: найден — значит, отсканирован.
+    // Ненайденный короб касанием не отмечается: найден - значит, отсканирован.
     return _gap(
       NeumorphicLineTile(
         title: t.stocktake.box(code: boxCode(p.loadUnitId!, czCode: p.czCode)),

@@ -5,42 +5,42 @@ import '../config/app_config.dart';
 
 /// Хранилище JWT-токенов. Абстракция, чтобы верхние слои не знали, где токены лежат.
 ///
-/// Реализация по умолчанию — [SecureTokenStorage] поверх flutter_secure_storage
+/// Реализация по умолчанию - [SecureTokenStorage] поверх flutter_secure_storage
 /// (Android Keystore). [InMemoryTokenStorage] оставлена для unit-тестов (P0-08),
 /// где платформенное хранилище недоступно.
 abstract class TokenStorage {
-  /// Прочитать сохранённый access-токен (null — если не сохранён).
+  /// Прочитать сохранённый access-токен (null - если не сохранён).
   Future<String?> readAccess();
 
-  /// Прочитать сохранённый refresh-токен (null — если не сохранён).
+  /// Прочитать сохранённый refresh-токен (null - если не сохранён).
   Future<String?> readRefresh();
 
   /// Сохранить пару токенов (перезаписывает предыдущие).
   Future<void> save({required String access, required String refresh});
 
-  /// Обновить только access-токен (после refresh) — refresh не трогаем.
+  /// Обновить только access-токен (после refresh) - refresh не трогаем.
   Future<void> saveAccess(String access);
 
-  /// Прочитать сохранённый профиль (null — не сохранён).
+  /// Прочитать сохранённый профиль (null - не сохранён).
   Future<String?> readProfile();
 
-  /// Сохранить профиль (JSON) — нужен для офлайн-входа.
+  /// Сохранить профиль (JSON) - нужен для офлайн-входа.
   Future<void> saveProfile(String json);
 
-  /// Момент последнего успешного обмена с сервером (null — не было ни одного).
+  /// Момент последнего успешного обмена с сервером (null - не было ни одного).
   Future<DateTime?> readLastContact();
 
-  /// Запомнить момент успешного обмена с сервером — по нему ограничен офлайн-вход (долг 9).
+  /// Запомнить момент успешного обмена с сервером - по нему ограничен офлайн-вход (долг 9).
   Future<void> saveLastContact(DateTime at);
 
   /// Удалить токены, профиль и отметку последнего контакта (выход из аккаунта).
   Future<void> clear();
 }
 
-/// Реализация поверх flutter_secure_storage — токены в зашифрованном хранилище ОС.
+/// Реализация поверх flutter_secure_storage - токены в зашифрованном хранилище ОС.
 ///
 /// Что: постоянно и безопасно хранит пару токенов между запусками приложения.
-/// Зачем: кладовщик сканирует бейдж один раз — сессия должна пережить перезапуск ТСД,
+/// Зачем: кладовщик сканирует бейдж один раз - сессия должна пережить перезапуск ТСД,
 ///        при этом токены нельзя держать в открытом виде (иначе кража с устройства).
 /// Как: на Android v10 плагин шифрует данные ключами из Keystore по умолчанию
 ///      (доп. настроек не требует).
@@ -59,7 +59,7 @@ class SecureTokenStorage implements TokenStorage {
   /// Приставка ключей демо-режима.
   static const demoPrefix = 'demo_';
 
-  /// Стереть сессию демо-режима — перед входом в демо: после ночного сброса демо-сервера
+  /// Стереть сессию демо-режима - перед входом в демо: после ночного сброса демо-сервера
   /// старые токены и профиль недействительны.
   static Future<void> clearDemo() async {
     const storage = FlutterSecureStorage();
@@ -73,7 +73,7 @@ class SecureTokenStorage implements TokenStorage {
   static const _kRefresh = 'refresh_token';
 
   /// Профиль вошедшего пользователя. Лежит здесь, а не в локальной базе: это данные
-  /// сотрудника (ФИО, логин, роль), а база — открытый кэш справочников.
+  /// сотрудника (ФИО, логин, роль), а база - открытый кэш справочников.
   static const _kProfile = 'profile';
 
   /// Момент последнего успешного обмена с сервером, ISO-8601 в UTC.
@@ -87,7 +87,7 @@ class SecureTokenStorage implements TokenStorage {
 
   @override
   Future<void> save({required String access, required String refresh}) async {
-    // Пишем оба токена; порядок не критичен — читаем их независимо.
+    // Пишем оба токена; порядок не критичен - читаем их независимо.
     await _storage.write(key: '$_prefix$_kRefresh', value: refresh);
     await _storage.write(key: '$_prefix$_kAccess', value: access);
   }
@@ -123,7 +123,7 @@ class SecureTokenStorage implements TokenStorage {
 }
 
 /// In-memory реализация для unit-тестов (P0-08): токены живут в памяти процесса
-/// и сбрасываются при перезапуске. В DI не регистрируется — на устройстве
+/// и сбрасываются при перезапуске. В DI не регистрируется - на устройстве
 /// работает [SecureTokenStorage]; тесты создают этот класс напрямую.
 class InMemoryTokenStorage implements TokenStorage {
   String? _access;

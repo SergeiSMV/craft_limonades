@@ -13,30 +13,30 @@ import (
 	"craftwms/internal/model"
 )
 
-// Отказы перепривязки ШК и правки привязок при марках ЧЗ на складе (ADHOC-53). Тексты —
+// Отказы перепривязки ШК и правки привязок при марках ЧЗ на складе (ADHOC-53). Тексты -
 // по-русски: ТСД показывает их дословно, и в окне ответа ручки, и в отказе операции очереди.
 var (
-	// ErrBarcodeHasCZStock — у ШК на складе есть марки: отвязка оставила бы их без товара в
+	// ErrBarcodeHasCZStock - у ШК на складе есть марки: отвязка оставила бы их без товара в
 	// справочнике, ШК можно только перепривязать.
-	ErrBarcodeHasCZStock = errors.New("на складе есть марки ЧЗ с этим ШК — отвязать нельзя, перепривяжите ШК к правильному товару")
-	// ErrBarcodeMarksOtherGood — привязка ШК к товару, хотя марки этого GTIN на складе числятся
+	ErrBarcodeHasCZStock = errors.New("на складе есть марки ЧЗ с этим ШК - отвязать нельзя, перепривяжите ШК к правильному товару")
+	// ErrBarcodeMarksOtherGood - привязка ШК к товару, хотя марки этого GTIN на складе числятся
 	// за другим: тихо разошлись бы ШК и учёт.
-	ErrBarcodeMarksOtherGood = errors.New("марки ЧЗ с этим ШК числятся на складе за другим товаром — перепривяжите ШК из карточки того товара")
-	// ErrRegradeNotBound — ШК не привязан: перепривязывать нечего.
+	ErrBarcodeMarksOtherGood = errors.New("марки ЧЗ с этим ШК числятся на складе за другим товаром - перепривяжите ШК из карточки того товара")
+	// ErrRegradeNotBound - ШК не привязан: перепривязывать нечего.
 	ErrRegradeNotBound = errors.New("ШК не привязан к товару")
-	// ErrRegradeSameGood — ШК уже за этим товаром.
+	// ErrRegradeSameGood - ШК уже за этим товаром.
 	ErrRegradeSameGood = errors.New("ШК уже привязан к этому товару")
-	// ErrRegradeOpenProblem — часть марок в открытой проблеме склада или ждёт отгрузки возврата.
-	ErrRegradeOpenProblem = errors.New("часть марок — в открытой проблеме склада или ждёт отгрузки возврата поставщику: сначала завершите её")
-	// ErrRegradeCellCounting — ячейка с марками сейчас пересчитывается.
-	ErrRegradeCellCounting = errors.New("ячейка с марками сейчас на пересчёте — дождитесь конца подсчёта")
-	// ErrRegradeBoxNotPlaced — короб с марками не стоит в ячейке.
+	// ErrRegradeOpenProblem - часть марок в открытой проблеме склада или ждёт отгрузки возврата.
+	ErrRegradeOpenProblem = errors.New("часть марок - в открытой проблеме склада или ждёт отгрузки возврата поставщику: сначала завершите её")
+	// ErrRegradeCellCounting - ячейка с марками сейчас пересчитывается.
+	ErrRegradeCellCounting = errors.New("ячейка с марками сейчас на пересчёте - дождитесь конца подсчёта")
+	// ErrRegradeBoxNotPlaced - короб с марками не стоит в ячейке.
 	ErrRegradeBoxNotPlaced = errors.New("короб с марками не размещён в ячейке")
 )
 
-// czStockOfBarcode — сколько марок ЧЗ с GTIN этого ШК лежит на складе (ADHOC-53).
+// czStockOfBarcode - сколько марок ЧЗ с GTIN этого ШК лежит на складе (ADHOC-53).
 //
-// GTIN-14 марки — это EAN-13 ШК с ведущим нулём (CZ-01), поэтому ШК сравнивается и как есть,
+// GTIN-14 марки - это EAN-13 ШК с ведущим нулём (CZ-01), поэтому ШК сравнивается и как есть,
 // и дополненным нулём до 14 знаков.
 func czStockOfBarcode(ctx context.Context, q Querier, barcode string) (int, error) {
 	var n int
@@ -50,7 +50,7 @@ func czStockOfBarcode(ctx context.Context, q Querier, barcode string) (int, erro
 }
 
 // guardBindMarks не даёт привязать ШК к товару, если марки этого GTIN на складе числятся за
-// другим товаром (ADHOC-53): исправлять такое — перепривязкой с пересортом, не привязкой.
+// другим товаром (ADHOC-53): исправлять такое - перепривязкой с пересортом, не привязкой.
 func guardBindMarks(ctx context.Context, q Querier, goodID, barcode string) error {
 	var other bool
 	if err := q.QueryRow(ctx, `
@@ -65,19 +65,19 @@ func guardBindMarks(ctx context.Context, q Querier, goodID, barcode string) erro
 	return nil
 }
 
-// CZStockOfBarcode — сколько марок ЧЗ с этим ШК на складе: ТСД спрашивает перед отвязкой.
+// CZStockOfBarcode - сколько марок ЧЗ с этим ШК на складе: ТСД спрашивает перед отвязкой.
 func (r *BarcodeRepository) CZStockOfBarcode(ctx context.Context, barcode string) (int, error) {
 	return czStockOfBarcode(ctx, r.pool, barcode)
 }
 
-// regradeGroup — марки одного места и партии: что пересорт снимает с прежнего товара и кладёт
+// regradeGroup - марки одного места и партии: что пересорт снимает с прежнего товара и кладёт
 // на новый одной строкой остатка (и состава короба).
 type regradeGroup struct {
 	regradePlace
 	marks []string
 }
 
-// regradePlace — ключ группы: короб или россыпь ячейки склада, товар и партия.
+// regradePlace - ключ группы: короб или россыпь ячейки склада, товар и партия.
 type regradePlace struct {
 	loadUnit, cell, iwh, good, batch, date string
 }
@@ -85,17 +85,17 @@ type regradePlace struct {
 // Regrade перепривязывает ШК к другому товару и переводит на него марки ЧЗ этого GTIN со склада
 // (ADHOC-53, решение 2026-10-28).
 //
-// Что: ШК уходит к новому товару; марки на складе, их остаток в ячейках и состав коробов — тоже,
+// Что: ШК уходит к новому товару; марки на складе, их остаток в ячейках и состав коробов - тоже,
 //
-//	в партию той же даты производства; заводится проблема «Пересорт» со строками и марками —
+//	в партию той же даты производства; заводится проблема «Пересорт» со строками и марками -
 //	офис проводит её документом пересортицы 1С.
 //
-// Зачем одной транзакцией: ШК, марки и остаток — один факт «это товар Y»; порознь они дали бы
+// Зачем одной транзакцией: ШК, марки и остаток - один факт «это товар Y»; порознь они дали бы
 //
-//	момент, в котором ШК уже за Y, а марки и остаток ещё за X, — ровно ту дыру, которую задача
+//	момент, в котором ШК уже за Y, а марки и остаток ещё за X, - ровно ту дыру, которую задача
 //	закрывает.
 //
-// Как: строка ШК и марки блокируются (марки — в порядке КИ, как в moveMarks); отказ, если
+// Как: строка ШК и марки блокируются (марки - в порядке КИ, как в moveMarks); отказ, если
 //
 //	марка в открытой проблеме или ждёт отгрузки возврата, если ячейка марки на пересчёте или
 //	короб не размещён. Остаток меняется только примитивами removeStock/addStock.
@@ -114,7 +114,7 @@ func (r *BarcodeRepository) Regrade(ctx context.Context, in model.RegradeInput) 
 		if from == in.GoodID {
 			return ErrRegradeSameGood
 		}
-		// Новый товар — маркируемый: на нём теперь марки, как после привязки ШК из марки.
+		// Новый товар - маркируемый: на нём теперь марки, как после привязки ШК из марки.
 		tag, err := q.Exec(ctx, `UPDATE goods SET cz_marked = true WHERE id = $1::uuid`, in.GoodID)
 		if err != nil {
 			return fmt.Errorf("пометить товар маркируемым: %w", err)
@@ -193,8 +193,8 @@ func regradeGroups(ctx context.Context, q Querier, barcode string) ([]regradeGro
 	return groups, guardRegradeCells(ctx, q, cells)
 }
 
-// guardRegradeCells — отказ, если ячейка марок сейчас пересчитывается: смена товара посреди
-// подсчёта сбила бы факт ячейки (решение 2026-10-28 — отказ, не предупреждение).
+// guardRegradeCells - отказ, если ячейка марок сейчас пересчитывается: смена товара посреди
+// подсчёта сбила бы факт ячейки (решение 2026-10-28 - отказ, не предупреждение).
 func guardRegradeCells(ctx context.Context, q Querier, cells map[string]bool) error {
 	if len(cells) == 0 {
 		return nil
@@ -309,7 +309,7 @@ func regradeGroupStock(ctx context.Context, q Querier, g regradeGroup, good, bat
 	}, qty)
 }
 
-// IsRegradeRefusal — отказ перепривязки по существу: его текст — для кладовщика.
+// IsRegradeRefusal - отказ перепривязки по существу: его текст - для кладовщика.
 func IsRegradeRefusal(err error) bool {
 	for _, e := range []error{ErrRegradeNotBound, ErrRegradeSameGood, ErrRegradeOpenProblem,
 		ErrRegradeCellCounting, ErrRegradeBoxNotPlaced, ErrGoodNotFound} {

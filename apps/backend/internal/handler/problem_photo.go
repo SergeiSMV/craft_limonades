@@ -13,13 +13,13 @@ import (
 	"craftwms/internal/model"
 )
 
-// problemPhotos — что обработчику нужно от сервиса фото проблем (ADHOC-45).
+// problemPhotos - что обработчику нужно от сервиса фото проблем (ADHOC-45).
 type problemPhotos interface {
 	Save(ctx context.Context, in model.ProblemPhotoInput) error
 	Get(ctx context.Context, problemID, photoID string) (model.ProblemPhoto, error)
 }
 
-// ProblemPhotoHandler — фото к проблемам склада: загрузка с ТСД и отдача ТСД и порталу.
+// ProblemPhotoHandler - фото к проблемам склада: загрузка с ТСД и отдача ТСД и порталу.
 type ProblemPhotoHandler struct {
 	svc problemPhotos
 }
@@ -29,10 +29,10 @@ func NewProblemPhotoHandler(svc problemPhotos) *ProblemPhotoHandler {
 	return &ProblemPhotoHandler{svc: svc}
 }
 
-// Put: PUT /api/v1/problems/{id}/photos/{photoId} — тело — сам снимок (JPEG, PNG, WebP).
+// Put: PUT /api/v1/problems/{id}/photos/{photoId} - тело - сам снимок (JPEG, PNG, WebP).
 //
-// PUT, а не POST: идентификатор фото выдаёт ТСД, и повтор загрузки из очереди — та же запись,
-// а не вторая. 204 — снимок на сервере (в том числе после повтора).
+// PUT, а не POST: идентификатор фото выдаёт ТСД, и повтор загрузки из очереди - та же запись,
+// а не вторая. 204 - снимок на сервере (в том числе после повтора).
 func (h *ProblemPhotoHandler) Put(w http.ResponseWriter, r *http.Request) {
 	// +1 байт сверх предела: так переполнение отличимо от снимка ровно предельного размера.
 	body, err := io.ReadAll(io.LimitReader(r.Body, model.ProblemPhotoMaxBytes+1))
@@ -52,10 +52,10 @@ func (h *ProblemPhotoHandler) Put(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// Get: GET /api/v1/problems/{id}/photos/{photoId} — снимок как есть.
+// Get: GET /api/v1/problems/{id}/photos/{photoId} - снимок как есть.
 //
-// Снимок не меняется никогда (идентификатор — новый на каждый снимок), поэтому кэшируется
-// надолго; `private` — он за входом и в общих кэшах лежать не должен.
+// Снимок не меняется никогда (идентификатор - новый на каждый снимок), поэтому кэшируется
+// надолго; `private` - он за входом и в общих кэшах лежать не должен.
 func (h *ProblemPhotoHandler) Get(w http.ResponseWriter, r *http.Request) {
 	p, err := h.svc.Get(r.Context(), chi.URLParam(r, "id"), chi.URLParam(r, "photoId"))
 	if err != nil {
@@ -68,7 +68,7 @@ func (h *ProblemPhotoHandler) Get(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(p.Content)
 }
 
-// problemPhotoError — ответ на ошибку фото; текст — для экрана ТСД и журнала очереди.
+// problemPhotoError - ответ на ошибку фото; текст - для экрана ТСД и журнала очереди.
 func problemPhotoError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
 	case errors.Is(err, model.ErrPhotoProblemNotFound):
@@ -76,7 +76,7 @@ func problemPhotoError(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, model.ErrPhotoNotFound):
 		writeError(w, http.StatusNotFound, "фото не найдено")
 	case errors.Is(err, model.ErrPhotoProblemResolved):
-		writeError(w, http.StatusConflict, "по проблеме уже принято решение — фото не добавить")
+		writeError(w, http.StatusConflict, "по проблеме уже принято решение - фото не добавить")
 	case errors.Is(err, model.ErrPhotoLimit):
 		writeError(w, http.StatusConflict, "у проблемы уже три фото")
 	case errors.Is(err, model.ErrPhotoIDTaken):

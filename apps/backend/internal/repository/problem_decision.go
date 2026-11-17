@@ -13,28 +13,28 @@ import (
 	"craftwms/internal/model"
 )
 
-// Ошибки решения по проблеме склада (P6-07-3). Все — отказ по существу: повтор их не исправит.
+// Ошибки решения по проблеме склада (P6-07-3). Все - отказ по существу: повтор их не исправит.
 var (
-	// ErrProblemNotFound — проблемы нет.
+	// ErrProblemNotFound - проблемы нет.
 	ErrProblemNotFound = errors.New("problem not found")
-	// ErrProblemResolved — по проблеме уже принято решение.
+	// ErrProblemResolved - по проблеме уже принято решение.
 	ErrProblemResolved = errors.New("problem is already resolved")
-	// ErrDecisionNotAllowed — решение не допустимо при причине проблемы.
+	// ErrDecisionNotAllowed - решение не допустимо при причине проблемы.
 	ErrDecisionNotAllowed = errors.New("decision is not allowed for the problem reason")
-	// ErrUnknownSupplier — поставщика нет в справочнике.
+	// ErrUnknownSupplier - поставщика нет в справочнике.
 	ErrUnknownSupplier = errors.New("unknown supplier")
-	// ErrProblemGoodsMissing — товара проблемы нет на складе-метке: короб перевели на другой
+	// ErrProblemGoodsMissing - товара проблемы нет на складе-метке: короб перевели на другой
 	// склад или опустошили, россыпь разобрали или положили в короб.
 	ErrProblemGoodsMissing = errors.New("problem goods are no longer on the problem internal warehouse")
-	// ErrNoSupplierReturnWarehouse — в справочнике нет системного склада возврата.
+	// ErrNoSupplierReturnWarehouse - в справочнике нет системного склада возврата.
 	ErrNoSupplierReturnWarehouse = errors.New("no supplier return internal warehouse")
 )
 
-// problemListLimit — потолок рабочего списка: открытые всегда сверху, решённые — свежие.
-// Сотни записей — незаметно; когда решённых станут тысячи, понадобится подгрузка курсором.
+// problemListLimit - потолок рабочего списка: открытые всегда сверху, решённые - свежие.
+// Сотни записей - незаметно; когда решённых станут тысячи, понадобится подгрузка курсором.
 const problemListLimit = 500
 
-// ProblemRepository — проблемы склада для офиса (P6-07-3): рабочий список и решение.
+// ProblemRepository - проблемы склада для офиса (P6-07-3): рабочий список и решение.
 type ProblemRepository struct {
 	pool *pgxpool.Pool
 }
@@ -44,7 +44,7 @@ func NewProblemRepository(pool *pgxpool.Pool) *ProblemRepository {
 	return &ProblemRepository{pool: pool}
 }
 
-// problemSelect — поля проблемы для списков; порядок совпадает со сканом в [scanProblems].
+// problemSelect - поля проблемы для списков; порядок совпадает со сканом в [scanProblems].
 const problemSelect = `
 		SELECT p.id::text, p.number, p.created_at, COALESCE(cu.full_name, ''), COALESCE(c.address, ''),
 		       COALESCE(p.load_unit_id::text, ''), p.reason, pr.name, p.comment, COALESCE(p.mark, ''),
@@ -69,7 +69,7 @@ const problemSelect = `
 		FROM warehouse_problems p
 		JOIN problem_reasons pr          ON pr.code = p.reason
 		LEFT JOIN problem_resolutions rs ON rs.id = p.resolution_id
-		-- У пересорта (ADHOC-53) ячейки и пары складов нет — он лежит, где лежал.
+		-- У пересорта (ADHOC-53) ячейки и пары складов нет - он лежит, где лежал.
 		LEFT JOIN cells c                ON c.id = p.cell_id
 		LEFT JOIN internal_warehouses fw ON fw.id = p.from_internal_warehouse_id
 		LEFT JOIN internal_warehouses tw ON tw.id = p.to_internal_warehouse_id
@@ -81,7 +81,7 @@ const problemSelect = `
 		LEFT JOIN supplier_return_shipments sh ON sh.id = p.shipment_id
 		LEFT JOIN users su          ON su.id = sh.created_by`
 
-// List — рабочий список офиса: открытые сверху, внутри — свежие первыми.
+// List - рабочий список офиса: открытые сверху, внутри - свежие первыми.
 func (r *ProblemRepository) List(ctx context.Context, f model.ProblemFilter) ([]model.Problem, error) {
 	return r.query(ctx, problemSelect+`
 		WHERE ($1::text = '' OR p.status = $1)
@@ -89,9 +89,9 @@ func (r *ProblemRepository) List(ctx context.Context, f model.ProblemFilter) ([]
 		LIMIT $2`, f.Status, problemListLimit)
 }
 
-// Current — открытые проблемы склада для ТСД (ADHOC-35): вкладка «Текущие», свежие первыми.
-// Товар — как в рабочем списке офиса: у короба — его состав сейчас, у товара — помеченное.
-// Открытых на складе десятки, поэтому без подгрузки — тем же потолком, что у списка офиса.
+// Current - открытые проблемы склада для ТСД (ADHOC-35): вкладка «Текущие», свежие первыми.
+// Товар - как в рабочем списке офиса: у короба - его состав сейчас, у товара - помеченное.
+// Открытых на складе десятки, поэтому без подгрузки - тем же потолком, что у списка офиса.
 func (r *ProblemRepository) Current(ctx context.Context) ([]model.Problem, error) {
 	return r.query(ctx, problemSelect+`
 		WHERE p.status = 'open'
@@ -99,9 +99,9 @@ func (r *ProblemRepository) Current(ctx context.Context) ([]model.Problem, error
 		LIMIT $1`, problemListLimit)
 }
 
-// Resolved — страница ленты решённых проблем для ТСД (ADHOC-34): свежие решения первыми.
+// Resolved - страница ленты решённых проблем для ТСД (ADHOC-34): свежие решения первыми.
 //
-// Окно — по времени решения (`[From, To)`); курсор — время решения и id последней показанной
+// Окно - по времени решения (`[From, To)`); курсор - время решения и id последней показанной
 // записи, как у ленты «Завершённые» заданий: при равном времени порядок задаёт id.
 func (r *ProblemRepository) Resolved(ctx context.Context, f model.ResolvedProblemsFilter) ([]model.Problem, error) {
 	return r.query(ctx, problemSelect+`
@@ -187,9 +187,9 @@ func (r *ProblemRepository) attachMarks(ctx context.Context, problems []model.Pr
 
 // attachItems подкладывает проблемам товар и подсказку поставщика.
 //
-// Решённая — что решение взяло (строки решения, с ячейкой). Открытая короб — его состав сейчас
-// и ячейка, где он лежит: офис решает судьбу того, что в коробе на деле. Открытая товар — то,
-// что помечено, в ячейке пометки. Пересорт (ADHOC-53) — его строки и открытым: что перешло на
+// Решённая - что решение взяло (строки решения, с ячейкой). Открытая короб - его состав сейчас
+// и ячейка, где он лежит: офис решает судьбу того, что в коробе на деле. Открытая товар - то,
+// что помечено, в ячейке пометки. Пересорт (ADHOC-53) - его строки и открытым: что перешло на
 // новый товар, записано сразу при перепривязке.
 func (r *ProblemRepository) attachItems(ctx context.Context, problems []model.Problem, index map[string]int) error {
 	ids := make([]string, len(problems))
@@ -223,7 +223,7 @@ func (r *ProblemRepository) attachItems(ctx context.Context, problems []model.Pr
 	}
 	defer rows.Close()
 
-	// Поставщики товара по проблеме: подсказка — только если он один и указан у всех строк.
+	// Поставщики товара по проблеме: подсказка - только если он один и указан у всех строк.
 	suppliers := map[string][]string{}
 	for rows.Next() {
 		var id, supplier string
@@ -247,34 +247,34 @@ func (r *ProblemRepository) attachItems(ctx context.Context, problems []model.Pr
 	return nil
 }
 
-// lockedProblem — проблема, заблокированная под решение.
+// lockedProblem - проблема, заблокированная под решение.
 type lockedProblem struct {
 	id                                                            string
 	warehouse, cell, loadUnit, good, batch, toIwh, reason, status string
 	qty                                                           decimal.Decimal
 }
 
-// problemLine — что решение берёт: товар партии с количеством в ячейке, из короба или россыпью.
+// problemLine - что решение берёт: товар партии с количеством в ячейке, из короба или россыпью.
 type problemLine struct {
 	cell, loadUnit, good, batch string
 	qty                         decimal.Decimal
 }
 
-// Resolve проводит решение офиса по проблеме (P6-07-3) — целиком, одной транзакцией.
+// Resolve проводит решение офиса по проблеме (P6-07-3) - целиком, одной транзакцией.
 //
 // Что: находит товар проблемы там, где он лежит сейчас, и по решению списывает его («списать»),
 //
-//	возвращает в «Основной» («разместить», товар в ячейке приёмки — с заданием на размещение,
+//	возвращает в «Основной» («разместить», товар в ячейке приёмки - с заданием на размещение,
 //	ADHOC-55) или переводит на склад возврата и кладёт проблему
 //	в открытое задание возврата поставщика («возврат»). Взятое пишется строками решения.
 //
-// Зачем одной транзакцией: решение, движение остатка и задание — один факт; решённая проблема
+// Зачем одной транзакцией: решение, движение остатка и задание - один факт; решённая проблема
 //
 //	без движения или движение без решения разошлись бы со складом.
 //
-// Как: проблема блокируется строкой (два оператора не решат её дважды), короб — через
-// lockPlacedLoadUnits, россыпь — через looseQty; остаток меняется только примитивами
-// addStock/removeStock — одна точка для проверки пересчёта (P10).
+// Как: проблема блокируется строкой (два оператора не решат её дважды), короб - через
+// lockPlacedLoadUnits, россыпь - через looseQty; остаток меняется только примитивами
+// addStock/removeStock - одна точка для проверки пересчёта (P10).
 func (r *ProblemRepository) Resolve(ctx context.Context, in model.ResolveProblemInput) error {
 	return WithinTx(ctx, r.pool, func(q Querier) error {
 		p, err := lockProblem(ctx, q, in.ProblemID)
@@ -334,11 +334,11 @@ func (r *ProblemRepository) Resolve(ctx context.Context, in model.ResolveProblem
 	})
 }
 
-// allowedResolution — вариант решения, которым офис решает проблему с причиной reason
+// allowedResolution - вариант решения, которым офис решает проблему с причиной reason
 // (ADHOC-55): активный и допустимый при причине по справочнику, с действием decision.
 //
-// Прежний клиент шлёт только действие (resolutionID пусто) — тогда берётся первый активный
-// вариант причины с этим действием. Нет подходящего — ErrDecisionNotAllowed.
+// Прежний клиент шлёт только действие (resolutionID пусто) - тогда берётся первый активный
+// вариант причины с этим действием. Нет подходящего - ErrDecisionNotAllowed.
 func allowedResolution(ctx context.Context, q Querier, reason, resolutionID, decision string) (string, error) {
 	var id string
 	err := q.QueryRow(ctx, `
@@ -358,7 +358,7 @@ func allowedResolution(ctx context.Context, q Querier, reason, resolutionID, dec
 	return id, nil
 }
 
-// Resolution — вариант решения по id: сервису нужно его действие, чтобы проверить форму решения.
+// Resolution - вариант решения по id: сервису нужно его действие, чтобы проверить форму решения.
 func (r *ProblemRepository) Resolution(ctx context.Context, id string) (model.ProblemResolution, error) {
 	return resolutionByID(ctx, r.pool, id)
 }
@@ -405,7 +405,7 @@ func lockProblem(ctx context.Context, q Querier, id string) (lockedProblem, erro
 	return p, nil
 }
 
-// problemBoxLines — состав короба проблемы там, где короб лежит сейчас. Короб обязан всё ещё
+// problemBoxLines - состав короба проблемы там, где короб лежит сейчас. Короб обязан всё ещё
 // принадлежать складу-метке и быть непустым: иначе решать уже нечего.
 func problemBoxLines(ctx context.Context, q Querier, p lockedProblem) ([]problemLine, error) {
 	boxes, err := lockPlacedLoadUnits(ctx, q, p.loadUnit)
@@ -433,9 +433,9 @@ func problemBoxLines(ctx context.Context, q Querier, p lockedProblem) ([]problem
 	return lines, nil
 }
 
-// problemGoodsLines — россыпь товара проблемы на складе-метке. Помеченный товар мог переехать
+// problemGoodsLines - россыпь товара проблемы на складе-метке. Помеченный товар мог переехать
 // (перемещение сохраняет метку), поэтому он берётся там, где лежит: сначала в ячейке пометки,
-// дальше по адресам ячеек склада. Товар разных проблем одной партии неразличим — решение берёт
+// дальше по адресам ячеек склада. Товар разных проблем одной партии неразличим - решение берёт
 // количество своей проблемы, а не «тот самый» товар.
 func problemGoodsLines(ctx context.Context, q Querier, p lockedProblem) ([]problemLine, error) {
 	rows, err := q.Query(ctx, `
@@ -477,7 +477,7 @@ func problemGoodsLines(ctx context.Context, q Querier, p lockedProblem) ([]probl
 }
 
 // writeOffProblem списывает товар проблемы с остатка: строки склада-метки уменьшаются, состав
-// короба обнуляется — пустой короб перестаёт быть живым. Марки проблемы уходят со склада
+// короба обнуляется - пустой короб перестаёт быть живым. Марки проблемы уходят со склада
 // статусом markStatus (CZ-06): «списана» по решению офиса, «возвращена» отгрузкой возврата.
 func writeOffProblem(ctx context.Context, q Querier, p lockedProblem, lines []problemLine, markStatus string) error {
 	for _, l := range lines {
@@ -496,7 +496,7 @@ func writeOffProblem(ctx context.Context, q Querier, p lockedProblem, lines []pr
 }
 
 // relabelProblem переводит товар проблемы на склад to в тех же ячейках; короб меняет склад
-// целиком — дальше он переезжает новым складом.
+// целиком - дальше он переезжает новым складом.
 func relabelProblem(ctx context.Context, q Querier, p lockedProblem, lines []problemLine, to string) error {
 	for _, l := range lines {
 		if err := transferStock(ctx, q,
@@ -542,7 +542,7 @@ func returnProblem(ctx context.Context, q Querier, p lockedProblem, lines []prob
 	return openReturnTask(ctx, q, p.warehouse, in.SupplierID)
 }
 
-// openReturnTask — открытое задание возврата поставщику на складе: существующее или новое.
+// openReturnTask - открытое задание возврата поставщику на складе: существующее или новое.
 // Одно на поставщика (частичный уникальный индекс): возвраты копятся в нём до отгрузки.
 func openReturnTask(ctx context.Context, q Querier, warehouseID, supplierID string) (string, error) {
 	var id string

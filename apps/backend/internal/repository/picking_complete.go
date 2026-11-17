@@ -11,8 +11,8 @@ import (
 	"craftwms/internal/model"
 )
 
-// pickingEvent — строка журнала событий заказа (P9-07). prevUser — чей заказ перехватили или
-// сняли; boxes и qty — итог завершения и отгрузки.
+// pickingEvent - строка журнала событий заказа (P9-07). prevUser - чей заказ перехватили или
+// сняли; boxes и qty - итог завершения и отгрузки.
 type pickingEvent struct {
 	kind     string
 	prevUser *string
@@ -37,26 +37,26 @@ func addPickingEvent(ctx context.Context, q Querier, orderID, userID string, ev 
 	return nil
 }
 
-// CompleteOrder — «Завершить сборку» (P9-07): остаток из ячеек в короба отгрузки, короба — в
-// служебную ячейку `ОТГРУЗКА`, заказ — в «собран».
+// CompleteOrder - «Завершить сборку» (P9-07): остаток из ячеек в короба отгрузки, короба - в
+// служебную ячейку `ОТГРУЗКА`, заказ - в «собран».
 //
 // Что под блокировкой заказа (только у своего исполнителя):
-//   - строки: «в сборке» сверх плана — отказ (лишнее кладовщик возвращает пиком), взято меньше
-//     плана без «не хватает» — отказ; ничего не взято — отказ, кроме заказа, где «не хватает»
+//   - строки: «в сборке» сверх плана - отказ (лишнее кладовщик возвращает пиком), взято меньше
+//     плана без «не хватает» - отказ; ничего не взято - отказ, кроме заказа, где «не хватает»
 //     по всем позициям: он собран частично без коробов. Перенесённое сверх плана после
 //     правки реестра не мешает: его возвращает задание «вернуть на места» (P9-07-1), а
 //     отгрузку до возврата не пустит ShipOrder;
 //   - пустые короба убираются, живые перенумеровываются 1…M по прежнему порядку; если состав
-//     коробов изменился с прошлого завершения (дособор), счётчик печати ярлыков сбрасывается —
+//     коробов изменился с прошлого завершения (дособор), счётчик печати ярлыков сбрасывается -
 //     старые ярлыки «N из M» неверны, новые печатаются без права повтора;
-//   - каждый открытый пик: остаток — из ячейки-источника в `ОТГРУЗКУ` (той же строкой склада),
-//     из короба хранения — минус его состав, в состав короба отгрузки — плюс; марки — в короб
-//     отгрузки; пик — «перенесён». Пик сначала помечается перенесённым: «в сборке» вычитается из
+//   - каждый открытый пик: остаток - из ячейки-источника в `ОТГРУЗКУ` (той же строкой склада),
+//     из короба хранения - минус его состав, в состав короба отгрузки - плюс; марки - в короб
+//     отгрузки; пик - «перенесён». Пик сначала помечается перенесённым: «в сборке» вычитается из
 //     доступного в коробе-источнике, и свой же пик иначе не дал бы взять товар;
-//   - короба ставятся в `ОТГРУЗКУ` строкой журнала размещений; заказ — «собран», «частично» —
+//   - короба ставятся в `ОТГРУЗКУ` строкой журнала размещений; заказ - «собран», «частично» -
 //     если по живой строке отмечено «не хватает» и взято меньше плана.
 //
-// Документ «Движение» не пишется: перенос внутри склада под заказ, его история — сами пики.
+// Документ «Движение» не пишется: перенос внутри склада под заказ, его история - сами пики.
 func (r *PickingRepository) CompleteOrder(ctx context.Context, orderID, userID string) (model.PickingShipment, error) {
 	err := WithinTx(ctx, r.pool, func(q Querier) error {
 		if err := heldOrder(ctx, q, orderID, userID); err != nil {
@@ -115,8 +115,8 @@ func (r *PickingRepository) CompleteOrder(ctx context.Context, orderID, userID s
 
 // checkCompleteLines сверяет взятое с планом по строкам; возвращает «собран частично».
 //
-// «В сборке» сверх плана — то, что ещё можно вернуть пиком: открытые пики сверх того, что план
-// оставил после перенесённого. Убранная реестром строка — план ноль.
+// «В сборке» сверх плана - то, что ещё можно вернуть пиком: открытые пики сверх того, что план
+// оставил после перенесённого. Убранная реестром строка - план ноль.
 func checkCompleteLines(ctx context.Context, q Querier, orderID string) (bool, error) {
 	rows, err := q.Query(ctx, `
 		SELECT l.good_name, CASE WHEN l.removed_at IS NULL THEN l.plan_qty ELSE 0 END, l.shortage,
@@ -197,7 +197,7 @@ func renumberBoxes(ctx context.Context, q Querier, orderID string) (int, error) 
 	return boxes, nil
 }
 
-// dropEmptyBoxes убирает пустые короба заказа — без открытых и перенесённых пиков; возвращает,
+// dropEmptyBoxes убирает пустые короба заказа - без открытых и перенесённых пиков; возвращает,
 // сколько убрано. Короб, стоявший в `ОТГРУЗКЕ` (опустел возвратом на места, P9-07-1), снимается
 // с места: в ячейке отгрузки его больше нет.
 func dropEmptyBoxes(ctx context.Context, q Querier, orderID string) (int, error) {
@@ -257,7 +257,7 @@ func renumberLiveBoxes(ctx context.Context, q Querier, orderID string) (int, boo
 	return boxes, true, nil
 }
 
-// openPick — открытый пик под блокировкой: что, откуда, куда.
+// openPick - открытый пик под блокировкой: что, откуда, куда.
 type openPick struct {
 	id, box, good, batch, cell, iwh string
 	loadUnit                        *string
@@ -333,7 +333,7 @@ func moveOpenPicks(ctx context.Context, q Querier, orderID, shippingCell string)
 			marks = append(marks, p.marks...)
 		}
 	}
-	// Вскрытие — один раз после всех пиков (CZ-07): короб ЧЗ, целиком легший в один короб
+	// Вскрытие - один раз после всех пиков (CZ-07): короб ЧЗ, целиком легший в один короб
 	// отгрузки, остаётся целым и уходит в Excel своим кодом агрегации.
 	if len(marks) > 0 {
 		return openAggregatesShipped(ctx, q, marks)
@@ -341,7 +341,7 @@ func moveOpenPicks(ctx context.Context, q Querier, orderID, shippingCell string)
 	return nil
 }
 
-// pickMoveErr — товара пика в источнике уже нет (пересчёт поправил остаток мимо «в сборке»):
+// pickMoveErr - товара пика в источнике уже нет (пересчёт поправил остаток мимо «в сборке»):
 // отказ с понятным текстом, а не «недостаточно остатка».
 func pickMoveErr(err error) error {
 	if errors.Is(err, ErrGoodsShort) || errors.Is(err, ErrInsufficientStock) {
@@ -372,7 +372,7 @@ func placeShippingBoxes(ctx context.Context, q Querier, orderID, shippingCell, u
 	return nil
 }
 
-// Shipment — собранный или отгруженный заказ с коробами «N из M» для ярлыков и отгрузки (P9-07).
+// Shipment - собранный или отгруженный заказ с коробами «N из M» для ярлыков и отгрузки (P9-07).
 // Нет такого заказа → ErrPickingOrderNotFound.
 func (r *PickingRepository) Shipment(ctx context.Context, orderID string) (model.PickingShipment, error) {
 	var s model.PickingShipment
@@ -424,8 +424,8 @@ func (r *PickingRepository) Shipment(ctx context.Context, orderID string) (model
 }
 
 // PrintLabels отмечает печать ярлыков коробов собранного заказа (P9-07) и возвращает заказ для
-// печати. Ярлык, который уже печатали, — только с правом повторной печати (canReprint): иначе
-// испорченный ярлык перепечатывает старший смены. Короб не этого заказа — ErrPickingShipBoxes.
+// печати. Ярлык, который уже печатали, - только с правом повторной печати (canReprint): иначе
+// испорченный ярлык перепечатывает старший смены. Короб не этого заказа - ErrPickingShipBoxes.
 func (r *PickingRepository) PrintLabels(ctx context.Context, orderID string, boxIDs []string, canReprint bool) (model.PickingShipment, error) {
 	err := WithinTx(ctx, r.pool, func(q Querier) error {
 		st, err := lockPickingOrder(ctx, q, orderID, 0)
@@ -463,14 +463,14 @@ func (r *PickingRepository) PrintLabels(ctx context.Context, orderID string, box
 	return r.Shipment(ctx, orderID)
 }
 
-// ShipOrder — «Отгрузить» (P9-07): отсканированы ярлыки всех коробов собранного заказа — короба
+// ShipOrder - «Отгрузить» (P9-07): отсканированы ярлыки всех коробов собранного заказа - короба
 // и их товар уходят со склада.
 //
-// Набор boxIDs обязан совпасть с живыми коробами заказа: не все или чужой — ErrPickingShipBoxes.
-// Есть что вернуть на места после правки реестра — ErrPickingReturnPending (P9-07-1).
+// Набор boxIDs обязан совпасть с живыми коробами заказа: не все или чужой - ErrPickingShipBoxes.
+// Есть что вернуть на места после правки реестра - ErrPickingReturnPending (P9-07-1).
 // Остаток уходит из `ОТГРУЗКИ` той же строкой склада, что лёг туда при завершении (по
-// перенесённым пикам); состав коробов обнуляется, короба — shipped без места, марки — shipped.
-// Отгруженный повторно — не ошибка (ответ мог не дойти).
+// перенесённым пикам); состав коробов обнуляется, короба - shipped без места, марки - shipped.
+// Отгруженный повторно - не ошибка (ответ мог не дойти).
 func (r *PickingRepository) ShipOrder(ctx context.Context, orderID, userID string, boxIDs []string) (model.PickingShipment, error) {
 	err := WithinTx(ctx, r.pool, func(q Querier) error {
 		st, err := lockPickingOrder(ctx, q, orderID, 0)
@@ -579,7 +579,7 @@ func (r *PickingRepository) ShipOrder(ctx context.Context, orderID, userID strin
 	return r.Shipment(ctx, orderID)
 }
 
-// uniqueStrings — различные значения среза: повторный скан одного ярлыка не считается вторым коробом.
+// uniqueStrings - различные значения среза: повторный скан одного ярлыка не считается вторым коробом.
 func uniqueStrings(in []string) []string {
 	seen := make(map[string]bool, len(in))
 	out := make([]string, 0, len(in))

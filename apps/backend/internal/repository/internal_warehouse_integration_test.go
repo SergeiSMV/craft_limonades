@@ -12,7 +12,7 @@ import (
 	"craftwms/internal/repository"
 )
 
-// Тесты P4-01-1 (ADR-0016): внутренний склад — измерение остатка.
+// Тесты P4-01-1 (ADR-0016): внутренний склад - измерение остатка.
 // Переиспользуют фикстуру setupStock, которая теперь отдаёт и склады: fx.iwh («основной»
 // по умолчанию) и fx.iwhDefect («брак»).
 
@@ -46,7 +46,7 @@ func TestInternalWarehouse_oneCellHoldsBothStocks(t *testing.T) {
 		t.Fatalf("остатки смешались: основной=%s брак=%s, ожидались 10 и 3", gotMain, gotDefect)
 	}
 
-	// Расход с брака не трогает основной — операции адресуются по полной грани.
+	// Расход с брака не трогает основной - операции адресуются по полной грани.
 	if err := repo.Remove(ctx, defect, decimal.NewFromInt(3)); err != nil {
 		t.Fatalf("расход с брака: %v", err)
 	}
@@ -55,7 +55,7 @@ func TestInternalWarehouse_oneCellHoldsBothStocks(t *testing.T) {
 		t.Errorf("расход с брака задел основной: %s", gotMain)
 	}
 
-	// Итог по физической ячейке — сумма по внутренним складам: именно его должен видеть
+	// Итог по физической ячейке - сумма по внутренним складам: именно его должен видеть
 	// кладовщик, чтобы понимать фактическое количество на складе.
 	var total string
 	if err := fx.pool.QueryRow(ctx,
@@ -92,7 +92,7 @@ func TestInternalWarehouse_incompleteKeyRejected(t *testing.T) {
 }
 
 // Справочник пополняемый: новый склад заводится вставкой и сразу годится как измерение остатка.
-// Склад по умолчанию при этом ровно один — за этим следит частичный уникальный индекс.
+// Склад по умолчанию при этом ровно один - за этим следит частичный уникальный индекс.
 func TestInternalWarehouse_directoryIsExtendable(t *testing.T) {
 	fx := setupStock(t)
 	ctx := context.Background()
@@ -112,7 +112,7 @@ func TestInternalWarehouse_directoryIsExtendable(t *testing.T) {
 		t.Errorf("остаток на новом складе: %s, ожидался 4", got)
 	}
 
-	// Второй склад по умолчанию завести нельзя — иначе «куда приходовать» стало бы неоднозначным.
+	// Второй склад по умолчанию завести нельзя - иначе «куда приходовать» стало бы неоднозначным.
 	if _, err := fx.pool.Exec(ctx,
 		`UPDATE internal_warehouses SET is_default = true WHERE code = 'DEFECT'`); err == nil {
 		t.Error("удалось завести второй склад по умолчанию")

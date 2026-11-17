@@ -11,7 +11,7 @@ import 'package:talker_flutter/talker_flutter.dart';
 
 /// Поведение сервиса печати (P4-05): выбор принтера, соединение, отправка команд.
 ///
-/// Транспорт подменён: настоящий требует Bluetooth-железа, а проверять надо решения сервиса —
+/// Транспорт подменён: настоящий требует Bluetooth-железа, а проверять надо решения сервиса -
 /// когда он подключается, когда не подключается повторно и что именно уходит в принтер.
 class FakeTransport implements PrinterTransport {
   PrinterStatus _status = const PrinterStatus(
@@ -25,10 +25,10 @@ class FakeTransport implements PrinterTransport {
   final List<List<int>> writes = [];
   int disconnects = 0;
 
-  /// Соединение рвётся при следующей попытке записи — имитация ухода принтера из зоны.
+  /// Соединение рвётся при следующей попытке записи - имитация ухода принтера из зоны.
   bool failWrite = false;
 
-  /// Сколько следующих записей упадёт с «Broken pipe» — принтер выключили и включили (P6-04).
+  /// Сколько следующих записей упадёт с «Broken pipe» - принтер выключили и включили (P6-04).
   int brokenWrites = 0;
 
   @override
@@ -50,7 +50,7 @@ class FakeTransport implements PrinterTransport {
   Stream<PrinterDevice> discover() =>
       Stream.value(const PrinterDevice(address: 'AA:BB', name: 'Найденный'));
 
-  /// Спаривание отвергнуто принтером — как на живой проверке с XP-P323B.
+  /// Спаривание отвергнуто принтером - как на живой проверке с XP-P323B.
   bool failBond = false;
 
   @override
@@ -223,7 +223,7 @@ void main() {
     expect((await service.language()).id, 'zpl');
   });
 
-  test('по умолчанию язык — TSPL', () async {
+  test('по умолчанию язык - TSPL', () async {
     // Он заявлен основным; какой примет конкретный экземпляр, выясняется печатью.
     expect((await service.language()).id, 'tspl');
   });
@@ -271,7 +271,7 @@ void main() {
     expect(await service.selected(), isNull);
   });
 
-  // P6-04: принтер выключили и включили — сокет на терминале «жив», запись даёт Broken pipe.
+  // P6-04: принтер выключили и включили - сокет на терминале «жив», запись даёт Broken pipe.
   test('после обрыва связи печать переподключается сама и печатает', () async {
     await service.select(printer);
     transport.brokenWrites = 2;
@@ -294,7 +294,7 @@ void main() {
     ], reason: 'плашка «Подключаюсь…» показана и убрана');
   });
 
-  test('принтер так и не ответил — отказ связи с понятным текстом', () async {
+  test('принтер так и не ответил - отказ связи с понятным текстом', () async {
     await service.select(printer);
     transport.brokenWrites = 100;
 
@@ -317,7 +317,7 @@ void main() {
   });
 
   test(
-    'выключенный Bluetooth не переподключается — сразу просит включить',
+    'выключенный Bluetooth не переподключается - сразу просит включить',
     () async {
       await service.select(printer);
       transport.turnBluetoothOff();

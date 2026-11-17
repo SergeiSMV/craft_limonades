@@ -17,9 +17,9 @@ import (
 )
 
 // Приём событий ТСД и портала (ADHOC-47): путь протокола Sentry через настоящий роутер,
-// Bugsink подменён тестовым сервером — тем, что он получил, и проверяется пересылка.
+// Bugsink подменён тестовым сервером - тем, что он получил, и проверяется пересылка.
 
-// upstream — подставной Bugsink: запоминает запрос и отвечает заданным кодом.
+// upstream - подставной Bugsink: запоминает запрос и отвечает заданным кодом.
 type upstream struct {
 	srv    *httptest.Server
 	path   string
@@ -45,7 +45,7 @@ func newUpstream(t *testing.T, status int, header http.Header) *upstream {
 	return u
 }
 
-// clientRouter — роутер без БД, с пересылкой в [u] (nil — без пересылки).
+// clientRouter - роутер без БД, с пересылкой в [u] (nil - без пересылки).
 func clientRouter(t *testing.T, u *upstream) http.Handler {
 	t.Helper()
 	var svc handler.Services
@@ -60,7 +60,7 @@ func clientRouter(t *testing.T, u *upstream) http.Handler {
 	return handler.NewRouter(slog.New(slog.NewTextHandler(io.Discard, nil)), nil, tokens, svc)
 }
 
-// envelope — конверт, каким его шлёт SDK: в заголовке — фиктивный DSN приложения.
+// envelope - конверт, каким его шлёт SDK: в заголовке - фиктивный DSN приложения.
 const envelope = `{"event_id":"9ec79c33ec9942ab8353589fcb2e04dc","dsn":"https://wms@craft.skogi.ru/1","sdk":{"name":"sentry.dart"}}
 {"type":"event","length":41}
 {"message":"сбой на ТСД","level":"error"}
@@ -87,7 +87,7 @@ func gzipped(t *testing.T, s string) []byte {
 	return b.Bytes()
 }
 
-// Сжатый конверт: распакован, фиктивный DSN убран, ключ проекта — в X-Sentry-Auth, адрес —
+// Сжатый конверт: распакован, фиктивный DSN убран, ключ проекта - в X-Sentry-Auth, адрес -
 // проект из CLIENT_SENTRY_DSN; тела элементов дошли как есть.
 func TestClientErrors_forwardsWithProjectKey(t *testing.T) {
 	u := newUpstream(t, http.StatusOK, nil)
@@ -123,8 +123,8 @@ func TestClientErrors_passesRateLimits(t *testing.T) {
 	}
 }
 
-// Без пересылки (стенд, локальный стек) — конверт принят и отброшен; чужой проект, не конверт,
-// слишком большое тело, недоступный Bugsink — отказ с кодом, по которому SDK не копит ошибки.
+// Без пересылки (стенд, локальный стек) - конверт принят и отброшен; чужой проект, не конверт,
+// слишком большое тело, недоступный Bugsink - отказ с кодом, по которому SDK не копит ошибки.
 func TestClientErrors_refusals(t *testing.T) {
 	if rec := postEnvelope(t, clientRouter(t, nil), "/api/1/envelope/", []byte(envelope), false); rec.Code != http.StatusOK {
 		t.Fatalf("без пересылки: %d", rec.Code)

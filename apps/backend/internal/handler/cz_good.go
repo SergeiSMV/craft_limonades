@@ -8,11 +8,11 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-// SetGoodCZMarked: PATCH /api/v1/goods/{id}/cz-marked {cz_marked} — правка признака
+// SetGoodCZMarked: PATCH /api/v1/goods/{id}/cz-marked {cz_marked} - правка признака
 // «маркируемый» у товара (CZ-05), только admin.
 //
-// Признак обычно ставится сам — привязкой ШК из марки и принятой маркой (долг 16); ручка
-// исправляет ошибку. Ответ — новое значение: карточка товара на ТСД показывает его сразу.
+// Признак обычно ставится сам - привязкой ШК из марки и принятой маркой (долг 16); ручка
+// исправляет ошибку. Ответ - новое значение: карточка товара на ТСД показывает его сразу.
 func (h *CZHandler) SetGoodCZMarked(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		CZMarked *bool `json:"cz_marked"`

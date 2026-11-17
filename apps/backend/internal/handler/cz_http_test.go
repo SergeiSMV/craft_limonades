@@ -18,9 +18,9 @@ import (
 	"craftwms/internal/service"
 )
 
-// Тесты CZ-02, шаг 3: ручки admin/cz через роутер, сервис — над подставным клиентом True API.
+// Тесты CZ-02, шаг 3: ручки admin/cz через роутер, сервис - над подставным клиентом True API.
 
-// czClientStub — клиент True API без сети и подписанта.
+// czClientStub - клиент True API без сети и подписанта.
 type czClientStub struct {
 	signerErr error
 	infoErr   error
@@ -39,7 +39,7 @@ func (c czClientStub) CisesInfo(_ context.Context, codes []string) ([]model.CisI
 func (c czClientStub) TokenExpiry() (time.Time, bool)     { return c.expiry, !c.expiry.IsZero() }
 func (c czClientStub) SignerHealth(context.Context) error { return c.signerErr }
 
-// czRouter — роутер с сервисом ЧЗ и токены админа и кладовщика.
+// czRouter - роутер с сервисом ЧЗ и токены админа и кладовщика.
 func czRouter(t *testing.T, cz *service.CZService) (http.Handler, string, string) {
 	t.Helper()
 	tokens := auth.NewTokenManager("test-secret", time.Hour, 24*time.Hour)

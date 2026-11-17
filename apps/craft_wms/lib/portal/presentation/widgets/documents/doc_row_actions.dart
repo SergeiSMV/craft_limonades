@@ -5,10 +5,10 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../ui/portal_button.dart';
 
-/// Действия строки таблицы документов (ADHOC-26, плоский стиль — ADHOC-56): история, скачать
-/// .xlsx, провести — у проведённого кнопки «Провести» нет. [compact] — скачивание и
+/// Действия строки таблицы документов (ADHOC-26, плоский стиль - ADHOC-56): история, скачать
+/// .xlsx, провести - у проведённого кнопки «Провести» нет. [compact] - скачивание и
 /// проведение иконками с подсказкой вместо подписей: так ряд помещается на ширине ноутбука;
-/// на телефоне — тоже иконками.
+/// на телефоне - тоже иконками.
 class DocRowActions extends StatelessWidget {
   const DocRowActions({
     super.key,
@@ -26,7 +26,7 @@ class DocRowActions extends StatelessWidget {
   final bool downloading;
   final bool posting;
 
-  /// Действия; `null` — у должности нет права (ADHOC-50), кнопки нет.
+  /// Действия; `null` - у должности нет права (ADHOC-50), кнопки нет.
   final VoidCallback? onHistory;
   final VoidCallback? onDownload;
   final VoidCallback? onPost;
@@ -34,7 +34,7 @@ class DocRowActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // По левому краю колонки: «История» и «Скачать» в каждой строке на одних местах,
-    // «Провести» третьей — только у ожидающих. По правому краю кнопки строк с двумя и тремя
+    // «Провести» третьей - только у ожидающих. По правому краю кнопки строк с двумя и тремя
     // действиями не стояли бы друг под другом.
     final history = onHistory;
     final download = onDownload;
@@ -73,7 +73,7 @@ class DocRowActions extends StatelessWidget {
                 busy: posting,
                 onPressed: post,
               ),
-      // Иконками у проведённого — пустое место вместо «Провести»: в узком списке действия
+      // Иконками у проведённого - пустое место вместо «Провести»: в узком списке действия
       // прижаты вправо, и «История» со «Скачать» иначе съезжали бы в строках проведённых.
       if (posted && post != null && compact)
         const SizedBox.square(dimension: AppSizes.kControlHeight),

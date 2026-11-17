@@ -1,7 +1,7 @@
 import 'package:craft_wms/features/tasks/data/tasks_models.dart';
 
-/// Ответ `GET /tasks` в том виде, в каком его отдаёт сервер (handler/tasks.go): количества —
-/// строкой, даты партий — DD-MM-YYYY, у короба — состав, у россыпи — товар и остаток.
+/// Ответ `GET /tasks` в том виде, в каком его отдаёт сервер (handler/tasks.go): количества -
+/// строкой, даты партий - DD-MM-YYYY, у короба - состав, у россыпи - товар и остаток.
 const serverTaskJson = <String, dynamic>{
   'id': '11111111-1111-4111-8111-111111111111',
   'number': 57,

@@ -1,8 +1,8 @@
--- P5-02-1: задания для склада. Первый вид — размещение: оно создаётся при оприходовании
+-- P5-02-1: задания для склада. Первый вид - размещение: оно создаётся при оприходовании
 -- приёмки из того, что легло в ячейку приёмки, и выполняется сеансами размещения (P5-02).
 --
--- Пул общий: задание без исполнителя видят все; взятое — только взявший. Зависшее задание
--- (по нему ничего не отправлено дольше заданного срока) снова видно всем как «новое» —
+-- Пул общий: задание без исполнителя видят все; взятое - только взявший. Зависшее задание
+-- (по нему ничего не отправлено дольше заданного срока) снова видно всем как «новое» -
 -- это решает запрос, а не фоновая задача: время само по себе ничего в базе не меняет.
 
 CREATE TABLE warehouse_tasks (
@@ -10,16 +10,16 @@ CREATE TABLE warehouse_tasks (
     -- Короткий номер для людей: «Задание №57». Идентификатор UUID человеку ничего не говорит.
     number           bigint      GENERATED ALWAYS AS IDENTITY UNIQUE,
 
-    kind             text        NOT NULL CHECK (kind IN ('putaway')),   -- набор растёт: P10 — пересчёт
+    kind             text        NOT NULL CHECK (kind IN ('putaway')),   -- набор растёт: P10 - пересчёт
     status           text        NOT NULL DEFAULT 'new'
                                  CHECK (status IN ('new','in_progress','done')),
-    -- new         — в пуле, взять может любой;
-    -- in_progress — взято исполнителем (assignee_id), у других не видно, пока не зависло;
-    -- done        — всё по заданию выполнено.
+    -- new         - в пуле, взять может любой;
+    -- in_progress - взято исполнителем (assignee_id), у других не видно, пока не зависло;
+    -- done        - всё по заданию выполнено.
 
     warehouse_id     uuid        NOT NULL REFERENCES warehouses(id),
-    -- Основание. Задание на размещение рождается из приёмки — по ней кладовщик и офис узнают,
-    -- что это за товар. Одна приёмка — одно задание (уникальность ниже).
+    -- Основание. Задание на размещение рождается из приёмки - по ней кладовщик и офис узнают,
+    -- что это за товар. Одна приёмка - одно задание (уникальность ниже).
     receipt_id       uuid        REFERENCES receipts(id),
 
     assignee_id      uuid        REFERENCES users(id),     -- кто держит задание сейчас
@@ -31,14 +31,14 @@ CREATE TABLE warehouse_tasks (
     completed_at     timestamptz,
     created_at       timestamptz NOT NULL DEFAULT now(),
 
-    -- Исполнитель есть ровно у взятого задания; момент завершения — ровно у выполненного.
+    -- Исполнитель есть ровно у взятого задания; момент завершения - ровно у выполненного.
     CHECK ((status = 'in_progress') = (assignee_id IS NOT NULL)),
     CHECK ((status = 'done') = (completed_at IS NOT NULL))
 );
 
 CREATE UNIQUE INDEX warehouse_tasks_receipt_kind_uq ON warehouse_tasks (receipt_id, kind)
     WHERE receipt_id IS NOT NULL;
--- Текущие задания — «всё, что не выполнено»; лента завершённых — по времени завершения.
+-- Текущие задания - «всё, что не выполнено»; лента завершённых - по времени завершения.
 CREATE INDEX warehouse_tasks_open_idx      ON warehouse_tasks (status) WHERE status <> 'done';
 CREATE INDEX warehouse_tasks_completed_idx ON warehouse_tasks (completed_at DESC, id DESC)
     WHERE status = 'done';
@@ -49,7 +49,7 @@ COMMENT ON TABLE warehouse_tasks IS
 
 -- Что разместить по заданию: короб целиком ЛИБО россыпь (товар · партия · количество).
 -- Остаток задания не хранится: он считается как позиция минус проведённое сеансами
--- размещения этого задания — так он не может разойтись с тем, что реально перенесли.
+-- размещения этого задания - так он не может разойтись с тем, что реально перенесли.
 CREATE TABLE putaway_task_items (
     id           uuid          PRIMARY KEY DEFAULT gen_random_uuid(),
     task_id      uuid          NOT NULL REFERENCES warehouse_tasks(id) ON DELETE CASCADE,
@@ -71,14 +71,14 @@ CREATE TABLE putaway_task_items (
 CREATE INDEX putaway_task_items_task_idx ON putaway_task_items (task_id, line_no);
 
 COMMENT ON TABLE putaway_task_items IS
-    'P5-02-1: позиции задания на размещение — короб либо россыпь. Остаток считается по сеансам.';
+    'P5-02-1: позиции задания на размещение - короб либо россыпь. Остаток считается по сеансам.';
 
 -- Размещения без задания нет (решение 2026-10-07): сеанс всегда выполняет задание.
--- Колонка NOT NULL сразу: документов размещения на проде ещё нет — P5-02 выходит вместе с ней.
+-- Колонка NOT NULL сразу: документов размещения на проде ещё нет - P5-02 выходит вместе с ней.
 ALTER TABLE putaways ADD COLUMN task_id uuid NOT NULL REFERENCES warehouse_tasks(id);
 CREATE INDEX putaways_task_idx ON putaways (task_id);
 
--- Приёмки, оприходованные до заданий, получают задание из того, что легло в их ячейку приёмки —
+-- Приёмки, оприходованные до заданий, получают задание из того, что легло в их ячейку приёмки -
 -- по тому же правилу, по которому его создаёт оприходование. Иначе их товар в зоне приёмки
 -- остался бы без способа его разместить.
 WITH src AS (
@@ -96,7 +96,7 @@ tasks AS (
     RETURNING id, receipt_id
 ),
 boxes AS (
-    -- Короб в нескольких строках приёмки — одна позиция задания.
+    -- Короб в нескольких строках приёмки - одна позиция задания.
     SELECT DISTINCT ON (s.receipt_id, s.load_unit_id) s.receipt_id, s.load_unit_id
     FROM src s WHERE s.load_unit_id IS NOT NULL
 ),

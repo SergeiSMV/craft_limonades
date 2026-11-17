@@ -20,7 +20,7 @@ func TestBadgeCipherRoundTrip(t *testing.T) {
 	}
 	b, _ := c.Seal("10000000", "23456781")
 	if string(a) == string(b) {
-		t.Fatal("два шифртекста одного секрета совпали — nonce не случайный")
+		t.Fatal("два шифртекста одного секрета совпали - nonce не случайный")
 	}
 	got, err := c.Open("10000000", a)
 	if err != nil || got != "23456781" {
@@ -28,7 +28,7 @@ func TestBadgeCipherRoundTrip(t *testing.T) {
 	}
 }
 
-// Чужой логин, другой ключ и обрезанный шифртекст — отказ, а не мусорный номер.
+// Чужой логин, другой ключ и обрезанный шифртекст - отказ, а не мусорный номер.
 func TestBadgeCipherRejects(t *testing.T) {
 	c, _ := NewBadgeCipher(testBadgeKey)
 	sealed, _ := c.Seal("10000000", "23456781")
@@ -44,7 +44,7 @@ func TestBadgeCipherRejects(t *testing.T) {
 	}
 }
 
-// Ключ — ровно 32 байта шестнадцатерично.
+// Ключ - ровно 32 байта шестнадцатерично.
 func TestNewBadgeCipherBadKey(t *testing.T) {
 	for _, k := range []string{"", "abc", strings.Repeat("zz", 32), strings.Repeat("ab", 16)} {
 		if _, err := NewBadgeCipher(k); !errors.Is(err, ErrBadgeKey) {

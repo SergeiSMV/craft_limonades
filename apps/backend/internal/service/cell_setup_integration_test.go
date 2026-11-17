@@ -37,7 +37,7 @@ func importFile(t *testing.T, pool *pgxpool.Pool, path string) *service.CellsImp
 	return rep
 }
 
-// TestCellSetup_rackLabelsRoundTrip — настоящий файл rack_labels: загрузка, страница «Ячейки»
+// TestCellSetup_rackLabelsRoundTrip - настоящий файл rack_labels: загрузка, страница «Ячейки»
 // с теми же итогами, что у скрипта; выгрузка и обратная загрузка выгрузки ничего не меняют.
 func TestCellSetup_rackLabelsRoundTrip(t *testing.T) {
 	pool := testutil.StartPostgres(t)
@@ -57,7 +57,7 @@ func TestCellSetup_rackLabelsRoundTrip(t *testing.T) {
 		t.Fatalf("страница: ячеек %d/522, стеллажей %d/66", len(setup.Cells), len(setup.Racks))
 	}
 	// Карточка по умолчанию (лист racks, решение 2026-11-05): ячейки стеллажей с карточкой без
-	// штрих-кода на балке — как печатал rack_labels.
+	// штрих-кода на балке - как печатал rack_labels.
 	parsedFile := parseSample(t, rackLabelsSamplePath)
 	rackCard := map[string]bool{}
 	for _, r := range parsedFile.Racks {
@@ -177,8 +177,8 @@ func parseSample(t *testing.T, path string) *importer.CellsParseResult {
 	return res
 }
 
-// TestCellSetup_updateSettings — массовая правка галочек: меняются только заданные поля и только
-// у выбранных ячеек, галочка карточки — тоже у ячеек и только со стеллажом; чужие ячейки и пустой
+// TestCellSetup_updateSettings - массовая правка галочек: меняются только заданные поля и только
+// у выбранных ячеек, галочка карточки - тоже у ячеек и только со стеллажом; чужие ячейки и пустой
 // патч отклоняются.
 func TestCellSetup_updateSettings(t *testing.T) {
 	pool := testutil.StartPostgres(t)
@@ -220,7 +220,7 @@ func TestCellSetup_updateSettings(t *testing.T) {
 		t.Error("галочка карточки: включиться должна только у выбранных ячеек")
 	}
 
-	// Повтор того же — ничего не меняется, счётчики нулевые.
+	// Повтор того же - ничего не меняется, счётчики нулевые.
 	res, err = svc.UpdateSettings(ctx, "SHB", model.CellSettingsPatch{CellIDs: []string{a.ID, b.ID}, LabelSmall: &yes, SideCard: &yes})
 	if err != nil || res.CellsUpdated != 0 {
 		t.Errorf("повтор: %+v %v", res, err)
@@ -300,7 +300,7 @@ func idx(cells []model.CellSetup, address string) int {
 	return -1
 }
 
-// sameCell сравнивает ячейки по значениям (указатели на стеллаж — разные адреса памяти).
+// sameCell сравнивает ячейки по значениям (указатели на стеллаж - разные адреса памяти).
 func sameCell(a, b model.CellSetup) bool {
 	return a.ID == b.ID && a.Address == b.Address && *a.RackID == *b.RackID && *a.RackCode == *b.RackCode &&
 		a.IsFloor == b.IsFloor && a.LabelSmall == b.LabelSmall && a.LabelBarcode == b.LabelBarcode &&

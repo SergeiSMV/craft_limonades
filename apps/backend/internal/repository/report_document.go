@@ -12,11 +12,11 @@ import (
 	"craftwms/internal/model"
 )
 
-// ErrDocumentNotFound — документа по такой операции нет: она не завершена либо завершена до
+// ErrDocumentNotFound - документа по такой операции нет: она не завершена либо завершена до
 // появления снимков и не попала в бэкофилл.
 var ErrDocumentNotFound = errors.New("report document not found")
 
-// ReportDocumentRepository — доступ к документам отчётов (P3-01).
+// ReportDocumentRepository - доступ к документам отчётов (P3-01).
 type ReportDocumentRepository struct {
 	pool *pgxpool.Pool
 }
@@ -36,10 +36,10 @@ func (r *ReportDocumentRepository) BySource(ctx context.Context, sourceType, sou
 // завершена, а документа нет.
 //
 // Повтор безвреден: при конфликте по (source_type, source_id) сохраняется ПЕРВЫЙ снимок.
-// Так и нужно — повторный финал из очереди устройства (P2-05) не должен переписывать документ
+// Так и нужно - повторный финал из очереди устройства (P2-05) не должен переписывать документ
 // содержимым, собранным позже по изменившимся справочникам.
 // Возвращает id созданного документа или пустую строку, если документ по этой операции уже был:
-// пустой id — признак повтора, по которому вызывающий понимает, что заводить событие журнала
+// пустой id - признак повтора, по которому вызывающий понимает, что заводить событие журнала
 // «сформирован» второй раз не нужно.
 func saveDocument(ctx context.Context, q Querier, doc model.ReportDocument) (string, error) {
 	raw, err := json.Marshal(doc.Snapshot)
@@ -62,7 +62,7 @@ func saveDocument(ctx context.Context, q Querier, doc model.ReportDocument) (str
 	return id, nil
 }
 
-// documentBySource — чтение снимка на Querier (годится и для пула, и для транзакции).
+// documentBySource - чтение снимка на Querier (годится и для пула, и для транзакции).
 func documentBySource(ctx context.Context, q Querier, sourceType, sourceID string) (model.ReportDocument, error) {
 	var doc model.ReportDocument
 	var raw []byte
@@ -87,12 +87,12 @@ func documentBySource(ctx context.Context, q Querier, sourceType, sourceID strin
 
 // List возвращает документы для портала: сначала необработанные, свежие сверху.
 //
-// Порядок «сначала работа, потом сделанное» — суть трекаемого списка: выполненные документы
+// Порядок «сначала работа, потом сделанное» - суть трекаемого списка: выполненные документы
 // не исчезают (по ним сверяются), но и не заслоняют то, чем ещё предстоит заняться.
 // Число строк берётся из СНИМКА, а не из таблицы-источника: документ описывает операцию такой,
 // какой она была завершена.
 //
-// kind пуст — все формы; иначе только одна: у каждой формы в портале своя вкладка
+// kind пуст - все формы; иначе только одна: у каждой формы в портале своя вкладка
 // («Инвентаризация», «Приход», «Движение»), и смешанный список заставил бы оператора искать свои документы
 // среди чужих.
 func (r *ReportDocumentRepository) List(ctx context.Context, kind string) ([]model.DocumentListItem, error) {
@@ -128,9 +128,9 @@ func (r *ReportDocumentRepository) List(ctx context.Context, kind string) ([]mod
 	return out, rows.Err()
 }
 
-// ByID читает документ вместе со снимком — для сборки файла.
-// KindByID — вид документа (ADHOC-50): по нему проверяется право на действие с ним.
-// Нет документа (или id не uuid) — ErrDocumentNotFound.
+// ByID читает документ вместе со снимком - для сборки файла.
+// KindByID - вид документа (ADHOC-50): по нему проверяется право на действие с ним.
+// Нет документа (или id не uuid) - ErrDocumentNotFound.
 func (r *ReportDocumentRepository) KindByID(ctx context.Context, id string) (string, error) {
 	var kind string
 	err := r.pool.QueryRow(ctx, `SELECT kind FROM report_documents
@@ -168,7 +168,7 @@ func (r *ReportDocumentRepository) ByID(ctx context.Context, id string) (model.R
 // MarkDownloaded отмечает первое скачивание.
 //
 // Статус двигается ТОЛЬКО из 'new': скачивание уже выполненного документа не возвращает его
-// в работу — оператор мог открыть файл для сверки, и откатывать отметку «занесено в 1С» по
+// в работу - оператор мог открыть файл для сверки, и откатывать отметку «занесено в 1С» по
 // такому поводу нельзя. Время первого скачивания тоже не переписывается (COALESCE).
 func (r *ReportDocumentRepository) MarkDownloaded(ctx context.Context, id string) error {
 	tag, err := r.pool.Exec(ctx, `
@@ -186,7 +186,7 @@ func (r *ReportDocumentRepository) MarkDownloaded(ctx context.Context, id string
 }
 
 // MarkDone отмечает документ занесённым в 1С. Идемпотентно: повтор не двигает время отметки,
-// а промежуточный статус не требуется — данные могли попасть в 1С и без скачивания файла.
+// а промежуточный статус не требуется - данные могли попасть в 1С и без скачивания файла.
 func (r *ReportDocumentRepository) MarkDone(ctx context.Context, id string) error {
 	tag, err := r.pool.Exec(ctx, `
 		UPDATE report_documents
@@ -204,7 +204,7 @@ func (r *ReportDocumentRepository) MarkDone(ctx context.Context, id string) erro
 // logEvent дописывает запись в журнал документа (P3-03).
 //
 // Принимает Querier, а не пул: событие «сформирован» обязано лечь в ту же транзакцию, что и сам
-// документ, — иначе документ и его история могли бы разойтись при сбое между ними.
+// документ, - иначе документ и его история могли бы разойтись при сбое между ними.
 // userID пустой → NULL: событие системное, и выдумывать автора нельзя.
 func logEvent(ctx context.Context, q Querier, documentID, event, userID, details string) error {
 	var user any
@@ -227,13 +227,13 @@ func logEvent(ctx context.Context, q Querier, documentID, event, userID, details
 	return nil
 }
 
-// LogEvent дописывает событие журнала вне транзакции — для действий из портала.
+// LogEvent дописывает событие журнала вне транзакции - для действий из портала.
 func (r *ReportDocumentRepository) LogEvent(ctx context.Context, documentID, event, userID, details string) error {
 	return logEvent(ctx, r.pool, documentID, event, userID, details)
 }
 
 // Events возвращает историю документа по времени. ФИО подтягивается из users: журнал хранит
-// ссылку, а не копию имени, — переименование сотрудника не должно рождать двух разных людей.
+// ссылку, а не копию имени, - переименование сотрудника не должно рождать двух разных людей.
 func (r *ReportDocumentRepository) Events(ctx context.Context, documentID string) ([]model.DocumentEvent, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT e.event, e.user_id::text, COALESCE(u.full_name, ''), COALESCE(e.details->>'message', ''), e.created_at

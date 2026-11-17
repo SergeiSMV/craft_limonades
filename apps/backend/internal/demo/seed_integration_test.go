@@ -18,7 +18,7 @@ import (
 	"craftwms/internal/testutil"
 )
 
-// TestDemo_resetSeedsAndLogsIn — демо-сервер целиком на живой базе: на базе без «_demo» режим
+// TestDemo_resetSeedsAndLogsIn - демо-сервер целиком на живой базе: на базе без «_demo» режим
 // не включается и схему не стирает; на демо-базе пустая база заполняется при старте (схема
 // заново, миграции, сидер), демо-пользователь входит без пароля, сброс кнопкой не чаще раза
 // в 10 минут и снова даёт те же данные.
@@ -27,7 +27,7 @@ import (
 // правка операции роняет этот тест в CI, а не показ на демо-сервере.
 func TestDemo_resetSeedsAndLogsIn(t *testing.T) {
 	ctx := context.Background()
-	prod := testutil.StartPostgres(t) // база «wms» — как боевая, не демо
+	prod := testutil.StartPostgres(t) // база «wms» - как боевая, не демо
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 
 	// 1. Не демо-база: режим выключен, схема цела.
@@ -64,7 +64,7 @@ func TestDemo_resetSeedsAndLogsIn(t *testing.T) {
 		t.Fatalf("состояние демо: %+v", st)
 	}
 
-	// 3. Сброс кнопкой: старт сам был сбросом — повтор сразу отклоняется, через 10 минут проходит.
+	// 3. Сброс кнопкой: старт сам был сбросом - повтор сразу отклоняется, через 10 минут проходит.
 	if err := svc.Reset(ctx); !errors.Is(err, model.ErrDemoResetTooOften) {
 		t.Fatalf("частый сброс: %v", err)
 	}
@@ -76,7 +76,7 @@ func TestDemo_resetSeedsAndLogsIn(t *testing.T) {
 	checkSeeded(t, pool)
 }
 
-// newDemoService — сервис, как его собирает main, с сидером этого пакета.
+// newDemoService - сервис, как его собирает main, с сидером этого пакета.
 func newDemoService(pool *pgxpool.Pool, repo *repository.DemoRepository, log *slog.Logger) *service.DemoService {
 	tokens := auth.NewTokenManager("demo-test-secret", time.Hour, time.Hour)
 	authSvc := service.NewAuthService(repository.NewUserRepository(pool), tokens, nil)
@@ -84,7 +84,7 @@ func newDemoService(pool *pgxpool.Pool, repo *repository.DemoRepository, log *sl
 		func(ctx context.Context, now time.Time) error { return Seed(ctx, pool, now) }, "03:00", log)
 }
 
-// checkSeeded — в базе то, что обещает демо: справочник, остатки, задание на размещение,
+// checkSeeded - в базе то, что обещает демо: справочник, остатки, задание на размещение,
 // проблемы, заказы сборки (один отгружен), включённый демо-пользователь.
 func checkSeeded(t *testing.T, pool *pgxpool.Pool) {
 	t.Helper()

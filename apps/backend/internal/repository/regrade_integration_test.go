@@ -12,10 +12,10 @@ import (
 // Тесты ADHOC-53: перепривязка ШК маркируемого товара с пересортом марок ЧЗ со склада.
 // Фикстура setupCZMove: в ячейке A короб ЧЗ boxA (12 шт, из них 3 марки) и россыпь 5 марок.
 
-// czBarcode — ШК марок фикстуры: GTIN 04600000000017 без ведущего нуля.
+// czBarcode - ШК марок фикстуры: GTIN 04600000000017 без ведущего нуля.
 const czBarcode = "4600000000017"
 
-// regradeFixture — фикстура марок с ШК, привязанным к товару фикстуры, и вторым товаром.
+// regradeFixture - фикстура марок с ШК, привязанным к товару фикстуры, и вторым товаром.
 type regradeFixture struct {
 	*czMoveFixture
 	other string
@@ -33,7 +33,7 @@ func setupRegrade(t *testing.T) *regradeFixture {
 	return rf
 }
 
-// stockOf — остаток товара партии (любой партии товара) в ячейке на складе по умолчанию.
+// stockOf - остаток товара партии (любой партии товара) в ячейке на складе по умолчанию.
 func (rf *regradeFixture) stockOf(t *testing.T, good string) string {
 	t.Helper()
 	var q string
@@ -44,7 +44,7 @@ func (rf *regradeFixture) stockOf(t *testing.T, good string) string {
 	return q
 }
 
-// boxOf — сколько товара в коробе boxA.
+// boxOf - сколько товара в коробе boxA.
 func (rf *regradeFixture) boxOf(t *testing.T, good string) string {
 	t.Helper()
 	var q string
@@ -101,7 +101,7 @@ func TestRegrade_marksAndStockMoveToNewGood(t *testing.T) {
 		t.Errorf("остаток прежнего товара в A: %s → %s, ожидалось 17 → 9", before, after)
 	}
 	if x, y := rf.boxOf(t, rf.good), rf.boxOf(t, rf.other); x != "9" || y != "3" {
-		t.Errorf("состав короба: прежний %s, новый %s — ожидалось 9 и 3", x, y)
+		t.Errorf("состав короба: прежний %s, новый %s - ожидалось 9 и 3", x, y)
 	}
 	if _, err := rf.regrade(); !errors.Is(err, repository.ErrRegradeSameGood) {
 		t.Errorf("повтор перепривязки: %v", err)

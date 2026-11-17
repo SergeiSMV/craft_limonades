@@ -18,10 +18,10 @@ import '../ui/portal_input.dart';
 import '../ui/portal_modal.dart';
 import 'supplier_picker.dart';
 
-/// Диалог «Решение по проблеме» (P6-07-3, плоский стиль — ADHOC-56): выбор варианта решения из допустимых при причине
-/// (справочник, ADHOC-55) и поля его действия — документ списания 1С (номер и дата) или
+/// Диалог «Решение по проблеме» (P6-07-3, плоский стиль - ADHOC-56): выбор варианта решения из допустимых при причине
+/// (справочник, ADHOC-55) и поля его действия - документ списания 1С (номер и дата) или
 /// поставщик возврата. Возвращает
-/// собранное решение; `null` — оператор передумал. Проводит решение вкладка.
+/// собранное решение; `null` - оператор передумал. Проводит решение вкладка.
 Future<ProblemResolution?> showProblemResolveDialog(
   BuildContext context,
   PortalProblem problem,
@@ -47,13 +47,13 @@ class _ResolveDialogState extends State<_ResolveDialog> {
       ? widget.problem.resolutions.first
       : null;
 
-  /// Действие выбранного варианта — от него зависят поля.
+  /// Действие выбранного варианта - от него зависят поля.
   String? get _decision => _variant?.action;
 
-  /// Дата документа списания; по умолчанию — сегодня.
+  /// Дата документа списания; по умолчанию - сегодня.
   DateTime _docDate = DateTime.now();
 
-  /// Поставщики для возврата — грузятся, только если возврат допустим.
+  /// Поставщики для возврата - грузятся, только если возврат допустим.
   List<PortalSupplier>? _suppliers;
   late String _supplierId = widget.problem.suggestedSupplierId;
   String? _error;
@@ -112,7 +112,7 @@ class _ResolveDialogState extends State<_ResolveDialog> {
     if (picked != null && mounted) setState(() => _docDate = picked);
   }
 
-  /// «Провести»: решение собрано полностью — вернуть его вкладке; иначе — подсказка.
+  /// «Провести»: решение собрано полностью - вернуть его вкладке; иначе - подсказка.
   void submit() {
     final variant = _variant;
     final decision = variant?.action;
@@ -184,7 +184,7 @@ class _ResolveDialogState extends State<_ResolveDialog> {
       color: AppColors.kTextMuted,
     );
     return switch (_decision) {
-      // Пересорт (ADHOC-53) проводится документом пересортицы 1С — те же поля, что у списания.
+      // Пересорт (ADHOC-53) проводится документом пересортицы 1С - те же поля, что у списания.
       ProblemDecision.writeOff || ProblemDecision.regrade => [
         PortalFieldLabel(
           _decision == ProblemDecision.regrade

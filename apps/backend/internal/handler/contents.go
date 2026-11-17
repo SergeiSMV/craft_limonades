@@ -14,7 +14,7 @@ import (
 	"craftwms/internal/service"
 )
 
-// contentsReader — то, что ручкам просмотра нужно от сервиса. Узкий интерфейс, а не
+// contentsReader - то, что ручкам просмотра нужно от сервиса. Узкий интерфейс, а не
 // конкретный сервис: транспорт зависит от абстракции (dev.md §2).
 type contentsReader interface {
 	Snapshot(ctx context.Context) (model.ContentsSnapshot, error)
@@ -25,7 +25,7 @@ type contentsReader interface {
 	LoadUnitByCZCode(ctx context.Context, code string) (model.LoadUnitCard, error)
 }
 
-// ContentsHandler — просмотр содержимого ячеек и коробов на ТСД (P5-05).
+// ContentsHandler - просмотр содержимого ячеек и коробов на ТСД (P5-05).
 type ContentsHandler struct {
 	svc contentsReader
 }
@@ -35,7 +35,7 @@ func NewContentsHandler(svc contentsReader) *ContentsHandler {
 	return &ContentsHandler{svc: svc}
 }
 
-// contentLineResponse — строка содержимого для показа человеку: с наименованием товара.
+// contentLineResponse - строка содержимого для показа человеку: с наименованием товара.
 type contentLineResponse struct {
 	GoodID         string          `json:"good_id"`
 	GoodCode       string          `json:"good_code"`
@@ -57,8 +57,8 @@ type loadUnitCardResponse struct {
 	Contents    []contentLineResponse `json:"contents"`
 	// Склад короба целиком (P6-07-1): товар кладётся в короб только того же склада.
 	InternalWarehouseID string `json:"internal_warehouse_id"`
-	// Короб ЧЗ (CZ-06): код `00`+SSCC — по нему короб находят сканом этикетки ЧЗ; null —
-	// свой короб с QR. cz_opened — из короба ЧЗ вынута хоть одна марка.
+	// Короб ЧЗ (CZ-06): код `00`+SSCC - по нему короб находят сканом этикетки ЧЗ; null -
+	// свой короб с QR. cz_opened - из короба ЧЗ вынута хоть одна марка.
 	CZCode   *string `json:"cz_code"`
 	CZOpened bool    `json:"cz_opened"`
 }
@@ -77,7 +77,7 @@ type cellContentsResponse struct {
 	Loose       []looseLineResponse    `json:"loose"`
 }
 
-// Снимок для кэша — без наименований: ТСД берёт их из своего справочника товаров, который
+// Снимок для кэша - без наименований: ТСД берёт их из своего справочника товаров, который
 // грузится в тот же заход. Так ответ на весь склад вдвое меньше.
 type snapshotLineResponse struct {
 	GoodID         string          `json:"good_id"`
@@ -94,7 +94,7 @@ type snapshotLoadUnitResponse struct {
 	Contents  []snapshotLineResponse `json:"contents"`
 	// Склад короба целиком (P6-07-1).
 	InternalWarehouseID string `json:"internal_warehouse_id"`
-	// Короб ЧЗ (CZ-06): ТСД узнаёт его по скану SSCC без связи. Поля — только у короба ЧЗ.
+	// Короб ЧЗ (CZ-06): ТСД узнаёт его по скану SSCC без связи. Поля - только у короба ЧЗ.
 	CZCode   *string `json:"cz_code,omitempty"`
 	CZOpened bool    `json:"cz_opened,omitempty"`
 }
@@ -106,8 +106,8 @@ type snapshotLooseResponse struct {
 	InPicking decimal.Decimal `json:"in_picking"` // «в сборке» из qty (P9-05)
 }
 
-// snapshotMarkResponse — марка ЧЗ на складе (CZ-06): в коробе (load_unit_id) или россыпью
-// (cell_id + internal_warehouse_id). aggregate_code — упаковка ЧЗ, в которой марка пришла.
+// snapshotMarkResponse - марка ЧЗ на складе (CZ-06): в коробе (load_unit_id) или россыпью
+// (cell_id + internal_warehouse_id). aggregate_code - упаковка ЧЗ, в которой марка пришла.
 type snapshotMarkResponse struct {
 	CIS                 string  `json:"cis"`
 	GoodID              string  `json:"good_id"`
@@ -126,7 +126,7 @@ type snapshotResponse struct {
 	Marks     []snapshotMarkResponse     `json:"marks"`
 }
 
-// Snapshot: GET /api/v1/contents/snapshot — все живые короба и россыпь для кэша ТСД. 200.
+// Snapshot: GET /api/v1/contents/snapshot - все живые короба и россыпь для кэша ТСД. 200.
 func (h *ContentsHandler) Snapshot(w http.ResponseWriter, r *http.Request) {
 	snap, err := h.svc.Snapshot(r.Context())
 	if err != nil {
@@ -140,7 +140,7 @@ func (h *ContentsHandler) Snapshot(w http.ResponseWriter, r *http.Request) {
 		Marks:     make([]snapshotMarkResponse, 0, len(snap.Marks)),
 	}
 	for _, lu := range snap.LoadUnits {
-		// У живого короба ячейка есть всегда — это часть определения живости.
+		// У живого короба ячейка есть всегда - это часть определения живости.
 		var cellID string
 		if lu.CellID != nil {
 			cellID = *lu.CellID
@@ -178,7 +178,7 @@ func (h *ContentsHandler) Snapshot(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// CellContents: GET /api/v1/cells/{id}/contents — короба и россыпь ячейки. 200 / 400 / 404.
+// CellContents: GET /api/v1/cells/{id}/contents - короба и россыпь ячейки. 200 / 400 / 404.
 func (h *ContentsHandler) CellContents(w http.ResponseWriter, r *http.Request) {
 	cell, err := h.svc.CellContents(r.Context(), chi.URLParam(r, "id"))
 	if err != nil {
@@ -203,7 +203,7 @@ func (h *ContentsHandler) CellContents(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// LoadUnitCard: GET /api/v1/load-units/{id}/card — карточка короба, в том числе неживого.
+// LoadUnitCard: GET /api/v1/load-units/{id}/card - карточка короба, в том числе неживого.
 // 200 / 400 / 404.
 func (h *ContentsHandler) LoadUnitCard(w http.ResponseWriter, r *http.Request) {
 	card, err := h.svc.LoadUnitCard(r.Context(), chi.URLParam(r, "id"))
@@ -214,7 +214,7 @@ func (h *ContentsHandler) LoadUnitCard(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, toLoadUnitCard(card))
 }
 
-// LoadUnitByCZCode: GET /api/v1/load-units/cz/{code} — карточка ГЕ короба ЧЗ по коду
+// LoadUnitByCZCode: GET /api/v1/load-units/cz/{code} - карточка ГЕ короба ЧЗ по коду
 // `00`+SSCC с его этикетки (CZ-06). 200 / 400 / 404 (короб не принят).
 func (h *ContentsHandler) LoadUnitByCZCode(w http.ResponseWriter, r *http.Request) {
 	card, err := h.svc.LoadUnitByCZCode(r.Context(), chi.URLParam(r, "code"))
@@ -225,7 +225,7 @@ func (h *ContentsHandler) LoadUnitByCZCode(w http.ResponseWriter, r *http.Reques
 	writeJSON(w, http.StatusOK, toLoadUnitCard(card))
 }
 
-// SearchLoadUnits: GET /api/v1/load-units?code=… — короба по короткому коду с ярлыка,
+// SearchLoadUnits: GET /api/v1/load-units?code=… - короба по короткому коду с ярлыка,
 // живые и нет (P5-05-1). 200 (список, возможно пустой) / 400.
 func (h *ContentsHandler) SearchLoadUnits(w http.ResponseWriter, r *http.Request) {
 	found, err := h.svc.SearchLoadUnits(r.Context(), r.URL.Query().Get("code"))
@@ -247,23 +247,23 @@ type loadUnitReceiptResponse struct {
 	DocDate    string  `json:"doc_date"`   // DD-MM-YYYY
 	ReceivedBy string  `json:"received_by"`
 	Supplier   *string `json:"supplier"`
-	PostedAt   *string `json:"posted_at"` // RFC3339; null — не оприходован
+	PostedAt   *string `json:"posted_at"` // RFC3339; null - не оприходован
 }
 
 type loadUnitMoveResponse struct {
-	From     *string `json:"from"` // null — первое размещение
+	From     *string `json:"from"` // null - первое размещение
 	To       string  `json:"to"`
 	Source   string  `json:"source"` // receipt | putaway
 	UserName *string `json:"user_name"`
 	At       string  `json:"at"` // RFC3339
 	// Операция и её номер (ADHOC-55): receipt | putaway | move | replenish | stocktake;
-	// пусто и 0 — операция без номера.
+	// пусто и 0 - операция без номера.
 	Operation       string `json:"operation"`
 	OperationNumber int64  `json:"operation_number"`
 }
 
-// loadUnitContentEventResponse — изменение состава короба (ADHOC-32): kind — in | out | problem
-// | write_off | return; peer — ячейка на той стороне (null у списания и отгрузки).
+// loadUnitContentEventResponse - изменение состава короба (ADHOC-32): kind - in | out | problem
+// | write_off | return; peer - ячейка на той стороне (null у списания и отгрузки).
 type loadUnitContentEventResponse struct {
 	Kind           string          `json:"kind"`
 	GoodName       string          `json:"good_name"`
@@ -284,7 +284,7 @@ type loadUnitHistoryResponse struct {
 	Contents   []loadUnitContentEventResponse `json:"contents"`
 }
 
-// LoadUnitHistory: GET /api/v1/load-units/{id}/history — приёмка, переносы короба и изменения
+// LoadUnitHistory: GET /api/v1/load-units/{id}/history - приёмка, переносы короба и изменения
 // его состава (P5-05-1, ADHOC-32).
 // 200 / 400 / 404.
 func (h *ContentsHandler) LoadUnitHistory(w http.ResponseWriter, r *http.Request) {
@@ -358,8 +358,8 @@ func toSnapshotLine(c model.ContentLine) snapshotLineResponse {
 	}
 }
 
-// contentsError маппит ошибки просмотра в HTTP-коды: 400 — кривой идентификатор,
-// 404 — отсканированного нет, остальное — 500.
+// contentsError маппит ошибки просмотра в HTTP-коды: 400 - кривой идентификатор,
+// 404 - отсканированного нет, остальное - 500.
 func contentsError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
 	case errors.Is(err, service.ErrInvalidCellID), errors.Is(err, service.ErrInvalidLoadUnitID),

@@ -15,21 +15,21 @@ import (
 
 // Типы операций сборки в очереди ТСД (P9-05).
 const (
-	// KindPickingPick — пик: товар взят из ячейки или короба хранения в короб отгрузки.
+	// KindPickingPick - пик: товар взят из ячейки или короба хранения в короб отгрузки.
 	KindPickingPick = "picking_pick"
-	// KindPickingUnpick — взятое возвращено на место до «Завершить сборку».
+	// KindPickingUnpick - взятое возвращено на место до «Завершить сборку».
 	KindPickingUnpick = "picking_unpick"
 )
 
-// ErrShippingCell — ячейка отгрузки в движении (P9-05): в ней числятся короба собранных заказов,
+// ErrShippingCell - ячейка отгрузки в движении (P9-05): в ней числятся короба собранных заказов,
 // и уходят они оттуда только отгрузкой.
 var ErrShippingCell = errors.New("ячейка отгрузки - служебная: короба собранных заказов уходят из неё только отгрузкой")
 
-// PickingPickInput — пик из очереди ТСД.
+// PickingPickInput - пик из очереди ТСД.
 //
-// Источник — ровно один: россыпь ячейки (SourceCellID, склад — InternalWarehouseID, пусто — по
+// Источник - ровно один: россыпь ячейки (SourceCellID, склад - InternalWarehouseID, пусто - по
 // умолчанию) или короб хранения (SourceLoadUnitID: ячейку и склад даёт короб). PickID выдаёт
-// устройство: по нему же пик возвращают. Marks — КИ маркируемого товара, по одной на единицу.
+// устройство: по нему же пик возвращают. Marks - КИ маркируемого товара, по одной на единицу.
 type PickingPickInput struct {
 	PickID              string
 	OrderID             string
@@ -47,17 +47,17 @@ type PickingPickInput struct {
 // pickingPick применяет пик в транзакции операции.
 //
 // Что: строка picking_picks в состоянии «в сборке» и её марки; остаток ячейки и место марок не
-// меняются — товар уходит из ячейки при «Завершить сборку» (P9-07), «в сборке» уменьшает
+// меняются - товар уходит из ячейки при «Завершить сборку» (P9-07), «в сборке» уменьшает
 // доступное (looseQty, takeFromLoadUnit).
 //
-// Проверки — под блокировками, чтобы два пика одного остатка не прошли оба:
-//   - заказ блокируется: не удалён, не собран и не отгружен; исполнитель не проверяется — пик уже
+// Проверки - под блокировками, чтобы два пика одного остатка не прошли оба:
+//   - заказ блокируется: не удалён, не собран и не отгружен; исполнитель не проверяется - пик уже
 //     сделан руками, и отказ из-за смены исполнителя оставил бы товар в коробе, а в учёте в ячейке;
-//   - строка заказа жива, взятое по ней с этим пиком — не больше плана;
-//   - короб отгрузки — этого заказа;
-//   - источник — ячейка хранения склада заказа (не приёмка и не отгрузка) на складе с
+//   - строка заказа жива, взятое по ней с этим пиком - не больше плана;
+//   - короб отгрузки - этого заказа;
+//   - источник - ячейка хранения склада заказа (не приёмка и не отгрузка) на складе с
 //     «разрешить сборку», и доступного (остаток минус «в сборке») хватает;
-//   - марки маркируемого товара — на складе, в источнике, этой партии, не в другом пике.
+//   - марки маркируемого товара - на складе, в источнике, этой партии, не в другом пике.
 func pickingPick(ctx context.Context, q Querier, in PickingPickInput) error {
 	var warehouseID, status string
 	var deleted bool
@@ -100,7 +100,7 @@ func pickingPick(ctx context.Context, q Querier, in PickingPickInput) error {
 	}
 
 	var boxOrder string
-	// Пустой короб, убранный при «Завершить сборку» (P9-07), — уже не короб заказа.
+	// Пустой короб, убранный при «Завершить сборку» (P9-07), - уже не короб заказа.
 	err = q.QueryRow(ctx, `
 		SELECT order_id::text FROM picking_boxes WHERE load_unit_id = $1::uuid AND dropped_at IS NULL`,
 		in.BoxID).Scan(&boxOrder)
@@ -141,8 +141,8 @@ func pickingPick(ctx context.Context, q Querier, in PickingPickInput) error {
 		return err
 	}
 
-	// Доступное — под блокировкой строки, из которой товар числится: россыпь — строка остатка
-	// (looseQty), короб — строка состава.
+	// Доступное - под блокировкой строки, из которой товар числится: россыпь - строка остатка
+	// (looseQty), короб - строка состава.
 	if in.SourceLoadUnitID != "" {
 		var available decimal.Decimal
 		var text string
@@ -206,7 +206,7 @@ func pickingPick(ctx context.Context, q Querier, in PickingPickInput) error {
 	return nil
 }
 
-// guardPickingSource — источник сборки: ячейка хранения склада заказа (активная, не приёмка и не
+// guardPickingSource - источник сборки: ячейка хранения склада заказа (активная, не приёмка и не
 // отгрузка; напольное хранение можно) на внутреннем складе с галочкой «разрешить сборку».
 func guardPickingSource(ctx context.Context, q Querier, warehouseID, cellID, iwh string) error {
 	var ok bool
@@ -226,7 +226,7 @@ func guardPickingSource(ctx context.Context, q Querier, warehouseID, cellID, iwh
 	return nil
 }
 
-// pickMarks проверяет марки пика: правило moveMarks без переноса — марка остаётся на месте до
+// pickMarks проверяет марки пика: правило moveMarks без переноса - марка остаётся на месте до
 // «Завершить сборку», но в другой пик уже не берётся.
 func pickMarks(ctx context.Context, q Querier, goodID, batchID string, marks []string, qty decimal.Decimal, from markPlace) error {
 	if len(marks) == 0 {
@@ -257,7 +257,7 @@ func pickMarks(ctx context.Context, q Querier, goodID, batchID string, marks []s
 	return guardMarksNotInPicking(ctx, q, marks)
 }
 
-// guardMarksNotInPicking — ни одна марка не в открытом пике (P9-05). Марка в сборке физически в
+// guardMarksNotInPicking - ни одна марка не в открытом пике (P9-05). Марка в сборке физически в
 // коробе отгрузки: её не перемещают, не помечают проблемой и не берут вторым пиком.
 func guardMarksNotInPicking(ctx context.Context, q Querier, marks []string) error {
 	var busy bool
@@ -272,7 +272,7 @@ func guardMarksNotInPicking(ctx context.Context, q Querier, marks []string) erro
 	return nil
 }
 
-// guardLoadUnitNotInPicking — из короба хранения нет открытых пиков (P9-05).
+// guardLoadUnitNotInPicking - из короба хранения нет открытых пиков (P9-05).
 func guardLoadUnitNotInPicking(ctx context.Context, q Querier, loadUnitID string) error {
 	var busy bool
 	if err := q.QueryRow(ctx, `
@@ -305,9 +305,9 @@ func guardNotShippingCell(ctx context.Context, q Querier, cellID string) error {
 }
 
 // pickingUnpick возвращает пик на место до «Завершить сборку»: «в сборке» уменьшается, остаток
-// и марки и так не двигались. Перенесённый в короб отгрузки — отказ: его возвращает операция
-// picking_return (P9-07-1). Уже возвращённый — не ошибка. Взятое удалённого заказа возвращает
-// задание «вернуть на места» этой же операцией — после неё задание сверяется с остатком.
+// и марки и так не двигались. Перенесённый в короб отгрузки - отказ: его возвращает операция
+// picking_return (P9-07-1). Уже возвращённый - не ошибка. Взятое удалённого заказа возвращает
+// задание «вернуть на места» этой же операцией - после неё задание сверяется с остатком.
 func pickingUnpick(ctx context.Context, q Querier, pickID string) error {
 	var state, orderID string
 	err := q.QueryRow(ctx, `SELECT state, order_id::text FROM picking_picks WHERE id = $1::uuid FOR UPDATE`, pickID).

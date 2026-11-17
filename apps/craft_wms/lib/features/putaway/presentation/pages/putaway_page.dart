@@ -78,7 +78,7 @@ class _PutawayViewState extends State<_PutawayView> with HardwareScanListener {
     super.dispose();
   }
 
-  /// Вернуть фокус полю скана — иначе сканер в режиме «клавиатуры» печатает в никуда.
+  /// Вернуть фокус полю скана - иначе сканер в режиме «клавиатуры» печатает в никуда.
   void refocusScan() {
     if (mounted) _scanFocus.requestFocus();
   }
@@ -88,7 +88,7 @@ class _PutawayViewState extends State<_PutawayView> with HardwareScanListener {
 
   //* --- скан --- *//
 
-  /// Сканы экрана — по одному, в порядке прихода (ADHOC-70).
+  /// Сканы экрана - по одному, в порядке прихода (ADHOC-70).
   final _scans = ScanSerial('Размещение');
 
   /// Единая точка для обоих источников кода (поле и интент), поэтому отсечение дубля здесь.
@@ -142,7 +142,7 @@ class _PutawayViewState extends State<_PutawayView> with HardwareScanListener {
     await placeIn(cell);
   }
 
-  /// Положить в ячейку; ячейка на пересчёте — сначала предупреждение (ADHOC-48).
+  /// Положить в ячейку; ячейка на пересчёте - сначала предупреждение (ADHOC-48).
   Future<void> placeIn(Cell cell) async {
     if (!cell.isDefault && !await allowMoveThroughCell(context, cell.id)) {
       return;
@@ -150,7 +150,7 @@ class _PutawayViewState extends State<_PutawayView> with HardwareScanListener {
     if (mounted) cubit.placeIn(cell);
   }
 
-  /// Скан штрихкода товара: товар ищется в задании; партия и количество — из задания.
+  /// Скан штрихкода товара: товар ищется в задании; партия и количество - из задания.
   Future<void> onGoodScan(String code) async {
     final res = await getIt<CatalogRepository>().resolveGoodByBarcode(code);
     if (!mounted) return;
@@ -171,7 +171,7 @@ class _PutawayViewState extends State<_PutawayView> with HardwareScanListener {
   }
 
   /// Скан марки или групповой упаковки ЧЗ (CZ-06): россыпь маркируемого товара берётся
-  /// марками, лежащими россыпью в ячейке приёмки, — того же товара и партии, что первая.
+  /// марками, лежащими россыпью в ячейке приёмки, - того же товара и партии, что первая.
   Future<void> onMarkScan(String code) async {
     final marks = await stockMarksByCode(
       code,
@@ -205,7 +205,7 @@ class _PutawayViewState extends State<_PutawayView> with HardwareScanListener {
     );
   }
 
-  /// Маркируемый товар берут марками (CZ-06): по ШК и касанием — подсказка. `true` —
+  /// Маркируемый товар берут марками (CZ-06): по ШК и касанием - подсказка. `true` -
   /// подсказка показана, брать нельзя.
   Future<bool> needsMarks(String goodId) async {
     final good = await getIt<CatalogRepository>().goodById(goodId);
@@ -214,7 +214,7 @@ class _PutawayViewState extends State<_PutawayView> with HardwareScanListener {
     return true;
   }
 
-  /// Взять россыпь товара: одна партия — сразу количество, несколько — сначала партия.
+  /// Взять россыпь товара: одна партия - сразу количество, несколько - сначала партия.
   Future<void> pickLooseOf(String goodId) async {
     if (await needsMarks(goodId)) return;
     final candidates = cubit.looseOf(goodId);
@@ -268,16 +268,16 @@ class _PutawayViewState extends State<_PutawayView> with HardwareScanListener {
     refocusScan();
   }
 
-  /// Позиция россыпи из списка — касанием, без скана (товар без штрихкода).
+  /// Позиция россыпи из списка - касанием, без скана (товар без штрихкода).
   Future<void> onLooseTapped(TaskItem item) async {
     if (await needsMarks(item.good?.id ?? '')) return;
     await pickLoose(item, cubit.state.looseLeft(item));
   }
 
-  /// Короб из списка — касанием, без скана (затёртый ярлык).
+  /// Короб из списка - касанием, без скана (затёртый ярлык).
   void onBoxTapped(TaskItem item) => cubit.pickBox(item.loadUnitId!);
 
-  /// Выбрать ячейку вручную — тот же лист, что в приёмке и «Вводе остатков».
+  /// Выбрать ячейку вручную - тот же лист, что в приёмке и «Вводе остатков».
   Future<void> chooseCell() async {
     final cell = await showModalBottomSheet<Cell>(
       context: context,
@@ -288,7 +288,7 @@ class _PutawayViewState extends State<_PutawayView> with HardwareScanListener {
       ),
       builder: (_) => const CellChangeSheet(),
     );
-    // Поле поиска в листе могло открыть клавиатуру — на экране скана она не нужна.
+    // Поле поиска в листе могло открыть клавиатуру - на экране скана она не нужна.
     await hideKeyboard();
     if (cell != null && mounted) await placeIn(cell);
     refocusScan();
@@ -296,7 +296,7 @@ class _PutawayViewState extends State<_PutawayView> with HardwareScanListener {
 
   //* --- завершение --- *//
 
-  /// Завершить сеанс. Если в задании ещё что-то осталось — спросить: остаток вернётся в пул.
+  /// Завершить сеанс. Если в задании ещё что-то осталось - спросить: остаток вернётся в пул.
   Future<void> finish() async {
     final s = cubit.state;
     if (s.openBoxes.isNotEmpty || s.openLoose.isNotEmpty) {

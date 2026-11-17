@@ -13,10 +13,10 @@ import '../goods_search_handlers.dart';
 import '../widgets/goods_list/goods_result.dart';
 import '../widgets/goods_list/stock_header.dart';
 
-/// Экран «Номенклатура» (ADHOC-33): весь справочник товаров — и те, которых на складе нет.
+/// Экран «Номенклатура» (ADHOC-33): весь справочник товаров - и те, которых на складе нет.
 ///
 /// Открывается из меню главного экрана «⋮». Поиск, фильтры (группа/поставщик), скан ШК и
-/// привязка ШК к товару — как было во вкладке «Товары» «Остатков» до ADHOC-33; тап по товару →
+/// привязка ШК к товару - как было во вкладке «Товары» «Остатков» до ADHOC-33; тап по товару →
 /// та же карточка остатков. Сами «Остатки» с ADHOC-33 показывают только товары с остатком.
 @RoutePage()
 class NomenclaturePage extends StatelessWidget {
@@ -40,7 +40,7 @@ class _NomenclatureView extends StatefulWidget {
 
 class _NomenclatureViewState extends State<_NomenclatureView>
     with HardwareScanListener, GoodsSearchHandlers {
-  /// Код с аппаратного сканера (intent-режим) — тем же путём, что завершённый ввод в строке.
+  /// Код с аппаратного сканера (intent-режим) - тем же путём, что завершённый ввод в строке.
   @override
   void onHardwareScan(ScanCode code) => onSearchSubmitted(code.raw);
 

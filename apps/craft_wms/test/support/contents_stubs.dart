@@ -17,7 +17,7 @@ import 'package:mocktail/mocktail.dart';
 /// Заглушка загрузки снимка содержимого склада (P5-05): ничего не качает, считает просьбы.
 ///
 /// Нужна тестам очереди и синхронизации справочников: им снимок не интересен, но обе службы
-/// теперь его дёргают — подтверждение приёмки и размещения, заход «Обновить».
+/// теперь его дёргают - подтверждение приёмки и размещения, заход «Обновить».
 class FakeContentsSnapshotSync implements ContentsSnapshotSync {
   /// Сколько раз загружали сразу.
   int refreshes = 0;
@@ -47,7 +47,7 @@ class FakeContentsSnapshotSync implements ContentsSnapshotSync {
 }
 
 /// Заглушка репозитория содержимого (P5-05) для экранов: ячейки ищутся в [cells] по адресу,
-/// ответы — то, что положил тест.
+/// ответы - то, что положил тест.
 class FakeContentsRepository implements ContentsRepository {
   /// Справочник ячеек: адрес → ячейка.
   final Map<String, CellRef> cells = {};
@@ -77,7 +77,7 @@ class FakeContentsRepository implements ContentsRepository {
   @override
   Future<String?> cachedLoadUnitCell(String id) async => cachedCells[id];
 
-  /// Короба в снимке терминала (ADHOC-70); нет — `null`, и экран спросит [loadUnit].
+  /// Короба в снимке терминала (ADHOC-70); нет - `null`, и экран спросит [loadUnit].
   final Map<String, LoadUnitView> cachedUnits = {};
 
   @override
@@ -168,7 +168,7 @@ class FakeContentsRepository implements ContentsRepository {
 class FakeLabelPrinter implements LoadUnitLabelPrinter {
   final List<String> printed = [];
 
-  /// Текст ошибки печати; `null` — напечатано.
+  /// Текст ошибки печати; `null` - напечатано.
   String? error;
 
   @override
@@ -187,7 +187,7 @@ FakeContentsRepository registerFakeContentsRepository([
     getIt.unregister<ContentsRepository>();
   }
   getIt.registerSingleton<ContentsRepository>(r);
-  // Вкладку «Короба» в «Остатках» (P5-05-1) страница создаёт всегда — кубиту нужен репозиторий
+  // Вкладку «Короба» в «Остатках» (P5-05-1) страница создаёт всегда - кубиту нужен репозиторий
   // и загрузка снимка.
   if (getIt.isRegistered<BoxesCubit>()) getIt.unregister<BoxesCubit>();
   getIt.registerFactory<BoxesCubit>(

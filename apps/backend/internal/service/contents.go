@@ -13,25 +13,25 @@ import (
 
 // Ошибки просмотра содержимого.
 var (
-	// ErrInvalidCellID — идентификатор ячейки не UUID.
+	// ErrInvalidCellID - идентификатор ячейки не UUID.
 	ErrInvalidCellID = errors.New("cell id must be a UUID")
-	// ErrInvalidShortCode — короткий код не из 1…8 шестнадцатеричных знаков.
+	// ErrInvalidShortCode - короткий код не из 1…8 шестнадцатеричных знаков.
 	ErrInvalidShortCode = errors.New("short code must be 1 to 8 hex digits")
-	// ErrInvalidCZBoxCode — код короба ЧЗ не `00` + 18 цифр SSCC.
+	// ErrInvalidCZBoxCode - код короба ЧЗ не `00` + 18 цифр SSCC.
 	ErrInvalidCZBoxCode = errors.New("chestny znak box code must be 00 and 18 digits")
 )
 
-// czBoxCodePattern — код транспортного короба ЧЗ: `00` + SSCC (CZ-03).
+// czBoxCodePattern - код транспортного короба ЧЗ: `00` + SSCC (CZ-03).
 var czBoxCodePattern = regexp.MustCompile(`^00[0-9]{18}$`)
 
-// shortCodeSearchLimit — сколько коробов отдаёт поиск по короткому коду. По одному-двум знакам
-// совпадает пол-склада; кладовщику нужен его короб, а не выгрузка, — он допишет код.
+// shortCodeSearchLimit - сколько коробов отдаёт поиск по короткому коду. По одному-двум знакам
+// совпадает пол-склада; кладовщику нужен его короб, а не выгрузка, - он допишет код.
 const shortCodeSearchLimit = 50
 
-// shortCodePattern — короткий код после приведения: хвост UUID, шестнадцатеричные знаки.
+// shortCodePattern - короткий код после приведения: хвост UUID, шестнадцатеричные знаки.
 var shortCodePattern = regexp.MustCompile(`^[0-9A-F]{1,8}$`)
 
-// contentsRepo — зависимость сервиса от хранилища: только чтение содержимого.
+// contentsRepo - зависимость сервиса от хранилища: только чтение содержимого.
 type contentsRepo interface {
 	Snapshot(ctx context.Context) (model.ContentsSnapshot, error)
 	CellContents(ctx context.Context, cellID string) (model.CellContents, error)
@@ -41,10 +41,10 @@ type contentsRepo interface {
 	LoadUnitByCZCode(ctx context.Context, code string) (model.LoadUnitCard, error)
 }
 
-// ContentsService — просмотр содержимого ячеек и коробов на ТСД (P5-05).
+// ContentsService - просмотр содержимого ячеек и коробов на ТСД (P5-05).
 //
 // Что: карточка короба, содержимое ячейки и снимок для кэша терминала.
-// Зачем: кладовщик сканирует ячейку или короб и видит, что внутри, — со связью из этих
+// Зачем: кладовщик сканирует ячейку или короб и видит, что внутри, - со связью из этих
 // ручек, без связи из снимка, загруженного заранее.
 type ContentsService struct {
 	repo contentsRepo
@@ -55,12 +55,12 @@ func NewContentsService(repo contentsRepo) *ContentsService {
 	return &ContentsService{repo: repo}
 }
 
-// Snapshot — все живые короба и россыпь одним согласованным снимком.
+// Snapshot - все живые короба и россыпь одним согласованным снимком.
 func (s *ContentsService) Snapshot(ctx context.Context) (model.ContentsSnapshot, error) {
 	return s.repo.Snapshot(ctx)
 }
 
-// CellContents — живые короба и россыпь ячейки.
+// CellContents - живые короба и россыпь ячейки.
 //
 // UUID проверяется здесь: иначе кривой идентификатор дошёл бы до БД и вернулся сбоем запроса
 // вместо внятного «неверная ячейка».
@@ -72,7 +72,7 @@ func (s *ContentsService) CellContents(ctx context.Context, cellID string) (mode
 	return s.repo.CellContents(ctx, cellID)
 }
 
-// LoadUnitCard — карточка короба, в том числе неживого (не размещён или пуст).
+// LoadUnitCard - карточка короба, в том числе неживого (не размещён или пуст).
 func (s *ContentsService) LoadUnitCard(ctx context.Context, id string) (model.LoadUnitCard, error) {
 	id = strings.TrimSpace(id)
 	if _, err := uuid.Parse(id); err != nil {
@@ -81,7 +81,7 @@ func (s *ContentsService) LoadUnitCard(ctx context.Context, id string) (model.Lo
 	return s.repo.LoadUnitCard(ctx, id)
 }
 
-// SearchLoadUnits — короба по короткому коду с ярлыка (P5-05-1), живые и нет.
+// SearchLoadUnits - короба по короткому коду с ярлыка (P5-05-1), живые и нет.
 //
 // Код приводится так же, как на ТСД (`LoadUnitLabel.normalizeShortCode`): без пробелов
 // и дефисов, заглавными. На ярлыке код разбит пробелом, и человек набирает его так, как видит.
@@ -93,8 +93,8 @@ func (s *ContentsService) SearchLoadUnits(ctx context.Context, raw string) ([]mo
 	return s.repo.SearchLoadUnits(ctx, code, shortCodeSearchLimit)
 }
 
-// LoadUnitByCZCode — карточка ГЕ, которой стал короб ЧЗ с кодом `00`+SSCC (CZ-06): своего
-// ярлыка у короба ЧЗ нет, кладовщик сканирует этикетку ЧЗ. Короб не принят —
+// LoadUnitByCZCode - карточка ГЕ, которой стал короб ЧЗ с кодом `00`+SSCC (CZ-06): своего
+// ярлыка у короба ЧЗ нет, кладовщик сканирует этикетку ЧЗ. Короб не принят -
 // model.ErrLoadUnitNotFound.
 func (s *ContentsService) LoadUnitByCZCode(ctx context.Context, raw string) (model.LoadUnitCard, error) {
 	code := strings.TrimSpace(raw)
@@ -104,7 +104,7 @@ func (s *ContentsService) LoadUnitByCZCode(ctx context.Context, raw string) (mod
 	return s.repo.LoadUnitByCZCode(ctx, code)
 }
 
-// LoadUnitHistory — история короба: приёмка и переносы.
+// LoadUnitHistory - история короба: приёмка и переносы.
 func (s *ContentsService) LoadUnitHistory(ctx context.Context, id string) (model.LoadUnitHistory, error) {
 	id = strings.TrimSpace(id)
 	if _, err := uuid.Parse(id); err != nil {

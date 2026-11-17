@@ -14,7 +14,7 @@ import (
 	"craftwms/internal/repository"
 )
 
-// Тесты P5-02-1: задания для склада. Критерий задачи — после оприходования приёмки задание на
+// Тесты P5-02-1: задания для склада. Критерий задачи - после оприходования приёмки задание на
 // размещение видно в текущих; взятие, отказ и авто-возврат работают; задание переходит
 // в завершённые, когда размещено всё.
 
@@ -64,7 +64,7 @@ func TestTasks_receiptCreatesPutawayTask(t *testing.T) {
 		t.Errorf("позиция-россыпь: %+v", loose)
 	}
 
-	// Приёмка в ячейку хранения: в зоне приёмки ничего — задания нет.
+	// Приёмка в ячейку хранения: в зоне приёмки ничего - задания нет.
 	ctx := context.Background()
 	rr := repository.NewReceiptRepository(pf.pool)
 	receipt := uuid.NewString()
@@ -91,7 +91,7 @@ func TestTasks_takeReleaseAndStale(t *testing.T) {
 	task := pf.receive(t, []string{newLU(t, pf.stockFixture, model.LoadUnitBox)}, 0)
 
 	mustNoErr(t, repo.Take(ctx, task, pf.user, stale))
-	mustNoErr(t, repo.Take(ctx, task, pf.user, stale)) // повтор своим — не ошибка
+	mustNoErr(t, repo.Take(ctx, task, pf.user, stale)) // повтор своим - не ошибка
 	if mine, ok := visibleTo(t, repo, pf.user, task); !ok || mine.Status != model.TaskInProgress || mine.AssigneeName == "" {
 		t.Errorf("взявший видит: %+v (видно: %v)", mine, ok)
 	}
@@ -105,7 +105,7 @@ func TestTasks_takeReleaseAndStale(t *testing.T) {
 		t.Errorf("отказаться за другого: %v, ожидалась ErrTaskTaken", err)
 	}
 
-	// Отказ возвращает в пул; повторный отказ — не ошибка.
+	// Отказ возвращает в пул; повторный отказ - не ошибка.
 	mustNoErr(t, repo.Release(ctx, task, pf.user))
 	mustNoErr(t, repo.Release(ctx, task, pf.user))
 	if got, ok := visibleTo(t, repo, other, task); !ok || got.Status != model.TaskNew {
@@ -124,7 +124,7 @@ func TestTasks_takeReleaseAndStale(t *testing.T) {
 	mustNoErr(t, repo.Take(ctx, task, other, stale))
 }
 
-// Частичное «Завершить» возвращает остаток в пул «новым»; размещено всё — задание выполнено
+// Частичное «Завершить» возвращает остаток в пул «новым»; размещено всё - задание выполнено
 // и уходит в ленту с исполнителями обоих заходов.
 func TestTasks_partialThenDone(t *testing.T) {
 	pf := setupPutaway(t)
@@ -238,10 +238,10 @@ func TestTasks_migrationBackfillsReceipts(t *testing.T) {
 	lu := newLU(t, pf.stockFixture, model.LoadUnitBox)
 	pf.receive(t, []string{lu}, 5)
 
-	// Пересчёт (P10) и задание по проблеме (ADHOC-55) ссылаются на задания — их миграции
+	// Пересчёт (P10) и задание по проблеме (ADHOC-55) ссылаются на задания - их миграции
 	// снимаются первыми и встают последними; справочник причин (ADHOC-55) заменил CHECK
-	// причины, который правят миграции пересчёта, — он снимается ещё раньше. Возврат на места
-	// (P9-07-1) правит CHECK вида задания поверх пересчёта — снимается самым первым.
+	// причины, который правят миграции пересчёта, - он снимается ещё раньше. Возврат на места
+	// (P9-07-1) правит CHECK вида задания поверх пересчёта - снимается самым первым.
 	execMigration(t, pf.stockFixture, "000050_picking_return.down.sql")
 	execMigration(t, pf.stockFixture, "000039_problem_reasons.down.sql")
 	execMigration(t, pf.stockFixture, "000036_problem_putaway_task.down.sql")
@@ -278,7 +278,7 @@ func TestTasks_migrationBackfillsReceipts(t *testing.T) {
 }
 
 // Журнал задания: создано системой, взято, отказ, снова взято, перехвачено как зависшее,
-// заход и завершение — по порядку и с теми, кто это сделал.
+// заход и завершение - по порядку и с теми, кто это сделал.
 func TestTasks_eventsJournal(t *testing.T) {
 	pf := setupPutaway(t)
 	ctx := context.Background()
@@ -288,9 +288,9 @@ func TestTasks_eventsJournal(t *testing.T) {
 	task := pf.receive(t, []string{lu}, 0)
 
 	mustNoErr(t, repo.Take(ctx, task, pf.user, stale))
-	mustNoErr(t, repo.Take(ctx, task, pf.user, stale)) // повтор своим — не событие
+	mustNoErr(t, repo.Take(ctx, task, pf.user, stale)) // повтор своим - не событие
 	mustNoErr(t, repo.Release(ctx, task, pf.user))
-	mustNoErr(t, repo.Release(ctx, task, pf.user)) // повторный отказ — не событие
+	mustNoErr(t, repo.Release(ctx, task, pf.user)) // повторный отказ - не событие
 	mustNoErr(t, repo.Take(ctx, task, pf.user, stale))
 	if _, err := pf.pool.Exec(ctx, `UPDATE warehouse_tasks SET last_activity_at = now() - interval '9 hours'
 		WHERE id = $1::uuid`, task); err != nil {
@@ -319,7 +319,7 @@ func TestTasks_eventsJournal(t *testing.T) {
 		t.Fatalf("журнал: %v, ожидалось %v", got, want)
 	}
 	if events[0].UserName != "" {
-		t.Errorf("создание приёмкой — системное событие, автор: %q", events[0].UserName)
+		t.Errorf("создание приёмкой - системное событие, автор: %q", events[0].UserName)
 	}
 	if ic := events[4]; ic.UserName != "Второй" || ic.PrevUserName != "Кладовщик" {
 		t.Errorf("перехват: кто %q, у кого %q", ic.UserName, ic.PrevUserName)

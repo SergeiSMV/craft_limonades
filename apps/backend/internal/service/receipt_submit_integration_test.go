@@ -11,8 +11,8 @@ import (
 	"craftwms/internal/service"
 )
 
-// Приёмка из очереди устройства (P4-09): документ, его ГЕ, строки и оприходование — одной
-// операцией receipt_submit. Главное свойство — атомарность: отказ любой части не оставляет
+// Приёмка из очереди устройства (P4-09): документ, его ГЕ, строки и оприходование - одной
+// операцией receipt_submit. Главное свойство - атомарность: отказ любой части не оставляет
 // после себя ни документа, ни остатка, ни короба.
 
 // receiptOp собирает операцию receipt_submit для окружения приёмки.
@@ -41,7 +41,7 @@ func (e *rcEnv) applyOne(t *testing.T, op service.Operation) service.OperationRe
 	return res[0]
 }
 
-// countRows — сколько строк в таблице под условием.
+// countRows - сколько строк в таблице под условием.
 func (e *rcEnv) countRows(t *testing.T, sql string, args ...any) int {
 	t.Helper()
 	var n int
@@ -62,7 +62,7 @@ func TestReceiptSubmit_bothBranchesAndReplay(t *testing.T) {
 	op := e.receiptOp(opID, receiptID,
 		[]map[string]any{{"id": luID, "kind": "box"}},
 		[]map[string]any{
-			// Россыпь без ячейки — ляжет в дефолтную.
+			// Россыпь без ячейки - ляжет в дефолтную.
 			{"good_id": e.good, "production_date": "01-09-2026", "qty": 5},
 			// Короб в указанную ячейку.
 			{"good_id": e.good, "production_date": "01-09-2026", "cell_id": e.cell1, "load_unit_id": luID, "qty": 12},
@@ -89,7 +89,7 @@ func TestReceiptSubmit_bothBranchesAndReplay(t *testing.T) {
 		t.Fatalf("документ: ждали posted и 2 строки, получили %q и %d", rc.Status, len(lines))
 	}
 	if rc.CreatedBy != e.user {
-		t.Fatalf("автор документа — из токена: ждали %s, получили %s", e.user, rc.CreatedBy)
+		t.Fatalf("автор документа - из токена: ждали %s, получили %s", e.user, rc.CreatedBy)
 	}
 	var luStatus, luCell string
 	if err := e.pool.QueryRow(ctx, `SELECT status, cell_id::text FROM load_units WHERE id = $1::uuid`, luID).
@@ -100,7 +100,7 @@ func TestReceiptSubmit_bothBranchesAndReplay(t *testing.T) {
 		t.Fatalf("ГЕ: ждали placed в %s, получили %q в %s", e.cell1, luStatus, luCell)
 	}
 
-	// Повтор — так очередь ведёт себя после оборванного ответа. Приход не должен удвоиться.
+	// Повтор - так очередь ведёт себя после оборванного ответа. Приход не должен удвоиться.
 	second := e.applyOne(t, op)
 	if second.Status != service.StatusDuplicate {
 		t.Fatalf("повтор: ждали duplicate, получили %q (%s)", second.Status, second.Error)
@@ -109,7 +109,7 @@ func TestReceiptSubmit_bothBranchesAndReplay(t *testing.T) {
 		t.Fatalf("после повтора: ждали 12, получили %s", got)
 	}
 
-	// Тот же документ под НОВЫМ operation_id (например, дубль в очереди) — отказ, а не второй приход.
+	// Тот же документ под НОВЫМ operation_id (например, дубль в очереди) - отказ, а не второй приход.
 	third := e.applyOne(t, e.receiptOp("cccccccc-1111-4111-8111-cccccccccccc", receiptID, nil,
 		[]map[string]any{{"good_id": e.good, "production_date": "01-09-2026", "qty": 5}}))
 	if third.Status != service.StatusRejected {
@@ -152,7 +152,7 @@ func TestReceiptSubmit_rejectionIsAtomic(t *testing.T) {
 	}
 }
 
-// Короб в двух ячейках — противоречивый документ: отказ целиком, без частичного прихода.
+// Короб в двух ячейках - противоречивый документ: отказ целиком, без частичного прихода.
 func TestReceiptSubmit_loadUnitInTwoCellsRejected(t *testing.T) {
 	e := setupReceipt(t)
 	luID := uuid.NewString()

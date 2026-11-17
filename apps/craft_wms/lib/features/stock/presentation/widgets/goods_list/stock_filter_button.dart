@@ -17,7 +17,7 @@ import 'warehouse_filter.dart';
 class FilterButton extends StatelessWidget {
   const FilterButton({super.key});
 
-  /// Открыть нижний лист фильтров. Cubit пробрасываем через .value — лист им управляет.
+  /// Открыть нижний лист фильтров. Cubit пробрасываем через .value - лист им управляет.
   void openFilters(BuildContext context) {
     final cubit = context.read<GoodsListCubit>();
     showModalBottomSheet<void>(
@@ -83,7 +83,7 @@ class _FilterSheet extends StatelessWidget {
             AppBoxes.kHeight16,
             _FilterDropdown(
               label: t.stockListScreen.filterGroup,
-              // key по значению — чтобы после «Сбросить» дропдаун показал «Все».
+              // key по значению - чтобы после «Сбросить» дропдаун показал «Все».
               fieldKey: ValueKey('flt-group-${state.groupId}'),
               selectedId: state.groupId,
               options: [for (final g in state.groups) (id: g.id, name: g.name)],
@@ -129,9 +129,9 @@ class _FilterSheet extends StatelessWidget {
 }
 
 /// Выпадающий фильтр листа: подпись, вдавленное неоморфное поле и меню, где каждый
-/// вариант — выпуклая неоморфная кнопка. Длинные названия групп/поставщиков переносятся
+/// вариант - выпуклая неоморфная кнопка. Длинные названия групп/поставщиков переносятся
 /// на следующую строку, а не обрезаются многоточием: варианты меню тянутся по высоте
-/// (`itemHeight: null`), а в свёрнутом поле высота фиксированная — там строка одна.
+/// (`itemHeight: null`), а в свёрнутом поле высота фиксированная - там строка одна.
 class _FilterDropdown extends StatelessWidget {
   const _FilterDropdown({
     required this.label,
@@ -147,7 +147,7 @@ class _FilterDropdown extends StatelessWidget {
   /// Ключ поля: меняется вместе с выбранным значением, чтобы «Сбросить» вернул «Все».
   final Key fieldKey;
 
-  /// Выбранный вариант; `null` — «Все».
+  /// Выбранный вариант; `null` - «Все».
   final String? selectedId;
 
   /// Варианты фильтра.
@@ -191,14 +191,14 @@ class _FilterDropdown extends StatelessWidget {
           // Прозрачный focusColor гасит штатную тёмную подложку выбранного пункта:
           // Flutter подсвечивает его через `Ink(color: Theme.of(context).focusColor)`.
           // Тема захватывается вместе с меню (InheritedTheme.capture), поэтому доходит
-          // до пунктов в маршруте выпадающего списка. Отметка выбора — красная точка.
+          // до пунктов в маршруте выпадающего списка. Отметка выбора - красная точка.
           child: Theme(
             data: Theme.of(context).copyWith(focusColor: Colors.transparent),
             child: DropdownButtonFormField<String?>(
               key: fieldKey,
               initialValue: selectedId,
               isExpanded: true,
-              // null — разрешает пункту быть выше одной строки (иначе жёсткие 48 px и обрезка).
+              // null - разрешает пункту быть выше одной строки (иначе жёсткие 48 px и обрезка).
               itemHeight: null,
               borderRadius: AppBorders.kCircular8,
               dropdownColor: AppColors.kNeumorphicBg,
@@ -209,7 +209,7 @@ class _FilterDropdown extends StatelessWidget {
                 ),
                 isDense: true,
               ),
-              // В свёрнутом поле — обычный текст, а не кнопка: иначе внутри поля рисовалась бы
+              // В свёрнутом поле - обычный текст, а не кнопка: иначе внутри поля рисовалась бы
               // вторая неоморфная плашка.
               selectedItemBuilder: (_) => [
                 _fieldLabel(t.stockListScreen.filterAll),
@@ -227,7 +227,7 @@ class _FilterDropdown extends StatelessWidget {
     );
   }
 
-  /// Название выбранного варианта в свёрнутом поле — одной строкой.
+  /// Название выбранного варианта в свёрнутом поле - одной строкой.
   Widget _fieldLabel(String name) {
     return Align(
       alignment: Alignment.centerLeft,
@@ -240,7 +240,7 @@ class _FilterDropdown extends StatelessWidget {
     );
   }
 
-  /// Вариант меню — неоморфная кнопка. Тап обрабатывает она сама: её `GestureDetector`
+  /// Вариант меню - неоморфная кнопка. Тап обрабатывает она сама: её `GestureDetector`
   /// перехватывает жест раньше `DropdownMenuItem`, поэтому штатный `onChanged` не сработал бы.
   DropdownMenuItem<String?> _item(String? id, String name) {
     return DropdownMenuItem<String?>(
@@ -279,11 +279,11 @@ class _FilterDropdown extends StatelessWidget {
   }
 }
 
-/// Отметка выбранного варианта в меню фильтра — красная точка справа.
+/// Отметка выбранного варианта в меню фильтра - красная точка справа.
 class _SelectedDot extends StatelessWidget {
   const _SelectedDot() : super(key: selectedDotKey);
 
-  /// Ключ отметки — по нему её находит тест (класс приватный).
+  /// Ключ отметки - по нему её находит тест (класс приватный).
   static const Key selectedDotKey = Key('filter-selected-dot');
 
   @override

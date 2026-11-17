@@ -4,7 +4,7 @@ import '../ui/portal_badge.dart';
 
 /// Подписи значений транспорта пересчёта в портале (P10-05).
 
-/// Виды области — в порядке выбора при заведении.
+/// Виды области - в порядке выбора при заведении.
 const kStocktakeScopes = [
   'cells',
   'group',
@@ -33,8 +33,8 @@ String stocktakeStatusLabel(String status) => switch (status) {
   _ => status,
 };
 
-/// Цвет отметки статуса пересчёта (ADHOC-56): новый — справка, в работе — внимание,
-/// закрыт — нейтральный (работы по нему больше нет).
+/// Цвет отметки статуса пересчёта (ADHOC-56): новый - справка, в работе - внимание,
+/// закрыт - нейтральный (работы по нему больше нет).
 PortalBadgeTone stocktakeStatusTone(String status) => switch (status) {
   'new' => PortalBadgeTone.info,
   'in_progress' => PortalBadgeTone.warning,
@@ -51,8 +51,8 @@ String cellStatusLabel(String status) => switch (status) {
   _ => status,
 };
 
-/// Цвет отметки статуса ячейки (ADHOC-56): подсчитана — успех, сбита движением — критичная,
-/// взята или на подсчёте — справка, свободна — нейтральная.
+/// Цвет отметки статуса ячейки (ADHOC-56): подсчитана - успех, сбита движением - критичная,
+/// взята или на подсчёте - справка, свободна - нейтральная.
 PortalBadgeTone cellStatusTone(String status) => switch (status) {
   'counted' => PortalBadgeTone.success,
   'disrupted' => PortalBadgeTone.critical,

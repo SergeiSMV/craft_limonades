@@ -9,7 +9,7 @@ import '../../../../core/theme/semibold_text.dart';
 import '../../../../core/widgets/neumorphic_action_button.dart';
 import '../bloc/stocktake_count_cubit.dart';
 
-/// Итог подсчёта ячейки: проведён, ушёл в очередь, отклонён. Одна кнопка — к ячейкам.
+/// Итог подсчёта ячейки: проведён, ушёл в очередь, отклонён. Одна кнопка - к ячейкам.
 class CountOutcomeView extends StatelessWidget {
   const CountOutcomeView({
     super.key,

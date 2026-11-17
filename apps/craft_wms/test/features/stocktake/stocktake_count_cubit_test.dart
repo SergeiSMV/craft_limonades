@@ -12,11 +12,11 @@ import 'package:mocktail/mocktail.dart';
 
 class _MockRepo extends Mock implements StocktakeRepository {}
 
-/// Эталон формата — тот же файл, что применяет настоящий роутер сервера (P10-04).
+/// Эталон формата - тот же файл, что применяет настоящий роутер сервера (P10-04).
 const _fixturePath =
     '../backend/internal/handler/testdata/stocktake_cell_submit.json';
 
-/// P10-04: подсчёт ячейки пересчёта на ТСД — слепой счёт, черновик, отправка.
+/// P10-04: подсчёт ячейки пересчёта на ТСД - слепой счёт, черновик, отправка.
 void main() {
   late _MockRepo repo;
 
@@ -35,7 +35,7 @@ void main() {
   const defect = 'iwh-defect';
   final started = DateTime.utc(2026, 10, 26, 9);
 
-  // Идентификатор ячейки пересчёта выдаёт сервер — в эталоне на его месте `CELL`.
+  // Идентификатор ячейки пересчёта выдаёт сервер - в эталоне на его месте `CELL`.
   final view = StocktakeCellView(
     cell: StocktakeCell(
       id: 'CELL',
@@ -82,7 +82,7 @@ void main() {
             as Map<String, dynamic>)['payload'];
     final c = cubit();
 
-    // Тем же путём, что кладовщик: короб — сканом, россыпь — количеством, марка — сканом.
+    // Тем же путём, что кладовщик: короб - сканом, россыпь - количеством, марка - сканом.
     c.foundBox(box.toUpperCase()); // регистр со скана не важен
     c.addQty(good: lemonade, productionDate: '01-01-2026', qty: 2);
     c.addQty(good: lemonade, productionDate: '01-01-2026', qty: 1);
@@ -101,7 +101,7 @@ void main() {
   });
 
   test(
-    'не найденное — короба и россыпь без насчитанного; излишек — отдельно',
+    'не найденное - короба и россыпь без насчитанного; излишек - отдельно',
     () async {
       final c = cubit();
       c.foundBox(box);
@@ -117,7 +117,7 @@ void main() {
     },
   );
 
-  test('короб не по учёту — найден с пометкой, повтор — подсказка', () async {
+  test('короб не по учёту - найден с пометкой, повтор - подсказка', () async {
     final c = cubit();
     c.foundBox('7f000000-0000-4000-8000-0000000000ff');
     expect(c.state.notice, CountNotice.boxForeign);
@@ -129,7 +129,7 @@ void main() {
     await c.close();
   });
 
-  test('марка дважды не считается; количество марок — их число', () async {
+  test('марка дважды не считается; количество марок - их число', () async {
     final c = cubit();
     c.addMarks(good: snack, productionDate: '01-02-2026', marks: ['M1', 'M2']);
     c.addMarks(good: snack, productionDate: '01-02-2026', marks: ['M2']);
@@ -156,7 +156,7 @@ void main() {
       expect(
         c.state.count.missing,
         hasLength(4),
-        reason: 'два короба и обе позиции 01-01 — не найдены',
+        reason: 'два короба и обе позиции 01-01 - не найдены',
       );
       await c.close();
     },
@@ -192,7 +192,7 @@ void main() {
     expect(
       fresh.state.count.lines,
       isEmpty,
-      reason: 'ячейку начали заново — снимок другой',
+      reason: 'ячейку начали заново - снимок другой',
     );
     await fresh.close();
   });
@@ -218,6 +218,6 @@ void main() {
   });
 }
 
-/// Черновик лежит в базе строкой JSON — по тому же пути, что в жизни.
+/// Черновик лежит в базе строкой JSON - по тому же пути, что в жизни.
 Map<String, dynamic> _json(Map<String, dynamic> m) =>
     jsonDecode(jsonEncode(m)) as Map<String, dynamic>;

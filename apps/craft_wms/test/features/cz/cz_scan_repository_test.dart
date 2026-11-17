@@ -17,8 +17,8 @@ class _MockDio extends Mock implements Dio {}
 
 class _MockRepo extends Mock implements CzScanRepository {}
 
-/// Эталоны ответа скана — общие с сервером (`cz_scan_http_test.go`): сервер обязан отдавать
-/// ровно их, терминал — разбирать.
+/// Эталоны ответа скана - общие с сервером (`cz_scan_http_test.go`): сервер обязан отдавать
+/// ровно их, терминал - разбирать.
 Map<String, dynamic> _golden(String name) =>
     jsonDecode(
           File('../backend/internal/handler/testdata/$name').readAsStringSync(),
@@ -38,7 +38,7 @@ void main() {
       expect(r.productName, contains('Голубые Гавайи'));
       expect(r.producedDate, DateTime(2026, 10, 12));
       expect(r.expirationDate, DateTime(2027, 4, 10));
-      // Наименование ЧЗ и товар справочника — разные поля.
+      // Наименование ЧЗ и товар справочника - разные поля.
       expect(r.good?.name, 'Пиво «Голубые Гавайи», кега 30 л');
       expect(r.bindBarcode, isNull);
       expect(r.mark?.inStock, isTrue);
@@ -57,7 +57,7 @@ void main() {
       expect(r.loadUnitId, '22222222-0000-4000-8000-000000000001');
       expect(r.units, 2);
       expect(r.unreadable, ['0104612728200172215broken']);
-      // Упаковка каждой единицы — для aggregate_code марок на приёмке (CZ-05).
+      // Упаковка каждой единицы - для aggregate_code марок на приёмке (CZ-05).
       expect(r.groups, isEmpty);
       expect(r.parents, {
         '0104612728200172215:Tf(gc': '00146801691100407293',
@@ -120,7 +120,7 @@ void main() {
       expect(sent, {'code': raw});
     });
 
-    test('обрыв связи — network', () async {
+    test('обрыв связи - network', () async {
       answer(
         () => Future.error(
           DioException(
@@ -132,7 +132,7 @@ void main() {
       expect((await repo.scan(raw)).left, isA<NetworkFailure>());
     });
 
-    test('отказ сервера — с его текстом', () async {
+    test('отказ сервера - с его текстом', () async {
       answer(
         () => Future.error(
           DioException(

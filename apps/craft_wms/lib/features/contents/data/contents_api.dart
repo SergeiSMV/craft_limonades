@@ -8,7 +8,7 @@ import '../../../core/error/failure.dart';
 import '../domain/contents_entities.dart';
 import 'contents_dto.dart';
 
-/// Сетевой источник содержимого ячеек и коробов (P5-05). Экраны сюда не ходят — между ними
+/// Сетевой источник содержимого ячеек и коробов (P5-05). Экраны сюда не ходят - между ними
 /// и сетью стоит `ContentsRepositoryImpl` со снимком и наложением очереди.
 @lazySingleton
 class ContentsApi {
@@ -27,7 +27,7 @@ class ContentsApi {
     timeout: _viewTimeout,
   );
 
-  /// Карточка ГЕ короба ЧЗ по коду `00`+SSCC (CZ-06); 404 — короб не принят.
+  /// Карточка ГЕ короба ЧЗ по коду `00`+SSCC (CZ-06); 404 - короб не принят.
   Future<Either<Failure, LoadUnitView>> cardByCzCode(String code) => _get(
     ApiConst.loadUnitByCzCode(code),
     (d) => loadUnitFromJson(d as Map<String, dynamic>),
@@ -41,7 +41,7 @@ class ContentsApi {
     timeout: _viewTimeout,
   );
 
-  /// Короба по короткому коду — все, живые и нет (P5-05-1).
+  /// Короба по короткому коду - все, живые и нет (P5-05-1).
   Future<Either<Failure, List<LoadUnitView>>> search(String code) => _get(
     ApiConst.loadUnits,
     (d) => [
@@ -58,7 +58,7 @@ class ContentsApi {
     timeout: _viewTimeout,
   );
 
-  /// Снимок содержимого всего склада — ждём по общему таймауту: это весь склад одним ответом.
+  /// Снимок содержимого всего склада - ждём по общему таймауту: это весь склад одним ответом.
   Future<Either<Failure, ContentsSnapshot>> snapshot() => _get(
     ApiConst.contentsSnapshot,
     (d) => ContentsSnapshot.fromJson(d as Map<String, dynamic>),

@@ -11,11 +11,11 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
-// P10-06D: сценарные тесты пересчёта через настоящий роутер — так, как его проходят склад и
+// P10-06D: сценарные тесты пересчёта через настоящий роутер - так, как его проходят склад и
 // офис: старший смены заводит, кладовщик считает ячейку очередью ТСД, офис закрывает пересчёт,
 // забирает «Инвентаризацию» и решает проблемы «не найдено».
 
-// stocktakeEnv — стенд сценариев пересчёта: склад приёмки плюс вторая ячейка и два товара.
+// stocktakeEnv - стенд сценариев пересчёта: склад приёмки плюс вторая ячейка и два товара.
 type stocktakeEnv struct {
 	*rcvEnv
 	cell2         string
@@ -91,7 +91,7 @@ func (e *stocktakeEnv) create(t *testing.T, body string) (string, map[string]str
 	return st.ID, byAddress
 }
 
-// start — кладовщик берёт ячейку и сканирует её на месте: снимок «ожидалось».
+// start - кладовщик берёт ячейку и сканирует её на месте: снимок «ожидалось».
 func (e *stocktakeEnv) start(t *testing.T, stCell string) {
 	t.Helper()
 	if code, raw := e.call(t, http.MethodPost, "/api/v1/stocktake-cells/"+stCell+"/take", e.workerToken, ""); code != http.StatusNoContent {
@@ -100,7 +100,7 @@ func (e *stocktakeEnv) start(t *testing.T, stCell string) {
 	e.rescan(t, stCell)
 }
 
-// rescan — повторный скан ячейки: сбитый подсчёт начинается заново со свежим снимком.
+// rescan - повторный скан ячейки: сбитый подсчёт начинается заново со свежим снимком.
 func (e *stocktakeEnv) rescan(t *testing.T, stCell string) {
 	t.Helper()
 	if code, raw := e.call(t, http.MethodPost, "/api/v1/stocktake-cells/"+stCell+"/start", e.workerToken, ""); code != http.StatusOK {
@@ -115,7 +115,7 @@ func (e *stocktakeEnv) submit(t *testing.T, stCell, loose, boxes string) (string
 		"payload":{"stocktake_cell_id":"`+stCell+`","loose":[`+loose+`],"boxes":[`+boxes+`]}}]}`)
 }
 
-// operation отправляет батч из одной операции и возвращает её статус и текст отказа — тот,
+// operation отправляет батч из одной операции и возвращает её статус и текст отказа - тот,
 // что ТСД покажет кладовщику дословно.
 func (e *stocktakeEnv) operation(t *testing.T, batch string) (string, string) {
 	t.Helper()
@@ -132,20 +132,20 @@ func (e *stocktakeEnv) operation(t *testing.T, batch string) (string, string) {
 	return body.Results[0].Status, body.Results[0].Error
 }
 
-// qty — остаток товара в ячейке целым числом, сложенный по партиям и внутренним складам.
+// qty - остаток товара в ячейке целым числом, сложенный по партиям и внутренним складам.
 func (e *stocktakeEnv) qty(t *testing.T, cell, good string) string {
 	t.Helper()
 	return e.scalar(t, `SELECT COALESCE(sum(qty), 0)::int::text FROM stock WHERE cell_id = $1::uuid AND good_id = $2::uuid`,
 		cell, good)
 }
 
-// cellStatus — состояние ячейки пересчёта.
+// cellStatus - состояние ячейки пересчёта.
 func (e *stocktakeEnv) cellStatus(t *testing.T, stCell string) string {
 	t.Helper()
 	return e.scalar(t, `SELECT status FROM stocktake_cells WHERE id = $1::uuid`, stCell)
 }
 
-// close закрывает пересчёт от имени офиса; force — досрочно.
+// close закрывает пересчёт от имени офиса; force - досрочно.
 func (e *stocktakeEnv) close(t *testing.T, id string, force bool) (int, string) {
 	t.Helper()
 	body := ""
@@ -195,9 +195,9 @@ func (e *stocktakeEnv) inventory(t *testing.T, sheet string) []string {
 	return out
 }
 
-// Недостача, излишек и «не найдено» — от заведения до решения офиса. В M1-1-1-1 лежат 10
-// лимонада россыпью и короб с 6, в M1-1-1-2 — 2 снека. Кладовщик насчитал 7 лимонада, короб
-// не нашёл; снеков — 5 и ещё 4 лимонада сверх учёта. Остаток приводится к факту сразу по
+// Недостача, излишек и «не найдено» - от заведения до решения офиса. В M1-1-1-1 лежат 10
+// лимонада россыпью и короб с 6, в M1-1-1-2 - 2 снека. Кладовщик насчитал 7 лимонада, короб
+// не нашёл; снеков - 5 и ещё 4 лимонада сверх учёта. Остаток приводится к факту сразу по
 // ячейке, короб уходит на склад «Не найдено» проблемой, документ показывает расхождения, а
 // «нашлось» офиса возвращает короб на «Основной».
 func TestStocktakeHTTP_shortageSurplusNotFound(t *testing.T) {
@@ -218,7 +218,7 @@ func TestStocktakeHTTP_shortageSurplusNotFound(t *testing.T) {
 		t.Fatalf("подсчёт M1-1-1-1: %s %s", status, msg)
 	}
 	if got := e.byWarehouse(t, e.cell1); got != "MAIN:7.000 NOT_FOUND:6.000" {
-		t.Errorf("остаток M1-1-1-1 после подсчёта: %q — ожидались 7 на «Основном» и короб на «Не найдено»", got)
+		t.Errorf("остаток M1-1-1-1 после подсчёта: %q - ожидались 7 на «Основном» и короб на «Не найдено»", got)
 	}
 	if got := e.scalar(t, `SELECT w.code FROM load_units l JOIN internal_warehouses w ON w.id = l.internal_warehouse_id
 		WHERE l.id = $1::uuid`, lu); got != "NOT_FOUND" {
@@ -251,7 +251,7 @@ func TestStocktakeHTTP_shortageSurplusNotFound(t *testing.T) {
 	}
 	want := []string{
 		// Короб развёрнут в состав и сложен с россыпью той же позиции: 10 + 6 ожидалось, 7 найдено.
-		"M1-1-1-1 | L-1 | Лимонад | 01.01.2026 | Основной | 16 | 7 | -9 | не найдено — проблема склада",
+		"M1-1-1-1 | L-1 | Лимонад | 01.01.2026 | Основной | 16 | 7 | -9 | не найдено - проблема склада",
 		"M1-1-1-2 | L-1 | Лимонад | 01.01.2026 | Основной | 0 | 4 | 4",
 		"M1-1-1-2 | S-1 | Снек | 01.02.2026 | Основной | 2 | 5 | 3",
 	}
@@ -259,7 +259,7 @@ func TestStocktakeHTTP_shortageSurplusNotFound(t *testing.T) {
 		t.Errorf("лист «Расхождения»:\n%s\nожидалось:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
 
-	// Короб нашёлся: офис проводит «нашлось» — товар возвращается на «Основной» той же ячейки.
+	// Короб нашёлся: офис проводит «нашлось» - товар возвращается на «Основной» той же ячейки.
 	if code, raw := e.call(t, http.MethodPost, "/api/v1/problems/"+problems[0].ID+"/resolve", e.adminToken,
 		`{"decision":"place"}`); code != http.StatusNoContent {
 		t.Fatalf("решение «нашлось»: код %d, %s", code, raw)
@@ -293,8 +293,8 @@ func TestStocktakeHTTP_movementDuringCount(t *testing.T) {
 	}
 
 	status, msg = e.submit(t, c1, `{"good_id":"`+e.lemon+`","production_date":"01-01-2026","qty":10}`, ``)
-	if status != "rejected" || msg != "пока ячейку считали, через неё прошло движение — посчитайте ячейку заново" {
-		t.Errorf("факт по сбитому подсчёту: %s %q — ожидался отказ с просьбой посчитать заново", status, msg)
+	if status != "rejected" || msg != "пока ячейку считали, через неё прошло движение - посчитайте ячейку заново" {
+		t.Errorf("факт по сбитому подсчёту: %s %q - ожидался отказ с просьбой посчитать заново", status, msg)
 	}
 	if got := e.qty(t, e.cell1, e.lemon); got != "8" {
 		t.Errorf("остаток после отказа: %s, ожидалось 8 (10 − перемещённые 2)", got)
@@ -332,7 +332,7 @@ func TestStocktakeHTTP_earlyClose(t *testing.T) {
 	}
 
 	if code, body := e.close(t, id, false); code != http.StatusConflict {
-		t.Errorf("закрыть без подтверждения: код %d, %s — ожидался 409", code, body)
+		t.Errorf("закрыть без подтверждения: код %d, %s - ожидался 409", code, body)
 	}
 	if code, body := e.close(t, id, true); code != http.StatusOK || body != `{"uncounted":1}` {
 		t.Fatalf("закрыть досрочно: код %d, %s", code, body)
@@ -353,9 +353,9 @@ func TestStocktakeHTTP_earlyClose(t *testing.T) {
 	}
 }
 
-// ADHOC-48: ТСД перед движением спрашивает, идёт ли в ячейке подсчёт. Взятая и не начатая —
-// нет (снимка ещё нет, сбивать нечего); после скана — да, с номером пересчёта и тем, кто
-// считает; после факта — снова нет. Соседняя ячейка и неверный id — нет.
+// ADHOC-48: ТСД перед движением спрашивает, идёт ли в ячейке подсчёт. Взятая и не начатая -
+// нет (снимка ещё нет, сбивать нечего); после скана - да, с номером пересчёта и тем, кто
+// считает; после факта - снова нет. Соседняя ячейка и неверный id - нет.
 func TestStocktakeHTTP_cellCounting(t *testing.T) {
 	e := newStocktakeEnv(t)
 	e.put(t, e.cell1, e.lemon, e.lemonBatch, 10)

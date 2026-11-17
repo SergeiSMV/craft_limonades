@@ -2,13 +2,13 @@ package labels
 
 import "fmt"
 
-// Code128, набор B — штрих-код адреса ячейки. Свой кодировщик, а не библиотечный: библиотеки
+// Code128, набор B - штрих-код адреса ячейки. Свой кодировщик, а не библиотечный: библиотеки
 // переходят на набор C на цифрах по своим правилам, и ширина кода (а с ней кегль адреса)
 // расходилась бы с rack_labels (reportlab) и с образцом этикетки в портале. Набор B кодирует
 // адрес из латиницы, цифр и дефисов одинаково везде: старт, символы, контрольный, стоп.
 
-// c128Patterns — шаблоны символов 0…106 (как в reportlab): заглавная буква — штрих, строчная —
-// пробел; буква — ширина в модулях (A = 1 … D = 4).
+// c128Patterns - шаблоны символов 0…106 (как в reportlab): заглавная буква - штрих, строчная -
+// пробел; буква - ширина в модулях (A = 1 … D = 4).
 var c128Patterns = [107]string{
 	"BaBbBb", "BbBaBb", "BbBbBa", "AbAbBc", "AbAcBb", "AcAbBb", "AbBbAc", "AbBcAb",
 	"AcBbAb", "BbAbAc", "BbAcAb", "BcAbAb", "AaBbCb", "AbBaCb", "AbBbCa", "AaCbBb",
@@ -31,8 +31,8 @@ const (
 	c128Stop   = 106
 )
 
-// c128Codes — коды символов: старт B, символы, контрольный, стоп. Символ вне ASCII 32…127
-// (кириллица, «С-Н-П») набором B не кодируется — ошибка, а не молча испорченный код.
+// c128Codes - коды символов: старт B, символы, контрольный, стоп. Символ вне ASCII 32…127
+// (кириллица, «С-Н-П») набором B не кодируется - ошибка, а не молча испорченный код.
 func c128Codes(value string) ([]int, error) {
 	codes := []int{c128StartB}
 	sum := c128StartB
@@ -48,7 +48,7 @@ func c128Codes(value string) ([]int, error) {
 	return append(codes, sum%103, c128Stop), nil
 }
 
-// c128Modules — ширина кода в модулях (без защитных зон).
+// c128Modules - ширина кода в модулях (без защитных зон).
 func c128Modules(value string) (int, error) {
 	codes, err := c128Codes(value)
 	if err != nil {
@@ -63,7 +63,7 @@ func c128Modules(value string) (int, error) {
 	return n, nil
 }
 
-// c128Bars — штрихи кода: смещение от начала и ширина, в модулях.
+// c128Bars - штрихи кода: смещение от начала и ширина, в модулях.
 func c128Bars(value string) ([][2]int, error) {
 	codes, err := c128Codes(value)
 	if err != nil {
@@ -83,7 +83,7 @@ func c128Bars(value string) ([][2]int, error) {
 	return bars, nil
 }
 
-// moduleWidth — ширина элемента шаблона в модулях: A/a = 1 … D/d = 4.
+// moduleWidth - ширина элемента шаблона в модулях: A/a = 1 … D/d = 4.
 func moduleWidth(ch rune) int {
 	if ch >= 'a' {
 		return int(ch-'a') + 1

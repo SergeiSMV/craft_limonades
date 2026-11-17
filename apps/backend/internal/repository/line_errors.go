@@ -11,19 +11,19 @@ import (
 	"craftwms/internal/model"
 )
 
-// LineRejection — строка документа, отклонённая по существу (ADHOC-40).
+// LineRejection - строка документа, отклонённая по существу (ADHOC-40).
 type LineRejection struct {
 	Line  int    // номер строки в документе, с 1
-	Label string // что это за строка — для человека: товар, партия, откуда и куда
-	Err   error  // причина — ошибка репозитория
+	Label string // что это за строка - для человека: товар, партия, откуда и куда
+	Err   error  // причина - ошибка репозитория
 }
 
-// DocumentLinesError — документ отклонён, и названы ВСЕ его плохие строки (ADHOC-40, долг 26).
+// DocumentLinesError - документ отклонён, и названы ВСЕ его плохие строки (ADHOC-40, долг 26).
 //
 // Зачем: документ проводится целиком или не проводится вовсе, и раньше проверка обрывалась на
 // первой плохой строке. Кладовщик с тремя плохими строками узнавал о них по одной за попытку,
 // а видел английский код без указания строки.
-// Как: текст ошибки — по-русски, строка названа содержимым: терминал показывает его как есть.
+// Как: текст ошибки - по-русски, строка названа содержимым: терминал показывает его как есть.
 // Unwrap отдаёт причины строк, поэтому errors.Is по ним работает, как и раньше.
 type DocumentLinesError struct {
 	Total int // строк в документе
@@ -39,7 +39,7 @@ func (e *DocumentLinesError) Error() string {
 	return b.String()
 }
 
-// Unwrap — причины всех отклонённых строк.
+// Unwrap - причины всех отклонённых строк.
 func (e *DocumentLinesError) Unwrap() []error {
 	out := make([]error, 0, len(e.Lines))
 	for _, l := range e.Lines {
@@ -48,7 +48,7 @@ func (e *DocumentLinesError) Unwrap() []error {
 	return out
 }
 
-// lineRejections — ошибки, которыми отказывает одна строка документа, не задевая остальные.
+// lineRejections - ошибки, которыми отказывает одна строка документа, не задевая остальные.
 // Всё прочее (сбой базы, документ уже проведён, задание не то) обрывает проверку сразу.
 var lineRejections = []error{
 	ErrEmptyMovementLine, ErrMovementQty, ErrSamePlace, ErrGoodsShort, ErrWarehouseMismatch,
@@ -62,7 +62,7 @@ var lineRejections = []error{
 	ErrShippingCell, model.ErrPickingMarkInPicking,
 }
 
-// isLineRejection — отказ ли это одной строки.
+// isLineRejection - отказ ли это одной строки.
 func isLineRejection(err error) bool {
 	for _, target := range lineRejections {
 		if errors.Is(err, target) {
@@ -72,7 +72,7 @@ func isLineRejection(err error) bool {
 	return false
 }
 
-// lineReason — причина отказа строки по-русски; незнакомая ошибка — её текст как есть.
+// lineReason - причина отказа строки по-русски; незнакомая ошибка - её текст как есть.
 func lineReason(err error) string {
 	switch {
 	case errors.Is(err, ErrGoodsShort), errors.Is(err, ErrInsufficientStock):
@@ -84,13 +84,13 @@ func lineReason(err error) string {
 	case errors.Is(err, model.ErrCZMarksQtyMismatch):
 		return "марок не столько, сколько единиц в строке"
 	case errors.Is(err, model.ErrCZMarkNotAtSource):
-		return "марки нет в источнике строки или она уже не на складе — её могли переместить с " +
+		return "марки нет в источнике строки или она уже не на складе - её могли переместить с " +
 			"другого терминала: обновите данные и отсканируйте снова"
 	case errors.Is(err, model.ErrCZMarkBatchMismatch):
 		return "марка другого товара или другой партии"
 	// Ввод остатков с коробами и марками (ADHOC-46).
 	case errors.Is(err, ErrLoadUnitExists):
-		return "короб уже есть в учёте склада — его не вводят заново"
+		return "короб уже есть в учёте склада - его не вводят заново"
 	case errors.Is(err, model.ErrCZAggregateExists):
 		return "короб или упаковка ЧЗ уже есть в учёте склада"
 	case errors.Is(err, model.ErrCZMarkExists):
@@ -98,7 +98,7 @@ func lineReason(err error) string {
 	case errors.Is(err, ErrEntryDuplicate):
 		return "уже введено в другой ячейке этого прохода"
 	case errors.Is(err, ErrEntryCellHasMarks):
-		return "в ячейке уже лежат марки этого товара и партии россыпью — пересчёт их не учтёт"
+		return "в ячейке уже лежат марки этого товара и партии россыпью - пересчёт их не учтёт"
 	case errors.Is(err, ErrEntryEmptyBox):
 		return "в коробе нет товара"
 	case errors.Is(err, ErrLoadUnitNotFound):
@@ -112,7 +112,7 @@ func lineReason(err error) string {
 	case errors.Is(err, ErrSamePlace):
 		return "товар кладут туда же, откуда взяли"
 	case errors.Is(err, ErrWarehouseMismatch):
-		return "товар и короб — с разных внутренних складов"
+		return "товар и короб - с разных внутренних складов"
 	case errors.Is(err, model.ErrPickingMarkInPicking):
 		return "марка уже взята в сборку: она в коробе отгрузки"
 	case errors.Is(err, ErrReceivingCell):
@@ -134,7 +134,7 @@ func lineReason(err error) string {
 	}
 }
 
-// docLineSavepoint — имя точки отката строки. Одно на все строки: точка ставится заново перед
+// docLineSavepoint - имя точки отката строки. Одно на все строки: точка ставится заново перед
 // каждой и снимается после, вложенности нет.
 const docLineSavepoint = "doc_line"
 
@@ -142,11 +142,11 @@ const docLineSavepoint = "doc_line"
 //
 // Что: строка, отклонённая по существу, откатывается одна, и документ проверяется дальше так,
 // будто её не было; её причина возвращается первым значением.
-// Зачем: назвать все плохие строки сразу. Откат нужен не только ради чистого состояния —
+// Зачем: назвать все плохие строки сразу. Откат нужен не только ради чистого состояния -
 // ошибка SQL внутри строки (ссылка на несуществующее) переводит транзакцию Postgres в
 // «прерванную», и без отката к точке следующая строка упала бы уже на этом.
-// Как: SAVEPOINT → строка → RELEASE; при отказе строки — ROLLBACK TO SAVEPOINT. Любая другая
-// ошибка — второе значение: проверку надо оборвать, транзакция откатится целиком.
+// Как: SAVEPOINT → строка → RELEASE; при отказе строки - ROLLBACK TO SAVEPOINT. Любая другая
+// ошибка - второе значение: проверку надо оборвать, транзакция откатится целиком.
 func tryLine(ctx context.Context, q Querier, line func() error) (rejected, fatal error) {
 	if _, err := q.Exec(ctx, "SAVEPOINT "+docLineSavepoint); err != nil {
 		return nil, fmt.Errorf("точка отката строки: %w", err)
@@ -169,7 +169,7 @@ func tryLine(ctx context.Context, q Querier, line func() error) (rejected, fatal
 
 //* --- Подписи строк для человека --- *//
 
-// goodText — «название · партия ДД.ММ.ГГГГ · количество ед.».
+// goodText - «название · партия ДД.ММ.ГГГГ · количество ед.».
 func goodText(ctx context.Context, q Querier, goodID, productionDate string, qty decimal.Decimal) string {
 	name, uom := "товар ?", ""
 	_ = q.QueryRow(ctx, `SELECT name, uom FROM goods WHERE id = $1::uuid`, goodID).Scan(&name, &uom)
@@ -183,15 +183,15 @@ func goodText(ctx context.Context, q Querier, goodID, productionDate string, qty
 	return strings.Join(parts, " · ")
 }
 
-// cellText — адрес ячейки; не нашлась — «ячейка ?».
+// cellText - адрес ячейки; не нашлась - «ячейка ?».
 func cellText(ctx context.Context, q Querier, cellID string) string {
 	addr := "ячейка ?"
 	_ = q.QueryRow(ctx, `SELECT address FROM cells WHERE id = $1::uuid`, cellID).Scan(&addr)
 	return addr
 }
 
-// boxText — короб, как его видит кладовщик: короб ЧЗ — «короб ЧЗ XXXX XXXX» по коду ЧЗ (у него
-// нет ярлыка WMS, долг 33), свой короб — «короб XXXX XXXX», короткий код с ярлыка.
+// boxText - короб, как его видит кладовщик: короб ЧЗ - «короб ЧЗ XXXX XXXX» по коду ЧЗ (у него
+// нет ярлыка WMS, долг 33), свой короб - «короб XXXX XXXX», короткий код с ярлыка.
 func boxText(ctx context.Context, q Querier, loadUnitID string) string {
 	var czCode string
 	_ = q.QueryRow(ctx, `SELECT code FROM cz_aggregates WHERE load_unit_id = $1::uuid`, loadUnitID).
@@ -202,7 +202,7 @@ func boxText(ctx context.Context, q Querier, loadUnitID string) string {
 	return labelBoxText(loadUnitID)
 }
 
-// czBoxText — «короб ЧЗ XXXX XXXX»: последние восемь цифр SSCC, как на ТСД (CZ-06).
+// czBoxText - «короб ЧЗ XXXX XXXX»: последние восемь цифр SSCC, как на ТСД (CZ-06).
 func czBoxText(code string) string {
 	tail := code
 	if len(tail) > 8 {
@@ -214,7 +214,7 @@ func czBoxText(code string) string {
 	return "короб ЧЗ " + tail
 }
 
-// labelBoxText — «короб XXXX XXXX»: короткий код, как на ярлыке (хвост UUID, две четвёрки).
+// labelBoxText - «короб XXXX XXXX»: короткий код, как на ярлыке (хвост UUID, две четвёрки).
 func labelBoxText(loadUnitID string) string {
 	hex := strings.ToUpper(strings.ReplaceAll(loadUnitID, "-", ""))
 	if len(hex) > 8 {
@@ -226,7 +226,7 @@ func labelBoxText(loadUnitID string) string {
 	return "короб " + hex
 }
 
-// ruDate — 'ГГГГ-ММ-ДД' → 'ДД.ММ.ГГГГ'; иной вид — как есть.
+// ruDate - 'ГГГГ-ММ-ДД' → 'ДД.ММ.ГГГГ'; иной вид - как есть.
 func ruDate(iso string) string {
 	if len(iso) == 10 && iso[4] == '-' && iso[7] == '-' {
 		return iso[8:10] + "." + iso[5:7] + "." + iso[0:4]

@@ -30,7 +30,7 @@ void main() {
     updatedAt: now,
   );
 
-  /// Приёмка: короб `box` с 12 шт и россыпь 3 шт — в ячейку приёмки (ячейки в строках нет).
+  /// Приёмка: короб `box` с 12 шт и россыпь 3 шт - в ячейку приёмки (ячейки в строках нет).
   OutboxOperation receipt({String box = 'box-1', OutboxStatus? status}) =>
       op(OutboxKind.receiptSubmit, {
         'warehouse_id': wh,
@@ -48,7 +48,7 @@ void main() {
         ],
       }, status: status ?? OutboxStatus.pending);
 
-  /// Размещение: короб `box` и 2 шт россыпи — в ячейку хранения.
+  /// Размещение: короб `box` и 2 шт россыпи - в ячейку хранения.
   OutboxOperation putaway({String box = 'box-1'}) =>
       op(OutboxKind.putawaySubmit, {
         'warehouse_id': wh,
@@ -84,7 +84,7 @@ void main() {
   });
 
   test('приёмка, которую сервер уже знает, не удваивает содержимое короба', () {
-    // Операция «отправляется», ответ не дошёл, а сервер её уже провёл — короб есть в ответе.
+    // Операция «отправляется», ответ не дошёл, а сервер её уже провёл - короб есть в ответе.
     final overlay = PendingOverlay([
       receipt(status: OutboxStatus.sending),
     ], cells);
@@ -182,7 +182,7 @@ void main() {
 
   // P6-04: своё неотправленное перемещение.
   test(
-    'перемещение: короб едет целиком, товар — между коробами и россыпью',
+    'перемещение: короб едет целиком, товар - между коробами и россыпью',
     () {
       const other = 'cell-b2';
       const cellsMove = OverlayCells(

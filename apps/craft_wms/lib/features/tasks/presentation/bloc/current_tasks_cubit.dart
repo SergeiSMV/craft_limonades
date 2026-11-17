@@ -13,10 +13,10 @@ enum CurrentTasksStatus { initial, loading, loaded, error }
 
 /// Состояние вкладки «Текущие».
 ///
-/// [fromCache] — список взят из снимка на терминале, потому что связи нет; [syncedAt] —
+/// [fromCache] - список взят из снимка на терминале, потому что связи нет; [syncedAt] -
 /// когда снимок получен. Кладовщик должен видеть, что смотрит на вчерашний список.
 ///
-/// [kind] — фильтр по виду задания. Фильтруется на терминале, а не запросом: список текущих
+/// [kind] - фильтр по виду задания. Фильтруется на терминале, а не запросом: список текущих
 /// невелик и работает без связи, а фильтр обязан работать и над снимком.
 @freezed
 abstract class CurrentTasksState with _$CurrentTasksState {
@@ -31,12 +31,12 @@ abstract class CurrentTasksState with _$CurrentTasksState {
 
   const CurrentTasksState._();
 
-  /// Задания под фильтром — то, что показывает вкладка.
+  /// Задания под фильтром - то, что показывает вкладка.
   List<WarehouseTask> get visible =>
       kind == null ? tasks : tasks.where((t) => t.kind == kind).toList();
 }
 
-/// Cubit вкладки «Текущие» (P5-02-1): пул и свои взятые задания, офлайн — из снимка.
+/// Cubit вкладки «Текущие» (P5-02-1): пул и свои взятые задания, офлайн - из снимка.
 @injectable
 class CurrentTasksCubit extends Cubit<CurrentTasksState> {
   CurrentTasksCubit(this._repo) : super(const CurrentTasksState());
@@ -53,7 +53,7 @@ class CurrentTasksCubit extends Cubit<CurrentTasksState> {
     if (isClosed) return;
     res.fold(
       (failure) {
-        // Список уже был — ошибка его не заменяет, а лишь помечает.
+        // Список уже был - ошибка его не заменяет, а лишь помечает.
         if (state.status == CurrentTasksStatus.loaded) {
           emit(state.copyWith(failure: failure));
           return;
@@ -74,6 +74,6 @@ class CurrentTasksCubit extends Cubit<CurrentTasksState> {
     );
   }
 
-  /// Фильтр по виду задания (null — все виды).
+  /// Фильтр по виду задания (null - все виды).
   void setKind(String? kind) => emit(state.copyWith(kind: kind));
 }

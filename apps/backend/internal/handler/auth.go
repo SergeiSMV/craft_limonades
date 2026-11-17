@@ -9,7 +9,7 @@ import (
 	"craftwms/internal/service"
 )
 
-// AuthHandler — HTTP-обработчики аутентификации.
+// AuthHandler - HTTP-обработчики аутентификации.
 type AuthHandler struct {
 	svc *service.AuthService
 }
@@ -41,7 +41,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "badge must be 16 digits")
 		return
 	case err != nil:
-		// Общий 401 без деталей — не подсказываем, логин или секрет неверен.
+		// Общий 401 без деталей - не подсказываем, логин или секрет неверен.
 		writeError(w, http.StatusUnauthorized, "invalid credentials")
 		return
 	}
@@ -63,7 +63,7 @@ func (h *AuthHandler) LoginPassword(w http.ResponseWriter, r *http.Request) {
 	}
 	pair, err := h.svc.LoginWithPassword(r.Context(), req.Username, req.Password)
 	if err != nil {
-		// Общий 401 без деталей — не подсказываем, логин или пароль неверен.
+		// Общий 401 без деталей - не подсказываем, логин или пароль неверен.
 		writeError(w, http.StatusUnauthorized, "invalid credentials")
 		return
 	}
@@ -97,11 +97,11 @@ type meResponse struct {
 	UserID   string `json:"user_id"`
 	Login    string `json:"login"`
 	FullName string `json:"full_name"`
-	// Role — прежняя роль для старых сборок ТСД и портала: admin — у кого право
+	// Role - прежняя роль для старых сборок ТСД и портала: admin - у кого право
 	// «пользователи и должности» (ADHOC-49).
 	Role     string   `json:"role"`
 	Position string   `json:"position"`
-	Rights   []string `json:"rights"` // действующие права должности — по ним клиент показывает функции
+	Rights   []string `json:"rights"` // действующие права должности - по ним клиент показывает функции
 }
 
 // Me: GET /api/v1/auth/me (защищённый) → профиль текущего пользователя.
@@ -127,7 +127,7 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// writeError — единый JSON-ответ об ошибке.
+// writeError - единый JSON-ответ об ошибке.
 func writeError(w http.ResponseWriter, code int, msg string) {
 	writeJSON(w, code, map[string]string{"error": msg})
 }

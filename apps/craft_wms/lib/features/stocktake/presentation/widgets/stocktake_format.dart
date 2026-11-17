@@ -23,7 +23,7 @@ String myCellStatus(StocktakeCell c) => switch (c.status) {
   _ => t.stocktake.statusTaken,
 };
 
-/// Строки позиции россыпи — каждый факт своей подписанной строкой: партия, склад (если не
+/// Строки позиции россыпи - каждый факт своей подписанной строкой: партия, склад (если не
 /// «Основной»), что насчитано.
 List<String> looseLines({
   required String productionDate,

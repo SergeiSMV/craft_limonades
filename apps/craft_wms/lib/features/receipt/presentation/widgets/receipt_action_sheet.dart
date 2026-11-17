@@ -17,7 +17,7 @@ class ReceiptAction<T> {
   final IconData icon;
   final String label;
 
-  /// Необратимое действие — красным, как удаление в «Вводе остатков».
+  /// Необратимое действие - красным, как удаление в «Вводе остатков».
   final bool danger;
 }
 

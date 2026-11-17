@@ -17,14 +17,14 @@ import 'cells_controller.dart';
 /// Список ячеек страницы «Ячейки» (ADHOC-57): галочка отметки, адрес, стеллаж, ярус, позиция,
 /// балка и отметки этикетки. Нажатие на строку открывает её карточку ([onOpen]).
 ///
-/// Раскладка — по ширине карточки: от [AppSizes.kCellsColumnsWidth] — колонками с шапкой, уже —
+/// Раскладка - по ширине карточки: от [AppSizes.kCellsColumnsWidth] - колонками с шапкой, уже -
 /// строками, где каждый реквизит своей подписанной строкой.
 class CellsListCard extends StatelessWidget {
   const CellsListCard({super.key, required this.c, required this.onOpen});
 
   final CellsController c;
 
-  /// Строку нажали — после того как она стала ячейкой в фокусе.
+  /// Строку нажали - после того как она стала ячейкой в фокусе.
   final ValueChanged<CellSetup> onOpen;
 
   @override
@@ -58,8 +58,8 @@ class CellsListCard extends StatelessWidget {
   );
 }
 
-/// Галочка «все под фильтр»: стоит — отмечены все, черта — часть. Считает весь список под
-/// фильтр, а не только показанные строки — «Показать ещё» на отметку не влияет.
+/// Галочка «все под фильтр»: стоит - отмечены все, черта - часть. Считает весь список под
+/// фильтр, а не только показанные строки - «Показать ещё» на отметку не влияет.
 PortalCheckbox _pickAllBox(CellsController c, List<CellSetup> rows) {
   final n = rows.where((x) => c.picked.contains(x.id)).length;
   return PortalCheckbox(
@@ -97,7 +97,7 @@ class _Header extends StatelessWidget {
   }
 }
 
-/// Узкий список без шапки — галочка «все под фильтр» отдельной строкой.
+/// Узкий список без шапки - галочка «все под фильтр» отдельной строкой.
 class _PickAll extends StatelessWidget {
   const _PickAll({required this.c, required this.rows});
 

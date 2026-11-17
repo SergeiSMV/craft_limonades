@@ -10,11 +10,11 @@ import '../../../../../core/widgets/appbar_image.dart';
 import '../../../../../core/widgets/page_header.dart';
 import '../../../../../core/widgets/pending_pass_badge.dart';
 
-/// Шапка «Остатков» и «Номенклатуры» (ADHOC-33): картинка, заголовок (у «Остатков» — с переходом
+/// Шапка «Остатков» и «Номенклатуры» (ADHOC-33): картинка, заголовок (у «Остатков» - с переходом
 /// во «Ввод остатков») и строка поиска открытой вкладки.
 ///
 /// Вынесена из страницы, когда у «Остатков» появились вкладки (P5-05-1): вёрстка шапки
-/// вытесняла из файла логику экрана. Строка поиска приходит готовой — у вкладок она своя.
+/// вытесняла из файла логику экрана. Строка поиска приходит готовой - у вкладок она своя.
 class StockHeader extends StatelessWidget {
   const StockHeader({
     super.key,
@@ -27,7 +27,7 @@ class StockHeader extends StatelessWidget {
   final String title;
   final VoidCallback goBack;
 
-  /// Открыть «Ввод остатков»; `null` — кнопки нет.
+  /// Открыть «Ввод остатков»; `null` - кнопки нет.
   final VoidCallback? openStockEntry;
 
   /// Строка поиска открытой вкладки.

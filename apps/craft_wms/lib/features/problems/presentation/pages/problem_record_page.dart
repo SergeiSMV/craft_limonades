@@ -22,10 +22,10 @@ import '../bloc/record_photos_cubit.dart';
 import '../widgets/photos/problem_photo_strip.dart';
 import '../widgets/records/record_format.dart';
 
-/// Карточка проблемы (ADHOC-34, ADHOC-35) — тремя разделами по порядку событий: проблема (что,
+/// Карточка проблемы (ADHOC-34, ADHOC-35) - тремя разделами по порядку событий: проблема (что,
 /// где, склад WMS, причина, кто зафиксировал), решение офиса (что решили, кому вернуть, кто
-/// решил) и исполнение (списано по документу 1С, размещено, отгружено — кто и когда). Всё
-/// пришло в списке, поэтому карточка открывается без запроса и без связи. У открытой —
+/// решил) и исполнение (списано по документу 1С, размещено, отгружено - кто и когда). Всё
+/// пришло в списке, поэтому карточка открывается без запроса и без связи. У открытой -
 /// проблема и «Ждёт решения офиса» (или «Ожидает отправки» у своей неотправленной).
 @RoutePage()
 class ProblemRecordPage extends StatelessWidget {
@@ -85,14 +85,14 @@ class ProblemRecordPage extends StatelessWidget {
                 _muted(createdMeta(p)),
               ]),
               AppBoxes.kHeight8,
-              // Фото (ADHOC-45): с сервера, свои неотправленные, у открытой — снять ещё.
+              // Фото (ADHOC-45): с сервера, свои неотправленные, у открытой - снять ещё.
               BlocProvider(
                 create: (_) => getIt<RecordPhotosCubit>()..load(p),
                 child: const _RecordPhotos(),
               ),
               AppBoxes.kHeight8,
               SectionTitle(title: t.problems.sectionDecision),
-              // Открытая — решения ещё нет, и исполнять нечего: раздел исполнения не нужен.
+              // Открытая - решения ещё нет, и исполнять нечего: раздел исполнения не нужен.
               if (p.isOpen)
                 _card([_strong(outcomeLabel(p))])
               else ...[
@@ -154,7 +154,7 @@ class ProblemRecordPage extends StatelessWidget {
   );
 }
 
-/// Фото в карточке — плашкой, как остальные разделы.
+/// Фото в карточке - плашкой, как остальные разделы.
 class _RecordPhotos extends StatelessWidget {
   const _RecordPhotos();
 

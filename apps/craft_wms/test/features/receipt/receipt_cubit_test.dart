@@ -103,7 +103,7 @@ void main() {
 
         cubit.setTargetCell(cell1);
         await cubit.addLine(good: goodA, date: '01.09.2026', qty: 1);
-        // Другая ячейка — другая грань, отдельная строка.
+        // Другая ячейка - другая грань, отдельная строка.
         expect(cubit.state.lines.length, 2);
         expect(cubit.state.lines.last.cell, cell1);
       },
@@ -113,7 +113,7 @@ void main() {
       cubit.setTargetCell(cell1);
       final boxId = cubit.newBox();
       // Ячейку общего списка сменили после создания короба: строки короба остаются
-      // в его ячейке — короб не может лежать в двух местах.
+      // в его ячейке - короб не может лежать в двух местах.
       cubit.setTargetCell(defaultCell);
       await cubit.addLine(
         good: goodB,
@@ -156,7 +156,7 @@ void main() {
       // Штучная строка осталась на месте.
       expect(cubit.state.looseLines.single.cell, isNull);
 
-      // Обратно в ячейку по умолчанию — флагом, а не «выбранной» дефолтной.
+      // Обратно в ячейку по умолчанию - флагом, а не «выбранной» дефолтной.
       cubit.setBoxCell(boxId, defaultCell);
       expect(cubit.state.boxById(boxId)!.cell, isNull);
       expect(cubit.state.linesOf(boxId).every((l) => l.cell == null), isTrue);
@@ -176,7 +176,7 @@ void main() {
       expect(cubit.state.lines.length, 2);
     });
 
-    test('свой короб узнаётся по ярлыку в любом регистре, чужой — нет', () {
+    test('свой короб узнаётся по ярлыку в любом регистре, чужой - нет', () {
       final boxId = cubit.newBox();
       expect(cubit.hasBox(const Uuid().v4()), isFalse);
       expect(cubit.hasBox(boxId.toUpperCase()), isTrue);
@@ -208,7 +208,7 @@ void main() {
           qty: 12,
           boxId: usedBox,
         );
-        cubit.newBox(); // пустой короб — на сервер не едет
+        cubit.newBox(); // пустой короб - на сервер не едет
         await cubit.addLine(good: goodB, date: '02.09.2026', qty: 1.5);
 
         Map<String, dynamic>? sent;
@@ -222,7 +222,7 @@ void main() {
         expect(sent!['receipt_id'], cubit.state.receiptId);
         expect(sent!['warehouse_id'], 'w1');
         expect(sent!['supplier_id'], 's1');
-        // Документ поставщика (ADHOC-23): номер как введён, дата — в транспортном виде.
+        // Документ поставщика (ADHOC-23): номер как введён, дата - в транспортном виде.
         expect(sent!['doc_number'], 'ТН-1042/2');
         expect(sent!['doc_date'], '01-10-2026');
         expect(sent!['load_units'], [
@@ -306,7 +306,7 @@ void main() {
   test('ошибка принтера возвращается текстом и приёмку не трогает', () async {
     await cubit.start(supplier, doc);
     final boxId = cubit.newBox();
-    // Технический текст Android кладовщику не показывается — только понятный (P6-04).
+    // Технический текст Android кладовщику не показывается - только понятный (P6-04).
     when(
       () => printer.printLoadUnitLabel(boxId),
     ).thenThrow(const PrinterFailure(PrinterFailureKind.io, 'Broken pipe'));
@@ -335,7 +335,7 @@ void main() {
     });
 
     test('черновик без документа (до ADHOC-23) не отправляется', () async {
-      // Черновик пишет настоящий кубит; документ из него убираем — так выглядит черновик,
+      // Черновик пишет настоящий кубит; документ из него убираем - так выглядит черновик,
       // сохранённый версией приложения до ADHOC-23.
       await cubit.start(supplier, doc);
       await cubit.addLine(good: goodA, date: '01.09.2026', qty: 1);

@@ -15,19 +15,19 @@ import (
 	"craftwms/internal/observability"
 )
 
-// ClientErrorsProject — проект в DSN, который строят приложения (`https://wms@<хост>/1`):
-// приём конвертов — `POST /api/1/envelope/`. Настоящий проект Bugsink знает только сервер.
+// ClientErrorsProject - проект в DSN, который строят приложения (`https://wms@<хост>/1`):
+// приём конвертов - `POST /api/1/envelope/`. Настоящий проект Bugsink знает только сервер.
 const ClientErrorsProject = "1"
 
-// Пределы конверта клиента: сжатого тела и распакованного. Событие со стеком — килобайты;
-// больше — либо сбой SDK, либо злоупотребление.
+// Пределы конверта клиента: сжатого тела и распакованного. Событие со стеком - килобайты;
+// больше - либо сбой SDK, либо злоупотребление.
 const (
 	maxClientEnvelope         = 1 << 20
 	maxClientEnvelopeUnpacked = 4 << 20
 	maxRelayResponse          = 64 << 10
 )
 
-// EnvelopeRelay — пересылка конверта клиента в Bugsink (observability.Relay).
+// EnvelopeRelay - пересылка конверта клиента в Bugsink (observability.Relay).
 type EnvelopeRelay interface {
 	Forward(ctx context.Context, envelope []byte) (*http.Response, error)
 }
@@ -38,15 +38,15 @@ type ClientErrorsHandler struct {
 	relay EnvelopeRelay
 }
 
-// NewClientErrorsHandler — relay nil: события отбрасываются.
+// NewClientErrorsHandler - relay nil: события отбрасываются.
 func NewClientErrorsHandler(relay EnvelopeRelay) *ClientErrorsHandler {
 	return &ClientErrorsHandler{relay: relay}
 }
 
-// Envelope: POST /api/{project}/envelope/ — конверт событий приложения.
+// Envelope: POST /api/{project}/envelope/ - конверт событий приложения.
 //
-// Входа не требует: падение до входа тоже надо увидеть. Ответ Bugsink — код, Retry-After и
-// X-Sentry-Rate-Limits — возвращается как есть: SDK сам выдерживает паузу. Bugsink недоступен —
+// Входа не требует: падение до входа тоже надо увидеть. Ответ Bugsink - код, Retry-After и
+// X-Sentry-Rate-Limits - возвращается как есть: SDK сам выдерживает паузу. Bugsink недоступен -
 // 503 с паузой; ошибка пишется предупреждением, а не error: иначе отказ Bugsink порождал бы
 // события бэкенда, которые тоже не дошли бы.
 func (h *ClientErrorsHandler) Envelope(w http.ResponseWriter, r *http.Request) {
@@ -85,7 +85,7 @@ func (h *ClientErrorsHandler) Envelope(w http.ResponseWriter, r *http.Request) {
 }
 
 // readClientEnvelope читает тело конверта с пределами, снимая gzip (так шлёт нативный SDK
-// Android). Второе значение — код отказа; 0 — тело прочитано.
+// Android). Второе значение - код отказа; 0 - тело прочитано.
 func readClientEnvelope(w http.ResponseWriter, r *http.Request) ([]byte, int) {
 	raw, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxClientEnvelope))
 	if err != nil {

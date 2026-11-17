@@ -16,10 +16,10 @@ import '../ui/portal_modal.dart';
 import 'picking_order_sections.dart';
 
 /// Окно деталей заказа (P8-03): шапка, строки план/факт с партиями и марками, короба отгрузки,
-/// правки реестра; старшему смены — «Снять с исполнителя».
+/// правки реестра; старшему смены - «Снять с исполнителя».
 ///
 /// Окно читает заказ само и перечитывает его, когда на сервере меняется сборка (ADHOC-60):
-/// кладовщик пикает на ТСД — факт в открытом окне растёт.
+/// кладовщик пикает на ТСД - факт в открытом окне растёт.
 Future<void> showPickingOrderDialog(
   BuildContext context, {
   required PickingOrderSummary order,
@@ -64,7 +64,7 @@ class _PickingOrderDialogState extends State<_PickingOrderDialog> {
     });
   }
 
-  /// Снять заказ с исполнителя — после подтверждения: кладовщик на ТСД потеряет заказ.
+  /// Снять заказ с исполнителя - после подтверждения: кладовщик на ТСД потеряет заказ.
   Future<void> _release() async {
     final order = _detail?.order ?? widget.order;
     final ok = await _confirmRelease(order);
@@ -82,7 +82,7 @@ class _PickingOrderDialogState extends State<_PickingOrderDialog> {
     );
   }
 
-  /// Подтверждение снятия: `true` — оператор нажал «Снять».
+  /// Подтверждение снятия: `true` - оператор нажал «Снять».
   Future<bool> _confirmRelease(PickingOrderSummary o) async {
     final p = t.portal.picking;
     final ok = await showDialog<bool>(
@@ -142,7 +142,7 @@ class _PickingOrderDialogState extends State<_PickingOrderDialog> {
     );
   }
 
-  /// Заказ разделами; до ответа — загрузка, при ошибке — текст.
+  /// Заказ разделами; до ответа - загрузка, при ошибке - текст.
   Widget _content() {
     final detail = _detail;
     final error = _error;

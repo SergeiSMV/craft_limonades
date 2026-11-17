@@ -16,28 +16,28 @@ import (
 
 // Ошибки заданий для склада (P5-02-1).
 var (
-	// ErrTaskNotFound — задания нет.
+	// ErrTaskNotFound - задания нет.
 	ErrTaskNotFound = errors.New("task not found")
-	// ErrTaskTaken — задание держит другой исполнитель, и оно не зависло.
+	// ErrTaskTaken - задание держит другой исполнитель, и оно не зависло.
 	ErrTaskTaken = errors.New("task is taken by another user")
-	// ErrTaskDone — задание уже выполнено.
+	// ErrTaskDone - задание уже выполнено.
 	ErrTaskDone = errors.New("task is already done")
-	// ErrTaskMismatch — сеанс не подходит заданию: другой вид или другой склад.
+	// ErrTaskMismatch - сеанс не подходит заданию: другой вид или другой склад.
 	ErrTaskMismatch = errors.New("putaway does not match the task")
-	// ErrNotInTask — строка сеанса размещает то, чего нет в задании (или уже размещено им).
+	// ErrNotInTask - строка сеанса размещает то, чего нет в задании (или уже размещено им).
 	ErrNotInTask = errors.New("putaway line is not part of the task")
-	// ErrExceedsTask — россыпи размещают больше, чем осталось по заданию.
+	// ErrExceedsTask - россыпи размещают больше, чем осталось по заданию.
 	ErrExceedsTask = errors.New("putaway line exceeds the task remainder")
 )
 
 // createPutawayTaskForReceipt заводит задание на размещение по оприходованной приёмке.
 //
-// Что: позиции задания — то, что приёмка положила в ячейку приёмки склада: короба (каждый
+// Что: позиции задания - то, что приёмка положила в ячейку приёмки склада: короба (каждый
 // одной позицией, сколько бы строк у него ни было) и россыпь по товару и партии.
-// Зачем: товар попадает в зону приёмки только с приёмкой, и задание делает её хвост видимым —
+// Зачем: товар попадает в зону приёмки только с приёмкой, и задание делает её хвост видимым -
 // неразмещённая приёмка не потеряется (решение 2026-10-07).
 // Как: в транзакции оприходования; приёмка, всё положившая сразу в ячейки хранения, задания
-// не создаёт — размещать нечего.
+// не создаёт - размещать нечего.
 func createPutawayTaskForReceipt(ctx context.Context, q Querier, receiptID string) error {
 	rows, err := q.Query(ctx, `
 		SELECT rl.load_unit_id::text, rl.good_id::text, rl.batch_id::text, rl.qty::text
@@ -108,11 +108,11 @@ func createPutawayTaskForReceipt(ctx context.Context, q Querier, receiptID strin
 
 // createPutawayTaskForProblem заводит задание на размещение по решению «разместить» (ADHOC-55).
 //
-// Что: позиции — то из товара проблемы, что лежит в ячейке приёмки: короб целиком или россыпь
-// по товару и партии. Товар в ячейках хранения задания не требует — он уже на месте.
+// Что: позиции - то из товара проблемы, что лежит в ячейке приёмки: короб целиком или россыпь
+// по товару и партии. Товар в ячейках хранения задания не требует - он уже на месте.
 // Зачем: решение снимает метку на месте, и товар в ячейке приёмки становится «Основным» вне
 // задания приёмки; ячейку приёмки разносит только задание (P5-02-1), иначе товар застрянет.
-// Как: в транзакции решения после снятия метки; основание — проблема (problem_id). Если в
+// Как: в транзакции решения после снятия метки; основание - проблема (problem_id). Если в
 // ячейке приёмки ничего нет, задания нет.
 func createPutawayTaskForProblem(ctx context.Context, q Querier, problemID, warehouseID string, lines []problemLine) error {
 	receiving, err := defaultCellID(ctx, q, warehouseID)
@@ -168,7 +168,7 @@ func createPutawayTaskForProblem(ctx context.Context, q Querier, problemID, ware
 // excludeFromPutawayTask убирает из задания приёмки россыпь, которую проводка тут же увела
 // проблемой в «Изолятор» (CZ-05): размещение берёт россыпь только «Основного», и позиция
 // с изолированным товаром не закрылась бы никогда. Россыпь вне ячейки приёмки в задание не
-// попадала — убирать нечего. Опустевшее задание удаляется: оно только что создано этой же
+// попадала - убирать нечего. Опустевшее задание удаляется: оно только что создано этой же
 // проводкой, сеансов по нему нет.
 func excludeFromPutawayTask(ctx context.Context, q Querier, receiptID, cellID, goodID, productionDate string, qty decimal.Decimal) error {
 	var receiving bool
@@ -183,7 +183,7 @@ func excludeFromPutawayTask(ctx context.Context, q Querier, receiptID, cellID, g
 		return err
 	}
 	// Позиция россыпи по товару и партии в задании приёмки одна (строки приёмки уникальны
-	// по товару, партии, ячейке и ГЕ): уходит целиком — удаляется, иначе уменьшается.
+	// по товару, партии, ячейке и ГЕ): уходит целиком - удаляется, иначе уменьшается.
 	const item = `
 		FROM warehouse_tasks t
 		WHERE t.id = i.task_id AND t.receipt_id = $1::uuid AND i.load_unit_id IS NULL
@@ -211,7 +211,7 @@ func excludeFromPutawayTask(ctx context.Context, q Querier, receiptID, cellID, g
 	return nil
 }
 
-// taskRemainder — что ещё осталось разместить по заданию: короба и россыпь по (товар, партия).
+// taskRemainder - что ещё осталось разместить по заданию: короба и россыпь по (товар, партия).
 type taskRemainder struct {
 	boxes map[string]bool               // короб задания → ещё не размещён
 	loose map[[2]string]decimal.Decimal // (товар, партия) → сколько ещё разместить
@@ -219,7 +219,7 @@ type taskRemainder struct {
 
 // snapshot запоминает остаток задания и возвращает функцию, которая его восстановит
 // (ADHOC-40): отклонённая строка размещения не должна уменьшать остаток для следующих.
-// Копия целиком — позиций в задании единицы, а строка может задеть и короб, и партию.
+// Копия целиком - позиций в задании единицы, а строка может задеть и короб, и партию.
 func (r taskRemainder) snapshot() (restore func()) {
 	boxes := maps.Clone(r.boxes)
 	loose := maps.Clone(r.loose)
@@ -229,7 +229,7 @@ func (r taskRemainder) snapshot() (restore func()) {
 	}
 }
 
-// done — по заданию всё размещено.
+// done - по заданию всё размещено.
 func (r taskRemainder) done() bool {
 	for _, open := range r.boxes {
 		if open {
@@ -284,7 +284,7 @@ func loadTaskRemainder(ctx context.Context, q Querier, taskID string) (taskRemai
 //
 // Блокировка нужна потому, что остаток задания считается по сеансам: два сеанса одного
 // задания одновременно (взятое и зависшее, затем взятое другим) иначе разместили бы одну
-// и ту же россыпь дважды. Кто держит задание, не проверяется: сеанс — это уже сделанная
+// и ту же россыпь дважды. Кто держит задание, не проверяется: сеанс - это уже сделанная
 // физическая работа, и отказ из-за смены исполнителя оставил бы товар перенесённым на деле
 // и неперенесённым в учёте.
 func lockTaskForPutaway(ctx context.Context, q Querier, taskID, warehouseID string) error {
@@ -309,8 +309,8 @@ func lockTaskForPutaway(ctx context.Context, q Querier, taskID, warehouseID stri
 
 // settleTaskAfterPutaway переводит задание после проведённого сеанса.
 //
-// Всё размещено — задание выполнено. Иначе оно возвращается в пул «новым» без исполнителя:
-// частичное «Завершить» отдаёт остаток любому (решение 2026-10-07), — кладовщик мог закончить
+// Всё размещено - задание выполнено. Иначе оно возвращается в пул «новым» без исполнителя:
+// частичное «Завершить» отдаёт остаток любому (решение 2026-10-07), - кладовщик мог закончить
 // смену, и остаток не должен застрять за ним.
 func settleTaskAfterPutaway(ctx context.Context, q Querier, taskID, userID string) error {
 	rem, err := loadTaskRemainder(ctx, q, taskID)
@@ -338,7 +338,7 @@ func settleTaskAfterPutaway(ctx context.Context, q Querier, taskID, userID strin
 	return nil
 }
 
-// TaskRepository — задания для склада: пул, взятие, лента завершённых (P5-02-1).
+// TaskRepository - задания для склада: пул, взятие, лента завершённых (P5-02-1).
 type TaskRepository struct {
 	pool *pgxpool.Pool
 }
@@ -348,13 +348,13 @@ func NewTaskRepository(pool *pgxpool.Pool) *TaskRepository {
 	return &TaskRepository{pool: pool}
 }
 
-// visibleSQL — условие «задание видно этому пользователю в текущих»: в пуле, взято им самим
-// или зависло у другого. $1 — пользователь, $2 — срок, после которого взятое считается зависшим.
+// visibleSQL - условие «задание видно этому пользователю в текущих»: в пуле, взято им самим
+// или зависло у другого. $1 - пользователь, $2 - срок, после которого взятое считается зависшим.
 const visibleSQL = `t.status <> 'done' AND (
 	t.status = 'new' OR t.assignee_id = $1::uuid
 	OR t.last_activity_at < now() - $2::interval)`
 
-// taskHeaderSQL — шапка задания с основанием и исполнителем; статус — как его видит $1.
+// taskHeaderSQL - шапка задания с основанием и исполнителем; статус - как его видит $1.
 const taskHeaderSQL = `
 	SELECT t.id::text, t.number, t.kind,
 	       CASE WHEN t.status = 'in_progress' AND t.assignee_id = $1::uuid THEN 'in_progress'
@@ -370,13 +370,13 @@ const taskHeaderSQL = `
 	FROM warehouse_tasks t
 	LEFT JOIN receipts r  ON r.id = t.receipt_id
 	LEFT JOIN warehouse_problems wp ON wp.id = t.problem_id
-	-- Поставщик: у размещения — поставщик приёмки, у возврата — кому везём (ADHOC-31).
+	-- Поставщик: у размещения - поставщик приёмки, у возврата - кому везём (ADHOC-31).
 	LEFT JOIN suppliers s ON s.id = COALESCE(r.supplier_id, t.supplier_id)
 	LEFT JOIN users u     ON u.id = t.assignee_id`
 
-// Current возвращает текущие задания, видимые пользователю, — пул и свои взятые, с позициями.
+// Current возвращает текущие задания, видимые пользователю, - пул и свои взятые, с позициями.
 // Старые сверху: задание, ждущее дольше, важнее разобрать раньше.
-// Размещение и возврат поставщику (ADHOC-31) — оба вида ТСД выполняет.
+// Размещение и возврат поставщику (ADHOC-31) - оба вида ТСД выполняет.
 func (r *TaskRepository) Current(ctx context.Context, userID string, staleAfter time.Duration) ([]model.Task, error) {
 	rows, err := r.pool.Query(ctx, taskHeaderSQL+`
 		WHERE `+visibleSQL+`
@@ -394,7 +394,7 @@ func (r *TaskRepository) Current(ctx context.Context, userID string, staleAfter 
 	return tasks, nil
 }
 
-// ByID возвращает задание с позициями — в том виде, в каком его видит пользователь.
+// ByID возвращает задание с позициями - в том виде, в каком его видит пользователь.
 func (r *TaskRepository) ByID(ctx context.Context, id, userID string) (model.Task, error) {
 	rows, err := r.pool.Query(ctx, taskHeaderSQL+` WHERE t.id = $2::uuid`, userID, id)
 	if err != nil {
@@ -413,7 +413,7 @@ func (r *TaskRepository) ByID(ctx context.Context, id, userID string) (model.Tas
 	return tasks[0], nil
 }
 
-// problemBasis — проблема-основание из LEFT JOIN шапки задания: поля пусты, если основание
+// problemBasis - проблема-основание из LEFT JOIN шапки задания: поля пусты, если основание
 // другое.
 type problemBasis struct {
 	id     *string
@@ -448,7 +448,7 @@ func scanTasks(rows pgx.Rows) ([]model.Task, error) {
 	return out, rows.Err()
 }
 
-// attachItems дочитывает позиции заданий с остатком и составом коробов — двумя запросами
+// attachItems дочитывает позиции заданий с остатком и составом коробов - двумя запросами
 // на весь список, а не по запросу на задание.
 func (r *TaskRepository) attachItems(ctx context.Context, tasks []model.Task) error {
 	if len(tasks) == 0 {
@@ -547,7 +547,7 @@ func (r *TaskRepository) attachItems(ctx context.Context, tasks []model.Task) er
 }
 
 // attachPickingReturns дочитывает к заданиям «вернуть на места» (P9-07-1) заказ-основание и
-// сколько осталось вернуть. Основание — удаление заказа или загрузка реестра, последней его
+// сколько осталось вернуть. Основание - удаление заказа или загрузка реестра, последней его
 // изменившая.
 func (r *TaskRepository) attachPickingReturns(ctx context.Context, tasks []model.Task) error {
 	var ids []string
@@ -598,7 +598,7 @@ func (r *TaskRepository) attachPickingReturns(ctx context.Context, tasks []model
 }
 
 // attachStocktakes дочитывает к заданиям пересчёта (P10-04) номер, область и ход: сколько
-// ячеек всего и сколько подсчитано — одним запросом на список.
+// ячеек всего и сколько подсчитано - одним запросом на список.
 func (r *TaskRepository) attachStocktakes(ctx context.Context, tasks []model.Task) error {
 	var ids []string
 	index := map[string]int{}
@@ -618,7 +618,7 @@ func (r *TaskRepository) attachStocktakes(ctx context.Context, tasks []model.Tas
 	return nil
 }
 
-// stocktakeInfoSQL — номер, область, автор и ход пересчётов $1: сколько ячеек всего и
+// stocktakeInfoSQL - номер, область, автор и ход пересчётов $1: сколько ячеек всего и
 // сколько подсчитано. Общий у текущих заданий и ленты «Завершённые».
 const stocktakeInfoSQL = `
 	SELECT st.id::text, st.number, st.scope_kind, COALESCE(u.full_name, ''),
@@ -629,7 +629,7 @@ const stocktakeInfoSQL = `
 	WHERE st.id = ANY($1::text[]::uuid[])
 	GROUP BY st.id, u.full_name`
 
-// loadStocktakeInfo читает пересчёты по id — одним запросом на список.
+// loadStocktakeInfo читает пересчёты по id - одним запросом на список.
 func (r *TaskRepository) loadStocktakeInfo(ctx context.Context, ids []string) (map[string]*model.TaskStocktakeInfo, error) {
 	out := map[string]*model.TaskStocktakeInfo{}
 	if len(ids) == 0 {
@@ -669,7 +669,7 @@ func (r *TaskRepository) attachCompletedStocktakes(ctx context.Context, out []mo
 	return nil
 }
 
-// boxCZCodes — коды коробов ЧЗ среди коробов заданий (CZ-06): ГЕ → `00`+SSCC.
+// boxCZCodes - коды коробов ЧЗ среди коробов заданий (CZ-06): ГЕ → `00`+SSCC.
 func (r *TaskRepository) boxCZCodes(ctx context.Context, ids []string) (map[string]string, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT load_unit_id::text, code FROM cz_aggregates
@@ -690,11 +690,11 @@ func (r *TaskRepository) boxCZCodes(ctx context.Context, ids []string) (map[stri
 }
 
 // attachReturnItems дочитывает позиции заданий возврата (ADHOC-31): проблемы, решённые
-// возвратом в задание, — короб целиком или товар партии с количеством.
+// возвратом в задание, - короб целиком или товар партии с количеством.
 //
-// Ячейка — где позиция лежит СЕЙЧАС: короб — его место, россыпь — первая ячейка склада
+// Ячейка - где позиция лежит СЕЙЧАС: короб - его место, россыпь - первая ячейка склада
 // возврата с этим товаром (сначала та, куда его положило решение). Товар склада возврата
-// перемещается, и место из строки решения могло устареть. Отгруженная позиция — Placed.
+// перемещается, и место из строки решения могло устареть. Отгруженная позиция - Placed.
 func (r *TaskRepository) attachReturnItems(ctx context.Context, tasks []model.Task, ids []string, index map[string]int) error {
 	rows, err := r.pool.Query(ctx, `
 		SELECT p.return_task_id::text, p.id::text, p.load_unit_id::text, p.shipment_id IS NOT NULL,
@@ -778,7 +778,7 @@ func (r *TaskRepository) attachReturnMarks(ctx context.Context, tasks []model.Ta
 	return rows.Err()
 }
 
-// boxContents — состав коробов с товаром и датой партии.
+// boxContents - состав коробов с товаром и датой партии.
 func (r *TaskRepository) boxContents(ctx context.Context, ids []string) (map[string][]model.TaskGoodQty, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT c.load_unit_id::text, g.id::text, g.code, g.name, g.uom, b.production_date, c.qty::text
@@ -808,8 +808,8 @@ func (r *TaskRepository) boxContents(ctx context.Context, ids []string) (map[str
 
 // Take отдаёт задание пользователю: из пула, своё повторно или зависшее у другого.
 //
-// Повтор своим исполнителем — не ошибка и не событие: кладовщик нажал «Взять» дважды или
-// ответ не дошёл. Взятие из пула пишется в журнал как taken, перехват зависшего — как
+// Повтор своим исполнителем - не ошибка и не событие: кладовщик нажал «Взять» дважды или
+// ответ не дошёл. Взятие из пула пишется в журнал как taken, перехват зависшего - как
 // intercepted с тем, у кого перехватили. Строка задания блокируется, чтобы двое, одновременно
 // взявшие задание, не записали оба своё взятие.
 func (r *TaskRepository) Take(ctx context.Context, id, userID string, staleAfter time.Duration) error {
@@ -851,7 +851,7 @@ func (r *TaskRepository) Take(ctx context.Context, id, userID string, staleAfter
 	})
 }
 
-// Release возвращает своё взятое задание в пул. Задание уже в пуле — не ошибка (повтор).
+// Release возвращает своё взятое задание в пул. Задание уже в пуле - не ошибка (повтор).
 func (r *TaskRepository) Release(ctx context.Context, id, userID string) error {
 	var released bool
 	err := WithinTx(ctx, r.pool, func(q Querier) error {
@@ -887,8 +887,8 @@ func (r *TaskRepository) Release(ctx context.Context, id, userID string) error {
 	}
 }
 
-// addTaskEvent дописывает событие в журнал задания — в транзакции того, что его вызвало.
-// Пустые userID, prevUserID, putawayID — «нет» (системное событие, не перехват, не заход).
+// addTaskEvent дописывает событие в журнал задания - в транзакции того, что его вызвало.
+// Пустые userID, prevUserID, putawayID - «нет» (системное событие, не перехват, не заход).
 func addTaskEvent(ctx context.Context, q Querier, taskID, event, userID, prevUserID, putawayID string) error {
 	_, err := q.Exec(ctx, `
 		INSERT INTO task_events (task_id, event, user_id, prev_user_id, putaway_id)
@@ -900,11 +900,11 @@ func addTaskEvent(ctx context.Context, q Querier, taskID, event, userID, prevUse
 	return nil
 }
 
-// Events — журнал задания по порядку: что случилось, кто и когда.
+// Events - журнал задания по порядку: что случилось, кто и когда.
 //
-// У пересчёта (ADHOC-58) в журнал вплетаются подсчитанные ячейки — кто и какую посчитал:
-// работники берут ячейки, а не задание, и без них история пересчёта — только «создано» и
-// «выполнено». Порядок — по времени; события одной транзакции — по seq журнала.
+// У пересчёта (ADHOC-58) в журнал вплетаются подсчитанные ячейки - кто и какую посчитал:
+// работники берут ячейки, а не задание, и без них история пересчёта - только «создано» и
+// «выполнено». Порядок - по времени; события одной транзакции - по seq журнала.
 func (r *TaskRepository) Events(ctx context.Context, taskID string) ([]model.TaskEvent, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT event, user_name, prev_user_name, putaway_id, cell, at FROM (
@@ -938,22 +938,22 @@ func (r *TaskRepository) Events(ctx context.Context, taskID string) ([]model.Tas
 	return out, rows.Err()
 }
 
-// taskSessionsSQL — заходы по заданиям всех видов: сеансы размещения и отгрузки возврата
-// (ADHOC-31), у пересчёта — подсчитанные ячейки (ADHOC-58). Лента «Завершённые» считает по
+// taskSessionsSQL - заходы по заданиям всех видов: сеансы размещения и отгрузки возврата
+// (ADHOC-31), у пересчёта - подсчитанные ячейки (ADHOC-58). Лента «Завершённые» считает по
 // ним заходы и исполнителей, по ним же работает фильтр по исполнителю.
 const taskSessionsSQL = `(
 	SELECT task_id, created_by, posted_at FROM putaways
 	UNION ALL
 	SELECT task_id, created_by, posted_at FROM supplier_return_shipments
 	UNION ALL
-	-- Возврат на места (P9-07-1): заход — каждый возврат из короба отгрузки.
+	-- Возврат на места (P9-07-1): заход - каждый возврат из короба отгрузки.
 	SELECT task_id, returned_by, returned_at FROM picking_returns
 	UNION ALL
 	SELECT wt.id, sc.counted_by, sc.counted_at
 	FROM stocktake_cells sc JOIN warehouse_tasks wt ON wt.stocktake_id = sc.stocktake_id
 	WHERE sc.status = 'counted')`
 
-// Completed — страница ленты «Завершённые»: свежие сверху, подгрузка курсором.
+// Completed - страница ленты «Завершённые»: свежие сверху, подгрузка курсором.
 func (r *TaskRepository) Completed(ctx context.Context, f model.CompletedTasksFilter) ([]model.CompletedTask, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT t.id::text, t.number, t.kind, COALESCE(s.name, ''), r.doc_number, r.doc_date, t.completed_at,
@@ -1040,7 +1040,7 @@ func (r *TaskRepository) Completed(ctx context.Context, f model.CompletedTasksFi
 	return out, ex.Err()
 }
 
-// Executors — все, кто когда-либо выполнял задания: варианты фильтра ленты по исполнителю.
+// Executors - все, кто когда-либо выполнял задания: варианты фильтра ленты по исполнителю.
 func (r *TaskRepository) Executors(ctx context.Context) ([]model.TaskUser, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT DISTINCT u.id::text, u.full_name
@@ -1061,7 +1061,7 @@ func (r *TaskRepository) Executors(ctx context.Context) ([]model.TaskUser, error
 	return out, rows.Err()
 }
 
-// Sessions — заходы по заданию: проведённые сеансы размещения со строками, по порядку.
+// Sessions - заходы по заданию: проведённые сеансы размещения со строками, по порядку.
 func (r *TaskRepository) Sessions(ctx context.Context, taskID string) ([]model.TaskSession, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT p.id::text, u.id::text, u.full_name, p.posted_at,
@@ -1107,7 +1107,7 @@ func (r *TaskRepository) Sessions(ctx context.Context, taskID string) ([]model.T
 	return out, rows.Err()
 }
 
-// intervalOf — длительность в виде, который Postgres примет как interval.
+// intervalOf - длительность в виде, который Postgres примет как interval.
 func intervalOf(d time.Duration) string {
 	return fmt.Sprintf("%d seconds", int64(d.Seconds()))
 }

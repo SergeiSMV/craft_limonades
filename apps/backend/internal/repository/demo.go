@@ -17,7 +17,7 @@ import (
 	"craftwms/migrations"
 )
 
-// DemoRepository — база демо-сервера (ADHOC-67): проверка, что это действительно демо-база,
+// DemoRepository - база демо-сервера (ADHOC-67): проверка, что это действительно демо-база,
 // пересоздание схемы и сведения о последнем сбросе.
 //
 // Зачем отдельный репозиторий: сброс стирает базу целиком, и всё опасное собрано в одном месте
@@ -27,12 +27,12 @@ type DemoRepository struct {
 	dsn  string // DSN приложения: миграциям нужно своё подключение
 }
 
-// NewDemoRepository — репозиторий демо-базы поверх пула приложения и его DSN.
+// NewDemoRepository - репозиторий демо-базы поверх пула приложения и его DSN.
 func NewDemoRepository(pool *pgxpool.Pool, dsn string) *DemoRepository {
 	return &DemoRepository{pool: pool, dsn: dsn}
 }
 
-// IsDemoDatabase — имя текущей базы оканчивается на «_demo».
+// IsDemoDatabase - имя текущей базы оканчивается на «_demo».
 //
 // Это вторая защита после DEMO_MODE: боевая база так не называется, и переменная, по ошибке
 // заданная на проде, не откроет вход без пароля и не сотрёт данные.
@@ -44,7 +44,7 @@ func (r *DemoRepository) IsDemoDatabase(ctx context.Context) (string, bool, erro
 	return name, strings.HasSuffix(name, model.DemoDatabaseSuffix), nil
 }
 
-// RecreateSchema стирает схему public и накатывает все миграции заново — база становится
+// RecreateSchema стирает схему public и накатывает все миграции заново - база становится
 // такой же, как после первого развёртывания.
 //
 // Как: DROP SCHEMA … CASCADE + CREATE SCHEMA, затем golang-migrate из миграций, встроенных в
@@ -78,8 +78,8 @@ func (r *DemoRepository) RecreateSchema(ctx context.Context) error {
 	return nil
 }
 
-// SeededAt — когда включён демо-пользователь, то есть когда база последний раз заполнена;
-// ok=false — демо-данных нет (свежая база или сброс оборвался).
+// SeededAt - когда включён демо-пользователь, то есть когда база последний раз заполнена;
+// ok=false - демо-данных нет (свежая база или сброс оборвался).
 func (r *DemoRepository) SeededAt(ctx context.Context) (time.Time, bool, error) {
 	var at time.Time
 	err := r.pool.QueryRow(ctx, `SELECT created_at FROM users WHERE login = $1 AND is_active`, model.DemoUserLogin).Scan(&at)

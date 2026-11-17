@@ -5,17 +5,17 @@
 -- же транзакции переходят на новый товар, а в «Проблемах склада» появляется проблема «Пересорт»:
 -- офис проводит её номером и датой документа пересортицы 1С.
 --
--- Пересорт — не метка склада: товар не переезжает на другой внутренний склад и лежит, где
+-- Пересорт - не метка склада: товар не переезжает на другой внутренний склад и лежит, где
 -- лежал, иногда в нескольких ячейках и коробах сразу. Поэтому у такой проблемы нет ячейки и пары
 -- складов «откуда → куда», а что она взяла, записано строками warehouse_problem_lines сразу при
--- заведении. Товар проблемы (good_id) — новый, from_good_id — прежний, barcode — перепривязанный ШК.
+-- заведении. Товар проблемы (good_id) - новый, from_good_id - прежний, barcode - перепривязанный ШК.
 
 ALTER TABLE warehouse_problems DROP CONSTRAINT warehouse_problems_reason_check;
 ALTER TABLE warehouse_problems ADD CONSTRAINT warehouse_problems_reason_check
     CHECK (reason IN ('breakage','spoilage','expired','foreign_mark','retired','not_found',
                       'regrade','other'));
 
--- Решение «Провести пересорт» — документ пересортицы 1С, как у списания.
+-- Решение «Провести пересорт» - документ пересортицы 1С, как у списания.
 ALTER TABLE warehouse_problems DROP CONSTRAINT warehouse_problems_decision_check;
 ALTER TABLE warehouse_problems ADD CONSTRAINT warehouse_problems_decision_check
     CHECK (decision IN ('write_off','place','supplier_return','regrade'));
@@ -31,8 +31,8 @@ ALTER TABLE warehouse_problems
     ADD COLUMN barcode      text;
 
 -- Форма проблемы: прежняя (короб целиком ЛИБО товар партии, с ячейкой и парой складов) или
--- пересорт (товар — новый, прежний и ШК; ячейки, складов, партии и короба нет; количество —
--- сколько марок перешло). Прежнее безымянное ограничение формы — warehouse_problems_check1.
+-- пересорт (товар - новый, прежний и ШК; ячейки, складов, партии и короба нет; количество -
+-- сколько марок перешло). Прежнее безымянное ограничение формы - warehouse_problems_check1.
 ALTER TABLE warehouse_problems DROP CONSTRAINT warehouse_problems_check1;
 ALTER TABLE warehouse_problems ADD CONSTRAINT warehouse_problems_shape_check CHECK (
     (reason <> 'regrade'
@@ -50,9 +50,9 @@ ALTER TABLE warehouse_problems ADD CONSTRAINT warehouse_problems_shape_check CHE
 );
 
 COMMENT ON COLUMN warehouse_problems.from_good_id IS
-    'ADHOC-53: пересорт — товар, за которым марки числились до перепривязки ШК.';
+    'ADHOC-53: пересорт - товар, за которым марки числились до перепривязки ШК.';
 COMMENT ON COLUMN warehouse_problems.barcode IS
-    'ADHOC-53: пересорт — ШК (GTIN), перепривязанный к товару проблемы.';
+    'ADHOC-53: пересорт - ШК (GTIN), перепривязанный к товару проблемы.';
 
 -- Право «Остатки: перепривязать ШК маркируемого товара». Решение 2026-10-28: пока только у
 -- «Администратора» (системная должность получает все права), должностям его выдают в портале.

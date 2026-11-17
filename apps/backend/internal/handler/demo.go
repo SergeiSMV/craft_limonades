@@ -9,14 +9,14 @@ import (
 	"craftwms/internal/service"
 )
 
-// DemoService — то, что ручкам демо-режима нужно от сервиса (ADHOC-67).
+// DemoService - то, что ручкам демо-режима нужно от сервиса (ADHOC-67).
 type DemoService interface {
 	Status(ctx context.Context) model.DemoStatus
 	Login(ctx context.Context) (service.TokenPair, error)
 	Reset(ctx context.Context) error
 }
 
-// DemoHandler — ручки демо-режима: состояние, вход без пароля, сброс.
+// DemoHandler - ручки демо-режима: состояние, вход без пароля, сброс.
 type DemoHandler struct {
 	svc DemoService
 }
@@ -27,13 +27,13 @@ func NewDemoHandler(svc DemoService) *DemoHandler {
 }
 
 // Status: GET /api/v1/demo (публичный) → {"enabled":…}. По нему экран входа портала решает,
-// показывать ли «Войти в демо». На боевом сервере — {"enabled":false}.
+// показывать ли «Войти в демо». На боевом сервере - {"enabled":false}.
 func (h *DemoHandler) Status(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, h.svc.Status(r.Context()))
 }
 
 // Login: POST /api/v1/auth/demo (публичный) → пара токенов демо-пользователя.
-// Не демо-сервер — 404, как у несуществующей ручки; идёт сброс — 503.
+// Не демо-сервер - 404, как у несуществующей ручки; идёт сброс - 503.
 func (h *DemoHandler) Login(w http.ResponseWriter, r *http.Request) {
 	pair, err := h.svc.Login(r.Context())
 	switch {

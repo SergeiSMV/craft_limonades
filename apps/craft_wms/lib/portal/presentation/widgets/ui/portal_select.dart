@@ -15,10 +15,10 @@ typedef PortalSelectOption = ({String id, String label});
 
 /// Фильтр списка в плоском стиле (ADHOC-56, фильтр Shopify Polaris): «Группа: Все ▾».
 ///
-/// Что: кнопка с подписью фильтра и выбранным значением, по нажатию — меню вариантов.
-/// Как: первым пунктом меню — «все» ([allLabel], значение `null`); выбранный пункт отмечен
+/// Что: кнопка с подписью фильтра и выбранным значением, по нажатию - меню вариантов.
+/// Как: первым пунктом меню - «все» ([allLabel], значение `null`); выбранный пункт отмечен
 ///      галочкой. Длинный справочник (поставщики) прокручивается внутри меню. Пока фильтр
-///      задан, кнопка выделена рамкой, — видно, что список сужен.
+///      задан, кнопка выделена рамкой, - видно, что список сужен.
 class PortalSelect extends StatelessWidget {
   const PortalSelect({
     super.key,
@@ -36,11 +36,11 @@ class PortalSelect extends StatelessWidget {
   final String allLabel;
   final List<PortalSelectOption> options;
 
-  /// Выбранный вариант; `null` — без фильтра.
+  /// Выбранный вариант; `null` - без фильтра.
   final String? value;
   final ValueChanged<String?> onChanged;
 
-  /// Подпись выбранного варианта; вариант пропал из справочника — как «все».
+  /// Подпись выбранного варианта; вариант пропал из справочника - как «все».
   String get _valueLabel {
     for (final o in options) {
       if (o.id == value) return o.label;
@@ -58,7 +58,7 @@ class PortalSelect extends StatelessWidget {
     );
     return MenuAnchor(
       style: MenuStyle(
-        // Чуть темнее карточки и с заметной рамкой — меню не сливается с таблицей под ним.
+        // Чуть темнее карточки и с заметной рамкой - меню не сливается с таблицей под ним.
         backgroundColor: const WidgetStatePropertyAll(AppColors.kPopoverBg),
         surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
         maximumSize: WidgetStatePropertyAll(
@@ -131,16 +131,16 @@ class PortalSelect extends StatelessWidget {
     );
   }
 
-  /// Пункт меню; выбранный — с галочкой. Подпись не шире меню за вычетом отступов и галочки,
-  /// длинная — переносится на вторую строку: иначе строка выходит за край меню и срезается.
+  /// Пункт меню; выбранный - с галочкой. Подпись не шире меню за вычетом отступов и галочки,
+  /// длинная - переносится на вторую строку: иначе строка выходит за край меню и срезается.
   Widget _item(String? id, String text, double menuWidth) => MenuItemButton(
     onPressed: () => onChanged(id),
     style: MenuItemButton.styleFrom(
       minimumSize: const Size(0, AppSizes.kControlHeight),
-      // Отступ сверху и снизу — двухстрочная подпись не липнет к соседним пунктам.
+      // Отступ сверху и снизу - двухстрочная подпись не липнет к соседним пунктам.
       padding: AppInsets.choice,
       overlayColor: AppColors.kTextMain,
-      // Строка меню — в рост кнопки и на телефоне, без «пальцевых» 48.
+      // Строка меню - в рост кнопки и на телефоне, без «пальцевых» 48.
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
     ),
     trailingIcon: id == value

@@ -16,13 +16,13 @@ import '../../../../core/utils/search_text.dart';
 import '../../../data/stocktakes_repository.dart';
 import '../ui/portal_input.dart';
 
-/// Выбор объектов области пересчёта (P10-05, плоский стиль — ADHOC-56): поле поиска, под ним
+/// Выбор объектов области пересчёта (P10-05, плоский стиль - ADHOC-56): поле поиска, под ним
 /// выбранные отметками с крестиком и список строк с галочками в рамке; выбрать можно
 /// несколько.
 ///
-/// [serverSearch] — искать на сервере по каждому запросу (ячейки, товары: их тысячи); иначе
-/// список грузится один раз и фильтруется здесь (группы, поставщики). У групп отступ — глубина
-/// в дереве: матрица — узел дерева, берётся с поддеревом.
+/// [serverSearch] - искать на сервере по каждому запросу (ячейки, товары: их тысячи); иначе
+/// список грузится один раз и фильтруется здесь (группы, поставщики). У групп отступ - глубина
+/// в дереве: матрица - узел дерева, берётся с поддеревом.
 class ScopePicker extends StatefulWidget {
   const ScopePicker({
     super.key,
@@ -46,7 +46,7 @@ class ScopePicker extends StatefulWidget {
 }
 
 class _ScopePickerState extends State<ScopePicker> {
-  /// Пауза после ввода перед поиском на сервере — как у поиска номенклатуры.
+  /// Пауза после ввода перед поиском на сервере - как у поиска номенклатуры.
   static const _debounceDelay = Duration(milliseconds: 350);
 
   List<ScopeObject> _items = const [];
@@ -78,7 +78,7 @@ class _ScopePickerState extends State<ScopePicker> {
     });
   }
 
-  /// Запрос поиска изменился: на сервере — с паузой после ввода, иначе — фильтр списка.
+  /// Запрос поиска изменился: на сервере - с паузой после ввода, иначе - фильтр списка.
   void onQuery(String q) {
     setState(() => _query = q);
     if (!widget.serverSearch) return;
@@ -175,7 +175,7 @@ class _ScopePickerState extends State<ScopePicker> {
   }
 }
 
-/// Строка списка выбора: галочка и подпись; у групп — отступ по глубине в дереве.
+/// Строка списка выбора: галочка и подпись; у групп - отступ по глубине в дереве.
 class _OptionRow extends StatelessWidget {
   const _OptionRow({
     required this.object,
@@ -220,7 +220,7 @@ class _OptionRow extends StatelessWidget {
   );
 }
 
-/// Выбранный объект — отметка с крестиком: нажатие снимает выбор.
+/// Выбранный объект - отметка с крестиком: нажатие снимает выбор.
 class _SelectedTag extends StatelessWidget {
   const _SelectedTag({required this.label, required this.onRemove});
 

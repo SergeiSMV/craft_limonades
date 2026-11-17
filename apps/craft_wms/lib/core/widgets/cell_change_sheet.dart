@@ -19,15 +19,15 @@ import '../../features/stock/data/catalog_repository.dart';
 
 /// Нижний лист смены ячейки (коррекция «не та ячейка»): высокий лист с полем сверху и встроенным
 /// прокручиваемым списком ячеек (локальная prefix-фильтрация). В отличие от инлайн-автокомплита на
-/// экране выбора, здесь список НЕ оверлей (в нижнем листе поле у низа — оверлею некуда развернуться),
+/// экране выбора, здесь список НЕ оверлей (в нижнем листе поле у низа - оверлею некуда развернуться),
 /// а обычный список во всю высоту над клавиатурой. По выбору/скану возвращает ячейку через `pop`.
 ///
-/// Общий для «Ввода остатков» и приёмки (P4-09): в обоих потоках ячейку меняют одинаково —
+/// Общий для «Ввода остатков» и приёмки (P4-09): в обоих потоках ячейку меняют одинаково -
 /// сканом этикетки или набором адреса. Заголовок у каждого свой.
 class CellChangeSheet extends StatefulWidget {
   const CellChangeSheet({super.key, this.title});
 
-  /// Заголовок листа; `null` — «Сменить ячейку».
+  /// Заголовок листа; `null` - «Сменить ячейку».
   final String? title;
 
   @override
@@ -36,7 +36,7 @@ class CellChangeSheet extends StatefulWidget {
 
 class _CellChangeSheetState extends State<CellChangeSheet>
     with HardwareScanListener {
-  /// Репозиторий каталога — источник списка ячеек.
+  /// Репозиторий каталога - источник списка ячеек.
   final _repo = getIt<CatalogRepository>();
 
   /// Контроллер поля поиска/скана; слушатель на нём триггерит фильтрацию.
@@ -45,13 +45,13 @@ class _CellChangeSheetState extends State<CellChangeSheet>
   /// Отсекает дубль, если устройство отдаёт код и в поле, и интентом.
   final _deduper = ScanDeduper();
 
-  /// Фокус поля — используется для автофокуса и возврата фокуса после действий.
+  /// Фокус поля - используется для автофокуса и возврата фокуса после действий.
   final _focusNode = FocusNode();
 
-  /// Полный список ячеек с сервера — источник для локальной фильтрации.
+  /// Полный список ячеек с сервера - источник для локальной фильтрации.
   List<Cell> _all = const [];
 
-  /// Ячейки после prefix-фильтрации по текущему запросу — то, что выводится в списке.
+  /// Ячейки после prefix-фильтрации по текущему запросу - то, что выводится в списке.
   List<Cell> _filtered = const [];
   bool _loading = true;
 
@@ -81,7 +81,7 @@ class _CellChangeSheetState extends State<CellChangeSheet>
     if (res.isLeft) _snack(t.cellPicker.loadFailed);
   }
 
-  /// Пересчитать список по вводу: пусто → список скрыт; иначе — адреса, начинающиеся с ввода (prefix).
+  /// Пересчитать список по вводу: пусто → список скрыт; иначе - адреса, начинающиеся с ввода (prefix).
   void _onQueryChanged() {
     final q = _controller.text.trim().toLowerCase();
     setState(() {
@@ -94,7 +94,7 @@ class _CellChangeSheetState extends State<CellChangeSheet>
   /// Резолв адреса (скан/Enter) по справочнику; найдено точное совпадение → вернуть ячейку.
   /// Код с аппаратного сканера (intent-режим). До ADHOC-07 лист не был подписан на поток:
   /// сканы доставляются верхнему экрану стопки, а нижний лист экраном не является, и в
-  /// intent-режиме смена ячейки сканом молча не работала — только ручным вводом.
+  /// intent-режиме смена ячейки сканом молча не работала - только ручным вводом.
   @override
   void onHardwareScan(ScanCode code) {
     final raw = code.raw.trim();
@@ -172,7 +172,7 @@ class _CellChangeSheetState extends State<CellChangeSheet>
           cursorWidth: 1.5,
           cursorHeight: 20,
           textInputAction: TextInputAction.done,
-          // Свернули клавиатуру — поле сохраняет фокус; по тапу принудительно показываем её снова.
+          // Свернули клавиатуру - поле сохраняет фокус; по тапу принудительно показываем её снова.
           onTap: () {
             if (_focusNode.hasFocus) {
               SystemChannels.textInput.invokeMethod<void>('TextInput.show');

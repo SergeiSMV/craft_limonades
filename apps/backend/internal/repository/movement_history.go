@@ -12,10 +12,10 @@ import (
 	"craftwms/internal/model"
 )
 
-// ErrMovementNotFound — документа движения с таким идентификатором нет.
+// ErrMovementNotFound - документа движения с таким идентификатором нет.
 var ErrMovementNotFound = errors.New("movement not found")
 
-// MovementHistoryRepository — чтение истории перемещений для ТСД (ADHOC-28). Только чтение
+// MovementHistoryRepository - чтение истории перемещений для ТСД (ADHOC-28). Только чтение
 // журнала P6-01: проводит движение operations, здесь его показывают.
 type MovementHistoryRepository struct {
 	pool *pgxpool.Pool
@@ -26,7 +26,7 @@ func NewMovementHistoryRepository(pool *pgxpool.Pool) *MovementHistoryRepository
 	return &MovementHistoryRepository{pool: pool}
 }
 
-// movementRecordSelect — шапка записи ленты: документ, кто двигал, сколько строк какого рода.
+// movementRecordSelect - шапка записи ленты: документ, кто двигал, сколько строк какого рода.
 // Строки считаются подзапросами, а не группировкой с JOIN: фильтр и курсор остаются условиями
 // по одной таблице movements и идут по индексу на posted_at.
 const movementRecordSelect = `
@@ -42,10 +42,10 @@ func scanMovementRecord(row pgx.Row) (model.MovementRecord, error) {
 	return r, err
 }
 
-// List — страница ленты: свежие сверху, подгрузка курсором (posted_at, id).
+// List - страница ленты: свежие сверху, подгрузка курсором (posted_at, id).
 //
 // Курсор, а не смещение: перемещения, проведённые во время просмотра, не сдвигают уже
-// загруженные страницы — тот же приём, что у ленты «Завершённые» заданий.
+// загруженные страницы - тот же приём, что у ленты «Завершённые» заданий.
 func (r *MovementHistoryRepository) List(ctx context.Context, f model.MovementHistoryFilter) ([]model.MovementRecord, error) {
 	rows, err := r.pool.Query(ctx, movementRecordSelect+`
 		WHERE ($1::timestamptz IS NULL OR m.posted_at >= $1)
@@ -70,7 +70,7 @@ func (r *MovementHistoryRepository) List(ctx context.Context, f model.MovementHi
 	return out, rows.Err()
 }
 
-// Executors — все, кто когда-либо перемещал: варианты фильтра ленты по исполнителю.
+// Executors - все, кто когда-либо перемещал: варианты фильтра ленты по исполнителю.
 func (r *MovementHistoryRepository) Executors(ctx context.Context) ([]model.TaskUser, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT DISTINCT u.id::text, u.full_name
@@ -91,9 +91,9 @@ func (r *MovementHistoryRepository) Executors(ctx context.Context) ([]model.Task
 	return out, rows.Err()
 }
 
-// Get — запись со строками в порядке, в каком их провёл кладовщик.
+// Get - запись со строками в порядке, в каком их провёл кладовщик.
 //
-// Адреса ячеек и товар подставляются из справочников на момент чтения: история — рабочий
+// Адреса ячеек и товар подставляются из справочников на момент чтения: история - рабочий
 // инструмент склада, а не документ для 1С, и замораживать её снимком незачем.
 func (r *MovementHistoryRepository) Get(ctx context.Context, id string) (model.MovementRecordDetail, error) {
 	rec, err := scanMovementRecord(r.pool.QueryRow(ctx, movementRecordSelect+` WHERE m.id = $1::uuid`, id))

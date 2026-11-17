@@ -9,7 +9,7 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-// fakeContents — состав ГЕ из памяти; считает обращения, чтобы проверить чтение одним махом.
+// fakeContents - состав ГЕ из памяти; считает обращения, чтобы проверить чтение одним махом.
 type fakeContents struct {
 	byID  map[string][]ContentLine
 	calls int
@@ -34,7 +34,7 @@ func line(good, batch string, qty int64) ContentLine {
 	return ContentLine{GoodID: good, BatchID: batch, Qty: d(qty)}
 }
 
-// Три короба одного товара одной партии в одну ячейку — одна строка: 1С короба не различает.
+// Три короба одного товара одной партии в одну ячейку - одна строка: 1С короба не различает.
 func TestExpand_boxesAggregateByGoodBatchCells(t *testing.T) {
 	fc := &fakeContents{byID: map[string][]ContentLine{
 		"lu1": {line("g1", "b1", 12)},
@@ -66,7 +66,7 @@ func TestExpand_looseMixedWithBoxes(t *testing.T) {
 	moves := []Move{
 		{ToCellID: "c1", GoodID: "g1", BatchID: "b1", Qty: d(5)},
 		{ToCellID: "c1", LoadUnitID: "lu1"},
-		{ToCellID: "c2", GoodID: "g1", BatchID: "b1", Qty: d(1)}, // другая ячейка — своя строка
+		{ToCellID: "c2", GoodID: "g1", BatchID: "b1", Qty: d(1)}, // другая ячейка - своя строка
 	}
 	got, err := Expand(context.Background(), moves, fc)
 	if err != nil {
@@ -131,7 +131,7 @@ func TestExpand_fractionalQtyIsExact(t *testing.T) {
 	}
 }
 
-// Одна ГЕ в двух движениях (A→B, затем B→C) — два движения, а не одно; состав читается раз.
+// Одна ГЕ в двух движениях (A→B, затем B→C) - два движения, а не одно; состав читается раз.
 func TestExpand_sameLoadUnitTwiceIsTwoMoves(t *testing.T) {
 	fc := &fakeContents{byID: map[string][]ContentLine{"lu1": {line("g1", "b1", 2)}}}
 	got, err := Expand(context.Background(), []Move{
@@ -201,7 +201,7 @@ func assertLines(t *testing.T, got, want []Line) {
 	}
 }
 
-// ADHOC-55: марки ЧЗ идут со своей строкой — россыпью и из состава ГЕ; одинаковые строки
+// ADHOC-55: марки ЧЗ идут со своей строкой - россыпью и из состава ГЕ; одинаковые строки
 // собирают марки вместе.
 func TestExpand_marksFollowLines(t *testing.T) {
 	fc := &fakeContents{byID: map[string][]ContentLine{

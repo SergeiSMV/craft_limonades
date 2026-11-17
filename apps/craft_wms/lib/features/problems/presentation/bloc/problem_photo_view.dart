@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-/// Фото на экране: снимок (`null` — ещё грузится или не загрузился) и признак «ждёт отправки».
+/// Фото на экране: снимок (`null` - ещё грузится или не загрузился) и признак «ждёт отправки».
 class ProblemPhotoView {
   const ProblemPhotoView({
     required this.id,

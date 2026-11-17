@@ -17,7 +17,7 @@ import '../contents_navigation.dart';
 import '../widgets/cell/cell_contents_body.dart';
 import '../widgets/common/contents_state_view.dart';
 
-/// Экран «Ячейка» (P5-05): что лежит в ячейке — короба и россыпь. Открывается сканом этикетки
+/// Экран «Ячейка» (P5-05): что лежит в ячейке - короба и россыпь. Открывается сканом этикетки
 /// ячейки в «Остатках»; скан короба или другой ячейки отсюда открывает их.
 @RoutePage()
 class CellContentsPage extends StatelessWidget {
@@ -51,7 +51,7 @@ class _CellContentsView extends StatefulWidget {
 
 class _CellContentsViewState extends State<_CellContentsView>
     with HardwareScanListener {
-  /// Скан с экрана ячейки: короб — его карточка поверх, другая ячейка — вместо этой.
+  /// Скан с экрана ячейки: короб - его карточка поверх, другая ячейка - вместо этой.
   @override
   Future<void> onHardwareScan(ScanCode code) async {
     final replace = code.kind == ScanKind.cell;

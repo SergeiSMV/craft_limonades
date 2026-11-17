@@ -23,8 +23,8 @@ import 'package:uuid/uuid.dart';
 
 class _MockApi extends Mock implements ContentsApi {}
 
-/// Эталон ответа снимка — общий с сервером (`contents_http_test.go`): сервер обязан отдавать
-/// ровно его, терминал — разбирать.
+/// Эталон ответа снимка - общий с сервером (`contents_http_test.go`): сервер обязан отдавать
+/// ровно его, терминал - разбирать.
 const _fixturePath =
     '../backend/internal/handler/testdata/contents_snapshot.json';
 
@@ -44,7 +44,7 @@ void main() {
   const looseCell = 'd0e1f2a3-b4c5-4d6e-8f70-8192a3b4c5d6';
   const good = 'a7b8c9d0-e1f2-4a3b-8c4d-5e6f70819203';
   const wh = 'f0000000-0000-4000-8000-000000000001';
-  // Склад эталона — «Основной»; «Брак» — для пометок (P6-07-2).
+  // Склад эталона - «Основной»; «Брак» - для пометок (P6-07-2).
   const mainIwh = 'e0000000-0000-4000-8000-000000000001';
   const defectIwh = 'e0000000-0000-4000-8000-0000000000de';
 
@@ -106,13 +106,13 @@ void main() {
     expect(fixture.loose.single.line.qty, 3);
   });
 
-  test('без связи — снимок с моментом и наименованиями из справочника', () async {
+  test('без связи - снимок с моментом и наименованиями из справочника', () async {
     await cache.replace(fixture);
 
     final res = await repo.loadUnit(box);
     final viewed = res.right;
     expect(viewed.freshness, isA<FromSnapshot>());
-    // drift отдаёт время по местному поясу — сравниваем момент, а не представление.
+    // drift отдаёт время по местному поясу - сравниваем момент, а не представление.
     expect(
       (viewed.freshness as FromSnapshot).asOf!.isAtSameMomentAs(fixture.asOf),
       isTrue,
@@ -129,11 +129,11 @@ void main() {
   });
 
   test(
-    'без связи и без снимка — показать нечего, кроме своих операций',
+    'без связи и без снимка - показать нечего, кроме своих операций',
     () async {
       expect((await repo.loadUnit(box)).left, isA<NetworkFailure>());
 
-      // Своя неотправленная приёмка короба — его уже есть что показать.
+      // Своя неотправленная приёмка короба - его уже есть что показать.
       await outbox.enqueue(
         kind: OutboxKind.receiptSubmit,
         payload: {
@@ -158,7 +158,7 @@ void main() {
     },
   );
 
-  test('со связью — ответ сервера, снимок не читается', () async {
+  test('со связью - ответ сервера, снимок не читается', () async {
     await cache.replace(fixture);
     when(() => api.card(box)).thenAnswer(
       (_) async => const Right(
@@ -179,7 +179,7 @@ void main() {
     ); // сервер, а не снимок (там A-1-1)
   });
 
-  test('сервер не знает короба — «не найден», а не снимок', () async {
+  test('сервер не знает короба - «не найден», а не снимок', () async {
     await cache.replace(fixture);
     when(
       () => api.card(box),
@@ -259,7 +259,7 @@ void main() {
       expect(
         await cache.asOf(),
         isNull,
-        reason: 'склад коробов неизвестен — снимок перечитать',
+        reason: 'склад коробов неизвестен - снимок перечитать',
       );
       await cache.replace(fixture);
       expect((await cache.loadUnits([box]))[box]?.internalWarehouseId, mainIwh);
@@ -281,7 +281,7 @@ void main() {
       },
     );
 
-    test('короб целиком — «Брак» со всем составом, склад подписан', () async {
+    test('короб целиком - «Брак» со всем составом, склад подписан', () async {
       await pendingProblem({'load_unit_id': box});
 
       final lu = (await repo.loadUnit(box)).right.value!;
@@ -292,7 +292,7 @@ void main() {
     });
 
     test(
-      'часть короба — вынута в россыпь брака той же ячейки, короб основной',
+      'часть короба - вынута в россыпь брака той же ячейки, короб основной',
       () async {
         await pendingProblem({
           'good_id': good,
@@ -313,7 +313,7 @@ void main() {
       },
     );
 
-    test('россыпь — основная и брак одной партии раздельно', () async {
+    test('россыпь - основная и брак одной партии раздельно', () async {
       await pendingProblem({
         'good_id': good,
         'production_date': '02-09-2026',
@@ -334,7 +334,7 @@ void main() {
   group('остатки по товарам из снимка (ADHOC-33)', () {
     setUp(() => cache.replace(fixture));
 
-    test('товар: короб и россыпь сложены, склад «Основной» — null', () async {
+    test('товар: короб и россыпь сложены, склад «Основной» - null', () async {
       final viewed = await repo.goodsStock(
         refreshFailure: const Failure.network(),
       );
@@ -347,7 +347,7 @@ void main() {
       expect((viewed.freshness as FromSnapshot).offline, isTrue);
     });
 
-    test('снимок обновлён — данные без подписи', () async {
+    test('снимок обновлён - данные без подписи', () async {
       final viewed = await repo.goodsStock();
       expect(viewed.freshness, isA<FreshFromServer>());
     });
@@ -363,7 +363,7 @@ void main() {
     });
 
     test(
-      'своя пометка брака — остаток делится по складам, с пометкой',
+      'своя пометка брака - остаток делится по складам, с пометкой',
       () async {
         await outbox.enqueue(
           kind: OutboxKind.problemSubmit,
@@ -394,7 +394,7 @@ void main() {
     );
 
     test(
-      'своё перемещение россыпи в другую ячейку — место сменилось',
+      'своё перемещение россыпи в другую ячейку - место сменилось',
       () async {
         await outbox.enqueue(
           kind: OutboxKind.movementSubmit,
@@ -422,7 +422,7 @@ void main() {
     );
 
     test(
-      'короб целиком в брак своей очередью — его состав на «Браке»',
+      'короб целиком в брак своей очередью - его состав на «Браке»',
       () async {
         await outbox.enqueue(
           kind: OutboxKind.problemSubmit,
@@ -474,7 +474,7 @@ void main() {
       expect(list.value![1].pending, isTrue);
       expect((list.freshness as FromSnapshot).offline, isTrue);
 
-      // ADHOC-22: снимок обновился — подписи нет; сервер ответил ошибкой — подпись без
+      // ADHOC-22: снимок обновился - подписи нет; сервер ответил ошибкой - подпись без
       // «нет связи».
       expect((await repo.loadUnits()).freshness, isA<FreshFromServer>());
       final serverDown = await repo.loadUnits(
@@ -483,7 +483,7 @@ void main() {
       expect((serverDown.freshness as FromSnapshot).offline, isFalse);
     });
 
-    test('поиск без связи — по хвосту id в снимке и своей очереди', () async {
+    test('поиск без связи - по хвосту id в снимке и своей очереди', () async {
       await cache.replace(fixture);
       const own = '11111111-2222-4333-8444-555566667777';
       await pendingReceipt(own);
@@ -499,23 +499,23 @@ void main() {
       expect(byOwn.value!.single.id, own);
       expect(byOwn.value!.single.pending, isTrue);
 
-      // Начало UUID в коротком коде не участвует — его нет на ярлыке.
+      // Начало UUID в коротком коде не участвует - его нет на ярлыке.
       expect((await repo.searchLoadUnits('5A0C')).right.value, isEmpty);
     });
 
-    test('сервер без ручки поиска (старая версия) — поиск по снимку', () async {
+    test('сервер без ручки поиска (старая версия) - поиск по снимку', () async {
       await cache.replace(fixture);
       when(
         () => api.search(any()),
       ).thenAnswer((_) async => const Left(Failure.server(405)));
 
       final found = (await repo.searchLoadUnits('7B7A')).right;
-      // Связь есть, сервер ответил кодом — снимок, но не «нет связи» (ADHOC-22).
+      // Связь есть, сервер ответил кодом - снимок, но не «нет связи» (ADHOC-22).
       expect((found.freshness as FromSnapshot).offline, isFalse);
       expect((await repo.searchLoadUnits('9FA0')).right.value!.single.id, box);
     });
 
-    test('истёкшая сессия — отказ, а не снимок', () async {
+    test('истёкшая сессия - отказ, а не снимок', () async {
       when(
         () => api.search(any()),
       ).thenAnswer((_) async => const Left(Failure.auth()));
@@ -523,7 +523,7 @@ void main() {
       expect((await repo.searchLoadUnits('9FA0')).left, isA<AuthFailure>());
     });
 
-    test('поиск со связью — выдача сервера, неживой короб тоже', () async {
+    test('поиск со связью - выдача сервера, неживой короб тоже', () async {
       when(() => api.search('9FA0')).thenAnswer(
         (_) async => const Right([LoadUnitView(id: box, live: false)]),
       );
@@ -533,7 +533,7 @@ void main() {
       expect(found.value!.single.live, isFalse);
     });
 
-    test('история — только по сети', () async {
+    test('история - только по сети', () async {
       when(() => api.history(box)).thenAnswer(
         (_) async => Right(LoadUnitHistory(createdAt: DateTime(2026, 10, 8))),
       );
@@ -562,7 +562,7 @@ void main() {
       expect(loose.aggregateCode, isNull);
     });
 
-    test('со связью — ГЕ по ответу сервера', () async {
+    test('со связью - ГЕ по ответу сервера', () async {
       when(() => api.cardByCzCode(czCode)).thenAnswer(
         (_) async =>
             const Right(LoadUnitView(id: box, live: true, czCode: czCode)),
@@ -570,21 +570,21 @@ void main() {
       expect((await repo.loadUnitIdByCzCode(czCode)).right, box);
     });
 
-    test('сервер не знает короба — не принят', () async {
+    test('сервер не знает короба - не принят', () async {
       when(
         () => api.cardByCzCode(czCode),
       ).thenAnswer((_) async => const Left(Failure.server(404)));
       expect((await repo.loadUnitIdByCzCode(czCode)).right, isNull);
     });
 
-    test('без связи — по снимку, код и вскрытие в карточке', () async {
+    test('без связи - по снимку, код и вскрытие в карточке', () async {
       when(
         () => api.cardByCzCode(any()),
       ).thenAnswer((_) async => const Left(Failure.network()));
       expect(
         (await repo.loadUnitIdByCzCode(czCode)).left,
         isA<NetworkFailure>(),
-        reason: 'снимка ещё не было — узнать негде',
+        reason: 'снимка ещё не было - узнать негде',
       );
 
       await cache.replace(fixture);
@@ -598,7 +598,7 @@ void main() {
       expect(card.isCzBox, isTrue);
     });
 
-    test('короб ЧЗ своей неотправленной приёмки — по очереди', () async {
+    test('короб ЧЗ своей неотправленной приёмки - по очереди', () async {
       when(
         () => api.cardByCzCode(any()),
       ).thenAnswer((_) async => const Left(Failure.network()));
@@ -630,7 +630,7 @@ void main() {
     const czCode = '00046012345678901234';
 
     test(
-      'из снимка: марка по КИ, упаковка — её марки, склад «Основной» — null',
+      'из снимка: марка по КИ, упаковка - её марки, склад «Основной» - null',
       () async {
         await cache.replace(fixture);
         final mark = (await repo.marksByCode(looseMark)).single;
@@ -691,7 +691,7 @@ void main() {
         expect(
           fresh.cellId,
           looseCell,
-          reason: 'строка без ячейки — ячейка приёмки',
+          reason: 'строка без ячейки - ячейка приёмки',
         );
         expect(fresh.productionDate, '03-09-2026');
       },
@@ -722,7 +722,7 @@ void main() {
       expect(
         await cache.asOf(),
         isNull,
-        reason: 'в снимке нет марок и кодов коробов ЧЗ — перечитать',
+        reason: 'в снимке нет марок и кодов коробов ЧЗ - перечитать',
       );
       await cache.replace(fixture);
       expect(

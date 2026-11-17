@@ -49,13 +49,13 @@ import '../widgets/problem_outcome_view.dart';
 import '../widgets/resolved/resolved_feed.dart';
 import '../widgets/resolved/resolved_filter_button.dart';
 
-/// «Проблемы склада» (P6-07-2): пометить короб или товар браком, изолятором … Одна проблема —
+/// «Проблемы склада» (P6-07-2): пометить короб или товар браком, изолятором … Одна проблема -
 /// одна операция очереди; работает без связи. Скан короба или ячейки → короб целиком или
 /// товар с количеством → склад → причина → комментарий → «Зафиксировать».
 ///
-/// Вкладки «Текущие» / «Завершённые»: в первой — открытые проблемы всего склада и свои
-/// неотправленные (ADHOC-35), внизу «Добавить» — фиксация новой открывается во весь экран;
-/// во второй — решённые офисом в портале, лентой по дням (ADHOC-34). Скан короба или ячейки
+/// Вкладки «Текущие» / «Завершённые»: в первой - открытые проблемы всего склада и свои
+/// неотправленные (ADHOC-35), внизу «Добавить» - фиксация новой открывается во весь экран;
+/// во второй - решённые офисом в портале, лентой по дням (ADHOC-34). Скан короба или ячейки
 /// со списка сразу начинает фиксацию.
 @RoutePage()
 class ProblemPage extends StatelessWidget {
@@ -68,7 +68,7 @@ class ProblemPage extends StatelessWidget {
       BlocProvider(create: (_) => getIt<CurrentProblemsCubit>()..load()),
       BlocProvider(create: (_) => getIt<ResolvedProblemsCubit>()),
     ],
-    // Проблемы изменились на сервере (ADHOC-60) — «Текущие» перечитываются при ближайшем
+    // Проблемы изменились на сервере (ADHOC-60) - «Текущие» перечитываются при ближайшем
     // ответе сервера, без опроса.
     child: Builder(
       builder: (context) => DataVersionsListener(
@@ -95,13 +95,13 @@ class _ProblemViewState extends State<_ProblemView>
   final _mark = TextEditingController();
   final _deduper = ScanDeduper();
 
-  /// Открытая вкладка: 0 — «Зафиксировать», 1 — «Завершённые».
+  /// Открытая вкладка: 0 - «Зафиксировать», 1 - «Завершённые».
   int _tab = 0;
 
   /// Идёт фиксация новой проблемы: форма во весь экран, без вкладок.
   bool _adding = false;
 
-  /// Право «Проблемы: помечать товар» (ADHOC-51); без сессии в дереве (тесты) — есть.
+  /// Право «Проблемы: помечать товар» (ADHOC-51); без сессии в дереве (тесты) - есть.
   bool get _canMark =>
       sessionCan(context, Rights.tsdProblemsMark, withoutSession: true);
 
@@ -124,7 +124,7 @@ class _ProblemViewState extends State<_ProblemView>
     super.dispose();
   }
 
-  /// Вернуть фокус полю скана — иначе сканер в режиме «клавиатуры» печатает в никуда.
+  /// Вернуть фокус полю скана - иначе сканер в режиме «клавиатуры» печатает в никуда.
   void refocusScan() {
     if (mounted && _adding && cubit.state.subject == null) {
       _scanFocus.requestFocus();
@@ -142,13 +142,13 @@ class _ProblemViewState extends State<_ProblemView>
     }
   }
 
-  /// «Добавить» — к фиксации новой проблемы; поле скана сразу ловит код.
+  /// «Добавить» - к фиксации новой проблемы; поле скана сразу ловит код.
   void startAdding() {
     setState(() => _adding = true);
     WidgetsBinding.instance.addPostFrameCallback((_) => refocusScan());
   }
 
-  /// Фиксация окончена или отменена — к списку «Текущие», он перечитывается: в нём уже своя
+  /// Фиксация окончена или отменена - к списку «Текущие», он перечитывается: в нём уже своя
   /// новая проблема. Форма очищается к следующему разу.
   void finishAdding() {
     _comment.clear();
@@ -166,11 +166,11 @@ class _ProblemViewState extends State<_ProblemView>
 
   //* --- скан --- *//
 
-  /// Единая точка для поля и интента сканера. На форме «не нашей марки» скан — это марка.
+  /// Единая точка для поля и интента сканера. На форме «не нашей марки» скан - это марка.
   Future<void> onScan(String value) async {
     final code = value.trim();
     _scanController.clear();
-    // Скан со списка — кладовщик начал фиксировать: открываем форму. Без права помечать
+    // Скан со списка - кладовщик начал фиксировать: открываем форму. Без права помечать
     // (ADHOC-51) скан со списка ничего не открывает.
     if (!_adding) {
       if (!_canMark) return;
@@ -179,7 +179,7 @@ class _ProblemViewState extends State<_ProblemView>
     final s = cubit.state;
     if (code.isEmpty || !_deduper.allow(code) || s.outcome != null) return;
     if (s.subject != null) {
-      // Помечено марками (CZ-06) — следующая марка добавляется к ним.
+      // Помечено марками (CZ-06) - следующая марка добавляется к ним.
       final subject = s.subject;
       if (subject is SubjectGoods &&
           subject.marks.isNotEmpty &&
@@ -206,7 +206,7 @@ class _ProblemViewState extends State<_ProblemView>
     refocusScan();
   }
 
-  /// Скан QR короба: карточка — с сервера или из снимка со своей очередью поверх.
+  /// Скан QR короба: карточка - с сервера или из снимка со своей очередью поверх.
   Future<void> onBoxScan(String id) async {
     final res = await contents.loadUnit(id);
     if (!mounted) return;
@@ -222,7 +222,7 @@ class _ProblemViewState extends State<_ProblemView>
     await onBox(box);
   }
 
-  /// Скан этикетки короба ЧЗ (`00`+SSCC, CZ-06): ГЕ находится по коду, дальше — как скан QR.
+  /// Скан этикетки короба ЧЗ (`00`+SSCC, CZ-06): ГЕ находится по коду, дальше - как скан QR.
   Future<void> onCzBoxScan(String czCode) async {
     final res = await contents.loadUnitIdByCzCode(czCode);
     if (!mounted) return;
@@ -238,7 +238,7 @@ class _ProblemViewState extends State<_ProblemView>
     await onBoxScan(id);
   }
 
-  /// Короб найден — сканом или в ячейке.
+  /// Короб найден - сканом или в ячейке.
   Future<void> onBox(LoadUnitView box) async {
     final cellId = box.cellId;
     final cell = cellId == null ? null : await cellWhere((c) => c.id == cellId);
@@ -263,8 +263,8 @@ class _ProblemViewState extends State<_ProblemView>
     await onCell(cell);
   }
 
-  /// Ячейка выбрана — сканом или из справочника: её короба и россыпь на выбор. Пометка
-  /// меняет остаток ячейки, поэтому ячейка на пересчёте — сначала предупреждение (ADHOC-48).
+  /// Ячейка выбрана - сканом или из справочника: её короба и россыпь на выбор. Пометка
+  /// меняет остаток ячейки, поэтому ячейка на пересчёте - сначала предупреждение (ADHOC-48).
   Future<void> onCell(Cell cell) async {
     if (!cell.isDefault && !await allowMoveThroughCell(context, cell.id)) {
       return;
@@ -282,7 +282,7 @@ class _ProblemViewState extends State<_ProblemView>
     cubit.onCell(cell, view);
   }
 
-  /// Выбрать ячейку вручную — ярлык короба испорчен: его найдут среди коробов ячейки.
+  /// Выбрать ячейку вручную - ярлык короба испорчен: его найдут среди коробов ячейки.
   Future<void> chooseCell() async {
     final cell = await showModalBottomSheet<Cell>(
       context: context,
@@ -298,7 +298,7 @@ class _ProblemViewState extends State<_ProblemView>
     refocusScan();
   }
 
-  /// Ячейка справочника терминала по условию; `null` — такой нет.
+  /// Ячейка справочника терминала по условию; `null` - такой нет.
   @override
   Future<Cell?> cellWhere(bool Function(Cell) test) async {
     final res = await getIt<CatalogRepository>().listAllCells();
@@ -310,7 +310,7 @@ class _ProblemViewState extends State<_ProblemView>
 
   //* --- что помечаем --- *//
 
-  /// Товар из источника: сколько пометить — по умолчанию всё, что есть. Над полем — что
+  /// Товар из источника: сколько пометить - по умолчанию всё, что есть. Над полем - что
   /// помечают и сколько лежит, той же шапкой, что в перемещении.
   Future<void> chooseGoods(ContentLine line) async {
     final from = switch (cubit.state.source) {
@@ -345,7 +345,7 @@ class _ProblemViewState extends State<_ProblemView>
 
   //* --- навигация и итог --- *//
 
-  /// Назад: в форме — шаг назад, с пустой формы — к списку; со списков — в меню.
+  /// Назад: в форме - шаг назад, с пустой формы - к списку; со списков - в меню.
   void goBack() {
     if (!_adding) {
       context.router.maybePop();
@@ -360,7 +360,7 @@ class _ProblemViewState extends State<_ProblemView>
     finishAdding();
   }
 
-  /// Следующая проблема — поля формы очищаются.
+  /// Следующая проблема - поля формы очищаются.
   void next() {
     _comment.clear();
     _mark.clear();
@@ -368,7 +368,7 @@ class _ProblemViewState extends State<_ProblemView>
     refocusScan();
   }
 
-  /// Подсказка по результату скана — один раз.
+  /// Подсказка по результату скана - один раз.
   void onNotice(BuildContext context, ProblemState state) {
     final n = state.notice;
     if (n == null) return;
@@ -424,7 +424,7 @@ class _ProblemViewState extends State<_ProblemView>
     );
   }
 
-  /// Вкладки «Текущие» / «Завершённые». Фиксация и её итог — во весь экран, без вкладок.
+  /// Вкладки «Текущие» / «Завершённые». Фиксация и её итог - во весь экран, без вкладок.
   Widget _tabs(ProblemState state) {
     if (_adding) return _body(state);
     return Column(

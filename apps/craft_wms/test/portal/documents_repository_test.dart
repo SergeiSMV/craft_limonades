@@ -42,7 +42,7 @@ void main() {
       expect(docs.first.status, DocStatus.downloaded);
     });
 
-    // P4-10: у «Прихода» своя вкладка — форма фильтруется на сервере, поставщик в строке.
+    // P4-10: у «Прихода» своя вкладка - форма фильтруется на сервере, поставщик в строке.
     test('форма уходит параметром kind, поставщик разбирается', () async {
       final adapter = RecordingAdapter({
         'GET ${ApiConst.documents}': (_) => ResponseBody.fromString(
@@ -95,7 +95,7 @@ void main() {
       final res = await DocumentsRepository(dio).downloadReport('d1');
       expect(res.isRight, isTrue);
       expect(res.right.bytes, equals(xlsx));
-      // ADHOC-24: имя — то, что прислал сервер, а не зашитое «ввод остатков».
+      // ADHOC-24: имя - то, что прислал сервер, а не зашитое «ввод остатков».
       expect(res.right.filename, 'dvizhenie-SHB-20261009.xlsx');
       final req = adapter.requests.single;
       expect(req.path, ApiConst.documentFile('d1'));
@@ -103,7 +103,7 @@ void main() {
     });
   });
 
-  // ADHOC-24: имя файла из Content-Disposition; без него — имя по умолчанию.
+  // ADHOC-24: имя файла из Content-Disposition; без него - имя по умолчанию.
   test('имя файла из Content-Disposition', () {
     expect(filenameFromDisposition('attachment; filename="postuplenie-SHB-20261009.xlsx"'),
         'postuplenie-SHB-20261009.xlsx');
@@ -155,7 +155,7 @@ void main() {
       expect(events, hasLength(2));
       expect(events.first.event, 'created');
       expect(events.first.userName, 'Кладовщик');
-      expect(events.last.userName, isEmpty); // автор не сохранился — не выдумываем
+      expect(events.last.userName, isEmpty); // автор не сохранился - не выдумываем
     });
 
     test('404 → Failure.server', () async {
@@ -170,7 +170,7 @@ void main() {
     });
   });
 
-  test('маршруты документов — без ведущего слэша', () {
+  test('маршруты документов - без ведущего слэша', () {
     expect(ApiConst.documents, 'documents');
     expect(ApiConst.documentFile('d1'), 'documents/d1/file.xlsx');
     expect(ApiConst.documentDone('d1'), 'documents/d1/done');
@@ -204,7 +204,7 @@ void main() {
     expect(without.docNumber, isEmpty);
   });
 
-  // P5-04: у «Движения» — операция и задание-основание; у других форм их нет.
+  // P5-04: у «Движения» - операция и задание-основание; у других форм их нет.
   test('операция и задание в строке «Движения»', () {
     final movement = PortalDoc.fromJson({
       'id': 'd3',
@@ -230,7 +230,7 @@ void main() {
     expect(other.executor, isEmpty);
   });
 
-  // P6-07: перемещение — без задания, с исполнителем.
+  // P6-07: перемещение - без задания, с исполнителем.
   test('перемещение в строке «Движения»: операция и исполнитель', () {
     final move = PortalDoc.fromJson({
       'id': 'd5',
@@ -246,8 +246,8 @@ void main() {
     expect(move.executor, 'Иванов Иван');
   });
 
-  // ADHOC-55: задание по решению «разместить» — основанием в колонке стоит проблема склада.
-  test('размещение по проблеме: основание — номер проблемы', () {
+  // ADHOC-55: задание по решению «разместить» - основанием в колонке стоит проблема склада.
+  test('размещение по проблеме: основание - номер проблемы', () {
     final doc = PortalDoc.fromJson({
       'id': 'd6',
       'kind': 'movement',

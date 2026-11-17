@@ -17,7 +17,7 @@ import (
 	"craftwms/internal/repository"
 )
 
-// pickingPortal — узкий интерфейс сервиса раздела «Сборка-отгрузка» (P8-03).
+// pickingPortal - узкий интерфейс сервиса раздела «Сборка-отгрузка» (P8-03).
 type pickingPortal interface {
 	Orders(ctx context.Context, warehouseCode string, date time.Time) ([]model.PickingPortalOrder, error)
 	Order(ctx context.Context, orderID string) (model.PickingPortalDetail, error)
@@ -25,7 +25,7 @@ type pickingPortal interface {
 	ExportXLSX(ctx context.Context, warehouseCode string, date time.Time) ([]byte, string, error)
 }
 
-// PickingPortalHandler — «Сборка-отгрузка» в портале (P8-03): заказы на дату накладной, окно
+// PickingPortalHandler - «Сборка-отгрузка» в портале (P8-03): заказы на дату накладной, окно
 // деталей, выгрузка Excel, снятие заказа с исполнителя.
 type PickingPortalHandler struct {
 	svc pickingPortal
@@ -126,7 +126,7 @@ type pickingPortalDetailDTO struct {
 	Events  []pickingPortalEventDTO  `json:"events"`
 }
 
-// Orders: GET /api/v1/picking/portal/orders?date=YYYY-MM-DD[&warehouse=SHB] — заказы склада на
+// Orders: GET /api/v1/picking/portal/orders?date=YYYY-MM-DD[&warehouse=SHB] - заказы склада на
 // дату накладной. 200 / 400 (дата) / 404 (склад).
 func (h *PickingPortalHandler) Orders(w http.ResponseWriter, r *http.Request) {
 	date, ok := pickingDate(w, r)
@@ -145,7 +145,7 @@ func (h *PickingPortalHandler) Orders(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// Order: GET /api/v1/picking/portal/orders/{id} — окно деталей: строки план/факт с партиями и
+// Order: GET /api/v1/picking/portal/orders/{id} - окно деталей: строки план/факт с партиями и
 // марками, короба, правки реестра. 200 / 404.
 func (h *PickingPortalHandler) Order(w http.ResponseWriter, r *http.Request) {
 	d, err := h.svc.Order(r.Context(), chi.URLParam(r, "id"))
@@ -156,7 +156,7 @@ func (h *PickingPortalHandler) Order(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, pickingPortalDetailOut(d))
 }
 
-// Release: POST /api/v1/picking/portal/orders/{id}/release — снять заказ с исполнителя: снова
+// Release: POST /api/v1/picking/portal/orders/{id}/release - снять заказ с исполнителя: снова
 // «новый», собранное остаётся в коробах. 204 / 404 / 409 (собран или отгружен).
 func (h *PickingPortalHandler) Release(w http.ResponseWriter, r *http.Request) {
 	leadID, _ := appmw.UserIDFromContext(r.Context())
@@ -167,7 +167,7 @@ func (h *PickingPortalHandler) Release(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// ExportXLSX: GET /api/v1/picking/portal/export.xlsx?date=YYYY-MM-DD[&warehouse=SHB] — все
+// ExportXLSX: GET /api/v1/picking/portal/export.xlsx?date=YYYY-MM-DD[&warehouse=SHB] - все
 // заказы даты файлом на момент нажатия. 200 (attachment) / 400 / 404.
 func (h *PickingPortalHandler) ExportXLSX(w http.ResponseWriter, r *http.Request) {
 	date, ok := pickingDate(w, r)
@@ -185,7 +185,7 @@ func (h *PickingPortalHandler) ExportXLSX(w http.ResponseWriter, r *http.Request
 	_, _ = w.Write(data)
 }
 
-// pickingDate — обязательный параметр ?date=YYYY-MM-DD; ошибка — 400 уже отправлен.
+// pickingDate - обязательный параметр ?date=YYYY-MM-DD; ошибка - 400 уже отправлен.
 func pickingDate(w http.ResponseWriter, r *http.Request) (time.Time, bool) {
 	date, err := time.Parse(time.DateOnly, r.URL.Query().Get("date"))
 	if err != nil {
@@ -195,7 +195,7 @@ func pickingDate(w http.ResponseWriter, r *http.Request) (time.Time, bool) {
 	return date, true
 }
 
-// pickingWarehouse — код склада из ?warehouse=, по умолчанию склад пилота.
+// pickingWarehouse - код склада из ?warehouse=, по умолчанию склад пилота.
 func pickingWarehouse(r *http.Request) string {
 	if code := strings.TrimSpace(r.URL.Query().Get("warehouse")); code != "" {
 		return code
@@ -203,7 +203,7 @@ func pickingWarehouse(r *http.Request) string {
 	return defaultWarehouseCode
 }
 
-// fail — отказы по состоянию заказа текстом для оператора, остальное — 500.
+// fail - отказы по состоянию заказа текстом для оператора, остальное - 500.
 func (h *PickingPortalHandler) fail(w http.ResponseWriter, r *http.Request, err error, action string) {
 	switch {
 	case errors.Is(err, repository.ErrNotFound):
@@ -218,7 +218,7 @@ func (h *PickingPortalHandler) fail(w http.ResponseWriter, r *http.Request, err 
 	}
 }
 
-// dateOnly — дата для JSON: ГГГГ-ММ-ДД, nil остаётся nil.
+// dateOnly - дата для JSON: ГГГГ-ММ-ДД, nil остаётся nil.
 func dateOnly(t *time.Time) *string {
 	if t == nil {
 		return nil

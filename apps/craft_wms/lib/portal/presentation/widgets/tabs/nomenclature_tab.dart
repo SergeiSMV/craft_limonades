@@ -18,13 +18,13 @@ import '../settings/access_common.dart';
 import '../ui/portal_button.dart';
 import '../ui/portal_list_page.dart';
 
-/// Вкладка «Номенклатура склада» (ADHOC-56): весь справочник товаров — и те, которых на складе
+/// Вкладка «Номенклатура склада» (ADHOC-56): весь справочник товаров - и те, которых на складе
 /// нет, как «Номенклатура» на ТСД.
 ///
 /// Что: поиск по наименованию и коду, фильтры по группе и поставщику, список страницами по 50
-/// с «Показать ещё»; загрузка из 1С — кнопкой на панели (по праву загрузки).
+/// с «Показать ещё»; загрузка из 1С - кнопкой на панели (по праву загрузки).
 /// Как: читает сервер напрямую (`CatalogApi`, без кэша ТСД). Поиск применяется после паузы в
-/// наборе; ответ на устаревший запрос отбрасывается по номеру запроса — иначе медленный ответ
+/// наборе; ответ на устаревший запрос отбрасывается по номеру запроса - иначе медленный ответ
 /// на «ка» перекрыл бы уже пришедший ответ на «кальмар».
 class NomenclatureTab extends StatefulWidget {
   const NomenclatureTab({
@@ -36,7 +36,7 @@ class NomenclatureTab extends StatefulWidget {
   /// Право «Загружать номенклатуру из 1С».
   final bool canImport;
 
-  /// Право «Остатки склада: смотреть» — в карточке товара видны места хранения.
+  /// Право «Остатки склада: смотреть» - в карточке товара видны места хранения.
   final bool canStock;
 
   @override
@@ -53,7 +53,7 @@ class _NomenclatureTabState extends State<NomenclatureTab> {
   /// Наибольшая страница, которую отдаёт сервер (`maxLimit` каталога).
   static const _maxPage = 200;
 
-  /// Обычная страница списка — как у [CatalogApi.listGoods] по умолчанию.
+  /// Обычная страница списка - как у [CatalogApi.listGoods] по умолчанию.
   static const _firstPage = 50;
 
   List<NomenclatureGroup> _groups = const [];
@@ -66,7 +66,7 @@ class _NomenclatureTabState extends State<NomenclatureTab> {
   bool _loadingMore = false;
   String? _error;
 
-  /// Номер последнего запроса списка: ответ на более ранний — устарел.
+  /// Номер последнего запроса списка: ответ на более ранний - устарел.
   int _seq = 0;
 
   @override
@@ -83,7 +83,7 @@ class _NomenclatureTabState extends State<NomenclatureTab> {
     super.dispose();
   }
 
-  /// Справочники фильтров; не загрузились — фильтр просто без вариантов.
+  /// Справочники фильтров; не загрузились - фильтр просто без вариантов.
   Future<void> loadFilters() async {
     final groups = await _api.listGroups();
     final suppliers = await _api.listSuppliers();
@@ -113,7 +113,7 @@ class _NomenclatureTabState extends State<NomenclatureTab> {
     });
   }
 
-  /// Следующая страница — дописать в конец. Ошибку подгрузки показываем под списком.
+  /// Следующая страница - дописать в конец. Ошибку подгрузки показываем под списком.
   Future<void> loadMore() async {
     final goods = _goods;
     if (goods == null || _loadingMore) return;
@@ -137,12 +137,12 @@ class _NomenclatureTabState extends State<NomenclatureTab> {
   }
 
   /// Номенклатура изменилась на сервере (ADHOC-60): перечитать фильтры и уже показанные
-  /// строки под текущие поиск и фильтры — тихо, без загрузки на весь экран.
+  /// строки под текущие поиск и фильтры - тихо, без загрузки на весь экран.
   ///
-  /// Как: столько строк, сколько уже показано (а не первую страницу) — иначе после «Показать
+  /// Как: столько строк, сколько уже показано (а не первую страницу) - иначе после «Показать
   /// ещё» список укоротился бы и прокрутка уехала. Сервер отдаёт до [_maxPage] за раз, поэтому
   /// длинный список собирается несколькими запросами. Ошибка тихого чтения не показывается:
-  /// на экране остаётся прежний список. Номер запроса — общий с [load]: смена поиска во время
+  /// на экране остаётся прежний список. Номер запроса - общий с [load]: смена поиска во время
   /// перечитывания отбросит его ответ.
   Future<void> refresh() async {
     final shown = _goods?.length;
@@ -184,25 +184,25 @@ class _NomenclatureTabState extends State<NomenclatureTab> {
     return q.isEmpty ? null : q;
   }
 
-  /// Поиск по мере набора — после паузы, чтобы не спрашивать сервер на каждую букву.
+  /// Поиск по мере набора - после паузы, чтобы не спрашивать сервер на каждую букву.
   void onSearch(String _) {
     _debounce?.cancel();
     _debounce = Timer(_debounceDelay, load);
   }
 
-  /// Фильтр по группе; `null` — все.
+  /// Фильтр по группе; `null` - все.
   void onGroup(String? id) {
     setState(() => _groupId = id);
     load();
   }
 
-  /// Фильтр по поставщику; `null` — все.
+  /// Фильтр по поставщику; `null` - все.
   void onSupplier(String? id) {
     setState(() => _supplierId = id);
     load();
   }
 
-  /// Загрузка из 1С; после неё перечитать фильтры и список — появились новые товары и группы.
+  /// Загрузка из 1С; после неё перечитать фильтры и список - появились новые товары и группы.
   Future<void> import() async {
     if (!await showImportGoodsDialog(context) || !mounted) return;
     loadFilters();
@@ -228,7 +228,7 @@ class _NomenclatureTabState extends State<NomenclatureTab> {
     );
   }
 
-  /// Страница-список: панель поиска и фильтров, под ней — товары.
+  /// Страница-список: панель поиска и фильтров, под ней - товары.
   Widget _listPage(List<Good>? goods) {
     return PortalListPage(
       toolbar: GoodsToolbar(

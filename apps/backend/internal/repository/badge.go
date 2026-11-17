@@ -11,7 +11,7 @@ import (
 	"craftwms/internal/model"
 )
 
-// BadgeRepository — сотрудники с бейджами для печати на ТСД (ADHOC-65).
+// BadgeRepository - сотрудники с бейджами для печати на ТСД (ADHOC-65).
 type BadgeRepository struct {
 	pool *pgxpool.Pool
 }
@@ -26,7 +26,7 @@ const badgeHolderSelect = `
 	FROM users u JOIN positions p ON p.id = u.position_id
 	WHERE u.is_active AND u.login IS NOT NULL`
 
-// Holders — активные сотрудники, входящие по бейджу, по ФИО.
+// Holders - активные сотрудники, входящие по бейджу, по ФИО.
 func (r *BadgeRepository) Holders(ctx context.Context) ([]model.BadgeHolder, error) {
 	rows, err := r.pool.Query(ctx, badgeHolderSelect+` ORDER BY u.full_name, u.id`)
 	if err != nil {
@@ -44,7 +44,7 @@ func (r *BadgeRepository) Holders(ctx context.Context) ([]model.BadgeHolder, err
 	return out, rows.Err()
 }
 
-// Holder — сотрудник с бейджем по id; нет, заблокирован или входит по паролю — ErrUserMissing.
+// Holder - сотрудник с бейджем по id; нет, заблокирован или входит по паролю - ErrUserMissing.
 func (r *BadgeRepository) Holder(ctx context.Context, id string) (model.BadgeHolder, error) {
 	var h model.BadgeHolder
 	err := r.pool.QueryRow(ctx, badgeHolderSelect+` AND u.id = $1::uuid`, id).

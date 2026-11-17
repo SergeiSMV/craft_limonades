@@ -40,7 +40,7 @@ void main() {
   tearDown(() => c.dispose());
 
   test(
-    'без несохранённых галочек — перечитывает, выбор и фильтр живут',
+    'без несохранённых галочек - перечитывает, выбор и фильтр живут',
     () async {
       c.focus('c1');
       c.setFilter(c.filter.copyWith(query: 'A'));
@@ -56,7 +56,7 @@ void main() {
     },
   );
 
-  test('с несохранёнными галочками — не перечитывает', () async {
+  test('с несохранёнными галочками - не перечитывает', () async {
     c.focus('c1');
     c.toggle(CellFlag.small);
     clearInteractions(repo);

@@ -21,7 +21,7 @@ import (
 // завершает и отгружает, оператор видит итог и сверку с 1С в портале. Отдельные шаги и отказы
 // покрыты тестами задач P9-01…P9-08; здесь - их стык.
 
-// pickEnv — склад для сценариев: две ячейки хранения, лимонад двумя партиями, оператор и два
+// pickEnv - склад для сценариев: две ячейки хранения, лимонад двумя партиями, оператор и два
 // кладовщика, сервисы так, как их собирает main.
 type pickEnv struct {
 	t      *testing.T
@@ -82,13 +82,13 @@ func (e *pickEnv) stock(cell, batch string, qty int) {
 	}
 }
 
-// qty — остаток лимонада в ячейке по всем партиям.
+// qty - остаток лимонада в ячейке по всем партиям.
 func (e *pickEnv) qty(cell string) string {
 	e.t.Helper()
 	return e.scan(`SELECT coalesce(sum(qty), 0)::int::text FROM stock WHERE cell_id = $1 AND good_id = $2`, cell, e.lemon)
 }
 
-// shippingQty — сколько лежит в ячейке ОТГРУЗКА.
+// shippingQty - сколько лежит в ячейке ОТГРУЗКА.
 func (e *pickEnv) shippingQty() string {
 	e.t.Helper()
 	return e.scan(`SELECT coalesce(sum(s.qty), 0)::int::text FROM stock s JOIN cells c ON c.id = s.cell_id
@@ -105,13 +105,13 @@ func (e *pickEnv) registry(rows ...[5]string) RegistryPreview {
 	return *res
 }
 
-// order — id заказа сборки по номеру заказа 1С.
+// order - id заказа сборки по номеру заказа 1С.
 func (e *pickEnv) order(number string) string {
 	e.t.Helper()
 	return e.scan(`SELECT id::text FROM picking_orders WHERE order_number = $1`, number)
 }
 
-// start — кладовщик берёт заказ и заводит короб отгрузки; возвращает ярлык короба.
+// start - кладовщик берёт заказ и заводит короб отгрузки; возвращает ярлык короба.
 func (e *pickEnv) start(order, user string) string {
 	e.t.Helper()
 	if err := e.task.Take(e.ctx, order, user); err != nil {
@@ -146,7 +146,7 @@ func (e *pickEnv) pickBySuggestion(order, user, box string) PickingTask {
 	return task
 }
 
-// pick — пик россыпью операцией очереди picking_pick.
+// pick - пик россыпью операцией очереди picking_pick.
 func (e *pickEnv) pick(order, line, user, box, cell, batch string, qty int) (repository.Applied, error) {
 	return e.ops.PickingPick(e.ctx, uuid.NewString(), repository.PickingPickInput{
 		PickID: uuid.NewString(), OrderID: order, LineID: line, BoxID: box, SourceCellID: cell,
@@ -154,7 +154,7 @@ func (e *pickEnv) pick(order, line, user, box, cell, batch string, qty int) (rep
 	})
 }
 
-// ship — «Завершить сборку», печать ярлыков и отгрузка сканом всех коробов.
+// ship - «Завершить сборку», печать ярлыков и отгрузка сканом всех коробов.
 func (e *pickEnv) ship(order, user string) model.PickingShipment {
 	e.t.Helper()
 	s, err := e.task.Complete(e.ctx, order, user)
@@ -177,7 +177,7 @@ func (e *pickEnv) ship(order, user string) model.PickingShipment {
 	return s
 }
 
-// portalOrder — заказ в окне деталей портала.
+// portalOrder - заказ в окне деталей портала.
 func (e *pickEnv) portalOrder(order string) model.PickingPortalDetail {
 	e.t.Helper()
 	d, err := e.portal.Order(e.ctx, order)
@@ -187,14 +187,14 @@ func (e *pickEnv) portalOrder(order string) model.PickingPortalDetail {
 	return d
 }
 
-// events — журнал заказа строкой «вид:кто», через запятую.
+// events - журнал заказа строкой «вид:кто», через запятую.
 func (e *pickEnv) events(order string) string {
 	e.t.Helper()
 	return e.scan(`SELECT string_agg(e.kind || ':' || u.full_name, ',' ORDER BY e.seq)
 		FROM picking_order_events e JOIN users u ON u.id = e.user_id WHERE e.order_id = $1`, order)
 }
 
-// TestPickingScenario_full — полная сборка: реестр → подбор FEFO (старая партия первой) → пик в
+// TestPickingScenario_full - полная сборка: реестр → подбор FEFO (старая партия первой) → пик в
 // короб → «Завершить сборку» (товар из ячеек в ОТГРУЗКУ) → отгрузка (товар ушёл со склада) →
 // портал: отгружен, сходится с 1С, журнал. Повторная загрузка того же файла ничего не меняет.
 func TestPickingScenario_full(t *testing.T) {
@@ -248,7 +248,7 @@ func TestPickingScenario_full(t *testing.T) {
 	}
 }
 
-// TestPickingScenario_shortage — частичная сборка и сверка с 1С: менеджер уменьшает заказ до
+// TestPickingScenario_shortage - частичная сборка и сверка с 1С: менеджер уменьшает заказ до
 // сборки («изменение заказа в 1С»); на складе меньше плана - подбор показывает нехватку,
 // завершение без «не хватает» - отказ, с отметкой - пересчёт позиции и «собран частично».
 // Отгруженный заказ расходится с 1С, пока реестр не приведёт план к факту.
@@ -299,7 +299,7 @@ func TestPickingScenario_shortage(t *testing.T) {
 	}
 }
 
-// TestPickingScenario_competition — две сборки на один остаток: резерва нет, остаток делит пик.
+// TestPickingScenario_competition - две сборки на один остаток: резерва нет, остаток делит пик.
 // Анна взяла все 5 шт. в свой заказ; Борису подбор показывает нехватку, а пик из той же ячейки
 // - отказ. Анна завершила и отгрузила; Борис отмечает «не хватает» по позиции и закрывает свой
 // заказ пустой отгрузкой.

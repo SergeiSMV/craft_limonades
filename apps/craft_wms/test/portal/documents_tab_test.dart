@@ -17,13 +17,13 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../support/fake_dio_adapter.dart';
 
-// ADHOC-26: панель поиска и фильтров закреплена — прокручивается только список под ней;
+// ADHOC-26: панель поиска и фильтров закреплена - прокручивается только список под ней;
 // ADHOC-56: узкая раскладка и переключатель видов «Инвентаризации».
 void main() {
   setUp(LocaleSettings.useDeviceLocale);
 
   setUp(() {
-    // Длинный список: 20 документов — заведомо длиннее экрана.
+    // Длинный список: 20 документов - заведомо длиннее экрана.
     final docs = [
       for (var i = 0; i < 20; i++)
         {
@@ -65,7 +65,7 @@ void main() {
     tester.view.physicalSize = const Size(1200, 700);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    // Загрузка списка — настоящий асинхронный вызов: даём ему пройти в реальном времени.
+    // Загрузка списка - настоящий асинхронный вызов: даём ему пройти в реальном времени.
     await tester.runAsync(() async {
       await tester.pumpWidget(
         const MaterialApp(
@@ -79,7 +79,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Поставщик 0'), findsOneWidget);
 
-    // Панель и таблица — одной ширины: панель не сжимается по своему содержимому.
+    // Панель и таблица - одной ширины: панель не сжимается по своему содержимому.
     expect(
       tester.getRect(find.byType(DocToolbar)).width,
       tester.getRect(find.byType(DocTable)).width,
@@ -96,7 +96,7 @@ void main() {
       before,
       reason: 'панель уехала со списком',
     );
-    // Строки из прокрутки не пропадают из дерева — проверяем, что список сдвинулся.
+    // Строки из прокрутки не пропадают из дерева - проверяем, что список сдвинулся.
     expect(
       tester.getRect(find.text('Поставщик 0')).top,
       lessThan(rowBefore.top - 100),
@@ -116,8 +116,8 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  // ADHOC-56: на телефоне вместо таблицы — строки, каждый факт своей подписанной строкой.
-  testWidgets('узко — строки вместо таблицы, без переполнения', (tester) async {
+  // ADHOC-56: на телефоне вместо таблицы - строки, каждый факт своей подписанной строкой.
+  testWidgets('узко - строки вместо таблицы, без переполнения', (tester) async {
     await open(
       tester,
       const DocumentsTab(kind: 'receipt', empty: 'пусто'),
@@ -138,7 +138,7 @@ void main() {
   });
 
   // ADHOC-56: переключатель видов «Инвентаризации» закреплён над панелью документов.
-  testWidgets('инвентаризация — переключатель над панелью, смена вида', (
+  testWidgets('инвентаризация - переключатель над панелью, смена вида', (
     tester,
   ) async {
     const rights = (view: true, download: true, post: true);

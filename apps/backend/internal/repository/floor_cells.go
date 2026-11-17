@@ -13,26 +13,26 @@ import (
 )
 
 // Напольные ячейки (ADHOC-61): пол у стеллажа, адрес вида «D-Н-П». Ведутся вручную на странице
-// «Ячейки» портала — в файле стеллажей rack_labels их обычно нет. Живут на CellRepository: это
+// «Ячейки» портала - в файле стеллажей rack_labels их обычно нет. Живут на CellRepository: это
 // те же строки cells, что и ячейки стеллажей.
 
 var (
-	// ErrCellExists — на складе уже есть активная ячейка с таким адресом.
+	// ErrCellExists - на складе уже есть активная ячейка с таким адресом.
 	ErrCellExists = errors.New("ячейка с таким адресом уже есть на складе")
-	// ErrCellNotEmpty — в ячейке лежит товар или стоят короба: удалить её нельзя.
+	// ErrCellNotEmpty - в ячейке лежит товар или стоят короба: удалить её нельзя.
 	ErrCellNotEmpty = errors.New("в ячейке есть товар или короба - удалить нельзя")
 )
 
-// IsFloorStorageAddress — адрес напольной ячейки: оканчивается на «-Н-П» (ADHOC-61).
+// IsFloorStorageAddress - адрес напольной ячейки: оканчивается на «-Н-П» (ADHOC-61).
 func IsFloorStorageAddress(address string) bool {
 	return strings.HasSuffix(address, model.FloorStorageSuffix)
 }
 
 // CreateFloorCell заводит напольную ячейку склада и возвращает её id.
 //
-// Как: адрес уже есть у неактивной (удалённой) ячейки — она возвращается в работу напольной:
+// Как: адрес уже есть у неактивной (удалённой) ячейки - она возвращается в работу напольной:
 // на неё ссылается история, вторую строку с тем же адресом уникальный ключ не даст. Адрес у
-// активной ячейки — ErrCellExists. Без стеллажа и карточки: пол на карточку стойки не попадает.
+// активной ячейки - ErrCellExists. Без стеллажа и карточки: пол на карточку стойки не попадает.
 func (r *CellRepository) CreateFloorCell(ctx context.Context, q Querier, warehouseID, address string) (string, error) {
 	var id string
 	err := q.QueryRow(ctx, `
@@ -53,8 +53,8 @@ func (r *CellRepository) CreateFloorCell(ctx context.Context, q Querier, warehou
 
 // RenameFloorCell меняет адрес активной напольной ячейки склада.
 //
-// Ячейка не найдена среди напольных этого склада — ErrNotFound (ячейку стеллажа или приёмки так
-// не переименовать). Адрес занят — ErrCellExists. Остаток и история ссылаются на id, адрес
+// Ячейка не найдена среди напольных этого склада - ErrNotFound (ячейку стеллажа или приёмки так
+// не переименовать). Адрес занят - ErrCellExists. Остаток и история ссылаются на id, адрес
 // меняется вместе с ними.
 func (r *CellRepository) RenameFloorCell(ctx context.Context, q Querier, warehouseID, cellID, address string) error {
 	tag, err := q.Exec(ctx, `
@@ -76,10 +76,10 @@ func (r *CellRepository) RenameFloorCell(ctx context.Context, q Querier, warehou
 
 // DeleteFloorCell убирает пустую напольную ячейку склада: is_active = false.
 //
-// Мягко, а не DELETE: на ячейку ссылаются строки приёмок, движений и пересчётов. Пустая — нет
+// Мягко, а не DELETE: на ячейку ссылаются строки приёмок, движений и пересчётов. Пустая - нет
 // остатка с количеством и нет коробов, стоящих в ней; иначе ErrCellNotEmpty. Строка ячейки
-// блокируется (FOR UPDATE) — параллельное движение в неё дождётся удаления. Не напольная или
-// чужая ячейка — ErrNotFound.
+// блокируется (FOR UPDATE) - параллельное движение в неё дождётся удаления. Не напольная или
+// чужая ячейка - ErrNotFound.
 func (r *CellRepository) DeleteFloorCell(ctx context.Context, q Querier, warehouseID, cellID string) error {
 	var found bool
 	err := q.QueryRow(ctx, `

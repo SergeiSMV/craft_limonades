@@ -11,7 +11,7 @@ import '../../../domain/cells/cells_view.dart';
 ///
 /// Зачем отдельный контроллер, а не `setState` вкладки: на узком окне карточка ячейки
 /// открывается окном поверх страницы, и окно должно видеть те же галочки, что и страница.
-/// Как: выбор — либо одна ячейка «в фокусе» (нажали на строку), либо отмеченные галочками
+/// Как: выбор - либо одна ячейка «в фокусе» (нажали на строку), либо отмеченные галочками
 /// строки; смена выбора сбрасывает несохранённые галочки. Галочка с чертой (у части выборки)
 /// по нажатию ставится всем.
 class CellsController extends ChangeNotifier {
@@ -19,7 +19,7 @@ class CellsController extends ChangeNotifier {
 
   final CellsRepository _repo;
 
-  /// Строк списка за раз; дальше — «Показать ещё».
+  /// Строк списка за раз; дальше - «Показать ещё».
   static const pageSize = 50;
 
   CellsView? view;
@@ -67,9 +67,9 @@ class CellsController extends ChangeNotifier {
   bool get hasUnsaved => draft.isNotEmpty || saving;
 
   /// Ячейки изменились на сервере (ADHOC-60): перечитать, только если на странице нет
-  /// несохранённых галочек — иначе молча пропустить, чтобы не сбить правку (сохранение само
+  /// несохранённых галочек - иначе молча пропустить, чтобы не сбить правку (сохранение само
   /// перечитает склад). Ошибка тихого чтения не показывается: список остаётся прежним.
-  /// Фильтр, число показанных строк и выбор сохраняются — их держит контроллер, [load] их
+  /// Фильтр, число показанных строк и выбор сохраняются - их держит контроллер, [load] их
   /// не сбрасывает.
   Future<void> reloadIfClean() async {
     if (hasUnsaved) return;
@@ -79,13 +79,13 @@ class CellsController extends ChangeNotifier {
     _notify();
   }
 
-  /// Ячейки под фильтр — весь список, не только показанные строки.
+  /// Ячейки под фильтр - весь список, не только показанные строки.
   List<CellSetup> get rows => view?.filtered(filter) ?? const [];
 
   /// Показанные строки: первые [shown] под фильтр.
   List<CellSetup> get visible => rows.take(shown).toList();
 
-  /// Кого правит карточка: отмеченные строки, а без них — ячейка в фокусе.
+  /// Кого правит карточка: отмеченные строки, а без них - ячейка в фокусе.
   List<CellSetup> get targets {
     final v = view;
     if (v == null) return const [];
@@ -126,7 +126,7 @@ class CellsController extends ChangeNotifier {
     _resetDraft();
   }
 
-  /// Галочка шапки: все ячейки под фильтр отмечены — снять с них, иначе отметить все под
+  /// Галочка шапки: все ячейки под фильтр отмечены - снять с них, иначе отметить все под
   /// фильтр, включая ещё не показанные строки. Отметки вне фильтра не трогаются.
   void togglePickFiltered() {
     final ids = rows.map((c) => c.id).toList();
@@ -140,16 +140,16 @@ class CellsController extends ChangeNotifier {
     _resetDraft();
   }
 
-  /// Значение галочки карточки: несохранённое, а без него — сводное по выборке.
+  /// Значение галочки карточки: несохранённое, а без него - сводное по выборке.
   bool? value(CellFlag flag) {
     if (draft.containsKey(flag)) return draft[flag];
-    // Сводная может быть `null` (черта) — её не подменять на «снято».
+    // Сводная может быть `null` (черта) - её не подменять на «снято».
     final v = view;
     return v == null ? false : v.aggregate(targets, flag);
   }
 
   /// Нажали на галочку карточки: снятая и с чертой ставятся, стоящая снимается. Вернулась к
-  /// сохранённому — несохранённой правки нет.
+  /// сохранённому - несохранённой правки нет.
   void toggle(CellFlag flag) {
     final next = value(flag) != true;
     if (next == view?.aggregate(targets, flag)) {
@@ -169,8 +169,8 @@ class CellsController extends ChangeNotifier {
     _notify();
   }
 
-  /// Сохранить галочки выборки и перечитать склад. Текст об успехе — для уведомления;
-  /// `null` — не сохранено (ошибка — в [saveError]).
+  /// Сохранить галочки выборки и перечитать склад. Текст об успехе - для уведомления;
+  /// `null` - не сохранено (ошибка - в [saveError]).
   Future<String?> save() async {
     final list = targets;
     if (draft.isEmpty || list.isEmpty || saving) return null;
@@ -219,7 +219,7 @@ class CellsController extends ChangeNotifier {
   }
 }
 
-/// Текст ошибки для оператора: текст сервера как есть (причины 409 и 422), иначе — общий.
+/// Текст ошибки для оператора: текст сервера как есть (причины 409 и 422), иначе - общий.
 String failureText(Failure f) => switch (f) {
   ServerFailure(:final message?) => message,
   ServerFailure(:final statusCode) => t.portal.cells.errorCode(

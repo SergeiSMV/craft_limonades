@@ -12,10 +12,10 @@ import 'package:talker_flutter/talker_flutter.dart';
 void main() {
   const channel = EventChannel('craft_wms/scanner/scans');
 
-  testWidgets('в фоне скан отбрасывается, на экране — принимается', (
+  testWidgets('в фоне скан отбрасывается, на экране - принимается', (
     tester,
   ) async {
-    // Мост есть только на Android; переопределение снимается в конце тела — фреймворк
+    // Мост есть только на Android; переопределение снимается в конце тела - фреймворк
     // проверяет отладочные переменные до tearDown.
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
 

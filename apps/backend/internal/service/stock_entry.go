@@ -15,54 +15,54 @@ import (
 
 // Форматы даты выпуска: транспортный (тело запроса) и внутренний ISO (для БД/партий).
 const (
-	dateLayoutIn  = "02-01-2006" // DD-MM-YYYY — как приходит в API
-	dateLayoutISO = "2006-01-02" // YYYY-MM-DD — канон для Postgres/партий
+	dateLayoutIn  = "02-01-2006" // DD-MM-YYYY - как приходит в API
+	dateLayoutISO = "2006-01-02" // YYYY-MM-DD - канон для Postgres/партий
 )
 
 // Ошибки ввода сессии остатков.
 var (
-	// ErrInvalidDate — дата выпуска не в формате DD-MM-YYYY либо несуществующая.
+	// ErrInvalidDate - дата выпуска не в формате DD-MM-YYYY либо несуществующая.
 	ErrInvalidDate = errors.New("invalid production date (expected DD-MM-YYYY)")
-	// ErrEmptyWarehouse — не передан склад для старта сессии.
+	// ErrEmptyWarehouse - не передан склад для старта сессии.
 	ErrEmptyWarehouse = errors.New("warehouse_id is required")
-	// ErrEmptyCell — не передана ячейка в checkpoint.
+	// ErrEmptyCell - не передана ячейка в checkpoint.
 	ErrEmptyCell = errors.New("cell_id is required")
-	// ErrInvalidSessionID — клиент прислал session_id, не являющийся UUID.
+	// ErrInvalidSessionID - клиент прислал session_id, не являющийся UUID.
 	ErrInvalidSessionID = errors.New("session_id must be a UUID")
 )
 
-// EntryLine — строка ввода (транспорт): дата в DD-MM-YYYY.
+// EntryLine - строка ввода (транспорт): дата в DD-MM-YYYY.
 type EntryLine struct {
 	GoodID         string
 	ProductionDate string
 	Qty            decimal.Decimal
-	// LoadUnitID — короб ячейки, в котором лежит товар (ADHOC-46); пусто — россыпь.
+	// LoadUnitID - короб ячейки, в котором лежит товар (ADHOC-46); пусто - россыпь.
 	LoadUnitID string
-	// Marks — марки ЧЗ строки (ADHOC-46).
+	// Marks - марки ЧЗ строки (ADHOC-46).
 	Marks []EntryMark
 }
 
-// EntryMark — марка ЧЗ строки ввода (ADHOC-46).
+// EntryMark - марка ЧЗ строки ввода (ADHOC-46).
 type EntryMark struct {
 	CIS           string
-	AggregateCode string // упаковка ЧЗ той же ячейки; пусто — сама по себе
-	Discrepancy   string // расхождение со скана; пусто — нет
+	AggregateCode string // упаковка ЧЗ той же ячейки; пусто - сама по себе
+	Discrepancy   string // расхождение со скана; пусто - нет
 }
 
-// EntryLoadUnit — короб, заведённый в ячейке прохода (ADHOC-46): свой с QR или короб ЧЗ.
+// EntryLoadUnit - короб, заведённый в ячейке прохода (ADHOC-46): свой с QR или короб ЧЗ.
 type EntryLoadUnit struct {
 	ID     string
 	Kind   string
-	CZCode string // `00`+SSCC короба ЧЗ; пусто — свой короб с QR
+	CZCode string // `00`+SSCC короба ЧЗ; пусто - свой короб с QR
 }
 
-// EntryGroup — групповая упаковка ЧЗ ячейки прохода (ADHOC-46).
+// EntryGroup - групповая упаковка ЧЗ ячейки прохода (ADHOC-46).
 type EntryGroup struct {
 	Code       string
 	ParentCode string
 }
 
-// EntryCell — ячейка прохода в checkpoint'е (транспорт).
+// EntryCell - ячейка прохода в checkpoint'е (транспорт).
 type EntryCell struct {
 	CellID    string
 	Lines     []EntryLine
@@ -71,14 +71,14 @@ type EntryCell struct {
 	Barcodes  []EntryBarcode
 }
 
-// EntryBarcode — новая привязка ШК, пришедшая с checkpoint'ом.
+// EntryBarcode - новая привязка ШК, пришедшая с checkpoint'ом.
 type EntryBarcode struct {
 	GoodID    string
 	Barcode   string
 	Symbology string
 }
 
-// stockEntryRepo — зависимость сервиса от репозитория сессии (интерфейс ради тестируемости).
+// stockEntryRepo - зависимость сервиса от репозитория сессии (интерфейс ради тестируемости).
 type stockEntryRepo interface {
 	Create(ctx context.Context, warehouseID, createdBy string) (string, error)
 	CreateWithID(ctx context.Context, sessionID, warehouseID, createdBy string) (string, error)
@@ -86,7 +86,7 @@ type stockEntryRepo interface {
 	Finalize(ctx context.Context, sessionID string) (int, error)
 }
 
-// StockEntryService — сессия ввода остатков: старт, checkpoint ячейки, финал. Валидирует ввод и
+// StockEntryService - сессия ввода остатков: старт, checkpoint ячейки, финал. Валидирует ввод и
 // приводит дату из DD-MM-YYYY в ISO; транзакционную атомарность держит репозиторий (P-FS-04).
 type StockEntryService struct {
 	repo stockEntryRepo
@@ -97,10 +97,10 @@ func NewStockEntryService(repo stockEntryRepo) *StockEntryService {
 	return &StockEntryService{repo: repo}
 }
 
-// Start открывает сессию ввода для склада; createdBy — id аутентифицированного кладовщика.
+// Start открывает сессию ввода для склада; createdBy - id аутентифицированного кладовщика.
 //
-// sessionID — идентификатор, выданный устройством (P2-05). Пустой означает «сервер, выдай сам»:
-// так ходит APK, собранная до P2-05, и ломать её незачем — старт по-прежнему работает, просто
+// sessionID - идентификатор, выданный устройством (P2-05). Пустой означает «сервер, выдай сам»:
+// так ходит APK, собранная до P2-05, и ломать её незачем - старт по-прежнему работает, просто
 // без офлайн-адресации.
 //
 // Непустой id идемпотентен: повторный старт той же сессии возвращает её же. Это нужно ровно
@@ -125,7 +125,7 @@ func (s *StockEntryService) Start(ctx context.Context, sessionID, warehouseID, c
 // Checkpoint фиксирует ячейку: валидирует строки, короба, упаковки и марки, привязки, парсит
 // даты и передаёт в репозиторий.
 //
-// Форма данных ЧЗ (коды, вложенность упаковок, марка короба ЧЗ — в строке этого короба)
+// Форма данных ЧЗ (коды, вложенность упаковок, марка короба ЧЗ - в строке этого короба)
 // проверяется тем же czIntake, что у приёмки (ADHOC-46): отказ до транзакции, а не нарушение
 // ключа на середине вставки. Строка в коробе ссылается на короб той же ячейки.
 func (s *StockEntryService) Checkpoint(ctx context.Context, sessionID string, cell EntryCell) error {
@@ -171,7 +171,7 @@ func (s *StockEntryService) Checkpoint(ctx context.Context, sessionID string, ce
 		if luID != "" && !boxes[luID] {
 			return ErrInvalidLoadUnitID
 		}
-		// Ноль россыпью — «здесь этого нет» (SET грани), а пустая строка короба смысла не имеет.
+		// Ноль россыпью - «здесь этого нет» (SET грани), а пустая строка короба смысла не имеет.
 		if ln.Qty.IsNegative() || (luID != "" && !ln.Qty.IsPositive()) {
 			return ErrInvalidQuantity
 		}

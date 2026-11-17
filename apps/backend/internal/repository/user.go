@@ -11,10 +11,10 @@ import (
 	"craftwms/internal/model"
 )
 
-// ErrUserNotFound — пользователь не найден по логину/id.
+// ErrUserNotFound - пользователь не найден по логину/id.
 var ErrUserNotFound = errors.New("user not found")
 
-// UserRepository — доступ к таблице users. Изолирует SQL от домена.
+// UserRepository - доступ к таблице users. Изолирует SQL от домена.
 type UserRepository struct {
 	pool *pgxpool.Pool
 }
@@ -26,7 +26,7 @@ func NewUserRepository(pool *pgxpool.Pool) *UserRepository {
 
 // колонки в фиксированном порядке; id приводим к тексту (id::text), чтобы скан шёл в string.
 // login и username nullable → COALESCE к ” (пусто = отсутствует), чтобы скан шёл в string.
-// Должность и её права — тем же запросом (ADHOC-49): права проверяются по ним.
+// Должность и её права - тем же запросом (ADHOC-49): права проверяются по ним.
 const userColumns = `u.id::text AS id, COALESCE(u.login,'') AS login, COALESCE(u.username,'') AS username,
 	u.password_hash, u.full_name, u.position_id::text AS position_id, p.name AS position_name,
 	p.is_system AS position_system, p.rights AS position_rights, u.badge_secret_enc, u.is_active,
@@ -61,7 +61,7 @@ func (r *UserRepository) GetByID(ctx context.Context, id string) (model.User, er
 	return collectUser(rows)
 }
 
-// SaveBadgeSecret запоминает зашифрованный секрет бейджа (ADHOC-65) — после входа по нему.
+// SaveBadgeSecret запоминает зашифрованный секрет бейджа (ADHOC-65) - после входа по нему.
 // Только у той же строки с тем же логином: бейдж за время входа могли сменить в портале.
 func (r *UserRepository) SaveBadgeSecret(ctx context.Context, id, login string, sealed []byte) error {
 	if _, err := r.pool.Exec(ctx, `
@@ -72,9 +72,9 @@ func (r *UserRepository) SaveBadgeSecret(ctx context.Context, id, login string, 
 	return nil
 }
 
-// UserAccess — доступ пользователя (ADHOC-49): действующие права, системная ли должность,
-// активен ли. Его проверяет middleware на каждой ручке с правом — из базы на каждый запрос, а
-// не из токена: смена должности и блокировка действуют сразу. Нет пользователя — неактивен.
+// UserAccess - доступ пользователя (ADHOC-49): действующие права, системная ли должность,
+// активен ли. Его проверяет middleware на каждой ручке с правом - из базы на каждый запрос, а
+// не из токена: смена должности и блокировка действуют сразу. Нет пользователя - неактивен.
 func (r *UserRepository) UserAccess(ctx context.Context, userID string) (model.Access, error) {
 	var a model.Access
 	var rights []string
@@ -93,7 +93,7 @@ func (r *UserRepository) UserAccess(ctx context.Context, userID string) (model.A
 }
 
 // CreateAdminIfNotExists создаёт админа (должность «Администратор»), если логина ещё нет. Идемпотентно.
-// Возвращает created=true, если строка была вставлена; false — если логин уже существовал.
+// Возвращает created=true, если строка была вставлена; false - если логин уже существовал.
 func (r *UserRepository) CreateAdminIfNotExists(ctx context.Context, login, passwordHash, fullName string) (bool, error) {
 	// ON CONFLICT DO NOTHING RETURNING id: при конфликте строк не вернётся → created=false.
 	rows, err := r.pool.Query(ctx, `
@@ -110,7 +110,7 @@ func (r *UserRepository) CreateAdminIfNotExists(ctx context.Context, login, pass
 }
 
 // CreateUsernameAdminIfNotExists создаёт admin с входом по username/паролю (без бейджа).
-// Идемпотентно: при существующем username строку не вставляет. created=true — если вставили.
+// Идемпотентно: при существующем username строку не вставляет. created=true - если вставили.
 func (r *UserRepository) CreateUsernameAdminIfNotExists(ctx context.Context, username, passwordHash, fullName string) (bool, error) {
 	// login=NULL (у admin бейджа нет); XOR-констрейнт схемы это допускает.
 	rows, err := r.pool.Query(ctx, `

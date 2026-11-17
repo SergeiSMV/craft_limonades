@@ -6,14 +6,14 @@ import 'cz_scan.dart';
 part 'cz_intake.freezed.dart';
 part 'cz_intake.g.dart';
 
-/// Приход марок «Честного знака» — общее для приёмки (CZ-05) и «Ввода остатков» (ADHOC-46):
-/// модели марки и упаковки в черновике и чистые правила «из ответа скана — в строки прихода».
+/// Приход марок «Честного знака» - общее для приёмки (CZ-05) и «Ввода остатков» (ADHOC-46):
+/// модели марки и упаковки в черновике и чистые правила «из ответа скана - в строки прихода».
 /// Вынесено из приёмки, чтобы оба прихода читали ЧЗ одинаково и проверялись без экрана.
 
 /// Марка «Честного знака» в строке прихода, как её прочитал скан.
 ///
-/// [aggregateCode] — короб ЧЗ или групповая упаковка этого прихода, в которой марка пришла;
-/// `null` — марка россыпью. [discrepancy] — расхождение с ЧЗ (`foreign_mark`, `retired`):
+/// [aggregateCode] - короб ЧЗ или групповая упаковка этого прихода, в которой марка пришла;
+/// `null` - марка россыпью. [discrepancy] - расхождение с ЧЗ (`foreign_mark`, `retired`):
 /// такая марка принимается, а сервер при проводке уводит её проблемой в «Изолятор».
 @freezed
 abstract class CzMarkDraft with _$CzMarkDraft {
@@ -28,7 +28,7 @@ abstract class CzMarkDraft with _$CzMarkDraft {
 }
 
 /// Групповая упаковка ЧЗ прихода: из состава короба ЧЗ или отсканированная целиком.
-/// [parentCode] — короб или упаковка этого же прихода; `null` — сама по себе.
+/// [parentCode] - короб или упаковка этого же прихода; `null` - сама по себе.
 @freezed
 abstract class CzGroupDraft with _$CzGroupDraft {
   const factory CzGroupDraft({required String code, String? parentCode}) =
@@ -39,7 +39,7 @@ abstract class CzGroupDraft with _$CzGroupDraft {
 }
 
 /// Товар партии с марками ЧЗ, готовый лечь в приход: что прочитал скан, с товаром
-/// справочника и датой производства единиц (дд.мм.гггг). Количество — число марок.
+/// справочника и датой производства единиц (дд.мм.гггг). Количество - число марок.
 class CzIntakeLine {
   const CzIntakeLine({
     required this.good,
@@ -60,7 +60,7 @@ enum CzIntakeAdd {
   /// Короб или марка уже есть в этом приходе: второй раз одну бутылку не принять.
   duplicate,
 
-  /// Короб ЧЗ закрыт: его состав — из ЧЗ, руками в него не добавляют.
+  /// Короб ЧЗ закрыт: его состав - из ЧЗ, руками в него не добавляют.
   czBoxClosed,
 }
 
@@ -81,11 +81,11 @@ List<CzGroupDraft> groupsOutsideBox(List<CzGroupDraft> groups, String boxCode) {
   return groups.where((g) => !gone.contains(g.code)).toList();
 }
 
-/// Строки прихода из ответа скана: у марки — она сама, у упаковки — её состав по товару и
-/// партии; упаковка каждой марки — из `parents` ответа (иначе сам сканированный код).
+/// Строки прихода из ответа скана: у марки - она сама, у упаковки - её состав по товару и
+/// партии; упаковка каждой марки - из `parents` ответа (иначе сам сканированный код).
 ///
-/// [goods] — товар справочника по GTIN; строки без товара или без даты производства не
-/// собираются — экран проверяет это до вызова ([czScanGaps]).
+/// [goods] - товар справочника по GTIN; строки без товара или без даты производства не
+/// собираются - экран проверяет это до вызова ([czScanGaps]).
 List<CzIntakeLine> czIntakeLines(CzScanResult scan, Map<String, Good> goods) {
   if (scan.kind == CzCodeKind.unit) {
     final good = goods[scan.gtin];
@@ -117,8 +117,8 @@ List<CzIntakeLine> czIntakeLines(CzScanResult scan, Map<String, Good> goods) {
   ];
 }
 
-/// Упаковки прихода из ответа скана. Короб ЧЗ сам упаковкой не числится — он ГЕ с кодом;
-/// групповая упаковка, отсканированная целиком, — упаковка без родителя: её короба в
+/// Упаковки прихода из ответа скана. Короб ЧЗ сам упаковкой не числится - он ГЕ с кодом;
+/// групповая упаковка, отсканированная целиком, - упаковка без родителя: её короба в
 /// приходе нет.
 List<CzGroupDraft> czIntakeGroups(CzScanResult scan) => [
   if (scan.kind == CzCodeKind.group) CzGroupDraft(code: scan.code),
@@ -127,7 +127,7 @@ List<CzGroupDraft> czIntakeGroups(CzScanResult scan) => [
 ];
 
 /// Чего не хватает, чтобы принять скан: GTIN без товара справочника (их ШК для привязки) и
-/// единицы без даты производства — без неё не определить партию.
+/// единицы без даты производства - без неё не определить партию.
 ({List<String> unknownGtins, bool noDate}) czScanGaps(
   CzScanResult scan,
   Map<String, Good> goods,
@@ -149,18 +149,18 @@ List<CzGroupDraft> czIntakeGroups(CzScanResult scan) => [
   );
 }
 
-/// Дата производства в виде строки прихода — дд.мм.гггг.
+/// Дата производства в виде строки прихода - дд.мм.гггг.
 String czDate(DateTime d) =>
     '${_two(d.day)}.${_two(d.month)}.${d.year.toString().padLeft(4, '0')}';
 
 String _two(int v) => v.toString().padLeft(2, '0');
 
-/// EAN-13 для привязки по GTIN-14: без ведущего нуля — так и обычный скан ШК той же бутылки
+/// EAN-13 для привязки по GTIN-14: без ведущего нуля - так и обычный скан ШК той же бутылки
 /// найдёт товар (то же правило, что у сервера в скане марки).
 String ean13FromGtin(String gtin) =>
     gtin.length == 14 && gtin.startsWith('0') ? gtin.substring(1) : gtin;
 
-/// Тело марок строки для сервера — одинаковое у приёмки и ввода остатков.
+/// Тело марок строки для сервера - одинаковое у приёмки и ввода остатков.
 Map<String, dynamic> czMarkJson(CzMarkDraft m) => {
   'cis': m.cis,
   'aggregate_code': m.aggregateCode ?? '',

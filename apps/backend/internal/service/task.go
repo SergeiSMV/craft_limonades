@@ -10,9 +10,9 @@ import (
 	"craftwms/internal/repository"
 )
 
-// TaskStaleAfter — через сколько без отправок взятое задание снова видно всем (решение
+// TaskStaleAfter - через сколько без отправок взятое задание снова видно всем (решение
 // 2026-10-07): кладовщик мог уйти со смены или разрядить терминал, и задание не должно застрять.
-// Снимать задание вручную будет портал (P8-03-01); этот срок — страховка до него и вместе с ним.
+// Снимать задание вручную будет портал (P8-03-01); этот срок - страховка до него и вместе с ним.
 const TaskStaleAfter = 8 * time.Hour
 
 // Пределы страницы ленты «Завершённые».
@@ -23,11 +23,11 @@ const (
 
 // Ошибки входа заданий.
 var (
-	// ErrInvalidTaskFilter — фильтр ленты не разобран (дата, курсор, исполнитель).
+	// ErrInvalidTaskFilter - фильтр ленты не разобран (дата, курсор, исполнитель).
 	ErrInvalidTaskFilter = errors.New("invalid completed tasks filter")
 )
 
-// taskRepo — зависимость сервиса заданий (интерфейс ради тестируемости).
+// taskRepo - зависимость сервиса заданий (интерфейс ради тестируемости).
 type taskRepo interface {
 	Current(ctx context.Context, userID string, staleAfter time.Duration) ([]model.Task, error)
 	ByID(ctx context.Context, id, userID string) (model.Task, error)
@@ -39,7 +39,7 @@ type taskRepo interface {
 	Executors(ctx context.Context) ([]model.TaskUser, error)
 }
 
-// TaskService — задания для склада на ТСД (P5-02-1): текущие, взятие, лента завершённых.
+// TaskService - задания для склада на ТСД (P5-02-1): текущие, взятие, лента завершённых.
 type TaskService struct {
 	repo taskRepo
 }
@@ -49,19 +49,19 @@ func NewTaskService(repo taskRepo) *TaskService {
 	return &TaskService{repo: repo}
 }
 
-// Current — текущие задания пользователя: пул и свои взятые.
+// Current - текущие задания пользователя: пул и свои взятые.
 func (s *TaskService) Current(ctx context.Context, userID string) ([]model.Task, error) {
 	return s.repo.Current(ctx, userID, TaskStaleAfter)
 }
 
-// TaskDetail — карточка задания: шапка с позициями, заходы и журнал событий.
+// TaskDetail - карточка задания: шапка с позициями, заходы и журнал событий.
 type TaskDetail struct {
 	Task     model.Task
 	Sessions []model.TaskSession
 	Events   []model.TaskEvent
 }
 
-// Detail — задание с позициями, заходами и журналом событий.
+// Detail - задание с позициями, заходами и журналом событий.
 func (s *TaskService) Detail(ctx context.Context, id, userID string) (TaskDetail, error) {
 	if !isUUID(id) {
 		return TaskDetail{}, repository.ErrTaskNotFound
@@ -81,7 +81,7 @@ func (s *TaskService) Detail(ctx context.Context, id, userID string) (TaskDetail
 	return TaskDetail{Task: t, Sessions: sessions, Events: events}, nil
 }
 
-// Take — взять задание в работу.
+// Take - взять задание в работу.
 func (s *TaskService) Take(ctx context.Context, id, userID string) error {
 	if !isUUID(id) {
 		return repository.ErrTaskNotFound
@@ -89,7 +89,7 @@ func (s *TaskService) Take(ctx context.Context, id, userID string) error {
 	return s.repo.Take(ctx, id, userID, TaskStaleAfter)
 }
 
-// Release — отказаться от взятого задания: оно возвращается в пул.
+// Release - отказаться от взятого задания: оно возвращается в пул.
 func (s *TaskService) Release(ctx context.Context, id, userID string) error {
 	if !isUUID(id) {
 		return repository.ErrTaskNotFound
@@ -97,9 +97,9 @@ func (s *TaskService) Release(ctx context.Context, id, userID string) error {
 	return s.repo.Release(ctx, id, userID)
 }
 
-// CompletedQuery — фильтр ленты в транспортном виде, как его шлёт ТСД.
+// CompletedQuery - фильтр ленты в транспортном виде, как его шлёт ТСД.
 //
-// Даты — 'YYYY-MM-DD' по времени склада (МСК); `to` включается целиком. Курсор — время
+// Даты - 'YYYY-MM-DD' по времени склада (МСК); `to` включается целиком. Курсор - время
 // завершения (RFC3339) и id последней показанной записи.
 type CompletedQuery struct {
 	From, To          string
@@ -110,7 +110,7 @@ type CompletedQuery struct {
 	Limit             int
 }
 
-// warehouseZone — часовой пояс склада: «день» в фильтре — это день склада, а не UTC сервера.
+// warehouseZone - часовой пояс склада: «день» в фильтре - это день склада, а не UTC сервера.
 var warehouseZone = func() *time.Location {
 	loc, err := time.LoadLocation("Europe/Moscow")
 	if err != nil {
@@ -119,7 +119,7 @@ var warehouseZone = func() *time.Location {
 	return loc
 }()
 
-// Completed — страница ленты «Завершённые» по фильтру.
+// Completed - страница ленты «Завершённые» по фильтру.
 func (s *TaskService) Completed(ctx context.Context, q CompletedQuery) ([]model.CompletedTask, error) {
 	w, err := parseFeedWindow(q.From, q.To, q.BeforeCompletedAt, q.BeforeID, q.Limit,
 		completedDefaultLimit, completedMaxLimit)
@@ -140,7 +140,7 @@ func (s *TaskService) Completed(ctx context.Context, q CompletedQuery) ([]model.
 	return s.repo.Completed(ctx, f)
 }
 
-// Executors — варианты фильтра ленты по исполнителю.
+// Executors - варианты фильтра ленты по исполнителю.
 func (s *TaskService) Executors(ctx context.Context) ([]model.TaskUser, error) {
 	return s.repo.Executors(ctx)
 }

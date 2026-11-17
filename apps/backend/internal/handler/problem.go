@@ -17,7 +17,7 @@ import (
 	"craftwms/internal/service"
 )
 
-// ProblemHandler — «Проблемы склада» в портале (P6-07-3): список и решение офиса.
+// ProblemHandler - «Проблемы склада» в портале (P6-07-3): список и решение офиса.
 type ProblemHandler struct {
 	svc *service.ProblemService
 }
@@ -38,7 +38,7 @@ type problemItemResponse struct {
 
 type problemResponse struct {
 	ID          string    `json:"id"`
-	Number      int64     `json:"number"` // номер для людей (ADHOC-55), префикс — у показа
+	Number      int64     `json:"number"` // номер для людей (ADHOC-55), префикс - у показа
 	CreatedAt   time.Time `json:"created_at"`
 	CreatedBy   string    `json:"created_by"`
 	CellAddress string    `json:"cell_address"`
@@ -47,7 +47,7 @@ type problemResponse struct {
 	ReasonName  string    `json:"reason_name"` // название по справочнику (ADHOC-55)
 	Comment     string    `json:"comment"`
 	Mark        string    `json:"mark,omitempty"`
-	// Marks — КИ марок ЧЗ проблемы (ADHOC-52); нет марок — пустой список.
+	// Marks - КИ марок ЧЗ проблемы (ADHOC-52); нет марок - пустой список.
 	Marks         []string `json:"marks"`
 	FromWarehouse string   `json:"from_warehouse"`
 	ToWarehouse   string   `json:"to_warehouse"`
@@ -57,13 +57,13 @@ type problemResponse struct {
 	Items    []problemItemResponse `json:"items"`
 	// Варианты решения, которыми проблему можно решить сейчас, в порядке справочника (ADHOC-55).
 	Resolutions []problemResolutionResponse `json:"resolutions"`
-	// Decisions — действия этих вариантов: прежний бандл портала решает действием.
+	// Decisions - действия этих вариантов: прежний бандл портала решает действием.
 	Decisions           []string `json:"decisions"`
 	SuggestedSupplierID string   `json:"suggested_supplier_id,omitempty"`
 
 	Status   string `json:"status"`
 	Decision string `json:"decision,omitempty"`
-	// ResolutionName — выбранный вариант решения (ADHOC-55).
+	// ResolutionName - выбранный вариант решения (ADHOC-55).
 	ResolutionName string     `json:"resolution_name,omitempty"`
 	DocNumber      string     `json:"doc_number,omitempty"`
 	DocDate        string     `json:"doc_date,omitempty"`
@@ -72,12 +72,12 @@ type problemResponse struct {
 	ReturnTaskNo   int64      `json:"return_task_number,omitempty"`
 	ResolvedBy     string     `json:"resolved_by,omitempty"`
 	ResolvedAt     *time.Time `json:"resolved_at,omitempty"`
-	// Исполнение возврата (ADHOC-34): кто и когда отгрузил поставщику; нет — ещё не отгружен.
+	// Исполнение возврата (ADHOC-34): кто и когда отгрузил поставщику; нет - ещё не отгружен.
 	ShippedBy string     `json:"shipped_by,omitempty"`
 	ShippedAt *time.Time `json:"shipped_at,omitempty"`
-	// ShipmentNumber — номер отгрузки возврата, «ВП» (ADHOC-55); нет — не отгружен.
+	// ShipmentNumber - номер отгрузки возврата, «ВП» (ADHOC-55); нет - не отгружен.
 	ShipmentNumber int64 `json:"shipment_number,omitempty"`
-	// Photos — идентификаторы фото в порядке съёмки (ADHOC-45); снимок — отдельным запросом.
+	// Photos - идентификаторы фото в порядке съёмки (ADHOC-45); снимок - отдельным запросом.
 	Photos []string `json:"photos"`
 }
 
@@ -108,7 +108,7 @@ func toProblemResponse(p model.Problem) problemResponse {
 	}
 }
 
-// orEmpty — пустой список вместо null: клиенту не нужно отличать «нет фото» или «нет марок»
+// orEmpty - пустой список вместо null: клиенту не нужно отличать «нет фото» или «нет марок»
 // от «нет поля».
 func orEmpty(ids []string) []string {
 	if ids == nil {
@@ -117,11 +117,11 @@ func orEmpty(ids []string) []string {
 	return ids
 }
 
-// List: GET /api/v1/problems?status=open|resolved — рабочий список: открытые сверху.
+// List: GET /api/v1/problems?status=open|resolved - рабочий список: открытые сверху.
 func (h *ProblemHandler) List(w http.ResponseWriter, r *http.Request) {
 	items, err := h.svc.List(r.Context(), r.URL.Query().Get("status"))
 	if errors.Is(err, service.ErrInvalidDecision) {
-		writeError(w, http.StatusBadRequest, "статус — open или resolved")
+		writeError(w, http.StatusBadRequest, "статус - open или resolved")
 		return
 	}
 	if err != nil {
@@ -136,8 +136,8 @@ func (h *ProblemHandler) List(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// Current: GET /api/v1/problems/current — открытые проблемы склада на ТСД (ADHOC-35), свежие
-// первыми: вкладка «Текущие». Форма — та же, что у ленты решённых.
+// Current: GET /api/v1/problems/current - открытые проблемы склада на ТСД (ADHOC-35), свежие
+// первыми: вкладка «Текущие». Форма - та же, что у ленты решённых.
 func (h *ProblemHandler) Current(w http.ResponseWriter, r *http.Request) {
 	items, err := h.svc.Current(r.Context())
 	if err != nil {
@@ -152,7 +152,7 @@ func (h *ProblemHandler) Current(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// Resolved: GET /api/v1/problems/resolved?from=&to=&before_resolved_at=&before_id=&limit= —
+// Resolved: GET /api/v1/problems/resolved?from=&to=&before_resolved_at=&before_id=&limit= -
 // лента «Завершённые» проблем на ТСД (ADHOC-34): только решённые офисом, свежие первыми.
 func (h *ProblemHandler) Resolved(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
@@ -178,8 +178,8 @@ func (h *ProblemHandler) Resolved(w http.ResponseWriter, r *http.Request) {
 }
 
 // Resolve: POST /api/v1/problems/{id}/resolve {resolution_id, doc_number?, doc_date?,
-// supplier_id?} — «Провести» решение офиса вариантом справочника (ADHOC-55). Прежний бандл
-// портала шлёт `decision` — действие без варианта. 204 / 400 / 404 / 409.
+// supplier_id?} - «Провести» решение офиса вариантом справочника (ADHOC-55). Прежний бандл
+// портала шлёт `decision` - действие без варианта. 204 / 400 / 404 / 409.
 func (h *ProblemHandler) Resolve(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		ResolutionID string `json:"resolution_id"`
@@ -204,13 +204,13 @@ func (h *ProblemHandler) Resolve(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// problemError — ответ на ошибку решения; текст — для оператора портала.
+// problemError - ответ на ошибку решения; текст - для оператора портала.
 func problemError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
 	case errors.Is(err, service.ErrInvalidProblemID), errors.Is(err, repository.ErrProblemNotFound):
 		writeError(w, http.StatusNotFound, "проблема не найдена")
 	case errors.Is(err, service.ErrInvalidDecision):
-		writeError(w, http.StatusBadRequest, "для списания нужны номер и дата документа 1С, для возврата — поставщик")
+		writeError(w, http.StatusBadRequest, "для списания нужны номер и дата документа 1С, для возврата - поставщик")
 	case errors.Is(err, repository.ErrDecisionNotAllowed):
 		writeError(w, http.StatusBadRequest, "этот вариант решения недоступен при такой причине")
 	case errors.Is(err, repository.ErrUnknownSupplier):

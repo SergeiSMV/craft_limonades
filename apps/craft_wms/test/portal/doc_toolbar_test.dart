@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-// ADHOC-26: панель поиска и фильтров не переполняется ни на какой ширине — на телефоне
-// фильтры переносятся. Ширины — настоящим Inter: тестовый шрифт шире почти вдвое.
+// ADHOC-26: панель поиска и фильтров не переполняется ни на какой ширине - на телефоне
+// фильтры переносятся. Ширины - настоящим Inter: тестовый шрифт шире почти вдвое.
 void main() {
   setUp(LocaleSettings.useDeviceLocale);
 
@@ -46,7 +46,7 @@ void main() {
         ),
       );
       expect(tester.takeException(), isNull, reason: 'ширина $width');
-      // Подпись и счётчик — одним текстом: «Проведено  3».
+      // Подпись и счётчик - одним текстом: «Проведено  3».
       expect(
         find.textContaining(
           t.portal.documents.filterPosted,

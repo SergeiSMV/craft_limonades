@@ -12,11 +12,11 @@ import (
 	"craftwms/internal/repository"
 )
 
-// stocktakeCellSubmitPayload — тело операции stocktake_cell_submit, как его собирает ТСД (P10-03).
+// stocktakeCellSubmitPayload - тело операции stocktake_cell_submit, как его собирает ТСД (P10-03).
 //
-// `loose` — факт россыпи по позиции: товар, партия датой, склад (пусто — «Основной»),
-// количество, у маркируемого товара — найденные марки. `boxes` — найденные короба. Позиция
-// снимка, которой нет ни там, ни там, — недостача.
+// `loose` - факт россыпи по позиции: товар, партия датой, склад (пусто - «Основной»),
+// количество, у маркируемого товара - найденные марки. `boxes` - найденные короба. Позиция
+// снимка, которой нет ни там, ни там, - недостача.
 type stocktakeCellSubmitPayload struct {
 	StocktakeCellID string `json:"stocktake_cell_id"`
 	Loose           []struct {
@@ -31,8 +31,8 @@ type stocktakeCellSubmitPayload struct {
 
 // stocktakeCellSubmit разбирает и проверяет подсчёт ячейки пересчёта (P10-03).
 //
-// Здесь — всё, что проверяется без базы: идентификаторы, дата, неотрицательное количество, одна
-// позиция и один короб — один раз, марка — одна на весь подсчёт. Работник — из токена.
+// Здесь - всё, что проверяется без базы: идентификаторы, дата, неотрицательное количество, одна
+// позиция и один короб - один раз, марка - одна на весь подсчёт. Работник - из токена.
 func (s *OperationsService) stocktakeCellSubmit(ctx context.Context, userID, id string, raw json.RawMessage) (repository.Applied, error) {
 	var p stocktakeCellSubmitPayload
 	if err := json.Unmarshal(raw, &p); err != nil {

@@ -13,7 +13,7 @@ import 'package:mocktail/mocktail.dart';
 
 class _MockRepo extends Mock implements CatalogRepository {}
 
-/// Длинное имя группы — не влезает в одну строку на ширине экрана ТСД.
+/// Длинное имя группы - не влезает в одну строку на ширине экрана ТСД.
 const _longGroup =
     'Снеки орехово-фруктовые в потребительской упаковке (сегмент HoReCa)';
 
@@ -68,7 +68,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('варианты меню — неоморфные кнопки', (tester) async {
+  testWidgets('варианты меню - неоморфные кнопки', (tester) async {
     await pumpSheet(tester);
     await openGroupMenu(tester);
 
@@ -93,7 +93,7 @@ void main() {
     tester,
   ) async {
     // Тап перехватывает NeumorphicButton, а не DropdownMenuItem, поэтому выбор и закрытие
-    // меню делает сама кнопка — регрессия здесь тихая (закрылся бы весь лист).
+    // меню делает сама кнопка - регрессия здесь тихая (закрылся бы весь лист).
     final cubit = await pumpSheet(tester);
     await openGroupMenu(tester);
 
@@ -104,7 +104,7 @@ void main() {
     expect(find.text(t.stockListScreen.filtersTitle), findsOneWidget);
   });
 
-  testWidgets('выбранный вариант помечен точкой, остальные — нет', (
+  testWidgets('выбранный вариант помечен точкой, остальные - нет', (
     tester,
   ) async {
     final cubit = await pumpSheet(tester);
@@ -112,7 +112,7 @@ void main() {
     await tester.pumpAndSettle();
     await openGroupMenu(tester);
 
-    // Отметка ровно одна — у выбранного варианта.
+    // Отметка ровно одна - у выбранного варианта.
     expect(find.byKey(const Key('filter-selected-dot')), findsOneWidget);
   });
 }

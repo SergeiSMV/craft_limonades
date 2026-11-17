@@ -13,20 +13,20 @@ import '../../../stock/data/catalog_repository.dart';
 import '../../domain/movement_models.dart';
 import '../bloc/movement_cubit.dart';
 
-/// Где лежит марка для перемещения: место, его ячейка и склад товара (`null` — «Основной»).
+/// Где лежит марка для перемещения: место, его ячейка и склад товара (`null` - «Основной»).
 typedef MarkSpot = ({MovePlace place, Cell cell, String? warehouseId});
 
 /// Скан марки или групповой упаковки «Честного знака» в перемещении (CZ-06).
 ///
-/// Что: маркируемый товар берётся в руки марками — без диалога количества; где марка лежит,
+/// Что: маркируемый товар берётся в руки марками - без диалога количества; где марка лежит,
 /// терминал знает из снимка со своей очередью поверх и из строк этого сеанса.
 /// Зачем отдельно от экрана: экран и так за порогом размера, а у ветки марок своё правило места.
-/// Как: групповая упаковка — набор своих марок; берутся те, что лежат там же, где первая, того
-/// же товара, партии и склада. Решение «взять, добавить или отказать» — за кубитом.
+/// Как: групповая упаковка - набор своих марок; берутся те, что лежат там же, где первая, того
+/// же товара, партии и склада. Решение «взять, добавить или отказать» - за кубитом.
 mixin MoveMarkScanActions<T extends StatefulWidget> on State<T> {
   void snack(String text);
 
-  /// Ячейка справочника терминала по условию; `null` — такой нет.
+  /// Ячейка справочника терминала по условию; `null` - такой нет.
   Future<Cell?> cellWhere(bool Function(Cell) test);
 
   MovementCubit get _move => context.read<MovementCubit>();
@@ -81,7 +81,7 @@ mixin MoveMarkScanActions<T extends StatefulWidget> on State<T> {
   }
 
   /// Где марка сейчас: строка сеанса, которая её положила; иначе её короб там, где он лежит
-  /// с учётом сеанса; иначе её ячейка. `null` — место не найти (короба или ячейки нет).
+  /// с учётом сеанса; иначе её ячейка. `null` - место не найти (короба или ячейки нет).
   Future<MarkSpot?> _spotOf(StockMark m) async {
     final s = _move.state;
     final moved = s.markPlaceInSession(m.cis);
@@ -99,7 +99,7 @@ mixin MoveMarkScanActions<T extends StatefulWidget> on State<T> {
       );
     }
     if (m.inBox) {
-      // Короб марки — из снимка терминала; сервер — только если его там нет (ADHOC-70).
+      // Короб марки - из снимка терминала; сервер - только если его там нет (ADHOC-70).
       var box = await _contents.cachedLoadUnit(m.loadUnitId!);
       if (box == null) {
         final res = await _contents.loadUnit(m.loadUnitId!);

@@ -10,7 +10,7 @@ import (
 	"craftwms/internal/model"
 )
 
-// BuildStockEntryXLSX — чистая функция: проверяем валидность xlsx, заголовки, форматирование даты,
+// BuildStockEntryXLSX - чистая функция: проверяем валидность xlsx, заголовки, форматирование даты,
 // числовое количество и пустой код.
 func TestBuildStockEntryXLSX(t *testing.T) {
 	code := "16121"
@@ -65,7 +65,7 @@ func TestBuildStockEntryXLSX(t *testing.T) {
 			t.Errorf("строка 1 [%d]: ожидалось %q, получено %q", i, v, rows[1][i])
 		}
 	}
-	// Вторая строка: пустой код, «плохая» дата — как есть, кол-во 3.
+	// Вторая строка: пустой код, «плохая» дата - как есть, кол-во 3.
 	if rows[2][2] != "" {
 		t.Errorf("пустой код: получено %q", rows[2][2])
 	}

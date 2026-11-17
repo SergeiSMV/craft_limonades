@@ -12,7 +12,7 @@ import (
 	"craftwms/internal/model"
 )
 
-// ContentsRepository — что лежит в ячейках и коробах: карточка короба, содержимое ячейки
+// ContentsRepository - что лежит в ячейках и коробах: карточка короба, содержимое ячейки
 // и снимок для кэша ТСД (P5-05). Только чтение.
 type ContentsRepository struct {
 	pool *pgxpool.Pool
@@ -27,7 +27,7 @@ func NewContentsRepository(pool *pgxpool.Pool) *ContentsRepository {
 //
 // Зачем: короба, их содержимое и россыпь читаются разными запросами. В READ COMMITTED
 // каждый запрос видит свой момент, и размещение, проведённое между ними, показало бы короб
-// в двух ячейках или ни в одной, а россыпь — без вычета переехавшего короба. REPEATABLE READ
+// в двух ячейках или ни в одной, а россыпь - без вычета переехавшего короба. REPEATABLE READ
 // даёт всем запросам один снимок базы.
 func (r *ContentsRepository) withinSnapshot(ctx context.Context, fn func(Querier) error) error {
 	tx, err := r.pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
@@ -39,21 +39,21 @@ func (r *ContentsRepository) withinSnapshot(ctx context.Context, fn func(Querier
 	return fn(tx)
 }
 
-// czBoxColumns — код короба ЧЗ и признак вскрытия для карточки ГЕ (CZ-06). Запрос обязан
+// czBoxColumns - код короба ЧЗ и признак вскрытия для карточки ГЕ (CZ-06). Запрос обязан
 // присоединить `cz_aggregates cza ON cza.load_unit_id = lu.id` (LEFT JOIN): у своего короба
-// с QR агрегата нет, код — NULL, вскрытия нет.
+// с QR агрегата нет, код - NULL, вскрытия нет.
 const czBoxColumns = `cza.code, cza.opened_at IS NOT NULL`
 
 // Snapshot возвращает все живые короба с содержимым и всю россыпь склада одним согласованным
-// снимком — для кэша ТСД.
+// снимком - для кэша ТСД.
 //
 // Ответ целиком, без страниц: постраничная загрузка шла бы разными транзакциями, и короб,
 // переехавший между страницами, попал бы в снимок дважды или пропал. На масштабе пилота это
-// сотни коробов; рост — риск масштабирования (dev-context §10), лечится дельтой по updated_at.
+// сотни коробов; рост - риск масштабирования (dev-context §10), лечится дельтой по updated_at.
 func (r *ContentsRepository) Snapshot(ctx context.Context) (model.ContentsSnapshot, error) {
 	var snap model.ContentsSnapshot
 	err := r.withinSnapshot(ctx, func(q Querier) error {
-		// now() в транзакции — момент её начала: именно на него согласован снимок.
+		// now() в транзакции - момент её начала: именно на него согласован снимок.
 		if err := q.QueryRow(ctx, `SELECT now()`).Scan(&snap.AsOf); err != nil {
 			return fmt.Errorf("момент снимка: %w", err)
 		}
@@ -97,9 +97,9 @@ func (r *ContentsRepository) CellContents(ctx context.Context, cellID string) (m
 	return out, nil
 }
 
-// LoadUnitCard возвращает карточку короба — в том числе неживого (не размещён или пуст):
+// LoadUnitCard возвращает карточку короба - в том числе неживого (не размещён или пуст):
 // кладовщику надо сказать, что с отсканированным коробом, а не что его нет.
-// Нет такого короба — model.ErrLoadUnitNotFound.
+// Нет такого короба - model.ErrLoadUnitNotFound.
 func (r *ContentsRepository) LoadUnitCard(ctx context.Context, id string) (model.LoadUnitCard, error) {
 	var card model.LoadUnitCard
 	err := r.withinSnapshot(ctx, func(q Querier) error {
@@ -132,8 +132,8 @@ func (r *ContentsRepository) LoadUnitCard(ctx context.Context, id string) (model
 	return card, nil
 }
 
-// LoadUnitByCZCode — карточка ГЕ короба ЧЗ по коду `00`+SSCC (CZ-06). Нет такого принятого
-// короба — model.ErrLoadUnitNotFound.
+// LoadUnitByCZCode - карточка ГЕ короба ЧЗ по коду `00`+SSCC (CZ-06). Нет такого принятого
+// короба - model.ErrLoadUnitNotFound.
 func (r *ContentsRepository) LoadUnitByCZCode(ctx context.Context, code string) (model.LoadUnitCard, error) {
 	var id string
 	err := r.pool.QueryRow(ctx, `
@@ -148,8 +148,8 @@ func (r *ContentsRepository) LoadUnitByCZCode(ctx context.Context, code string) 
 	return r.LoadUnitCard(ctx, id)
 }
 
-// liveLoadUnits — живые короба (размещены и не пусты) с содержимым; cellID — фильтр по
-// ячейке, nil — весь склад.
+// liveLoadUnits - живые короба (размещены и не пусты) с содержимым; cellID - фильтр по
+// ячейке, nil - весь склад.
 //
 // Вложенность ГЕ не разворачивается: в пилоте её нет (паллетная логика вне объёма), и короб
 // показывается со своим содержимым. Тот же фильтр «qty > 0» применяют задания и размещение.
@@ -194,7 +194,7 @@ func liveLoadUnits(ctx context.Context, q Querier, cellID *string) ([]model.Load
 	return out, nil
 }
 
-// loadUnitLines — содержимое коробов с товаром и партией, только строки с количеством.
+// loadUnitLines - содержимое коробов с товаром и партией, только строки с количеством.
 func loadUnitLines(ctx context.Context, q Querier, ids []string) (map[string][]model.ContentLine, error) {
 	out := make(map[string][]model.ContentLine, len(ids))
 	if len(ids) == 0 {
@@ -223,14 +223,14 @@ func loadUnitLines(ctx context.Context, q Querier, ids []string) (map[string][]m
 	return out, rows.Err()
 }
 
-// looseStock — россыпь по ячейкам; cellID — фильтр по ячейке, nil — весь склад.
+// looseStock - россыпь по ячейкам; cellID - фильтр по ячейке, nil - весь склад.
 //
-// Россыпь = остаток ячейки минус содержимое лежащих в ней коробов, по товару и партии —
+// Россыпь = остаток ячейки минус содержимое лежащих в ней коробов, по товару и партии -
 // то же правило, что у размещения россыпи (putawayLoose); согласие двух расчётов проверяет
 // тест. Строки без россыпи (всё в коробах) отбрасываются.
 //
 // Короб принадлежит внутреннему складу целиком (P6-07-1), поэтому вычет идёт из строки
-// остатка склада короба: россыпь «Брака» — остаток «Брака» минус короба «Брака».
+// остатка склада короба: россыпь «Брака» - остаток «Брака» минус короба «Брака».
 func looseStock(ctx context.Context, q Querier, cellID *string) ([]model.LooseLine, error) {
 	rows, err := q.Query(ctx, `
 		WITH boxed AS (
@@ -290,9 +290,9 @@ func looseStock(ctx context.Context, q Querier, cellID *string) ([]model.LooseLi
 	return out, rows.Err()
 }
 
-// marksInStock — все марки ЧЗ, числящиеся на складе (CZ-06), для снимка ТСД.
+// marksInStock - все марки ЧЗ, числящиеся на складе (CZ-06), для снимка ТСД.
 //
-// Только `in_stock`: ушедшая марка места не имеет, и терминалу её искать незачем. Партия —
+// Только `in_stock`: ушедшая марка места не имеет, и терминалу её искать незачем. Партия -
 // с датой выпуска: операции ТСД несут партию датой.
 func marksInStock(ctx context.Context, q Querier) ([]model.ContentsMark, error) {
 	rows, err := q.Query(ctx, `
@@ -334,16 +334,16 @@ func scanContentLine(rows pgx.Rows, lu *string, ln *model.ContentLine) error {
 	return nil
 }
 
-// SearchLoadUnits ищет короба по короткому коду с ярлыка — вхождению [code] в последние восемь
+// SearchLoadUnits ищет короба по короткому коду с ярлыка - вхождению [code] в последние восемь
 // знаков идентификатора (P5-05-1). [code] уже приведён: шестнадцатеричные знаки, заглавными.
 //
-// Ищутся ВСЕ короба, живые и нет: ярлык перепечатывают как раз тогда, когда короб «пропал» —
+// Ищутся ВСЕ короба, живые и нет: ярлык перепечатывают как раз тогда, когда короб «пропал» -
 // он пуст, не размещён или появился после снимка на терминале. Живость отдаётся признаком.
-// Сначала живые, затем по адресу ячейки и времени создания; [limit] — защита от выдачи на весь
+// Сначала живые, затем по адресу ячейки и времени создания; [limit] - защита от выдачи на весь
 // склад по одному знаку.
 //
-// Без индекса: выражение по хвосту id просматривает все короба. На масштабе пилота — сотни
-// строк; рост — индекс по тому же выражению хвоста id.
+// Без индекса: выражение по хвосту id просматривает все короба. На масштабе пилота - сотни
+// строк; рост - индекс по тому же выражению хвоста id.
 func (r *ContentsRepository) SearchLoadUnits(ctx context.Context, code string, limit int) ([]model.LoadUnitCard, error) {
 	var out []model.LoadUnitCard
 	err := r.withinSnapshot(ctx, func(q Querier) error {
@@ -392,10 +392,10 @@ func (r *ContentsRepository) SearchLoadUnits(ctx context.Context, code string, l
 }
 
 // LoadUnitHistory возвращает историю короба: приёмку, которая его завела, и переносы из журнала
-// размещений по порядку — с адресами и ФИО (P5-05-1). Нет короба — model.ErrLoadUnitNotFound.
-// loadUnitContentEvents — изменения состава короба из всех журналов, по времени (ADHOC-32):
+// размещений по порядку - с адресами и ФИО (P5-05-1). Нет короба - model.ErrLoadUnitNotFound.
+// loadUnitContentEvents - изменения состава короба из всех журналов, по времени (ADHOC-32):
 // строки движения в короб и из него, вынимание части короба при пометке проблемы, списание
-// и отгрузка возврата его содержимого. Одним запросом — порядок задаёт база.
+// и отгрузка возврата его содержимого. Одним запросом - порядок задаёт база.
 func loadUnitContentEvents(ctx context.Context, q Querier, id string) ([]model.LoadUnitContentEvent, error) {
 	rows, err := q.Query(ctx, `
 		SELECT e.kind, g.name, g.uom, b.production_date, e.qty::text, e.peer, e.peer_lu::text,
@@ -464,7 +464,7 @@ func (r *ContentsRepository) LoadUnitHistory(ctx context.Context, id string) (mo
 		}
 
 		// Короб заводит его приёмка (P4-09): строка приёмки ссылается на него. Строк с этим
-		// коробом в документе может быть несколько — документ один.
+		// коробом в документе может быть несколько - документ один.
 		var rc model.LoadUnitReceipt
 		err = q.QueryRow(ctx, `
 			SELECT r.id::text, r.number, u.full_name, s.name, r.posted_at, r.doc_number, r.doc_date

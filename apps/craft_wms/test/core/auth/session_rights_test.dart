@@ -53,7 +53,7 @@ void main() {
     return auth;
   }
 
-  testWidgets('права должности; без сессии — значение по умолчанию', (
+  testWidgets('права должности; без сессии - значение по умолчанию', (
     tester,
   ) async {
     var can = await pump(tester, authWith([Rights.tsdReceipt]));
@@ -68,7 +68,7 @@ void main() {
   });
 
   test(
-    'виды заданий: пересчёт — считать или заводить, остальное — размещение',
+    'виды заданий: пересчёт - считать или заводить, остальное - размещение',
     () {
       expect(taskKindRights('stocktake'), [
         Rights.tsdStocktakeCount,

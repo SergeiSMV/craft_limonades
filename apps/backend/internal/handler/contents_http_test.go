@@ -17,12 +17,12 @@ import (
 	"craftwms/internal/service"
 )
 
-// Эталон снимка для кэша ТСД (P5-05) — серверная половина контракта. Приёмка с id эталона
+// Эталон снимка для кэша ТСД (P5-05) - серверная половина контракта. Приёмка с id эталона
 // кладёт короб (12) в ячейку хранения и россыпь (3) в ячейку приёмки; ответ снимка обязан
 // совпасть с testdata/contents_snapshot.json. Клиентская половина разбирает тот же файл.
 //
 // Не сравниваются значения, которых эталон знать не может: момент снимка, время создания
-// короба, идентификаторы партий и внутреннего склада — их выдаёт сервер.
+// короба, идентификаторы партий и внутреннего склада - их выдаёт сервер.
 func TestContentsHTTP_snapshotWireFormat(t *testing.T) {
 	raw := readFixture(t, "contents_snapshot.json")
 	var want map[string]any
@@ -48,7 +48,7 @@ func TestContentsHTTP_snapshotWireFormat(t *testing.T) {
 	if got := e.operations(t, receipt); len(got) != 1 || got[0] != service.StatusAccepted {
 		t.Fatalf("приёмка под эталон не применилась: %v", got)
 	}
-	// Короб эталона — короб ЧЗ с маркой внутри, вторая марка — в россыпи (CZ-06). Пишутся
+	// Короб эталона - короб ЧЗ с маркой внутри, вторая марка - в россыпи (CZ-06). Пишутся
 	// прямо в базу: приёмка короба ЧЗ требует ответа ЧЗ, а проверяется здесь формат снимка.
 	marks := want["marks"].([]any)
 	boxMark, looseMark := marks[0].(map[string]any), marks[1].(map[string]any)
@@ -85,11 +85,11 @@ func TestContentsHTTP_snapshotWireFormat(t *testing.T) {
 	blank(got, volatile)
 	if !reflect.DeepEqual(got, want) {
 		g, _ := json.MarshalIndent(got, "", "  ")
-		t.Fatalf("снимок разошёлся с эталоном testdata/contents_snapshot.json — сверьте формат "+
+		t.Fatalf("снимок разошёлся с эталоном testdata/contents_snapshot.json - сверьте формат "+
 			"с тем, что разбирает клиент.\nПолучено: %s", g)
 	}
 
-	// Короб ЧЗ по коду с этикетки (CZ-06): карточка той же ГЕ; кривой код — 400, не принятый — 404.
+	// Короб ЧЗ по коду с этикетки (CZ-06): карточка той же ГЕ; кривой код - 400, не принятый - 404.
 	code, body = e.call(t, http.MethodGet, "/api/v1/load-units/cz/"+lu["cz_code"].(string), e.workerToken, "")
 	if code != http.StatusOK {
 		t.Fatalf("короб ЧЗ по коду: код %d, %s", code, body)
@@ -136,7 +136,7 @@ func TestContentsHTTP_snapshotIsCompressed(t *testing.T) {
 		t.Fatalf("запрос: %v", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+e.workerToken)
-	// Явный заголовок отключает прозрачную распаковку клиента Go — видно, что пришло по сети.
+	// Явный заголовок отключает прозрачную распаковку клиента Go - видно, что пришло по сети.
 	req.Header.Set("Accept-Encoding", "gzip")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -204,7 +204,7 @@ func TestContentsHTTP_cardAndCell(t *testing.T) {
 		t.Errorf("содержимое ячейки приёмки: %s", body)
 	}
 
-	// Пустая ячейка — пустые списки, а не null: клиенту не нужно различать.
+	// Пустая ячейка - пустые списки, а не null: клиенту не нужно различать.
 	code, body = e.call(t, http.MethodGet, "/api/v1/cells/"+e.cell1+"/contents", e.workerToken, "")
 	if code != http.StatusOK || string(body) == "" {
 		t.Fatalf("пустая ячейка: код %d", code)
@@ -233,8 +233,8 @@ func TestContentsHTTP_cardAndCell(t *testing.T) {
 	}
 }
 
-// Поиск по короткому коду и история (P5-05-1): код набран так, как на ярлыке, — с пробелом,
-// строчными; история читается людьми — ФИО и адреса.
+// Поиск по короткому коду и история (P5-05-1): код набран так, как на ярлыке, - с пробелом,
+// строчными; история читается людьми - ФИО и адреса.
 func TestContentsHTTP_searchAndHistory(t *testing.T) {
 	e := newReceivingE2E(t, nil)
 	good := uuid.NewString()
@@ -252,7 +252,7 @@ func TestContentsHTTP_searchAndHistory(t *testing.T) {
 	}
 
 	hex := strings.ReplaceAll(box, "-", "")
-	typed := strings.ToLower(hex[24:28] + " " + hex[28:]) // «9fa0 b1c2» — как на ярлыке
+	typed := strings.ToLower(hex[24:28] + " " + hex[28:]) // «9fa0 b1c2» - как на ярлыке
 	code, body := e.call(t, http.MethodGet, "/api/v1/load-units?code="+url.QueryEscape(typed), e.workerToken, "")
 	var found []struct {
 		ID          string  `json:"id"`
@@ -266,7 +266,7 @@ func TestContentsHTTP_searchAndHistory(t *testing.T) {
 		t.Errorf("поиск по коду %q: %s", typed, body)
 	}
 
-	// Ничего не найдено — пустой список, а не null.
+	// Ничего не найдено - пустой список, а не null.
 	code, body = e.call(t, http.MethodGet, "/api/v1/load-units?code=00000000", e.workerToken, "")
 	if code != http.StatusOK || strings.TrimSpace(string(body)) != "[]" {
 		t.Errorf("пустой поиск: код %d, %s", code, body)
@@ -315,8 +315,8 @@ func TestContentsHTTP_searchAndHistory(t *testing.T) {
 	}
 }
 
-// Снимок склада — и странице портала «Остатки склада» (ADHOC-56): должность только с
-// «Остатки склада: смотреть» снимок получает, а содержимое ячейки (только ТСД) — нет.
+// Снимок склада - и странице портала «Остатки склада» (ADHOC-56): должность только с
+// «Остатки склада: смотреть» снимок получает, а содержимое ячейки (только ТСД) - нет.
 func TestContentsHTTP_snapshotForPortalStock(t *testing.T) {
 	e := newReceivingE2E(t, nil)
 	ctx := context.Background()

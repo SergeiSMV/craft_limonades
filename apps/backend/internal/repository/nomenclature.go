@@ -7,7 +7,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// NomenclatureGroupRepository — доступ к дереву групп номенклатуры (импорт из 1С).
+// NomenclatureGroupRepository - доступ к дереву групп номенклатуры (импорт из 1С).
 type NomenclatureGroupRepository struct {
 	pool *pgxpool.Pool
 }
@@ -18,7 +18,7 @@ func NewNomenclatureGroupRepository(pool *pgxpool.Pool) *NomenclatureGroupReposi
 }
 
 // Upsert заводит/обновляет группу по «Коду» из 1С (стабильный ключ) и возвращает её id.
-// parentID — id родительской группы (nil для корня). Идемпотентно: повторный импорт не двоит.
+// parentID - id родительской группы (nil для корня). Идемпотентно: повторный импорт не двоит.
 func (r *NomenclatureGroupRepository) Upsert(ctx context.Context, q Querier, code, name string, parentID *string) (string, error) {
 	var id string
 	err := q.QueryRow(ctx, `
@@ -32,7 +32,7 @@ func (r *NomenclatureGroupRepository) Upsert(ctx context.Context, q Querier, cod
 	return id, nil
 }
 
-// SupplierRepository — доступ к справочнику поставщиков.
+// SupplierRepository - доступ к справочнику поставщиков.
 type SupplierRepository struct {
 	pool *pgxpool.Pool
 }

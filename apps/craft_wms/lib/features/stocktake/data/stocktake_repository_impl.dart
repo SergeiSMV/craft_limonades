@@ -15,7 +15,7 @@ import '../domain/stocktake_models.dart';
 import '../domain/stocktake_repository.dart';
 import 'stocktake_api.dart';
 
-/// Пересчёт на ТСД (P10-04): сеть — через [StocktakeApi], факт ячейки — операцией очереди тем
+/// Пересчёт на ТСД (P10-04): сеть - через [StocktakeApi], факт ячейки - операцией очереди тем
 /// же путём, что размещение и возврат: в очередь и сразу попытка отправить.
 ///
 /// Черновики подсчёта лежат в общей таблице черновиков строкой на ячейку (`stocktake:<id>`):
@@ -58,7 +58,7 @@ class StocktakeRepositoryImpl implements StocktakeRepository {
     return res;
   }
 
-  /// Склад позиций приводится к соглашению терминала: «Основной» — `null`.
+  /// Склад позиций приводится к соглашению терминала: «Основной» - `null`.
   @override
   Future<Either<Failure, StocktakeCellView>> start(String cellId) async {
     final res = await _api.start(cellId);
@@ -93,7 +93,7 @@ class StocktakeRepositoryImpl implements StocktakeRepository {
     final operation = await _outbox.byOperationId(operationId);
     if (operation == null) return const Right(null);
     final res = await _sync.sendOne(operation);
-    // Ход пересчёта на плитке задания — свежим, раз сервер подсчёт принял.
+    // Ход пересчёта на плитке задания - свежим, раз сервер подсчёт принял.
     if (res.isRight) await _tasks.current();
     return res;
   }
@@ -135,7 +135,7 @@ class StocktakeRepositoryImpl implements StocktakeRepository {
     _db.entryDrafts,
   )..where((t) => t.id.equals('$_draftPrefix$cellId'))).go();
 
-  /// Битый слепок — как его отсутствие: уронить экран из-за него нельзя.
+  /// Битый слепок - как его отсутствие: уронить экран из-за него нельзя.
   Map<String, dynamic>? _decode(String payload) {
     try {
       return jsonDecode(payload) as Map<String, dynamic>;

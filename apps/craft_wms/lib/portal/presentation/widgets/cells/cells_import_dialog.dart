@@ -19,8 +19,8 @@ import '../ui/portal_drop_zone.dart';
 import '../ui/portal_modal.dart';
 import 'cells_controller.dart';
 
-/// Окно «Загрузка ячеек» (ADHOC-57): `.xlsx` в формате rack_labels — выбор файла, формат,
-/// загрузка и отчёт. `true` — ячейки обновлены, страницу надо перечитать.
+/// Окно «Загрузка ячеек» (ADHOC-57): `.xlsx` в формате rack_labels - выбор файла, формат,
+/// загрузка и отчёт. `true` - ячейки обновлены, страницу надо перечитать.
 Future<bool> showCellsImportDialog(BuildContext context) async =>
     await showDialog<bool>(
       context: context,
@@ -56,7 +56,7 @@ class _ImportDialogState extends State<_ImportDialog> {
     });
   }
 
-  /// Загрузить файл; отказ по файлу (нет листа, нет колонки) — текстом сервера.
+  /// Загрузить файл; отказ по файлу (нет листа, нет колонки) - текстом сервера.
   Future<void> upload() async {
     final bytes = _bytes, filename = _filename;
     if (bytes == null || filename == null || _uploading) return;
@@ -76,7 +76,7 @@ class _ImportDialogState extends State<_ImportDialog> {
     });
   }
 
-  /// Закрыть; после загрузки — с сигналом перечитать страницу.
+  /// Закрыть; после загрузки - с сигналом перечитать страницу.
   void close() => Navigator.of(context).pop(_report != null);
 
   @override
@@ -123,7 +123,7 @@ class _ImportDialogState extends State<_ImportDialog> {
             icon: Icons.upload,
             kind: PortalButtonKind.primary,
             busy: _uploading,
-            // Файл не выбран — кнопка открывает выбор, как и сама зона.
+            // Файл не выбран - кнопка открывает выбор, как и сама зона.
             onPressed: _bytes == null ? pickFile : upload,
           ),
       ],
@@ -189,7 +189,7 @@ class _Format extends StatelessWidget {
   }
 }
 
-/// Отчёт загрузки: каждый факт своей подписанной строкой, ниже — пропущенные строки.
+/// Отчёт загрузки: каждый факт своей подписанной строкой, ниже - пропущенные строки.
 class _Report extends StatelessWidget {
   const _Report({required this.report, required this.filename});
 

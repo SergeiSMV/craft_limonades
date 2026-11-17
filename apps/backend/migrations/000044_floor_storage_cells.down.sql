@@ -12,4 +12,4 @@ ON CONFLICT (warehouse_id, address) DO UPDATE SET is_default = true, is_active =
 ALTER TABLE cells DROP COLUMN is_floor_storage;
 
 COMMENT ON COLUMN cells.is_default IS
-    'P4-03: ячейка приёмки по умолчанию (С-Н-П). Одна на склад — частичный уникальный индекс.';
+    'P4-03: ячейка приёмки по умолчанию (С-Н-П). Одна на склад - частичный уникальный индекс.';

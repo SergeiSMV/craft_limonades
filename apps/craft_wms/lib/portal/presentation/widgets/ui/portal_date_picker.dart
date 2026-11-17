@@ -6,10 +6,10 @@ import '../../../../core/gen/strings.g.dart';
 import 'portal_button.dart';
 import 'portal_modal.dart';
 
-/// Выбор даты в портале (ADHOC-30, плоский стиль — ADHOC-56): сетка месяца в [PortalModal],
-/// по-русски и в цветах портала — вместо стандартного `showDatePicker` с его темой и шапкой.
+/// Выбор даты в портале (ADHOC-30, плоский стиль - ADHOC-56): сетка месяца в [PortalModal],
+/// по-русски и в цветах портала - вместо стандартного `showDatePicker` с его темой и шапкой.
 ///
-/// Возвращает выбранную дату; `null` — оператор передумал.
+/// Возвращает выбранную дату; `null` - оператор передумал.
 Future<DateTime?> showPortalDatePicker(
   BuildContext context, {
   required String title,
@@ -28,7 +28,7 @@ Future<DateTime?> showPortalDatePicker(
           child: SizedBox(
             width: AppSizes.kPortalCalendarWidth,
             height: AppSizes.kPortalCalendarHeight,
-            // Сетка берёт цвета из схемы темы: выбранный день — тёмный, как главная кнопка.
+            // Сетка берёт цвета из схемы темы: выбранный день - тёмный, как главная кнопка.
             child: Theme(
               data: theme.copyWith(
                 colorScheme: theme.colorScheme.copyWith(

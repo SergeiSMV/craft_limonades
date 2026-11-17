@@ -30,7 +30,7 @@ func (f *fakeProblemReasonRepo) SaveResolution(_ context.Context, in model.Probl
 
 func ptr[T any](v T) *T { return &v }
 
-// ADHOC-55: форма причины — у новой название и хотя бы один вариант, список без повторов,
+// ADHOC-55: форма причины - у новой название и хотя бы один вариант, список без повторов,
 // пустым он не становится и у правки.
 func TestProblemReasonService_saveReason(t *testing.T) {
 	const res = "7b000000-0000-4000-8000-000000000001"
@@ -63,7 +63,7 @@ func TestProblemReasonService_saveReason(t *testing.T) {
 	}
 }
 
-// ADHOC-55: вариант — новый с названием и действием из четырёх; у правки действие не меняется.
+// ADHOC-55: вариант - новый с названием и действием из четырёх; у правки действие не меняется.
 func TestProblemReasonService_saveResolution(t *testing.T) {
 	const id = "7b000000-0000-4000-8000-000000000001"
 	svc := NewProblemReasonService(&fakeProblemReasonRepo{})

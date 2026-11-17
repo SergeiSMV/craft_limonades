@@ -7,7 +7,7 @@ import '../../../core/error/failure.dart';
 /// Статус заказа сборки WMS (P9-02): статус из реестра 1С не берётся.
 enum PickingStatus { newOrder, inProgress, picked, shipped }
 
-/// Статус из ответа сервера; незнакомый — «новый»: заказ хотя бы виден в списке.
+/// Статус из ответа сервера; незнакомый - «новый»: заказ хотя бы виден в списке.
 PickingStatus pickingStatusOf(String v) => switch (v) {
   'in_progress' => PickingStatus.inProgress,
   'picked' => PickingStatus.picked,
@@ -48,7 +48,7 @@ class PickingOrderSummary {
 
   final String id;
 
-  /// Номер сборки — «СБ-…» при показе.
+  /// Номер сборки - «СБ-…» при показе.
   final int number;
   final DateTime registryDate;
   final String invoiceNumber;
@@ -78,11 +78,11 @@ class PickingOrderSummary {
   /// Сколько ещё вернуть на места после правки реестра (P9-07-1); пока не ноль, отгрузка закрыта.
   final double returnLeft;
 
-  /// Кто держит заказ в работе; пусто — заказ не в работе.
+  /// Кто держит заказ в работе; пусто - заказ не в работе.
   final String assigneeName;
   final DateTime? takenAt;
 
-  /// Кто завершил сборку; пусто — ещё не собирали до конца.
+  /// Кто завершил сборку; пусто - ещё не собирали до конца.
   final String pickedByName;
   final DateTime? pickedAt;
   final DateTime? shippedAt;
@@ -99,8 +99,8 @@ class PickingOrderSummary {
   bool get releasable => status == PickingStatus.inProgress;
 }
 
-/// Пик строки: партия, откуда, в какой короб, сколько, марки ЧЗ. [inBox] — товар уже в коробе
-/// отгрузки; иначе «в сборке» — числится в ячейке-источнике.
+/// Пик строки: партия, откуда, в какой короб, сколько, марки ЧЗ. [inBox] - товар уже в коробе
+/// отгрузки; иначе «в сборке» - числится в ячейке-источнике.
 class PickingFact {
   const PickingFact({
     required this.batchDate,
@@ -147,10 +147,10 @@ class PickingOrderLine {
   final String uom;
   final bool czMarked;
 
-  /// Партия реестра; `null` — любая (FEFO).
+  /// Партия реестра; `null` - любая (FEFO).
   final DateTime? batchDate;
 
-  /// Ячейка реестра как в файле и найденная в WMS (пусто — не нашлась или не задана).
+  /// Ячейка реестра как в файле и найденная в WMS (пусто - не нашлась или не задана).
   final String registryCell;
   final String cellAddress;
   final int planQty;
@@ -163,11 +163,11 @@ class PickingOrderLine {
   final bool shortage;
   final List<PickingFact> facts;
 
-  /// Все марки строки — по пикам.
+  /// Все марки строки - по пикам.
   List<String> get marks => [for (final f in facts) ...f.marks];
 }
 
-/// Короб отгрузки заказа: «короб N»; [shippedAt] — ярлык отсканирован на отгрузке.
+/// Короб отгрузки заказа: «короб N»; [shippedAt] - ярлык отсканирован на отгрузке.
 class PickingBoxInfo {
   const PickingBoxInfo({required this.seq, required this.shippedAt});
 
@@ -248,9 +248,9 @@ class PickingOrderDetail {
 /// Выгрузка Excel: байты и имя файла от сервера.
 typedef PickingExport = ({Uint8List bytes, String filename});
 
-/// Контракт раздела «Сборка-отгрузка» в портале (P8-03). Реализация — `data`.
+/// Контракт раздела «Сборка-отгрузка» в портале (P8-03). Реализация - `data`.
 abstract interface class PickingOrdersRepository {
-  /// Заказы на дату накладной; удалённые в 1С — в конце, с пометкой.
+  /// Заказы на дату накладной; удалённые в 1С - в конце, с пометкой.
   Future<Either<Failure, List<PickingOrderSummary>>> orders(DateTime date);
 
   /// Заказ для окна деталей.

@@ -15,14 +15,14 @@ import 'pending_overlay.dart';
 /// Содержимое ячеек и коробов: сервер → снимок → свои операции поверх (P5-05).
 ///
 /// Порядок источников:
-/// 1. Сервер с коротким таймаутом — со связью данные точные.
-/// 2. Нет связи — снимок на терминале с моментом, на который он согласован.
-/// 3. Поверх обоих — свои неотправленные приёмки и размещения ([PendingOverlay]): сервер
+/// 1. Сервер с коротким таймаутом - со связью данные точные.
+/// 2. Нет связи - снимок на терминале с моментом, на который он согласован.
+/// 3. Поверх обоих - свои неотправленные приёмки и размещения ([PendingOverlay]): сервер
 ///    о них ещё не знает, снимок тем более.
 ///
 /// Наименования товаров и адреса ячеек, которых нет в снимке и в операциях, подставляются
 /// из справочников терминала. Склады (P6-07-2) приводятся к соглашению терминала
-/// («Основной» — `null`) до наложения очереди и подписываются по справочнику складов.
+/// («Основной» - `null`) до наложения очереди и подписываются по справочнику складов.
 @LazySingleton(as: ContentsRepository)
 class ContentsRepositoryImpl implements ContentsRepository {
   ContentsRepositoryImpl(
@@ -40,7 +40,7 @@ class ContentsRepositoryImpl implements ContentsRepository {
   final InternalWarehouses _warehouses;
 
   /// Сколько операций очереди просматривать. Неотправленных приёмок и размещений на терминале
-  /// единицы; предел — только защита от разбора тысяч привязок ШК.
+  /// единицы; предел - только защита от разбора тысяч привязок ШК.
   static const _queueLimit = 1000;
 
   @override
@@ -110,7 +110,7 @@ class ContentsRepositoryImpl implements ContentsRepository {
                 aggregateCode: m.aggregateCode,
               ),
     };
-    // Короба марок и операций — с наложенной очередью: марка, вынутая из короба, ложится
+    // Короба марок и операций - с наложенной очередью: марка, вынутая из короба, ложится
     // в его ячейку и склад.
     final boxes = overlay.applyToAll(
       _units(
@@ -129,7 +129,7 @@ class ContentsRepositoryImpl implements ContentsRepository {
     final overlay = await _overlay();
     final res = await _api.cardByCzCode(czCode);
     if (res.isRight) return Right(res.right.id);
-    // Короб своей неотправленной приёмки сервер ещё не знает, снимок — тем более.
+    // Короб своей неотправленной приёмки сервер ещё не знает, снимок - тем более.
     final own = overlay.loadUnitIdByCzCode(czCode);
     if (_isNotFound(res.left)) return Right(own);
     if (res.left is! NetworkFailure) return Left(res.left);
@@ -199,7 +199,7 @@ class ContentsRepositoryImpl implements ContentsRepository {
   @override
   Future<CellRef?> findCell(String address) async {
     final needle = address.trim().toLowerCase();
-    // Справочник ищет по вхождению — точный адрес отбираем здесь: «A-1-1» не должен открыть
+    // Справочник ищет по вхождению - точный адрес отбираем здесь: «A-1-1» не должен открыть
     // «A-1-10».
     final found = await _catalog.cells(query: needle);
     for (final c in found) {
@@ -240,7 +240,7 @@ class ContentsRepositoryImpl implements ContentsRepository {
       return Left(res.left);
     } else {
       // Не только обрыв связи: сервер без этой ручки (старая версия) или со сбоем отвечает
-      // кодом, а короба на терминале уже есть. Поиск — удобство поверх снимка, и отказывать
+      // кодом, а короба на терминале уже есть. Поиск - удобство поверх снимка, и отказывать
       // в нём, когда снимок под рукой, хуже, чем искать по снимку с подписью «данные на».
       // Найдено на DT50S: прод ещё без ручки поиска, а кэш с коробами был.
       base = await _cache.allLoadUnits();
@@ -250,7 +250,7 @@ class ContentsRepositoryImpl implements ContentsRepository {
       );
     }
 
-    // Короба своих неотправленных приёмок сервер ещё не знает — наложение их добавляет,
+    // Короба своих неотправленных приёмок сервер ещё не знает - наложение их добавляет,
     // поэтому отбор по коду идёт уже после него.
     final found = overlay
         .applyToAll(_units(base, overlay.cells))
@@ -297,7 +297,7 @@ class ContentsRepositoryImpl implements ContentsRepository {
     Failure? refreshFailure,
   }) async {
     final places = await _places(goodId: goodId);
-    // Вдоль стеллажа: по адресу ячейки, в ячейке — россыпь, затем короба; внутри — по партии.
+    // Вдоль стеллажа: по адресу ячейки, в ячейке - россыпь, затем короба; внутри - по партии.
     places.sort((a, b) {
       final byCell = (a.cellAddress ?? '\uffff').compareTo(
         b.cellAddress ?? '\uffff',
@@ -311,7 +311,7 @@ class ContentsRepositoryImpl implements ContentsRepository {
   }
 
   /// Все места товара на складе (ADHOC-33): россыпь всех ячеек и содержимое живых коробов из
-  /// снимка, своя очередь поверх; [goodId] — только этого товара. Нулевых строк нет.
+  /// снимка, своя очередь поверх; [goodId] - только этого товара. Нулевых строк нет.
   Future<List<StockPlace>> _places({String? goodId}) async {
     final overlay = await _overlay();
     final def = overlay.cells.defaultInternalWarehouse;
@@ -353,7 +353,7 @@ class ContentsRepositoryImpl implements ContentsRepository {
     ];
   }
 
-  /// Откуда данные списка из снимка: [refreshFailure] `null` — снимок только что обновлён.
+  /// Откуда данные списка из снимка: [refreshFailure] `null` - снимок только что обновлён.
   Future<DataFreshness> _freshness(Failure? refreshFailure) async =>
       refreshFailure == null
       ? const FreshFromServer()
@@ -368,7 +368,7 @@ class ContentsRepositoryImpl implements ContentsRepository {
     return p.length == 3 ? '${p[2]}${p[1]}${p[0]}' : date;
   }
 
-  /// Короба с наименованиями и адресами — живые первыми, затем по адресу ячейки и времени
+  /// Короба с наименованиями и адресами - живые первыми, затем по адресу ячейки и времени
   /// создания: так кладовщик идёт вдоль стеллажа.
   Future<List<LoadUnitView>> _sorted(
     Iterable<LoadUnitView> units,
@@ -404,7 +404,7 @@ class ContentsRepositoryImpl implements ContentsRepository {
     );
   }
 
-  /// Короб со складом в соглашении терминала: «Основной» — `null`; строки — склада короба.
+  /// Короб со складом в соглашении терминала: «Основной» - `null`; строки - склада короба.
   LoadUnitView? _unit(LoadUnitView? lu, OverlayCells cells) {
     if (lu == null) return null;
     final id = InternalWarehouses.normalize(
@@ -422,7 +422,7 @@ class ContentsRepositoryImpl implements ContentsRepository {
     OverlayCells cells,
   ) => units.map((id, lu) => MapEntry(id, _unit(lu, cells)!));
 
-  /// Имена складов, кроме «Основного», — для подписи помеченного товара.
+  /// Имена складов, кроме «Основного», - для подписи помеченного товара.
   Future<Map<String, String>> _warehouseNames() async => {
     for (final w in await _warehouses.all())
       if (!w.isDefault) w.id: w.name,

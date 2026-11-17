@@ -9,8 +9,8 @@ import 'problem_photo_view.dart';
 
 /// Фото в карточке проблемы (ADHOC-45): снимки с сервера, свои неотправленные и съёмка новых.
 ///
-/// Снимки с сервера грузятся по одному после открытия карточки — сама карточка от связи не
-/// зависит. Свои неотправленные показываются сразу из очереди, с пометкой. Новое фото — только
+/// Снимки с сервера грузятся по одному после открытия карточки - сама карточка от связи не
+/// зависит. Свои неотправленные показываются сразу из очереди, с пометкой. Новое фото - только
 /// у открытой проблемы и пока их меньше [kProblemPhotoMax]; уходит той же очередью.
 @injectable
 class RecordPhotosCubit extends Cubit<List<ProblemPhotoView>> {
@@ -25,12 +25,12 @@ class RecordPhotosCubit extends Cubit<List<ProblemPhotoView>> {
   bool get canAdd =>
       (_record?.isOpen ?? false) && state.length < kProblemPhotoMax;
 
-  /// Показать фото проблемы: свои из очереди — сразу, с сервера — по мере загрузки.
+  /// Показать фото проблемы: свои из очереди - сразу, с сервера - по мере загрузки.
   Future<void> load(ProblemRecord record) async {
     _record = record;
     final pending = await _photos.pendingOf(record.id);
     final pendingIds = {for (final p in pending) p.id};
-    // Снимок, который уже на сервере, но ещё в очереди (ответ потерялся), — один раз.
+    // Снимок, который уже на сервере, но ещё в очереди (ответ потерялся), - один раз.
     final remote = [
       for (final id in record.photos)
         if (!pendingIds.contains(id)) id,
@@ -54,7 +54,7 @@ class RecordPhotosCubit extends Cubit<List<ProblemPhotoView>> {
     }
   }
 
-  /// Снять фото и поставить в очередь. Отменили съёмку — ничего.
+  /// Снять фото и поставить в очередь. Отменили съёмку - ничего.
   Future<void> take() async {
     final record = _record;
     if (record == null || !canAdd) return;

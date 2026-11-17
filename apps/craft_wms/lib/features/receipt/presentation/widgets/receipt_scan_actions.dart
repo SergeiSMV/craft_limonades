@@ -23,17 +23,17 @@ import 'receipt_action_sheet.dart';
 import 'receipt_cz_scan_actions.dart';
 import 'receipt_label_actions.dart';
 
-/// Скан и строки приёмки — общее для общего списка и страницы короба (ADHOC-18).
+/// Скан и строки приёмки - общее для общего списка и страницы короба (ADHOC-18).
 ///
 /// Что: поле скана, разбор кода, добавление строки (с привязкой ШК, «неверным товаром»,
 /// выдачей внутреннего ШК), меню строки.
 /// Зачем общий миксин: на обоих экранах товар принимают одинаково, а различаются они двумя
-/// вещами — куда ложится строка ([scanBoxId]) и что значит скан ячейки и ярлыка короба.
-/// Две копии этой логики разошлись бы на первой же правке — так уже было с резолвом ШК
+/// вещами - куда ложится строка ([scanBoxId]) и что значит скан ячейки и ярлыка короба.
+/// Две копии этой логики разошлись бы на первой же правке - так уже было с резолвом ШК
 /// в «Вводе остатков» (ADHOC-13).
 ///
 /// Один скан-вход на всё: формы кодов не пересекаются (P4-04), поэтому кладовщику не нужно
-/// переключать режимы — он сканирует то, что держит в руках.
+/// переключать режимы - он сканирует то, что держит в руках.
 mixin ReceiptScanActions<T extends StatefulWidget>
     on
         State<T>,
@@ -47,7 +47,7 @@ mixin ReceiptScanActions<T extends StatefulWidget>
   /// Отсекает дубль, если устройство отдаёт код и в поле, и интентом.
   final _deduper = ScanDeduper();
 
-  /// Короб, в который ложатся строки этого экрана; `null` — штучно (общий список).
+  /// Короб, в который ложатся строки этого экрана; `null` - штучно (общий список).
   @override
   String? get scanBoxId;
 
@@ -67,7 +67,7 @@ mixin ReceiptScanActions<T extends StatefulWidget>
 
   ReceiptCubit get cubit => context.read<ReceiptCubit>();
 
-  /// Вернуть фокус скан-полю (после диалогов) — иначе сканер DT50 печатает «в никуда».
+  /// Вернуть фокус скан-полю (после диалогов) - иначе сканер DT50 печатает «в никуда».
   void refocusScan() {
     if (mounted) scanFocus.requestFocus();
   }
@@ -93,7 +93,7 @@ mixin ReceiptScanActions<T extends StatefulWidget>
       refocusScan();
       return;
     }
-    // Остальные сканы — после марок, отсканированных раньше: ячейка и короб, сменённые
+    // Остальные сканы - после марок, отсканированных раньше: ячейка и короб, сменённые
     // до ответа ЧЗ, увели бы туда марки, отсканированные до смены.
     if (!await czSettle()) return;
     switch (kind) {
@@ -107,7 +107,7 @@ mixin ReceiptScanActions<T extends StatefulWidget>
       case ScanKind.czBox:
         break;
       case ScanKind.unknown:
-        // Ярлык ГЕ новой версии — исправная этикетка, а не чужой код: «не распознан»
+        // Ярлык ГЕ новой версии - исправная этикетка, а не чужой код: «не распознан»
         // отправил бы кладовщика искать поломку, которой нет (P4-04).
         if (readLoadUnitPayload(code) is LoadUnitPayloadUnsupported) {
           snack(t.receipt.boxLabelUnsupported);
@@ -118,7 +118,7 @@ mixin ReceiptScanActions<T extends StatefulWidget>
     refocusScan();
   }
 
-  /// Скан ярлыка короба: короб этой приёмки открывается, чужой — нет.
+  /// Скан ярлыка короба: короб этой приёмки открывается, чужой - нет.
   void _onBoxLabel(String loadUnitId) {
     if (!cubit.hasBox(loadUnitId)) {
       snack(t.receipt.boxForeign);
@@ -127,7 +127,7 @@ mixin ReceiptScanActions<T extends StatefulWidget>
     onBoxScanned(loadUnitId.toLowerCase());
   }
 
-  /// Скан этикетки ячейки. Адрес ищется в справочнике (кэш-first), а не принимается на веру —
+  /// Скан этикетки ячейки. Адрес ищется в справочнике (кэш-first), а не принимается на веру -
   /// иначе опечатка в этикетке ушла бы в документ.
   Future<void> _onCellScan(String address) async {
     final res = await getIt<CatalogRepository>().listAllCells();
@@ -145,7 +145,7 @@ mixin ReceiptScanActions<T extends StatefulWidget>
     snack(t.receipt.cell(address: cell.address));
   }
 
-  /// Выбрать ячейку вручную — тот же лист, что во «Вводе остатков».
+  /// Выбрать ячейку вручную - тот же лист, что во «Вводе остатков».
   Future<void> changeCell() async {
     if (!await czSettle() || !mounted) return;
     final cell = await showModalBottomSheet<Cell>(
@@ -161,8 +161,8 @@ mixin ReceiptScanActions<T extends StatefulWidget>
     refocusScan();
   }
 
-  /// Скан штрихкода товара: опознан — строка; не привязан — выбор товара и привязка;
-  /// проверить не удалось — спрашиваем, назвав причину (ADHOC-06).
+  /// Скан штрихкода товара: опознан - строка; не привязан - выбор товара и привязка;
+  /// проверить не удалось - спрашиваем, назвав причину (ADHOC-06).
   Future<void> _onGoodScan(String code) async {
     final resolved = await cubit.resolveBarcode(code);
     if (!mounted) return;
@@ -183,7 +183,7 @@ mixin ReceiptScanActions<T extends StatefulWidget>
   }
 
   /// Привязать ШК, который не удалось проверить: решение за кладовщиком, он видит упаковку.
-  /// Если код занят другим товаром, сервер отклонит привязку и она попадёт на экран разбора —
+  /// Если код занят другим товаром, сервер отклонит привязку и она попадёт на экран разбора -
   /// строка прихода от этого не страдает, товар выбран руками.
   Future<void> _bindUnverified(String code, Failure failure) async {
     final confirmed = await showBindPromptDialog(
@@ -203,7 +203,7 @@ mixin ReceiptScanActions<T extends StatefulWidget>
 
   //* --- строки --- *//
 
-  /// Товар без штрихкода — выбор из номенклатуры. Если ШК у товара нет вовсе, предлагаем
+  /// Товар без штрихкода - выбор из номенклатуры. Если ШК у товара нет вовсе, предлагаем
   /// выдать внутренний и напечатать ярлык (P4-07, P4-08): иначе этот товар так и останется
   /// неопознаваемым сканом на следующих операциях.
   Future<void> addManual() async {
@@ -225,7 +225,7 @@ mixin ReceiptScanActions<T extends StatefulWidget>
   }
 
   /// Спросить дату и количество и добавить строку туда, куда кладёт этот экран.
-  /// [scannedCode] включает «неверный товар»; [newBarcode] — ШК ещё не привязан и уйдёт
+  /// [scannedCode] включает «неверный товар»; [newBarcode] - ШК ещё не привязан и уйдёт
   /// привязкой в очередь.
   Future<void> _collectAndAdd(
     Good good, {
@@ -273,7 +273,7 @@ mixin ReceiptScanActions<T extends StatefulWidget>
 
   /// Меню строки по долгому нажатию.
   ///
-  /// Строку с марками ЧЗ не правят: количество — число марок, партия — из ЧЗ (CZ-05). Строку
+  /// Строку с марками ЧЗ не правят: количество - число марок, партия - из ЧЗ (CZ-05). Строку
   /// короба ЧЗ и не удаляют: короб уходит только целиком, с его страницы.
   Future<void> showLineMenu(ReceiptLineDraft line) async {
     final czBox =

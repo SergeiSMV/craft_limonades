@@ -65,7 +65,7 @@ void main() {
     await db.close();
   });
 
-  // Короб ЧЗ: упаковка с двумя марками, одна марка прямо в коробе, другая партия — чужая.
+  // Короб ЧЗ: упаковка с двумя марками, одна марка прямо в коробе, другая партия - чужая.
   final boxScan = CzScanResult(
     code: box,
     kind: CzCodeKind.box,
@@ -97,7 +97,7 @@ void main() {
   );
 
   group('из ответа скана', () {
-    test('состав короба — строки по партии, упаковка каждой марки', () {
+    test('состав короба - строки по партии, упаковка каждой марки', () {
       final lines = czIntakeLines(boxScan, {gtin: beer});
       expect(lines.map((l) => l.date), ['01.09.2026', '02.09.2026']);
       expect(lines.first.marks.map((m) => m.aggregateCode), [pack, pack, box]);
@@ -107,7 +107,7 @@ void main() {
       ]);
     });
 
-    test('марка — одна единица россыпью, без упаковки', () {
+    test('марка - одна единица россыпью, без упаковки', () {
       final scan = CzScanResult(
         code: mark('U1'),
         kind: CzCodeKind.unit,
@@ -135,7 +135,7 @@ void main() {
   });
 
   group('приёмка', () {
-    test('короб ЧЗ — новая ГЕ в текущей ячейке, повтор кода — отказ', () {
+    test('короб ЧЗ - новая ГЕ в текущей ячейке, повтор кода - отказ', () {
       cubit.setTargetCell(cell1);
       final r = cubit.addCzBox(
         code: box,
@@ -182,7 +182,7 @@ void main() {
       expect(cubit.state.linesOf(r.boxId!).length, 2);
     });
 
-    test('марки россыпью копятся в строке партии, повтор марки — отказ', () {
+    test('марки россыпью копятся в строке партии, повтор марки - отказ', () {
       CzIntakeLine one(String n) => CzIntakeLine(
         good: beer,
         date: '01.09.2026',

@@ -9,7 +9,7 @@ import '../error/dio_failure.dart';
 import '../error/failure.dart';
 
 /// Внутренний склад (ADR-0016): «Основной», «Брак», «Изолятор» … Метка короба или товара,
-/// а не место — товар с меткой лежит в той же ячейке (P6-07-1).
+/// а не место - товар с меткой лежит в той же ячейке (P6-07-1).
 class InternalWarehouse {
   const InternalWarehouse({
     required this.id,
@@ -34,10 +34,10 @@ class InternalWarehouse {
 
 /// Справочник внутренних складов на терминале (P6-07-2).
 ///
-/// Что: склады с сервера (`GET /internal-warehouses`) в локальной базе — для выбора, куда
+/// Что: склады с сервера (`GET /internal-warehouses`) в локальной базе - для выбора, куда
 /// пометить товар, и для подписи «Брак» / «Изолятор» на экранах, в том числе без связи.
-/// Соглашение терминала: склад по умолчанию в сущностях — `null`. Сервер всегда шлёт id
-/// склада, своя очередь до P6-07-1 — нет; приводятся к одному виду через [normalize].
+/// Соглашение терминала: склад по умолчанию в сущностях - `null`. Сервер всегда шлёт id
+/// склада, своя очередь до P6-07-1 - нет; приводятся к одному виду через [normalize].
 @lazySingleton
 class InternalWarehouses {
   InternalWarehouses(this._dio, this._db);
@@ -45,12 +45,12 @@ class InternalWarehouses {
   final Dio _dio;
   final AppDatabase _db;
 
-  /// Прочитанный справочник — склады меняются редко, а подпись нужна на каждой строке.
+  /// Прочитанный справочник - склады меняются редко, а подпись нужна на каждой строке.
   List<InternalWarehouse>? _memo;
 
   /// Перечитать справочник с сервера.
   ///
-  /// Сервер без этой ручки (до P6-07-1) отвечает 404 — справочник тогда просто остаётся
+  /// Сервер без этой ручки (до P6-07-1) отвечает 404 - справочник тогда просто остаётся
   /// прежним: старый сервер брака не знает, и подписывать на терминале нечего.
   Future<Either<Failure, void>> refresh() async {
     try {
@@ -63,7 +63,7 @@ class InternalWarehouses {
             name: e['name'] as String? ?? '',
             isDefault: e['is_default'] as bool? ?? false,
             // Системный склад кладётся в кэш невыбираемым: локальной базе отдельная колонка
-            // не нужна — для терминала он то же, что скрытый.
+            // не нужна - для терминала он то же, что скрытый.
             isActive:
                 (e['is_active'] as bool? ?? true) &&
                 (e['system_role'] as String? ?? '').isEmpty,
@@ -94,7 +94,7 @@ class InternalWarehouses {
     }
   }
 
-  /// Все склады: по умолчанию первым, дальше по имени — как отдаёт сервер.
+  /// Все склады: по умолчанию первым, дальше по имени - как отдаёт сервер.
   Future<List<InternalWarehouse>> all() async {
     final memo = _memo;
     if (memo != null) return memo;
@@ -117,7 +117,7 @@ class InternalWarehouses {
     return _memo = items;
   }
 
-  /// Id склада по умолчанию; `null` — справочник ещё не загружен.
+  /// Id склада по умолчанию; `null` - справочник ещё не загружен.
   Future<String?> defaultId() async {
     for (final w in await all()) {
       if (w.isDefault) return w.id;
@@ -125,7 +125,7 @@ class InternalWarehouses {
     return null;
   }
 
-  /// Привести id склада к соглашению терминала: склад по умолчанию и пустое значение — `null`.
+  /// Привести id склада к соглашению терминала: склад по умолчанию и пустое значение - `null`.
   static String? normalize(String? id, String? defaultId) =>
       id == null || id.isEmpty || id == defaultId ? null : id;
 }

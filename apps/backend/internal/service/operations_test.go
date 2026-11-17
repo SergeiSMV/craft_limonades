@@ -11,7 +11,7 @@ import (
 	"craftwms/internal/repository"
 )
 
-// fakeOpsRepo — in-memory применение операций: помнит, какие operation_id уже видел, и
+// fakeOpsRepo - in-memory применение операций: помнит, какие operation_id уже видел, и
 // повторяет договор настоящего репозитория (повтор → Duplicate, эффект не выполняется).
 type fakeOpsRepo struct {
 	seen     map[string]bool
@@ -160,7 +160,7 @@ const (
 	opID2    = "22222222-2222-4222-8222-222222222222"
 )
 
-// Повтор той же операции не выполняет эффект второй раз — главный критерий P2-05.
+// Повтор той же операции не выполняет эффект второй раз - главный критерий P2-05.
 func TestOperations_repeatDoesNotDoubleApply(t *testing.T) {
 	repo := newFakeOpsRepo()
 	svc := NewOperationsService(repo)
@@ -208,7 +208,7 @@ func TestOperations_rejectionDoesNotStopBatch(t *testing.T) {
 		t.Fatalf("первая: ждали %q, получили %q", StatusRejected, results[0].Status)
 	}
 	if results[0].Error == "" {
-		t.Fatal("у отклонённой операции пустая причина — на экране разбора показывать нечего")
+		t.Fatal("у отклонённой операции пустая причина - на экране разбора показывать нечего")
 	}
 	if results[1].Status != StatusAccepted {
 		t.Fatalf("вторая: ждали %q, получили %q", StatusAccepted, results[1].Status)
@@ -216,7 +216,7 @@ func TestOperations_rejectionDoesNotStopBatch(t *testing.T) {
 }
 
 // Временная неудача обрывает батч: применённое возвращается, остальное устройство пришлёт снова.
-// Перескакивать через застрявшую операцию нельзя — порядок «привязать/отвязать» решает исход.
+// Перескакивать через застрявшую операцию нельзя - порядок «привязать/отвязать» решает исход.
 func TestOperations_temporaryFailureTruncatesBatch(t *testing.T) {
 	repo := newFakeOpsRepo()
 	svc := NewOperationsService(repo)
@@ -238,7 +238,7 @@ func TestOperations_temporaryFailureTruncatesBatch(t *testing.T) {
 		t.Fatal("ждали временную ошибку на первой же операции")
 	}
 	if results != nil {
-		t.Fatalf("ничего не применено — результатов быть не должно, получили %+v", results)
+		t.Fatalf("ничего не применено - результатов быть не должно, получили %+v", results)
 	}
 }
 
@@ -257,7 +257,7 @@ func TestOperations_unknownKindIsRejected(t *testing.T) {
 	}
 }
 
-// operation_id не UUID — отказ по существу: генерировать его заново некому.
+// operation_id не UUID - отказ по существу: генерировать его заново некому.
 func TestOperations_invalidOperationIDIsRejected(t *testing.T) {
 	svc := NewOperationsService(newFakeOpsRepo())
 	results, err := svc.Apply(context.Background(), opUserID, []Operation{
@@ -288,7 +288,7 @@ func TestOperations_batchBounds(t *testing.T) {
 	}
 }
 
-// Пустые обязательные поля тела — отказ по существу, а не паника на nil.
+// Пустые обязательные поля тела - отказ по существу, а не паника на nil.
 func TestOperations_emptyPayloadFieldsRejected(t *testing.T) {
 	svc := NewOperationsService(newFakeOpsRepo())
 	results, err := svc.Apply(context.Background(), opUserID, []Operation{
@@ -405,7 +405,7 @@ func TestOperations_putawaySubmitValidation(t *testing.T) {
 		{"пустой сеанс", map[string]any{"putaway_id": putaway, "task_id": task, "warehouse_id": warehouse}},
 		{"нет ячейки назначения", doc(map[string]any{"load_unit_id": box})},
 		{"короб не UUID", doc(map[string]any{"load_unit_id": "CWLU1:x", "to_cell_id": cell})},
-		// Строка — короб ИЛИ россыпь: товарные поля у короба — противоречие.
+		// Строка - короб ИЛИ россыпь: товарные поля у короба - противоречие.
 		{"короб с товаром", doc(map[string]any{"load_unit_id": box, "good_id": good, "to_cell_id": cell})},
 		{"короб с количеством", doc(map[string]any{"load_unit_id": box, "qty": 3, "to_cell_id": cell})},
 		{"ни короба, ни товара", doc(map[string]any{"to_cell_id": cell})},
@@ -482,7 +482,7 @@ func TestOperations_movementSubmitValidation(t *testing.T) {
 		{"пустой документ", map[string]any{"movement_id": movement, "movement_kind": "move", "warehouse_id": warehouse}},
 		{"ГЕ без ячейки назначения", doc(map[string]any{"load_unit_id": box})},
 		{"ГЕ не UUID", doc(map[string]any{"load_unit_id": "CWLU1:x", "to_cell_id": cell})},
-		// Строка — ГЕ ИЛИ товар: товарные поля и источник у ГЕ целиком — противоречие.
+		// Строка - ГЕ ИЛИ товар: товарные поля и источник у ГЕ целиком - противоречие.
 		{"ГЕ с товаром", doc(map[string]any{"load_unit_id": box, "good_id": good, "to_cell_id": cell})},
 		{"ГЕ с источником", doc(map[string]any{"load_unit_id": box, "from_cell_id": cell2, "to_cell_id": cell})},
 		{"ГЕ в короб", doc(map[string]any{"load_unit_id": box, "to_load_unit_id": box2})},
@@ -563,7 +563,7 @@ func TestOperations_problemSubmitValidation(t *testing.T) {
 		{"нет склада", body(map[string]any{"warehouse_id": nil})},
 		{"нет склада назначения", body(map[string]any{"to_internal_warehouse_id": nil})},
 		// Есть ли причина в справочнике и нужен ли ей комментарий, проверяет репозиторий
-		// (ADHOC-55) — интеграционный тест; здесь только пустая причина.
+		// (ADHOC-55) - интеграционный тест; здесь только пустая причина.
 		{"без причины", body(map[string]any{"reason": ""})},
 		{"комментарий длиннее предела", body(map[string]any{"comment": strings.Repeat("я", problemCommentMax+1)})},
 		{"короб с товаром", map[string]any{"problem_id": problem, "warehouse_id": warehouse,

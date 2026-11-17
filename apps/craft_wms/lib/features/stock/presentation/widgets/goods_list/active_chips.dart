@@ -8,7 +8,7 @@ import '../../../../../core/constants/app_sizes.dart';
 import '../../../../../core/theme/regular_text.dart';
 import '../../bloc/goods_list_cubit.dart';
 
-/// Активные фильтры чипами (группа/поставщик, в «Остатках» — выбранные склады). «✕» снимает
+/// Активные фильтры чипами (группа/поставщик, в «Остатках» - выбранные склады). «✕» снимает
 /// фильтр сразу.
 class ActiveChips extends StatelessWidget {
   const ActiveChips({super.key});

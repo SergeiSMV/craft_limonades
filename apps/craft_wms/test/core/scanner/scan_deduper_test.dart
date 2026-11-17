@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   final start = DateTime(2026, 9, 2, 10);
 
-  test('первый код проходит, немедленный повтор — нет', () {
+  test('первый код проходит, немедленный повтор - нет', () {
     final deduper = ScanDeduper();
     expect(deduper.allow('4607091380001', now: start), isTrue);
     expect(
@@ -18,7 +18,7 @@ void main() {
     );
   });
 
-  test('повтор за окном — это осознанный второй скан, пропускаем', () {
+  test('повтор за окном - это осознанный второй скан, пропускаем', () {
     final deduper = ScanDeduper();
     deduper.allow('4607091380001', now: start);
     expect(

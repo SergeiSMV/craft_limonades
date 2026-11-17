@@ -48,7 +48,7 @@ final setup = CellsSetup(
   ],
 );
 
-/// ADHOC-57: страница «Ячейки» — список, карточка ячейки, массовая отметка, права, печать.
+/// ADHOC-57: страница «Ячейки» - список, карточка ячейки, массовая отметка, права, печать.
 void main() {
   late _MockRepo repo;
   final saved = <String>[];
@@ -109,7 +109,7 @@ void main() {
   final s = t.portal.cells;
 
   testWidgets(
-    'широко — колонки и карточка справа; строка открывает образец этикетки',
+    'широко - колонки и карточка справа; строка открывает образец этикетки',
     (tester) async {
       await pump(tester);
 
@@ -148,7 +148,7 @@ void main() {
     expect(find.text(s.side.saved(cells: 1)), findsOneWidget);
   });
 
-  testWidgets('ярлык «Карточка» — по галочке ячейки', (tester) async {
+  testWidgets('ярлык «Карточка» - по галочке ячейки', (tester) async {
     await pump(tester);
 
     expect(find.text(s.badgeCard), findsOneWidget); // только c1
@@ -170,7 +170,7 @@ void main() {
     expect(box.value, isFalse);
   });
 
-  testWidgets('«Карточка на стойку» — флаг ячейки в PATCH', (tester) async {
+  testWidgets('«Карточка на стойку» - флаг ячейки в PATCH', (tester) async {
     await pump(tester);
     await tester.tap(find.text('B-1-2-1'));
     await tester.pumpAndSettle();
@@ -217,7 +217,7 @@ void main() {
   ) async {
     await pump(tester);
     final boxes = find.byType(PortalCheckbox);
-    // 0 — «отметить все», дальше строки в порядке наклейки: c2 (ярус 2 выше), c1, c3.
+    // 0 - «отметить все», дальше строки в порядке наклейки: c2 (ярус 2 выше), c1, c3.
     await tester.tap(boxes.at(2));
     await tester.tap(boxes.at(3));
     await tester.pumpAndSettle();
@@ -242,7 +242,7 @@ void main() {
   });
 
   testWidgets(
-    'без прав — галочки только для просмотра, нет загрузки и печати',
+    'без прав - галочки только для просмотра, нет загрузки и печати',
     (tester) async {
       await pump(tester, canEdit: false, canImport: false, canLabels: false);
       await tester.tap(find.text('B-1-1-1'));
@@ -256,7 +256,7 @@ void main() {
     },
   );
 
-  testWidgets('узко — без карточки справа, строка открывает окно', (
+  testWidgets('узко - без карточки справа, строка открывает окно', (
     tester,
   ) async {
     await pump(tester, width: 560);
@@ -272,7 +272,7 @@ void main() {
     expect(find.byType(LabelPreview), findsOneWidget);
   });
 
-  testWidgets('печать: PDF по видам; отказ 422 — текстом в окне', (
+  testWidgets('печать: PDF по видам; отказ 422 - текстом в окне', (
     tester,
   ) async {
     when(() => repo.labelsPdf(any(), any())).thenAnswer((inv) async {

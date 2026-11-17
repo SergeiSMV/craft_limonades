@@ -52,7 +52,7 @@ func setupReceipt(t *testing.T) *rcEnv {
 	e.warehouse = scan(`INSERT INTO warehouses (code,name) VALUES ('SHB','Шабулина') RETURNING id::text`)
 	e.cell1 = scan(`INSERT INTO cells (warehouse_id,address) VALUES ($1::uuid,'M1-1-1-1') RETURNING id::text`, e.warehouse)
 	e.cell2 = scan(`INSERT INTO cells (warehouse_id,address) VALUES ($1::uuid,'M1-1-2-1') RETURNING id::text`, e.warehouse)
-	// Дефолтная ячейка склада — её подставляет приёмка, когда кладовщик место не выбирал (P4-03).
+	// Дефолтная ячейка склада - её подставляет приёмка, когда кладовщик место не выбирал (P4-03).
 	// Заводится так же, как в бою: через тот же метод репозитория, что зовут сидер и импорт ячеек.
 	e.cellDefault = mustEnsureDefaultCell(t, pool, e.warehouse)
 	e.good = scan(`INSERT INTO goods (name,uom) VALUES ('Кальмар','шт') RETURNING id::text`)
@@ -62,7 +62,7 @@ func setupReceipt(t *testing.T) *rcEnv {
 	return e
 }
 
-// qty читает остаток на складе по умолчанию — туда приходует приёмка.
+// qty читает остаток на складе по умолчанию - туда приходует приёмка.
 func (e *rcEnv) qty(t *testing.T, cell, batch string) decimal.Decimal {
 	t.Helper()
 	q, err := e.stockRepo.GetQty(context.Background(), model.StockKey{
@@ -100,7 +100,7 @@ func mustEnsureDefaultCell(t *testing.T, pool *pgxpool.Pool, warehouseID string)
 	return id
 }
 
-// Ячейку кладовщик на приёмке не выбирает: пустая ячейка в строке — это просьба подставить
+// Ячейку кладовщик на приёмке не выбирает: пустая ячейка в строке - это просьба подставить
 // дефолтную, а не ошибка ввода. Проверяем и подстановку, и что вернулась именно она:
 // умолчание, работающее вслепую, кладовщик не смог бы отличить от промаха.
 func TestReceipt_defaultCellSubstituted(t *testing.T) {
@@ -119,7 +119,7 @@ func TestReceipt_defaultCellSubstituted(t *testing.T) {
 		t.Fatalf("подставлена ячейка %s, ожидалась дефолтная %s", cell, e.cellDefault)
 	}
 
-	// Ячейку ищем по флагу, а не по строке адреса, — но адрес обязан быть тем, о котором
+	// Ячейку ищем по флагу, а не по строке адреса, - но адрес обязан быть тем, о котором
 	// договорились с заказчиком: по нему кладовщик находит место на складе.
 	var address string
 	if err := e.pool.QueryRow(ctx,
@@ -214,7 +214,7 @@ func TestReceipt_postIsNotRepeatable(t *testing.T) {
 }
 
 // Повторный скан той же позиции увеличивает количество в строке, а не плодит строки.
-// Грань включает ячейку и ГЕ, поэтому та же позиция в другую ячейку — отдельная строка.
+// Грань включает ячейку и ГЕ, поэтому та же позиция в другую ячейку - отдельная строка.
 func TestReceipt_lineGrain(t *testing.T) {
 	e := setupReceipt(t)
 	ctx := context.Background()
@@ -230,8 +230,8 @@ func TestReceipt_lineGrain(t *testing.T) {
 		}
 	}
 	add(e.cell1, "3")
-	add(e.cell1, "2") // тот же товар, партия и ячейка — в ту же строку
-	add(e.cell2, "5") // другая ячейка — отдельная строка
+	add(e.cell1, "2") // тот же товар, партия и ячейка - в ту же строку
+	add(e.cell2, "5") // другая ячейка - отдельная строка
 
 	_, lines, err := e.svc.Get(ctx, id)
 	if err != nil {
@@ -250,14 +250,14 @@ func TestReceipt_lineGrain(t *testing.T) {
 	if got := byCell["M1-1-2-1"]; !got.Equal(decimal.RequireFromString("5")) {
 		t.Errorf("вторая ячейка: %s, ожидалось 5", got)
 	}
-	// Наименование товара приходит вместе со строкой — экрану не нужен второй запрос.
+	// Наименование товара приходит вместе со строкой - экрану не нужен второй запрос.
 	if lines[0].GoodName != "Кальмар" {
 		t.Errorf("наименование в строке: %q", lines[0].GoodName)
 	}
 }
 
 // Приёмка в грузовую единицу: состав ГЕ пополняется, сама ГЕ уезжает в ячейку и считается
-// размещённой. Остаток при этом поднимается так же, как у россыпи, — ГЕ его не заменяет.
+// размещённой. Остаток при этом поднимается так же, как у россыпи, - ГЕ его не заменяет.
 func TestReceipt_intoLoadUnit(t *testing.T) {
 	e := setupReceipt(t)
 	ctx := context.Background()
@@ -295,7 +295,7 @@ func TestReceipt_intoLoadUnit(t *testing.T) {
 }
 
 // Короб не может лежать в двух местах: противоречивый документ не проводится целиком,
-// а не «как-нибудь» — молчаливый выбор одной из ячеек соврал бы про место хранения.
+// а не «как-нибудь» - молчаливый выбор одной из ячеек соврал бы про место хранения.
 func TestReceipt_loadUnitCellConflict(t *testing.T) {
 	e := setupReceipt(t)
 	ctx := context.Background()

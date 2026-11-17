@@ -13,12 +13,12 @@ import (
 	"craftwms/internal/service"
 )
 
-// Эталон проблемы склада (P6-07-1) — серверная половина контракта; клиентская появится вместе
-// с диалогом фиксации на ТСД (P6-07-2). Две операции: 2 шт россыпи — в «Брак» с комментарием,
-// короб целиком — в «Изолятор» с маркой ЧЗ.
+// Эталон проблемы склада (P6-07-1) - серверная половина контракта; клиентская появится вместе
+// с диалогом фиксации на ТСД (P6-07-2). Две операции: 2 шт россыпи - в «Брак» с комментарием,
+// короб целиком - в «Изолятор» с маркой ЧЗ.
 //
 // Идентификаторы внутренних складов выдаёт сервер, поэтому в эталоне на их месте коды
-// справочника (DEFECT, ISOLATOR) — тест подставляет id, как их взял бы клиент из
+// справочника (DEFECT, ISOLATOR) - тест подставляет id, как их взял бы клиент из
 // GET /internal-warehouses.
 func TestProblemHTTP_clientWireFormat(t *testing.T) {
 	raw := string(readFixture(t, "problem_submit.json"))
@@ -55,7 +55,7 @@ func TestProblemHTTP_clientWireFormat(t *testing.T) {
 		t.Fatalf("приёмка под эталон не применилась: %v", got)
 	}
 
-	// Справочник складов для ТСД: «Основной» первым, «Брак» и «Изолятор» — на выбор.
+	// Справочник складов для ТСД: «Основной» первым, «Брак» и «Изолятор» - на выбор.
 	code, body := e.call(t, http.MethodGet, "/api/v1/internal-warehouses", e.workerToken, "")
 	var iws []struct {
 		ID        string `json:"id"`
@@ -73,7 +73,7 @@ func TestProblemHTTP_clientWireFormat(t *testing.T) {
 
 	if got := e.operations(t, batch); len(got) != 2 || got[0] != service.StatusAccepted || got[1] != service.StatusAccepted {
 		t.Fatalf("эталонные проблемы не применились: %v.\n"+
-			"Формат разошёлся — сверьте testdata/problem_submit.json с тем, что шлёт клиент.", got)
+			"Формат разошёлся - сверьте testdata/problem_submit.json с тем, что шлёт клиент.", got)
 	}
 
 	// Количество в ячейке то же (17): 3 основной россыпи, 2 брака, 12 изолятора в коробе.
@@ -95,14 +95,14 @@ func TestProblemHTTP_clientWireFormat(t *testing.T) {
 		t.Fatalf("короб в содержимом ячейки: %d %s", code, body)
 	}
 
-	// Та же проблема повторно (новая операция, тот же problem_id) — отказ по существу.
+	// Та же проблема повторно (новая операция, тот же problem_id) - отказ по существу.
 	again := strings.Replace(batch, "7e000000-0000-4000-8000-0000000000f1", uuid.NewString(), 1)
 	again = strings.Replace(again, "7e000000-0000-4000-8000-0000000000f2", uuid.NewString(), 1)
 	if got := e.operations(t, again); len(got) != 2 || got[0] != service.StatusRejected {
 		t.Fatalf("повтор проблемы: %v", got)
 	}
 
-	// ADHOC-35: «Текущие» — кладовщик видит обе открытые проблемы.
+	// ADHOC-35: «Текущие» - кладовщик видит обе открытые проблемы.
 	code, body = e.call(t, http.MethodGet, "/api/v1/problems/current", e.workerToken, "")
 	var current []struct {
 		ID     string `json:"id"`
@@ -113,7 +113,7 @@ func TestProblemHTTP_clientWireFormat(t *testing.T) {
 		t.Fatalf("текущие: %d %s", code, body)
 	}
 
-	// ADHOC-34: офис списывает россыпь — кладовщик видит её в ленте «Завершённые» в формате
+	// ADHOC-34: офис списывает россыпь - кладовщик видит её в ленте «Завершённые» в формате
 	// эталона testdata/problems_resolved.json; открытая (короб в «Изоляторе») туда не попадает,
 	// рабочий список офиса кладовщику закрыт.
 	if code, body := e.call(t, http.MethodPost, "/api/v1/problems/7e000000-0000-4000-8000-000000000001/resolve",
@@ -139,13 +139,13 @@ func TestProblemHTTP_clientWireFormat(t *testing.T) {
 	if err := json.Unmarshal(body, &got); err != nil {
 		t.Fatalf("ответ ленты не разбирается: %v", err)
 	}
-	// Моменты и ФИО выдаёт сервер — эталон их знать не может.
+	// Моменты и ФИО выдаёт сервер - эталон их знать не может.
 	volatile := map[string]bool{"created_at": true, "resolved_at": true, "created_by": true, "resolved_by": true}
 	blank(want, volatile)
 	blank(got, volatile)
 	if !reflect.DeepEqual(got, want) {
 		g, _ := json.MarshalIndent(got, "", "  ")
-		t.Fatalf("лента разошлась с эталоном testdata/problems_resolved.json — сверьте формат "+
+		t.Fatalf("лента разошлась с эталоном testdata/problems_resolved.json - сверьте формат "+
 			"с тем, что разбирает клиент.\nПолучено: %s", g)
 	}
 }

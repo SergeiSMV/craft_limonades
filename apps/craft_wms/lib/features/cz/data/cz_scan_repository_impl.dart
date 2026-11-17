@@ -11,7 +11,7 @@ import 'cz_scan_dto.dart';
 /// Скан «Честного знака» через сервер (CZ-04): `POST cz/scan {code}`.
 ///
 /// Только онлайн и без кэша: данные ЧЗ живые (статус марки меняется вне склада), а без связи
-/// True API недоступен и серверу. Обрыв — `Failure.network`, экран говорит «нужна связь».
+/// True API недоступен и серверу. Обрыв - `Failure.network`, экран говорит «нужна связь».
 @LazySingleton(as: CzScanRepository)
 class CzScanRepositoryImpl implements CzScanRepository {
   CzScanRepositoryImpl(this._dio);

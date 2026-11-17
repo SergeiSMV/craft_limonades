@@ -8,7 +8,7 @@ import 'printer_transport.dart';
 ///
 /// Как: все вызовы уходят в `PrinterBridge.kt`, который держит RFCOMM-сокет. Ошибки канала
 /// переводятся в [PrinterFailure] здесь, у границы платформы: выше по слоям о `PlatformException`
-/// знать незачем, а код ошибки нужен — по нему экран решает, предлагать человеку настройки
+/// знать незачем, а код ошибки нужен - по нему экран решает, предлагать человеку настройки
 /// или кнопку «повторить».
 @LazySingleton(as: PrinterTransport)
 class BluetoothPrinterTransport implements PrinterTransport {

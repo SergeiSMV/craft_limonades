@@ -13,7 +13,7 @@ echo "${BLUE}━━━━━━━━━━━━━━━━━━━━━━�
 
 dart run build_runner clean
 
-# slang пишет в lib/core/gen/ напрямую; clean их не трогает — без удаления повторный build падает
+# slang пишет в lib/core/gen/ напрямую; clean их не трогает - без удаления повторный build падает
 rm -f lib/core/gen/strings*.g.dart
 
 echo "${BRIGHT_RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${DEFAULT}"

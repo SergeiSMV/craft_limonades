@@ -3,7 +3,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'import_report.freezed.dart';
 part 'import_report.g.dart';
 
-/// Итог импорта номенклатуры — ответ `POST /import/goods` (backend `ImportReport`).
+/// Итог импорта номенклатуры - ответ `POST /import/goods` (backend `ImportReport`).
 /// JsonKey мапит snake_case из JSON на camelCase полей Dart.
 @freezed
 abstract class ImportReport with _$ImportReport {
@@ -18,7 +18,7 @@ abstract class ImportReport with _$ImportReport {
   factory ImportReport.fromJson(Map<String, dynamic> json) => _$ImportReportFromJson(json);
 }
 
-/// Итог загрузки ячеек и стеллажей — ответ `POST /import/cells` (backend `CellsImportReport`).
+/// Итог загрузки ячеек и стеллажей - ответ `POST /import/cells` (backend `CellsImportReport`).
 @freezed
 abstract class CellsImportReport with _$CellsImportReport {
   const factory CellsImportReport({

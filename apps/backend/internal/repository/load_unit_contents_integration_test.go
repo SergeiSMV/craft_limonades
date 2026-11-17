@@ -46,7 +46,7 @@ func newBatch(t *testing.T, fx *stockFixture, date string) string {
 	return id
 }
 
-// Паллета с двумя коробами: её состав — всё, что в коробах, сложенное по партиям;
+// Паллета с двумя коробами: её состав - всё, что в коробах, сложенное по партиям;
 // короб внутри паллеты по-прежнему отдаёт только своё.
 func TestLoadUnitContents_nestedSummedByBatch(t *testing.T) {
 	fx := setupStock(t)
@@ -77,7 +77,7 @@ func TestLoadUnitContents_nestedSummedByBatch(t *testing.T) {
 	}
 }
 
-// Пустая ГЕ есть в ответе с пустым составом, несуществующей — нет: домен должен отличать
+// Пустая ГЕ есть в ответе с пустым составом, несуществующей - нет: домен должен отличать
 // «короб пуст» от «такого короба нет».
 func TestLoadUnitContents_emptyVersusMissing(t *testing.T) {
 	fx := setupStock(t)
@@ -120,7 +120,7 @@ func TestLoadUnitContents_cycleTerminates(t *testing.T) {
 	}
 }
 
-// Сквозной случай: домен разворачивает движения по составу, прочитанному из базы, — внутри
+// Сквозной случай: домен разворачивает движения по составу, прочитанному из базы, - внутри
 // транзакции, как это будет делать операция.
 func TestLoadUnitContents_expandInsideTx(t *testing.T) {
 	fx := setupStock(t)

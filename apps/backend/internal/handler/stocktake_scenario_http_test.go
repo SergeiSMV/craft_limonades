@@ -11,7 +11,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// P10-03: пересчёт через настоящий роутер — заводит старший смены (admin), задание видно в
+// P10-03: пересчёт через настоящий роутер - заводит старший смены (admin), задание видно в
 // пуле со ссылкой на пересчёт, кладовщик берёт ячейку, сканирует её и видит позиции без
 // количеств (слепой счёт), факт уходит операцией очереди, остаток приводится к факту, пересчёт
 // закрывается.
@@ -69,7 +69,7 @@ func TestStocktakeScenarioHTTP(t *testing.T) {
 	code, raw = e.call(t, http.MethodPost, "/api/v1/stocktake-cells/"+cell+"/start", e.workerToken, "")
 	if code != http.StatusOK || !strings.Contains(string(raw), `"production_date":"01-01-2026"`) ||
 		strings.Contains(string(raw), "qty") {
-		t.Fatalf("скан ячейки: код %d, позиции %s — ожидались без количеств", code, raw)
+		t.Fatalf("скан ячейки: код %d, позиции %s - ожидались без количеств", code, raw)
 	}
 
 	statuses := e.operations(t, `{"operations":[{"operation_id":"`+uuid.NewString()+`","kind":"stocktake_cell_submit",
@@ -80,7 +80,7 @@ func TestStocktakeScenarioHTTP(t *testing.T) {
 	var qty string
 	if err := e.pool.QueryRow(t.Context(), `SELECT qty::int::text FROM stock WHERE cell_id = $1::uuid AND good_id = $2::uuid`,
 		e.cell1, good).Scan(&qty); err != nil || qty != "3" {
-		t.Errorf("остаток после подсчёта: %s, %v — ожидалось 3", qty, err)
+		t.Errorf("остаток после подсчёта: %s, %v - ожидалось 3", qty, err)
 	}
 
 	if code, _ := e.call(t, http.MethodPost, "/api/v1/stocktakes/"+st.ID+"/close", e.workerToken, ""); code != http.StatusForbidden {
@@ -95,8 +95,8 @@ func TestStocktakeScenarioHTTP(t *testing.T) {
 		t.Errorf("пересчёт после закрытия: %s", raw)
 	}
 
-	// ADHOC-58: выполненное задание пересчёта в ленте «Завершённые» — с пересчётом, заходы —
-	// подсчитанные ячейки, исполнитель — кто считал; в журнале задания — подсчитанная ячейка.
+	// ADHOC-58: выполненное задание пересчёта в ленте «Завершённые» - с пересчётом, заходы -
+	// подсчитанные ячейки, исполнитель - кто считал; в журнале задания - подсчитанная ячейка.
 	_, raw = e.call(t, http.MethodGet, "/api/v1/tasks/completed?kind=stocktake", e.workerToken, "")
 	var done []struct {
 		ID        string `json:"id"`
@@ -166,9 +166,9 @@ func mustJSON(t *testing.T, raw []byte, v any) {
 	}
 }
 
-// P10-04: эталон формата stocktake_cell_submit — тело, которое собирает ТСД, — применяется
+// P10-04: эталон формата stocktake_cell_submit - тело, которое собирает ТСД, - применяется
 // настоящим роутером: короб найден, россыпь приведена к факту, марка найдена. Идентификатор
-// ячейки пересчёта выдаёт сервер — в эталоне на его месте `CELL`.
+// ячейки пересчёта выдаёт сервер - в эталоне на его месте `CELL`.
 func TestStocktakeCellSubmitFixture(t *testing.T) {
 	e := newReceivingE2E(t, nil)
 	const (
@@ -229,7 +229,7 @@ func TestStocktakeCellSubmitFixture(t *testing.T) {
 	var loose string
 	if err := e.pool.QueryRow(t.Context(), `SELECT qty::int::text FROM stock
 		WHERE cell_id = $1::uuid AND good_id = $2::uuid`, e.cell1, good).Scan(&loose); err != nil || loose != "9" {
-		t.Errorf("остаток лимонада: %s, %v — ожидалось 9 (3 россыпью + 6 в коробе)", loose, err)
+		t.Errorf("остаток лимонада: %s, %v - ожидалось 9 (3 россыпью + 6 в коробе)", loose, err)
 	}
 	var found bool
 	if err := e.pool.QueryRow(t.Context(), `SELECT found FROM stocktake_marks WHERE cis = $1`, mark).

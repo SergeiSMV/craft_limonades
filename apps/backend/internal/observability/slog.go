@@ -12,32 +12,32 @@ import (
 // (middleware аутентификации), чтобы этот пакет не зависел от неё.
 type UserFunc func(ctx context.Context) (id, role string, ok bool)
 
-// Handler — обработчик slog поверх обычного: пишет запись как раньше и, если это ошибка,
+// Handler - обработчик slog поверх обычного: пишет запись как раньше и, если это ошибка,
 // отправляет её событием в Bugsink (ADHOC-42).
 //
 // Почему свой, а не `sentry-go/slog`: тот шлёт записи «логами Sentry», а Bugsink принимает
-// события ошибок. Здесь запись уровня error и выше — событие: сообщение записи, ошибка из
-// атрибута `error` (её тип и цепочка — заголовок события), остальные атрибуты — контекст
-// «log», пользователь — из контекста запроса.
+// события ошибок. Здесь запись уровня error и выше - событие: сообщение записи, ошибка из
+// атрибута `error` (её тип и цепочка - заголовок события), остальные атрибуты - контекст
+// «log», пользователь - из контекста запроса.
 type Handler struct {
 	next   slog.Handler
 	user   UserFunc
 	attrs  []slog.Attr
-	prefix string // группы slog — префиксом имени атрибута
+	prefix string // группы slog - префиксом имени атрибута
 }
 
-// NewHandler оборачивает [next]. [user] может быть nil — тогда пользователя в событии нет.
+// NewHandler оборачивает [next]. [user] может быть nil - тогда пользователя в событии нет.
 func NewHandler(next slog.Handler, user UserFunc) *Handler {
 	return &Handler{next: next, user: user}
 }
 
-// Enabled — как у обёрнутого: что не пишется в журнал, то и не отправляется.
+// Enabled - как у обёрнутого: что не пишется в журнал, то и не отправляется.
 func (h *Handler) Enabled(ctx context.Context, level slog.Level) bool {
 	return h.next.Enabled(ctx, level)
 }
 
-// Handle пишет запись в журнал и отправляет ошибку. Отправка не мешает записи: журнал —
-// основной след, событие — уведомление поверх.
+// Handle пишет запись в журнал и отправляет ошибку. Отправка не мешает записи: журнал -
+// основной след, событие - уведомление поверх.
 func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
 	err := h.next.Handle(ctx, r)
 	if r.Level >= slog.LevelError && enabled() {
@@ -46,7 +46,7 @@ func (h *Handler) Handle(ctx context.Context, r slog.Record) error {
 	return err
 }
 
-// WithAttrs — атрибуты логгера (`log.With(...)`) попадают и в событие.
+// WithAttrs - атрибуты логгера (`log.With(...)`) попадают и в событие.
 func (h *Handler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	c := *h
 	c.next = h.next.WithAttrs(attrs)
@@ -54,7 +54,7 @@ func (h *Handler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	return &c
 }
 
-// WithGroup — группа становится префиксом имён атрибутов события.
+// WithGroup - группа становится префиксом имён атрибутов события.
 func (h *Handler) WithGroup(name string) slog.Handler {
 	c := *h
 	c.next = h.next.WithGroup(name)
@@ -89,7 +89,7 @@ func (h *Handler) capture(ctx context.Context, r slog.Record) {
 	}
 	if cause != nil {
 		event.SetException(cause, 5)
-		// Заголовок события — сообщение записи: «documents list failed» говорит больше, чем
+		// Заголовок события - сообщение записи: «documents list failed» говорит больше, чем
 		// тип ошибки pgx, а тип и текст ошибки остаются ниже, в исключении.
 		event.Exception[len(event.Exception)-1].Value = r.Message + ": " + cause.Error()
 	} else {

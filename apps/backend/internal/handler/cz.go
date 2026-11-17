@@ -12,10 +12,10 @@ import (
 	"craftwms/internal/service"
 )
 
-// czMaxBody — предел тела info: сотня кодов марок с запасом.
+// czMaxBody - предел тела info: сотня кодов марок с запасом.
 const czMaxBody = 64 << 10
 
-// czReader — что обработчику нужно от сервиса Честного знака.
+// czReader - что обработчику нужно от сервиса Честного знака.
 type czReader interface {
 	Status(ctx context.Context) model.CZStatus
 	CisesInfo(ctx context.Context, codes []string) ([]model.CisInfo, error)
@@ -24,7 +24,7 @@ type czReader interface {
 	SetGoodCZMarked(ctx context.Context, goodID string, marked bool) error
 }
 
-// CZHandler — Честный знак: проверка подписанта и чтение марок администратором (CZ-02),
+// CZHandler - Честный знак: проверка подписанта и чтение марок администратором (CZ-02),
 // скан марки или короба кладовщиком на ТСД (CZ-04).
 type CZHandler struct {
 	svc czReader
@@ -43,8 +43,8 @@ type czStatusResponse struct {
 	TokenExpiresAt *time.Time `json:"token_expires_at,omitempty"`
 }
 
-// Status: GET /api/v1/admin/cz/status — подписант подписывает, токен есть, когда истекает.
-// Всегда 200: «не настроено» и «подписант лежит» — ответ, а не сбой запроса.
+// Status: GET /api/v1/admin/cz/status - подписант подписывает, токен есть, когда истекает.
+// Всегда 200: «не настроено» и «подписант лежит» - ответ, а не сбой запроса.
 func (h *CZHandler) Status(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, czStatusResponse(h.svc.Status(r.Context())))
 }
@@ -68,9 +68,9 @@ type czInfoResponse struct {
 	Raw            json.RawMessage `json:"raw,omitempty"`
 }
 
-// Info: POST /api/v1/admin/cz/info {codes: [...]} — данные марок и упаковок из True API.
+// Info: POST /api/v1/admin/cz/info {codes: [...]} - данные марок и упаковок из True API.
 //
-// Коды — как со сканера: криптохвост сервис отрежет сам. Ответ по коду включает `raw` —
+// Коды - как со сканера: криптохвост сервис отрежет сам. Ответ по коду включает `raw` -
 // ответ ЧЗ целиком, чтобы видеть и поля, которых WMS ещё не знает.
 func (h *CZHandler) Info(w http.ResponseWriter, r *http.Request) {
 	var req struct {
@@ -96,11 +96,11 @@ func (h *CZHandler) Info(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"items": out})
 }
 
-// czErrorResponse — код и текст ответа по ошибке чтения ЧЗ.
+// czErrorResponse - код и текст ответа по ошибке чтения ЧЗ.
 //
 // Текст ЧЗ (причина отказа во входе, «нет договора») добавляется к сообщению: администратору
-// по нему чинить, а секретов в нём нет — токен в текст ошибок клиента не попадает.
-// Сбой на нашей стороне или в ЧЗ — 5xx (и в Bugsink), отказ по самим кодам — 4xx.
+// по нему чинить, а секретов в нём нет - токен в текст ошибок клиента не попадает.
+// Сбой на нашей стороне или в ЧЗ - 5xx (и в Bugsink), отказ по самим кодам - 4xx.
 func czErrorResponse(err error) (int, string) {
 	switch {
 	case errors.Is(err, model.ErrCZBadCode):

@@ -13,7 +13,7 @@ enum ResolvedStatus { initial, loading, loaded, error }
 
 /// Состояние вкладки «Завершённые» в «Проблемах склада» (ADHOC-34).
 ///
-/// Фильтр — тот же `CompletedFilter`, что у заданий и перемещений (используется только
+/// Фильтр - тот же `CompletedFilter`, что у заданий и перемещений (используется только
 /// период): лист фильтра общий, кладовщик видит один и тот же фильтр во всех лентах.
 @freezed
 abstract class ResolvedProblemsState with _$ResolvedProblemsState {
@@ -28,14 +28,14 @@ abstract class ResolvedProblemsState with _$ResolvedProblemsState {
 }
 
 /// Cubit ленты решённых проблем (ADHOC-34): всего склада, только онлайн, подгрузка курсором,
-/// фильтр по периоду — отдельным запросом к серверу.
+/// фильтр по периоду - отдельным запросом к серверу.
 @injectable
 class ResolvedProblemsCubit extends Cubit<ResolvedProblemsState> {
   ResolvedProblemsCubit(this._repo) : super(const ResolvedProblemsState());
 
   final ProblemRecordsRepository _repo;
 
-  /// Размер страницы. Курсор — последняя показанная запись, а не смещение: решения, принятые
+  /// Размер страницы. Курсор - последняя показанная запись, а не смещение: решения, принятые
   /// во время просмотра, не сдвигают уже загруженные страницы.
   static const pageSize = 30;
 
@@ -67,7 +67,7 @@ class ResolvedProblemsCubit extends Cubit<ResolvedProblemsState> {
     );
   }
 
-  /// Следующая страница. Неудача подгрузки не роняет ленту в ошибку — уже показанное
+  /// Следующая страница. Неудача подгрузки не роняет ленту в ошибку - уже показанное
   /// остаётся, а следующий скролл повторит запрос.
   Future<void> loadMore() async {
     if (state.loadingMore ||
@@ -95,7 +95,7 @@ class ResolvedProblemsCubit extends Cubit<ResolvedProblemsState> {
     );
   }
 
-  /// Применить фильтр — лента перезагружается с первой страницы.
+  /// Применить фильтр - лента перезагружается с первой страницы.
   Future<void> setFilter(CompletedFilter filter) async {
     emit(state.copyWith(filter: filter));
     await load();

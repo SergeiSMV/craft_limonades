@@ -15,7 +15,7 @@ import '../../support/contents_stubs.dart';
 class _MockCatalog extends Mock implements CatalogRepository {}
 
 /// Вкладка «Товары» в «Остатках» (ADHOC-33): только товары с остатком, количество в строке,
-/// поиск и фильтры — в памяти, склады — множественным выбором.
+/// поиск и фильтры - в памяти, склады - множественным выбором.
 void main() {
   late _MockCatalog catalog;
   late FakeContentsRepository contents;
@@ -76,7 +76,7 @@ void main() {
     when(
       () => catalog.listSuppliers(),
     ).thenAnswer((_) async => const Right([]));
-    // Справочник терминала знает только «Кальмар» — «Арахис» заведён после загрузки.
+    // Справочник терминала знает только «Кальмар» - «Арахис» заведён после загрузки.
     when(() => catalog.goodsByIds(any())).thenAnswer(
       (_) async => {
         'g1': const Good(
@@ -119,7 +119,7 @@ void main() {
   });
 
   test(
-    'товар для карточки — из справочника целиком, с признаком «маркируемый» (ADHOC-59)',
+    'товар для карточки - из справочника целиком, с признаком «маркируемый» (ADHOC-59)',
     () async {
       await cubit.init();
 
@@ -127,7 +127,7 @@ void main() {
       expect(squid.czMarked, isTrue);
       expect(squid.fullName, 'Кальмар сушёный, 100 г');
       expect(squid.supplierName, 'ООО «Море»');
-      // Нет в справочнике — товар из строки снимка, карточка всё равно откроется.
+      // Нет в справочнике - товар из строки снимка, карточка всё равно откроется.
       final peanut = cubit.state.goods.firstWhere((g) => g.id == 'g2');
       expect(peanut.name, 'Арахис');
       expect(peanut.czMarked, isFalse);
@@ -135,7 +135,7 @@ void main() {
   );
 
   test(
-    'без связи — список из прежнего снимка, исход передан репозиторию',
+    'без связи - список из прежнего снимка, исход передан репозиторию',
     () async {
       snapshot.result = const Left(Failure.network());
       contents.unitsFreshness = FromSnapshot(DateTime(2026, 10, 21, 9));
@@ -168,7 +168,7 @@ void main() {
     },
   );
 
-  test('поиск — все слова, без учёта регистра и «ё»; по коду тоже', () async {
+  test('поиск - все слова, без учёта регистра и «ё»; по коду тоже', () async {
     await cubit.init();
 
     await cubit.setQuery('СУШЕНЫЙ кальмар');
@@ -178,7 +178,7 @@ void main() {
     expect(shown().keys, ['g2']);
   });
 
-  test('группа — с вложенными; поставщик; сброс снимает и склады', () async {
+  test('группа - с вложенными; поставщик; сброс снимает и склады', () async {
     await cubit.init();
 
     await cubit.setGroup('snacks');

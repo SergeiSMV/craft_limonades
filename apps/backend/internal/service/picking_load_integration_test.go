@@ -11,7 +11,7 @@ import (
 	"craftwms/internal/testutil"
 )
 
-// TestPickingLoad_flow — загрузка реестра в живую базу (P8-02): предпросмотр ничего не пишет и
+// TestPickingLoad_flow - загрузка реестра в живую базу (P8-02): предпросмотр ничего не пишет и
 // подсвечивает нехватку; загрузка заводит заказы; повторная загрузка той же даты удаляет
 // пропавший заказ, а собранному с добавленным товаром возвращает дособор; третья загрузка того же
 // файла ничего не меняет.
@@ -37,7 +37,7 @@ func TestPickingLoad_flow(t *testing.T) {
 	wh := scan(`INSERT INTO warehouses (code,name) VALUES ('SHB','Шабулина') RETURNING id::text`)
 	cell := scan(`INSERT INTO cells (warehouse_id,address) VALUES ('` + wh + `','M1-1-1-1') RETURNING id::text`)
 	user := scan(`INSERT INTO users (login,password_hash,full_name) VALUES ('90000041','x','Оператор') RETURNING id::text`)
-	// Код как его пишет импорт номенклатуры из .xls — числом, без ведущих нулей.
+	// Код как его пишет импорт номенклатуры из .xls - числом, без ведущих нулей.
 	good := scan(`INSERT INTO goods (code,name,uom) VALUES ('1','Сыр','шт') RETURNING id::text`)
 	batch := scan(`INSERT INTO batches (good_id,production_date) VALUES ('` + good + `','2026-10-01') RETURNING id::text`)
 	iwh := scan(`SELECT id::text FROM internal_warehouses WHERE is_default`)

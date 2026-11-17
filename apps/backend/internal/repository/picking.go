@@ -10,11 +10,11 @@ import (
 	"craftwms/internal/model"
 )
 
-// pickingLoadLockKey — пространство advisory-блокировок загрузки реестра (P8-02); второй ключ —
+// pickingLoadLockKey - пространство advisory-блокировок загрузки реестра (P8-02); второй ключ -
 // склад и дата. Две загрузки одной даты не сверяются с одним и тем же прошлым состоянием.
 const pickingLoadLockKey = 1040
 
-// PickingRepository — документы сборки по реестру 1С (P8-02): сверка загрузки с прошлой,
+// PickingRepository - документы сборки по реестру 1С (P8-02): сверка загрузки с прошлой,
 // остаток для предпросмотра, запись загрузки.
 type PickingRepository struct {
 	pool *pgxpool.Pool
@@ -25,7 +25,7 @@ func NewPickingRepository(pool *pgxpool.Pool) *PickingRepository {
 	return &PickingRepository{pool: pool}
 }
 
-// ExistingOrders — заказы склада на дату накладной со строками, и удалённые, и убранные строки.
+// ExistingOrders - заказы склада на дату накладной со строками, и удалённые, и убранные строки.
 func (r *PickingRepository) ExistingOrders(ctx context.Context, warehouseID string, date time.Time) ([]model.PickingExistingOrder, error) {
 	return existingPickingOrders(ctx, r.pool, warehouseID, date)
 }
@@ -66,7 +66,7 @@ func existingPickingOrders(ctx context.Context, q Querier, warehouseID string, d
 	return out, rows.Err()
 }
 
-// CellAddresses — активные ячейки хранения склада: адрес → id. Служебные (приёмка, отгрузка)
+// CellAddresses - активные ячейки хранения склада: адрес → id. Служебные (приёмка, отгрузка)
 // не входят: в них реестр не указывает.
 func (r *PickingRepository) CellAddresses(ctx context.Context, warehouseID string) (map[string]string, error) {
 	rows, err := r.pool.Query(ctx, `
@@ -87,7 +87,7 @@ func (r *PickingRepository) CellAddresses(ctx context.Context, warehouseID strin
 	return out, rows.Err()
 }
 
-// Stock — остаток товаров по партиям, из которого можно собирать: внутренние склады с галочкой
+// Stock - остаток товаров по партиям, из которого можно собирать: внутренние склады с галочкой
 // «разрешить сборку», ячейки хранения склада (без приёмки и отгрузки). Товар «в сборке» ещё
 // числится в ячейке и здесь не вычитается: план собирающихся заказов сравнивается с ним целиком.
 func (r *PickingRepository) Stock(ctx context.Context, warehouseID string, goodIDs []string) ([]model.PickingStock, error) {
@@ -162,7 +162,7 @@ func (r *PickingRepository) Load(
 	return loadID, plans, nil
 }
 
-// applyPickingPlan пишет план одного заказа. Правила по статусу — docs/picking.md, «Загрузка и
+// applyPickingPlan пишет план одного заказа. Правила по статусу - docs/picking.md, «Загрузка и
 // повторы».
 //
 // Отгруженный заказ (P9-08) тоже получает новый план 1С - по нему портал сверяет 1С с
@@ -193,7 +193,7 @@ func applyPickingPlan(ctx context.Context, q Querier, in model.PickingLoadInput,
 		if err := insertPickingChanges(ctx, q, p.ExistingID, loadID, p.Status, p.Changes); err != nil {
 			return err
 		}
-		// Взятое удалённого заказа — на возврат (P9-07-1); у отгруженного товар уже уехал.
+		// Взятое удалённого заказа - на возврат (P9-07-1); у отгруженного товар уже уехал.
 		if p.Frozen {
 			return nil
 		}
@@ -222,7 +222,7 @@ func applyPickingPlan(ctx context.Context, q Querier, in model.PickingLoadInput,
 		h.HasUnknown, loadID, p.Reopen, p.Frozen); err != nil {
 		return fmt.Errorf("заказ сборки %s: %w", h.OrderNumber, err)
 	}
-	// Дособор — событие заказа: его снова держит собравший, вернул в работу загрузивший реестр.
+	// Дособор - событие заказа: его снова держит собравший, вернул в работу загрузивший реестр.
 	if p.Reopen {
 		if err := addPickingEvent(ctx, q, p.ExistingID, in.UploadedBy,
 			pickingEvent{kind: model.PickingEventReopened, prevUser: p.PickedBy}); err != nil {
@@ -242,7 +242,7 @@ func applyPickingPlan(ctx context.Context, q Querier, in model.PickingLoadInput,
 	if err := insertPickingChanges(ctx, q, p.ExistingID, loadID, p.Status, p.Changes); err != nil {
 		return err
 	}
-	// Перенесённое сверх нового плана — на возврат; план снова вырос или заказ восстановлен —
+	// Перенесённое сверх нового плана - на возврат; план снова вырос или заказ восстановлен -
 	// задание уменьшается или снимается (P9-07-1). У отгруженного товар уже уехал.
 	if p.Kind == model.PickingOrderNew || p.Frozen {
 		return nil

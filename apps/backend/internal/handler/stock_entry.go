@@ -15,8 +15,8 @@ import (
 	"craftwms/internal/service"
 )
 
-// StockEntryHandler — HTTP-обработчики сессии ввода остатков (P-FastStart): старт, checkpoint ячейки,
-// финал. Доступ — любой аутентифицированный сотрудник (кладовщик проходит склад).
+// StockEntryHandler - HTTP-обработчики сессии ввода остатков (P-FastStart): старт, checkpoint ячейки,
+// финал. Доступ - любой аутентифицированный сотрудник (кладовщик проходит склад).
 type StockEntryHandler struct {
 	svc *service.StockEntryService
 }
@@ -26,17 +26,17 @@ func NewStockEntryHandler(svc *service.StockEntryService) *StockEntryHandler {
 	return &StockEntryHandler{svc: svc}
 }
 
-// startRequest — тело POST /stock-entry/sessions.
+// startRequest - тело POST /stock-entry/sessions.
 //
 // SessionID необязателен: устройство присылает свой UUID, чтобы адресовать checkpoint'ы офлайн
-// (P2-05); пустое поле означает «выдай сам» — так ходит APK, собранная до P2-05.
+// (P2-05); пустое поле означает «выдай сам» - так ходит APK, собранная до P2-05.
 type startRequest struct {
 	SessionID   string `json:"session_id"`
 	WarehouseID string `json:"warehouse_id"`
 }
 
-// Start: POST /api/v1/stock-entry/sessions — открыть сессию. 201 {session_id} / 400.
-// created_by — id аутентифицированного пользователя из токена.
+// Start: POST /api/v1/stock-entry/sessions - открыть сессию. 201 {session_id} / 400.
+// created_by - id аутентифицированного пользователя из токена.
 func (h *StockEntryHandler) Start(w http.ResponseWriter, r *http.Request) {
 	userID, ok := appmw.UserIDFromContext(r.Context())
 	if !ok {
@@ -56,7 +56,7 @@ func (h *StockEntryHandler) Start(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, map[string]string{"session_id": id})
 }
 
-// checkpointRequest — тело POST /stock-entry/sessions/{id}/cells.
+// checkpointRequest - тело POST /stock-entry/sessions/{id}/cells.
 //
 // Короба, упаковки ЧЗ и марки строк (ADHOC-46) необязательны: APK до ADHOC-46 их не шлёт, и
 // её проход идёт по-прежнему, россыпью.
@@ -72,15 +72,15 @@ type checkpointLine struct {
 	GoodID         string           `json:"good_id"`
 	ProductionDate string           `json:"production_date"` // DD-MM-YYYY
 	Qty            decimal.Decimal  `json:"qty"`
-	LoadUnitID     string           `json:"load_unit_id"` // короб ячейки; пусто — россыпь
+	LoadUnitID     string           `json:"load_unit_id"` // короб ячейки; пусто - россыпь
 	Marks          []checkpointMark `json:"marks"`
 }
 
-// checkpointLoadUnit — короб ячейки прохода: свой с QR (id из ярлыка) или короб ЧЗ.
+// checkpointLoadUnit - короб ячейки прохода: свой с QR (id из ярлыка) или короб ЧЗ.
 type checkpointLoadUnit struct {
 	ID     string `json:"id"`
 	Kind   string `json:"kind"`
-	CZCode string `json:"cz_code"` // `00`+SSCC; пусто — свой короб
+	CZCode string `json:"cz_code"` // `00`+SSCC; пусто - свой короб
 }
 
 type checkpointCZGroup struct {
@@ -100,9 +100,9 @@ type checkpointBind struct {
 	Symbology string `json:"symbology"`
 }
 
-// Checkpoint: POST /api/v1/stock-entry/sessions/{id}/cells — зафиксировать ячейку (строки, короба,
+// Checkpoint: POST /api/v1/stock-entry/sessions/{id}/cells - зафиксировать ячейку (строки, короба,
 // марки, новые привязки ШК) в сессии. 200 {accepted} / 400 / 404(нет сессии/товара) /
-// 409(закрыта/конфликт ШК) / 422(отказ строк — текст со списком плохих строк).
+// 409(закрыта/конфликт ШК) / 422(отказ строк - текст со списком плохих строк).
 func (h *StockEntryHandler) Checkpoint(w http.ResponseWriter, r *http.Request) {
 	sessionID := chi.URLParam(r, "id")
 	var req checkpointRequest
@@ -140,7 +140,7 @@ func (h *StockEntryHandler) Checkpoint(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]int{"accepted": len(cell.Lines)})
 }
 
-// Finalize: POST /api/v1/stock-entry/sessions/{id}/finalize — перенести сессию в остатки и закрыть.
+// Finalize: POST /api/v1/stock-entry/sessions/{id}/finalize - перенести сессию в остатки и закрыть.
 // 200 {written} / 404(нет сессии) / 409(уже закрыта) / 422(отказ строк).
 func (h *StockEntryHandler) Finalize(w http.ResponseWriter, r *http.Request) {
 	sessionID := chi.URLParam(r, "id")
@@ -154,8 +154,8 @@ func (h *StockEntryHandler) Finalize(w http.ResponseWriter, r *http.Request) {
 
 // stockEntryError маппит ошибки сервиса/репозитория в HTTP-коды.
 //
-// Отказ строк (ADHOC-46) — первым: его Unwrap отдаёт причины строк, и errors.Is ниже принял бы
-// его за ошибку формы. Текст — по-русски со списком строк, ТСД показывает его как есть.
+// Отказ строк (ADHOC-46) - первым: его Unwrap отдаёт причины строк, и errors.Is ниже принял бы
+// его за ошибку формы. Текст - по-русски со списком строк, ТСД показывает его как есть.
 func stockEntryError(w http.ResponseWriter, r *http.Request, err error) {
 	var lines *repository.DocumentLinesError
 	if errors.As(err, &lines) {
@@ -185,11 +185,11 @@ func stockEntryError(w http.ResponseWriter, r *http.Request, err error) {
 		errors.Is(err, repository.ErrBarcodeConflict):
 		writeError(w, http.StatusConflict, err.Error())
 	// GTIN марки на финале не нашёлся у товара строки (ADHOC-46): привязка ШК из марки ещё
-	// не дошла из очереди или ушла к другому товару. Повтор после отправки очереди поможет —
+	// не дошла из очереди или ушла к другому товару. Повтор после отправки очереди поможет -
 	// это не сбой сервера.
 	case errors.Is(err, model.ErrCZUnknownGTIN), errors.Is(err, model.ErrCZMarkGoodMismatch):
 		writeError(w, http.StatusConflict,
-			"ШК марки не привязан к товару строки — отправьте очередь и повторите: "+err.Error())
+			"ШК марки не привязан к товару строки - отправьте очередь и повторите: "+err.Error())
 	default:
 		slog.ErrorContext(r.Context(), "stock entry failed", "error", err)
 		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")

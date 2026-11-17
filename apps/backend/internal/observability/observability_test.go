@@ -19,7 +19,7 @@ import (
 
 // Тесты ADHOC-42: что уходит в Bugsink и с чем.
 
-// memTransport — перехват событий вместо отправки по сети.
+// memTransport - перехват событий вместо отправки по сети.
 type memTransport struct {
 	mu     sync.Mutex
 	events []*sentry.Event
@@ -57,7 +57,7 @@ func enable(t *testing.T) *memTransport {
 
 type ctxKey struct{}
 
-// testUser — пользователь из контекста, как его кладёт middleware аутентификации.
+// testUser - пользователь из контекста, как его кладёт middleware аутентификации.
 func testUser(ctx context.Context) (string, string, bool) {
 	id, ok := ctx.Value(ctxKey{}).(string)
 	return id, "employee", ok
@@ -78,7 +78,7 @@ func TestHandler_errorBecomesEvent_infoDoesNot(t *testing.T) {
 
 	events := tr.all()
 	if len(events) != 1 {
-		t.Fatalf("событий %d, ожидалось одно — только ошибка", len(events))
+		t.Fatalf("событий %d, ожидалось одно - только ошибка", len(events))
 	}
 	e := events[0]
 	if e.Message != "documents list failed" || e.Level != sentry.LevelError {
@@ -133,7 +133,7 @@ func TestMiddleware_panicCapturedAndRethrown(t *testing.T) {
 	}
 	e := events[0]
 	if e.Tags["request_id"] == "" {
-		t.Error("нет request_id — событие не сопоставить с журналом")
+		t.Error("нет request_id - событие не сопоставить с журналом")
 	}
 	if e.Request == nil || !strings.HasSuffix(e.Request.URL, "/api/v1/operations") {
 		t.Errorf("запрос в событии: %+v", e.Request)
@@ -146,7 +146,7 @@ func TestMiddleware_panicCapturedAndRethrown(t *testing.T) {
 	}
 }
 
-// Ошибка журнала внутри запроса едет с запросом этого запроса — через hub из контекста.
+// Ошибка журнала внутри запроса едет с запросом этого запроса - через hub из контекста.
 func TestMiddleware_errorLogCarriesRequest(t *testing.T) {
 	tr := enable(t)
 	var buf bytes.Buffer

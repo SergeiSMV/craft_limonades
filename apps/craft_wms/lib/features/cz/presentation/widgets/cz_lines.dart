@@ -6,7 +6,7 @@ import '../../../../core/theme/regular_text.dart';
 import '../../../../core/theme/semibold_text.dart';
 import '../../../../core/widgets/detail_card.dart';
 
-/// Строки карточек «Честного знака» (CZ-04) — те же приёмы, что в карточке проблемы склада:
+/// Строки карточек «Честного знака» (CZ-04) - те же приёмы, что в карточке проблемы склада:
 /// белая плашка, жирный заголовок, каждый факт своей подписанной строкой, мета мелко и серо.
 
 /// Плашка со строками.
@@ -31,7 +31,7 @@ Widget czText(String text) => Text(
   ),
 );
 
-/// Мета: когда, код — мелко и серо.
+/// Мета: когда, код - мелко и серо.
 Widget czMuted(String text) => Padding(
   padding: AppInsets.top4,
   child: Text(

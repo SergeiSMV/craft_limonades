@@ -20,13 +20,13 @@ import '../ui/portal_card.dart';
 import '../ui/portal_list_page.dart';
 
 /// Вкладка «Проблемы склада» (P6-07-3): рабочий список офиса. Склад помечает брак, просрок,
-/// не нашу марку на ТСД; офис выбирает решение из допустимых при причине и проводит его —
+/// не нашу марку на ТСД; офис выбирает решение из допустимых при причине и проводит его -
 /// списать по документу 1С, разместить в «Основной» или вернуть поставщику. Открытые сверху;
-/// поиск и фильтр — по загруженному списку. Всё admin-only на бэке.
+/// поиск и фильтр - по загруженному списку. Всё admin-only на бэке.
 class ProblemsTab extends StatefulWidget {
   const ProblemsTab({super.key, this.canResolve = true});
 
-  /// Право «Проблемы склада: принимать решение» (ADHOC-50); без него — только просмотр.
+  /// Право «Проблемы склада: принимать решение» (ADHOC-50); без него - только просмотр.
   final bool canResolve;
 
   @override
@@ -56,7 +56,7 @@ class _ProblemsTabState extends State<ProblemsTab> {
   /// Запрос поиска изменился.
   void _onQuery(String q) => setState(() => _query = q);
 
-  /// Загрузить список проблем. [quiet] — перечитывание по версиям данных (ADHOC-60): список
+  /// Загрузить список проблем. [quiet] - перечитывание по версиям данных (ADHOC-60): список
   /// остаётся на экране до ответа, а ошибка не подменяет его.
   Future<void> _load({bool quiet = false}) async {
     if (!quiet) {
@@ -79,7 +79,7 @@ class _ProblemsTabState extends State<ProblemsTab> {
   /// Проблемы изменились на сервере (ADHOC-60): тихо перечитать; поиск и фильтр не трогаются.
   void _onDataChanged() => _load(quiet: true);
 
-  /// Решить проблему: решение собирается в диалоге и проводится сразу — остаток меняется
+  /// Решить проблему: решение собирается в диалоге и проводится сразу - остаток меняется
   /// только здесь. После успеха список перечитывается: решённая уходит из открытых.
   Future<void> _resolve(PortalProblem p) async {
     if (_posting.contains(p.id)) return;
@@ -116,7 +116,7 @@ class _ProblemsTabState extends State<ProblemsTab> {
   @override
   Widget build(BuildContext context) {
     // Как у документов (ADHOC-56): панель поиска и фильтров закреплена, прокручивается только
-    // список; ширина и поля — как у остальных страниц-списков.
+    // список; ширина и поля - как у остальных страниц-списков.
     return DataVersionsListener(
       domains: const {DataDomain.problems},
       onChanged: _onDataChanged,
@@ -132,7 +132,7 @@ class _ProblemsTabState extends State<ProblemsTab> {
     );
   }
 
-  /// Проблемы карточками друг под другом; вместо них — загрузка / ошибка / пусто.
+  /// Проблемы карточками друг под другом; вместо них - загрузка / ошибка / пусто.
   Widget _body() {
     if (_loading) {
       return const SettingsListCard(loading: true, rows: []);
@@ -181,7 +181,7 @@ class _ProblemsTabState extends State<ProblemsTab> {
     );
   }
 
-  /// Сообщение вместо списка — карточкой под панелью.
+  /// Сообщение вместо списка - карточкой под панелью.
   Widget _message(String text) => PortalCard(
     children: [
       Padding(

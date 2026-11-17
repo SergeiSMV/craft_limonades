@@ -15,13 +15,13 @@ import (
 
 // Ошибки привязки штрихкодов.
 var (
-	// ErrBarcodeConflict — ШК уже привязан к ДРУГОМУ товару (один ШК → один товар).
+	// ErrBarcodeConflict - ШК уже привязан к ДРУГОМУ товару (один ШК → один товар).
 	ErrBarcodeConflict = errors.New("barcode bound to another good")
-	// ErrGoodNotFound — привязка к несуществующему товару (FK).
+	// ErrGoodNotFound - привязка к несуществующему товару (FK).
 	ErrGoodNotFound = errors.New("good not found")
 )
 
-// BarcodeRepository — доступ к таблице barcodes: товар 1→N ШК, сам ШК глобально уникален.
+// BarcodeRepository - доступ к таблице barcodes: товар 1→N ШК, сам ШК глобально уникален.
 type BarcodeRepository struct {
 	pool *pgxpool.Pool
 }
@@ -55,7 +55,7 @@ func (r *BarcodeRepository) GetGoodByBarcode(ctx context.Context, code string) (
 }
 
 // ListByGood возвращает все ШК товара (для секции «Штрихкоды» в карточке, P-FS-12).
-// Пустой список — норма (у товара нет ШК). Порядок — по строке ШК, стабилен для UI.
+// Пустой список - норма (у товара нет ШК). Порядок - по строке ШК, стабилен для UI.
 func (r *BarcodeRepository) ListByGood(ctx context.Context, goodID string) ([]model.Barcode, error) {
 	rows, err := r.pool.Query(ctx,
 		`SELECT barcode, symbology FROM barcodes WHERE good_id = $1::uuid ORDER BY barcode`, goodID)
@@ -78,12 +78,12 @@ func (r *BarcodeRepository) ListByGood(ctx context.Context, goodID string) ([]mo
 	return out, nil
 }
 
-// List возвращает страницу всех привязок ШК — справочник целиком для кэша устройства (P2-02).
+// List возвращает страницу всех привязок ШК - справочник целиком для кэша устройства (P2-02).
 //
 // Зачем отдельный метод, а не обход товаров: привязок на порядок меньше, чем товаров, и тянуть
 // их по одному запросу на товар (780 поездок) для офлайн-кэша неприемлемо.
 //
-// Total считаем окном COUNT(*) OVER() в том же запросе — одна поездка в БД вместо двух.
+// Total считаем окном COUNT(*) OVER() в том же запросе - одна поездка в БД вместо двух.
 // Порядок по ШК стабилен, поэтому страницы не перемешиваются между запросами.
 func (r *BarcodeRepository) List(ctx context.Context, limit, offset int) ([]model.BarcodeLink, int, error) {
 	rows, err := r.pool.Query(ctx,
@@ -118,12 +118,12 @@ func (r *BarcodeRepository) Unbind(ctx context.Context, barcode string) error {
 	return unbindBarcode(ctx, r.pool, barcode)
 }
 
-// unbindBarcode — низкоуровневая отвязка на Querier (пул или tx), зеркало bindBarcode. Нужна,
+// unbindBarcode - низкоуровневая отвязка на Querier (пул или tx), зеркало bindBarcode. Нужна,
 // чтобы отвязка коммитилась в одной транзакции с пометкой операции в журнале идемпотентности
 // (P2-05): порознь они дали бы момент, в котором ШК уже отвязан, а операция не помечена.
 //
 // Марки ЧЗ этого ШК на складе отвязку запрещают (ADHOC-53): без ШК их товар не находится сканом,
-// а исправить ошибочную привязку — это перепривязка с пересортом ([BarcodeRepository.Regrade]).
+// а исправить ошибочную привязку - это перепривязка с пересортом ([BarcodeRepository.Regrade]).
 func unbindBarcode(ctx context.Context, q Querier, barcode string) error {
 	n, err := czStockOfBarcode(ctx, q, barcode)
 	if err != nil {
@@ -138,8 +138,8 @@ func unbindBarcode(ctx context.Context, q Querier, barcode string) error {
 	return nil
 }
 
-// Bind привязывает ШК к товару. Аддитивно — у товара может быть много ШК. Идемпотентно:
-// повторная привязка того же ШК к тому же товару — ок; занятый ШК другим товаром →
+// Bind привязывает ШК к товару. Аддитивно - у товара может быть много ШК. Идемпотентно:
+// повторная привязка того же ШК к тому же товару - ок; занятый ШК другим товаром →
 // ErrBarcodeConflict; несуществующий товар → ErrGoodNotFound; пустая symbology → NULL.
 func (r *BarcodeRepository) Bind(ctx context.Context, goodID, barcode, symbology string) error {
 	return bindBarcode(ctx, r.pool, goodID, barcode, symbology)
@@ -148,7 +148,7 @@ func (r *BarcodeRepository) Bind(ctx context.Context, goodID, barcode, symbology
 // InternalByGood возвращает внутренний ШК товара или ErrNotFound.
 //
 // Нужен перед генерацией: товару незачем второй внутренний код. Ищем ПО ФЛАГУ, а не по
-// префиксу строки — выгрузка 1С может принести внутренний код чужой системы с тем же
+// префиксу строки - выгрузка 1С может принести внутренний код чужой системы с тем же
 // префиксом, и разбор строки выдал бы его за наш.
 func (r *BarcodeRepository) InternalByGood(ctx context.Context, goodID string) (string, error) {
 	var code string
@@ -172,8 +172,8 @@ func (r *BarcodeRepository) InternalByGood(ctx context.Context, goodID string) (
 // один номер дважды. Код собирается из номера и сразу проверяется контрольной цифрой самим
 // построением (P4-07).
 //
-// Повтор при столкновении нужен не для подстраховки от последовательности — она уникальна,
-// — а на случай, когда ровно такой код уже лежит в справочнике как ВНЕШНИЙ: выгрузка 1С могла
+// Повтор при столкновении нужен не для подстраховки от последовательности - она уникальна,
+// - а на случай, когда ровно такой код уже лежит в справочнике как ВНЕШНИЙ: выгрузка 1С могла
 // принести внутренний код прежней системы с тем же префиксом. Тогда берём следующий номер.
 func (r *BarcodeRepository) CreateInternal(ctx context.Context, goodID string) (string, error) {
 	const attempts = 5
@@ -201,18 +201,18 @@ func (r *BarcodeRepository) CreateInternal(ctx context.Context, goodID string) (
 		if tag.RowsAffected() == 1 {
 			return code, nil
 		}
-		// Код занят внешней привязкой — берём следующий номер.
+		// Код занят внешней привязкой - берём следующий номер.
 	}
 	return "", fmt.Errorf("не удалось выдать внутренний ШК за %d попыток", attempts)
 }
 
-// bindBarcode — низкоуровневая привязка на Querier (пул или tx), чтобы checkpoint сессии ввода
+// bindBarcode - низкоуровневая привязка на Querier (пул или tx), чтобы checkpoint сессии ввода
 // (P-FS-04) коммитил новые привязки в той же транзакции, что и строки ячейки.
 func bindBarcode(ctx context.Context, q Querier, goodID, barcode, symbology string) error {
 	if err := guardBindMarks(ctx, q, goodID, barcode); err != nil {
 		return err
 	}
-	// Вставляем; конфликт по UNIQUE(barcode) не роняем — разберём ниже (идемпотентность vs конфликт).
+	// Вставляем; конфликт по UNIQUE(barcode) не роняем - разберём ниже (идемпотентность vs конфликт).
 	tag, err := q.Exec(ctx, `
 		INSERT INTO barcodes (good_id, barcode, symbology)
 		VALUES ($1, $2, NULLIF($3,''))

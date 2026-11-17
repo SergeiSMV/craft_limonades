@@ -15,8 +15,8 @@ import '../common/contents_message.dart';
 import '../common/freshness_note.dart';
 import '../common/good_line_tile.dart';
 
-/// Содержимое ячейки: адрес, короба и россыпь (P5-05). Короба и россыпь — неоморфными
-/// плашками в стиле списка товаров (P5-05-1). Тянется вниз — перечитать.
+/// Содержимое ячейки: адрес, короба и россыпь (P5-05). Короба и россыпь - неоморфными
+/// плашками в стиле списка товаров (P5-05-1). Тянется вниз - перечитать.
 class CellContentsBody extends StatelessWidget {
   const CellContentsBody({
     super.key,
@@ -39,7 +39,7 @@ class CellContentsBody extends StatelessWidget {
     return RefreshIndicator(
       onRefresh: onRefresh,
       child: ListView(
-        // Отступы — у элементов: неоморфные плашки, как в списке товаров, держат свои 8 со всех
+        // Отступы - у элементов: неоморфные плашки, как в списке товаров, держат свои 8 со всех
         // сторон, чтобы тень не резалась краем.
         padding: AppInsets.bottom8,
         physics: const AlwaysScrollableScrollPhysics(),

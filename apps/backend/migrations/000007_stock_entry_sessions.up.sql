@@ -23,14 +23,14 @@ CREATE TRIGGER stock_entry_sessions_set_updated_at
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- Строки документа: что и сколько по грани (ячейка × товар × партия=дата выпуска).
--- Здесь — «сырой» ввод сессии до финала; в `stock` строки переносятся SET-семантикой в P-FS-04.
+-- Здесь - «сырой» ввод сессии до финала; в `stock` строки переносятся SET-семантикой в P-FS-04.
 CREATE TABLE stock_entry_lines (
     id              uuid          PRIMARY KEY DEFAULT gen_random_uuid(),
     session_id      uuid          NOT NULL REFERENCES stock_entry_sessions(id) ON DELETE CASCADE, -- строки живут вместе с сессией
     cell_id         uuid          NOT NULL REFERENCES cells(id),
     good_id         uuid          NOT NULL REFERENCES goods(id),
     production_date date          NOT NULL,                    -- партия (дата выпуска); обязательна (решение C)
-    qty             numeric(20,3) NOT NULL CHECK (qty >= 0),   -- итог по строке (SET, не приращение — решение B)
+    qty             numeric(20,3) NOT NULL CHECK (qty >= 0),   -- итог по строке (SET, не приращение - решение B)
     created_at      timestamptz   NOT NULL DEFAULT now(),
     updated_at      timestamptz   NOT NULL DEFAULT now(),
     -- В рамках сессии строка на грань уникальна; повторный checkpoint той же грани перезаписывает

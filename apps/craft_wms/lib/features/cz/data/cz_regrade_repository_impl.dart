@@ -11,7 +11,7 @@ import '../domain/cz_regrade_repository.dart';
 /// Перепривязка ШК с пересортом (ADHOC-53): `GET barcodes/{code}/cz-stock`,
 /// `POST barcodes/{code}/regrade`, затем кэш справочника.
 ///
-/// Кэш — после ответа сервера: перепривязка онлайн, и правка привязки до подтверждения
+/// Кэш - после ответа сервера: перепривязка онлайн, и правка привязки до подтверждения
 /// разошлась бы со справочником.
 @LazySingleton(as: CzRegradeRepository)
 class CzRegradeRepositoryImpl implements CzRegradeRepository {
@@ -51,7 +51,7 @@ class CzRegradeRepositoryImpl implements CzRegradeRepository {
     } catch (_) {
       return const Left(Failure.unknown());
     }
-    // Привязка заменяется на месте; новый товар — маркируемый, как его пометил сервер.
+    // Привязка заменяется на месте; новый товар - маркируемый, как его пометил сервер.
     await _cache.addBarcode(barcode: barcode, goodId: goodId);
     await _cache.setGoodCzMarked(goodId, true);
     return Right(marks);

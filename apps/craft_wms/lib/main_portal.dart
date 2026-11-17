@@ -26,13 +26,13 @@ Future<void> _start() async {
   //     хранилища сессии.
   if (await getIt<DemoRepository>().isDemoServer()) AppConfig.mode = AppMode.demo;
 
-  // 2. Логи переходов bloc/cubit — в единый Talker.
+  // 2. Логи переходов bloc/cubit - в единый Talker.
   Bloc.observer = TalkerBlocObserver(talker: getIt<Talker>());
 
-  // 3. Тихое восстановление сессии из хранилища (на вебе — браузерное): переживает reload.
+  // 3. Тихое восстановление сессии из хранилища (на вебе - браузерное): переживает reload.
   getIt<AuthCubit>().restore();
 
-  // 4. Пользователь событий об ошибках — по состоянию входа (id и роль).
+  // 4. Пользователь событий об ошибках - по состоянию входа (id и роль).
   ErrorReporting.bindAuth(getIt<AuthCubit>());
 
   runApp(PortalApp());

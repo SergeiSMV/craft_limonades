@@ -14,7 +14,7 @@ import '../widgets/stock_detail/stock_detail_body.dart';
 
 /// Карточка остатков товара (P1-07): шапка товара, привязанные штрихкоды,
 /// строки «ячейка · партия · количество» и итог по складу.
-/// Всё показывается «россыпью» — разбивка по грузовым единицам (ГЕ) появится в P4/P5.
+/// Всё показывается «россыпью» - разбивка по грузовым единицам (ГЕ) появится в P4/P5.
 @RoutePage()
 class StockDetailPage extends StatelessWidget {
   const StockDetailPage({super.key, required this.good, this.czMark});
@@ -22,14 +22,14 @@ class StockDetailPage extends StatelessWidget {
   final Good good;
 
   /// Ответ на скан марки «Честного знака», если карточка открыта сканом марки (CZ-04): тогда
-  /// под шапкой товара — блок марки. `null` — обычная карточка.
+  /// под шапкой товара - блок марки. `null` - обычная карточка.
   final CzScanResult? czMark;
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) => getIt<StockDetailCubit>()..load(good.id),
-      // Шапка светлая, поэтому статусбар — с тёмными иконками (на «Остатках» он светлый).
+      // Шапка светлая, поэтому статусбар - с тёмными иконками (на «Остатках» он светлый).
       child: SystemUiWrapper(
         child: Scaffold(
           backgroundColor: AppColors.kBg,

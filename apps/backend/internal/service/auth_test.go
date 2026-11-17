@@ -10,7 +10,7 @@ import (
 	"craftwms/internal/model"
 )
 
-// fakeUserRepo — in-memory реализация userRepo для тестов сервиса (без БД).
+// fakeUserRepo - in-memory реализация userRepo для тестов сервиса (без БД).
 type fakeUserRepo struct {
 	byLogin    map[string]model.User
 	byUsername map[string]model.User
@@ -96,7 +96,7 @@ func addUsernameAdmin(t *testing.T, repo *fakeUserRepo) {
 		Username:       testUsername,
 		PasswordHash:   hash,
 		FullName:       "Админ Паролевич",
-		PositionSystem: true, // «Администратор»: роль в токене — admin
+		PositionSystem: true, // «Администратор»: роль в токене - admin
 		IsActive:       true,
 	})
 }
@@ -118,7 +118,7 @@ func newService(t *testing.T, addUser bool) (*AuthService, *auth.TokenManager, *
 			Login:          testLogin,
 			PasswordHash:   hash,
 			FullName:       "Тест Тестович",
-			PositionSystem: true, // «Администратор»: роль в токене — admin
+			PositionSystem: true, // «Администратор»: роль в токене - admin
 			IsActive:       true,
 		})
 	}
@@ -237,7 +237,7 @@ func TestRefreshInvalidToken(t *testing.T) {
 }
 
 // Refresh для заблокированного пользователя → ErrInvalidCredentials
-// (блокировка подхватывается на refresh — перечитываем из БД).
+// (блокировка подхватывается на refresh - перечитываем из БД).
 func TestRefreshInactiveUser(t *testing.T) {
 	svc, tm, repo := newService(t, true)
 
@@ -261,7 +261,7 @@ func TestRefreshRejectsAccessToken(t *testing.T) {
 	}
 }
 
-// LoginWithPassword: успех — валидный username+пароль активного admin → пара токенов.
+// LoginWithPassword: успех - валидный username+пароль активного admin → пара токенов.
 func TestLoginWithPasswordSuccess(t *testing.T) {
 	svc, tm, repo := newService(t, false)
 	addUsernameAdmin(t, repo)
@@ -356,7 +356,7 @@ func TestProfile(t *testing.T) {
 	}
 }
 
-// ADHOC-65: вход по бейджу запоминает номер для печати — зашифрованным, логином-связанными
+// ADHOC-65: вход по бейджу запоминает номер для печати - зашифрованным, логином-связанными
 // данными; повторный вход тем же бейджем номер не перезаписывает.
 func TestLoginRemembersBadge(t *testing.T) {
 	_, tm, repo := newService(t, true)

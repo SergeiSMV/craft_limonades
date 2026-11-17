@@ -1,5 +1,5 @@
 # Обёртки над docker compose для локального стека.
-# Compose-файл лежит в infra/, а .env — в корне проекта, поэтому оба пути
+# Compose-файл лежит в infra/, а .env - в корне проекта, поэтому оба пути
 # передаём явными флагами. Так `make up` работает из корня без лишних cd.
 
 COMPOSE = docker compose --env-file .env -f infra/docker-compose.yml
@@ -40,9 +40,9 @@ seed: ## Засеять стартового админа из .env (ADMIN_BADGE
 	DATABASE_URL="postgres://$$POSTGRES_USER:$$POSTGRES_PASSWORD@localhost:$$POSTGRES_PORT/$$POSTGRES_DB?sslmode=disable" \
 	go run ./cmd/seed
 
-# docs/roadmap.md — производный файл: целиком генерится из docs/plan_v3.docx.
+# docs/roadmap.md - производный файл: целиком генерится из docs/plan_v3.docx.
 # Шапку-пометку и приведение выгрузки Word в порядок берёт на себя Lua-фильтр,
-# поэтому доводок руками после генерации нет. Оба файла — вне git (.gitignore).
+# поэтому доводок руками после генерации нет. Оба файла - вне git (.gitignore).
 roadmap: ## Перегенерировать docs/roadmap.md из docs/plan_v3.docx
 	@command -v pandoc >/dev/null || { echo "нужен pandoc: brew install pandoc"; exit 1; }
 	pandoc docs/plan_v3.docx --lua-filter=scripts/roadmap_flatten.lua -t gfm --wrap=none -o docs/roadmap.md

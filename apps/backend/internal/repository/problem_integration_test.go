@@ -12,11 +12,11 @@ import (
 	"craftwms/internal/repository"
 )
 
-// Тесты P6-07-1: пометка браком — перевод на другой внутренний склад в той же ячейке, без
-// потери количества; помеченное перемещается со своей меткой. Фикстура setupMove — из
-// movement_integration_test.go (A — ячейка хранения, R — ячейка приёмки).
+// Тесты P6-07-1: пометка браком - перевод на другой внутренний склад в той же ячейке, без
+// потери количества; помеченное перемещается со своей меткой. Фикстура setupMove - из
+// movement_integration_test.go (A - ячейка хранения, R - ячейка приёмки).
 
-// iwhByCode — id внутреннего склада по коду справочника.
+// iwhByCode - id внутреннего склада по коду справочника.
 func (mf *moveFixture) iwhByCode(t *testing.T, code string) string {
 	t.Helper()
 	var id string
@@ -24,7 +24,7 @@ func (mf *moveFixture) iwhByCode(t *testing.T, code string) string {
 	return id
 }
 
-// qtyIn — остаток партии batch товара фикстуры в ячейке на складе iwh.
+// qtyIn - остаток партии batch товара фикстуры в ячейке на складе iwh.
 func (mf *moveFixture) qtyIn(t *testing.T, cell, iwh string) string {
 	t.Helper()
 	q, err := repository.NewStockRepository(mf.pool).GetQty(context.Background(), model.StockKey{
@@ -45,7 +45,7 @@ func (mf *moveFixture) problem(t *testing.T, to string, in repository.ProblemSub
 	return repository.ProblemSubmitForTest(context.Background(), mf.pool, in)
 }
 
-// goodsProblem — товар фикстуры партии 01.01 из россыпи ячейки или из короба.
+// goodsProblem - товар фикстуры партии 01.01 из россыпи ячейки или из короба.
 func (mf *moveFixture) goodsProblem(qty int64, cell, fromLU string) repository.ProblemSubmitInput {
 	return repository.ProblemSubmitInput{
 		GoodID: mf.good, ProductionDate: "2026-01-01", Qty: decimal.NewFromInt(qty),
@@ -74,7 +74,7 @@ func TestProblem_looseToDefectAndMove(t *testing.T) {
 		t.Errorf("запись проблемы: %q", rec)
 	}
 
-	// «Основной» россыпи — 3: короб основной, 2 помечены.
+	// «Основной» россыпи - 3: короб основной, 2 помечены.
 	if _, err := mf.move(t, uuid.NewString(), mf.goodsLine(4, mf.cellA, "", mf.cellC, "")); !errors.Is(err, repository.ErrGoodsShort) {
 		t.Errorf("основной россыпи больше, чем есть: %v", err)
 	}
@@ -89,7 +89,7 @@ func TestProblem_looseToDefectAndMove(t *testing.T) {
 }
 
 // Россыпь с меткой в ячейке приёмки (ADHOC-55): задание на размещение её не берёт, поэтому
-// выносит её перемещение. «Основной» оттуда же и что угодно туда — по-прежнему отказ.
+// выносит её перемещение. «Основной» оттуда же и что угодно туда - по-прежнему отказ.
 func TestProblem_labelledLeavesReceivingCell(t *testing.T) {
 	mf := setupMove(t)
 	defect := mf.iwhByCode(t, "DEFECT")
@@ -97,7 +97,7 @@ func TestProblem_labelledLeavesReceivingCell(t *testing.T) {
 	if err := mf.problem(t, defect, mf.goodsProblem(2, mf.cellA, "")); err != nil {
 		t.Fatalf("россыпь в брак: %v", err)
 	}
-	// Ячейкой приёмки становится A — так выглядит брак, заведённый проводкой приёмки.
+	// Ячейкой приёмки становится A - так выглядит брак, заведённый проводкой приёмки.
 	mf.setReceiving(t, mf.cellA)
 
 	if _, err := mf.move(t, uuid.NewString(), mf.goodsLine(1, mf.cellA, "", mf.cellC, "")); !errors.Is(err, repository.ErrReceivingCell) {
@@ -118,7 +118,7 @@ func TestProblem_labelledLeavesReceivingCell(t *testing.T) {
 		t.Fatalf("брак из ячейки приёмки: %v", err)
 	}
 	if def, main := mf.qtyIn(t, mf.cellC, defect), mf.qtyIn(t, mf.cellA, mf.iwh); def != "3" || main != "2" {
-		t.Errorf("C: брак %s, A: основной %s — ожидалось 3 и 2", def, main)
+		t.Errorf("C: брак %s, A: основной %s - ожидалось 3 и 2", def, main)
 	}
 }
 
@@ -137,14 +137,14 @@ func TestProblem_wholeBox(t *testing.T) {
 		t.Errorf("A: основной %s брак %s, ожидалось 5 и 12", main, def)
 	}
 	// Снимок ТСД видит то же: россыпь «Основного» 5, россыпи брака нет (весь брак в коробе),
-	// короб — со своим складом.
+	// короб - со своим складом.
 	cell, err := repository.NewContentsRepository(mf.pool).CellContents(context.Background(), mf.cellA)
 	mustNoErr(t, err)
 	if len(cell.Loose) != 1 || cell.Loose[0].InternalWarehouseID != mf.iwh || cell.Loose[0].Qty.String() != "5" ||
 		len(cell.LoadUnits) != 1 || cell.LoadUnits[0].InternalWarehouseID != defect {
 		t.Errorf("содержимое A: %+v", cell)
 	}
-	// Россыпь «Основного» — все 5: бракованный короб вычитается из строки брака.
+	// Россыпь «Основного» - все 5: бракованный короб вычитается из строки брака.
 	if _, err := mf.move(t, uuid.NewString(), mf.goodsLine(5, mf.cellA, "", mf.cellC, "")); err != nil {
 		t.Fatalf("основная россыпь рядом с бракованным коробом: %v", err)
 	}
@@ -178,7 +178,7 @@ func TestProblem_partOfBox(t *testing.T) {
 	}
 }
 
-// Отказы по существу — и ни один не сдвигает остаток.
+// Отказы по существу - и ни один не сдвигает остаток.
 func TestProblem_rejections(t *testing.T) {
 	mf := setupMove(t)
 	ctx := context.Background()

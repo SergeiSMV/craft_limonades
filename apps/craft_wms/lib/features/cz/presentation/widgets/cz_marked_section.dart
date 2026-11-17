@@ -13,7 +13,7 @@ import 'cz_lines.dart';
 
 /// Блок «Маркировка ЧЗ» в карточке товара (CZ-05): маркируемый ли товар.
 ///
-/// Видят все — кладовщику признак объясняет, почему приёмка просит марку, а не ШК. Правит
+/// Видят все - кладовщику признак объясняет, почему приёмка просит марку, а не ШК. Правит
 /// только admin: признак ставится сам по факту, а правка исправляет ошибку (долг 16).
 class CzMarkedSection extends StatelessWidget {
   const CzMarkedSection({
@@ -45,7 +45,7 @@ class _CzMarkedView extends StatelessWidget {
   void select(BuildContext context, bool marked) =>
       context.read<CzMarkedCubit>().set(marked);
 
-  /// Правка не сохранилась — сказать почему; признак на экране остался прежним.
+  /// Правка не сохранилась - сказать почему; признак на экране остался прежним.
   void onState(BuildContext context, CzMarkedState state) {
     final f = state.failure;
     if (f == null) return;
@@ -54,7 +54,7 @@ class _CzMarkedView extends StatelessWidget {
       ..showSnackBar(SnackBar(content: Text(failureText(f))));
   }
 
-  /// Текст отказа: без связи — отдельно, отказ сервера — его словами.
+  /// Текст отказа: без связи - отдельно, отказ сервера - его словами.
   String failureText(Failure f) => switch (f) {
     NetworkFailure() => t.czMarked.offline,
     ServerFailure(:final message?) => t.czMarked.failed(reason: message),
@@ -63,7 +63,7 @@ class _CzMarkedView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Без сессии в дереве (экраны вне входа, тесты) правки нет — только признак.
+    // Без сессии в дереве (экраны вне входа, тесты) правки нет - только признак.
     final canEdit = sessionCan(context, Rights.tsdStockCzMarked);
     return BlocConsumer<CzMarkedCubit, CzMarkedState>(
       listenWhen: (a, b) => b.failure != null && a.failure != b.failure,

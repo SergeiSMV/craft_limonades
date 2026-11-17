@@ -6,7 +6,7 @@ part 'stocktake_models.g.dart';
 /// Сущности пересчёта на ТСД (P10-04). Слой `domain` фичи: ни Flutter, ни сети, ни базы.
 /// JSON нужен черновику подсчёта: ячейка переживает выход с экрана и перезапуск.
 
-/// Вид области пересчёта — как на сервере.
+/// Вид области пересчёта - как на сервере.
 abstract final class StocktakeScope {
   static const cells = 'cells';
   static const group = 'group';
@@ -16,7 +16,7 @@ abstract final class StocktakeScope {
   static const all = 'all';
 }
 
-/// Статус ячейки пересчёта так, как его видит этот работник: чужая зависшая — свободная.
+/// Статус ячейки пересчёта так, как его видит этот работник: чужая зависшая - свободная.
 abstract final class StocktakeCellStatus {
   static const pending = 'pending';
   static const taken = 'taken';
@@ -31,7 +31,7 @@ abstract final class StocktakePositionKind {
   static const box = 'box';
 }
 
-/// Товар позиции — то, что нужно показать человеку.
+/// Товар позиции - то, что нужно показать человеку.
 @freezed
 abstract class StocktakeGood with _$StocktakeGood {
   const factory StocktakeGood({
@@ -61,7 +61,7 @@ abstract class StocktakeCell with _$StocktakeCell {
 
   const StocktakeCell._();
 
-  /// Свободна — взять может любой.
+  /// Свободна - взять может любой.
   bool get isFree => status == StocktakeCellStatus.pending;
 
   /// Своя, ещё не подсчитанная: взята, на подсчёте или сбита.
@@ -71,10 +71,10 @@ abstract class StocktakeCell with _$StocktakeCell {
       _$StocktakeCellFromJson(json);
 }
 
-/// Позиция снимка ячейки — что искать, без количеств (слепой счёт, решение 2026-10-26).
+/// Позиция снимка ячейки - что искать, без количеств (слепой счёт, решение 2026-10-26).
 ///
 /// Короб ([loadUnitId]) ЛИБО россыпь ([good] · [productionDate] · склад). [internalWarehouseId]
-/// приведён к соглашению терминала: `null` — «Основной».
+/// приведён к соглашению терминала: `null` - «Основной».
 @freezed
 abstract class StocktakePosition with _$StocktakePosition {
   const factory StocktakePosition({
@@ -84,7 +84,7 @@ abstract class StocktakePosition with _$StocktakePosition {
     @JsonKey(name: 'cz_code') String? czCode,
     StocktakeGood? good,
 
-    /// Дата партии, DD-MM-YYYY — в транспортном виде.
+    /// Дата партии, DD-MM-YYYY - в транспортном виде.
     @JsonKey(name: 'production_date') String? productionDate,
     @Default(false) bool marked,
   }) = _StocktakePosition;
@@ -109,7 +109,7 @@ abstract class StocktakeCellView with _$StocktakeCellView {
       _$StocktakeCellViewFromJson(json);
 }
 
-/// Пересчёт с ходом выполнения — шапка и все ячейки.
+/// Пересчёт с ходом выполнения - шапка и все ячейки.
 @freezed
 abstract class StocktakeInfo with _$StocktakeInfo {
   const factory StocktakeInfo({

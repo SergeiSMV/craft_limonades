@@ -49,14 +49,14 @@ void main() {
       });
       expect(probe.available, isTrue);
       expect(probe.packages, ['com.ubx.uscanner']);
-      // Производитель и бренд на DT50S расходятся — сохраняем оба как есть.
+      // Производитель и бренд на DT50S расходятся - сохраняем оба как есть.
       expect(probe.manufacturer, 'UBX');
       expect(probe.brand, 'UROVO');
       expect(probe.model, 'DT50');
     });
 
     test(
-      'пустой ответ канала не роняет разбор — устройство считается без сканера',
+      'пустой ответ канала не роняет разбор - устройство считается без сканера',
       () {
         final probe = ScannerProbe.fromChannel(const <Object?, Object?>{});
         expect(probe.available, isFalse);

@@ -21,8 +21,8 @@ func (f *fakeVersions) DataVersions(context.Context) (map[string]int64, error) {
 	return f.v, f.err
 }
 
-// ADHOC-60: версии — в каждом ответе, прочитанные в момент записи ответа (после работы
-// обработчика), один раз на ответ; не прочитались — ответ уходит без заголовка.
+// ADHOC-60: версии - в каждом ответе, прочитанные в момент записи ответа (после работы
+// обработчика), один раз на ответ; не прочитались - ответ уходит без заголовка.
 func TestDataVersionsMiddleware(t *testing.T) {
 	serve := func(src *fakeVersions, h http.HandlerFunc) *httptest.ResponseRecorder {
 		rec := httptest.NewRecorder()
@@ -45,7 +45,7 @@ func TestDataVersionsMiddleware(t *testing.T) {
 		}
 	})
 
-	t.Run("без WriteHeader — заголовок при первой записи", func(t *testing.T) {
+	t.Run("без WriteHeader - заголовок при первой записи", func(t *testing.T) {
 		src := &fakeVersions{v: map[string]int64{"goods": 3}}
 		rec := serve(src, func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("ok")) })
 		if got := rec.Header().Get(appmw.HeaderDataVersions); got != "goods=3" {
@@ -53,7 +53,7 @@ func TestDataVersionsMiddleware(t *testing.T) {
 		}
 	})
 
-	t.Run("ошибка чтения — ответ без заголовка", func(t *testing.T) {
+	t.Run("ошибка чтения - ответ без заголовка", func(t *testing.T) {
 		src := &fakeVersions{err: errors.New("нет базы")}
 		rec := serve(src, func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })
 		if rec.Code != http.StatusNoContent || rec.Header().Get(appmw.HeaderDataVersions) != "" {

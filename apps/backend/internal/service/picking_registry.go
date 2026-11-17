@@ -11,13 +11,13 @@ import (
 	"craftwms/internal/model"
 )
 
-// registryGoodsRepo — узкий интерфейс справочника для сопоставления реестра: товары по кодам.
+// registryGoodsRepo - узкий интерфейс справочника для сопоставления реестра: товары по кодам.
 type registryGoodsRepo interface {
 	ByCodes(ctx context.Context, codes []string) (map[string]model.RegistryGood, error)
 }
 
-// PickingRegistryService — разбор «Реестра» 1С на сборку и сопоставление его строк с
-// номенклатурой (P9-01). Загрузка с предпросмотром — P8-02, задания сборки — P9-02…P9-03.
+// PickingRegistryService - разбор «Реестра» 1С на сборку и сопоставление его строк с
+// номенклатурой (P9-01). Загрузка с предпросмотром - P8-02, задания сборки - P9-02…P9-03.
 type PickingRegistryService struct {
 	goods registryGoodsRepo
 }
@@ -27,14 +27,14 @@ func NewPickingRegistryService(goods registryGoodsRepo) *PickingRegistryService 
 	return &PickingRegistryService{goods: goods}
 }
 
-// RegistryLine — строка реестра с товаром справочника. Good == nil — кода нет в справочнике.
+// RegistryLine - строка реестра с товаром справочника. Good == nil - кода нет в справочнике.
 type RegistryLine struct {
 	importer.RegistryRow
 	Good *model.RegistryGood
 }
 
-// RegistryOrder — документ сборки «накладная + заказ» со строками в порядке файла.
-// HasUnknown — есть строки, чей код не найден в справочнике: такой заказ загружается с пометкой
+// RegistryOrder - документ сборки «накладная + заказ» со строками в порядке файла.
+// HasUnknown - есть строки, чей код не найден в справочнике: такой заказ загружается с пометкой
 // «есть нераспознанные позиции», а сборка по нему не начинается до обновления номенклатуры и
 // повторной загрузки реестра (docs/picking.md, «Сопоставление»).
 type RegistryOrder struct {
@@ -49,7 +49,7 @@ type RegistryOrder struct {
 	HasUnknown    bool
 }
 
-// RegistryParsed — разобранный реестр: дата сборки, заказы, нераспознанные коды и отклонённые
+// RegistryParsed - разобранный реестр: дата сборки, заказы, нераспознанные коды и отклонённые
 // строки файла.
 type RegistryParsed struct {
 	Date         time.Time
@@ -65,11 +65,11 @@ type RegistryParsed struct {
 // формате справочника, справочник читается одним запросом на все коды файла; строки
 // группируются в заказы в порядке первого появления. Шапку заказа (клиент, адрес, направление,
 // даты) даёт его первая строка: 1С повторяет её в каждой строке документа. Нераспознанный код не
-// отклоняет строку — она остаётся в заказе без товара, чтобы оператор видел её в предпросмотре.
+// отклоняет строку - она остаётся в заказе без товара, чтобы оператор видел её в предпросмотре.
 func (s *PickingRegistryService) Parse(ctx context.Context, r io.Reader) (*RegistryParsed, error) {
 	parsed, err := importer.ParseRegistry(r)
 	if err != nil {
-		// Файл не принят целиком — ошибка ввода (ErrRegistryFile), хендлер отвечает 422.
+		// Файл не принят целиком - ошибка ввода (ErrRegistryFile), хендлер отвечает 422.
 		return nil, fmt.Errorf("%w: %w", ErrRegistryFile, err)
 	}
 

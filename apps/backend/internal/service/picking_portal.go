@@ -8,7 +8,7 @@ import (
 	"craftwms/internal/report"
 )
 
-// pickingPortalRepo — узкий интерфейс хранилища сборки для раздела портала (P8-03).
+// pickingPortalRepo - узкий интерфейс хранилища сборки для раздела портала (P8-03).
 type pickingPortalRepo interface {
 	PortalOrders(ctx context.Context, warehouseID string, date time.Time) ([]model.PickingPortalOrder, error)
 	PortalOrder(ctx context.Context, orderID string) (model.PickingPortalDetail, error)
@@ -16,11 +16,11 @@ type pickingPortalRepo interface {
 	ForceReleaseOrder(ctx context.Context, orderID, leadID string) error
 }
 
-// PickingPortalService — раздел портала «Сборка-отгрузка» (P8-03): заказы на дату накладной,
+// PickingPortalService - раздел портала «Сборка-отгрузка» (P8-03): заказы на дату накладной,
 // окно деталей план/факт, выгрузка Excel и снятие заказа с исполнителя старшим смены.
 //
-// Склад — по коду (склад пилота), как у загрузки реестра; неизвестный код — ErrNotFound
-// хранилища. Идентификатор заказа из пути проверяется здесь: не UUID — «не найдено».
+// Склад - по коду (склад пилота), как у загрузки реестра; неизвестный код - ErrNotFound
+// хранилища. Идентификатор заказа из пути проверяется здесь: не UUID - «не найдено».
 type PickingPortalService struct {
 	repo       pickingPortalRepo
 	warehouses pickingWarehouses
@@ -31,7 +31,7 @@ func NewPickingPortalService(repo pickingPortalRepo, warehouses pickingWarehouse
 	return &PickingPortalService{repo: repo, warehouses: warehouses}
 }
 
-// Orders — заказы склада на дату накладной, удалённые в 1С — с пометкой, в конце.
+// Orders - заказы склада на дату накладной, удалённые в 1С - с пометкой, в конце.
 func (s *PickingPortalService) Orders(ctx context.Context, warehouseCode string, date time.Time) ([]model.PickingPortalOrder, error) {
 	id, err := s.warehouses.IDByCode(ctx, warehouseCode)
 	if err != nil {
@@ -40,7 +40,7 @@ func (s *PickingPortalService) Orders(ctx context.Context, warehouseCode string,
 	return s.repo.PortalOrders(ctx, id, date)
 }
 
-// Order — заказ для окна деталей: строки план/факт с марками, короба, правки реестра.
+// Order - заказ для окна деталей: строки план/факт с марками, короба, правки реестра.
 func (s *PickingPortalService) Order(ctx context.Context, orderID string) (model.PickingPortalDetail, error) {
 	if !isUUID(orderID) {
 		return model.PickingPortalDetail{}, model.ErrPickingOrderNotFound
@@ -48,7 +48,7 @@ func (s *PickingPortalService) Order(ctx context.Context, orderID string) (model
 	return s.repo.PortalOrder(ctx, orderID)
 }
 
-// Release — снять заказ с исполнителя: снова «новый», собранное остаётся в коробах. leadID —
+// Release - снять заказ с исполнителя: снова «новый», собранное остаётся в коробах. leadID -
 // кто снял (журнал событий заказа).
 func (s *PickingPortalService) Release(ctx context.Context, orderID, leadID string) error {
 	if !isUUID(orderID) {
@@ -57,7 +57,7 @@ func (s *PickingPortalService) Release(ctx context.Context, orderID, leadID stri
 	return s.repo.ForceReleaseOrder(ctx, orderID, leadID)
 }
 
-// ExportXLSX — выгрузка всех заказов даты на момент нажатия: файл и его имя.
+// ExportXLSX - выгрузка всех заказов даты на момент нажатия: файл и его имя.
 func (s *PickingPortalService) ExportXLSX(ctx context.Context, warehouseCode string, date time.Time) ([]byte, string, error) {
 	id, err := s.warehouses.IDByCode(ctx, warehouseCode)
 	if err != nil {

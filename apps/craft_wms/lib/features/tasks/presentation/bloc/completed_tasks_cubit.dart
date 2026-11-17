@@ -32,7 +32,7 @@ class CompletedTasksCubit extends Cubit<CompletedTasksState> {
 
   final TasksRepository _repo;
 
-  /// Размер страницы. Курсор — последняя показанная запись, а не смещение: завершения,
+  /// Размер страницы. Курсор - последняя показанная запись, а не смещение: завершения,
   /// случившиеся во время просмотра, не сдвигают уже загруженные страницы.
   static const pageSize = 30;
 
@@ -61,7 +61,7 @@ class CompletedTasksCubit extends Cubit<CompletedTasksState> {
     );
   }
 
-  /// Следующая страница. Неудача подгрузки не роняет ленту в ошибку — уже показанное
+  /// Следующая страница. Неудача подгрузки не роняет ленту в ошибку - уже показанное
   /// остаётся, а следующий скролл повторит запрос.
   Future<void> loadMore() async {
     if (state.loadingMore ||
@@ -89,13 +89,13 @@ class CompletedTasksCubit extends Cubit<CompletedTasksState> {
     );
   }
 
-  /// Применить фильтр — лента перезагружается с первой страницы.
+  /// Применить фильтр - лента перезагружается с первой страницы.
   Future<void> setFilter(CompletedFilter filter) async {
     emit(state.copyWith(filter: filter));
     await load();
   }
 
-  /// Варианты фильтра по исполнителю. Не загрузились — фильтр по исполнителю просто пуст.
+  /// Варианты фильтра по исполнителю. Не загрузились - фильтр по исполнителю просто пуст.
   Future<void> loadExecutors() async {
     final res = await _repo.executors();
     if (isClosed) return;
@@ -108,7 +108,7 @@ sealed class FeedEntry {
   const FeedEntry();
 }
 
-/// Разделитель — день, к которому относятся записи под ним.
+/// Разделитель - день, к которому относятся записи под ним.
 class FeedDay extends FeedEntry {
   const FeedDay(this.day);
   final DateTime day;
@@ -121,7 +121,7 @@ class FeedTask extends FeedEntry {
 }
 
 /// Раскладывает ленту по дням, как чат: разделитель перед первой записью каждого дня.
-/// День — по часам терминала: кладовщик думает о «сегодня» в своём времени.
+/// День - по часам терминала: кладовщик думает о «сегодня» в своём времени.
 List<FeedEntry> groupByDay(List<CompletedTask> items) {
   final out = <FeedEntry>[];
   DateTime? current;

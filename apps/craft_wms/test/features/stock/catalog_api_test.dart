@@ -196,7 +196,7 @@ void main() {
       final res = await repo.listAllCells();
 
       expect(res.isLeft, isTrue);
-      expect(adapter.requests.length, 2); // первая ок, вторая упала — стоп
+      expect(adapter.requests.length, 2); // первая ок, вторая упала - стоп
     });
   });
 

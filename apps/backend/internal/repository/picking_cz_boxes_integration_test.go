@@ -12,8 +12,8 @@ import (
 	"craftwms/internal/repository"
 )
 
-// Короб ЧЗ фикстуры возврата (CZ-07): обе марки воды — в групповой упаковке внутри короба ЧЗ,
-// короб — ГЕ в A-1.
+// Короб ЧЗ фикстуры возврата (CZ-07): обе марки воды - в групповой упаковке внутри короба ЧЗ,
+// короб - ГЕ в A-1.
 const (
 	czShipBox   = "00046000000000000099"
 	czShipGroup = "0104600000000017215GRP01"
@@ -32,15 +32,15 @@ func czBoxFixture(f *returnFixture) string {
 	return lu
 }
 
-// opened — вскрыта ли упаковка ЧЗ.
+// opened - вскрыта ли упаковка ЧЗ.
 func (f *returnFixture) opened(code string) bool {
 	return f.scan(`SELECT (opened_at IS NOT NULL)::text FROM cz_aggregates WHERE code = $1`, code) == "true"
 }
 
-// TestPickingCZBoxes — целый короб ЧЗ в сборке (CZ-07).
+// TestPickingCZBoxes - целый короб ЧЗ в сборке (CZ-07).
 //
 // Короб ЧЗ, целиком легший в один короб отгрузки, после «Завершить сборку» не вскрыт, и детали
-// заказа (выгрузка Excel) числят его целым — коробом, без вложенной упаковки. Возврат его марки на
+// заказа (выгрузка Excel) числят его целым - коробом, без вложенной упаковки. Возврат его марки на
 // место вскрывает короб, и в деталях он уже россыпью. Марки короба, разложенные по двум коробам
 // отгрузки, вскрывают его на завершении.
 func TestPickingCZBoxes(t *testing.T) {
@@ -86,7 +86,7 @@ func TestPickingCZBoxes(t *testing.T) {
 			t.Fatalf("целые упаковки: %+v", got)
 		}
 
-		// Реестр убрал воду: одна марка вернулась в C-1 — короб вскрыт, в деталях россыпь.
+		// Реестр убрал воду: одна марка вернулась в C-1 - короб вскрыт, в деталях россыпь.
 		gid := f.good
 		f.reload(model.PickingOrderPlan{
 			Kind: model.PickingOrderChanged, ExistingID: order, Status: model.PickingStatusPicked,

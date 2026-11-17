@@ -1,4 +1,4 @@
-// Package report — генерация Excel-отчётов (P-FastStart). Пока — «ввод остатков» (P-FS-08).
+// Package report - генерация Excel-отчётов (P-FastStart). Пока - «ввод остатков» (P-FS-08).
 package report
 
 import (
@@ -15,7 +15,7 @@ import (
 // Лист и колонки отчёта «ввод остатков».
 const sheetName = "Ввод остатков"
 
-// «Марка» (ADHOC-55) — последней: прежние колонки остаются на своих местах.
+// «Марка» (ADHOC-55) - последней: прежние колонки остаются на своих местах.
 var headers = []string{"Склад", "Ячейка", "Код", "Наименование", "Дата выпуска", "Количество", "Марка"}
 
 // BuildStockEntryXLSX формирует .xlsx-отчёт «ввод остатков» по данным закрытой сессии: заголовок +
@@ -27,7 +27,7 @@ func BuildStockEntryXLSX(rep model.StockEntryReport) ([]byte, error) {
 		return nil, fmt.Errorf("переименовать лист: %w", err)
 	}
 
-	// Шапка — номер документа и номер сессии ввода остатков (ADHOC-55), затем через строку
+	// Шапка - номер документа и номер сессии ввода остатков (ADHOC-55), затем через строку
 	// таблица.
 	header := [][2]string{{"Ввод остатков", docNumber(model.DocPrefixStockEntryDoc, rep.Number)}}
 	if rep.SourceNumber > 0 {
@@ -73,7 +73,7 @@ func BuildStockEntryXLSX(rep model.StockEntryReport) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// formatDate: ISO YYYY-MM-DD → дд.мм.гггг (как в остальном UI). Неожиданный формат — как есть.
+// formatDate: ISO YYYY-MM-DD → дд.мм.гггг (как в остальном UI). Неожиданный формат - как есть.
 func formatDate(iso string) string {
 	t, err := time.Parse("2006-01-02", iso)
 	if err != nil {
@@ -82,7 +82,7 @@ func formatDate(iso string) string {
 	return t.Format("02.01.2006")
 }
 
-// qtyValue: число, если парсится (в Excel — числовая ячейка для сверки), иначе строка как есть.
+// qtyValue: число, если парсится (в Excel - числовая ячейка для сверки), иначе строка как есть.
 func qtyValue(s string) any {
 	if v, err := strconv.ParseFloat(s, 64); err == nil {
 		return v

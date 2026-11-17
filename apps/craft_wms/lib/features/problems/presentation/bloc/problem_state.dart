@@ -21,7 +21,7 @@ sealed class ProblemSource with _$ProblemSource {
   }) = SourceCell;
 }
 
-/// Что помечаем: короб целиком ЛИБО товар партии с количеством — из короба или из россыпи.
+/// Что помечаем: короб целиком ЛИБО товар партии с количеством - из короба или из россыпи.
 @freezed
 sealed class ProblemSubject with _$ProblemSubject {
   const factory ProblemSubject.wholeBox({
@@ -29,9 +29,9 @@ sealed class ProblemSubject with _$ProblemSubject {
     required Cell cell,
   }) = SubjectBox;
 
-  /// Товар; [box] — из этого короба (вынимается в россыпь склада назначения), `null` — из
-  /// россыпи ячейки. [marks] — КИ марок ЧЗ помеченных единиц (CZ-06): маркируемый товар
-  /// помечают марками, количество — их число.
+  /// Товар; [box] - из этого короба (вынимается в россыпь склада назначения), `null` - из
+  /// россыпи ячейки. [marks] - КИ марок ЧЗ помеченных единиц (CZ-06): маркируемый товар
+  /// помечают марками, количество - их число.
   const factory ProblemSubject.goods({
     required ContentLine line,
     required double qty,
@@ -42,7 +42,7 @@ sealed class ProblemSubject with _$ProblemSubject {
 
   const ProblemSubject._();
 
-  /// Склад помечаемого сейчас (`null` — «Основной»): назначение должно отличаться.
+  /// Склад помечаемого сейчас (`null` - «Основной»): назначение должно отличаться.
   String? get fromWarehouseId => switch (this) {
     SubjectBox(:final box) => box.internalWarehouseId,
     SubjectGoods(:final line) => line.internalWarehouseId,
@@ -66,16 +66,16 @@ enum ProblemOutcome {
   rejected,
 }
 
-/// Подсказка по результату скана — показывается один раз.
+/// Подсказка по результату скана - показывается один раз.
 @freezed
 sealed class ProblemNotice with _$ProblemNotice {
   /// Ячейка приёмки: её содержимое разносит задание на размещение.
   const factory ProblemNotice.receivingCell() = ProblemNoticeReceivingCell;
 
-  /// Короб пуст или не размещён — помечать нечего.
+  /// Короб пуст или не размещён - помечать нечего.
   const factory ProblemNotice.boxEmpty() = ProblemNoticeBoxEmpty;
 
-  /// Ячейка пуста — ни коробов, ни россыпи.
+  /// Ячейка пуста - ни коробов, ни россыпи.
   const factory ProblemNotice.cellEmpty() = ProblemNoticeCellEmpty;
 
   /// Ярлык недействителен: такого короба нет на сервере.
@@ -92,14 +92,14 @@ sealed class ProblemNotice with _$ProblemNotice {
   const factory ProblemNotice.markOtherGoods() = ProblemNoticeMarkOtherGoods;
 }
 
-/// Состояние экрана «Проблемы склада» (P6-07-2): одна проблема — одна операция.
+/// Состояние экрана «Проблемы склада» (P6-07-2): одна проблема - одна операция.
 ///
 /// Скан короба или ячейки → короб целиком или товар с количеством → склад → причина →
 /// комментарий → «Зафиксировать».
 @freezed
 abstract class ProblemState with _$ProblemState {
   const factory ProblemState({
-    /// Идентификатор проблемы — выдаёт терминал: фиксация идёт и без связи.
+    /// Идентификатор проблемы - выдаёт терминал: фиксация идёт и без связи.
     String? problemId,
     ProblemSource? source,
     ProblemSubject? subject,

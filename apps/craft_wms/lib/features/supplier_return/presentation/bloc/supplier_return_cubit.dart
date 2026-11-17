@@ -12,12 +12,12 @@ part 'supplier_return_cubit.freezed.dart';
 /// Итог сеанса отгрузки: проведён, ушёл в очередь, отклонён.
 enum ReturnOutcome { posted, queued, rejected }
 
-/// Подсказка по результату скана — показывается один раз.
+/// Подсказка по результату скана - показывается один раз.
 enum ReturnNotice {
   /// Короба или товара нет среди неотгруженных позиций задания.
   notInTask,
 
-  /// Короба нет среди позиций: товар из части короба при пометке вынут в россыпь ячейки —
+  /// Короба нет среди позиций: товар из части короба при пометке вынут в россыпь ячейки -
   /// сканировать надо ячейку.
   boxNotInTask,
 
@@ -36,8 +36,8 @@ enum ReturnNotice {
 
 /// Состояние сеанса отгрузки возврата поставщику (ADHOC-31).
 ///
-/// [marked] — отмеченные позиции (проблемы-основания); [cell] — последняя отсканированная
-/// ячейка: позиции в ней активны, остальные серые — товар отмечается только там, где лежит.
+/// [marked] - отмеченные позиции (проблемы-основания); [cell] - последняя отсканированная
+/// ячейка: позиции в ней активны, остальные серые - товар отмечается только там, где лежит.
 @freezed
 abstract class SupplierReturnState with _$SupplierReturnState {
   const factory SupplierReturnState({
@@ -59,13 +59,13 @@ abstract class SupplierReturnState with _$SupplierReturnState {
 
   const SupplierReturnState._();
 
-  /// Неотгруженные позиции задания — то, что отгружает сеанс.
+  /// Неотгруженные позиции задания - то, что отгружает сеанс.
   List<TaskItem> get open => [
     for (final it in task.items)
       if (!it.placed && it.problemId != null) it,
   ];
 
-  /// Позиция активна: отмечена или её ячейка отсканирована. Серую отметить нельзя — так
+  /// Позиция активна: отмечена или её ячейка отсканирована. Серую отметить нельзя - так
   /// подтверждается, что товар взят из нужного места, а не по одному штрихкоду. Позиция с
   /// марками активна всегда: место подтверждает скан самой марки (CZ-06).
   bool isActive(TaskItem it) =>
@@ -84,7 +84,7 @@ abstract class SupplierReturnState with _$SupplierReturnState {
 /// Сеанс отгрузки возврата (ADHOC-31): отметить позиции и отгрузить задание целиком одной
 /// операцией очереди.
 ///
-/// Место подтверждается сканом: короб — его ярлыком, товар — ячейкой, после которой позиции
+/// Место подтверждается сканом: короб - его ярлыком, товар - ячейкой, после которой позиции
 /// этой ячейки активны и отмечаются штрихкодом товара или касанием. Штрихкод без ячейки
 /// позицию не отмечает: кладовщик иначе брал бы товар откуда удобно.
 @injectable
@@ -120,7 +120,7 @@ class SupplierReturnCubit extends Cubit<SupplierReturnState> {
   }
 
   /// Скан марки ЧЗ (CZ-06, долг 30): марка отмечается в своей позиции; отсканированы все марки
-  /// позиции — позиция отмечена. Место марка подтверждает сама: она — тот самый экземпляр.
+  /// позиции - позиция отмечена. Место марка подтверждает сама: она - тот самый экземпляр.
   void scanMark(String cis) {
     final item = state.open.where((it) => it.marks.contains(cis)).firstOrNull;
     if (item == null) {
@@ -141,7 +141,7 @@ class SupplierReturnCubit extends Cubit<SupplierReturnState> {
     );
   }
 
-  /// Скан ячейки: её позиции становятся активными. Ячейка без позиций — подсказка.
+  /// Скан ячейки: её позиции становятся активными. Ячейка без позиций - подсказка.
   void scanCell(String address) {
     final a = address.toLowerCase();
     if (!state.open.any((it) => it.cell.toLowerCase() == a)) {
@@ -152,7 +152,7 @@ class SupplierReturnCubit extends Cubit<SupplierReturnState> {
   }
 
   /// Скан товара: отметить его позицию в отсканированной ячейке. Ячейка не та или не
-  /// отсканирована — подсказка, какую сканировать.
+  /// отсканирована - подсказка, какую сканировать.
   void scanGood(String goodId) {
     final candidates = state.open.where((it) => it.good?.id == goodId).toList();
     if (candidates.isEmpty) {
@@ -188,8 +188,8 @@ class SupplierReturnCubit extends Cubit<SupplierReturnState> {
     _check(here);
   }
 
-  /// Касание позиции: активную — отметить или снять отметку (ярлык затёрт, штрихкода нет);
-  /// серую — подсказка, какую ячейку сканировать.
+  /// Касание позиции: активную - отметить или снять отметку (ярлык затёрт, штрихкода нет);
+  /// серую - подсказка, какую ячейку сканировать.
   void toggle(TaskItem item) {
     final id = item.problemId;
     if (id == null) return;
@@ -224,8 +224,8 @@ class SupplierReturnCubit extends Cubit<SupplierReturnState> {
   /// Подсказка показана.
   void clearNotice() => emit(state.copyWith(notice: null, noticeCell: null));
 
-  /// Тело операции `return_submit` — формат эталона `testdata/return_submit.json`. Позиции —
-  /// в порядке задания; марки ЧЗ (CZ-06) — отмеченных позиций, только когда они есть.
+  /// Тело операции `return_submit` - формат эталона `testdata/return_submit.json`. Позиции -
+  /// в порядке задания; марки ЧЗ (CZ-06) - отмеченных позиций, только когда они есть.
   static Map<String, dynamic> payload(SupplierReturnState s) {
     final marked = [
       for (final it in s.open)

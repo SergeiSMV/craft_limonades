@@ -23,14 +23,14 @@ import '../widgets/tabs/stock_tab.dart';
 
 /// Оболочка портала после входа: сайдбар (меню по секциям + профиль), шапка с заголовком
 /// раздела и область вкладки. Плоская, по Shopify Polaris (ADHOC-56); уже порога md
-/// ([AppSizes.kPortalCompactWidth]) меню уходит в выдвижную панель. Части — в `widgets/shell/`.
+/// ([AppSizes.kPortalCompactWidth]) меню уходит в выдвижную панель. Части - в `widgets/shell/`.
 class PortalShell extends StatefulWidget {
   const PortalShell({super.key, required this.profile});
 
-  /// Профиль вошедшего (имя + должность и права) — для карточки в сайдбаре и меню.
+  /// Профиль вошедшего (имя + должность и права) - для карточки в сайдбаре и меню.
   final Profile profile;
 
-  /// Есть ли что показать: хоть одно действие портала (ADHOC-50) — отдельного «входа в
+  /// Есть ли что показать: хоть одно действие портала (ADHOC-50) - отдельного «входа в
   /// портал» нет, в него пускает любой отмеченный раздел.
   static bool hasSections(Profile p) => p.can(Rights.portal);
 
@@ -41,9 +41,9 @@ class PortalShell extends StatefulWidget {
 class _PortalShellState extends State<PortalShell> {
   int _selected = 0;
 
-  /// Меню по секциям (порядок из ТЗ/макета) — только разделы, где у должности есть хоть одно
-  /// действие (ADHOC-50); действия внутри раздела — тоже по правам. Секция без разделов не
-  /// показывается. «Сборка» — с P9: прав на неё пока нет.
+  /// Меню по секциям (порядок из ТЗ/макета) - только разделы, где у должности есть хоть одно
+  /// действие (ADHOC-50); действия внутри раздела - тоже по правам. Секция без разделов не
+  /// показывается. «Сборка» - с P9: прав на неё пока нет.
   List<NavSection> get _sections {
     final p = widget.profile;
     final receipt = docRights(
@@ -79,7 +79,7 @@ class _PortalShellState extends State<PortalShell> {
       Rights.settingsUsers,
     ]);
     return [
-      // Всё, кроме настроек, — один раздел «Склад» (ADHOC-56).
+      // Всё, кроме настроек, - один раздел «Склад» (ADHOC-56).
       NavSection(
         title: t.portal.menu.warehouse,
         items: [
@@ -87,7 +87,7 @@ class _PortalShellState extends State<PortalShell> {
             NavItem(
               icon: Icons.inventory_2_outlined,
               label: t.portal.tabs.nomenclature,
-              // ADHOC-56: справочник товаров, загрузка из 1С — кнопкой на панели.
+              // ADHOC-56: справочник товаров, загрузка из 1С - кнопкой на панели.
               description: t.portal.goods.description,
               body: NomenclatureTab(
                 canImport: p.can(Rights.nomenclatureImport),
@@ -100,7 +100,7 @@ class _PortalShellState extends State<PortalShell> {
             NavItem(
               icon: Icons.warehouse_outlined,
               label: t.portal.tabs.stock,
-              // ADHOC-56: товары с остатком — из снимка склада, как «Остатки» на ТСД.
+              // ADHOC-56: товары с остатком - из снимка склада, как «Остатки» на ТСД.
               description: t.portal.stock.description,
               body: const StockTab(),
             ),
@@ -108,7 +108,7 @@ class _PortalShellState extends State<PortalShell> {
             NavItem(
               icon: Icons.local_shipping_outlined,
               label: t.portal.tabs.receipt,
-              // P4-10: документы «Поступление» — та же вкладка документов, другая форма.
+              // P4-10: документы «Поступление» - та же вкладка документов, другая форма.
               description: t.portal.receipt.description,
               body: DocumentsTab(
                 kind: 'receipt',
@@ -147,7 +147,7 @@ class _PortalShellState extends State<PortalShell> {
             NavItem(
               icon: Icons.swap_horiz,
               label: t.portal.tabs.movement,
-              // P5-04: документы «Движение» (размещение, в P6 — перемещение и пополнение).
+              // P5-04: документы «Движение» (размещение, в P6 - перемещение и пополнение).
               description: t.portal.movement.description,
               body: DocumentsTab(
                 kind: 'movement',
@@ -210,7 +210,7 @@ class _PortalShellState extends State<PortalShell> {
   void onSelect(int index) => setState(() => _selected = index);
 
   /// Смена вкладки из выдвижного меню: панель закрывается, иначе она осталась бы поверх
-  /// выбранной вкладки. Каркас берётся из контекста панели — без ключа, который не переживает
+  /// выбранной вкладки. Каркас берётся из контекста панели - без ключа, который не переживает
   /// горячую перезагрузку в вебе.
   void onSelectFromDrawer(BuildContext drawerContext, int index) {
     onSelect(index);
@@ -233,7 +233,7 @@ class _PortalShellState extends State<PortalShell> {
     final flat = _flat;
     // Узкое окно (телефон, половина экрана): постоянный сайдбар съел бы больше половины
     // ширины, поэтому меню уезжает в выдвижную панель, а в шапке появляется кнопка меню.
-    // Сайдбар тот же — вторая вёрстка меню разошлась бы с первой.
+    // Сайдбар тот же - вторая вёрстка меню разошлась бы с первой.
     final compact =
         MediaQuery.sizeOf(context).width < AppSizes.kPortalCompactWidth;
     final content = Column(
@@ -247,7 +247,7 @@ class _PortalShellState extends State<PortalShell> {
         Expanded(
           child: ColoredBox(
             color: AppColors.kBg,
-            // IndexedStack — вкладки не пересоздаются (Номенклатура держит файл/отчёт).
+            // IndexedStack - вкладки не пересоздаются (Номенклатура держит файл/отчёт).
             child: IndexedStack(
               index: _selected,
               children: [for (final item in flat) item.body],
@@ -289,7 +289,7 @@ class _PortalShellState extends State<PortalShell> {
   }
 }
 
-/// Права на действия с документами вида (ADHOC-50); `null` — ни одного, раздела нет.
+/// Права на действия с документами вида (ADHOC-50); `null` - ни одного, раздела нет.
 DocRights? docRights(Profile p, String view, String download, String post) {
   final r = (view: p.can(view), download: p.can(download), post: p.can(post));
   return r.view || r.download || r.post ? r : null;

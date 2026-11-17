@@ -17,8 +17,8 @@ import '../../bloc/problem_photo_view.dart';
 
 /// Фото проблемы склада (ADHOC-45): «Фото: N из 3», миниатюры и «Сфотографировать».
 ///
-/// Миниатюра — выпуклая плашка, как карточка в форме; нажатие открывает снимок во весь экран.
-/// [onAdd] `null` — снимать нельзя (проблема решена или уже три фото); [onRemove] `null` —
+/// Миниатюра - выпуклая плашка, как карточка в форме; нажатие открывает снимок во весь экран.
+/// [onAdd] `null` - снимать нельзя (проблема решена или уже три фото); [onRemove] `null` -
 /// убирать нельзя (снимок уже на сервере или в очереди).
 class ProblemPhotoStrip extends StatelessWidget {
   const ProblemPhotoStrip({
@@ -72,7 +72,7 @@ class ProblemPhotoStrip extends StatelessWidget {
     );
   }
 
-  /// Миниатюра: снимок, под ним — «Ждёт отправки» или «Убрать».
+  /// Миниатюра: снимок, под ним - «Ждёт отправки» или «Убрать».
   Widget _thumb(BuildContext context, ProblemPhotoView p) {
     final content = p.content;
     final muted = RegularTextStyles().regularInter10.copyWith(

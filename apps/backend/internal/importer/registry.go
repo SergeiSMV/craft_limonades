@@ -14,7 +14,7 @@ import (
 	"craftwms/internal/model"
 )
 
-// Лист и колонки «Реестра» заявок на сборку из 1С (docs/picking.md, образец —
+// Лист и колонки «Реестра» заявок на сборку из 1С (docs/picking.md, образец -
 // importer/testdata/registry_sample.xlsx). Имена нормализуются (регистр, пробелы), порядок колонок
 // не важен. «Статус» и «Вес, кг» не читаются: у сборки свои статусы WMS, вес отложен.
 const (
@@ -34,32 +34,32 @@ const (
 	colRegCell        = "ячейка"
 )
 
-// registryRequired — колонки, без которых файл не принимается целиком: формат согласован с 1С,
+// registryRequired - колонки, без которых файл не принимается целиком: формат согласован с 1С,
 // пропавшая колонка значит не тот файл, а не пустые значения.
 var registryRequired = []string{
 	colRegInvoice, colRegInvoiceDate, colRegOrder, colRegOrderDate, colRegDirection, colRegClient,
 	colRegAddress, colRegGoodCode, colRegGoodName, colRegBatch, colRegQty, colRegCell,
 }
 
-// RegistryRow — строка реестра: позиция заказа с шапкой его документа.
+// RegistryRow - строка реестра: позиция заказа с шапкой его документа.
 type RegistryRow struct {
 	Row           int        // номер строки в файле (1-based, как в Excel)
-	InvoiceNumber string     // номер накладной — ключ документа вместе с заказом
+	InvoiceNumber string     // номер накладной - ключ документа вместе с заказом
 	InvoiceDate   time.Time  // дата накладной = дата сборки, по ней сверяются повторные загрузки
-	OrderNumber   string     // номер заказа — единица задания сборки
-	OrderDate     *time.Time // дата заказа — для показа; nil, если пусто
+	OrderNumber   string     // номер заказа - единица задания сборки
+	OrderDate     *time.Time // дата заказа - для показа; nil, если пусто
 	Direction     string
 	Client        string
 	Address       string
 	GoodCode      string     // код в формате справочника (model.NormalizeGoodCode)
-	GoodCodeRaw   string     // код как в файле — для показа нераспознанного
-	GoodName      string     // наименование из 1С — для показа, сопоставление по коду
-	Batch         *time.Time // партия = дата производства; nil — строка без партии (FEFO)
+	GoodCodeRaw   string     // код как в файле - для показа нераспознанного
+	GoodName      string     // наименование из 1С - для показа, сопоставление по коду
+	Batch         *time.Time // партия = дата производства; nil - строка без партии (FEFO)
 	Qty           int        // план строки, > 0
-	CellAddress   string     // ячейка из 1С как есть; пусто — без ячейки (ячейка WMS)
+	CellAddress   string     // ячейка из 1С как есть; пусто - без ячейки (ячейка WMS)
 }
 
-// RegistryParseResult — итог разбора реестра: дата сборки файла, принятые строки и отклонённые.
+// RegistryParseResult - итог разбора реестра: дата сборки файла, принятые строки и отклонённые.
 type RegistryParseResult struct {
 	Date   time.Time // дата накладных файла (в одном файле одна дата)
 	Rows   []RegistryRow
@@ -71,7 +71,7 @@ type RegistryParseResult struct {
 // Что: строка файла → RegistryRow с приведённым кодом товара и датами. Зачем: из строк строятся
 // документы «накладная + заказ» и задания сборки (P9-02…P9-03), повторная загрузка сверяется с
 // прошлой той же даты. Как: лист «Реестр» (или единственный лист файла), значения читаются
-// сырыми — даты приходят числом Excel, а не текстом формата ячейки, который у 1С меняется от
+// сырыми - даты приходят числом Excel, а не текстом формата ячейки, который у 1С меняется от
 // выгрузки к выгрузке («10-30-26», «10.10.2026»). Проблемная строка не валит файл, а уходит в
 // отчёт с причиной. Файл отклоняется целиком, если нет нужной колонки, нет ни одной строки или
 // в нём несколько дат накладных: повторная загрузка сравнивается с прошлой загрузкой той же даты,
@@ -115,7 +115,7 @@ func ParseRegistry(r io.Reader) (*RegistryParseResult, error) {
 		if row == nil {
 			continue // пустая строка
 		}
-		// Заказ всегда в одной накладной (docs/picking.md): заказ под двумя накладными — ошибка
+		// Заказ всегда в одной накладной (docs/picking.md): заказ под двумя накладными - ошибка
 		// выгрузки, такую строку не угадываем.
 		if inv, seen := orderInvoice[row.OrderNumber]; seen && inv != row.InvoiceNumber {
 			res.Errors = append(res.Errors, RowError{Row: i + 1, Message: fmt.Sprintf(
@@ -194,11 +194,11 @@ func parseRegistryRow(raw []string, cols map[string]int, rowNum int) (*RegistryR
 	return &row, ""
 }
 
-// registryDateLayouts — текстовые даты на случай, если 1С выгрузит дату строкой, а не числом.
+// registryDateLayouts - текстовые даты на случай, если 1С выгрузит дату строкой, а не числом.
 var registryDateLayouts = []string{"02.01.2006", "2006-01-02", "02.01.06"}
 
 // parseRegistryDate разбирает дату реестра: число Excel (сырое значение ячейки-даты) или текст.
-// Пусто — (nil, nil). Время суток отбрасывается: и накладная, и партия — календарные даты.
+// Пусто - (nil, nil). Время суток отбрасывается: и накладная, и партия - календарные даты.
 func parseRegistryDate(s string) (*time.Time, error) {
 	if s == "" {
 		return nil, nil
@@ -219,7 +219,7 @@ func parseRegistryDate(s string) (*time.Time, error) {
 	return nil, fmt.Errorf("дата %q не распознана", s)
 }
 
-// parseRegistryQty — количество строки: целое > 0. «2» и «2.0» принимаются, «1.5» и «0» — нет:
+// parseRegistryQty - количество строки: целое > 0. «2» и «2.0» принимаются, «1.5» и «0» - нет:
 // сборка штучная, дробный план значит ошибку выгрузки.
 func parseRegistryQty(s string) (int, bool) {
 	v, err := strconv.ParseFloat(strings.ReplaceAll(s, ",", "."), 64)

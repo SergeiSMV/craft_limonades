@@ -6,10 +6,10 @@ import '../../../../core/theme/regular_text.dart';
 import '../ui/portal_button.dart';
 import '../ui/portal_modal.dart';
 
-/// Подтверждение «Провести» (P3-02, плоский стиль — ADHOC-56).
+/// Подтверждение «Провести» (P3-02, плоский стиль - ADHOC-56).
 ///
 /// Спрашиваем, потому что вернуть документ в работу нельзя. Возвращает `true`, только если
-/// оператор нажал «Провести»; «Отмена», крестик и закрытие окна — отказ.
+/// оператор нажал «Провести»; «Отмена», крестик и закрытие окна - отказ.
 Future<bool> showMarkDoneDialog(BuildContext context) async {
   final confirmed = await showDialog<bool>(
     context: context,

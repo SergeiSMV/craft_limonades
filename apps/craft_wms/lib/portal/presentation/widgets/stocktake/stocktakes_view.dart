@@ -22,12 +22,12 @@ import 'stocktake_dialogs.dart';
 import 'stocktake_labels.dart';
 import '../../../../core/utils/doc_number.dart';
 
-/// Пересчёты в портале (P10-05, плоский стиль — ADHOC-56): открытые и закрытые,
+/// Пересчёты в портале (P10-05, плоский стиль - ADHOC-56): открытые и закрытые,
 /// «Завести пересчёт», ход и закрытие.
 class StocktakesView extends StatefulWidget {
   const StocktakesView({super.key, this.canManage = true, this.header});
 
-  /// Право «Пересчёты: заводить и закрывать» (ADHOC-50); без него — только ход.
+  /// Право «Пересчёты: заводить и закрывать» (ADHOC-50); без него - только ход.
   final bool canManage;
 
   /// Над панелью, закреплён вместе с ней: переключатель видов «Инвентаризации».
@@ -46,7 +46,7 @@ class _StocktakesViewState extends State<StocktakesView> {
   bool _closedTab = false;
   final _closing = <String>{}; // id пересчётов, которые сейчас закрываются
 
-  /// Номер последнего запроса списка: ответ на более ранний — устарел.
+  /// Номер последнего запроса списка: ответ на более ранний - устарел.
   int _seq = 0;
 
   @override
@@ -55,7 +55,7 @@ class _StocktakesViewState extends State<StocktakesView> {
     _load();
   }
 
-  /// Загрузить пересчёты выбранного фильтра. [quiet] — перечитывание по версиям данных
+  /// Загрузить пересчёты выбранного фильтра. [quiet] - перечитывание по версиям данных
   /// (ADHOC-60): список остаётся на экране до ответа, а ошибка не подменяет его. Номер запроса
   /// отбрасывает ответ, устаревший из-за смены фильтра во время чтения.
   Future<void> _load({bool quiet = false}) async {
@@ -86,7 +86,7 @@ class _StocktakesViewState extends State<StocktakesView> {
     _load();
   }
 
-  /// Завести пересчёт: область — в диалоге; после — список перечитывается.
+  /// Завести пересчёт: область - в диалоге; после - список перечитывается.
   Future<void> _create() async {
     final created = await showStocktakeCreateDialog(context);
     if (created == null || !mounted) return;
@@ -99,7 +99,7 @@ class _StocktakesViewState extends State<StocktakesView> {
     _load();
   }
 
-  /// Закрыть пересчёт — с подтверждением; неподсчитанные ячейки — досрочно (force).
+  /// Закрыть пересчёт - с подтверждением; неподсчитанные ячейки - досрочно (force).
   Future<void> _close(PortalStocktake s) async {
     if (_closing.contains(s.id) ||
         !await showStocktakeCloseDialog(context, s)) {
@@ -162,7 +162,7 @@ class _StocktakesViewState extends State<StocktakesView> {
     );
   }
 
-  /// Пересчёты строками одной карточки; вместо них — загрузка / ошибка / пусто.
+  /// Пересчёты строками одной карточки; вместо них - загрузка / ошибка / пусто.
   Widget _list() {
     if (_loading) {
       return const SettingsListCard(loading: true, rows: []);

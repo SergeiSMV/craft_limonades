@@ -7,9 +7,9 @@ import 'picked_file.dart';
 /// Открывает системный диалог выбора файла и возвращает имя + байты (или null, если отменили).
 ///
 /// Что: веб-замена file_picker без плагина (тот конфликтует с talker по версии win32).
-/// Зачем: портал — Flutter Web, файла на диске нет — читаем байты в браузере (FileReader).
+/// Зачем: портал - Flutter Web, файла на диске нет - читаем байты в браузере (FileReader).
 /// Как: создаём скрытый `<input type=file>`, по change читаем первый файл в ArrayBuffer.
-/// [accept] — фильтр диалога, напр. `.xls`.
+/// [accept] - фильтр диалога, напр. `.xls`.
 Future<PickedFile?> pickFileFromBrowser({required String accept}) {
   final completer = Completer<PickedFile?>();
 

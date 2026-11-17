@@ -15,13 +15,13 @@ import '../common/task_format.dart';
 import '../common/task_status_badge.dart';
 import '../../../../../core/utils/doc_number.dart';
 
-/// Текущее задание в списке — стандарт для любого вида задания, три строки:
+/// Текущее задание в списке - стандарт для любого вида задания, три строки:
 ///
 ///   Размещение                    [в работе]
 ///   №2 · 05.10.2026 13:58
 ///   Автор: автоматически
 ///
-/// Остальное (основание, позиции, кто взял) — в карточке. Статус стоит в строке вида: она
+/// Остальное (основание, позиции, кто взял) - в карточке. Статус стоит в строке вида: она
 /// короткая, и пометка не выталкивает текст на перенос, как было с номером в заголовке.
 class TaskTile extends StatelessWidget {
   const TaskTile({super.key, required this.task, required this.onTap});
@@ -97,7 +97,7 @@ class TaskTile extends StatelessWidget {
                     t.tasks.createdLine(created: fullDateTime(task.createdAt)),
                     style: muted,
                   ),
-                  // Пересчёт (P10-04) — область и ход: сколько ячеек подсчитано.
+                  // Пересчёт (P10-04) - область и ход: сколько ячеек подсчитано.
                   if (task.stocktake case final st?) ...[
                     Text(
                       t.stocktake.scope(scope: scopeLabel(st.scopeKind)),
@@ -111,7 +111,7 @@ class TaskTile extends StatelessWidget {
                       style: muted,
                     ),
                   ],
-                  // Возврат — кому везём (ADHOC-31): без поставщика задания не различить.
+                  // Возврат - кому везём (ADHOC-31): без поставщика задания не различить.
                   if (task.kind == TaskKind.supplierReturn)
                     Text(
                       t.tasks.returnSupplier(supplier: task.supplier),

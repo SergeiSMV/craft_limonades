@@ -12,7 +12,7 @@ import (
 )
 
 // Тесты P6-07: «Движение» по документу перемещения рождается в транзакции проведения.
-// Фикстура setupMove — из movement_integration_test.go.
+// Фикстура setupMove - из movement_integration_test.go.
 
 // movementDoc читает документ «Движение» по документу движения.
 func (mf *moveFixture) movementDoc(t *testing.T, movementID string) (model.ReportDocument, error) {
@@ -22,7 +22,7 @@ func (mf *moveFixture) movementDoc(t *testing.T, movementID string) (model.Repor
 
 // Короб раскладывается по составу на момент своего переноса: доложенное или взятое из него
 // дальше в том же документе не меняет его строку. Движение внутри ячейки в документ не
-// попадает, перемещение россыпи в другую ячейку — попадает.
+// попадает, перемещение россыпи в другую ячейку - попадает.
 func TestMove_publishesMovementDocument(t *testing.T) {
 	mf := setupMove(t)
 	ctx := context.Background()
@@ -49,7 +49,7 @@ func TestMove_publishesMovementDocument(t *testing.T) {
 	if s.Executor != "Кладовщик" || s.WarehouseCode != "WH1" || s.TaskNumber != 0 || s.Supplier != "" {
 		t.Errorf("шапка: %+v", s)
 	}
-	// Короб — 12, как переехал, а не 8, что в нём осталось к концу документа.
+	// Короб - 12, как переехал, а не 8, что в нём осталось к концу документа.
 	got := ""
 	for _, r := range s.Rows {
 		got += r.FromCellAddress + ">" + r.CellAddress + ":" + r.Qty + " "
@@ -71,7 +71,7 @@ func TestMove_publishesMovementDocument(t *testing.T) {
 	}
 }
 
-// Документ, где всё движение — внутри одной ячейки, проводится, но не публикуется: для 1С
+// Документ, где всё движение - внутри одной ячейки, проводится, но не публикуется: для 1С
 // ничего не переехало. Отклонённый документ не оставляет и «Движения».
 func TestMove_zeroMovementNotPublished(t *testing.T) {
 	mf := setupMove(t)
@@ -103,7 +103,7 @@ func TestMove_zeroMovementNotPublished(t *testing.T) {
 	}
 }
 
-// Пополнение заморожено на ТСД, но сервер его проводит — и публикует с операцией пополнения.
+// Пополнение заморожено на ТСД, но сервер его проводит - и публикует с операцией пополнения.
 func TestReplenish_publishesMovementDocument(t *testing.T) {
 	mf := setupMove(t)
 	lu := newLU(t, mf.stockFixture, model.LoadUnitBox)

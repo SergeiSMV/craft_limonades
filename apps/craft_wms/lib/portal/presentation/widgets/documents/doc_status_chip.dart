@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../ui/portal_badge.dart';
 
-/// Статус документа в 1С (ADHOC-56 — отметкой Polaris): «Ожидает» — внимание,
-/// «Проведено» — успех.
+/// Статус документа в 1С (ADHOC-56 - отметкой Polaris): «Ожидает» - внимание,
+/// «Проведено» - успех.
 class DocStatusChip extends StatelessWidget {
   const DocStatusChip({super.key, required this.posted});
 

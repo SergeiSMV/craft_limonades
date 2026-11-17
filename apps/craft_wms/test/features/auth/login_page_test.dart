@@ -27,7 +27,7 @@ class _MockAppUpdateService extends Mock implements AppUpdateService {}
 
 class _MockOutbox extends Mock implements OutboxRepository {}
 
-/// Устройство со сканером — как боевой DT50S.
+/// Устройство со сканером - как боевой DT50S.
 const _tsd = ScannerProbe(
   available: true,
   packages: ['com.ubx.uscanner'],
@@ -84,7 +84,7 @@ void main() {
   testWidgets('на устройстве без сканера показан вход по логину и паролю', (
     tester,
   ) async {
-    registerFakeScanner(); // сканера нет — обычный смартфон
+    registerFakeScanner(); // сканера нет - обычный смартфон
     await tester.pumpWidget(wrap());
     await tester.pump();
 
@@ -135,7 +135,7 @@ void main() {
     await scanner.dispose();
   });
 
-  testWidgets('поле и поток отдают тот же бейдж — вход уходит один раз', (
+  testWidgets('поле и поток отдают тот же бейдж - вход уходит один раз', (
     tester,
   ) async {
     // Регресс: отсечение дубля сидело только на ветке потока, и пара «поле + интент»
@@ -169,7 +169,7 @@ void main() {
 
   testWidgets('обе формы входа переживают короткий вьюпорт', (tester) async {
     // Регресс: при автоповороте на DT50S высота падала до 360 dp, а колонка экрана бейджа
-    // просила ~485 — RenderFlex рвался «зеброй» на 128 px. Приложение с тех пор заблокировано
+    // просила ~485 - RenderFlex рвался «зеброй» на 128 px. Приложение с тех пор заблокировано
     // в портрете, но короткий вьюпорт остаётся штатным: его даёт экранная клавиатура.
     tester.view.physicalSize = const Size(1344, 720);
     tester.view.devicePixelRatio = 2;
@@ -180,7 +180,7 @@ void main() {
     await tester.pump();
     expect(tester.takeException(), isNull, reason: 'форма скана бейджа');
 
-    // В ландшафте ссылка уходит под сгиб — до неё именно прокручиваются. Это и проверяем:
+    // В ландшафте ссылка уходит под сгиб - до неё именно прокручиваются. Это и проверяем:
     // содержимое доступно целиком, а не обрезано.
     await tester.ensureVisible(find.text(t.loginScreen.usePassword));
     await tester.pumpAndSettle();

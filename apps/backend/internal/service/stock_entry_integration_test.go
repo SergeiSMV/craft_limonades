@@ -14,7 +14,7 @@ import (
 	"craftwms/internal/testutil"
 )
 
-// seEnv — окружение теста сессии ввода: сервис + справочники (склад, ячейки, товары, пользователь).
+// seEnv - окружение теста сессии ввода: сервис + справочники (склад, ячейки, товары, пользователь).
 type seEnv struct {
 	pool         *pgxpool.Pool
 	svc          *service.StockEntryService
@@ -67,7 +67,7 @@ func (e *seEnv) qty(t *testing.T, cell, good, batch string) decimal.Decimal {
 	return q
 }
 
-// batchOf находит id партии по (товар, дата ISO) — для сверки записанного остатка.
+// batchOf находит id партии по (товар, дата ISO) - для сверки записанного остатка.
 func batchOf(t *testing.T, pool *pgxpool.Pool, good, dateISO string) string {
 	t.Helper()
 	var id string
@@ -78,7 +78,7 @@ func batchOf(t *testing.T, pool *pgxpool.Pool, good, dateISO string) string {
 	return id
 }
 
-// TestStockEntry_fullCycle — старт → checkpoint(ы) → финал → остаток в stock; SET-перезапись грани.
+// TestStockEntry_fullCycle - старт → checkpoint(ы) → финал → остаток в stock; SET-перезапись грани.
 func TestStockEntry_fullCycle(t *testing.T) {
 	pool, env := setupStockEntry(t)
 	ctx := context.Background()
@@ -147,7 +147,7 @@ func TestStockEntry_fullCycle(t *testing.T) {
 	}
 }
 
-// TestStockEntry_validation — негативы валидации/несуществующей сессии.
+// TestStockEntry_validation - негативы валидации/несуществующей сессии.
 func TestStockEntry_validation(t *testing.T) {
 	_, env := setupStockEntry(t)
 	ctx := context.Background()

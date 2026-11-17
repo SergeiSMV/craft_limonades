@@ -13,14 +13,14 @@ import (
 	"craftwms/internal/testutil"
 )
 
-// TestPickingPick — пик и «в сборке» по живой базе (P9-05).
+// TestPickingPick - пик и «в сборке» по живой базе (P9-05).
 //
-// В A-1 20 шт. россыпью, в коробе хранения в B-1 — 6 шт., в A-1 же две марки маркируемого
+// В A-1 20 шт. россыпью, в коробе хранения в B-1 - 6 шт., в A-1 же две марки маркируемого
 // товара. Пик 5 шт. россыпью: повтор операции второй раз не пикает, «в сборке» видно в
 // содержимом, перемещение берёт не больше 15, а снимок пересчёта ячейки ждёт 15. Пик сверх
-// плана и сверх доступного — отказ. Короб с открытым пиком переезжает вместе со своим «в сборке»,
-// пометить его проблемой целиком нельзя. Маркируемый — только марками, марка в сборке не
-// перемещается и не берётся вторым пиком. Ячейка отгрузки — не источник сборки и не место
+// плана и сверх доступного - отказ. Короб с открытым пиком переезжает вместе со своим «в сборке»,
+// пометить его проблемой целиком нельзя. Маркируемый - только марками, марка в сборке не
+// перемещается и не берётся вторым пиком. Ячейка отгрузки - не источник сборки и не место
 // перемещения. Возврат пика снимает «в сборке»; удалённый заказ не пикается.
 func TestPickingPick(t *testing.T) {
 	pool := testutil.StartPostgres(t)
@@ -100,7 +100,7 @@ func TestPickingPick(t *testing.T) {
 	}
 	five := decimal.NewFromInt(5)
 
-	// Пик 5 шт. россыпью A-1; повтор той же операции — дубль, второй пик не появляется.
+	// Пик 5 шт. россыпью A-1; повтор той же операции - дубль, второй пик не появляется.
 	firstPick, firstOp := uuid.NewString(), uuid.NewString()
 	if _, err := pick(firstOp, repository.PickingPickInput{PickID: firstPick, SourceCellID: cellA, Qty: five}); err != nil {
 		t.Fatalf("пик: %v", err)
@@ -123,7 +123,7 @@ func TestPickingPick(t *testing.T) {
 		}
 	}
 
-	// Перемещение из A-1 — не больше доступного: 16 нельзя, 15 можно (и вернём обратно).
+	// Перемещение из A-1 - не больше доступного: 16 нельзя, 15 можно (и вернём обратно).
 	move := func(lines ...repository.MovementLineInput) error {
 		_, err := ops.MovementSubmit(ctx, uuid.NewString(), repository.MovementSubmitInput{
 			MovementID: uuid.NewString(), Kind: model.MovementMove, WarehouseID: wh, CreatedBy: user, Lines: lines,
@@ -144,7 +144,7 @@ func TestPickingPick(t *testing.T) {
 		t.Fatalf("перемещение обратно: %v", err)
 	}
 
-	// Пик сверх плана — отказ: взято 5 из 8, ещё 4 нельзя; сверх доступного короба — тоже.
+	// Пик сверх плана - отказ: взято 5 из 8, ещё 4 нельзя; сверх доступного короба - тоже.
 	if _, err := pick(uuid.NewString(), repository.PickingPickInput{SourceLoadUnitID: storage, Qty: decimal.NewFromInt(4)}); !errors.Is(err, model.ErrPickingOverPlan) {
 		t.Fatalf("сверх плана: %v", err)
 	}
@@ -173,7 +173,7 @@ func TestPickingPick(t *testing.T) {
 		t.Fatalf("пометка короба в сборке: %v", err)
 	}
 
-	// Маркируемый — только марками; марка в сборке не перемещается и вторым пиком не берётся.
+	// Маркируемый - только марками; марка в сборке не перемещается и вторым пиком не берётся.
 	one := decimal.NewFromInt(1)
 	if _, err := pick(uuid.NewString(), repository.PickingPickInput{LineID: mline, SourceCellID: cellA, Qty: one}); !errors.Is(err, model.ErrCZMarksRequired) {
 		t.Fatalf("маркируемый без марок: %v", err)
@@ -220,7 +220,7 @@ func TestPickingPick(t *testing.T) {
 		t.Fatalf("после возврата пика доступно всё: %v", err)
 	}
 
-	// Ячейка отгрузки — не источник сборки и не место перемещения.
+	// Ячейка отгрузки - не источник сборки и не место перемещения.
 	stock(shipping, good, batch, "1")
 	if _, err := pick(uuid.NewString(), repository.PickingPickInput{SourceCellID: shipping, Qty: one}); !errors.Is(err, model.ErrPickingSourceDenied) {
 		t.Fatalf("пик из ОТГРУЗКИ: %v", err)

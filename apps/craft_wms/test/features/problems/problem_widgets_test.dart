@@ -12,7 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-// P6-07-2: выбор в источнике и форма «куда и почему» не переполняются на ширине ТСД. Ширины —
+// P6-07-2: выбор в источнике и форма «куда и почему» не переполняются на ширине ТСД. Ширины -
 // настоящим Inter и темой приложения, как у карточки перемещения (тестовый шрифт шире вдвое).
 void main() {
   setUp(LocaleSettings.useDeviceLocale);
@@ -66,7 +66,7 @@ void main() {
     expect(tester.takeException(), isNull, reason: 'переполнение на $width');
   }
 
-  testWidgets('выбор в коробе и ячейке — без переполнения', (tester) async {
+  testWidgets('выбор в коробе и ячейке - без переполнения', (tester) async {
     for (final width in [320.0, 360.0]) {
       for (final source in const [
         ProblemSource.box(box: box, cell: cell),
@@ -99,7 +99,7 @@ void main() {
     );
   });
 
-  testWidgets('форма «не наша марка» — все склады и причины, поле марки', (
+  testWidgets('форма «не наша марка» - все склады и причины, поле марки', (
     tester,
   ) async {
     for (final width in [320.0, 360.0]) {
@@ -130,8 +130,8 @@ void main() {
       );
     }
     expect(find.text(t.problems.mark), findsOneWidget);
-    // Варианты — неоморфные кнопки приложения, а не чипы Material; выбрана одна причина.
-    // Причины — те, что переданы формой: справочник терминала (ADHOC-55).
+    // Варианты - неоморфные кнопки приложения, а не чипы Material; выбрана одна причина.
+    // Причины - те, что переданы формой: справочник терминала (ADHOC-55).
     expect(
       find.byType(NeumorphicChoice),
       findsNWidgets(warehouses.length + fallbackProblemReasons().length),

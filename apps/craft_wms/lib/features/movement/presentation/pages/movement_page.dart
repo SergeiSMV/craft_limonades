@@ -49,7 +49,7 @@ import '../widgets/move_qty_header.dart';
 /// короб) → … → «Завершить». Работает без связи: сеанс копится на терминале и уходит одной
 /// операцией, а состав источников берётся из снимка содержимого склада.
 ///
-/// Вкладки «Новое» и «Завершённые» (ADHOC-28), как в разделе «ЗАДАНИЯ»: «Завершённые» —
+/// Вкладки «Новое» и «Завершённые» (ADHOC-28), как в разделе «ЗАДАНИЯ»: «Завершённые» -
 /// история перемещений всего склада, только онлайн, грузится при первом открытии вкладки.
 @RoutePage()
 class MovementPage extends StatelessWidget {
@@ -91,7 +91,7 @@ class _MovementViewState extends State<_MovementView>
     super.dispose();
   }
 
-  /// Вернуть фокус полю скана — иначе сканер в режиме «клавиатуры» печатает в никуда.
+  /// Вернуть фокус полю скана - иначе сканер в режиме «клавиатуры» печатает в никуда.
   void refocusScan() {
     if (mounted) _scanFocus.requestFocus();
   }
@@ -113,14 +113,14 @@ class _MovementViewState extends State<_MovementView>
 
   //* --- скан --- *//
 
-  /// Сканы экрана — по одному, в порядке прихода (ADHOC-70).
+  /// Сканы экрана - по одному, в порядке прихода (ADHOC-70).
   final _scans = ScanSerial('Перемещение');
 
   /// Единая точка для обоих источников кода (поле и интент), поэтому отсечение дубля здесь.
   Future<void> onScan(String value) async {
     final code = value.trim();
     _scanController.clear();
-    // Скан на вкладке истории — кладовщик начал перемещать: возвращаемся к сеансу.
+    // Скан на вкладке истории - кладовщик начал перемещать: возвращаемся к сеансу.
     if (_tab != 0) setState(() => _tab = 0);
     if (code.isEmpty || !_deduper.allow(code) || cubit.state.outcome != null) {
       refocusScan();
@@ -153,7 +153,7 @@ class _MovementViewState extends State<_MovementView>
     refocusScan();
   }
 
-  /// Скан QR короба: карточка — с сервера или из снимка со своей очередью поверх; ячейка —
+  /// Скан QR короба: карточка - с сервера или из снимка со своей очередью поверх; ячейка -
   /// та, куда короб перенесён в этом сеансе, иначе та, где он числится.
   Future<void> onBoxScan(String id) async {
     final res = await contents.loadUnit(id);
@@ -170,7 +170,7 @@ class _MovementViewState extends State<_MovementView>
     await onBox(box);
   }
 
-  /// Скан этикетки короба ЧЗ (`00`+SSCC, CZ-06): своего ярлыка у короба ЧЗ нет — ГЕ находится
+  /// Скан этикетки короба ЧЗ (`00`+SSCC, CZ-06): своего ярлыка у короба ЧЗ нет - ГЕ находится
   /// по коду, дальше всё как у скана QR.
   Future<void> onCzBoxScan(String czCode) async {
     final res = await contents.loadUnitIdByCzCode(czCode);
@@ -187,7 +187,7 @@ class _MovementViewState extends State<_MovementView>
     await onBoxScan(id);
   }
 
-  /// Короб найден — сканом или вручную ([manual]). Ячейка — та, куда короб перенесён в этом
+  /// Короб найден - сканом или вручную ([manual]). Ячейка - та, куда короб перенесён в этом
   /// сеансе, иначе та, где он числится.
   Future<void> onBox(LoadUnitView box, {bool manual = false}) async {
     final cellId = cubit.state.boxCellInSession(box.id) ?? box.cellId;
@@ -199,8 +199,8 @@ class _MovementViewState extends State<_MovementView>
 
   //* --- без скана: ярлык испорчен --- *//
 
-  /// Найти короб по коду с ярлыка или адресу ячейки. Источником — с отметкой «выбран
-  /// вручную» (предложить перепечатать ярлык); с товаром в руках — приёмником.
+  /// Найти короб по коду с ярлыка или адресу ячейки. Источником - с отметкой «выбран
+  /// вручную» (предложить перепечатать ярлык); с товаром в руках - приёмником.
   Future<void> findBox() async {
     final box = await showFindBoxSheet(context, search: searchBoxes);
     await hideKeyboard();
@@ -210,8 +210,8 @@ class _MovementViewState extends State<_MovementView>
     refocusScan();
   }
 
-  /// Поиск для листа «Найти короб»: по короткому коду — короба с таким кодом; по адресу
-  /// ячейки — её короба. Адрес вроде «A-1-1» похож и на код, поэтому пробуем оба.
+  /// Поиск для листа «Найти короб»: по короткому коду - короба с таким кодом; по адресу
+  /// ячейки - её короба. Адрес вроде «A-1-1» похож и на код, поэтому пробуем оба.
   Future<List<BoxSection>> searchBoxes(String query) async {
     final sections = <BoxSection>[];
     final code = shortCodeQuery(query);
@@ -258,8 +258,8 @@ class _MovementViewState extends State<_MovementView>
     await onCell(cell);
   }
 
-  /// Ячейка выбрана — сканом или из справочника. Её россыпь нужна, только если она становится
-  /// источником: с коробом или товаром в руках ячейка — приёмник. Ячейка на пересчёте —
+  /// Ячейка выбрана - сканом или из справочника. Её россыпь нужна, только если она становится
+  /// источником: с коробом или товаром в руках ячейка - приёмник. Ячейка на пересчёте -
   /// сначала предупреждение (ADHOC-48).
   Future<void> onCell(Cell cell) async {
     if (!cell.isDefault && !await allowMoveThroughCell(context, cell.id)) {
@@ -281,7 +281,7 @@ class _MovementViewState extends State<_MovementView>
     cubit.onCell(cell, loose: res.right.value?.loose ?? const []);
   }
 
-  /// Скан штрихкода товара: товар ищется в источнике в руках; партия и количество — оттуда.
+  /// Скан штрихкода товара: товар ищется в источнике в руках; партия и количество - оттуда.
   Future<void> onGoodScan(String code) async {
     if (cubit.state.hold is! HoldSource) {
       cubit.goodWithoutSource();
@@ -306,14 +306,14 @@ class _MovementViewState extends State<_MovementView>
     await takeFrom(cubit.candidates(goodId: good.id));
   }
 
-  /// Выбрать товар из источника — для товара без штрихкода.
+  /// Выбрать товар из источника - для товара без штрихкода.
   Future<void> chooseGood() async {
     await takeFrom(cubit.candidates());
     refocusScan();
   }
 
-  /// Взять товар: одна партия — сразу количество, несколько — сначала партия. Количество по
-  /// умолчанию — всё, что есть в источнике (решение 2026-10-13).
+  /// Взять товар: одна партия - сразу количество, несколько - сначала партия. Количество по
+  /// умолчанию - всё, что есть в источнике (решение 2026-10-13).
   Future<void> takeFrom(List<(ContentLine, double)> options) async {
     if (options.isEmpty) {
       cubit.goodNotInSource();
@@ -346,7 +346,7 @@ class _MovementViewState extends State<_MovementView>
     refocusScan();
   }
 
-  /// Выбрать ячейку вручную — тот же лист, что в приёмке и размещении.
+  /// Выбрать ячейку вручную - тот же лист, что в приёмке и размещении.
   Future<void> chooseCell() async {
     final cell = await showModalBottomSheet<Cell>(
       context: context,
@@ -357,13 +357,13 @@ class _MovementViewState extends State<_MovementView>
       ),
       builder: (_) => const CellChangeSheet(),
     );
-    // Поле поиска в листе могло открыть клавиатуру — на экране скана она не нужна.
+    // Поле поиска в листе могло открыть клавиатуру - на экране скана она не нужна.
     await hideKeyboard();
     if (cell != null && mounted) await onCell(cell);
     refocusScan();
   }
 
-  /// Ячейка справочника терминала по условию; `null` — такой нет.
+  /// Ячейка справочника терминала по условию; `null` - такой нет.
   @override
   Future<Cell?> cellWhere(bool Function(Cell) test) async {
     final res = await getIt<CatalogRepository>().listAllCells();
@@ -445,7 +445,7 @@ class _MovementViewState extends State<_MovementView>
     );
   }
 
-  /// Вкладки «Новое» / «Завершённые». Итог сеанса — во весь экран, без вкладок.
+  /// Вкладки «Новое» / «Завершённые». Итог сеанса - во весь экран, без вкладок.
   Widget _tabs(MovementState state) {
     if (state.outcome != null) return _body(state);
     return Column(

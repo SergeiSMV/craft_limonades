@@ -14,7 +14,7 @@ import (
 	"craftwms/internal/model"
 )
 
-// KindStocktakeCellSubmit — подсчёт ячейки пересчёта (P10-03): факт россыпи и найденные короба
+// KindStocktakeCellSubmit - подсчёт ячейки пересчёта (P10-03): факт россыпи и найденные короба
 // одной операцией очереди.
 const KindStocktakeCellSubmit = "stocktake_cell_submit"
 
@@ -29,16 +29,16 @@ func (r *OperationsRepository) StocktakeCellSubmit(ctx context.Context, operatio
 	})
 }
 
-// stocktakeLine — строка снимка ячейки под подсчётом.
+// stocktakeLine - строка снимка ячейки под подсчётом.
 type stocktakeLine struct {
 	id                         string
 	loadUnit, good, batch, iwh string
 	fact                       decimal.Decimal
-	// foreign — короб найден не по снимку, перенесён сюда.
+	// foreign - короб найден не по снимку, перенесён сюда.
 	foreign bool
 }
 
-// stocktakeCount — подсчёт одной ячейки пересчёта в транзакции операции.
+// stocktakeCount - подсчёт одной ячейки пересчёта в транзакции операции.
 type stocktakeCount struct {
 	q        Querier
 	c        lockedStocktakeCell
@@ -52,16 +52,16 @@ type stocktakeCount struct {
 
 // stocktakeCellSubmit приводит остаток ячейки к факту подсчёта (P10-03).
 //
-// Что: строки снимка получают факт (не названная позиция — 0, недостача; названная сверх
-// снимка — новая строка, излишек), остаток каждой позиции россыпи приводится к факту, правка
+// Что: строки снимка получают факт (не названная позиция - 0, недостача; названная сверх
+// снимка - новая строка, излишек), остаток каждой позиции россыпи приводится к факту, правка
 // пишется в audit_log. Не найденные короб и марки уходят на склад «Не найдено» проблемой склада
-// с причиной «не найдено» — решение за офисом. Учётный короб или марка из другого места
-// переносятся сюда — их нашли здесь.
+// с причиной «не найдено» - решение за офисом. Учётный короб или марка из другого места
+// переносятся сюда - их нашли здесь.
 // Зачем сразу по ячейке, а не при закрытии пересчёта: пока ячейка на подсчёте, движений через
 // неё не было (иначе она сбита), и остаток равен снимку; к закрытию через неё пройдут движения,
 // и факт утра разошёлся бы с остатком вечера (решение 2026-10-26).
-// Как: ячейка сначала становится `counted` — свои правки остатка иначе сбили бы её собственный
-// подсчёт (триггеры миграции 31). Правка россыпи — разницей факта с россыпью ПОСЛЕ проблем и
+// Как: ячейка сначала становится `counted` - свои правки остатка иначе сбили бы её собственный
+// подсчёт (триггеры миграции 31). Правка россыпи - разницей факта с россыпью ПОСЛЕ проблем и
 // переносов: так марки, ушедшие в «Не найдено», и перенесённые сюда не считаются дважды.
 // Остаток меняется только примитивами addStock/removeStock/transferStock.
 func stocktakeCellSubmit(ctx context.Context, q Querier, in model.StocktakeCellSubmitInput) (model.StocktakeCellResult, error) {
@@ -142,7 +142,7 @@ func (sc *stocktakeCount) load(ctx context.Context) error {
 	return rows.Err()
 }
 
-// guardArea — при области по группе, поставщику, товару в факте только товар области.
+// guardArea - при области по группе, поставщику, товару в факте только товар области.
 func (sc *stocktakeCount) guardArea(ctx context.Context, in model.StocktakeCellSubmitInput) error {
 	if !model.StocktakeCountsAreaGoodsOnly(sc.c.scopeKind) || len(in.Loose) == 0 {
 		return nil
@@ -164,8 +164,8 @@ func (sc *stocktakeCount) guardArea(ctx context.Context, in model.StocktakeCellS
 	return nil
 }
 
-// countBoxes — короба: найденный из снимка подтверждён, учётный из другой ячейки переносится
-// сюда, неизвестный — отказ; ожидавшийся и не найденный уходит в «Не найдено».
+// countBoxes - короба: найденный из снимка подтверждён, учётный из другой ячейки переносится
+// сюда, неизвестный - отказ; ожидавшийся и не найденный уходит в «Не найдено».
 func (sc *stocktakeCount) countBoxes(ctx context.Context, found []string) error {
 	for _, lu := range found {
 		if l, ok := sc.boxes[lu]; ok {
@@ -198,9 +198,9 @@ func (sc *stocktakeCount) countBoxes(ctx context.Context, found []string) error 
 	return nil
 }
 
-// foreignBox — найденный короб не из снимка. В WMS он есть и лежит в другой ячейке — пересчёт
-// переносит его сюда строкой журнала размещений; нет в WMS — его заводят приёмкой или «Вводом
-// остатков»; короб на системном складе — в решении офиса или задании, пересчёт его не трогает.
+// foreignBox - найденный короб не из снимка. В WMS он есть и лежит в другой ячейке - пересчёт
+// переносит его сюда строкой журнала размещений; нет в WMS - его заводят приёмкой или «Вводом
+// остатков»; короб на системном складе - в решении офиса или задании, пересчёт его не трогает.
 func (sc *stocktakeCount) foreignBox(ctx context.Context, lu string) error {
 	var cell *string
 	var iwh string
@@ -244,8 +244,8 @@ func (sc *stocktakeCount) foreignBox(ctx context.Context, lu string) error {
 }
 
 // boxContentLines пишет состав короба строками «товар в коробе» (P10-05): документ
-// «Инвентаризация» разворачивает короба в товар — 1С знает товар, а не короба. Ожидалось —
-// состав, если короб был в снимке; факт — состав, если короб найден. Состав читается в момент
+// «Инвентаризация» разворачивает короба в товар - 1С знает товар, а не короба. Ожидалось -
+// состав, если короб был в снимке; факт - состав, если короб найден. Состав читается в момент
 // подсчёта: пока ячейка на подсчёте, он не менялся (иначе подсчёт сбит), а проблема «не найдено»
 // и перенос короба его не трогают.
 func (sc *stocktakeCount) boxContentLines(ctx context.Context, l *stocktakeLine, expected, found bool) error {
@@ -261,7 +261,7 @@ func (sc *stocktakeCount) boxContentLines(ctx context.Context, l *stocktakeLine,
 	return nil
 }
 
-// countLoose — факт россыпи позиции: строка снимка или новая (излишек) с фактом; найденные
+// countLoose - факт россыпи позиции: строка снимка или новая (излишек) с фактом; найденные
 // марки отмечаются, марка из другого места переносится сюда вместе с единицей остатка.
 func (sc *stocktakeCount) countLoose(ctx context.Context, f model.StocktakeLooseFact) error {
 	iwh := f.InternalWarehouseID
@@ -314,9 +314,9 @@ func (sc *stocktakeCount) countLoose(ctx context.Context, f model.StocktakeLoose
 	return nil
 }
 
-// foundMark отмечает найденную марку. Ожидалась на этой строке — найдена; лежит на складе в
-// другом месте — единица остатка и марка переносятся сюда: её нашли здесь. Марки нет на складе
-// или она в проблеме — отказ: судьбу такой марки решает приёмка или офис, а не пересчёт.
+// foundMark отмечает найденную марку. Ожидалась на этой строке - найдена; лежит на складе в
+// другом месте - единица остатка и марка переносятся сюда: её нашли здесь. Марки нет на складе
+// или она в проблеме - отказ: судьбу такой марки решает приёмка или офис, а не пересчёт.
 func (sc *stocktakeCount) foundMark(ctx context.Context, l *stocktakeLine, cis string) error {
 	tag, err := sc.q.Exec(ctx, `
 		UPDATE stocktake_marks SET found = true
@@ -386,8 +386,8 @@ func (sc *stocktakeCount) foundMark(ctx context.Context, l *stocktakeLine, cis s
 	return nil
 }
 
-// marksNotFound — ожидавшиеся и не найденные марки россыпью уходят в «Не найдено» одной
-// проблемой на позицию: марки, количество — их число.
+// marksNotFound - ожидавшиеся и не найденные марки россыпью уходят в «Не найдено» одной
+// проблемой на позицию: марки, количество - их число.
 func (sc *stocktakeCount) marksNotFound(ctx context.Context) error {
 	rows, err := sc.q.Query(ctx, `
 		SELECT m.line_id::text, m.cis FROM stocktake_marks m
@@ -443,7 +443,7 @@ func (sc *stocktakeCount) marksNotFound(ctx context.Context) error {
 }
 
 // notFoundProblem заводит проблему склада «не найдено»: короб или товар уходит на склад
-// «Не найдено» той же ячейки, решение — за офисом.
+// «Не найдено» той же ячейки, решение - за офисом.
 func (sc *stocktakeCount) notFoundProblem(ctx context.Context, in ProblemSubmitInput) (string, error) {
 	in.ProblemID = uuid.NewString()
 	in.WarehouseID = sc.c.warehouse
@@ -459,8 +459,8 @@ func (sc *stocktakeCount) notFoundProblem(ctx context.Context, in ProblemSubmitI
 	return in.ProblemID, nil
 }
 
-// adjust пишет факт в строки и приводит россыпь каждой позиции к факту — разницей с россыпью
-// после проблем и переносов; каждая правка — строкой audit_log.
+// adjust пишет факт в строки и приводит россыпь каждой позиции к факту - разницей с россыпью
+// после проблем и переносов; каждая правка - строкой audit_log.
 func (sc *stocktakeCount) adjust(ctx context.Context) error {
 	for _, l := range sc.boxes {
 		if _, err := sc.q.Exec(ctx, `UPDATE stocktake_lines SET fact_qty = $2::numeric WHERE id = $1::uuid`,

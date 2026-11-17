@@ -1,7 +1,7 @@
 import '../../../../core/error/failure.dart';
 import '../../domain/contents_entities.dart';
 
-/// Состояние экрана содержимого — общее у «Ячейки» и «Короба» (P5-05).
+/// Состояние экрана содержимого - общее у «Ячейки» и «Короба» (P5-05).
 sealed class ContentsViewState<T> {
   const ContentsViewState();
 }

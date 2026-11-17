@@ -11,7 +11,7 @@ import 'package:craft_wms/features/cz/presentation/widgets/cz_mark_section.dart'
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// Эталон ответа скана с сервера — тот же, что в `cz_scan_http_test.go`.
+/// Эталон ответа скана с сервера - тот же, что в `cz_scan_http_test.go`.
 Map<String, dynamic> _golden(String name) =>
     jsonDecode(
           File('../backend/internal/handler/testdata/$name').readAsStringSync(),
@@ -23,31 +23,31 @@ void main() {
   setUpAll(LocaleSettings.useDeviceLocale);
 
   group('czScanTarget', () {
-    test('марка известного товара — карточка товара', () {
+    test('марка известного товара - карточка товара', () {
       final r = czScanFromJson(_golden('cz_scan_mark.json'));
       expect(czScanTarget(r), CzScanTarget.goodCard);
     });
 
-    test('марка с незнакомым GTIN — привязка ШК, как у незнакомого ШК', () {
+    test('марка с незнакомым GTIN - привязка ШК, как у незнакомого ШК', () {
       final j = _golden('cz_scan_mark.json')
         ..['good'] = null
         ..['bind_barcode'] = '4612728200172';
       expect(czScanTarget(czScanFromJson(j)), CzScanTarget.bindBarcode);
     });
 
-    test('марка без GTIN — товар не определить', () {
+    test('марка без GTIN - товар не определить', () {
       final j = _golden('cz_scan_mark.json')..['good'] = null;
       expect(czScanTarget(czScanFromJson(j)), CzScanTarget.noGtin);
     });
 
-    test('принятый короб — карточка ГЕ, непринятый — состав по ЧЗ', () {
+    test('принятый короб - карточка ГЕ, непринятый - состав по ЧЗ', () {
       final j = _golden('cz_scan_box.json');
       expect(czScanTarget(czScanFromJson(j)), CzScanTarget.loadUnit);
       j.remove('load_unit_id');
       expect(czScanTarget(czScanFromJson(j)), CzScanTarget.composition);
     });
 
-    test('групповая упаковка — состав по ЧЗ', () {
+    test('групповая упаковка - состав по ЧЗ', () {
       final j = _golden('cz_scan_box.json')..['kind'] = 'GROUP';
       expect(czScanTarget(czScanFromJson(j)), CzScanTarget.composition);
     });
@@ -67,7 +67,7 @@ void main() {
     ) async {
       final r = czScanFromJson(_golden('cz_scan_mark.json'));
       await pump(tester, r);
-      // Наименование по ЧЗ — своей строкой: с номенклатурой оно может не совпадать.
+      // Наименование по ЧЗ - своей строкой: с номенклатурой оно может не совпадать.
       expect(find.text(t.czScan.czNameLine(name: r.productName!)), findsOne);
       expect(find.text(t.czScan.czStatusLine(status: 'в обороте')), findsOne);
       expect(find.text(t.czScan.producedLine(date: '12.10.2026')), findsOne);
@@ -78,7 +78,7 @@ void main() {
       expect(find.text(t.czScan.notInWms), findsNothing);
     });
 
-    testWidgets('марка не на складе — так и сказано', (tester) async {
+    testWidgets('марка не на складе - так и сказано', (tester) async {
       final j = _golden('cz_scan_mark.json')..['mark'] = null;
       await pump(tester, czScanFromJson(j));
       expect(find.text(t.czScan.notInWms), findsOne);

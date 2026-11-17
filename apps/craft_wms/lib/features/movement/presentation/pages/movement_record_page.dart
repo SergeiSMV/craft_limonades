@@ -19,7 +19,7 @@ import '../bloc/movement_record_cubit.dart';
 import '../widgets/history/move_record_tile.dart';
 import '../widgets/move_lines_list.dart';
 
-/// Запись истории перемещений (ADHOC-28): кто и когда перемещал и что — откуда и куда, по
+/// Запись истории перемещений (ADHOC-28): кто и когда перемещал и что - откуда и куда, по
 /// порядку проведения, с коробами и перекладыванием внутри ячейки. Только онлайн.
 @RoutePage()
 class MovementRecordPage extends StatelessWidget {
@@ -51,7 +51,7 @@ class _MovementRecordView extends StatelessWidget {
       style: StatusBarStyle.light,
       child: Scaffold(
         backgroundColor: AppColors.kNeumorphicBg,
-        // Шапка — как у раздела «Перемещение»: фон-картинка и заголовок с возвратом.
+        // Шапка - как у раздела «Перемещение»: фон-картинка и заголовок с возвратом.
         appBar: AppBar(
           automaticallyImplyLeading: false,
           backgroundColor: Colors.transparent,

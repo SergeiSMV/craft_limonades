@@ -7,11 +7,11 @@ import '../ui/portal_choice.dart';
 import 'documents_tab.dart';
 
 /// Вкладка «Инвентаризация» (P10-05): пересчёты склада, их документы «Инвентаризация» для 1С
-/// и документы «Ввода остатков» (P-FS-09). Три вида — переключателем сверху: все они про
+/// и документы «Ввода остатков» (P-FS-09). Три вида - переключателем сверху: все они про
 /// приведение учёта к полке, а документ «Инвентаризация» рождается закрытием пересчёта.
 ///
-/// Виды и действия — по правам (ADHOC-50): пересчёты — «смотреть ход» или «заводить и
-/// закрывать», документы — любое право на свой вид.
+/// Виды и действия - по правам (ADHOC-50): пересчёты - «смотреть ход» или «заводить и
+/// закрывать», документы - любое право на свой вид.
 class InventoryTab extends StatefulWidget {
   const InventoryTab({
     super.key,
@@ -27,7 +27,7 @@ class InventoryTab extends StatefulWidget {
   /// Заводить и закрывать пересчёты.
   final bool canManage;
 
-  /// Права на документы «Инвентаризация» и «Ввод остатков»; `null` — вида нет.
+  /// Права на документы «Инвентаризация» и «Ввод остатков»; `null` - вида нет.
   final DocRights? stocktakeDocs;
   final DocRights? stockEntryDocs;
 
@@ -62,7 +62,7 @@ class _InventoryTabState extends State<InventoryTab> {
     final views = _views;
     final view = views[_view.clamp(0, views.length - 1)];
     // Переключатель видов в плоском стиле (ADHOC-56): у каждого вида закреплён над его панелью
-    // в общей раскладке страницы-списка — на одном и том же месте.
+    // в общей раскладке страницы-списка - на одном и том же месте.
     final switcher = Wrap(
       spacing: AppSizes.kChipSpacing,
       runSpacing: AppSizes.kChipSpacing,

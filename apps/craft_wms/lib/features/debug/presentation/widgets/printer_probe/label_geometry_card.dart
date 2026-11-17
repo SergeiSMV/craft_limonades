@@ -6,9 +6,9 @@ import '../../../../../core/printer/label_geometry.dart';
 
 /// Размер заправленного рулона: ширина, высота и промежуток между этикетками.
 ///
-/// Зачем это на экране: принтер не знает, что в него заправлено, — размер ему объявляют
+/// Зачем это на экране: принтер не знает, что в него заправлено, - размер ему объявляют
 /// командой. Объявишь высоту с запасом, и после печати он догонит ленту до следующего
-/// промежутка: выедет вторая этикетка, пустая. Промахнёшься с промежутком — датчик не найдёт
+/// промежутка: выедет вторая этикетка, пустая. Промахнёшься с промежутком - датчик не найдёт
 /// зазор и промотает рулон целиком. Оба симптома наблюдались на живом принтере.
 class LabelGeometryCard extends StatefulWidget {
   const LabelGeometryCard({
@@ -40,7 +40,7 @@ class _LabelGeometryCardState extends State<LabelGeometryCard> {
   @override
   void didUpdateWidget(LabelGeometryCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Значение могло прийти из настроек позже первой отрисовки — подхватываем, но не затираем
+    // Значение могло прийти из настроек позже первой отрисовки - подхватываем, но не затираем
     // то, что человек печатает прямо сейчас.
     if (oldWidget.geometry == widget.geometry) return;
     _width.text = _text(widget.geometry.widthMm);
@@ -59,7 +59,7 @@ class _LabelGeometryCardState extends State<LabelGeometryCard> {
   static String _text(double value) =>
       value == value.roundToDouble() ? '${value.round()}' : '$value';
 
-  /// Собрать размер из полей и отдать наверх. Непрочитанное поле не рушит ввод —
+  /// Собрать размер из полей и отдать наверх. Непрочитанное поле не рушит ввод -
   /// на его месте остаётся прежнее значение.
   void submit() {
     final current = widget.geometry;

@@ -26,11 +26,11 @@ import '../widgets/goods_list/stock_header.dart';
 
 /// Экран «Остатки»: вкладки «Товары» и «Короба» (P5-05-1).
 ///
-/// «Товары» — товары, которые есть на складе, с количеством (ADHOC-33): из снимка склада, без
-/// связи тоже. Поиск и фильтры (группа/поставщик/склады) — в нижнем листе (кнопка с бейджем),
-/// активные — чипами под поиском; применяются сразу при выборе. Тап по товару → карточка его
-/// остатков. «Короба» — короба склада и поиск по короткому коду с ярлыка. Весь справочник
-/// товаров — «Номенклатура» из меню главного экрана.
+/// «Товары» - товары, которые есть на складе, с количеством (ADHOC-33): из снимка склада, без
+/// связи тоже. Поиск и фильтры (группа/поставщик/склады) - в нижнем листе (кнопка с бейджем),
+/// активные - чипами под поиском; применяются сразу при выборе. Тап по товару → карточка его
+/// остатков. «Короба» - короба склада и поиск по короткому коду с ярлыка. Весь справочник
+/// товаров - «Номенклатура» из меню главного экрана.
 @RoutePage()
 class GoodsListPage extends StatelessWidget {
   const GoodsListPage({super.key});
@@ -63,7 +63,7 @@ class _GoodsListViewState extends State<_GoodsListView>
   /// с товарами: переключение вкладки не должно терять набранное в другой.
   final _boxController = TextEditingController();
 
-  /// Открытая вкладка: 0 — «Товары», 1 — «Короба».
+  /// Открытая вкладка: 0 - «Товары», 1 - «Короба».
   int _tab = 0;
 
   /// Переключить вкладку; короба грузятся при первом заходе.
@@ -73,7 +73,7 @@ class _GoodsListViewState extends State<_GoodsListView>
     if (index == 1) context.read<BoxesCubit>().open();
   }
 
-  /// Ввод в строке коробов завершён: скан QR или ячейки открывает их, остальное — код с ярлыка.
+  /// Ввод в строке коробов завершён: скан QR или ячейки открывает их, остальное - код с ярлыка.
   Future<void> onBoxSubmitted(String value) async {
     final input = value.trim();
     if (input.isEmpty || !deduper.allow(input)) return;
@@ -86,19 +86,19 @@ class _GoodsListViewState extends State<_GoodsListView>
     await boxes.submitQuery(input);
   }
 
-  /// Очистить строку коробов — снова весь список.
+  /// Очистить строку коробов - снова весь список.
   void clearBoxSearch() {
     _boxController.clear();
     context.read<BoxesCubit>().submitQuery('');
   }
 
   /// Код с аппаратного сканера (intent-режим). На «Товарах» ведём тем же путём, что и
-  /// завершённый ввод в строке поиска — ШК открывает карточку, прочее ищется подстрокой.
+  /// завершённый ввод в строке поиска - ШК открывает карточку, прочее ищется подстрокой.
   @override
   void onHardwareScan(ScanCode code) =>
       _tab == 1 ? onBoxScan(code) : onSearchSubmitted(code.raw);
 
-  /// Скан на вкладке «Короба»: QR короба и этикетка ячейки открывают их, прочее — не короб.
+  /// Скан на вкладке «Короба»: QR короба и этикетка ячейки открывают их, прочее - не короб.
   Future<void> onBoxScan(ScanCode code) async {
     if (!deduper.allow(code.raw)) return;
     if (await openScannedContents(context, code)) return;
@@ -113,7 +113,7 @@ class _GoodsListViewState extends State<_GoodsListView>
   }
 
   /// Открыть раздел «Ввод остатков» (проход склада, P-FastStart). Клавиатуру гасим по той же
-  /// причине, что и при переходе в карточку товара, — чтобы не всплывала на возврате.
+  /// причине, что и при переходе в карточку товара, - чтобы не всплывала на возврате.
   void openStockEntry(BuildContext context) {
     context.read<GoodsListCubit>().cancelPendingSearch();
     dismissKeyboard();
@@ -146,7 +146,7 @@ class _GoodsListViewState extends State<_GoodsListView>
             StockHeader(
               title: t.stockListScreen.title,
               goBack: goBack,
-              // «Ввод остатков» — по праву должности (ADHOC-51).
+              // «Ввод остатков» - по праву должности (ADHOC-51).
               openStockEntry:
                   sessionCan(context, Rights.tsdStockEntry, withoutSession: true)
                   ? () => openStockEntry(context)

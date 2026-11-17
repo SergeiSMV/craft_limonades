@@ -28,10 +28,10 @@ import (
 //
 // Сервисный слой покрыт в P2-05, но между ним и устройством лежит то, что не проверялось ничем,
 // кроме ручного curl: разбор тела запроса, авторизация, коды ответов и форма ответа. Разъедься
-// имя поля или код — сервисные тесты остались бы зелёными, а терминал молча перестал бы
+// имя поля или код - сервисные тесты остались бы зелёными, а терминал молча перестал бы
 // синхронизироваться.
 
-// e2eEnv — поднятый роутер с настоящей БД и настоящей авторизацией.
+// e2eEnv - поднятый роутер с настоящей БД и настоящей авторизацией.
 type e2eEnv struct {
 	srv   *httptest.Server
 	pool  *pgxpool.Pool
@@ -131,7 +131,7 @@ func TestOperationsHTTP_unauthorized(t *testing.T) {
 	}
 }
 
-// Главный сквозной случай: переотправка не двоит данные — на уровне HTTP, а не сервиса.
+// Главный сквозной случай: переотправка не двоит данные - на уровне HTTP, а не сервиса.
 func TestOperationsHTTP_replayIsIdempotent(t *testing.T) {
 	env := newE2E(t)
 	good := seedGood(t, env.pool, "Снек")
@@ -192,7 +192,7 @@ func TestOperationsHTTP_rejectionDoesNotStopBatch(t *testing.T) {
 		t.Fatalf("первая: ждали rejected, получили %v", res[0]["status"])
 	}
 	if res[0]["error"] == "" || res[0]["error"] == nil {
-		t.Fatal("у отклонённой пустая причина — на экране разбора показывать нечего")
+		t.Fatal("у отклонённой пустая причина - на экране разбора показывать нечего")
 	}
 	if res[1]["status"] != service.StatusAccepted {
 		t.Fatalf("вторая: ждали accepted, получили %v", res[1]["status"])
@@ -208,7 +208,7 @@ func TestOperationsHTTP_badRequests(t *testing.T) {
 	if code, _ := env.post(t, `{`, true); code != http.StatusBadRequest {
 		t.Fatalf("битый JSON: ждали 400, получили %d", code)
 	}
-	// Неизвестный тип — отказ по существу внутри 200, а не 400: батч разобран, а конкретная
+	// Неизвестный тип - отказ по существу внутри 200, а не 400: батч разобран, а конкретная
 	// операция неисполнима. Иначе устройство сочло бы неудачей весь батч и повторяло бы его.
 	code, body := env.post(t, `{"operations":[{"operation_id":"eeeeeeee-1111-4111-8111-eeeeeeeeeeee",`+
 		`"kind":"teleport_goods","payload":{}}]}`, true)
@@ -290,7 +290,7 @@ func TestOperationsHTTP_stockEntryFullCycle(t *testing.T) {
 		t.Fatalf("остаток %s, ждали 12.500", qty)
 	}
 
-	// Ответ до устройства не дошёл — очередь шлёт тот же батч заново.
+	// Ответ до устройства не дошёл - очередь шлёт тот же батч заново.
 	code, replayBody := env.post(t, batch, true)
 	if code != http.StatusOK {
 		t.Fatalf("повтор: ждали 200, получили %d", code)
@@ -310,7 +310,7 @@ func TestOperationsHTTP_stockEntryFullCycle(t *testing.T) {
 		t.Fatalf("count lines: %v", err)
 	}
 	if sessions != 1 || lines != 1 {
-		t.Fatalf("после повтора сессий %d, строк %d — ждали 1 и 1", sessions, lines)
+		t.Fatalf("после повтора сессий %d, строк %d - ждали 1 и 1", sessions, lines)
 	}
 	var after string
 	if err := env.pool.QueryRow(ctx,
@@ -318,7 +318,7 @@ func TestOperationsHTTP_stockEntryFullCycle(t *testing.T) {
 		t.Fatalf("остаток после повтора: %v", err)
 	}
 	if after != "12.500" {
-		t.Fatalf("остаток после повтора %s — переотправка изменила данные", after)
+		t.Fatalf("остаток после повтора %s - переотправка изменила данные", after)
 	}
 }
 
@@ -326,8 +326,8 @@ func TestOperationsHTTP_stockEntryFullCycle(t *testing.T) {
 // которое шлёт приложение ТСД.
 //
 // Файл `testdata/outbox_batch.json` снят с настоящего клиента; на него же смотрит тест
-// `wire_contract_test.dart` в приложении. До этого формат утверждался дважды независимо —
-// здесь структурами Go, там написанным руками JSON, — и разойдись имя поля, обе стороны
+// `wire_contract_test.dart` в приложении. До этого формат утверждался дважды независимо -
+// здесь структурами Go, там написанным руками JSON, - и разойдись имя поля, обе стороны
 // остались бы зелёными, а терминал молча перестал бы синхронизироваться.
 func TestOperationsHTTP_clientWireFormat(t *testing.T) {
 	env := newE2E(t)
@@ -368,7 +368,7 @@ func TestOperationsHTTP_clientWireFormat(t *testing.T) {
 	for i, r := range res {
 		if r["status"] != service.StatusAccepted {
 			t.Fatalf("операция %d из эталона не применилась: %v (%v).\n"+
-				"Формат разошёлся — сверьте testdata/outbox_batch.json с тем, что шлёт клиент.",
+				"Формат разошёлся - сверьте testdata/outbox_batch.json с тем, что шлёт клиент.",
 				i, r["status"], r["error"])
 		}
 	}

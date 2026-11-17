@@ -12,18 +12,18 @@ import 'receipt_label_actions.dart';
 /// Скан марки или короба «Честного знака» на приёмке (CZ-05).
 ///
 /// Что: код встаёт в общую очередь чтения прихода ([CzIntakeScan], ADHOC-70); прочитанный короб
-/// ЧЗ ложится новой ГЕ со своим составом, марка или групповая упаковка — единицами в короб, где
+/// ЧЗ ложится новой ГЕ со своим составом, марка или групповая упаковка - единицами в короб, где
 /// её отсканировали, или россыпью.
 /// Зачем отдельно от скана ШК: ветка только онлайн (долг 17) и со своими отказами; в общем
 /// миксине скана она растворила бы его логику.
 mixin ReceiptCzScanActions<T extends StatefulWidget>
     on State<T>, ReceiptLabelActions<T>, CzIntakeScan<T> {
-  /// Отсканирован короб этой приёмки — экран решает, открыть ли его.
+  /// Отсканирован короб этой приёмки - экран решает, открыть ли его.
   void onBoxScanned(String boxId);
 
   ReceiptCubit get _receipt => context.read<ReceiptCubit>();
 
-  /// Короб экрана — закрытый короб ЧЗ: в него ничего не добавляют.
+  /// Короб экрана - закрытый короб ЧЗ: в него ничего не добавляют.
   bool get inCzBox {
     final id = scanBoxId;
     return id != null && (_receipt.state.boxById(id)?.isCz ?? false);
@@ -38,7 +38,7 @@ mixin ReceiptCzScanActions<T extends StatefulWidget>
     return true;
   }
 
-  /// Марка или упаковка уже в приёмке — повтор не читается.
+  /// Марка или упаковка уже в приёмке - повтор не читается.
   @override
   bool czAlreadyHere(String key) =>
       _receipt.state.hasMark(key) ||
@@ -57,7 +57,7 @@ mixin ReceiptCzScanActions<T extends StatefulWidget>
     discrepancy: t.receipt.czDiscrepancyAdded,
   );
 
-  /// Скан кода ЧЗ: в закрытый короб ЧЗ — отказ, иначе в очередь чтения.
+  /// Скан кода ЧЗ: в закрытый короб ЧЗ - отказ, иначе в очередь чтения.
   void onCzScan(String code) {
     if (inCzBox) {
       snack(t.receipt.czBoxClosed);
@@ -66,7 +66,7 @@ mixin ReceiptCzScanActions<T extends StatefulWidget>
     czEnqueue(code);
   }
 
-  /// Положить прочитанное: короб ЧЗ — новой ГЕ, марки — в короб скана или россыпью.
+  /// Положить прочитанное: короб ЧЗ - новой ГЕ, марки - в короб скана или россыпью.
   @override
   CzIntakeAdd czApply(CzIntakeRead read, {String? boxId}) {
     if (read.scan.kind == CzCodeKind.box) {

@@ -3,11 +3,11 @@ import '../../../data/problems_repository.dart';
 
 /// Подписи значений транспорта «Проблем склада» (P6-07-3).
 
-/// Причина проблемы: название по справочнику (ADHOC-55), без него — подпись кода.
+/// Причина проблемы: название по справочнику (ADHOC-55), без него - подпись кода.
 String reasonText(PortalProblem p) =>
     p.reasonName.isNotEmpty ? p.reasonName : reasonLabel(p.reason);
 
-/// Причина по коду — прежняя подпись причины, заведённой миграцией.
+/// Причина по коду - прежняя подпись причины, заведённой миграцией.
 String reasonLabel(String reason) => switch (reason) {
   'breakage' => t.portal.problems.reasonBreakage,
   'spoilage' => t.portal.problems.reasonSpoilage,
@@ -20,7 +20,7 @@ String reasonLabel(String reason) => switch (reason) {
   _ => reason,
 };
 
-/// Решение офиса — подпись варианта в диалоге.
+/// Решение офиса - подпись варианта в диалоге.
 String decisionLabel(String decision) => switch (decision) {
   ProblemDecision.writeOff => t.portal.problems.decisionWriteOff,
   ProblemDecision.place => t.portal.problems.decisionPlace,

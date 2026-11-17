@@ -14,16 +14,16 @@ import (
 )
 
 // Тесты CZ-06: марки ЧЗ в проблемах склада, решении офиса и отгрузке возврата (долг 30).
-// Фикстура setupCZMove — из cz_movement_integration_test.go.
+// Фикстура setupCZMove - из cz_movement_integration_test.go.
 
-// markProblem — товар фикстуры с марками: количество — их число.
+// markProblem - товар фикстуры с марками: количество - их число.
 func (cf *czMoveFixture) markProblem(cell, fromLU string, marks ...string) repository.ProblemSubmitInput {
 	in := cf.goodsProblem(int64(len(marks)), cell, fromLU)
 	in.Marks = marks
 	return in
 }
 
-// markState — статус, ячейка и склад марки: «in_stock <ячейка> <склад>».
+// markState - статус, ячейка и склад марки: «in_stock <ячейка> <склад>».
 func (cf *czMoveFixture) markState(t *testing.T, cis string) string {
 	t.Helper()
 	var s string
@@ -41,7 +41,7 @@ func (cf *czMoveFixture) shipMarks(task string, problems []string, marks ...stri
 	})
 }
 
-// Пометка маркируемого товара — только марками: марки уходят в россыпь склада назначения
+// Пометка маркируемого товара - только марками: марки уходят в россыпь склада назначения
 // той же ячейки и запоминают проблему; марка из короба ЧЗ вскрывает его.
 func TestCZProblem_marksGoToProblem(t *testing.T) {
 	cf := setupCZMove(t)
@@ -71,7 +71,7 @@ func TestCZProblem_marksGoToProblem(t *testing.T) {
 		t.Errorf("проблемы марок: %s", links)
 	}
 	if !cf.opened(t, czBox) {
-		t.Error("марка вынута из короба ЧЗ проблемой — короб не вскрыт")
+		t.Error("марка вынута из короба ЧЗ проблемой - короб не вскрыт")
 	}
 	if got := cf.markState(t, czLoose[2]); got != "in_stock "+cf.cellA+" "+cf.iwh {
 		t.Errorf("непомеченная марка: %s", got)
@@ -104,7 +104,7 @@ func TestCZProblemResolve_byMarks(t *testing.T) {
 		FROM warehouse_problem_lines l JOIN cells c ON c.id = l.cell_id WHERE l.problem_id = $1::uuid`,
 		&lines, spoiled)
 	if lines != "A:1.000,C:1.000" {
-		t.Errorf("строки решения: %s, ожидались A:1 и C:1 — там, где марки", lines)
+		t.Errorf("строки решения: %s, ожидались A:1 и C:1 - там, где марки", lines)
 	}
 	for _, cis := range czLoose[:2] {
 		if got := cf.markState(t, cis); got != "written_off - -" {
@@ -122,7 +122,7 @@ func TestCZProblemResolve_byMarks(t *testing.T) {
 		t.Errorf("размещённая марка: %s", got)
 	}
 
-	// ADHOC-52: список офиса отдаёт марки проблемы и после решения — по алфавиту.
+	// ADHOC-52: список офиса отдаёт марки проблемы и после решения - по алфавиту.
 	list, err := repository.NewProblemRepository(cf.pool).List(context.Background(), model.ProblemFilter{})
 	if err != nil {
 		t.Fatalf("список проблем: %v", err)
@@ -136,7 +136,7 @@ func TestCZProblemResolve_byMarks(t *testing.T) {
 }
 
 // Долг 30: позиция возврата россыпью уезжает, только когда названы все её марки; лишняя
-// марка — отказ сеанса; отгруженные марки — «возвращена». Короб — по-прежнему одним сканом.
+// марка - отказ сеанса; отгруженные марки - «возвращена». Короб - по-прежнему одним сканом.
 func TestCZReturnShipment_allMarksOfPosition(t *testing.T) {
 	cf := setupCZMove(t)
 	defect, ret := cf.iwhByCode(t, "DEFECT"), cf.iwhByCode(t, "RETURN")
@@ -152,7 +152,7 @@ func TestCZReturnShipment_allMarksOfPosition(t *testing.T) {
 		t.Errorf("марка после решения «возврат»: %s", got)
 	}
 
-	// ТСД видит марки позиции россыпью и код короба ЧЗ — для скана без связи.
+	// ТСД видит марки позиции россыпью и код короба ЧЗ - для скана без связи.
 	current, err := repository.NewTaskRepository(cf.pool).Current(context.Background(), cf.user, 0)
 	mustNoErr(t, err)
 	seen := false

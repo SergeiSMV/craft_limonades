@@ -29,7 +29,7 @@ import '../widgets/stocktake_dialogs.dart';
 import '../../../../core/utils/doc_number.dart';
 
 /// Ячейки пересчёта (P10-04): свои и свободные; скан ячейки на месте начинает её подсчёт.
-/// Старшему смены — закрыть пересчёт. Без связи — только начатые подсчёты на терминале.
+/// Старшему смены - закрыть пересчёт. Без связи - только начатые подсчёты на терминале.
 @RoutePage()
 class StocktakePage extends StatelessWidget {
   const StocktakePage({super.key, required this.stocktakeId, this.number});
@@ -79,7 +79,7 @@ class _StocktakeViewState extends State<_StocktakeView>
   @override
   void onHardwareScan(ScanCode code) => onScan(code.raw);
 
-  /// Скан ячейки на месте: свободная берётся и начинается, своя — начинается.
+  /// Скан ячейки на месте: свободная берётся и начинается, своя - начинается.
   Future<void> onScan(String value) async {
     final code = value.trim();
     _scanController.clear();
@@ -93,7 +93,7 @@ class _StocktakeViewState extends State<_StocktakeView>
     refocusScan();
   }
 
-  /// Касание ячейки: свободную — взять; свою — отказаться (начинает её только скан на месте).
+  /// Касание ячейки: свободную - взять; свою - отказаться (начинает её только скан на месте).
   Future<void> onTapCell(StocktakeCell cell) async {
     if (cell.isFree) {
       await cubit.take(cell);
@@ -103,14 +103,14 @@ class _StocktakeViewState extends State<_StocktakeView>
     refocusScan();
   }
 
-  /// Открыть подсчёт; по возврату список обновляется — ячейка могла уйти в «подсчитана».
+  /// Открыть подсчёт; по возврату список обновляется - ячейка могла уйти в «подсчитана».
   Future<void> openCount(StocktakeCellView view) async {
     await context.router.push(StocktakeCountRoute(view: view));
     await cubit.load();
     refocusScan();
   }
 
-  /// Закрыть пересчёт — с подтверждением; неподсчитанные ячейки называются числом.
+  /// Закрыть пересчёт - с подтверждением; неподсчитанные ячейки называются числом.
   Future<void> closeStocktake() async {
     final info = cubit.state.info;
     if (info == null) return;
@@ -158,7 +158,7 @@ class _StocktakeViewState extends State<_StocktakeView>
 
   @override
   Widget build(BuildContext context) {
-    // Закрыть пересчёт — право «заводить и закрывать» (ADHOC-51).
+    // Закрыть пересчёт - право «заводить и закрывать» (ADHOC-51).
     final canManage = sessionCan(context, Rights.tsdStocktakeManage);
     return BlocConsumer<StocktakeCellsCubit, StocktakeCellsState>(
       listenWhen: (a, b) =>

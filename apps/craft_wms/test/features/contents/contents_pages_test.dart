@@ -23,7 +23,7 @@ void main() {
 
   setUp(() {
     LocaleSettings.useDeviceLocale();
-    // Экраны подписаны на аппаратный сканер — ему нужна раздача кодов.
+    // Экраны подписаны на аппаратный сканер - ему нужна раздача кодов.
     registerFakeScanner();
     repo = registerFakeContentsRepository();
     printer = FakeLabelPrinter();
@@ -85,7 +85,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('A-1-1'), findsOneWidget);
-      // Короткий код — последние 8 знаков UUID, две четвёрки.
+      // Короткий код - последние 8 знаков UUID, две четвёрки.
       expect(find.text(t.contents.boxCode(code: '9FA0 B1C2')), findsOneWidget);
       expect(find.text(t.contents.pending), findsOneWidget);
       expect(find.text('Кальмар'), findsOneWidget);
@@ -176,7 +176,7 @@ void main() {
       },
     );
 
-    testWidgets('ошибка принтера — её текст, а не «отправлен»', (tester) async {
+    testWidgets('ошибка принтера - её текст, а не «отправлен»', (tester) async {
       repo.loadUnitResult = const Right(Viewed(box, FreshFromServer()));
       printer.error = 'Принтер не выбран';
 
@@ -189,7 +189,7 @@ void main() {
       expect(find.text(t.contents.reprinted), findsNothing);
     });
 
-    testWidgets('без связи: карточка из снимка, история — «только со связью»', (
+    testWidgets('без связи: карточка из снимка, история - «только со связью»', (
       tester,
     ) async {
       repo.loadUnitResult = Right(Viewed(box, FromSnapshot(asOf)));
@@ -245,7 +245,7 @@ void main() {
       await tester.pumpWidget(wrap(LoadUnitPage(loadUnitId: box.id)));
       await tester.pumpAndSettle();
 
-      // ADHOC-21: код — в заголовке экрана, в теле — место размещения, история свёрнута.
+      // ADHOC-21: код - в заголовке экрана, в теле - место размещения, история свёрнута.
       expect(find.text(t.contents.boxCode(code: '9FA0 B1C2')), findsOneWidget);
       expect(find.text(t.contents.placedIn(address: 'A-1-1')), findsOneWidget);
       await tester.tap(find.text(t.contents.historyTitleCount(count: 3)));
@@ -282,7 +282,7 @@ void main() {
     });
   });
 
-  // ADHOC-22: «нет связи» — только при обрыве связи; сервер с ошибкой — просто «данные на».
+  // ADHOC-22: «нет связи» - только при обрыве связи; сервер с ошибкой - просто «данные на».
   testWidgets('снимок при живой связи подписан без «нет связи»', (
     tester,
   ) async {

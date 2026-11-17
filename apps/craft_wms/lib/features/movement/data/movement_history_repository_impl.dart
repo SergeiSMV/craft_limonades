@@ -8,7 +8,7 @@ import '../../../core/error/failure.dart';
 import '../domain/movement_history.dart';
 import '../domain/movement_models.dart';
 
-/// История перемещений с сервера (ADHOC-28): `GET /movements…`. Только онлайн — лента
+/// История перемещений с сервера (ADHOC-28): `GET /movements…`. Только онлайн - лента
 /// не кэшируется, как и «Завершённые» задания.
 @LazySingleton(as: MovementHistoryRepository)
 class MovementHistoryRepositoryImpl implements MovementHistoryRepository {
@@ -56,7 +56,7 @@ class MovementHistoryRepositoryImpl implements MovementHistoryRepository {
         );
       });
 
-  /// День фильтра в виде YYYY-MM-DD — сервер толкует его по времени склада.
+  /// День фильтра в виде YYYY-MM-DD - сервер толкует его по времени склада.
   static String _day(DateTime d) =>
       '${d.year.toString().padLeft(4, '0')}-'
       '${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
@@ -94,10 +94,10 @@ MoveRecord recordFromJson(Map<String, dynamic> j) => MoveRecord(
   number: (j['number'] as num?)?.toInt() ?? 0,
 );
 
-/// Строка записи — в строку сеанса перемещения: история показывается теми же словами.
+/// Строка записи - в строку сеанса перемещения: история показывается теми же словами.
 ///
 /// Количество сервер отдаёт десятичным текстом (без потери точности), сеанс держит его
-/// числом — поэтому разбор свой, а не `MoveLine.fromJson` черновика.
+/// числом - поэтому разбор свой, а не `MoveLine.fromJson` черновика.
 MoveLine lineFromJson(Map<String, dynamic> j) {
   final good = j['good'] as Map<String, dynamic>?;
   final qty = j['qty'];

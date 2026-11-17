@@ -3,8 +3,8 @@ import 'package:craft_wms/core/auth/rights.dart';
 import 'package:craft_wms/core/gen/strings.g.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// ADHOC-50: права профиля из `/auth/me` — действия по разделам; префикс «portal.» / «tsd.» —
-/// любое право приложения; сервер без должностей — по прежней роли.
+/// ADHOC-50: права профиля из `/auth/me` - действия по разделам; префикс «portal.» / «tsd.» -
+/// любое право приложения; сервер без должностей - по прежней роли.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(LocaleSettings.useDeviceLocale);
@@ -25,7 +25,7 @@ void main() {
   List<String> allCodes() => [for (final app in rightsTree()) ...app.codes];
 
   test(
-    'действия — ровно те, что отдал сервер; префикс — любое право приложения',
+    'действия - ровно те, что отдал сервер; префикс - любое право приложения',
     () {
       final p = Profile.fromJson({
         'user_id': 'u1',
@@ -44,13 +44,13 @@ void main() {
     },
   );
 
-  test('должность без прав — ничего, даже при роли admin в токене', () {
+  test('должность без прав - ничего, даже при роли admin в токене', () {
     final p = profile(role: 'admin', position: 'Стажёр');
     expect(allCodes().any(p.can), isFalse);
     expect(p.can(Rights.portal), isFalse);
   });
 
-  test('сервер без должностей: admin — всё, кладовщик — всё на ТСД', () {
+  test('сервер без должностей: admin - всё, кладовщик - всё на ТСД', () {
     final admin = profile(role: 'admin');
     expect(allCodes().every(admin.can), isTrue);
     final worker = profile();

@@ -67,9 +67,9 @@ func TestBeamLabels(t *testing.T) {
 	}
 }
 
-// Длинный адрес со штрих-кодом не влезает, нечитаемый символ — тоже причина; PDF не строится.
+// Длинный адрес со штрих-кодом не влезает, нечитаемый символ - тоже причина; PDF не строится.
 func TestBeamLabelsFitError(t *testing.T) {
-	// Код такого адреса шире этикетки — кеглем не спасти.
+	// Код такого адреса шире этикетки - кеглем не спасти.
 	long := Cell{Address: strings.Repeat("B-12-", 12) + "1", Barcode: true}
 	bad := Cell{Address: "Б-1-1-1", Barcode: true}
 	_, err := BeamLabels(false, []Cell{long, bad}, []Cell{long, bad})
@@ -98,7 +98,7 @@ func TestSideCards(t *testing.T) {
 		t.Error("кириллица: ждали ошибку")
 	}
 	// Склад из одних коротких адресов печатается: модуль кода B-1-1-1 был бы 0,321 мм, он
-	// ограничен 0,3 мм — защитная зона 3 мм остаётся в 10 модулях.
+	// ограничен 0,3 мм - защитная зона 3 мм остаётся в 10 модулях.
 	short := []Card{{Rack: "B-01", Rows: []CardRow{{Address: "B-1-1-1", Position: 1}}}}
 	for _, set := range [][]string{{"B-1-1-12"}, nil} {
 		if _, err = SideCards(short, set); err != nil {
@@ -186,6 +186,6 @@ func TestBeamLabelsFloorQR(t *testing.T) {
 		t.Error("QR пустой")
 	}
 	if needsCyrFont("B-1-1-12") || !needsCyrFont("D-Н-П") {
-		t.Error("needsCyrFont: латиница — Helvetica, кириллица — встроенный шрифт")
+		t.Error("needsCyrFont: латиница - Helvetica, кириллица - встроенный шрифт")
 	}
 }

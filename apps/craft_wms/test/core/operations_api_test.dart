@@ -124,7 +124,7 @@ void main() {
       expect(
         res.right.map((r) => r.operationId),
         ['op-2'],
-        reason: 'статус придумала более новая версия сервера — гадать нельзя',
+        reason: 'статус придумала более новая версия сервера - гадать нельзя',
       );
     });
 
@@ -154,7 +154,7 @@ void main() {
       }, 200),
     });
 
-    test('duplicate — успех: дело сделано, держать операцию незачем', () async {
+    test('duplicate - успех: дело сделано, держать операцию незачем', () async {
       final sender = OutboxSender(replying('duplicate'));
 
       final res = await sender.send(op('op-1'));
@@ -168,7 +168,7 @@ void main() {
       );
     });
 
-    test('rejected — отказ с причиной, повторять нельзя', () async {
+    test('rejected - отказ с причиной, повторять нельзя', () async {
       final sender = OutboxSender(
         replying('rejected', error: 'barcode bound to another good'),
       );
@@ -183,7 +183,7 @@ void main() {
       );
     });
 
-    test('пустой ответ — сервер не дошёл до операции, пробуем позже', () async {
+    test('пустой ответ - сервер не дошёл до операции, пробуем позже', () async {
       final api = apiWith({
         'POST ${ApiConst.operations}': (_) =>
             jsonResponse({'results': <dynamic>[]}, 200),

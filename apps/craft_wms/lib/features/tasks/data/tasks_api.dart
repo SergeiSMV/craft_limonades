@@ -8,7 +8,7 @@ import '../../../core/error/failure.dart';
 import 'tasks_models.dart';
 
 /// Сетевой источник заданий склада (P5-02-1): `GET /tasks…`, взятие и отказ.
-/// Экраны сюда не ходят — между ними и сетью стоит `TasksRepository` с кэшем текущих.
+/// Экраны сюда не ходят - между ними и сетью стоит `TasksRepository` с кэшем текущих.
 @lazySingleton
 class TasksApi {
   TasksApi(this._dio);
@@ -45,7 +45,7 @@ class TasksApi {
   Future<Either<Failure, void>> release(String id) =>
       _post(ApiConst.taskRelease(id));
 
-  /// Страница ленты «Завершённые». [after] — последняя показанная запись (курсор подгрузки).
+  /// Страница ленты «Завершённые». [after] - последняя показанная запись (курсор подгрузки).
   Future<Either<Failure, List<CompletedTask>>> completed({
     required CompletedFilter filter,
     CompletedTask? after,
@@ -74,7 +74,7 @@ class TasksApi {
         .toList(),
   );
 
-  /// День фильтра в виде YYYY-MM-DD — сервер толкует его по времени склада.
+  /// День фильтра в виде YYYY-MM-DD - сервер толкует его по времени склада.
   static String _day(DateTime d) =>
       '${d.year.toString().padLeft(4, '0')}-'
       '${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';

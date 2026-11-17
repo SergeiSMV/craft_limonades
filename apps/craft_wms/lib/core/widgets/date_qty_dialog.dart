@@ -13,7 +13,7 @@ import '../theme/semibold_text.dart';
 import '../utils/date_input.dart';
 import '../utils/qty_format.dart';
 
-// Общий для «Ввода остатков» и приёмки (P4-09): строка товара в обоих потоках — это партия
+// Общий для «Ввода остатков» и приёмки (P4-09): строка товара в обоих потоках - это партия
 // по дате выпуска и количество, и два диалога разошлись бы в правилах проверки ввода.
 
 /// Результат диалога даты/количества: либо добавление (date+qty), либо сигнал «неверный товар»
@@ -28,7 +28,7 @@ class DateQtyResult {
 }
 
 /// Диалог ввода даты выпуска (ДД-ММ-ГГГГ) и количества для строки товара. [allowWrongGood] добавляет
-/// кнопку «неверный товар» (только в скан-потоке, когда товар опознан по ШК) — она возвращает сигнал
+/// кнопку «неверный товар» (только в скан-потоке, когда товар опознан по ШК) - она возвращает сигнал
 /// на отвязку ошибочного ШК вместо добавления строки.
 class DateQtyDialog extends StatefulWidget {
   const DateQtyDialog({
@@ -41,7 +41,7 @@ class DateQtyDialog extends StatefulWidget {
 
   final Good good;
   final String?
-  initialDate; // префилл при редактировании (для нового товара — null)
+  initialDate; // префилл при редактировании (для нового товара - null)
   final double? initialQty;
   final bool allowWrongGood;
 
@@ -69,7 +69,7 @@ class _DateQtyDialogState extends State<DateQtyDialog> {
     final qty = double.parse(_qty.text.trim().replaceAll(',', '.'));
     FocusManager.instance.primaryFocus
         ?.unfocus(); // свернуть клавиатуру при подтверждении
-    // Год мог быть введён двумя знаками (14.08.26) — приводим к дд.мм.гггг на выходе.
+    // Год мог быть введён двумя знаками (14.08.26) - приводим к дд.мм.гггг на выходе.
     Navigator.of(
       context,
     ).pop(DateQtyResult.add(normalizeEntryDate(_date.text.trim()), qty));
@@ -81,7 +81,7 @@ class _DateQtyDialogState extends State<DateQtyDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      // scrollable — чтобы текст ошибки валидации (доп. высота под полем) не переполнял диалог,
+      // scrollable - чтобы текст ошибки валидации (доп. высота под полем) не переполнял диалог,
       // а прокручивался; особенно при поднятой клавиатуре и малой доступной высоте.
       backgroundColor: Colors.white, // AppColors.kNeumorphicBg,
       scrollable: true,

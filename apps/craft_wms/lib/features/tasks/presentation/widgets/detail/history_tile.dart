@@ -8,8 +8,8 @@ import '../../../../../core/theme/regular_text.dart';
 import '../../../data/tasks_models.dart';
 import '../common/task_format.dart';
 
-/// Запись «Истории выполнения»: событие журнала задания — что, кто и когда. У захода под
-/// событием — что и откуда → куда переносили.
+/// Запись «Истории выполнения»: событие журнала задания - что, кто и когда. У захода под
+/// событием - что и откуда → куда переносили.
 class HistoryTile extends StatelessWidget {
   const HistoryTile({
     super.key,
@@ -20,7 +20,7 @@ class HistoryTile extends StatelessWidget {
 
   final TaskEvent event;
 
-  /// Вид задания: заход размещения — «Разместил», заход возврата — «Отгрузил» (ADHOC-31).
+  /// Вид задания: заход размещения - «Разместил», заход возврата - «Отгрузил» (ADHOC-31).
   final String kind;
 
   /// Заход, о котором событие (только у [TaskEventKind.session]).
@@ -40,7 +40,7 @@ class HistoryTile extends StatelessWidget {
             '${shortDateTime(event.at)} · ${_label()}',
             style: RegularTextStyles().regularInter12,
           ),
-          // Подсчёт ячейки пересчёта (ADHOC-58) — какую ячейку, своей строкой.
+          // Подсчёт ячейки пересчёта (ADHOC-58) - какую ячейку, своей строкой.
           if (event.event == TaskEventKind.cellCounted && event.cell.isNotEmpty)
             Text(t.tasks.cell(cell: event.cell), style: muted),
           if (session != null)

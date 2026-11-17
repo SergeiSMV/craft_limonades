@@ -32,16 +32,16 @@ void main() {
   late FakeScannerService scanner;
   setUp(() {
     scanner = registerFakeScanner();
-    // Карточка показывает признак «маркируемый» (CZ-05) — его cubit берётся из getIt.
+    // Карточка показывает признак «маркируемый» (CZ-05) - его cubit берётся из getIt.
     if (getIt.isRegistered<CzMarkedCubit>()) getIt.unregister<CzMarkedCubit>();
     getIt.registerFactory<CzMarkedCubit>(() => CzMarkedCubit(_MockCzGoods()));
   });
   tearDown(() => scanner.dispose());
 
-  /// ШК, который «занят» другим товаром — на него мок отдаёт 409.
+  /// ШК, который «занят» другим товаром - на него мок отдаёт 409.
   const conflictCode = '4607044663442';
 
-  /// ШК, на который мок отдаёт «нет связи» — как офлайн на устройстве.
+  /// ШК, на который мок отдаёт «нет связи» - как офлайн на устройстве.
   const offlineCode = '4607044660205';
 
   /// Поднять карточку товара с заданным набором привязанных ШК.
@@ -110,7 +110,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('ШК нет — вместо секции одна кнопка привязки', (tester) async {
+  testWidgets('ШК нет - вместо секции одна кнопка привязки', (tester) async {
     await pumpCard(tester, const []);
 
     expect(find.text(t.stockDetailScreen.bindBarcode), findsOneWidget);
@@ -121,14 +121,14 @@ void main() {
     );
   });
 
-  testWidgets('ШК есть — кнопка внутри секции, под списком', (tester) async {
+  testWidgets('ШК есть - кнопка внутри секции, под списком', (tester) async {
     await pumpCard(tester, const [Barcode(barcode: '4607044662964')]);
 
     expect(find.textContaining('Штрихкоды (1)'), findsOneWidget);
     expect(find.text(t.stockDetailScreen.bindBarcode), findsOneWidget);
   });
 
-  testWidgets('пустое поле — кнопка «Привязать» выключена', (tester) async {
+  testWidgets('пустое поле - кнопка «Привязать» выключена', (tester) async {
     await pumpCard(tester, const []);
     await tester.tap(find.text(t.stockDetailScreen.bindBarcode));
     await tester.pumpAndSettle();
@@ -155,7 +155,7 @@ void main() {
   });
 
   // ADHOC-11, находка с устройства: операция уже принята в очередь (P2-03), а диалог
-  // оставался открытым с заполненным полем и активной кнопкой — изображал незаконченное
+  // оставался открытым с заполненным полем и активной кнопкой - изображал незаконченное
   // действие. Кладовщик нажал «Привязать» четыре раза без единого видимого изменения.
   testWidgets('без связи диалог закрывается, а карточка сообщает об отсрочке', (
     tester,
@@ -172,7 +172,7 @@ void main() {
     expect(find.text(t.stockDetailScreen.bindOffline), findsOneWidget);
   });
 
-  // P2-06: решение ADHOC-11 пересмотрено. Отложенная привязка теперь видна сразу — кладовщик
+  // P2-06: решение ADHOC-11 пересмотрено. Отложенная привязка теперь видна сразу - кладовщик
   // привязал ШК без связи и должен увидеть результат, иначе решит, что работа пропала. Но
   // с пометкой: операция ещё в очереди и может быть отклонена, тогда строка исчезнет сама.
   testWidgets('отложенный ШК виден в списке, но помечен как неподтверждённый', (
@@ -193,7 +193,7 @@ void main() {
   });
 
   // ADHOC-12, найдено на устройстве: карточка перезагружалась только при успехе, поэтому
-  // отложенная привязка в неё не попадала — кладовщик видел прежний список и считал, что
+  // отложенная привязка в неё не попадала - кладовщик видел прежний список и считал, что
   // работа пропала. При этом в кэше она уже лежала.
   testWidgets('отложенная привязка появляется в карточке с пометкой', (
     tester,
@@ -212,7 +212,7 @@ void main() {
   });
 
   // ADHOC-12: на «Отмене» оставался pop(false) со времён, когда диалог возвращал bool.
-  // showDialog<BindOutcome> получал false и падал на приведении типа — диалог не закрывался.
+  // showDialog<BindOutcome> получал false и падал на приведении типа - диалог не закрывался.
   testWidgets('«Отмена» закрывает диалог без ошибки типа', (tester) async {
     await pumpCard(tester, const []);
     await tester.tap(find.text(t.stockDetailScreen.bindBarcode));
@@ -226,7 +226,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('409 — ошибка в диалоге, диалог остаётся открытым', (
+  testWidgets('409 - ошибка в диалоге, диалог остаётся открытым', (
     tester,
   ) async {
     await pumpCard(tester, const []);
@@ -237,11 +237,11 @@ void main() {
     expect(
       find.text(conflictCode),
       findsOneWidget,
-      reason: 'код остался в поле — можно пересканировать',
+      reason: 'код остался в поле - можно пересканировать',
     );
   });
 
-  testWidgets('поле стартует без клавиатуры, по тапу — с обычной', (
+  testWidgets('поле стартует без клавиатуры, по тапу - с обычной', (
     tester,
   ) async {
     await pumpCard(tester, const []);
@@ -249,7 +249,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Соединение с IME создаётся при получении фокуса и живёт с этой конфигурацией:
-    // на старте — none (клавиатура не открывается и не мелькает).
+    // на старте - none (клавиатура не открывается и не мелькает).
     expect(
       tester.testTextInput.setClientArgs?['inputType']['name'],
       'TextInputType.none',
@@ -258,7 +258,7 @@ void main() {
     await tester.tap(find.byType(TextField));
     await tester.pumpAndSettle();
 
-    // По тапу связь пересоздаётся обычным текстовым полем — иначе клавиатура не открылась бы.
+    // По тапу связь пересоздаётся обычным текстовым полем - иначе клавиатура не открылась бы.
     expect(
       tester.testTextInput.setClientArgs?['inputType']['name'],
       'TextInputType.text',

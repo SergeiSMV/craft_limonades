@@ -12,30 +12,30 @@ import (
 	"craftwms/internal/model"
 )
 
-// Ошибки проведения размещения (P5-02). Все — отказ по существу: повтор их не исправит.
+// Ошибки проведения размещения (P5-02). Все - отказ по существу: повтор их не исправит.
 var (
-	// ErrPutawayPosted — сеанс с этим идентификатором уже проведён (другой операцией).
+	// ErrPutawayPosted - сеанс с этим идентификатором уже проведён (другой операцией).
 	ErrPutawayPosted = errors.New("putaway already posted")
-	// ErrEmptyPutaway — в сеансе нет ни одной строки.
+	// ErrEmptyPutaway - в сеансе нет ни одной строки.
 	ErrEmptyPutaway = errors.New("putaway has no lines")
-	// ErrPutawaySameCell — строка кладёт товар туда же, откуда взяла.
+	// ErrPutawaySameCell - строка кладёт товар туда же, откуда взяла.
 	ErrPutawaySameCell = errors.New("putaway line moves to the same cell")
-	// ErrForeignCell — ячейка принадлежит другому складу, не складу документа.
+	// ErrForeignCell - ячейка принадлежит другому складу, не складу документа.
 	ErrForeignCell = errors.New("cell belongs to another warehouse")
-	// ErrLoadUnitNotPlaced — короб ещё не лежит на складе (не оприходован приёмкой).
+	// ErrLoadUnitNotPlaced - короб ещё не лежит на складе (не оприходован приёмкой).
 	ErrLoadUnitNotPlaced = errors.New("load unit is not placed")
-	// ErrLoadUnitNested — короб вложен в паллету или сам содержит короба. Паллетная логика вне
+	// ErrLoadUnitNested - короб вложен в паллету или сам содержит короба. Паллетная логика вне
 	// объёма пилота, а частичный перенос дерева разорвал бы место коробов и их остаток.
 	ErrLoadUnitNested = errors.New("nested load units are not supported")
-	// ErrLooseStockShort — россыпи в ячейке приёмки меньше, чем просят разместить. Товар,
+	// ErrLooseStockShort - россыпи в ячейке приёмки меньше, чем просят разместить. Товар,
 	// лежащий там же в коробах, россыпью не считается: иначе остаток ушёл бы из-под короба,
 	// и его состав разошёлся бы с тем, что числится в ячейке.
 	ErrLooseStockShort = errors.New("not enough loose stock in the receiving cell")
 )
 
-// PutawayLineInput — строка размещения: короб целиком ЛИБО россыпь.
+// PutawayLineInput - строка размещения: короб целиком ЛИБО россыпь.
 type PutawayLineInput struct {
-	LoadUnitID string // короб; пусто — россыпь
+	LoadUnitID string // короб; пусто - россыпь
 
 	// Россыпь: товар, дата выпуска партии (ISO 'YYYY-MM-DD') и количество.
 	GoodID         string
@@ -44,12 +44,12 @@ type PutawayLineInput struct {
 
 	ToCellID string
 
-	// Marks — КИ марок ЧЗ строки россыпи (CZ-06): у маркируемого товара обязательны, по одной
+	// Marks - КИ марок ЧЗ строки россыпи (CZ-06): у маркируемого товара обязательны, по одной
 	// на единицу; марки переезжают из ячейки приёмки вместе с остатком.
 	Marks []string
 }
 
-// PutawaySubmitInput — сеанс размещения, собранный устройством целиком (P5-02).
+// PutawaySubmitInput - сеанс размещения, собранный устройством целиком (P5-02).
 //
 // TaskID обязателен: размещения без задания нет (P5-02-1).
 type PutawaySubmitInput struct {
@@ -64,12 +64,12 @@ type PutawaySubmitInput struct {
 //
 // Что: короба переезжают из своей ячейки в ячейку хранения вместе с остатком по их составу;
 //
-//	россыпь переезжает из ячейки приёмки (дефолтной ячейки склада). Всё — в склад
+//	россыпь переезжает из ячейки приёмки (дефолтной ячейки склада). Всё - в склад
 //	по умолчанию («Основной»): брак уходит отдельной дорогой («Проблемы склада», P6).
 //
-// Зачем одной транзакцией: строки сеанса — один документ «Движение». Отклонённая строка
+// Зачем одной транзакцией: строки сеанса - один документ «Движение». Отклонённая строка
 //
-//	в цепочке операций дала бы проведённый документ без неё — тот же урок, что у приёмки.
+//	в цепочке операций дала бы проведённый документ без неё - тот же урок, что у приёмки.
 //
 // Как: строки идут по порядку ТСД; любая ошибка откатывает весь сеанс. Повтор с тем же
 //
@@ -104,8 +104,8 @@ func putawaySubmit(ctx context.Context, q Querier, in PutawaySubmitInput) (int, 
 	// зависеть от её наличия.
 	var receivingCell string
 
-	// Строки проверяются все, а не до первой плохой (ADHOC-40): каждая — под своей точкой
-	// отката. Остаток задания в памяти отклонённая строка не трогает — он восстанавливается,
+	// Строки проверяются все, а не до первой плохой (ADHOC-40): каждая - под своей точкой
+	// отката. Остаток задания в памяти отклонённая строка не трогает - он восстанавливается,
 	// иначе следующая строка упёрлась бы в «больше, чем осталось» из-за строки, которой нет.
 	var bad []LineRejection
 	for i, ln := range in.Lines {
@@ -118,7 +118,7 @@ func putawaySubmit(ctx context.Context, q Querier, in PutawaySubmitInput) (int, 
 			var err error
 			if ln.LoadUnitID != "" {
 				// Короб задания, ещё не размещённый им. Отметка сразу: второй раз в том же
-				// сеансе тот же короб — уже не позиция задания.
+				// сеансе тот же короб - уже не позиция задания.
 				if !rem.boxes[ln.LoadUnitID] {
 					return ErrNotInTask
 				}
@@ -157,7 +157,7 @@ func putawaySubmit(ctx context.Context, q Querier, in PutawaySubmitInput) (int, 
 	if len(bad) > 0 {
 		return 0, &DocumentLinesError{Total: len(in.Lines), Lines: bad}
 	}
-	// «Движение» для 1С — в этой же транзакции: проведённого сеанса без документа не бывает,
+	// «Движение» для 1С - в этой же транзакции: проведённого сеанса без документа не бывает,
 	// как и документа без сеанса (P5-04).
 	if err := savePutawayDocument(ctx, q, in.PutawayID); err != nil {
 		return 0, err
@@ -172,7 +172,7 @@ func putawaySubmit(ctx context.Context, q Querier, in PutawaySubmitInput) (int, 
 }
 
 // taskBatch находит партию строки россыпи среди позиций задания и списывает с остатка задания
-// её количество. Партия задания — единственная, которую можно разместить: россыпь этой даты
+// её количество. Партия задания - единственная, которую можно разместить: россыпь этой даты
 // не из задания размещается не здесь.
 func taskBatch(ctx context.Context, q Querier, ln PutawayLineInput, rem taskRemainder) (string, error) {
 	var batchID string
@@ -197,7 +197,7 @@ func taskBatch(ctx context.Context, q Querier, ln PutawayLineInput, rem taskRema
 	return batchID, nil
 }
 
-// putawayLineRow — строка документа в том виде, в каком она ложится в putaway_lines.
+// putawayLineRow - строка документа в том виде, в каком она ложится в putaway_lines.
 type putawayLineRow struct {
 	loadUnitID *string
 	goodID     *string
@@ -205,10 +205,10 @@ type putawayLineRow struct {
 	qty        *string
 	fromCellID string
 	toCellID   string
-	marks      []string // КИ марок россыпи (ADHOC-55); у короба — пусто, его марки в составе
+	marks      []string // КИ марок россыпи (ADHOC-55); у короба - пусто, его марки в составе
 }
 
-// putawayLoadUnit переносит короб задания целиком в ячейку хранения — общей функцией переноса
+// putawayLoadUnit переносит короб задания целиком в ячейку хранения - общей функцией переноса
 // ГЕ (P6-02) с источником «размещение» и ссылкой на сеанс.
 func putawayLoadUnit(ctx context.Context, q Querier, in PutawaySubmitInput, ln PutawayLineInput) (putawayLineRow, error) {
 	from, _, err := transferLoadUnit(ctx, q, loadUnitTransfer{
@@ -231,7 +231,7 @@ func putawayLoadUnit(ctx context.Context, q Querier, in PutawaySubmitInput, ln P
 
 // putawayLoose переносит россыпь из ячейки приёмки.
 //
-// Россыпь — это остаток ячейки за вычетом того, что лежит в ней же в коробах того же склада
+// Россыпь - это остаток ячейки за вычетом того, что лежит в ней же в коробах того же склада
 // (looseQty, общий с перемещением). Строка остатка блокируется до проверки: иначе два сеанса
 // одновременно увидели бы одну и ту же россыпь и вместе забрали бы товар из-под короба.
 func putawayLoose(ctx context.Context, q Querier, ln PutawayLineInput, batchID, from, iwh string) (putawayLineRow, error) {
@@ -264,7 +264,7 @@ func putawayLoose(ctx context.Context, q Querier, ln PutawayLineInput, batchID, 
 	}, nil
 }
 
-// transferStock переносит остаток между ячейками на Querier — расход и приход в транзакции
+// transferStock переносит остаток между ячейками на Querier - расход и приход в транзакции
 // вызывающего. Тот же примитив, что StockRepository.Transfer, но без своей транзакции.
 func transferStock(ctx context.Context, q Querier, from, to model.StockKey, qty decimal.Decimal) error {
 	if err := removeStock(ctx, q, from, qty); err != nil {
@@ -303,7 +303,7 @@ func insertPutawayLine(ctx context.Context, q Querier, putawayID string, lineNo 
 	return nil
 }
 
-// putawayLineText — строка размещения для человека (ADHOC-40): «короб → ячейка» или
+// putawayLineText - строка размещения для человека (ADHOC-40): «короб → ячейка» или
 // «товар · партия · количество → ячейка» (россыпь всегда из ячейки приёмки).
 func putawayLineText(ctx context.Context, q Querier, ln PutawayLineInput) string {
 	to := cellText(ctx, q, ln.ToCellID)

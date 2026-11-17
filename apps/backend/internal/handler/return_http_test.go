@@ -12,10 +12,10 @@ import (
 	"craftwms/internal/service"
 )
 
-// Эталон отгрузки возврата поставщику (ADHOC-31) — серверная половина контракта. Путь целиком:
-// приёмка → две проблемы на ТСД (короб — просрок, россыпь — порча) → решение офиса «возврат»
+// Эталон отгрузки возврата поставщику (ADHOC-31) - серверная половина контракта. Путь целиком:
+// приёмка → две проблемы на ТСД (короб - просрок, россыпь - порча) → решение офиса «возврат»
 // → задание в GET /tasks с позициями → сеанс отгрузки из эталона → товар ушёл, задание
-// выполнено. Идентификатор задания выдаёт сервер — в эталоне на его месте `TASK`.
+// выполнено. Идентификатор задания выдаёт сервер - в эталоне на его месте `TASK`.
 func TestReturnHTTP_clientWireFormat(t *testing.T) {
 	raw := string(readFixture(t, "return_submit.json"))
 	var f struct {
@@ -106,7 +106,7 @@ func TestReturnHTTP_clientWireFormat(t *testing.T) {
 	batch := strings.Replace(raw, `"TASK"`, `"`+task+`"`, 1)
 	if got := e.operations(t, batch); len(got) != 1 || got[0] != service.StatusAccepted {
 		t.Fatalf("эталонная отгрузка не применилась: %v.\n"+
-			"Формат разошёлся — сверьте testdata/return_submit.json с тем, что шлёт клиент.", got)
+			"Формат разошёлся - сверьте testdata/return_submit.json с тем, что шлёт клиент.", got)
 	}
 	// Ушли 14 (короб 12 + россыпь 2), осталось 3 основной россыпи; задание выполнено.
 	var left, status string
@@ -117,7 +117,7 @@ func TestReturnHTTP_clientWireFormat(t *testing.T) {
 	if err := e.pool.QueryRow(ctx, `SELECT status FROM warehouse_tasks WHERE id = $1::uuid`, task).Scan(&status); err != nil || status != "done" {
 		t.Fatalf("задание после отгрузки: %q (%v)", status, err)
 	}
-	// Повтор сеанса новой операцией — отказ по существу: сеанс уже проведён.
+	// Повтор сеанса новой операцией - отказ по существу: сеанс уже проведён.
 	again := strings.Replace(batch, "7f000000-0000-4000-8000-0000000000f1", uuid.NewString(), 1)
 	if got := e.operations(t, again); len(got) != 1 || got[0] != service.StatusRejected {
 		t.Fatalf("повтор сеанса: %v", got)

@@ -24,47 +24,47 @@ const (
 	KindStockEntryCheckpoint = "stock_entry_checkpoint"
 	KindStockEntryFinalize   = "stock_entry_finalize"
 
-	// Приёмка целиком: документ, его ГЕ, строки и оприходование — одна операция (P4-09).
+	// Приёмка целиком: документ, его ГЕ, строки и оприходование - одна операция (P4-09).
 	KindReceiptSubmit = "receipt_submit"
 
-	// Размещение целиком: сеанс разноса коробов и россыпи по ячейкам — одна операция (P5-02).
+	// Размещение целиком: сеанс разноса коробов и россыпи по ячейкам - одна операция (P5-02).
 	KindPutawaySubmit = "putaway_submit"
 
-	// Движение целиком: документ перемещения или пополнения — одна операция (P6-03).
+	// Движение целиком: документ перемещения или пополнения - одна операция (P6-03).
 	KindMovementSubmit = "movement_submit"
 
 	// Проблема склада: пометка короба или товара другим внутренним складом (P6-07-1).
 	KindProblemSubmit = "problem_submit"
 
-	// Отгрузка возврата поставщику: сеанс по заданию supplier_return — одна операция (ADHOC-31).
+	// Отгрузка возврата поставщику: сеанс по заданию supplier_return - одна операция (ADHOC-31).
 	KindReturnSubmit = "return_submit"
 )
 
 // Ошибки применения приёмки из очереди (P4-09).
 var (
-	// ErrNoDefaultCell — у склада нет ячейки приёмки по умолчанию, а строка ячейку не указала.
+	// ErrNoDefaultCell - у склада нет ячейки приёмки по умолчанию, а строка ячейку не указала.
 	ErrNoDefaultCell = errors.New("warehouse has no default cell")
-	// ErrUnknownReference — документ ссылается на то, чего нет в справочниках (склад, поставщик,
+	// ErrUnknownReference - документ ссылается на то, чего нет в справочниках (склад, поставщик,
 	// товар, ячейка). Устройство собирает приёмку по своему кэшу, и между сборкой и отправкой
 	// справочник мог измениться; это разбирается человеком, а не повтором.
 	ErrUnknownReference = errors.New("receipt references a missing catalog entry")
 )
 
-// LoadUnitInput — грузовая единица, собранная на приёмке: идентификатор из QR ярлыка и вид.
-// CZCode — короб ЧЗ (`00`+SSCC), которым является ГЕ (CZ-05): id ей выдало устройство, ярлыка нет.
+// LoadUnitInput - грузовая единица, собранная на приёмке: идентификатор из QR ярлыка и вид.
+// CZCode - короб ЧЗ (`00`+SSCC), которым является ГЕ (CZ-05): id ей выдало устройство, ярлыка нет.
 type LoadUnitInput struct {
 	ID     string
 	Kind   string
 	CZCode string
 }
 
-// ReceiptSubmitInput — приёмка, собранная устройством целиком.
+// ReceiptSubmitInput - приёмка, собранная устройством целиком.
 //
 // Строки с пустой ячейкой ложатся в ячейку по умолчанию склада документа.
 type ReceiptSubmitInput struct {
 	ReceiptID   string
 	WarehouseID string
-	SupplierID  string // пусто — без поставщика
+	SupplierID  string // пусто - без поставщика
 	CreatedBy   string
 	Doc         model.SupplierDoc // накладная поставщика (ADHOC-23)
 	LoadUnits   []LoadUnitInput
@@ -72,14 +72,14 @@ type ReceiptSubmitInput struct {
 	CZGroups    []model.CZAggregate // групповые упаковки ЧЗ приёмки (CZ-05)
 }
 
-// OperationsRepository — применение операций очереди устройства под ключом идемпотентности.
+// OperationsRepository - применение операций очереди устройства под ключом идемпотентности.
 //
-// Что: на каждую операцию — своя транзакция, в которой лежат и эффект, и пометка в журнале.
+// Что: на каждую операцию - своя транзакция, в которой лежат и эффект, и пометка в журнале.
 // Зачем: повтор операции не должен применять эффект второй раз (P2-05), а пометка без эффекта
 //
 //	(или наоборот) вернула бы ту же беду при падении между ними.
 //
-// Как: WithinTx { once(operation_id) { эффект } } — эффект выполняется через те же
+// Как: WithinTx { once(operation_id) { эффект } } - эффект выполняется через те же
 //
 //	Querier-хелперы, что и обычные ручки, поэтому поведение операции из очереди и операции
 //	из прямого вызова совпадает по определению, а не по недосмотру.
@@ -98,7 +98,7 @@ func (r *OperationsRepository) BindBarcode(ctx context.Context, operationID stri
 		if err := bindBarcode(ctx, q, in.GoodID, in.Barcode, in.Symbology); err != nil {
 			return nil, err
 		}
-		// ШК из марки ЧЗ — товар маркируемый (CZ-05): в той же транзакции, что и привязка.
+		// ШК из марки ЧЗ - товар маркируемый (CZ-05): в той же транзакции, что и привязка.
 		if in.FromCZMark {
 			return nil, markGoodsCZ(ctx, q, []string{in.GoodID})
 		}
@@ -114,7 +114,7 @@ func (r *OperationsRepository) UnbindBarcode(ctx context.Context, operationID, b
 }
 
 // StockEntryStart открывает сессию ввода остатков по идентификатору устройства.
-// Результат — {"session_id": …}: повтор получит тот же id, что и первая попытка.
+// Результат - {"session_id": …}: повтор получит тот же id, что и первая попытка.
 func (r *OperationsRepository) StockEntryStart(ctx context.Context, operationID, sessionID, warehouseID, createdBy string) (Applied, error) {
 	return r.inTx(ctx, operationID, KindStockEntryStart, func(q Querier) (json.RawMessage, error) {
 		id, err := createSessionWithID(ctx, q, sessionID, warehouseID, createdBy)
@@ -126,7 +126,7 @@ func (r *OperationsRepository) StockEntryStart(ctx context.Context, operationID,
 }
 
 // StockEntryCheckpoint фиксирует ячейку сессии: новые привязки ШК + содержимое ячейки, всё под
-// одной пометкой — тем же checkpointCell, что и прямая ручка.
+// одной пометкой - тем же checkpointCell, что и прямая ручка.
 func (r *OperationsRepository) StockEntryCheckpoint(ctx context.Context, operationID, sessionID string, in StockEntryCellInput) (Applied, error) {
 	return r.inTx(ctx, operationID, KindStockEntryCheckpoint, func(q Querier) (json.RawMessage, error) {
 		if err := checkpointCell(ctx, q, sessionID, in); err != nil {
@@ -139,7 +139,7 @@ func (r *OperationsRepository) StockEntryCheckpoint(ctx context.Context, operati
 // StockEntryFinalize переносит сессию в остатки и закрывает её.
 //
 // Ради этой операции журнал и заводился: без него повтор финала упирается в проверку статуса и
-// возвращает 409 «сессия уже закрыта» — успешная работа приезжает на устройство отказом и оседает
+// возвращает 409 «сессия уже закрыта» - успешная работа приезжает на устройство отказом и оседает
 // на экране разбора. Здесь повтор получает исходное {"written": N}.
 func (r *OperationsRepository) StockEntryFinalize(ctx context.Context, operationID, sessionID string) (Applied, error) {
 	return r.inTx(ctx, operationID, KindStockEntryFinalize, func(q Querier) (json.RawMessage, error) {
@@ -152,11 +152,11 @@ func (r *OperationsRepository) StockEntryFinalize(ctx context.Context, operation
 }
 
 // ReceiptSubmit применяет приёмку целиком: открывает документ, заводит его ГЕ, кладёт строки
-// и оприходует — всё в одной транзакции с пометкой операции.
+// и оприходует - всё в одной транзакции с пометкой операции.
 //
 // Зачем одной операцией, а не цепочкой «открыть → строка → … → оприходовать». Очередь
 // устройства отклонённую операцию снимает и идёт дальше. Отклонённая строка в цепочке дала бы
-// оприходование документа БЕЗ неё — остаток поднялся бы на неполный приход, и узнать об этом
+// оприходование документа БЕЗ неё - остаток поднялся бы на неполный приход, и узнать об этом
 // было бы не из чего. Приёмка приходует целиком или не приходует вовсе; отказ возвращает весь
 // документ человеку на разбор.
 //
@@ -178,7 +178,7 @@ func (r *OperationsRepository) ReceiptSubmit(ctx context.Context, operationID st
 		// Дефолтную ячейку ищем один раз и только если она нужна: документ, где кладовщик
 		// указал ячейку каждой строке, не должен зависеть от её наличия.
 		var defaultCell string
-		cells := make([]string, len(in.Lines)) // ячейка каждой строки после подстановки — для марок
+		cells := make([]string, len(in.Lines)) // ячейка каждой строки после подстановки - для марок
 		for i, ln := range in.Lines {
 			if ln.CellID == "" {
 				if defaultCell == "" {
@@ -202,8 +202,8 @@ func (r *OperationsRepository) ReceiptSubmit(ctx context.Context, operationID st
 		if err != nil {
 			return nil, err
 		}
-		// Марки ЧЗ — после проводки (CZ-05): месту марки нужен размещённый короб, а проблеме
-		// с расхождением — остаток, который она переводит в «Изолятор».
+		// Марки ЧЗ - после проводки (CZ-05): месту марки нужен размещённый короб, а проблеме
+		// с расхождением - остаток, который она переводит в «Изолятор».
 		if err := receiveCZ(ctx, q, receiptCZIntake(in, cells)); err != nil {
 			return nil, err
 		}
@@ -212,8 +212,8 @@ func (r *OperationsRepository) ReceiptSubmit(ctx context.Context, operationID st
 	return applied, missingReference(err)
 }
 
-// PutawaySubmit проводит сеанс размещения целиком — в одной транзакции с пометкой операции
-// (P5-02). Почему одной операцией, а не цепочкой, — та же причина, что у приёмки: отклонённая
+// PutawaySubmit проводит сеанс размещения целиком - в одной транзакции с пометкой операции
+// (P5-02). Почему одной операцией, а не цепочкой, - та же причина, что у приёмки: отклонённая
 // строка в цепочке дала бы проведённый документ «Движение» без неё.
 //
 // Повтор безопасен на двух уровнях: журнал операции отдаёт ответ первой попытки, а сеанс,
@@ -229,7 +229,7 @@ func (r *OperationsRepository) PutawaySubmit(ctx context.Context, operationID st
 	return applied, missingReference(err)
 }
 
-// MovementSubmit проводит документ движения (перемещение или пополнение) целиком — в одной
+// MovementSubmit проводит документ движения (перемещение или пополнение) целиком - в одной
 // транзакции с пометкой операции (P6-03). Повтор той же операции отдаёт ответ первой попытки;
 // тот же документ другой операцией упирается в первичный ключ и даёт ErrMovementPosted.
 func (r *OperationsRepository) MovementSubmit(ctx context.Context, operationID string, in MovementSubmitInput) (Applied, error) {
@@ -243,7 +243,7 @@ func (r *OperationsRepository) MovementSubmit(ctx context.Context, operationID s
 	return applied, missingReference(err)
 }
 
-// ProblemSubmit фиксирует проблему склада и переводит остаток на склад назначения — в одной
+// ProblemSubmit фиксирует проблему склада и переводит остаток на склад назначения - в одной
 // транзакции с пометкой операции (P6-07-1).
 func (r *OperationsRepository) ProblemSubmit(ctx context.Context, operationID string, in ProblemSubmitInput) (Applied, error) {
 	applied, err := r.inTx(ctx, operationID, KindProblemSubmit, func(q Querier) (json.RawMessage, error) {
@@ -255,7 +255,7 @@ func (r *OperationsRepository) ProblemSubmit(ctx context.Context, operationID st
 	return applied, missingReference(err)
 }
 
-// ReturnSubmit проводит сеанс отгрузки возврата поставщику целиком — в одной транзакции
+// ReturnSubmit проводит сеанс отгрузки возврата поставщику целиком - в одной транзакции
 // с пометкой операции (ADHOC-31).
 func (r *OperationsRepository) ReturnSubmit(ctx context.Context, operationID string, in ReturnSubmitInput) (Applied, error) {
 	applied, err := r.inTx(ctx, operationID, KindReturnSubmit, func(q Querier) (json.RawMessage, error) {
@@ -280,7 +280,7 @@ func missingReference(err error) error {
 	return err
 }
 
-// inTx — общая обвязка: транзакция, в которой лежат пометка операции и её эффект.
+// inTx - общая обвязка: транзакция, в которой лежат пометка операции и её эффект.
 // Вынесена, чтобы у всех типов операций был буквально один и тот же порядок действий.
 func (r *OperationsRepository) inTx(ctx context.Context, operationID, kind string, effect func(Querier) (json.RawMessage, error)) (Applied, error) {
 	var out Applied

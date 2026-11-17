@@ -5,7 +5,7 @@ sealed class RecordEntry {
   const RecordEntry();
 }
 
-/// Разделитель — день, к которому относятся записи под ним.
+/// Разделитель - день, к которому относятся записи под ним.
 class RecordDay extends RecordEntry {
   const RecordDay(this.day);
   final DateTime day;
@@ -18,7 +18,7 @@ class RecordItem extends RecordEntry {
 }
 
 /// Раскладывает список по дням, как чат: разделитель перед первой записью каждого дня.
-/// День решённой — день решения, открытой — день фиксации; по часам терминала, как у
+/// День решённой - день решения, открытой - день фиксации; по часам терминала, как у
 /// «Завершённых» заданий.
 List<RecordEntry> groupRecordsByDay(List<ProblemRecord> items) {
   final out = <RecordEntry>[];

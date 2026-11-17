@@ -11,9 +11,9 @@ import (
 )
 
 // Сценарные тесты ввода остатков с коробами и марками ЧЗ (ADHOC-46): старт → checkpoint
-// ячейки → финал через настоящий роутер, итог — в базе.
+// ячейки → финал через настоящий роутер, итог - в базе.
 
-// Эталон checkpoint — вторая половина контракта (первая — Dart-тест ввода остатков): россыпь и
+// Эталон checkpoint - вторая половина контракта (первая - Dart-тест ввода остатков): россыпь и
 // свой короб одного товара, короб ЧЗ с упаковкой и марки россыпью, одна чужая.
 func TestStockEntryHTTP_clientWireFormat(t *testing.T) {
 	raw, err := os.ReadFile(filepath.Join("testdata", "stock_entry_checkpoint.json"))
@@ -38,14 +38,14 @@ func TestStockEntryHTTP_clientWireFormat(t *testing.T) {
 	if code, body := e.call(t, http.MethodPost, "/api/v1/stock-entry/sessions/"+session+"/cells",
 		e.workerToken, string(raw)); code != http.StatusOK {
 		t.Fatalf("эталонный checkpoint: %d %s.\n"+
-			"Формат разошёлся — сверьте testdata/stock_entry_checkpoint.json с тем, что шлёт клиент.", code, body)
+			"Формат разошёлся - сверьте testdata/stock_entry_checkpoint.json с тем, что шлёт клиент.", code, body)
 	}
 	if code, body := e.call(t, http.MethodPost, "/api/v1/stock-entry/sessions/"+session+"/finalize",
 		e.workerToken, ""); code != http.StatusOK {
 		t.Fatalf("финал: %d %s", code, body)
 	}
 
-	// Лимонад: россыпь 4 + свой короб 6 — одна грань; пиво: короб ЧЗ 3, россыпь 1 и чужая марка
+	// Лимонад: россыпь 4 + свой короб 6 - одна грань; пиво: короб ЧЗ 3, россыпь 1 и чужая марка
 	// в «Изоляторе».
 	if got := e.scalar(t, `
 		SELECT string_agg(g.code || '/' || b.production_date::text || '/' || w.code || ':' || s.qty::int::text,
@@ -63,7 +63,7 @@ func TestStockEntryHTTP_clientWireFormat(t *testing.T) {
 		JOIN lu_content c ON c.load_unit_id = l.id WHERE l.id = $1::uuid`, ownBox); got != cell1+" 6" {
 		t.Fatalf("свой короб: %s", got)
 	}
-	// Короб ЧЗ — ГЕ с марками, марки россыпью — в ячейке, чужая — в «Изоляторе».
+	// Короб ЧЗ - ГЕ с марками, марки россыпью - в ячейке, чужая - в «Изоляторе».
 	if got := e.scalar(t, `SELECT load_unit_id::text FROM cz_aggregates WHERE code = '00146127282000000172'`); got != czLU {
 		t.Fatalf("короб ЧЗ: %s", got)
 	}
@@ -75,7 +75,7 @@ func TestStockEntryHTTP_clientWireFormat(t *testing.T) {
 	}
 }
 
-// Короб, который уже есть на складе, — 422 со списком плохих строк по-русски; ТСД показывает
+// Короб, который уже есть на складе, - 422 со списком плохих строк по-русски; ТСД показывает
 // текст как есть.
 func TestStockEntryHTTP_lineRejection(t *testing.T) {
 	e := newReceivingE2E(t, nil)

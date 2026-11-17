@@ -12,7 +12,7 @@ import '../../domain/stocktake_models.dart';
 import '../bloc/stocktake_cells_cubit.dart';
 import 'stocktake_format.dart';
 
-/// Список ячеек пересчёта (P10-04): ход, свои, свободные; без связи — начатые подсчёты.
+/// Список ячеек пересчёта (P10-04): ход, свои, свободные; без связи - начатые подсчёты.
 class StocktakeCellsList extends StatelessWidget {
   const StocktakeCellsList({
     super.key,

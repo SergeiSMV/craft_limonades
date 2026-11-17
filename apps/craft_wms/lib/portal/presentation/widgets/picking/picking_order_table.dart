@@ -18,7 +18,7 @@ import 'picking_order_card.dart';
 /// (направление и адрес под ним), статус с пометками, исполнитель, план и факт. Нажатие на
 /// строку открывает окно деталей.
 ///
-/// Уже [AppSizes.kPickingTableMinWidth] (телефон) — строки [PickingOrderCard] в той же
+/// Уже [AppSizes.kPickingTableMinWidth] (телефон) - строки [PickingOrderCard] в той же
 /// карточке, как у документов.
 class PickingOrderTable extends StatelessWidget {
   const PickingOrderTable({
@@ -98,7 +98,7 @@ class PickingOrderTable extends StatelessWidget {
     );
   }
 
-  /// Строка заказа; вся строка — нажатие. Удалённый в 1С приглушён: собирать его не будут.
+  /// Строка заказа; вся строка - нажатие. Удалённый в 1С приглушён: собирать его не будут.
   TableRow _row(PickingOrderSummary o, {required bool last}) {
     final p = t.portal.picking;
     final taken = o.takenAt;
@@ -157,7 +157,7 @@ class PickingOrderTable extends StatelessWidget {
   }
 }
 
-/// Ячейка: основная строка и пояснения под ней. [dim] — основная обычным шрифтом.
+/// Ячейка: основная строка и пояснения под ней. [dim] - основная обычным шрифтом.
 class _TwoLines extends StatelessWidget {
   const _TwoLines({
     required this.main,

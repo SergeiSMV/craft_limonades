@@ -18,8 +18,8 @@ import 'stocktake_labels.dart';
 /// Заведённый пересчёт: номер и сколько ячеек дала область.
 typedef StocktakeCreated = ({int number, int cells});
 
-/// Новый пересчёт из портала (P10-05, плоский стиль — ADHOC-56): вид области и её объекты — любые из шести видов.
-/// Возвращает заведённый пересчёт; `null` — передумали.
+/// Новый пересчёт из портала (P10-05, плоский стиль - ADHOC-56): вид области и её объекты - любые из шести видов.
+/// Возвращает заведённый пересчёт; `null` - передумали.
 Future<StocktakeCreated?> showStocktakeCreateDialog(BuildContext context) =>
     showDialog<StocktakeCreated>(
       context: context,
@@ -50,7 +50,7 @@ class _CreateDialogState extends State<_CreateDialog> {
     _error = null;
   });
 
-  /// Отметить или снять объект области; внутренний склад и поставщик — тоже несколько.
+  /// Отметить или снять объект области; внутренний склад и поставщик - тоже несколько.
   void toggle(ScopeObject o) => setState(() {
     if (_selected.remove(o.id) == null) _selected[o.id] = o.label;
     _error = null;
@@ -58,7 +58,7 @@ class _CreateDialogState extends State<_CreateDialog> {
 
   bool get _ready => _scope == 'all' || _selected.isNotEmpty;
 
-  /// «Завести»: склад — склад справочника ячеек (пилот — один склад).
+  /// «Завести»: склад - склад справочника ячеек (пилот - один склад).
   Future<void> create() async {
     if (!_ready || _busy) return;
     setState(() => _busy = true);
@@ -128,7 +128,7 @@ class _CreateDialogState extends State<_CreateDialog> {
     );
   }
 
-  /// Выбор объектов вида области; у «всего склада» объектов нет — только пояснение.
+  /// Выбор объектов вида области; у «всего склада» объектов нет - только пояснение.
   Widget _picker() {
     Future<Either<Failure, List<ScopeObject>>> Function(String) once(
       Future<Either<Failure, List<ScopeObject>>> Function() load,

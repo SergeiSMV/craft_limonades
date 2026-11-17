@@ -11,12 +11,12 @@ import '../ui/portal_modal.dart';
 import '../ui/portal_input.dart';
 import '../ui/portal_button.dart';
 
-/// Название и права должности; `null` — оператор передумал.
+/// Название и права должности; `null` - оператор передумал.
 typedef PositionDraft = ({String name, List<String> rights});
 
-/// Диалог должности (ADHOC-50): название и права деревом с галочками — приложение, раздел,
-/// действия. [current] — правка
-/// существующей, без него — новая.
+/// Диалог должности (ADHOC-50): название и права деревом с галочками - приложение, раздел,
+/// действия. [current] - правка
+/// существующей, без него - новая.
 Future<PositionDraft?> showPositionDialog(
   BuildContext context, {
   PositionDraft? current,
@@ -45,7 +45,7 @@ class _PositionDialogState extends State<_PositionDialog> {
       ..addAll(rights),
   );
 
-  /// Сохранить: права — в порядке показа.
+  /// Сохранить: права - в порядке показа.
   void submit() => Navigator.of(context).pop((
     name: _name.text.trim(),
     rights: [
@@ -85,7 +85,7 @@ class _PositionDialogState extends State<_PositionDialog> {
               ),
               AppBoxes.kHeight16,
               PortalFieldLabel(t.portal.positions.rightsLabel),
-              // Дерево длинное — прокручивается в окне, шапка и кнопки диалога на месте.
+              // Дерево длинное - прокручивается в окне, шапка и кнопки диалога на месте.
               RightsTree(selected: _rights, onChanged: onRights),
             ],
           ),

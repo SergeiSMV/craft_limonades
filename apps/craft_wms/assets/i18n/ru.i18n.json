@@ -1521,7 +1521,7 @@
     "tab_goods": "Товары",
     "tab_boxes": "Короба",
     "box_search_hint": "Код короба с ярлыка",
-    "short_code_invalid": "Код короба - цифры и буквы A–F, до 8 знаков",
+    "short_code_invalid": "Код короба - цифры и буквы A-F, до 8 знаков",
     "boxes_empty": "Коробов на складе нет",
     "boxes_not_found": "Коробов с кодом ${code} нет",
     "reprint": "Перепечатать ярлык",

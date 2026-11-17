@@ -12,11 +12,11 @@ import (
 	"craftwms/internal/model"
 )
 
-// ErrRegistryFile — файл реестра не принят целиком (нет листа или колонки, нет принятых строк,
+// ErrRegistryFile - файл реестра не принят целиком (нет листа или колонки, нет принятых строк,
 // несколько дат): ошибка ввода оператора, а не сбой.
 var ErrRegistryFile = errors.New("реестр не принят")
 
-// pickingLoadRepo — узкий интерфейс хранилища сборки для загрузки реестра (P8-02).
+// pickingLoadRepo - узкий интерфейс хранилища сборки для загрузки реестра (P8-02).
 type pickingLoadRepo interface {
 	ExistingOrders(ctx context.Context, warehouseID string, date time.Time) ([]model.PickingExistingOrder, error)
 	CellAddresses(ctx context.Context, warehouseID string) (map[string]string, error)
@@ -25,16 +25,16 @@ type pickingLoadRepo interface {
 		build func([]model.PickingExistingOrder) ([]model.PickingOrderPlan, error)) (string, []model.PickingOrderPlan, error)
 }
 
-// pickingWarehouses — физический склад по коду: реестр грузится на склад пилота.
+// pickingWarehouses - физический склад по коду: реестр грузится на склад пилота.
 type pickingWarehouses interface {
 	IDByCode(ctx context.Context, code string) (string, error)
 }
 
-// PickingLoadService — загрузка «Реестра» 1С в портале (P8-02): предпросмотр и подтверждение.
+// PickingLoadService - загрузка «Реестра» 1С в портале (P8-02): предпросмотр и подтверждение.
 //
 // Предпросмотр ничего не пишет: разбирает файл, сверяет с заказами той же даты и подсвечивает
 // нераспознанные коды, ячейки, которых нет в WMS, и нехватку остатка. Загрузка повторяет ту же
-// сверку под блокировкой даты и пишет её одной транзакцией — задания появляются только после
+// сверку под блокировкой даты и пишет её одной транзакцией - задания появляются только после
 // явного подтверждения оператора.
 type PickingLoadService struct {
 	parser     *PickingRegistryService
@@ -47,7 +47,7 @@ func NewPickingLoadService(parser *PickingRegistryService, repo pickingLoadRepo,
 	return &PickingLoadService{parser: parser, repo: repo, warehouses: warehouses}
 }
 
-// RegistryPreview — предпросмотр (и итог) загрузки реестра.
+// RegistryPreview - предпросмотр (и итог) загрузки реестра.
 type RegistryPreview struct {
 	LoadID       string              `json:"load_id,omitempty"` // только у записанной загрузки
 	Date         string              `json:"date"`              // дата накладных, 2006-01-02
@@ -57,7 +57,7 @@ type RegistryPreview struct {
 	Errors       []importer.RowError `json:"errors"`
 }
 
-// RegistryCounts — сколько заказов какой вид правки получили.
+// RegistryCounts - сколько заказов какой вид правки получили.
 type RegistryCounts struct {
 	New       int `json:"new"`
 	Unchanged int `json:"unchanged"`
@@ -66,8 +66,8 @@ type RegistryCounts struct {
 	Restored  int `json:"restored"`
 }
 
-// PreviewOrder — заказ в предпросмотре. Status — статус WMS до загрузки; Shipped — правка не
-// двигает товар, только помечает заказ; Reopen — собранный заказ уйдёт на дособор.
+// PreviewOrder - заказ в предпросмотре. Status - статус WMS до загрузки; Shipped - правка не
+// двигает товар, только помечает заказ; Reopen - собранный заказ уйдёт на дособор.
 type PreviewOrder struct {
 	Kind          string          `json:"kind"`
 	Number        *int64          `json:"number,omitempty"`
@@ -85,8 +85,8 @@ type PreviewOrder struct {
 	Changes       []PreviewChange `json:"changes"`
 }
 
-// PreviewLine — строка плана. Available — остаток для сборки по товару и партии (без партии — по
-// товару целиком); Shortage — остатка не хватает на все собирающиеся заказы файла с этой позицией.
+// PreviewLine - строка плана. Available - остаток для сборки по товару и партии (без партии - по
+// товару целиком); Shortage - остатка не хватает на все собирающиеся заказы файла с этой позицией.
 type PreviewLine struct {
 	GoodCode  string   `json:"good_code"`
 	GoodName  string   `json:"good_name"`
@@ -99,7 +99,7 @@ type PreviewLine struct {
 	Shortage  bool     `json:"shortage"`
 }
 
-// PreviewChange — правка заказа против прошлой загрузки.
+// PreviewChange - правка заказа против прошлой загрузки.
 type PreviewChange struct {
 	Kind      string  `json:"kind"`
 	GoodCode  string  `json:"good_code,omitempty"`
@@ -122,7 +122,7 @@ func (s *PickingLoadService) Preview(ctx context.Context, warehouseCode string, 
 	return s.preview(ctx, warehouseID, parsed, planRegistry(parsed, cells, existing))
 }
 
-// Load записывает реестр: заказы, строки плана, правки и загрузку. userID — кто загрузил.
+// Load записывает реестр: заказы, строки плана, правки и загрузку. userID - кто загрузил.
 func (s *PickingLoadService) Load(ctx context.Context, warehouseCode, fileName, userID string, r io.Reader) (*RegistryPreview, error) {
 	parsed, warehouseID, cells, err := s.prepare(ctx, warehouseCode, r)
 	if err != nil {
@@ -144,7 +144,7 @@ func (s *PickingLoadService) Load(ctx context.Context, warehouseCode, fileName, 
 	return out, nil
 }
 
-// prepare — разбор файла, склад и ячейки WMS по ключу адреса (model.CellAddressKey).
+// prepare - разбор файла, склад и ячейки WMS по ключу адреса (model.CellAddressKey).
 func (s *PickingLoadService) prepare(ctx context.Context, warehouseCode string, r io.Reader) (*RegistryParsed, string, map[string]string, error) {
 	// Файл читается целиком: excelize всё равно держит книгу в памяти, а потолок размера задаёт
 	// хендлер.
@@ -174,7 +174,7 @@ func (s *PickingLoadService) prepare(ctx context.Context, warehouseCode string, 
 	return parsed, warehouseID, cells, nil
 }
 
-// lineKey — тройка строки без заказа: код товара и партия (пусто — без партии).
+// lineKey - тройка строки без заказа: код товара и партия (пусто - без партии).
 func lineKey(code string, batch *time.Time) string {
 	if batch == nil {
 		return code + "|"
@@ -182,7 +182,7 @@ func lineKey(code string, batch *time.Time) string {
 	return code + "|" + batch.Format(time.DateOnly)
 }
 
-// foldLines сводит строки файла заказа в строки плана: тройка, повторённая в файле, — одна строка
+// foldLines сводит строки файла заказа в строки плана: тройка, повторённая в файле, - одна строка
 // с суммой количества и первой ячейкой (docs/picking.md, «Загрузка и повторы»).
 func foldLines(lines []RegistryLine, cells map[string]string) []model.PickingPlanLine {
 	var out []model.PickingPlanLine
@@ -214,11 +214,11 @@ func foldLines(lines []RegistryLine, cells map[string]string) []model.PickingPla
 // planRegistry сверяет файл с заказами той же даты и решает, что делать с каждым заказом.
 //
 // Что: план по заказам файла (новый, без изменений, изменён, вернулся) и по пропавшим (удалён).
-// Зачем: одна и та же сверка нужна предпросмотру и загрузке — загрузка повторяет её под
+// Зачем: одна и та же сверка нужна предпросмотру и загрузке - загрузка повторяет её под
 // блокировкой даты по свежему состоянию. Как: строки сравниваются по тройке «код + партия»;
-// убранная раньше строка, вернувшаяся в реестр, — снова добавленная. Правила по статусу —
+// убранная раньше строка, вернувшаяся в реестр, - снова добавленная. Правила по статусу -
 // docs/picking.md: отгруженный заказ замораживается (только правки и пометка), собранному с
-// добавленным товаром — дособор.
+// добавленным товаром - дособор.
 func planRegistry(parsed *RegistryParsed, cells map[string]string, existing []model.PickingExistingOrder) []model.PickingOrderPlan {
 	byNumber := make(map[string]*model.PickingExistingOrder, len(existing))
 	for i := range existing {
@@ -318,7 +318,7 @@ func planRegistry(parsed *RegistryParsed, cells map[string]string, existing []mo
 	return plans
 }
 
-// preview собирает ответ из плана: строки заказов из файла, у удалённого — его прошлые строки, и
+// preview собирает ответ из плана: строки заказов из файла, у удалённого - его прошлые строки, и
 // подсветку нехватки.
 func (s *PickingLoadService) preview(ctx context.Context, warehouseID string, parsed *RegistryParsed, plans []model.PickingOrderPlan) (*RegistryPreview, error) {
 	existing, err := s.repo.ExistingOrders(ctx, warehouseID, parsed.Date)
@@ -420,8 +420,8 @@ func (s *PickingLoadService) preview(ctx context.Context, warehouseID string, pa
 	return out, nil
 }
 
-// collectsDemand — заказ ещё будут собирать из ячеек: новый или в работе, не удалён. Собранный
-// уже лежит в `ОТГРУЗКЕ`, отгруженный уехал — их план с остатком ячеек не сравнивается.
+// collectsDemand - заказ ещё будут собирать из ячеек: новый или в работе, не удалён. Собранный
+// уже лежит в `ОТГРУЗКЕ`, отгруженный уехал - их план с остатком ячеек не сравнивается.
 func collectsDemand(p model.PickingOrderPlan) bool {
 	if p.Kind == model.PickingOrderDeleted {
 		return false
@@ -429,7 +429,7 @@ func collectsDemand(p model.PickingOrderPlan) bool {
 	return p.Status == model.PickingStatusNew || p.Status == model.PickingStatusInProgress
 }
 
-// shortage — нехватка остатка на файл целиком: план всех собирающихся заказов по товару и
+// shortage - нехватка остатка на файл целиком: план всех собирающихся заказов по товару и
 // партии против остатка для сборки. Строка без партии берёт любую партию товара.
 type shortage struct {
 	stock       map[string]float64 // товар|партия → остаток

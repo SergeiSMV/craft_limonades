@@ -15,7 +15,7 @@ TextStyle get _muted =>
     RegularTextStyles().regularInter13.copyWith(color: AppColors.kTextMuted);
 
 /// Шапка заказа в окне деталей (P8-03): статус, номера 1С, клиент, кто держит, собрал и
-/// отгрузил — каждый факт своей строкой.
+/// отгрузил - каждый факт своей строкой.
 class PickingOrderHeader extends StatelessWidget {
   const PickingOrderHeader({super.key, required this.order});
 
@@ -87,7 +87,7 @@ class PickingLinesSection extends StatelessWidget {
   );
 }
 
-/// Короба отгрузки заказа: «Короб 1», отгруженный — со временем отгрузки.
+/// Короба отгрузки заказа: «Короб 1», отгруженный - со временем отгрузки.
 class PickingBoxesSection extends StatelessWidget {
   const PickingBoxesSection({super.key, required this.boxes});
 

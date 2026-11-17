@@ -15,7 +15,7 @@ import (
 	"craftwms/internal/model"
 )
 
-// stocktakes — что обработчику нужно от сервиса пересчёта (P10-03).
+// stocktakes - что обработчику нужно от сервиса пересчёта (P10-03).
 type stocktakes interface {
 	Create(ctx context.Context, in model.StocktakeCreateInput) (model.StocktakeCreated, error)
 	Get(ctx context.Context, id, userID string) (model.Stocktake, error)
@@ -30,8 +30,8 @@ type stocktakes interface {
 	CountingInCell(ctx context.Context, cellID string) (*model.CellUnderCount, error)
 }
 
-// StocktakeHandler — пересчёт склада (P10-03): заведение и закрытие — старшему смены (пока —
-// admin), ячейки, взятие и начало подсчёта — работнику на ТСД. Факт ячейки приходит операцией
+// StocktakeHandler - пересчёт склада (P10-03): заведение и закрытие - старшему смены (пока -
+// admin), ячейки, взятие и начало подсчёта - работнику на ТСД. Факт ячейки приходит операцией
 // очереди stocktake_cell_submit.
 type StocktakeHandler struct {
 	svc stocktakes
@@ -60,7 +60,7 @@ type stocktakeCellResponse struct {
 	StocktakeID string  `json:"stocktake_id"`
 	CellID      string  `json:"cell_id"`
 	Address     string  `json:"address"`
-	Status      string  `json:"status"` // как его видит запросивший: чужая зависшая — pending
+	Status      string  `json:"status"` // как его видит запросивший: чужая зависшая - pending
 	TakenBy     string  `json:"taken_by"`
 	TakenAt     *string `json:"taken_at"`   // RFC3339
 	StartedAt   *string `json:"started_at"` // RFC3339
@@ -68,7 +68,7 @@ type stocktakeCellResponse struct {
 	Mine        bool    `json:"mine"`
 }
 
-// stocktakePositionResponse — позиция снимка без количеств (слепой счёт): короб (load_unit_id)
+// stocktakePositionResponse - позиция снимка без количеств (слепой счёт): короб (load_unit_id)
 // ЛИБО россыпь (good …).
 type stocktakePositionResponse struct {
 	Kind                string            `json:"kind"` // loose | box
@@ -134,7 +134,7 @@ func toStocktakeCellView(v model.StocktakeCellView) stocktakeCellViewResponse {
 	return out
 }
 
-// Create: POST /api/v1/stocktakes — завести пересчёт по области. 201 — документ, его задание
+// Create: POST /api/v1/stocktakes - завести пересчёт по области. 201 - документ, его задание
 // и сколько ячеек дала область.
 func (h *StocktakeHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req stocktakeCreateRequest
@@ -165,7 +165,7 @@ type stocktakeListItemResponse struct {
 	Counted   int     `json:"counted"`
 }
 
-// List: GET /api/v1/stocktakes?status=open|closed — пересчёты для портала: открытые сверху.
+// List: GET /api/v1/stocktakes?status=open|closed - пересчёты для портала: открытые сверху.
 func (h *StocktakeHandler) List(w http.ResponseWriter, r *http.Request) {
 	items, err := h.svc.List(r.Context(), r.URL.Query().Get("status"))
 	if err != nil {
@@ -183,7 +183,7 @@ func (h *StocktakeHandler) List(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// Get: GET /api/v1/stocktakes/{id} — пересчёт с ходом выполнения: шапка и все ячейки.
+// Get: GET /api/v1/stocktakes/{id} - пересчёт с ходом выполнения: шапка и все ячейки.
 func (h *StocktakeHandler) Get(w http.ResponseWriter, r *http.Request) {
 	userID, _ := appmw.UserIDFromContext(r.Context())
 	st, err := h.svc.Get(r.Context(), chi.URLParam(r, "id"), userID)
@@ -202,7 +202,7 @@ func (h *StocktakeHandler) Get(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// stocktakeLineResponse — строка пересчёта в окне «Ход» портала. fact null — ячейку не считали.
+// stocktakeLineResponse - строка пересчёта в окне «Ход» портала. fact null - ячейку не считали.
 type stocktakeLineResponse struct {
 	Cell           string           `json:"cell"`
 	CellStatus     string           `json:"cell_status"`
@@ -216,7 +216,7 @@ type stocktakeLineResponse struct {
 	Problem        bool             `json:"problem"`
 }
 
-// Lines: GET /api/v1/stocktakes/{id}/lines — что ожидалось и что посчитано по ячейкам (портал;
+// Lines: GET /api/v1/stocktakes/{id}/lines - что ожидалось и что посчитано по ячейкам (портал;
 // ТСД не получает: счёт слепой). 200 / 404.
 func (h *StocktakeHandler) Lines(w http.ResponseWriter, r *http.Request) {
 	lines, err := h.svc.Lines(r.Context(), chi.URLParam(r, "id"))
@@ -239,7 +239,7 @@ func (h *StocktakeHandler) Lines(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// Cells: GET /api/v1/stocktakes/{id}/cells — ячейки, которые работник может считать:
+// Cells: GET /api/v1/stocktakes/{id}/cells - ячейки, которые работник может считать:
 // свободные и свои.
 func (h *StocktakeHandler) Cells(w http.ResponseWriter, r *http.Request) {
 	userID, _ := appmw.UserIDFromContext(r.Context())
@@ -255,7 +255,7 @@ func (h *StocktakeHandler) Cells(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"cells": out})
 }
 
-// Cell: GET /api/v1/stocktake-cells/{id} — своя ячейка с позициями снимка (без количеств).
+// Cell: GET /api/v1/stocktake-cells/{id} - своя ячейка с позициями снимка (без количеств).
 func (h *StocktakeHandler) Cell(w http.ResponseWriter, r *http.Request) {
 	userID, _ := appmw.UserIDFromContext(r.Context())
 	v, err := h.svc.CellView(r.Context(), chi.URLParam(r, "id"), userID)
@@ -266,7 +266,7 @@ func (h *StocktakeHandler) Cell(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, toStocktakeCellView(v))
 }
 
-// Take: POST /api/v1/stocktake-cells/{id}/take — взять ячейку. 204 / 404 / 409.
+// Take: POST /api/v1/stocktake-cells/{id}/take - взять ячейку. 204 / 404 / 409.
 func (h *StocktakeHandler) Take(w http.ResponseWriter, r *http.Request) {
 	userID, _ := appmw.UserIDFromContext(r.Context())
 	if err := h.svc.Take(r.Context(), chi.URLParam(r, "id"), userID); err != nil {
@@ -276,7 +276,7 @@ func (h *StocktakeHandler) Take(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// Release: POST /api/v1/stocktake-cells/{id}/release — отказаться от ячейки; начатый подсчёт
+// Release: POST /api/v1/stocktake-cells/{id}/release - отказаться от ячейки; начатый подсчёт
 // отбрасывается. 204 / 404 / 409.
 func (h *StocktakeHandler) Release(w http.ResponseWriter, r *http.Request) {
 	userID, _ := appmw.UserIDFromContext(r.Context())
@@ -287,7 +287,7 @@ func (h *StocktakeHandler) Release(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// Start: POST /api/v1/stocktake-cells/{id}/start — скан ячейки на месте: снимок «ожидалось» и
+// Start: POST /api/v1/stocktake-cells/{id}/start - скан ячейки на месте: снимок «ожидалось» и
 // позиции для слепого счёта. Повтор по начатой ячейке снимок не трогает.
 func (h *StocktakeHandler) Start(w http.ResponseWriter, r *http.Request) {
 	userID, _ := appmw.UserIDFromContext(r.Context())
@@ -299,8 +299,8 @@ func (h *StocktakeHandler) Start(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, toStocktakeCellView(v))
 }
 
-// Close: POST /api/v1/stocktakes/{id}/close — закрыть пересчёт; {"force": true} — досрочно, с
-// неподсчитанными ячейками. 200 — сколько ячеек осталось неподсчитанными.
+// Close: POST /api/v1/stocktakes/{id}/close - закрыть пересчёт; {"force": true} - досрочно, с
+// неподсчитанными ячейками. 200 - сколько ячеек осталось неподсчитанными.
 func (h *StocktakeHandler) Close(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Force bool `json:"force"`
@@ -320,7 +320,7 @@ func (h *StocktakeHandler) Close(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]int{"uncounted": uncounted})
 }
 
-// stocktakeCountingResponse — ячейка склада на подсчёте (ADHOC-48).
+// stocktakeCountingResponse - ячейка склада на подсчёте (ADHOC-48).
 type stocktakeCountingResponse struct {
 	StocktakeNumber int64  `json:"stocktake_number"`
 	Address         string `json:"address"`
@@ -328,9 +328,9 @@ type stocktakeCountingResponse struct {
 	StartedAt       string `json:"started_at"` // RFC3339
 }
 
-// CellCounting: GET /api/v1/cells/{id}/stocktake-count — идёт ли в ячейке склада подсчёт
+// CellCounting: GET /api/v1/cells/{id}/stocktake-count - идёт ли в ячейке склада подсчёт
 // пересчёта (ADHOC-48). ТСД спрашивает перед движением через ячейку и предупреждает
-// кладовщика. 200 — `{"counting": {...}}` или `{"counting": null}`.
+// кладовщика. 200 - `{"counting": {...}}` или `{"counting": null}`.
 func (h *StocktakeHandler) CellCounting(w http.ResponseWriter, r *http.Request) {
 	c, err := h.svc.CountingInCell(r.Context(), chi.URLParam(r, "id"))
 	if err != nil {
@@ -347,7 +347,7 @@ func (h *StocktakeHandler) CellCounting(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusOK, map[string]any{"counting": out})
 }
 
-// stocktakeError — ответ на ошибку пересчёта; текст — для экрана ТСД и портала.
+// stocktakeError - ответ на ошибку пересчёта; текст - для экрана ТСД и портала.
 func stocktakeError(w http.ResponseWriter, r *http.Request, err error, action string) {
 	switch {
 	case errors.Is(err, model.ErrInvalidStocktake):
@@ -357,7 +357,7 @@ func stocktakeError(w http.ResponseWriter, r *http.Request, err error, action st
 	case errors.Is(err, model.ErrStocktakeReceivingCell):
 		writeError(w, http.StatusUnprocessableEntity, "служебная ячейка (приёмка, отгрузка) в пересчёт не входит")
 	case errors.Is(err, model.ErrStocktakeNoCells):
-		writeError(w, http.StatusUnprocessableEntity, "в области нет ни одной ячейки — считать нечего")
+		writeError(w, http.StatusUnprocessableEntity, "в области нет ни одной ячейки - считать нечего")
 	case errors.Is(err, model.ErrStocktakeNotFound):
 		writeError(w, http.StatusNotFound, "пересчёт не найден")
 	case errors.Is(err, model.ErrStocktakeCellNotFound):
@@ -367,11 +367,11 @@ func stocktakeError(w http.ResponseWriter, r *http.Request, err error, action st
 	case errors.Is(err, model.ErrStocktakeCellBusy):
 		writeError(w, http.StatusConflict, "ячейку уже взял другой сотрудник")
 	case errors.Is(err, model.ErrStocktakeCellNotYours):
-		writeError(w, http.StatusConflict, "ячейка не взята вами — возьмите её в списке")
+		writeError(w, http.StatusConflict, "ячейка не взята вами - возьмите её в списке")
 	case errors.Is(err, model.ErrStocktakeCellCounted):
 		writeError(w, http.StatusConflict, "ячейка уже подсчитана")
 	case errors.Is(err, model.ErrStocktakeUncounted):
-		writeError(w, http.StatusConflict, "не все ячейки подсчитаны — подтвердите досрочное закрытие")
+		writeError(w, http.StatusConflict, "не все ячейки подсчитаны - подтвердите досрочное закрытие")
 	default:
 		slog.ErrorContext(r.Context(), "stocktake action failed", "action", action, "error", err)
 		writeError(w, http.StatusInternalServerError, "внутренняя ошибка")

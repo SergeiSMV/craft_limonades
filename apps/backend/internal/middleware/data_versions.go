@@ -9,23 +9,23 @@ import (
 	"strings"
 )
 
-// HeaderDataVersions — заголовок ответа с версиями данных по областям (ADHOC-60):
+// HeaderDataVersions - заголовок ответа с версиями данных по областям (ADHOC-60):
 // «contents=340,goods=12,tasks=88». Клиент перечитывает только области с новой версией.
 const HeaderDataVersions = "X-Data-Versions"
 
-// VersionsSource — откуда берутся версии данных (репозиторий data_versions).
+// VersionsSource - откуда берутся версии данных (репозиторий data_versions).
 type VersionsSource interface {
 	DataVersions(ctx context.Context) (map[string]int64, error)
 }
 
-// DataVersions — middleware, добавляющий версии данных к каждому ответу API (ADHOC-60).
+// DataVersions - middleware, добавляющий версии данных к каждому ответу API (ADHOC-60).
 //
-// Что: заголовок X-Data-Versions в каждом ответе — и на чтение, и на операцию.
-// Зачем: клиент узнаёт о переменах при обращении, которое и так делает, — без WebSocket и без
+// Что: заголовок X-Data-Versions в каждом ответе - и на чтение, и на операцию.
+// Зачем: клиент узнаёт о переменах при обращении, которое и так делает, - без WebSocket и без
 // фонового опроса, который сажает батарею ТСД (ADR-0018).
-// Как: версии читаются в момент, когда обработчик начинает писать ответ, — после фиксации его
+// Как: версии читаются в момент, когда обработчик начинает писать ответ, - после фиксации его
 // транзакции. Поэтому ответ на свою операцию уже несёт версию после неё, и клиент не станет
-// перечитывать то, что сделал сам. Версии не прочитались — ответ уходит без заголовка: клиент
+// перечитывать то, что сделал сам. Версии не прочитались - ответ уходит без заголовка: клиент
 // просто ничего не перечитает, а сам запрос ломать из-за этого нельзя.
 func DataVersions(src VersionsSource) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
@@ -69,8 +69,8 @@ func (w *versionsWriter) setVersions() {
 	w.Header().Set(HeaderDataVersions, FormatDataVersions(versions))
 }
 
-// FormatDataVersions — версии в виде заголовка: области по алфавиту, «область=версия» через
-// запятую. Порядок постоянный — заголовок легко сравнивать глазами и в тестах.
+// FormatDataVersions - версии в виде заголовка: области по алфавиту, «область=версия» через
+// запятую. Порядок постоянный - заголовок легко сравнивать глазами и в тестах.
 func FormatDataVersions(versions map[string]int64) string {
 	domains := make([]string, 0, len(versions))
 	for d := range versions {

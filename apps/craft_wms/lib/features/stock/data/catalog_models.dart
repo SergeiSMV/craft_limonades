@@ -3,7 +3,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'catalog_models.freezed.dart';
 part 'catalog_models.g.dart';
 
-/// Модели чтения справочников (P1-07) — ответы API P1-06. JsonKey мапит snake_case бэкенда.
+/// Модели чтения справочников (P1-07) - ответы API P1-06. JsonKey мапит snake_case бэкенда.
 
 /// Товар (ответ `GET /goods`). Имена группы/поставщика приходят присоединёнными (LEFT JOIN).
 @freezed
@@ -20,7 +20,7 @@ abstract class Good with _$Good {
     @JsonKey(name: 'supplier_name') String? supplierName,
     @JsonKey(name: 'is_active') @Default(true) bool isActive,
 
-    /// Маркируемый товар (CZ-05): на приёмке и отгрузке — скан марки ЧЗ, а не ШК. Ставится
+    /// Маркируемый товар (CZ-05): на приёмке и отгрузке - скан марки ЧЗ, а не ШК. Ставится
     /// сам по факту (ШК из марки, принятая марка), правит admin.
     @JsonKey(name: 'cz_marked') @Default(false) bool czMarked,
   }) = _Good;
@@ -79,7 +79,7 @@ abstract class Barcode with _$Barcode {
     String? symbology,
 
     /// Привязка сделана на устройстве и сервером ещё не подтверждена (P2-06).
-    /// В ответах сервера этого поля нет и быть не может — оно живёт только в локальном кэше.
+    /// В ответах сервера этого поля нет и быть не может - оно живёт только в локальном кэше.
     @JsonKey(includeFromJson: false, includeToJson: false)
     @Default(false)
     bool pending,
@@ -105,7 +105,7 @@ abstract class BarcodeLink with _$BarcodeLink {
 }
 
 /// Страница списка (ответ-обёртка `{items, total, limit, offset}` API P1-06).
-/// Обобщённая, поэтому парсинг элементов передаётся функцией [fromItem] — freezed/json
+/// Обобщённая, поэтому парсинг элементов передаётся функцией [fromItem] - freezed/json
 /// с дженериком не дружит, а ручной разбор проще и без кодогенерации на generic.
 class Paged<T> {
   const Paged({
@@ -147,7 +147,7 @@ class IssuedBarcode {
   final String barcode;
   final String? symbology;
 
-  /// Код создан этим вызовом. `false` — у товара он уже был, и сервер вернул прежний: выдача
+  /// Код создан этим вызовом. `false` - у товара он уже был, и сервер вернул прежний: выдача
   /// идемпотентна, второй внутренний код одному товару не заводится.
   final bool generated;
 }

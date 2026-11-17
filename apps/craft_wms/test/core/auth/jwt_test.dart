@@ -3,10 +3,10 @@ import 'dart:convert';
 import 'package:craft_wms/core/auth/jwt.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// Разбор JWT на клиенте: единственный вопрос, на который он отвечает, — не истёк ли токен.
+/// Разбор JWT на клиенте: единственный вопрос, на который он отвечает, - не истёк ли токен.
 /// От этого зависит, пустит ли приложение работать без сети (P2-02).
 void main() {
-  /// Собрать токен с заданной полезной нагрузкой (подпись не важна — её клиент не проверяет).
+  /// Собрать токен с заданной полезной нагрузкой (подпись не важна - её клиент не проверяет).
   String token(Map<String, dynamic> claims) {
     String seg(Map<String, dynamic> m) =>
         base64Url.encode(utf8.encode(jsonEncode(m))).replaceAll('=', '');

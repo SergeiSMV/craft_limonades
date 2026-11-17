@@ -12,12 +12,12 @@ part 'stocktake_count_cubit.freezed.dart';
 /// Итог подсчёта ячейки: проведён, ушёл в очередь, отклонён.
 enum CountOutcome { posted, queued, rejected }
 
-/// Подсказка по результату скана — показывается один раз.
+/// Подсказка по результату скана - показывается один раз.
 enum CountNotice {
   /// Короб уже отмечен найденным.
   boxAgain,
 
-  /// Найден короб не по учёту ячейки — сервер перенесёт его сюда.
+  /// Найден короб не по учёту ячейки - сервер перенесёт его сюда.
   boxForeign,
 
   /// Марка уже отсканирована в этом подсчёте.
@@ -27,7 +27,7 @@ enum CountNotice {
   scanMark,
 }
 
-/// Сколько последних действий можно отменить — как во «Вводе остатков».
+/// Сколько последних действий можно отменить - как во «Вводе остатков».
 const kCountUndoDepth = 10;
 
 /// Состояние подсчёта ячейки (P10-04): насчитанное, отмена, итог отправки.
@@ -36,7 +36,7 @@ abstract class StocktakeCountState with _$StocktakeCountState {
   const factory StocktakeCountState({
     required StocktakeCount count,
 
-    /// Прежние состояния подсчёта для «Отменить», свежее — последним.
+    /// Прежние состояния подсчёта для «Отменить», свежее - последним.
     @Default(<StocktakeCount>[]) List<StocktakeCount> history,
     CountNotice? notice,
     @Default(false) bool submitting,
@@ -45,15 +45,15 @@ abstract class StocktakeCountState with _$StocktakeCountState {
   }) = _StocktakeCountState;
 }
 
-/// Подсчёт ячейки пересчёта (P10-04): слепой счёт — позиции снимка без количеств.
+/// Подсчёт ячейки пересчёта (P10-04): слепой счёт - позиции снимка без количеств.
 ///
 /// Что: короба отмечаются найденными сканом ярлыка или этикетки ЧЗ; россыпь копится по
-/// позиции (товар · партия · склад) — количеством из диалога или марками; «Ячейка посчитана»
+/// позиции (товар · партия · склад) - количеством из диалога или марками; «Ячейка посчитана»
 /// отправляет факт операцией очереди.
-/// Зачем черновик: подсчёт после скана ячейки идёт без связи и может длиться долго — выход с
+/// Зачем черновик: подсчёт после скана ячейки идёт без связи и может длиться долго - выход с
 /// экрана, перезапуск, разряд не должны терять насчитанное. Черновик от прежнего снимка (ячейку
 /// сбили и начали заново) не подхватывается: насчитанное относится к другому снимку.
-/// Решения «что это за код» принимает экран — у него справочники и снимок склада; кубит
+/// Решения «что это за код» принимает экран - у него справочники и снимок склада; кубит
 /// только складывает насчитанное.
 @injectable
 class StocktakeCountCubit extends Cubit<StocktakeCountState> {
@@ -73,7 +73,7 @@ class StocktakeCountCubit extends Cubit<StocktakeCountState> {
     emit(state.copyWith(count: saved.copyWith(view: count.view)));
   }
 
-  /// Записать новое состояние подсчёта: прежнее — в историю отмены, слепок — в черновик.
+  /// Записать новое состояние подсчёта: прежнее - в историю отмены, слепок - в черновик.
   void _apply(StocktakeCount next, {CountNotice? notice}) {
     final history = [...state.history, count];
     emit(
@@ -88,7 +88,7 @@ class StocktakeCountCubit extends Cubit<StocktakeCountState> {
     _repo.saveDraft(next.cell.id, next.toJson());
   }
 
-  /// Короб найден — сканом ярлыка или этикетки ЧЗ. Короба нет в снимке — он учётный из другого
+  /// Короб найден - сканом ярлыка или этикетки ЧЗ. Короба нет в снимке - он учётный из другого
   /// места (экран уже проверил, что WMS его знает): сервер перенесёт его сюда.
   void foundBox(String loadUnitId, {String? czCode}) {
     if (count.boxFound(loadUnitId)) {
@@ -113,7 +113,7 @@ class StocktakeCountCubit extends Cubit<StocktakeCountState> {
     );
   }
 
-  /// Добавить насчитанное количество позиции россыпи — к уже насчитанному.
+  /// Добавить насчитанное количество позиции россыпи - к уже насчитанному.
   void addQty({
     required StocktakeGood good,
     required String productionDate,
@@ -130,7 +130,7 @@ class StocktakeCountCubit extends Cubit<StocktakeCountState> {
     );
   }
 
-  /// Найденные марки позиции: количество — их число. Уже отсканированные — подсказка.
+  /// Найденные марки позиции: количество - их число. Уже отсканированные - подсказка.
   void addMarks({
     required StocktakeGood good,
     required String productionDate,
@@ -155,7 +155,7 @@ class StocktakeCountCubit extends Cubit<StocktakeCountState> {
     );
   }
 
-  /// Насчитанное позиции, обновлённое [update]; позиции ещё нет — она заводится с нулём.
+  /// Насчитанное позиции, обновлённое [update]; позиции ещё нет - она заводится с нулём.
   List<CountLine> _merge(
     StocktakeGood good,
     String date,
@@ -181,7 +181,7 @@ class StocktakeCountCubit extends Cubit<StocktakeCountState> {
     return [...count.lines]..[i] = update(count.lines[i]);
   }
 
-  /// Исправить насчитанное позиции без марок: количество и партию. Сменилась партия — это уже
+  /// Исправить насчитанное позиции без марок: количество и партию. Сменилась партия - это уже
   /// другая позиция: насчитанное переезжает к ней (одним действием для «Отменить»).
   void editLine(
     CountLine line, {
@@ -207,7 +207,7 @@ class StocktakeCountCubit extends Cubit<StocktakeCountState> {
     );
   }
 
-  /// Убрать насчитанное позиции (с марками — тоже).
+  /// Убрать насчитанное позиции (с марками - тоже).
   void removeLine(CountLine line) =>
       _apply(count.copyWith(lines: [...count.lines]..remove(line)));
 
@@ -231,10 +231,10 @@ class StocktakeCountCubit extends Cubit<StocktakeCountState> {
   /// Подсказка показана.
   void clearNotice() => emit(state.copyWith(notice: null));
 
-  /// Подсказать: маркируемый товар — сканом марок.
+  /// Подсказать: маркируемый товар - сканом марок.
   void hintScanMark() => emit(state.copyWith(notice: CountNotice.scanMark));
 
-  /// «Ячейка посчитана»: факт уходит операцией очереди. Подтверждение недостачи — за экраном.
+  /// «Ячейка посчитана»: факт уходит операцией очереди. Подтверждение недостачи - за экраном.
   Future<void> submit() async {
     if (state.submitting || state.outcome != null) return;
     emit(state.copyWith(submitting: true));

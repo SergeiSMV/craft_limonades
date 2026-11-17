@@ -2,7 +2,7 @@
 -- Группы номенклатуры (дерево произвольной глубины) + поставщики; расширение goods:
 -- code = «Код» из 1С становится ключом апсерта, плюс полное имя и ссылки на группу/поставщика.
 
--- Группы номенклатуры — дерево (parent_id самоссылка). code = «Код» группы из 1С (стабильный ключ дедупа).
+-- Группы номенклатуры - дерево (parent_id самоссылка). code = «Код» группы из 1С (стабильный ключ дедупа).
 CREATE TABLE nomenclature_groups (
     id         uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
     code       text        NOT NULL UNIQUE,                      -- Код группы из 1С
@@ -17,7 +17,7 @@ CREATE TRIGGER nomenclature_groups_set_updated_at
     BEFORE UPDATE ON nomenclature_groups
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
--- Поставщики. В выгрузке 1С — строкой; дедуп по имени (без дублей).
+-- Поставщики. В выгрузке 1С - строкой; дедуп по имени (без дублей).
 CREATE TABLE suppliers (
     id         uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
     name       text        NOT NULL UNIQUE,
@@ -29,7 +29,7 @@ CREATE TRIGGER suppliers_set_updated_at
     BEFORE UPDATE ON suppliers
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
--- Расширение goods. code (заведён в P1-01 как индекс) теперь — ключ апсерта из 1С «Код»:
+-- Расширение goods. code (заведён в P1-01 как индекс) теперь - ключ апсерта из 1С «Код»:
 -- заменяем обычный индекс на UNIQUE, чтобы работал ON CONFLICT (code). NULL допускается
 -- (ручной товар без кода), но непустые коды уникальны.
 DROP INDEX IF EXISTS goods_code_idx;

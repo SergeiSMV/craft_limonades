@@ -11,7 +11,7 @@ import '../sync/data_versions.dart';
 /// Зачем: открытый список заданий, проблем или вкладка портала узнаёт о чужих правках при
 ///        ближайшем обращении к серверу, без фонового опроса.
 /// Как: подписка на [DataVersions] на время жизни виджета; события за короткую паузу
-///      сводятся в одно — пачка ответов (очередь операций, загрузка справочников) не вызовет
+///      сводятся в одно - пачка ответов (очередь операций, загрузка справочников) не вызовет
 ///      пачку перечитываний.
 class DataVersionsListener extends StatefulWidget {
   const DataVersionsListener({
@@ -22,7 +22,7 @@ class DataVersionsListener extends StatefulWidget {
     this.versions,
   });
 
-  /// Области, от которых зависит экран — [DataDomain].
+  /// Области, от которых зависит экран - [DataDomain].
   final Set<String> domains;
 
   /// Перечитать данные экрана.
@@ -30,7 +30,7 @@ class DataVersionsListener extends StatefulWidget {
 
   final Widget child;
 
-  /// Источник версий; `null` — общий из DI (подмена — для тестов).
+  /// Источник версий; `null` - общий из DI (подмена - для тестов).
   final DataVersions? versions;
 
   /// Пауза сведения событий.

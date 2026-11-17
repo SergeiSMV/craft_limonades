@@ -13,7 +13,7 @@ import 'completed_tile.dart';
 import 'day_separator.dart';
 
 /// Лента «Завершённые»: записи по дням, как в чате, свежие сверху; подгрузка у конца ленты.
-/// Только со связью — офлайн лента не хранится (решение 2026-10-07).
+/// Только со связью - офлайн лента не хранится (решение 2026-10-07).
 class CompletedFeed extends StatefulWidget {
   const CompletedFeed({super.key});
 
@@ -33,7 +33,7 @@ class _CompletedFeedState extends State<CompletedFeed> {
     return false;
   }
 
-  /// Открыть карточку выполненного задания — посмотреть заходы.
+  /// Открыть карточку выполненного задания - посмотреть заходы.
   void openTask(CompletedTask task) {
     context.router.push(TaskDetailRoute(taskId: task.id));
   }

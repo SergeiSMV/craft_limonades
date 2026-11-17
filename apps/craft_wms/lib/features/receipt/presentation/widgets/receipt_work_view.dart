@@ -49,21 +49,21 @@ class _ReceiptWorkViewState extends State<ReceiptWorkView>
   @override
   void onBoxScanned(String boxId) => unawaited(_openBox(boxId));
 
-  /// Ячейка в общем списке — для штучных строк и новых коробов.
+  /// Ячейка в общем списке - для штучных строк и новых коробов.
   @override
   void onCellChosen(Cell cell) => cubit.setTargetCell(cell);
 
-  /// Открыть страницу короба. Cubit передаётся тот же: короб — часть этой приёмки, и его
+  /// Открыть страницу короба. Cubit передаётся тот же: короб - часть этой приёмки, и его
   /// страница правит то же состояние и тот же черновик.
   Future<void> _openBox(String boxId) async {
-    // Марки, отсканированные россыпью, — до входа в короб (ADHOC-70).
+    // Марки, отсканированные россыпью, - до входа в короб (ADHOC-70).
     if (!await czSettle()) return;
     if (!mounted) return;
     await context.router.push(ReceiptBoxRoute(cubit: cubit, boxId: boxId));
     refocusScan();
   }
 
-  /// Новый короб: заводим и сразу открываем — следующие сканы пойдут в него. Ярлык кладовщик
+  /// Новый короб: заводим и сразу открываем - следующие сканы пойдут в него. Ярлык кладовщик
   /// печатает сам со страницы короба (решение пользователя, ADHOC-18).
   Future<void> _newBox() => _openBox(cubit.newBox());
 
@@ -76,7 +76,7 @@ class _ReceiptWorkViewState extends State<ReceiptWorkView>
   }
 
   /// Подтвердить и отправить: после отправки приёмку не изменить, поэтому спрашиваем.
-  /// Документа поставщика нет (черновик до ADHOC-23) — сначала он: без него сервер приёмку
+  /// Документа поставщика нет (черновик до ADHOC-23) - сначала он: без него сервер приёмку
   /// не проведёт.
   Future<void> _submit() async {
     if (!await czSettle()) return;
@@ -95,8 +95,8 @@ class _ReceiptWorkViewState extends State<ReceiptWorkView>
   @override
   Widget build(BuildContext context) {
     final state = widget.state;
-    final loose = state.looseLines.reversed.toList(); // свежая строка — сверху
-    final boxes = state.boxes.reversed.toList(); // свежий короб — сверху
+    final loose = state.looseLines.reversed.toList(); // свежая строка - сверху
+    final boxes = state.boxes.reversed.toList(); // свежий короб - сверху
     final defaultAddress = state.defaultCell?.address ?? '';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -122,7 +122,7 @@ class _ReceiptWorkViewState extends State<ReceiptWorkView>
               : ListView(
                   padding: AppInsets.h8 + AppInsets.top8,
                   children: [
-                    // Короба сверху: их немного, и в них проваливаются; штучные строки — ниже.
+                    // Короба сверху: их немного, и в них проваливаются; штучные строки - ниже.
                     for (final b in boxes)
                       BoxTile(
                         title: b.isCz

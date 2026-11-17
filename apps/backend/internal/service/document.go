@@ -9,10 +9,10 @@ import (
 	"craftwms/internal/report"
 )
 
-// ErrEmptyDocumentID — обращение к документу без идентификатора.
+// ErrEmptyDocumentID - обращение к документу без идентификатора.
 var ErrEmptyDocumentID = errors.New("document id is required")
 
-// documentRepo — зависимость сервиса от хранилища документов.
+// documentRepo - зависимость сервиса от хранилища документов.
 type documentRepo interface {
 	List(ctx context.Context, kind string) ([]model.DocumentListItem, error)
 	ByID(ctx context.Context, id string) (model.ReportDocument, error)
@@ -23,8 +23,8 @@ type documentRepo interface {
 	Events(ctx context.Context, documentID string) ([]model.DocumentEvent, error)
 }
 
-// DocumentService — рабочий список документов оператора (P3-02): что опубликовано, что скачано,
-// что занесено в 1С. Файл здесь же и собирается — из снимка, а не из живых справочников.
+// DocumentService - рабочий список документов оператора (P3-02): что опубликовано, что скачано,
+// что занесено в 1С. Файл здесь же и собирается - из снимка, а не из живых справочников.
 type DocumentService struct {
 	repo documentRepo
 }
@@ -34,12 +34,12 @@ func NewDocumentService(repo documentRepo) *DocumentService {
 	return &DocumentService{repo: repo}
 }
 
-// List отдаёт список документов для портала; kind пуст — все формы, иначе одна.
+// List отдаёт список документов для портала; kind пуст - все формы, иначе одна.
 func (s *DocumentService) List(ctx context.Context, kind string) ([]model.DocumentListItem, error) {
 	return s.repo.List(ctx, kind)
 }
 
-// Kind — вид документа: право на действие с ним зависит от вида (ADHOC-50).
+// Kind - вид документа: право на действие с ним зависит от вида (ADHOC-50).
 func (s *DocumentService) Kind(ctx context.Context, id string) (string, error) {
 	return s.repo.KindByID(ctx, id)
 }
@@ -59,8 +59,8 @@ func (s *DocumentService) File(ctx context.Context, id, userID string) ([]byte, 
 
 	data, err := report.BuildDocumentXLSX(doc)
 	if err != nil {
-		// Неудачная сборка — тоже судьба документа: оператор видит ошибку, и без записи
-		// разбирать было бы нечего. Ошибку журнала не подменяем исходной — она важнее.
+		// Неудачная сборка - тоже судьба документа: оператор видит ошибку, и без записи
+		// разбирать было бы нечего. Ошибку журнала не подменяем исходной - она важнее.
 		if logErr := s.repo.LogEvent(ctx, id, model.DocEventGenerationFailed, userID, err.Error()); logErr != nil {
 			slog.Error("не записал событие неудачной сборки", "document", id, "error", logErr)
 		}
@@ -72,7 +72,7 @@ func (s *DocumentService) File(ctx context.Context, id, userID string) ([]byte, 
 	if err := s.repo.MarkDownloaded(ctx, id); err != nil {
 		return nil, "", err
 	}
-	// Событие пишется на КАЖДОЕ скачивание, в отличие от статуса: спор с 1С — всегда про историю,
+	// Событие пишется на КАЖДОЕ скачивание, в отличие от статуса: спор с 1С - всегда про историю,
 	// а не про последнее состояние.
 	if err := s.repo.LogEvent(ctx, id, model.DocEventDownloaded, userID, ""); err != nil {
 		return nil, "", err

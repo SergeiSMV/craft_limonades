@@ -11,7 +11,7 @@ import '../../../../core/theme/semibold_text.dart';
 /// Зона выбора файла в плоском стиле (ADHOC-56, DropZone Shopify Polaris).
 ///
 /// Что: пунктирная рамка с иконкой, подсказкой и форматом; нажатие открывает выбор файла
-///      браузера, после выбора вместо подсказки — имя файла.
+///      браузера, после выбора вместо подсказки - имя файла.
 /// Как: при наведении рамка синяя, как поле в фокусе; пока файл грузится ([onTap] = `null`),
 ///      зона не нажимается.
 class PortalDropZone extends StatefulWidget {
@@ -26,11 +26,11 @@ class PortalDropZone extends StatefulWidget {
   /// Призыв выбрать файл («Выберите файл .xls»).
   final String prompt;
 
-  /// Пояснение под ним — формат и откуда файл.
+  /// Пояснение под ним - формат и откуда файл.
   final String hint;
   final VoidCallback? onTap;
 
-  /// Выбранный файл; `null` — ещё не выбран.
+  /// Выбранный файл; `null` - ещё не выбран.
   final String? filename;
 
   @override
@@ -94,7 +94,7 @@ class _PortalDropZoneState extends State<PortalDropZone> {
   }
 }
 
-/// Пунктирная скруглённая рамка (в Material нет из коробки — рисуем сами): штрихи 6 через 4.
+/// Пунктирная скруглённая рамка (в Material нет из коробки - рисуем сами): штрихи 6 через 4.
 class _DashedBorderPainter extends CustomPainter {
   _DashedBorderPainter({required this.color});
 

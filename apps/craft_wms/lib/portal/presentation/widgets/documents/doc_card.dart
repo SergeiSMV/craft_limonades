@@ -14,11 +14,11 @@ import 'doc_form.dart';
 import 'doc_row_actions.dart';
 import 'doc_status_chip.dart';
 
-/// Строка документа для узкого экрана (ADHOC-26, плоский стиль — ADHOC-56): то же, что строка
+/// Строка документа для узкого экрана (ADHOC-26, плоский стиль - ADHOC-56): то же, что строка
 /// таблицы, но каждый факт своей строкой.
 ///
-/// Слева — номер документа со статусом, операция, контрагент и время операции с подписями
-/// колонок. Справа — действия иконками: история, скачать, провести (у проведённого —
+/// Слева - номер документа со статусом, операция, контрагент и время операции с подписями
+/// колонок. Справа - действия иконками: история, скачать, провести (у проведённого -
 /// без «Провести»).
 class DocCard extends StatelessWidget {
   const DocCard({
@@ -37,7 +37,7 @@ class DocCard extends StatelessWidget {
   final bool downloading;
   final bool posting;
 
-  /// Действия; `null` — у должности нет права (ADHOC-50), кнопки нет.
+  /// Действия; `null` - у должности нет права (ADHOC-50), кнопки нет.
   final VoidCallback? onDownload;
   final VoidCallback? onPost;
   final VoidCallback? onHistory;
@@ -116,7 +116,7 @@ class DocCard extends StatelessWidget {
   }
 }
 
-/// Список документов для узкого экрана — вместо таблицы: строки в одной карточке.
+/// Список документов для узкого экрана - вместо таблицы: строки в одной карточке.
 class DocCardList extends StatelessWidget {
   const DocCardList({
     super.key,

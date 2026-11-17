@@ -23,7 +23,7 @@ Good good(int i) => Good(
   czMarked: i == 1,
 );
 
-/// ADHOC-56: «Номенклатура склада» — список страницами, «Показать ещё», загрузка по праву.
+/// ADHOC-56: «Номенклатура склада» - список страницами, «Показать ещё», загрузка по праву.
 void main() {
   late _MockApi api;
 
@@ -79,7 +79,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('широко — таблица с шапкой; «Показать ещё» дописывает страницу', (
+  testWidgets('широко - таблица с шапкой; «Показать ещё» дописывает страницу', (
     tester,
   ) async {
     await pump(tester);
@@ -94,7 +94,7 @@ void main() {
     expect(find.text(t.portal.goods.more), findsNothing);
   });
 
-  testWidgets('узко — реквизиты подписанными строками, без шапки колонок', (
+  testWidgets('узко - реквизиты подписанными строками, без шапки колонок', (
     tester,
   ) async {
     await pump(tester, width: 400);
@@ -102,7 +102,7 @@ void main() {
     expect(find.text(t.portal.goods.code(value: '16000')), findsOneWidget);
   });
 
-  testWidgets('«Загрузить из 1С» — только с правом загрузки', (tester) async {
+  testWidgets('«Загрузить из 1С» - только с правом загрузки', (tester) async {
     await pump(tester, canImport: false);
     expect(find.text(t.portal.goods.import), findsNothing);
     await pump(tester);
@@ -119,7 +119,7 @@ void main() {
     expect(tester.getTopLeft(find.byType(PortalInput)), before);
   });
 
-  testWidgets('панель поиска — от левого края таблицы', (tester) async {
+  testWidgets('панель поиска - от левого края таблицы', (tester) async {
     await pump(tester, width: 1600);
     expect(
       tester.getTopLeft(find.byType(PortalInput)).dx,
@@ -129,7 +129,7 @@ void main() {
   });
 
   testWidgets(
-    'нажатие на строку — карточка товара с реквизитами и штрихкодами',
+    'нажатие на строку - карточка товара с реквизитами и штрихкодами',
     (tester) async {
       when(() => api.listGoodBarcodes('g1')).thenAnswer(
         (_) async => const Right([
@@ -144,7 +144,7 @@ void main() {
       expect(find.text(t.portal.goods.cardBarcodes(count: 2)), findsOneWidget);
       expect(find.text('4600000000017'), findsOneWidget);
       expect(find.text(t.portal.goods.cardUom), findsOneWidget);
-      // Маркируемый — отметка «ЧЗ» и в строке, и в карточке.
+      // Маркируемый - отметка «ЧЗ» и в строке, и в карточке.
       expect(find.text(t.portal.goods.cz), findsNWidgets(2));
     },
   );

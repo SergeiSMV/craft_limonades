@@ -8,14 +8,14 @@ import (
 	"time"
 )
 
-// registrySamplePath — образец «Реестра», отданный 1С вместе с ТЗ.
+// registrySamplePath - образец «Реестра», отданный 1С вместе с ТЗ.
 const registrySamplePath = "testdata/registry_sample.xlsx"
 
-// registryHeader — заголовок реестра в порядке 1С.
+// registryHeader - заголовок реестра в порядке 1С.
 var registryHeader = []any{"Номер накладной", "Дата накладной", "Номер заказа", "Дата заказа", "Статус",
 	"Направление", "Клиент", "Адрес", "Код товара", "Товар", "Партия", "Количество", "Ячейка", "Вес, кг"}
 
-// regRow — строка реестра; даты — числом Excel, как их отдаёт 1С (46325 = 30.10.2026).
+// regRow - строка реестра; даты - числом Excel, как их отдаёт 1С (46325 = 30.10.2026).
 func regRow(invoice, order, code, batch, qty, cell string) []any {
 	return []any{invoice, 46325, order, 46325, "Отработан", "ЛИПЕЦК", "ИП Иванов", "Липецк, ул. Мира, 1",
 		code, "Товар " + code, batch, qty, cell, 1.5}
@@ -23,7 +23,7 @@ func regRow(invoice, order, code, batch, qty, cell string) []any {
 
 func date(y int, m time.Month, d int) time.Time { return time.Date(y, m, d, 0, 0, 0, 0, time.UTC) }
 
-// TestParseRegistry_sample — образец 1С: 11 строк, две накладные, код вида «00-00001101»,
+// TestParseRegistry_sample - образец 1С: 11 строк, две накладные, код вида «00-00001101»,
 // даты текстом формата «10.10.2026» в ячейках-датах, пустые ячейки.
 func TestParseRegistry_sample(t *testing.T) {
 	f, err := os.Open(registrySamplePath)
@@ -54,7 +54,7 @@ func TestParseRegistry_sample(t *testing.T) {
 	}
 }
 
-// TestParseRegistry_rejectedRows — плохие строки уходят в отчёт с причиной, хорошие принимаются;
+// TestParseRegistry_rejectedRows - плохие строки уходят в отчёт с причиной, хорошие принимаются;
 // пустая строка пропускается молча.
 func TestParseRegistry_rejectedRows(t *testing.T) {
 	bad := regRow("20001", "15001", "00000016147", "", "2", "")
@@ -105,7 +105,7 @@ func TestParseRegistry_rejectedRows(t *testing.T) {
 	}
 }
 
-// TestParseRegistry_fileErrors — файл отклоняется целиком: две даты, нет колонки, нет строк,
+// TestParseRegistry_fileErrors - файл отклоняется целиком: две даты, нет колонки, нет строк,
 // не тот лист.
 func TestParseRegistry_fileErrors(t *testing.T) {
 	twoDates := regRow("20002", "15002", "00000016147", "", "1", "")
@@ -138,7 +138,7 @@ func TestParseRegistry_fileErrors(t *testing.T) {
 	}
 }
 
-// TestParseRegistry_anySheetName — лист с другим именем принимается, если он в книге один.
+// TestParseRegistry_anySheetName - лист с другим именем принимается, если он в книге один.
 func TestParseRegistry_anySheetName(t *testing.T) {
 	data := buildXLSXSheet(t, "Лист1", [][]any{registryHeader, regRow("20001", "15001", "00000016147", "", "1", "")})
 	res, err := ParseRegistry(bytes.NewReader(data))

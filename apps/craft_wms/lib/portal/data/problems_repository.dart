@@ -8,7 +8,7 @@ import '../../core/constants/api_constants.dart';
 import '../../core/error/failure.dart';
 import '../../core/problems/problem_reasons.dart';
 
-/// Решения офиса по проблеме (P6-07-3) — значения транспорта.
+/// Решения офиса по проблеме (P6-07-3) - значения транспорта.
 abstract final class ProblemDecision {
   /// Списать по документу 1С.
   static const writeOff = 'write_off';
@@ -27,7 +27,7 @@ abstract final class ProblemDecision {
       decision == writeOff || decision == regrade;
 }
 
-/// Товар проблемы: у открытой — что помечено сейчас, у решённой — что решение взяло.
+/// Товар проблемы: у открытой - что помечено сейчас, у решённой - что решение взяло.
 class PortalProblemItem {
   const PortalProblemItem({
     required this.goodCode,
@@ -133,7 +133,7 @@ class PortalProblem {
 
   final String id;
 
-  /// Номер проблемы (ADHOC-55); показ — `docNumber` с префиксом «ПБ».
+  /// Номер проблемы (ADHOC-55); показ - `docNumber` с префиксом «ПБ».
   final int number;
   final DateTime createdAt;
 
@@ -143,10 +143,10 @@ class PortalProblem {
   /// Ячейка пометки.
   final String cellAddress;
 
-  /// Короб целиком; пусто — товар.
+  /// Короб целиком; пусто - товар.
   final String loadUnitId;
 
-  /// Причина — код справочника (`breakage`, `spoilage` …).
+  /// Причина - код справочника (`breakage`, `spoilage` …).
   final String reason;
 
   /// Название причины по справочнику (ADHOC-55).
@@ -165,15 +165,15 @@ class PortalProblem {
   final List<PortalProblemItem> items;
 
   /// Варианты решения, которыми проблему можно решить сейчас, в порядке справочника
-  /// (ADHOC-55) — их держит сервер.
+  /// (ADHOC-55) - их держит сервер.
   final List<ResolutionVariant> resolutions;
 
-  /// Поставщик товара по справочнику — подсказка для возврата; пусто — разные или не указан.
+  /// Поставщик товара по справочнику - подсказка для возврата; пусто - разные или не указан.
   final String suggestedSupplierId;
 
   final bool resolved;
 
-  /// Действие принятого решения — [ProblemDecision].
+  /// Действие принятого решения - [ProblemDecision].
   final String decision;
 
   /// Название принятого варианта решения (ADHOC-55).
@@ -193,16 +193,16 @@ class PortalProblem {
   final String fromGood;
   final String barcode;
 
-  /// Фото со склада — идентификаторы в порядке съёмки (ADHOC-45); снимок — [ProblemsRepository.photo].
+  /// Фото со склада - идентификаторы в порядке съёмки (ADHOC-45); снимок - [ProblemsRepository.photo].
   final List<String> photos;
 
-  /// Короткий код короба — как на ярлыке: последние восемь знаков идентификатора.
+  /// Короткий код короба - как на ярлыке: последние восемь знаков идентификатора.
   String get loadUnitCode => loadUnitId.isEmpty
       ? ''
       : loadUnitId.replaceAll('-', '').substring(24).toUpperCase();
 }
 
-/// Поставщик — вариант выбора для возврата.
+/// Поставщик - вариант выбора для возврата.
 class PortalSupplier {
   const PortalSupplier({required this.id, required this.name});
 
@@ -222,10 +222,10 @@ typedef ProblemResolution = ({
   String supplierId,
 });
 
-/// «Проблемы склада» в портале (P6-07-3): рабочий список и решение офиса — только admin.
+/// «Проблемы склада» в портале (P6-07-3): рабочий список и решение офиса - только admin.
 ///
 /// Отказ по существу (решение недоступно, товар проблемы ушёл со склада-метки, уже решено)
-/// сервер объясняет текстом в поле `error` — он приезжает в `ServerFailure.message`.
+/// сервер объясняет текстом в поле `error` - он приезжает в `ServerFailure.message`.
 @lazySingleton
 class ProblemsRepository {
   ProblemsRepository(this._dio);
@@ -241,7 +241,7 @@ class ProblemsRepository {
     ];
   });
 
-  /// Снимок к проблеме (ADHOC-45) как есть — для миниатюры и просмотра.
+  /// Снимок к проблеме (ADHOC-45) как есть - для миниатюры и просмотра.
   Future<Either<Failure, Uint8List>> photo(String problemId, String photoId) =>
       _call(() async {
         final resp = await _dio.get<List<int>>(
@@ -251,7 +251,7 @@ class ProblemsRepository {
         return Uint8List.fromList(resp.data ?? const []);
       });
 
-  /// Справочник поставщиков — выбор, кому возвращать.
+  /// Справочник поставщиков - выбор, кому возвращать.
   Future<Either<Failure, List<PortalSupplier>>> suppliers() => _call(() async {
     final resp = await _dio.get<List<dynamic>>(ApiConst.suppliers);
     return [

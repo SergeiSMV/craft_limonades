@@ -3,7 +3,7 @@ import 'package:craft_wms/features/home/presentation/widgets/sync_indicator.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// ADHOC-10: до индикатора обновление справочников ничем себя не выдавало — кладовщик видел
+/// ADHOC-10: до индикатора обновление справочников ничем себя не выдавало - кладовщик видел
 /// короткий снэкбар «обновляю» и дальше не знал, идёт ли что-то и стоит ли ждать.
 void main() {
   setUp(LocaleSettings.useDeviceLocale);

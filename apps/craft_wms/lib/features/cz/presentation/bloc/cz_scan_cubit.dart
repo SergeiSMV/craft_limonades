@@ -16,7 +16,7 @@ abstract class CzScanState with _$CzScanState {
   const factory CzScanState({
     @Default(CzScanStatus.idle) CzScanStatus status,
 
-    /// Код, который сейчас читается или прочитан, — как пришёл со сканера.
+    /// Код, который сейчас читается или прочитан, - как пришёл со сканера.
     String? code,
     CzScanResult? result,
     Failure? failure,
@@ -46,6 +46,6 @@ class CzScanCubit extends Cubit<CzScanState> {
     );
   }
 
-  /// Ответ показан — вернуться к ожиданию, чтобы тот же код можно было отсканировать снова.
+  /// Ответ показан - вернуться к ожиданию, чтобы тот же код можно было отсканировать снова.
   void reset() => emit(const CzScanState());
 }

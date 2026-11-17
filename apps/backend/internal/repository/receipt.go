@@ -14,17 +14,17 @@ import (
 
 // Ошибки документа приёмки (P4-02).
 var (
-	// ErrReceiptNotFound — нет документа с таким id.
+	// ErrReceiptNotFound - нет документа с таким id.
 	ErrReceiptNotFound = errors.New("receipt not found")
-	// ErrReceiptPosted — документ уже оприходован: строки не меняются, повтор запрещён.
+	// ErrReceiptPosted - документ уже оприходован: строки не меняются, повтор запрещён.
 	ErrReceiptPosted = errors.New("receipt already posted")
-	// ErrEmptyReceipt — оприходовать нечего: в документе нет строк.
+	// ErrEmptyReceipt - оприходовать нечего: в документе нет строк.
 	ErrEmptyReceipt = errors.New("receipt has no lines")
-	// ErrLoadUnitCellConflict — строки одной ГЕ указывают разные ячейки.
+	// ErrLoadUnitCellConflict - строки одной ГЕ указывают разные ячейки.
 	ErrLoadUnitCellConflict = errors.New("load unit lines point to different cells")
 )
 
-// ReceiptRepository — документ приёмки: набор строк и оприходование.
+// ReceiptRepository - документ приёмки: набор строк и оприходование.
 // Оприходование владеет транзакцией (приём из StockRepository.Transfer и финала сессии).
 type ReceiptRepository struct {
 	pool *pgxpool.Pool
@@ -39,17 +39,17 @@ func NewReceiptRepository(pool *pgxpool.Pool) *ReceiptRepository {
 // повтор с тем же id возвращает существующий документ, а не заводит второй.
 //
 // Зачем id с устройства: приёмка начинается на ТСД, в том числе без сети, и серверный
-// идентификатор взять неоткуда — кладовщик не смог бы продолжить начатый документ.
+// идентификатор взять неоткуда - кладовщик не смог бы продолжить начатый документ.
 // Тот же приём, что у сессии ввода остатков (P-FS-04).
 func (r *ReceiptRepository) Create(ctx context.Context, id, warehouseID, supplierID, createdBy string, doc model.SupplierDoc) error {
 	return createReceipt(ctx, r.pool, id, warehouseID, supplierID, createdBy, doc)
 }
 
-// createReceipt — низкоуровневое открытие документа на Querier: им пользуется и прямая ручка,
+// createReceipt - низкоуровневое открытие документа на Querier: им пользуется и прямая ручка,
 // и применение приёмки из очереди устройства (P4-09), где документ открывается в одной
 // транзакции со своими строками и оприходованием.
 //
-// [doc] — накладная поставщика (ADHOC-23); проверена сервисом, база держит тот же CHECK.
+// [doc] - накладная поставщика (ADHOC-23); проверена сервисом, база держит тот же CHECK.
 func createReceipt(ctx context.Context, q Querier, id, warehouseID, supplierID, createdBy string, doc model.SupplierDoc) error {
 	var supplier any
 	if supplierID != "" {
@@ -80,7 +80,7 @@ func (r *ReceiptRepository) AddLine(ctx context.Context, receiptID string, in mo
 	})
 }
 
-// receiptMarkCIS — КИ марок строки приёмки: строка хранит сами марки, а расхождения с ЧЗ
+// receiptMarkCIS - КИ марок строки приёмки: строка хранит сами марки, а расхождения с ЧЗ
 // уже ушли проблемами склада.
 func receiptMarkCIS(marks []model.ReceiptMark) []string {
 	out := make([]string, len(marks)) // не nil: колонка NOT NULL
@@ -90,7 +90,7 @@ func receiptMarkCIS(marks []model.ReceiptMark) []string {
 	return out
 }
 
-// insertReceiptLine — вставка строки в документ на Querier, без проверки статуса: её делает
+// insertReceiptLine - вставка строки в документ на Querier, без проверки статуса: её делает
 // вызывающий один раз на документ, а не на каждую строку.
 func insertReceiptLine(ctx context.Context, q Querier, receiptID string, in model.ReceiptLineInput) error {
 	batchID, err := getOrCreateBatch(ctx, q, in.GoodID, in.ProductionDate)
@@ -101,7 +101,7 @@ func insertReceiptLine(ctx context.Context, q Querier, receiptID string, in mode
 	if in.LoadUnitID != "" {
 		// Короб проверяем ДО вставки строки: без этого незнакомый ярлык упирался бы
 		// в нарушение внешнего ключа, и кладовщик получал бы сбой БД вместо внятного
-		// «такой ГЕ нет» — а это его рабочая ситуация, не авария.
+		// «такой ГЕ нет» - а это его рабочая ситуация, не авария.
 		if err := guardLoadUnitExists(ctx, q, in.LoadUnitID); err != nil {
 			return err
 		}
@@ -124,7 +124,7 @@ func insertReceiptLine(ctx context.Context, q Querier, receiptID string, in mode
 // переходит в posted. Всё в одной транзакции.
 //
 // Оприходование ДОБАВЛЯЕТ к остатку, в отличие от ввода остатков, который его фиксирует.
-// Поэтому повтор здесь опасен — он удвоил бы приход, — и закрыт статусом: второй вызов
+// Поэтому повтор здесь опасен - он удвоил бы приход, - и закрыт статусом: второй вызов
 // упирается в guard и получает ErrReceiptPosted.
 func (r *ReceiptRepository) Post(ctx context.Context, receiptID string) (int, error) {
 	var posted int
@@ -139,7 +139,7 @@ func (r *ReceiptRepository) Post(ctx context.Context, receiptID string) (int, er
 	return posted, nil
 }
 
-// postReceipt — низкоуровневое оприходование на Querier, чтобы применение из очереди
+// postReceipt - низкоуровневое оприходование на Querier, чтобы применение из очереди
 // устройства шло в одной транзакции с пометкой операции (P2-05).
 func postReceipt(ctx context.Context, q Querier, receiptID string) (int, error) {
 	if err := guardReceiptDraft(ctx, q, receiptID); err != nil {
@@ -154,7 +154,7 @@ func postReceipt(ctx context.Context, q Querier, receiptID string) (int, error) 
 	}
 
 	// Приёмка приходует в склад по умолчанию: выбор учётной принадлежности сделан для
-	// размещения (P5), а не для приёмки — решение заказчика (ADR-0016).
+	// размещения (P5), а не для приёмки - решение заказчика (ADR-0016).
 	iwh, err := defaultInternalWarehouse(ctx, q)
 	if err != nil {
 		return 0, err
@@ -188,8 +188,8 @@ func postReceipt(ctx context.Context, q Querier, receiptID string) (int, error) 
 	}
 
 	// ГЕ уезжает в ту ячейку, куда её приняли, и считается размещённой: приёмка кладёт короб
-	// на место сразу (по умолчанию — дефолтная ячейка). Перенос идёт через общую функцию
-	// размещения — она же пишет первую строку журнала (P5-01).
+	// на место сразу (по умолчанию - дефолтная ячейка). Перенос идёт через общую функцию
+	// размещения - она же пишет первую строку журнала (P5-01).
 	var createdBy string
 	if err := q.QueryRow(ctx, `SELECT created_by::text FROM receipts WHERE id = $1::uuid`, receiptID).
 		Scan(&createdBy); err != nil {
@@ -207,7 +207,7 @@ func postReceipt(ctx context.Context, q Querier, receiptID string) (int, error) 
 		}
 	}
 
-	// Что приёмка оставила в ячейке приёмки, становится заданием на размещение (P5-02-1) —
+	// Что приёмка оставила в ячейке приёмки, становится заданием на размещение (P5-02-1) -
 	// в той же транзакции: оприходованная приёмка без задания потеряла бы свой хвост.
 	if err := createPutawayTaskForReceipt(ctx, q, receiptID); err != nil {
 		return 0, err
@@ -219,9 +219,9 @@ func postReceipt(ctx context.Context, q Querier, receiptID string) (int, error) 
 		return 0, fmt.Errorf("оприходовать приёмку: %w", err)
 	}
 
-	// Документ «Поступление» — в ЭТОЙ ЖЕ транзакции (P4-10): оприходованная приёмка без
+	// Документ «Поступление» - в ЭТОЙ ЖЕ транзакции (P4-10): оприходованная приёмка без
 	// документа невозможна, как и документ по неоприходованной. Путь один и для прямой ручки,
-	// и для операции очереди — обе проводят приёмку здесь.
+	// и для операции очереди - обе проводят приёмку здесь.
 	if err := saveReceiptDocument(ctx, q, receiptID); err != nil {
 		return 0, err
 	}
@@ -315,7 +315,7 @@ func (r *ReceiptRepository) ByID(ctx context.Context, receiptID string) (model.R
 	return rc, nil
 }
 
-// Lines возвращает строки документа с наименованием товара и адресом ячейки — для показа
+// Lines возвращает строки документа с наименованием товара и адресом ячейки - для показа
 // человеку. Оприходование пользуется внутренним listReceiptLines: ему нужны только идентификаторы.
 func (r *ReceiptRepository) Lines(ctx context.Context, receiptID string) ([]model.ReceiptLine, error) {
 	rows, err := r.pool.Query(ctx, `
@@ -349,7 +349,7 @@ func (r *ReceiptRepository) Lines(ctx context.Context, receiptID string) ([]mode
 }
 
 // parseQty разбирает numeric, пришедший из БД текстом, в decimal.
-// Текстом — чтобы не потерять знаки: количества дробные (uom='кг'), а float округляет.
+// Текстом - чтобы не потерять знаки: количества дробные (uom='кг'), а float округляет.
 func parseQty(s string) (decimal.Decimal, error) {
 	q, err := decimal.NewFromString(s)
 	if err != nil {

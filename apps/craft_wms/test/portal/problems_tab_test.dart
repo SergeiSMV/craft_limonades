@@ -39,7 +39,7 @@ PortalProblem problem(
       cellAddress: 'A-1',
     ),
   ],
-  // Вариант справочника на действие (ADHOC-55) — с прежней подписью действия.
+  // Вариант справочника на действие (ADHOC-55) - с прежней подписью действия.
   resolutions: [
     for (final d in decisions)
       ResolutionVariant(id: 'r-$d', name: decisionLabel(d), action: d),
@@ -55,7 +55,7 @@ PortalProblem problem(
   resolvedAt: resolved ? DateTime.utc(2026, 10, 21, 9) : null,
 );
 
-/// P6-07-3: вкладка «Проблемы склада» — открытые по умолчанию, решение списанием из диалога.
+/// P6-07-3: вкладка «Проблемы склада» - открытые по умолчанию, решение списанием из диалога.
 void main() {
   late _MockRepo repo;
 
@@ -100,7 +100,7 @@ void main() {
 
   tearDown(getIt.reset);
 
-  testWidgets('открытые сверху; бой — списание с документом 1С', (
+  testWidgets('открытые сверху; бой - списание с документом 1С', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1200, 900);
@@ -111,7 +111,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Фильтр по умолчанию — открытые: решённой не видно.
+    // Фильтр по умолчанию - открытые: решённой не видно.
     expect(find.text(t.portal.problems.reasonBreakage), findsOneWidget);
     expect(find.text(t.portal.problems.reasonForeignMark), findsNothing);
 
@@ -133,14 +133,14 @@ void main() {
     expect(
       r.resolutionId,
       'r-write_off',
-      reason: 'решение — вариантом справочника',
+      reason: 'решение - вариантом справочника',
     );
     expect(r.docNumber, 'СП-17');
     expect(r.docDate, matches(RegExp(r'^\d{4}-\d{2}-\d{2}$')));
     verify(() => repo.list()).called(2); // после проведения список перечитан
   });
 
-  testWidgets('порча — возврат: поиск поставщика, выбор, проведение', (
+  testWidgets('порча - возврат: поиск поставщика, выбор, проведение', (
     tester,
   ) async {
     when(() => repo.list()).thenAnswer(
@@ -185,7 +185,7 @@ void main() {
     expect(r.supplierId, 's1');
   });
 
-  // ADHOC-56: страница-список — панель закреплена, прокручиваются только карточки.
+  // ADHOC-56: страница-список - панель закреплена, прокручиваются только карточки.
   testWidgets('прокрутка не уводит панель поиска и фильтров', (tester) async {
     when(() => repo.list()).thenAnswer(
       (_) async => Right([
@@ -219,8 +219,8 @@ void main() {
     );
   });
 
-  // ADHOC-56: на телефоне — без переполнения; решённая — решение отдельной строкой.
-  testWidgets('узко — без переполнения, решённая с решением', (tester) async {
+  // ADHOC-56: на телефоне - без переполнения; решённая - решение отдельной строкой.
+  testWidgets('узко - без переполнения, решённая с решением', (tester) async {
     tester.view.physicalSize = const Size(375, 812);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);

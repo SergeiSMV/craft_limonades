@@ -14,7 +14,7 @@ import '../theme/regular_text.dart';
 ///
 /// Зачем: после выключенного и снова включённого принтера переподключение идёт несколько
 /// секунд. Без подсказки кладовщик решил бы, что нажатие не сработало, и нажал «Печать» снова.
-/// Как: слушает [PrinterService.reconnecting] и рисует плашку поверх любого экрана — печатают
+/// Как: слушает [PrinterService.reconnecting] и рисует плашку поверх любого экрана - печатают
 /// из разных мест, и учить каждое показывать её значило бы повторять это везде.
 class PrinterReconnectBanner extends StatelessWidget {
   const PrinterReconnectBanner({super.key, required this.child});

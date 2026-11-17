@@ -15,7 +15,7 @@ import (
 	"craftwms/internal/service"
 )
 
-// MovementHistoryHandler — история перемещений на ТСД (ADHOC-28): лента «Завершённые» в разделе
+// MovementHistoryHandler - история перемещений на ТСД (ADHOC-28): лента «Завершённые» в разделе
 // «Перемещение» и запись со строками. Сотруднику: кладовщик видит перемещения всего склада.
 type MovementHistoryHandler struct {
 	svc *service.MovementHistoryService
@@ -26,7 +26,7 @@ func NewMovementHistoryHandler(svc *service.MovementHistoryService) *MovementHis
 	return &MovementHistoryHandler{svc: svc}
 }
 
-// movementRecordResponse — запись ленты.
+// movementRecordResponse - запись ленты.
 type movementRecordResponse struct {
 	ID        string           `json:"id"`
 	Number    int64            `json:"number"`    // номер своего вида: ПМ | ПП (ADHOC-55)
@@ -37,7 +37,7 @@ type movementRecordResponse struct {
 	Goods     int              `json:"goods"`      // строк товара
 }
 
-// movementPlaceResponse — место строки: россыпь ячейки или короб в ней. Тот же вид, что место
+// movementPlaceResponse - место строки: россыпь ячейки или короб в ней. Тот же вид, что место
 // в строке сеанса перемещения на ТСД: история показывается теми же словами.
 type movementPlaceResponse struct {
 	CellID      string  `json:"cell_id"`
@@ -45,7 +45,7 @@ type movementPlaceResponse struct {
 	LoadUnitID  *string `json:"load_unit_id,omitempty"`
 }
 
-// movementLineResponse — строка записи: ГЕ целиком (load_unit_id) ЛИБО товар (good …).
+// movementLineResponse - строка записи: ГЕ целиком (load_unit_id) ЛИБО товар (good …).
 type movementLineResponse struct {
 	LoadUnitID     *string               `json:"load_unit_id,omitempty"`
 	Good           *taskGoodResponse     `json:"good,omitempty"`
@@ -67,7 +67,7 @@ func toMovementRecordResponse(r model.MovementRecord) movementRecordResponse {
 	}
 }
 
-// List: GET /api/v1/movements — лента истории, свежие сверху.
+// List: GET /api/v1/movements - лента истории, свежие сверху.
 //
 // Параметры: from, to (YYYY-MM-DD, по времени склада; to включается), executor (id),
 // before_posted_at + before_id (курсор: последняя показанная запись), limit. 200 / 400.
@@ -94,7 +94,7 @@ func (h *MovementHistoryHandler) List(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// Executors: GET /api/v1/movements/executors — варианты фильтра ленты по исполнителю.
+// Executors: GET /api/v1/movements/executors - варианты фильтра ленты по исполнителю.
 func (h *MovementHistoryHandler) Executors(w http.ResponseWriter, r *http.Request) {
 	users, err := h.svc.Executors(r.Context())
 	if err != nil {
@@ -109,7 +109,7 @@ func (h *MovementHistoryHandler) Executors(w http.ResponseWriter, r *http.Reques
 	writeJSON(w, http.StatusOK, out)
 }
 
-// Get: GET /api/v1/movements/{id} — запись со строками по порядку проведения. 200 / 404.
+// Get: GET /api/v1/movements/{id} - запись со строками по порядку проведения. 200 / 404.
 func (h *MovementHistoryHandler) Get(w http.ResponseWriter, r *http.Request) {
 	d, err := h.svc.Get(r.Context(), chi.URLParam(r, "id"))
 	if errors.Is(err, repository.ErrMovementNotFound) {
@@ -141,7 +141,7 @@ func (h *MovementHistoryHandler) Get(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// deref — значение необязательной строки справочника; nil — пусто.
+// deref - значение необязательной строки справочника; nil - пусто.
 func deref(s *string) string {
 	if s == nil {
 		return ""

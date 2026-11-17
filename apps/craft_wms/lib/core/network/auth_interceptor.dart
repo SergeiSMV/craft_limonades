@@ -3,30 +3,30 @@ import 'package:dio/dio.dart';
 import '../auth/token_storage.dart';
 import '../constants/api_constants.dart';
 
-/// JWT-интерсептор — клиентская пара к middleware бэкенда (P0-04).
+/// JWT-интерсептор - клиентская пара к middleware бэкенда (P0-04).
 ///
 /// Что: подставляет access-токен в каждый запрос; на 401 молча обновляет токен и повторяет запрос.
 /// Зачем: кладовщик не пересканирует бейдж посреди работы, когда access протух.
 /// Как: onRequest добавляет заголовок Authorization; onError при 401 дёргает `/auth/refresh`
-/// отдельным «голым» Dio (без этого интерсептора — иначе рекурсия), сохраняет новый access
+/// отдельным «голым» Dio (без этого интерсептора - иначе рекурсия), сохраняет новый access
 /// и повторяет исходный запрос один раз. Попутно отмечает момент последнего успешного
-/// обмена с сервером — по нему ограничен вход без связи (долг 9).
+/// обмена с сервером - по нему ограничен вход без связи (долг 9).
 class AuthInterceptor extends Interceptor {
   AuthInterceptor(this._storage, this._tokenDio);
 
-  /// Как часто обновлять отметку контакта. Чаще незачем: предел офлайн-входа — сутки,
-  /// а запись в зашифрованное хранилище на каждый запрос прохода — лишняя работа.
+  /// Как часто обновлять отметку контакта. Чаще незачем: предел офлайн-входа - сутки,
+  /// а запись в зашифрованное хранилище на каждый запрос прохода - лишняя работа.
   static const contactWriteInterval = Duration(minutes: 1);
 
-  /// Когда отметка писалась в этом процессе (null — ещё не писалась).
+  /// Когда отметка писалась в этом процессе (null - ещё не писалась).
   DateTime? _contactWrittenAt;
 
   /// Хранилище токенов.
   final TokenStorage _storage;
 
-  /// Dio без AuthInterceptor — для refresh и повтора запроса.
+  /// Dio без AuthInterceptor - для refresh и повтора запроса.
   final Dio
-  _tokenDio; // Dio без AuthInterceptor — для refresh и повтора запроса
+  _tokenDio; // Dio без AuthInterceptor - для refresh и повтора запроса
 
   /// Ключ для отметки повторного запроса.
   static const _retriedKey = 'retried';
@@ -44,7 +44,7 @@ class AuthInterceptor extends Interceptor {
     handler.next(options);
   }
 
-  /// Успешный ответ на запрос с токеном — сервер принял сессию: отмечаем контакт.
+  /// Успешный ответ на запрос с токеном - сервер принял сессию: отмечаем контакт.
   @override
   Future<void> onResponse(
     Response<dynamic> response,
@@ -57,7 +57,7 @@ class AuthInterceptor extends Interceptor {
   /// Отметить успешный обмен с сервером.
   ///
   /// Что: запоминает момент ответа 2xx на запрос, ушедший с access-токеном.
-  /// Зачем: вход без связи разрешён, только пока последний такой обмен свежий (долг 9) —
+  /// Зачем: вход без связи разрешён, только пока последний такой обмен свежий (долг 9) -
   ///        иначе терминалу с отозванным доступом хватало бы живого refresh-токена (30 дней).
   /// Как: считается только запрос с заголовком `Authorization`: ответ без токена (вход,
   ///      пробы) не доказывает, что сервер принял именно эту сессию. Пишем не чаще
@@ -73,7 +73,7 @@ class AuthInterceptor extends Interceptor {
     await _storage.saveLastContact(now);
   }
 
-  /// При 401 дёргает `/auth/refresh` отдельным «голым» Dio (без этого интерсептора — иначе рекурсия),
+  /// При 401 дёргает `/auth/refresh` отдельным «голым» Dio (без этого интерсептора - иначе рекурсия),
   /// сохраняет новый access и повторяет исходный запрос один раз.
   @override
   Future<void> onError(
@@ -122,11 +122,11 @@ class AuthInterceptor extends Interceptor {
       req.headers['Authorization'] = 'Bearer $newAccess';
       req.extra[_retriedKey] = true;
       final clone = await _tokenDio.fetch<dynamic>(req);
-      // Повтор идёт мимо onResponse — контакт отмечаем здесь.
+      // Повтор идёт мимо onResponse - контакт отмечаем здесь.
       await _noteContact(clone);
       return handler.resolve(clone);
     } on DioException {
-      // refresh тоже протух/невалиден — чистим токены; UI уйдёт на экран входа.
+      // refresh тоже протух/невалиден - чистим токены; UI уйдёт на экран входа.
       await _storage.clear();
       return handler.next(err);
     }

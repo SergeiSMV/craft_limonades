@@ -12,11 +12,11 @@ import (
 	"craftwms/internal/repository"
 )
 
-// Тесты P5-05: просмотр содержимого ячеек и коробов. Фикстура размещения: A — ячейка
-// приёмки, B — ячейка хранения; короба по 12 шт.
+// Тесты P5-05: просмотр содержимого ячеек и коробов. Фикстура размещения: A - ячейка
+// приёмки, B - ячейка хранения; короба по 12 шт.
 
 // setupContents: два короба и россыпь 5 шт приняты в A, первый короб размещён в B.
-// В A остаются второй короб и россыпь, в B — первый короб.
+// В A остаются второй короб и россыпь, в B - первый короб.
 func setupContents(t *testing.T) (pf *putawayFixture, boxB, boxA string) {
 	t.Helper()
 	pf = setupPutaway(t)
@@ -32,7 +32,7 @@ func setupContents(t *testing.T) (pf *putawayFixture, boxB, boxA string) {
 // Снимок: только живые короба, каждый в своей ячейке; россыпь за вычетом коробов.
 func TestContents_snapshot(t *testing.T) {
 	pf, boxB, boxA := setupContents(t)
-	// Короб без приёмки — не размещён и пуст: в снимок не попадает.
+	// Короб без приёмки - не размещён и пуст: в снимок не попадает.
 	idle := newLU(t, pf.stockFixture, model.LoadUnitBox)
 
 	snap, err := repository.NewContentsRepository(pf.pool).Snapshot(context.Background())
@@ -55,14 +55,14 @@ func TestContents_snapshot(t *testing.T) {
 	if _, ok := cells[idle]; ok {
 		t.Error("неразмещённый пустой короб попал в снимок")
 	}
-	// В A лежит 12 + 5, из них 12 в коробе — россыпь 5; в B всё в коробе — россыпи нет.
+	// В A лежит 12 + 5, из них 12 в коробе - россыпь 5; в B всё в коробе - россыпи нет.
 	if len(snap.Loose) != 1 || snap.Loose[0].CellID != pf.cellA || snap.Loose[0].Qty.String() != "5" ||
 		snap.Loose[0].InternalWarehouseID != pf.iwh {
 		t.Errorf("россыпь снимка %+v, ожидалось 5 шт в A", snap.Loose)
 	}
 }
 
-// Содержимое ячейки: свои короба и своя россыпь; неизвестная ячейка — ErrCellNotFound.
+// Содержимое ячейки: свои короба и своя россыпь; неизвестная ячейка - ErrCellNotFound.
 func TestContents_cell(t *testing.T) {
 	pf, boxB, boxA := setupContents(t)
 	repo := repository.NewContentsRepository(pf.pool)
@@ -91,8 +91,8 @@ func TestContents_cell(t *testing.T) {
 	}
 }
 
-// Карточка короба: живой — с ячейкой и содержимым; неживой — есть, но помечен;
-// неизвестный — ErrLoadUnitNotFound, тот же, что у приёмки.
+// Карточка короба: живой - с ячейкой и содержимым; неживой - есть, но помечен;
+// неизвестный - ErrLoadUnitNotFound, тот же, что у приёмки.
 func TestContents_loadUnitCard(t *testing.T) {
 	pf, boxB, _ := setupContents(t)
 	repo := repository.NewContentsRepository(pf.pool)
@@ -118,7 +118,7 @@ func TestContents_loadUnitCard(t *testing.T) {
 	}
 }
 
-// Россыпь просмотра и россыпь размещения — один расчёт: в ячейке приёмки лежит 17 шт,
+// Россыпь просмотра и россыпь размещения - один расчёт: в ячейке приёмки лежит 17 шт,
 // из них 12 в коробе; просмотр показывает 5, размещение их принимает, и после этого россыпи
 // в ячейке нет, а короб на месте.
 func TestContents_looseAgreesWithPutaway(t *testing.T) {
@@ -145,13 +145,13 @@ func TestContents_looseAgreesWithPutaway(t *testing.T) {
 	}
 }
 
-// tail — короткий код с ярлыка: последние восемь знаков UUID без дефисов, заглавными.
+// tail - короткий код с ярлыка: последние восемь знаков UUID без дефисов, заглавными.
 func tail(id string) string {
 	hex := strings.ToUpper(strings.ReplaceAll(id, "-", ""))
 	return hex[len(hex)-8:]
 }
 
-// Поиск по короткому коду находит и живой короб, и неживой — с признаком; частичный код тоже.
+// Поиск по короткому коду находит и живой короб, и неживой - с признаком; частичный код тоже.
 func TestContents_searchByShortCode(t *testing.T) {
 	pf, boxB, _ := setupContents(t)
 	idle := newLU(t, pf.stockFixture, model.LoadUnitBox) // не размещён и пуст
@@ -171,7 +171,7 @@ func TestContents_searchByShortCode(t *testing.T) {
 		t.Errorf("поиск неживого короба: %+v", found)
 	}
 
-	// Середина кода — тоже совпадение: на мятой наклейке читается не всё.
+	// Середина кода - тоже совпадение: на мятой наклейке читается не всё.
 	found, err = repo.SearchLoadUnits(ctx, tail(boxB)[2:6], 50)
 	mustNoErr(t, err)
 	var hit bool
@@ -190,7 +190,7 @@ func TestContents_searchByShortCode(t *testing.T) {
 	}
 }
 
-// История: приёмка с ФИО кладовщика и переносы по порядку — с адресами.
+// История: приёмка с ФИО кладовщика и переносы по порядку - с адресами.
 func TestContents_loadUnitHistory(t *testing.T) {
 	pf, boxB, _ := setupContents(t)
 	repo := repository.NewContentsRepository(pf.pool)
@@ -207,11 +207,11 @@ func TestContents_loadUnitHistory(t *testing.T) {
 	}
 	first, second := h.Moves[0], h.Moves[1]
 	if first.FromAddress != nil || first.Source != model.PlacementReceipt {
-		t.Errorf("первый перенос — приёмка без «откуда»: %+v", first)
+		t.Errorf("первый перенос - приёмка без «откуда»: %+v", first)
 	}
 	if second.FromAddress == nil || *second.FromAddress != first.ToAddress ||
 		second.Source != model.PlacementPutaway || second.UserName == nil || *second.UserName != "Кладовщик" {
-		t.Errorf("второй перенос — размещение из ячейки приёмки: %+v", second)
+		t.Errorf("второй перенос - размещение из ячейки приёмки: %+v", second)
 	}
 
 	// Короб без приёмки: история есть, приёмки и переносов нет.

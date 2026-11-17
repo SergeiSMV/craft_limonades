@@ -1,9 +1,9 @@
-// Package labels — PDF адресных этикеток ячеек и карточек на стойку стеллажа (ADHOC-57).
+// Package labels - PDF адресных этикеток ячеек и карточек на стойку стеллажа (ADHOC-57).
 //
 // Геометрия перенесена из проекта rack_labels (config.yaml + render.py) один в один: тот же
 // лист A4 с полями 10 мм и метками реза, этикетки на большую балку (4 на лист) и на малую
 // (6 на лист), карточки на боковую опору (2 на лист), единый кегль на набор, Code128 вектором.
-// Образец этикетки в портале рисуется по тем же числам. Все размеры — в миллиметрах.
+// Образец этикетки в портале рисуется по тем же числам. Все размеры - в миллиметрах.
 package labels
 
 import (
@@ -28,9 +28,9 @@ const (
 
 // Пороги считывания штрих-кода (validation в rack_labels).
 const (
-	minModule  = 0.25 // самый узкий штрих; уже — сканер промахивается
+	minModule  = 0.25 // самый узкий штрих; уже - сканер промахивается
 	quietRatio = 10.0 // защитная зона ≥ 10 модулей
-	minFontPt  = 1.0  // меньше кегль адреса не уменьшается — тогда «не влезает»
+	minFontPt  = 1.0  // меньше кегль адреса не уменьшается - тогда «не влезает»
 )
 
 // Стрелка «блоком»: стержень с головкой.
@@ -39,13 +39,13 @@ const (
 	arrowHead  = 0.55 // доля высоты под головку
 )
 
-// beamProfile — этикетка на балку: профиль large или small из config.yaml.
+// beamProfile - этикетка на балку: профиль large или small из config.yaml.
 type beamProfile struct {
 	rows    int     // этикеток на листе (одна колонка)
 	pad     float64 // внутреннее поле
 	gap     float64 // зазор между кодом, адресом и стрелкой
 	capMax  float64 // высота прописной, потолок
-	capMin  float64 // ниже — кегль уменьшается шагом 1 пт (fitSize)
+	capMin  float64 // ниже - кегль уменьшается шагом 1 пт (fitSize)
 	module  float64 // ширина модуля штрих-кода
 	quiet   float64 // защитная зона кода с каждой стороны
 	bcH     float64 // высота штрих-кода
@@ -87,7 +87,7 @@ const (
 	sepDashSpace  = 2.0
 )
 
-// FitError — содержимое не помещается или штрих-код нечитаем: печатать такое нельзя,
+// FitError - содержимое не помещается или штрих-код нечитаем: печатать такое нельзя,
 // лучше остановиться с перечнем причин, чем выдать пачку бракованных этикеток.
 type FitError struct {
 	Problems []string
@@ -97,17 +97,17 @@ func (e *FitError) Error() string {
 	return "этикетки не печатаются: " + strings.Join(e.Problems, "; ")
 }
 
-// ErrNothingToPrint — в выборке нет ни одной этикетки этого вида.
+// ErrNothingToPrint - в выборке нет ни одной этикетки этого вида.
 var ErrNothingToPrint = errors.New("нечего печатать")
 
-// measurer — ширина строки шрифтом Helvetica-Bold заданного кегля, мм. Метрики core-шрифта
-// PDF — те же, что у reportlab, поэтому кегль совпадает с rack_labels.
+// measurer - ширина строки шрифтом Helvetica-Bold заданного кегля, мм. Метрики core-шрифта
+// PDF - те же, что у reportlab, поэтому кегль совпадает с rack_labels.
 type measurer func(text string, sizePt float64) float64
 
-// fitSize — кегль (пт) строки: цель — capMax, ужимается по ширине avail ровно до неё.
+// fitSize - кегль (пт) строки: цель - capMax, ужимается по ширине avail ровно до неё.
 // Если высота букв при этом ниже capMin, печать не останавливается: кегль берётся от capMin
-// и уменьшается на 1 пт, пока строка не влезет (решение 2026-11-05 — длинный адрес мельче,
-// но напечатан). ok=false — не влезает и на minFontPt: место съел штрих-код или стрелка.
+// и уменьшается на 1 пт, пока строка не влезет (решение 2026-11-05 - длинный адрес мельче,
+// но напечатан). ok=false - не влезает и на minFontPt: место съел штрих-код или стрелка.
 func fitSize(text string, avail, capMax, capMin float64, width measurer) (float64, bool) {
 	size := capMax / capRatio / ptToMM
 	if w := width(text, size); w > avail {
@@ -124,7 +124,7 @@ func fitSize(text string, avail, capMax, capMin float64, width measurer) (float6
 	return size, width(text, size) <= avail+1e-9
 }
 
-// widest — самая широкая строка набора: по ней считается единый кегль.
+// widest - самая широкая строка набора: по ней считается единый кегль.
 func widest(texts []string, width measurer) string {
 	best, bestW := "", -1.0
 	for _, t := range texts {

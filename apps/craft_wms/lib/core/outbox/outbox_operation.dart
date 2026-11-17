@@ -8,10 +8,10 @@ import '../database/app_database.dart';
 /// вставить новое значение в середину списка, и уже записанные строки станут означать другую
 /// операцию. Строка остаётся верной при любой перестановке.
 enum OutboxKind {
-  /// Привязать штрихкод к товару — `POST /barcodes`.
+  /// Привязать штрихкод к товару - `POST /barcodes`.
   bindBarcode('bind_barcode'),
 
-  /// Отвязать штрихкод — `DELETE /barcodes/{code}`.
+  /// Отвязать штрихкод - `DELETE /barcodes/{code}`.
   unbindBarcode('unbind_barcode'),
 
   /// Приёмка целиком: документ, его ГЕ, строки и оприходование одной операцией (P4-09).
@@ -49,7 +49,7 @@ enum OutboxKind {
   /// Как значение записано в базе.
   final String wire;
 
-  /// Разобрать значение из базы. `null` — неизвестный тип: строку писала версия приложения
+  /// Разобрать значение из базы. `null` - неизвестный тип: строку писала версия приложения
   /// новее текущей (откат сборки), и отправлять её вслепую нельзя.
   static OutboxKind? fromWire(String wire) {
     for (final kind in OutboxKind.values) {
@@ -61,8 +61,8 @@ enum OutboxKind {
 
 /// Стадия жизни операции.
 ///
-/// `pending → sending → sent` — обычный путь; `sending → pending` — возврат в очередь после
-/// неудачной попытки; `rejected` — сервер отказал по существу (например, ШК уже за другим
+/// `pending → sending → sent` - обычный путь; `sending → pending` - возврат в очередь после
+/// неудачной попытки; `rejected` - сервер отказал по существу (например, ШК уже за другим
 /// товаром), повторять бессмысленно, нужен разбор человеком (P2-06).
 enum OutboxStatus {
   /// Ждёт отправки.
@@ -76,7 +76,7 @@ enum OutboxStatus {
   /// Сервер принял.
   sent('sent'),
 
-  /// Сервер отказал по существу — повтор не поможет.
+  /// Сервер отказал по существу - повтор не поможет.
   rejected('rejected');
 
   const OutboxStatus(this.wire);
@@ -84,7 +84,7 @@ enum OutboxStatus {
   /// Как значение записано в базе.
   final String wire;
 
-  /// Разобрать значение из базы; `null` — неизвестный статус.
+  /// Разобрать значение из базы; `null` - неизвестный статус.
   static OutboxStatus? fromWire(String wire) {
     for (final status in OutboxStatus.values) {
       if (status.wire == wire) return status;
@@ -108,7 +108,7 @@ class OutboxOperation {
     required this.updatedAt,
   });
 
-  /// Собрать из строки базы. Возвращает `null`, если тип или статус не разбираются — такую
+  /// Собрать из строки базы. Возвращает `null`, если тип или статус не разбираются - такую
   /// строку трогать нельзя (её писала более новая версия приложения).
   static OutboxOperation? fromRow(OutboxRow row) {
     final kind = OutboxKind.fromWire(row.kind);
@@ -127,7 +127,7 @@ class OutboxOperation {
     );
   }
 
-  /// Порядковый номер — он же порядок отправки.
+  /// Порядковый номер - он же порядок отправки.
   final int seq;
 
   /// Ключ идемпотентности (UUID v4).

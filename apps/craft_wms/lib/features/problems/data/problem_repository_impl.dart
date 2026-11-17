@@ -12,7 +12,7 @@ import '../domain/problem_repository.dart';
 /// Отправка проблемы склада тем же путём, что движение (P6-07-2): в очередь и сразу попытка.
 ///
 /// Без связи проблема уйдёт сама; до этого её накладывает чтение содержимого
-/// (`PendingOverlay`) — короб уже «Брак» и на терминале.
+/// (`PendingOverlay`) - короб уже «Брак» и на терминале.
 @LazySingleton(as: ProblemRepository)
 class ProblemRepositoryImpl implements ProblemRepository {
   ProblemRepositoryImpl(

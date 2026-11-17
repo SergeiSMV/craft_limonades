@@ -23,7 +23,7 @@ class _MockCatalog extends Mock implements CatalogRepository {}
 
 class _MockPrinter extends Mock implements PrinterService {}
 
-/// Идентификаторы коробов по порядку — как в эталоне.
+/// Идентификаторы коробов по порядку - как в эталоне.
 class _SequenceUuid extends Fake implements Uuid {
   _SequenceUuid(this._ids);
 
@@ -35,12 +35,12 @@ class _SequenceUuid extends Fake implements Uuid {
       _ids[_next++];
 }
 
-/// Эталон тела checkpoint — общий с Go-тестом (`stock_entry_http_test.go`).
+/// Эталон тела checkpoint - общий с Go-тестом (`stock_entry_http_test.go`).
 const _fixturePath =
     '../backend/internal/handler/testdata/stock_entry_checkpoint.json';
 
 /// Dart-половина контракта ADHOC-46: тело checkpoint снимается с настоящего пути отправки
-/// (cubit → репозиторий), а не собирается в тесте руками. Разойдись имя поля — упадёт этот тест
+/// (cubit → репозиторий), а не собирается в тесте руками. Разойдись имя поля - упадёт этот тест
 /// или его Go-половина.
 void main() {
   test(
@@ -139,7 +139,7 @@ void main() {
               ).captured.single
               as Map<String, dynamic>;
       expect(jsonDecode(jsonEncode(body)), expected);
-      // Проход с марками перед финалом отправляет очередь: привязки ШК из марок — раньше финала.
+      // Проход с марками перед финалом отправляет очередь: привязки ШК из марок - раньше финала.
       verify(() => repo.drainQueue()).called(1);
       expect(cubit.state.finished, isTrue);
     },

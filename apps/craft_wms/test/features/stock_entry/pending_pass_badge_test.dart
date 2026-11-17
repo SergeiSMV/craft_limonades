@@ -48,7 +48,7 @@ void main() {
     ),
   );
 
-  testWidgets('прохода нет — пометки нет', (tester) async {
+  testWidgets('прохода нет - пометки нет', (tester) async {
     await pump(tester);
     hasDraft.add(false);
     await tester.pump();
@@ -56,7 +56,7 @@ void main() {
     expect(find.text('!'), findsNothing);
   });
 
-  testWidgets('есть незавершённый проход — пометка видна', (tester) async {
+  testWidgets('есть незавершённый проход - пометка видна', (tester) async {
     await pump(tester);
     hasDraft.add(true);
     await tester.pump();
@@ -64,9 +64,9 @@ void main() {
     expect(find.text('!'), findsOneWidget);
   });
 
-  // Проход отправлен или отброшен — пометка обязана исчезнуть сама, без пересборки экрана:
+  // Проход отправлен или отброшен - пометка обязана исчезнуть сама, без пересборки экрана:
   // иначе она висела бы до следующего входа в приложение.
-  testWidgets('проход убран — пометка гаснет живьём', (tester) async {
+  testWidgets('проход убран - пометка гаснет живьём', (tester) async {
     await pump(tester);
     hasDraft.add(true);
     await tester.pump();
@@ -89,7 +89,7 @@ void main() {
   });
 
   // Плитка рисует пометку САМА (`showBadge`), а не оборачивается снаружи. Первый заход обернул
-  // плитку в Stack извне, и кружок уехал в зазор между плитками — плитка занимает всю ячейку
+  // плитку в Stack извне, и кружок уехал в зазор между плитками - плитка занимает всю ячейку
   // сетки, и подвесить что-то поверх её угла снаружи некуда.
   group('пометка на плитке меню', () {
     Future<void> pumpTile(
@@ -130,8 +130,8 @@ void main() {
       expect(find.byType(NotificationBadge), findsOneWidget);
 
       // Главная проверка: кружок лежит ВНУТРИ прямоугольника плитки. Снаружи он висел бы
-      // в зазоре сетки — так и выглядел первый заход.
-      // Мерим КРАШЕНЫЙ прямоугольник плитки, а не MenuTile: MenuTile — это стопка, она
+      // в зазоре сетки - так и выглядел первый заход.
+      // Мерим КРАШЕНЫЙ прямоугольник плитки, а не MenuTile: MenuTile - это стопка, она
       // занимает всю ячейку всегда, и дефект «плитка сжалась по содержимому» по ней не виден.
       final tile = tester.getRect(find.byKey(MenuTile.surfaceKey));
       final badge = tester.getRect(find.byType(NotificationBadge));

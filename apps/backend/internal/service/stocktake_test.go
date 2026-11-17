@@ -43,8 +43,8 @@ func (f *fakeStocktakeRepo) CountingInCell(context.Context, string) (*model.Cell
 	return nil, nil
 }
 
-// P10-02: форма области проверяется до базы — вид известен, у «всего склада» объектов нет,
-// у остальных они есть, всё — UUID; повторы объектов схлопываются.
+// P10-02: форма области проверяется до базы - вид известен, у «всего склада» объектов нет,
+// у остальных они есть, всё - UUID; повторы объектов схлопываются.
 func TestStocktakeService_createValidation(t *testing.T) {
 	const (
 		wh   = "8f4c2b1e-0d3a-4c5b-9e6f-1a2b3c4d5e6f"

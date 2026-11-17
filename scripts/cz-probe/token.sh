@@ -3,14 +3,14 @@
 #
 # Что: auth/key → подпись строки (CAdES-BES, присоединённая) → simpleSignIn.
 # Зачем: проверить, выдаёт ли ЧЗ токен физлицу с МЧД и ролью «без права подписи».
-# Запуск: CZ_THUMB=<отпечаток> ./token.sh — PIN токена спросит КриптоПро.
-# Только чтение: в Честном знаке ничего не меняется. Токен пишется в .token (доступ — только
+# Запуск: CZ_THUMB=<отпечаток> ./token.sh - PIN токена спросит КриптоПро.
+# Только чтение: в Честном знаке ничего не меняется. Токен пишется в .token (доступ - только
 # владельцу) и на экран не выводится.
 set -euo pipefail
 API="${API:-https://markirovka.crpt.ru/api/v3/true-api}"
 # Отпечаток (SHA1) сертификата подписанта в хранилище uMy пользователя:
 #   /opt/cprocsp/bin/amd64/certmgr -list -store uMy | grep SHA1
-THUMB="${CZ_THUMB:?задайте CZ_THUMB — SHA1-отпечаток сертификата подписанта}"
+THUMB="${CZ_THUMB:?задайте CZ_THUMB - SHA1-отпечаток сертификата подписанта}"
 CRYPTCP=/opt/cprocsp/bin/amd64/cryptcp
 DIR="$(cd "$(dirname "$0")" && pwd)"
 umask 077
@@ -27,7 +27,7 @@ open(w + "/uuid", "w").write(d["uuid"])
 open(w + "/data.txt", "w").write(d["data"])
 PY
 
-echo "2/3 подпись — КриптоПро спросит PIN Рутокена"
+echo "2/3 подпись - КриптоПро спросит PIN Рутокена"
 "$CRYPTCP" -sign -uMy -thumbprint "$THUMB" -nochain -cadesbes -attached -der -askpin \
   "$work/data.txt" "$work/data.sig" >/dev/null
 

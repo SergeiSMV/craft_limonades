@@ -9,8 +9,8 @@ import (
 	"craftwms/internal/repository"
 )
 
-// Тесты ADHOC-55: справочник причин проблем и вариантов решения. Фикстура setupMove — из
-// movement_integration_test.go, пометка и решение — из problem_integration_test.go и
+// Тесты ADHOC-55: справочник причин проблем и вариантов решения. Фикстура setupMove - из
+// movement_integration_test.go, пометка и решение - из problem_integration_test.go и
 // problem_decision_integration_test.go.
 
 // Постоянные id вариантов, заведённых миграцией 39.
@@ -22,8 +22,8 @@ const (
 
 func ptr[T any](v T) *T { return &v }
 
-// Новая причина из портала: кладовщик помечает ею товар, комментарий — по её флагу; выключенная
-// всё равно принимается из очереди; решение — только её вариантами, и вариант записывается.
+// Новая причина из портала: кладовщик помечает ею товар, комментарий - по её флагу; выключенная
+// всё равно принимается из очереди; решение - только её вариантами, и вариант записывается.
 func TestProblemReasons_customReason(t *testing.T) {
 	mf := setupMove(t)
 	ctx := context.Background()
@@ -46,7 +46,7 @@ func TestProblemReasons_customReason(t *testing.T) {
 	if err := mf.problem(t, defect, in); !errors.Is(err, repository.ErrProblemCommentRequired) {
 		t.Errorf("без комментария: %v, ожидалась ErrProblemCommentRequired", err)
 	}
-	// Офис выключил причину, пока операция ждала в очереди ТСД, — пометка всё равно проходит.
+	// Офис выключил причину, пока операция ждала в очереди ТСД, - пометка всё равно проходит.
 	if _, err := repo.SaveReason(ctx, model.ProblemReasonInput{Code: code, IsActive: ptr(false), By: mf.user}); err != nil {
 		t.Fatalf("выключить причину: %v", err)
 	}
@@ -70,7 +70,7 @@ func TestProblemReasons_customReason(t *testing.T) {
 	}
 }
 
-// Прежний клиент решает одним действием — берётся первый активный вариант причины с ним;
+// Прежний клиент решает одним действием - берётся первый активный вариант причины с ним;
 // выключенный вариант не годится ни так, ни по id.
 func TestProblemReasons_decisionWithoutResolution(t *testing.T) {
 	mf := setupMove(t)
@@ -98,8 +98,8 @@ func TestProblemReasons_decisionWithoutResolution(t *testing.T) {
 	}
 }
 
-// Жёсткие правила справочника: системную причину не выключить, «пересорт» — только у
-// «Пересорт» и у него — только «пересорт», название не повторяется, причину программы
+// Жёсткие правила справочника: системную причину не выключить, «пересорт» - только у
+// «Пересорт» и у него - только «пересорт», название не повторяется, причину программы
 // кладовщик не ставит.
 func TestProblemReasons_rules(t *testing.T) {
 	mf := setupMove(t)

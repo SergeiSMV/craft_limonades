@@ -19,30 +19,30 @@ import (
 
 // Сроки токена. True API выдаёт токен примерно на 10 часов (CZ-01).
 const (
-	// DefaultRefreshBefore — за сколько до истечения токен обновляется заранее.
+	// DefaultRefreshBefore - за сколько до истечения токен обновляется заранее.
 	DefaultRefreshBefore = time.Hour
-	// expiryMargin — старый токен ещё годен, если до истечения больше этого: когда обновить
+	// expiryMargin - старый токен ещё годен, если до истечения больше этого: когда обновить
 	// не вышло, работаем на нём, а не останавливаем чтение марок.
 	expiryMargin = time.Minute
-	// fallbackTTL — срок, если в токене не нашлось exp: меньше настоящего, чтобы не опоздать.
+	// fallbackTTL - срок, если в токене не нашлось exp: меньше настоящего, чтобы не опоздать.
 	fallbackTTL = 9 * time.Hour
-	// apiTimeout — предел одного запроса к True API.
+	// apiTimeout - предел одного запроса к True API.
 	apiTimeout = 30 * time.Second
-	// maxBody — предел читаемого ответа True API.
+	// maxBody - предел читаемого ответа True API.
 	maxBody = 8 << 20
 )
 
-// Options — настройки клиента.
+// Options - настройки клиента.
 type Options struct {
 	BaseURL       string        // напр. https://markirovka.crpt.ru/api/v3/true-api
 	Signer        Signer        // подписант строки auth/key
-	RefreshBefore time.Duration // 0 — DefaultRefreshBefore
-	HTTP          *http.Client  // nil — клиент с apiTimeout
-	Log           *slog.Logger  // nil — slog.Default()
+	RefreshBefore time.Duration // 0 - DefaultRefreshBefore
+	HTTP          *http.Client  // nil - клиент с apiTimeout
+	Log           *slog.Logger  // nil - slog.Default()
 	Now           func() time.Time
 }
 
-// Client — клиент True API: токен организации в памяти, обновление до истечения, чтение марок.
+// Client - клиент True API: токен организации в памяти, обновление до истечения, чтение марок.
 //
 // Как: токен живёт в памяти процесса (бэкенд один, а после рестарта новый получается сам, без
 // человека). Обновление идёт под mutex: параллельные запросы ждут одно обновление, а не
@@ -86,21 +86,21 @@ func New(o Options) *Client {
 	return c
 }
 
-// TokenExpiry — когда истекает токен в памяти; ok=false — токена нет.
+// TokenExpiry - когда истекает токен в памяти; ok=false - токена нет.
 func (c *Client) TokenExpiry() (expiry time.Time, ok bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.expiry, c.token != ""
 }
 
-// SignerHealth — подписант жив и подписывает.
+// SignerHealth - подписант жив и подписывает.
 func (c *Client) SignerHealth(ctx context.Context) error { return c.signer.Health(ctx) }
 
 // Token возвращает действующий токен, при необходимости получая новый.
 //
-// Свежий токен (до порога обновления) отдаётся из памяти. Иначе — вход заново; если вход не
+// Свежий токен (до порога обновления) отдаётся из памяти. Иначе - вход заново; если вход не
 // удался, а старый токен ещё годен, отдаётся старый: сбой подписанта не должен сразу
-// останавливать чтение марок — фоновое обновление попробует снова.
+// останавливать чтение марок - фоновое обновление попробует снова.
 func (c *Client) Token(ctx context.Context) (string, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -131,7 +131,7 @@ func (c *Client) invalidate(token string) {
 	}
 }
 
-// signIn — вход в True API: auth/key → подпись строки → simpleSignIn.
+// signIn - вход в True API: auth/key → подпись строки → simpleSignIn.
 func (c *Client) signIn(ctx context.Context) (string, time.Time, error) {
 	var key struct {
 		UUID string `json:"uuid"`
@@ -157,7 +157,7 @@ func (c *Client) signIn(ctx context.Context) (string, time.Time, error) {
 		Token string `json:"token"`
 	}
 	if err := c.call(ctx, http.MethodPost, "/auth/simpleSignIn", "", body, &resp); err != nil {
-		// Любой 4xx на входе — отказ ЧЗ в подписи (сертификат, МЧД, роль), а не «нет марки».
+		// Любой 4xx на входе - отказ ЧЗ в подписи (сертификат, МЧД, роль), а не «нет марки».
 		var se *statusError
 		if errors.As(err, &se) && se.code < 500 {
 			return "", time.Time{}, fmt.Errorf("%w: %v", model.ErrCZAuthFailed, err)
@@ -176,9 +176,9 @@ func (c *Client) signIn(ctx context.Context) (string, time.Time, error) {
 	return resp.Token, expiry, nil
 }
 
-// CisesInfo — данные марок и упаковок по кодам (`POST /cises/info`).
+// CisesInfo - данные марок и упаковок по кодам (`POST /cises/info`).
 //
-// Коды — КИ без криптохвоста или `00`+SSCC (ADR-0017). На 401 токен сбрасывается и запрос
+// Коды - КИ без криптохвоста или `00`+SSCC (ADR-0017). На 401 токен сбрасывается и запрос
 // повторяется один раз с новым: ЧЗ мог отозвать токен раньше срока.
 func (c *Client) CisesInfo(ctx context.Context, codes []string) ([]model.CisInfo, error) {
 	body, err := json.Marshal(codes)
@@ -231,7 +231,7 @@ func parseCisesInfo(raw []json.RawMessage) ([]model.CisInfo, error) {
 	return out, nil
 }
 
-// statusError — True API ответил не-2xx; код нужен, чтобы отличить 401 от остального.
+// statusError - True API ответил не-2xx; код нужен, чтобы отличить 401 от остального.
 type statusError struct {
 	code int
 	body string
@@ -239,10 +239,10 @@ type statusError struct {
 
 func (e *statusError) Error() string { return fmt.Sprintf("HTTP %d: %s", e.code, e.body) }
 
-// call — один запрос к True API с разбором JSON-ответа в out.
+// call - один запрос к True API с разбором JSON-ответа в out.
 //
-// Ошибки: сеть, таймаут и 5xx — ErrCZUnavailable; 403 — ErrCZNoContract; 404 —
-// ErrCZNotFound; прочее — *statusError (по нему вызывающий решает, что делать с 401).
+// Ошибки: сеть, таймаут и 5xx - ErrCZUnavailable; 403 - ErrCZNoContract; 404 -
+// ErrCZNotFound; прочее - *statusError (по нему вызывающий решает, что делать с 401).
 // Токен в журнал и в текст ошибки не попадает.
 func (c *Client) call(ctx context.Context, method, path, token string, body []byte, out any) error {
 	req, err := http.NewRequestWithContext(ctx, method, c.base+path, bytes.NewReader(body))
@@ -282,7 +282,7 @@ func (c *Client) call(ctx context.Context, method, path, token string, body []by
 	return nil
 }
 
-// snippet — начало тела ответа для текста ошибки: ЧЗ объясняет отказ в теле.
+// snippet - начало тела ответа для текста ошибки: ЧЗ объясняет отказ в теле.
 func snippet(b []byte) string {
 	s := strings.TrimSpace(string(b))
 	if len(s) > 300 {

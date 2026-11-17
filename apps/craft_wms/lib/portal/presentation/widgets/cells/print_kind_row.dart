@@ -8,8 +8,8 @@ import '../../../../core/theme/regular_text.dart';
 import '../../../../core/theme/semibold_text.dart';
 import '../ui/portal_checkbox.dart';
 
-/// Строка вида PDF окна печати (ADHOC-57): галочка, название и размер, справа — сколько штук
-/// и листов. Печатать нечего ([count] = 0) — галочка снята и недоступна.
+/// Строка вида PDF окна печати (ADHOC-57): галочка, название и размер, справа - сколько штук
+/// и листов. Печатать нечего ([count] = 0) - галочка снята и недоступна.
 class PrintKindRow extends StatelessWidget {
   const PrintKindRow({
     super.key,
@@ -29,7 +29,7 @@ class PrintKindRow extends StatelessWidget {
   final int perSheet;
   final bool selected;
 
-  /// `null` — переключать нельзя (идёт скачивание).
+  /// `null` - переключать нельзя (идёт скачивание).
   final VoidCallback? onToggle;
 
   @override

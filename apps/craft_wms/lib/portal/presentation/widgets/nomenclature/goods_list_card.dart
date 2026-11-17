@@ -12,11 +12,11 @@ import '../ui/portal_badge.dart';
 import '../ui/portal_button.dart';
 import '../ui/portal_card.dart';
 
-/// Карточка списка «Номенклатуры склада» (ADHOC-56): товары, под ними — сколько показано и
+/// Карточка списка «Номенклатуры склада» (ADHOC-56): товары, под ними - сколько показано и
 /// «Показать ещё». Нажатие на строку открывает карточку товара.
 ///
-/// Раскладка — по ширине карточки: от [AppSizes.kGoodsColumnsWidth] — таблицей с шапкой
-/// колонок, уже — строками, где каждый реквизит своей подписанной строкой.
+/// Раскладка - по ширине карточки: от [AppSizes.kGoodsColumnsWidth] - таблицей с шапкой
+/// колонок, уже - строками, где каждый реквизит своей подписанной строкой.
 class GoodsListCard extends StatelessWidget {
   const GoodsListCard({
     super.key,
@@ -35,10 +35,10 @@ class GoodsListCard extends StatelessWidget {
   final bool loadingMore;
   final VoidCallback onMore;
 
-  /// Открыть карточку товара — нажатием на строку.
+  /// Открыть карточку товара - нажатием на строку.
   final ValueChanged<Good> onOpen;
 
-  /// Остаток товара подписью («12 шт»); задан — последняя колонка «Остаток» вместо «Ед.»
+  /// Остаток товара подписью («12 шт»); задан - последняя колонка «Остаток» вместо «Ед.»
   /// (страница «Остатки склада»).
   final String Function(Good)? qty;
 
@@ -61,7 +61,7 @@ class GoodsListCard extends StatelessWidget {
                 ),
               ),
             for (final g in goods)
-              // Строка — нажимаемая целиком, с подсветкой при наведении, как в Polaris.
+              // Строка - нажимаемая целиком, с подсветкой при наведении, как в Polaris.
               InkWell(
                 onTap: () => onOpen(g),
                 hoverColor: AppColors.kBg,
@@ -81,7 +81,7 @@ class GoodsListCard extends StatelessWidget {
 class _HeaderRow extends StatelessWidget {
   const _HeaderRow({required this.stock});
 
-  /// Последняя колонка — «Остаток», а не «Ед.».
+  /// Последняя колонка - «Остаток», а не «Ед.».
   final bool stock;
 
   @override
@@ -110,7 +110,7 @@ class _ColumnsRow extends StatelessWidget {
 
   final Good good;
 
-  /// Остаток подписью; `null` — колонка «Ед.».
+  /// Остаток подписью; `null` - колонка «Ед.».
   final String? qty;
 
   @override
@@ -145,7 +145,7 @@ class _ColumnsRow extends StatelessWidget {
   }
 }
 
-/// Раскладка колонок — общая у шапки и строк, чтобы они не разошлись.
+/// Раскладка колонок - общая у шапки и строк, чтобы они не разошлись.
 class _Columns extends StatelessWidget {
   const _Columns({
     required this.name,
@@ -162,7 +162,7 @@ class _Columns extends StatelessWidget {
   final Widget supplier;
   final Widget uom;
 
-  /// Последняя колонка шире — остаток с единицей, а не одна единица.
+  /// Последняя колонка шире - остаток с единицей, а не одна единица.
   final bool wide;
 
   @override
@@ -185,13 +185,13 @@ class _Columns extends StatelessWidget {
   );
 }
 
-/// Строка узкого списка: наименование, под ним реквизиты — каждый своей подписанной строкой.
+/// Строка узкого списка: наименование, под ним реквизиты - каждый своей подписанной строкой.
 class _StackedRow extends StatelessWidget {
   const _StackedRow({required this.good, this.qty});
 
   final Good good;
 
-  /// Остаток подписью; `null` — строка «Единица».
+  /// Остаток подписью; `null` - строка «Единица».
   final String? qty;
 
   @override

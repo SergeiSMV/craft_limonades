@@ -1,4 +1,4 @@
-// Package testutil — общие помощники для интеграционных тестов (используется только из тестов).
+// Package testutil - общие помощники для интеграционных тестов (используется только из тестов).
 package testutil
 
 import (
@@ -19,7 +19,7 @@ import (
 )
 
 // StartPostgres поднимает одноразовый Postgres (testcontainers), накатывает все миграции схемы
-// и возвращает пул. Пропускает тест, если Docker недоступен (локально без colima) — в CI Docker есть.
+// и возвращает пул. Пропускает тест, если Docker недоступен (локально без colima) - в CI Docker есть.
 // Контейнер и пул закрываются автоматически в t.Cleanup.
 func StartPostgres(t *testing.T) *pgxpool.Pool {
 	t.Helper()

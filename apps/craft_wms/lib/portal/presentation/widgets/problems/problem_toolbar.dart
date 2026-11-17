@@ -6,8 +6,8 @@ import '../ui/portal_choice.dart';
 import '../ui/portal_input.dart';
 import 'problem_filter.dart';
 
-/// Панель над списком проблем (P6-07-3, плоский стиль — ADHOC-56): поиск и фильтры со
-/// счётчиками — как у документов. В узком окне поиск занимает строку, фильтры — под ним.
+/// Панель над списком проблем (P6-07-3, плоский стиль - ADHOC-56): поиск и фильтры со
+/// счётчиками - как у документов. В узком окне поиск занимает строку, фильтры - под ним.
 class ProblemToolbar extends StatefulWidget {
   const ProblemToolbar({
     super.key,

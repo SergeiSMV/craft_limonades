@@ -26,13 +26,13 @@ import (
 	"craftwms/internal/testutil"
 )
 
-// Сценарные тесты приёмки (P4-11D): весь путь через настоящий роутер — так, как его проходят
+// Сценарные тесты приёмки (P4-11D): весь путь через настоящий роутер - так, как его проходят
 // терминал кладовщика и портал оператора. Обе ветки (короб и штучно) и ветка штрихкода:
 // привязка незнакомого ШК, выдача внутреннего и его перепечать. Итог каждого сценария
 // проверяется там, где его увидят люди: остаток, состав короба, документ «Поступление» в портале
 // и сам .xlsx.
 
-// rcvEnv — роутер со всеми сервисами пути приёмки, кладовщик (ТСД) и админ (портал).
+// rcvEnv - роутер со всеми сервисами пути приёмки, кладовщик (ТСД) и админ (портал).
 type rcvEnv struct {
 	srv         *httptest.Server
 	pool        *pgxpool.Pool
@@ -71,7 +71,7 @@ func newReceivingE2E(t *testing.T, ids map[string]string) *rcvEnv {
 	admin := seed(`INSERT INTO users (login,password_hash,full_name,position_id)
 	               VALUES ('90000042','x','Оператор','7a000000-0000-4000-8000-000000000001') RETURNING id::text`)
 	e.warehouse = seed(`INSERT INTO warehouses (id,code,name) VALUES ($1::uuid,'SHB','Шабулина') RETURNING id::text`, id("warehouse"))
-	// Ячейку по умолчанию в бою заводят сидер и импорт; здесь — тем же флагом, по которому её
+	// Ячейку по умолчанию в бою заводят сидер и импорт; здесь - тем же флагом, по которому её
 	// ищет приёмка.
 	e.cellDefault = seed(`INSERT INTO cells (id,warehouse_id,address,is_default)
 	                      VALUES ($1::uuid,$2::uuid,'С-Н-П',true) RETURNING id::text`, id("cell_default"), e.warehouse)
@@ -88,7 +88,7 @@ func newReceivingE2E(t *testing.T, ids map[string]string) *rcvEnv {
 		t.Fatalf("токен оператора: %v", err)
 	}
 
-	// Номера бейджей для печати (ADHOC-65) — тестовым ключом.
+	// Номера бейджей для печати (ADHOC-65) - тестовым ключом.
 	badges, err := auth.NewBadgeCipher(testBadgeKey)
 	if err != nil {
 		t.Fatalf("ключ бейджей: %v", err)
@@ -175,7 +175,7 @@ func (e *rcvEnv) operations(t *testing.T, batch string) []string {
 	return out
 }
 
-// receiptDocs — документы «Поступление» глазами портала.
+// receiptDocs - документы «Поступление» глазами портала.
 func (e *rcvEnv) receiptDocs(t *testing.T) []map[string]any {
 	t.Helper()
 	code, raw := e.call(t, http.MethodGet, "/api/v1/documents?kind="+model.ReportKindReceipt, e.adminToken, "")
@@ -218,7 +218,7 @@ func (e *rcvEnv) xlsxRows(t *testing.T, docID string) (header map[string]string,
 	return nil, nil
 }
 
-// qtyIn — остаток товара в ячейке, сложенный по партиям и внутренним складам.
+// qtyIn - остаток товара в ячейке, сложенный по партиям и внутренним складам.
 func (e *rcvEnv) qtyIn(t *testing.T, cell, good string) string {
 	t.Helper()
 	var q string
@@ -230,7 +230,7 @@ func (e *rcvEnv) qtyIn(t *testing.T, cell, good string) string {
 	return q
 }
 
-// Эталон формата приёмки — вторая половина контракта (первая — receipt_wire_contract_test.dart
+// Эталон формата приёмки - вторая половина контракта (первая - receipt_wire_contract_test.dart
 // в приложении): настоящий роутер применяет РОВНО то тело, которое шлёт ТСД, и по нему
 // рождается документ с верным содержимым.
 func TestReceivingHTTP_clientWireFormat(t *testing.T) {
@@ -269,7 +269,7 @@ func TestReceivingHTTP_clientWireFormat(t *testing.T) {
 
 	if got := e.operations(t, string(raw)); len(got) != 1 || got[0] != service.StatusAccepted {
 		t.Fatalf("эталонная приёмка не применилась: %v.\n"+
-			"Формат разошёлся — сверьте testdata/receipt_submit.json с тем, что шлёт клиент.", got)
+			"Формат разошёлся - сверьте testdata/receipt_submit.json с тем, что шлёт клиент.", got)
 	}
 	docs := e.receiptDocs(t)
 	if len(docs) != 1 {
@@ -314,7 +314,7 @@ func TestReceivingHTTP_clientWireFormat(t *testing.T) {
 // Ветка «штучно» + незнакомый ШК. Кладовщик без связи сканирует код, которого нет
 // в справочнике, выбирает товар руками и принимает его россыпью. Когда связь появляется,
 // очередь доставляет одним батчем и привязку, и приёмку. После этого код опознаёт товар,
-// остаток лёг в ячейку по умолчанию, документ — в портале.
+// остаток лёг в ячейку по умолчанию, документ - в портале.
 func TestReceivingHTTP_looseWithNewBarcode(t *testing.T) {
 	e := newReceivingE2E(t, nil)
 	good := seedGood(t, e.pool, "Креветка")
@@ -350,7 +350,7 @@ func TestReceivingHTTP_looseWithNewBarcode(t *testing.T) {
 }
 
 // Ветка «короб» + товар без ШК. Кладовщик выдаёт товару внутренний ШК (это только по сети),
-// печатает ярлык, потом ярлык портится — перепечать даёт тот же код, второй не заводится.
+// печатает ярлык, потом ярлык портится - перепечать даёт тот же код, второй не заводится.
 // Товар кладётся в два короба в M1-1-1-1; в документе короба складываются в одну строку,
 // а сами короба размещены с верным составом.
 func TestReceivingHTTP_boxesWithInternalBarcode(t *testing.T) {
@@ -452,7 +452,7 @@ func assertRows(t *testing.T, got, want [][]string) {
 	}
 }
 
-// ADHOC-23: приёмку без накладной поставщика сервер не проводит — отказ по существу,
+// ADHOC-23: приёмку без накладной поставщика сервер не проводит - отказ по существу,
 // а не временная неудача: повтор того же тела ничего не исправит.
 func TestReceivingHTTP_supplierDocRequired(t *testing.T) {
 	e := newReceivingE2E(t, nil)

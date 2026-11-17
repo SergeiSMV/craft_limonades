@@ -15,7 +15,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
 /// Репозиторий в памяти: черновик (через JSON, как в базе), отправка с заданным исходом и
-/// слепки отправленных сеансов (ADHOC-41) — с той же логикой «Исправить», что у настоящего.
+/// слепки отправленных сеансов (ADHOC-41) - с той же логикой «Исправить», что у настоящего.
 class _FakeRepo implements MovementRepository {
   Map<String, dynamic>? draft;
   final sent = <Map<String, dynamic>>[];
@@ -64,7 +64,7 @@ class _FakeRepo implements MovementRepository {
 
 class _FixedIds extends Mock implements LoadUnitIdGenerator {}
 
-/// Эталон формата — тот же файл, что применяет настоящий роутер сервера (P6-03).
+/// Эталон формата - тот же файл, что применяет настоящий роутер сервера (P6-03).
 const _fixturePath =
     '../backend/internal/handler/testdata/movement_submit.json';
 
@@ -121,7 +121,7 @@ void main() {
   }
 
   test(
-    'клиент собирает сеанс ровно в формате эталона — настоящим потоком сканов',
+    'клиент собирает сеанс ровно в формате эталона - настоящим потоком сканов',
     () async {
       final fixture =
           jsonDecode(File(_fixturePath).readAsStringSync())
@@ -138,7 +138,7 @@ void main() {
       c.onBox(box(box2), cell3);
       c.takeGoods(line(12), 3);
       c.onCell(cell1);
-      // Россыпь, положенная в этом же сеансе, — в переехавший короб.
+      // Россыпь, положенная в этом же сеансе, - в переехавший короб.
       c.onCell(cell1);
       c.takeGoods(c.candidates().single.$1, 2);
       c.onBox(box(box1), cell2);
@@ -155,7 +155,7 @@ void main() {
   );
 
   test(
-    'ячейка приёмки — источник только россыпи с меткой, приёмником не бывает',
+    'ячейка приёмки - источник только россыпи с меткой, приёмником не бывает',
     () async {
       const isolator = '6d000000-0000-4000-8000-0000000000e1';
       final receiving = cell('r', 'С-Н-П', isDefault: true);
@@ -186,7 +186,7 @@ void main() {
   );
 
   test(
-    'ячейка приёмки, чужой склад, короб на месте, короб в короб — подсказки',
+    'ячейка приёмки, чужой склад, короб на месте, короб в короб - подсказки',
     () async {
       final c = await started();
 
@@ -220,7 +220,7 @@ void main() {
     await c.close();
   });
 
-  test('товар без источника и при товаре в руках — подсказки', () async {
+  test('товар без источника и при товаре в руках - подсказки', () async {
     final c = await started();
 
     c.goodWithoutSource();
@@ -267,7 +267,7 @@ void main() {
     },
   );
 
-  test('товар туда же нельзя; тот же путь — одна строка с суммой', () async {
+  test('товар туда же нельзя; тот же путь - одна строка с суммой', () async {
     final c = await started();
 
     c.onCell(cell3, loose: [line(5)]);
@@ -284,7 +284,7 @@ void main() {
     await c.close();
   });
 
-  test('ячейка короба — последняя, куда его перенёс сеанс', () async {
+  test('ячейка короба - последняя, куда его перенёс сеанс', () async {
     final c = await started();
 
     c.onBox(box(box1), cell3);
@@ -315,7 +315,7 @@ void main() {
     },
   );
 
-  test('исход отправки: нет связи — в очереди, отказ — с причиной', () async {
+  test('исход отправки: нет связи - в очереди, отказ - с причиной', () async {
     final c = await started();
     c.onBox(box(box1), cell3);
     expect(c.state.canSubmit, isFalse, reason: 'в руках короб');
@@ -339,7 +339,7 @@ void main() {
   // ADHOC-41 (долг 26): отклонённый сеанс возвращается в правку теми же строками, с новым
   // документом и причиной отказа на экране; повторная отправка идёт уже новым документом.
   test(
-    '«Исправить»: отказ снова черновик с причиной, отправка — новым документом',
+    '«Исправить»: отказ снова черновик с причиной, отправка - новым документом',
     () async {
       final c = await started();
       c.onBox(box(box1), cell3);
@@ -368,7 +368,7 @@ void main() {
   );
 
   test(
-    'ярлык, которого нет: со связью — недействителен, без связи — не проверить',
+    'ярлык, которого нет: со связью - недействителен, без связи - не проверить',
     () async {
       final c = await started();
       c.boxNotFound(offline: false);
@@ -380,7 +380,7 @@ void main() {
   );
 
   test(
-    'короб, выбранный вручную, помечается — карточка предложит перепечатать ярлык',
+    'короб, выбранный вручную, помечается - карточка предложит перепечатать ярлык',
     () async {
       final c = await started();
       c.onBox(box(box1), cell3, manual: true);
@@ -392,7 +392,7 @@ void main() {
     },
   );
 
-  test('с товаром в руках найденный вручную короб — приёмник', () async {
+  test('с товаром в руках найденный вручную короб - приёмник', () async {
     final c = await started();
     c.onCell(cell3, loose: [line(5)]);
     c.takeGoods(line(5), 2);
@@ -403,7 +403,7 @@ void main() {
   });
 
   test(
-    'брак и основной товар одной партии — раздельно; брак не кладётся в основной короб',
+    'брак и основной товар одной партии - раздельно; брак не кладётся в основной короб',
     () async {
       const defect = 'e0000000-0000-4000-8000-0000000000de';
       ContentLine defectLine(double qty) => ContentLine(
@@ -495,12 +495,12 @@ void main() {
               as Map<String, dynamic>)['payload'];
 
       final c = await started();
-      // Две марки россыпью по одной — в короб ЧЗ.
+      // Две марки россыпью по одной - в короб ЧЗ.
       take(c, [m1], loose, czCell1);
       take(c, [m2], loose, czCell1);
       expect((c.state.hold! as HoldGoods).qty, 2);
       c.onBox(boxView, czCell2);
-      // Марка, лежавшая в коробе ЧЗ, — россыпью в M1-1-1-1.
+      // Марка, лежавшая в коробе ЧЗ, - россыпью в M1-1-1-1.
       take(c, [m3], inBox, czCell2);
       c.onCell(czCell1);
 
@@ -516,7 +516,7 @@ void main() {
     });
 
     test(
-      'повтор, чужое место, товар в руках, ШК маркируемого — подсказки',
+      'повтор, чужое место, товар в руках, ШК маркируемого - подсказки',
       () async {
         final c = await started();
         take(c, [m1], loose, czCell1);
@@ -526,12 +526,12 @@ void main() {
         expect(c.state.notice, const MoveNotice.markOtherGoods());
         c.dropHold();
 
-        // Источник в руках — ячейка; марка лежит в коробе.
+        // Источник в руках - ячейка; марка лежит в коробе.
         c.onCell(czCell1, loose: [line(5)]);
         take(c, [m3], inBox, czCell2);
         expect(c.state.notice, const MoveNotice.notInSource());
 
-        // Товар взят количеством — марку к нему не добавить.
+        // Товар взят количеством - марку к нему не добавить.
         c.takeGoods(line(5), 1);
         take(c, [m1], loose, czCell1);
         expect(c.state.notice, const MoveNotice.putFirst());
@@ -539,7 +539,7 @@ void main() {
         c.markRequired();
         expect(c.state.notice, const MoveNotice.scanMark());
 
-        // Ячейка приёмки — не источник и для марок.
+        // Ячейка приёмки - не источник и для марок.
         c.dropHold();
         final receiving = Cell(
           id: 'r',

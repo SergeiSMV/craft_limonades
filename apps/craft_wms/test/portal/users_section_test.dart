@@ -78,7 +78,7 @@ void main() {
 
   tearDown(getIt.reset);
 
-  /// [textScale] < 1 — для узкого экрана: тестовый шрифт заметно шире Inter, и надпись
+  /// [textScale] < 1 - для узкого экрана: тестовый шрифт заметно шире Inter, и надпись
   /// «Добавить пользователя», которая на настоящем шрифте помещается, в нём не влезает.
   Future<void> pump(
     WidgetTester tester, {
@@ -121,7 +121,7 @@ void main() {
     final tooltips = tester
         .widgetList<PortalIconButton>(find.byType(PortalIconButton))
         .map((b) => b.tooltip);
-    // Себе — изменить и сменить пароль; работнику — изменить, новый бейдж, заблокировать.
+    // Себе - изменить и сменить пароль; работнику - изменить, новый бейдж, заблокировать.
     expect(tooltips, [
       t.portal.users.edit,
       t.portal.users.newPassword,
@@ -132,7 +132,7 @@ void main() {
   });
 
   testWidgets(
-    'новый по бейджу — запрос с бейджем и должностью; отказ — текстом',
+    'новый по бейджу - запрос с бейджем и должностью; отказ - текстом',
     (tester) async {
       when(() => repo.createUser(any())).thenAnswer(
         (_) async => const Left(
@@ -152,14 +152,14 @@ void main() {
           verify(() => repo.createUser(captureAny())).captured.single
               as UserDraft;
       expect(draft.fullName, 'Пётр Новый');
-      expect(draft.positionId, 'pw'); // по умолчанию — первая не системная
+      expect(draft.positionId, 'pw'); // по умолчанию - первая не системная
       expect(draft.badge, '5500000212345678');
       expect(draft.username, isNull);
       expect(find.text('бейдж уже выдан другому пользователю'), findsOneWidget);
     },
   );
 
-  testWidgets('заблокировать — запрос и счётчик правок', (tester) async {
+  testWidgets('заблокировать - запрос и счётчик правок', (tester) async {
     when(
       () => repo.updateUser('ivan', isActive: false),
     ).thenAnswer((_) async => const Right(null));

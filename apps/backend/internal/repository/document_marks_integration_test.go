@@ -14,11 +14,11 @@ import (
 	"craftwms/internal/repository"
 )
 
-// Тесты ADHOC-55: марки ЧЗ в документах 1С. Маркируемый товар в документе — строка на марку
-// с количеством 1; что марками не покрыто — общей строкой, как раньше.
+// Тесты ADHOC-55: марки ЧЗ в документах 1С. Маркируемый товар в документе - строка на марку
+// с количеством 1; что марками не покрыто - общей строкой, как раньше.
 
-// docRows — строки документа операции: «марка=количество» (без марки — «-=количество»),
-// отсортированы — порядок строк проверяют тесты шаблонов.
+// docRows - строки документа операции: «марка=количество» (без марки - «-=количество»),
+// отсортированы - порядок строк проверяют тесты шаблонов.
 func docRows(t *testing.T, pool *pgxpool.Pool, sourceType, sourceID string) []string {
 	t.Helper()
 	doc, err := repository.NewReportDocumentRepository(pool).BySource(context.Background(), sourceType, sourceID)
@@ -49,7 +49,7 @@ func wantRows(t *testing.T, what string, got []string, want ...string) {
 	}
 }
 
-// Перемещение: россыпь марками и короб ЧЗ целиком — у каждой марки своя строка; марки
+// Перемещение: россыпь марками и короб ЧЗ целиком - у каждой марки своя строка; марки
 // россыпи хранятся в строке документа движения.
 func TestDocumentMarks_movement(t *testing.T) {
 	cf := setupCZMove(t)
@@ -70,8 +70,8 @@ func TestDocumentMarks_movement(t *testing.T) {
 	}
 }
 
-// Приёмка и размещение россыпью: марки строки приёмки — в «Поступлении», марки размещённой
-// россыпи — в «Движении».
+// Приёмка и размещение россыпью: марки строки приёмки - в «Поступлении», марки размещённой
+// россыпи - в «Движении».
 func TestDocumentMarks_receiptAndPutaway(t *testing.T) {
 	pf := setupPutaway(t)
 	ctx := context.Background()
@@ -116,7 +116,7 @@ func TestDocumentMarks_receiptAndPutaway(t *testing.T) {
 		czLoose[0]+"=1", czLoose[1]+"=1")
 }
 
-// Ввод остатков: марки короба ЧЗ и россыпи — строкой на марку.
+// Ввод остатков: марки короба ЧЗ и россыпи - строкой на марку.
 func TestDocumentMarks_stockEntry(t *testing.T) {
 	ef := setupEntry(t)
 	box := uuid.NewString()
@@ -138,7 +138,7 @@ func TestDocumentMarks_stockEntry(t *testing.T) {
 		czG1+"=1", czB1+"=1", czLoose[0]+"=1")
 }
 
-// Инвентаризация: марка найдена — 1/1, не найдена — 1/0, найдена сверх снимка — 0/1.
+// Инвентаризация: марка найдена - 1/1, не найдена - 1/0, найдена сверх снимка - 0/1.
 func TestDocumentMarks_stocktake(t *testing.T) {
 	fx := setupStocktake(t)
 	const m1, m2, m3 = "0104600000000017215L1", "0104600000000017215L2", "0104600000000017215L3"

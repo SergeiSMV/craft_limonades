@@ -44,13 +44,13 @@ func sameStrings(a, b []string) bool {
 	return true
 }
 
-// TestPlanRegistry — сверка файла с заказами той же даты: новый, без изменений, изменён,
+// TestPlanRegistry - сверка файла с заказами той же даты: новый, без изменений, изменён,
 // удалён, вернулся; дособор собранного, заморозка отгруженного, свёртка тройки «код + партия».
 func TestPlanRegistry(t *testing.T) {
 	b1 := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
 	picker := "u-picker"
 	parsed := &RegistryParsed{Orders: []RegistryOrder{
-		// Новый: тройка повторена — одна строка с суммой и первой ячейкой.
+		// Новый: тройка повторена - одна строка с суммой и первой ячейкой.
 		regOrder("A", regLine("001", &b1, 2, true), regLine("001", &b1, 3, true), regLine("002", nil, 1, false)),
 		// Без изменений.
 		regOrder("B", regLine("001", nil, 4, true)),
@@ -71,7 +71,7 @@ func TestPlanRegistry(t *testing.T) {
 		{ID: "o-E", OrderNumber: "E", Status: model.PickingStatusNew, Deleted: true, Lines: []model.PickingExistingLine{exLine("l-E1", "001", nil, 2, false)}},
 		// Пропал из файла.
 		{ID: "o-F", OrderNumber: "F", Status: model.PickingStatusInProgress},
-		// Пропал раньше и не вернулся — плана нет.
+		// Пропал раньше и не вернулся - плана нет.
 		{ID: "o-G", OrderNumber: "G", Status: model.PickingStatusNew, Deleted: true},
 	}
 
@@ -116,8 +116,8 @@ func TestPlanRegistry(t *testing.T) {
 	}
 }
 
-// TestShortage — нехватка на файл целиком: строки с партией сверяются с остатком партии, строки
-// без партии — с остатком товара за вычетом всего плана по нему.
+// TestShortage - нехватка на файл целиком: строки с партией сверяются с остатком партии, строки
+// без партии - с остатком товара за вычетом всего плана по нему.
 func TestShortage(t *testing.T) {
 	b1 := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
 	b2 := time.Date(2026, 10, 2, 0, 0, 0, 0, time.UTC)

@@ -12,10 +12,10 @@ part 'receipt_models.g.dart';
 ///
 /// [cell] закрепляется в момент создания короба и больше не меняется: короб не может лежать
 /// в двух местах, и сервер отклонил бы документ, где строки одного короба указывают разные
-/// ячейки. Отклонение пришло бы уже после разгрузки — поэтому противоречие исключено здесь,
-/// конструкцией, а не проверкой на финале. `null` — ячейка приёмки по умолчанию.
+/// ячейки. Отклонение пришло бы уже после разгрузки - поэтому противоречие исключено здесь,
+/// конструкцией, а не проверкой на финале. `null` - ячейка приёмки по умолчанию.
 ///
-/// [czCode] — короб «Честного знака» (`00`+SSCC, CZ-05): ГЕ без нашего ярлыка, состав — из ЧЗ,
+/// [czCode] - короб «Честного знака» (`00`+SSCC, CZ-05): ГЕ без нашего ярлыка, состав - из ЧЗ,
 /// кладовщик выбирает только ячейку. Идентификатор ГЕ ему всё равно выдаёт терминал.
 @freezed
 abstract class ReceiptBox with _$ReceiptBox {
@@ -30,7 +30,7 @@ abstract class ReceiptBox with _$ReceiptBox {
   /// Короб ЧЗ: состав закрыт, ярлык не нужен.
   bool get isCz => czCode != null;
 
-  /// Короткий код, под которым кладовщик видит короб: с ярлыка — «AB12 CD34», у короба ЧЗ —
+  /// Короткий код, под которым кладовщик видит короб: с ярлыка - «AB12 CD34», у короба ЧЗ -
   /// хвост SSCC с этикетки поставщика, тоже двумя четвёрками.
   String get shortCode {
     final cz = czCode;
@@ -53,22 +53,22 @@ abstract class ReceiptDoc with _$ReceiptDoc {
   factory ReceiptDoc.fromJson(Map<String, dynamic> json) =>
       _$ReceiptDocFromJson(json);
 
-  /// Дата в транспортном виде DD-MM-YYYY — как у дат партий.
+  /// Дата в транспортном виде DD-MM-YYYY - как у дат партий.
   String get transportDate => date.replaceAll('.', '-');
 }
 
 /// Строка приёмки: товар, партия (дата выпуска), количество, короб и ячейка.
 ///
-/// Грань — (товар, дата, короб, ячейка), та же, что у строки документа на сервере: повторный
-/// скан той же позиции увеличивает количество, другой короб или другая ячейка — новая строка.
-/// [boxId] пуст — товар принят штучно (россыпью); [cell] пуста — ячейка по умолчанию.
+/// Грань - (товар, дата, короб, ячейка), та же, что у строки документа на сервере: повторный
+/// скан той же позиции увеличивает количество, другой короб или другая ячейка - новая строка.
+/// [boxId] пуст - товар принят штучно (россыпью); [cell] пуста - ячейка по умолчанию.
 @freezed
 abstract class ReceiptLineDraft with _$ReceiptLineDraft {
   const ReceiptLineDraft._();
 
   const factory ReceiptLineDraft({
     required Good good,
-    required String productionDate, // дд.мм.гггг (в UI); в API — DD-MM-YYYY
+    required String productionDate, // дд.мм.гггг (в UI); в API - DD-MM-YYYY
     required double qty,
     String? boxId,
     Cell? cell,
@@ -80,7 +80,7 @@ abstract class ReceiptLineDraft with _$ReceiptLineDraft {
   factory ReceiptLineDraft.fromJson(Map<String, dynamic> json) =>
       _$ReceiptLineDraftFromJson(json);
 
-  /// Сколько марок строки расходятся с ЧЗ — уйдут в «Изолятор».
+  /// Сколько марок строки расходятся с ЧЗ - уйдут в «Изолятор».
   int get discrepancies => marks.where((m) => m.discrepancy != null).length;
 
   /// Совпадает ли грань строки с заданной.

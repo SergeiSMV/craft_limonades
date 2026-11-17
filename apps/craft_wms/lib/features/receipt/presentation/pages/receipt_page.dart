@@ -38,7 +38,7 @@ class _ReceiptView extends StatelessWidget {
   const _ReceiptView();
 
   /// «Назад» (стрелка и системный жест). Выход приёмку НЕ теряет: черновик сохранён и
-  /// поднимется при следующем открытии — об этом и говорим, чтобы выход не выглядел потерей
+  /// поднимется при следующем открытии - об этом и говорим, чтобы выход не выглядел потерей
   /// (урок ADHOC-13).
   Future<void> _onBack(BuildContext context) async {
     final cubit = context.read<ReceiptCubit>();
@@ -51,7 +51,7 @@ class _ReceiptView extends StatelessWidget {
       if (!context.mounted) return;
     }
     final s = cubit.state;
-    if (s.busy) return; // идёт отправка — не мешаем
+    if (s.busy) return; // идёт отправка - не мешаем
     if (s.started && s.outcome == null && s.lines.isNotEmpty) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
@@ -60,7 +60,7 @@ class _ReceiptView extends StatelessWidget {
     Navigator.of(context).pop();
   }
 
-  /// Отбросить приёмку по явному требованию — единственный способ потерять её намеренно.
+  /// Отбросить приёмку по явному требованию - единственный способ потерять её намеренно.
   Future<void> _onDiscard(BuildContext context) async {
     final cubit = context.read<ReceiptCubit>();
     final ok = await showDialog<bool>(
@@ -125,7 +125,7 @@ class _ReceiptView extends StatelessWidget {
               title: PageHeader(
                 title: t.receipt.title,
                 goBack: () => _onBack(context),
-                // Отбрасывание — редкое и необратимое, поэтому в меню, а не кнопкой рядом
+                // Отбрасывание - редкое и необратимое, поэтому в меню, а не кнопкой рядом
                 // с «Завершить приёмку».
                 trailing: BlocBuilder<ReceiptCubit, ReceiptState>(
                   buildWhen: (p, c) =>

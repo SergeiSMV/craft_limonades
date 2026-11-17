@@ -20,7 +20,7 @@ class PrinterSettings {
   /// Адрес выбранного принтера или `null`, если его ещё не выбирали.
   Future<String?> address() => _read(_addressKey);
 
-  /// Имя выбранного принтера — чтобы показать его человеку, не поднимая Bluetooth.
+  /// Имя выбранного принтера - чтобы показать его человеку, не поднимая Bluetooth.
   Future<String?> name() => _read(_nameKey);
 
   /// Идентификатор выбранного языка команд.
@@ -44,7 +44,7 @@ class PrinterSettings {
   /// Запомнить размер рулона.
   Future<void> saveGeometry(String value) => _write(_geometryKey, value);
 
-  /// Забыть принтер — например, когда его заменили на другой.
+  /// Забыть принтер - например, когда его заменили на другой.
   Future<void> forgetPrinter() async {
     await _delete(_addressKey);
     await _delete(_nameKey);

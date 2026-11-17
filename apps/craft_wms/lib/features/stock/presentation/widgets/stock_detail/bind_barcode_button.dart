@@ -20,7 +20,7 @@ class BindBarcodeButton extends StatelessWidget {
   /// Открыть диалог привязки.
   final VoidCallback onPressed;
 
-  /// Надпись; `null` — «Привязать штрихкод».
+  /// Надпись; `null` - «Привязать штрихкод».
   final String? label;
 
   @override

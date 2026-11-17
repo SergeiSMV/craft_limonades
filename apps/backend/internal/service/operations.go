@@ -13,7 +13,7 @@ import (
 	"craftwms/internal/repository"
 )
 
-// MaxBatchOperations — потолок операций в одном батче.
+// MaxBatchOperations - потолок операций в одном батче.
 //
 // Зачем потолок: батч исполняется по одной транзакции на операцию, и неограниченный список
 // держал бы соединение пула столько, сколько устройство сочтёт нужным прислать. Сто операций
@@ -22,39 +22,39 @@ const MaxBatchOperations = 100
 
 // Исходы операции в батче.
 const (
-	// StatusAccepted — операция применена сейчас.
+	// StatusAccepted - операция применена сейчас.
 	StatusAccepted = "accepted"
-	// StatusDuplicate — операция уже применялась раньше; эффект не повторялся.
+	// StatusDuplicate - операция уже применялась раньше; эффект не повторялся.
 	StatusDuplicate = "duplicate"
-	// StatusRejected — сервер отказал по существу: повтор не поможет, нужен разбор человеком.
+	// StatusRejected - сервер отказал по существу: повтор не поможет, нужен разбор человеком.
 	StatusRejected = "rejected"
 )
 
 // Ошибки батча операций.
 var (
-	// ErrEmptyBatch — прислан пустой список операций.
+	// ErrEmptyBatch - прислан пустой список операций.
 	ErrEmptyBatch = errors.New("operations list is empty")
-	// ErrBatchTooLarge — операций больше MaxBatchOperations.
+	// ErrBatchTooLarge - операций больше MaxBatchOperations.
 	ErrBatchTooLarge = errors.New("too many operations in one batch")
-	// ErrInvalidOperationID — operation_id не UUID.
+	// ErrInvalidOperationID - operation_id не UUID.
 	ErrInvalidOperationID = errors.New("operation_id must be a UUID")
-	// ErrNoOperationRight — у должности нет права на операцию этого вида (ADHOC-50). Текст —
+	// ErrNoOperationRight - у должности нет права на операцию этого вида (ADHOC-50). Текст -
 	// для экрана ТСД, он показывает отказ дословно.
-	ErrNoOperationRight = errors.New("нет права на эту операцию — обратитесь к администратору")
-	// ErrUnknownKind — сервер не знает такого типа операции.
+	ErrNoOperationRight = errors.New("нет права на эту операцию - обратитесь к администратору")
+	// ErrUnknownKind - сервер не знает такого типа операции.
 	ErrUnknownKind = errors.New("unknown operation kind")
-	// ErrInvalidPayload — тело операции не разбирается или неполно.
+	// ErrInvalidPayload - тело операции не разбирается или неполно.
 	ErrInvalidPayload = errors.New("invalid operation payload")
 )
 
-// Operation — операция, пришедшая из очереди устройства.
+// Operation - операция, пришедшая из очереди устройства.
 type Operation struct {
 	OperationID string          `json:"operation_id"`
 	Kind        string          `json:"kind"`
 	Payload     json.RawMessage `json:"payload"`
 }
 
-// OperationResult — исход одной операции батча.
+// OperationResult - исход одной операции батча.
 type OperationResult struct {
 	OperationID string          `json:"operation_id"`
 	Status      string          `json:"status"`
@@ -62,7 +62,7 @@ type OperationResult struct {
 	Result      json.RawMessage `json:"result,omitempty"`
 }
 
-// operationsRepo — зависимость сервиса от применения операций (интерфейс ради тестируемости).
+// operationsRepo - зависимость сервиса от применения операций (интерфейс ради тестируемости).
 type operationsRepo interface {
 	BindBarcode(ctx context.Context, operationID string, in repository.BarcodeBindInput) (repository.Applied, error)
 	UnbindBarcode(ctx context.Context, operationID, barcode string) (repository.Applied, error)
@@ -80,12 +80,12 @@ type operationsRepo interface {
 	PickingReturn(ctx context.Context, operationID string, in repository.PickingReturnInput) (repository.Applied, error)
 }
 
-// OperationsService — приём батча операций из очереди устройства с дедупом по operation_id.
+// OperationsService - приём батча операций из очереди устройства с дедупом по operation_id.
 //
 // Что: разбирает список операций, применяет их ПО ПОРЯДКУ и возвращает исход каждой.
 // Зачем: очередь устройства повторяет операции до подтверждения, и сервер обязан отличать
 //
-//	«сделай» от «ты это уже делал» — иначе повтор удваивает эффект (P2-05).
+//	«сделай» от «ты это уже делал» - иначе повтор удваивает эффект (P2-05).
 //
 // Как: каждая операция уходит в репозиторий со своим ключом идемпотентности; эффект и пометка
 //
@@ -101,23 +101,23 @@ func NewOperationsService(repo operationsRepo) *OperationsService {
 
 // Apply применяет батч операций по порядку и возвращает исход каждой.
 //
-// ⚠ Батч — НЕ одна транзакция. Транзакция у каждой операции своя, и это осознанно: одна операция,
+// ⚠ Батч - НЕ одна транзакция. Транзакция у каждой операции своя, и это осознанно: одна операция,
 // отклонённая по существу (ШК уже за другим товаром), откатила бы вместе с собой все успешные
-// перед ней, и очередь устройства не смогла бы протолкнуться дальше неисполнимой операции —
+// перед ней, и очередь устройства не смогла бы протолкнуться дальше неисполнимой операции -
 // встала бы навсегда. Атомарность нужна между эффектом и его пометкой, а не между чужими
 // друг другу операциями.
 //
 // ⚠ Порядок соблюдается строго, и на первой ВРЕМЕННОЙ неудаче (недоступна БД, сбой соединения)
 // разбор батча прекращается: результатов возвращается меньше, чем прислано операций. Оставшиеся
-// устройство пришлёт снова. Перескочить через застрявшую операцию нельзя — «привязать» и
+// устройство пришлёт снова. Перескочить через застрявшую операцию нельзя - «привязать» и
 // «отвязать» один ШК в обратном порядке дают противоположный итог.
 func (s *OperationsService) Apply(ctx context.Context, userID string, ops []Operation) ([]OperationResult, error) {
 	return s.ApplyAllowed(ctx, userID, ops, nil)
 }
 
-// ApplyAllowed — Apply с проверкой права на вид операции (ADHOC-50): [allow] отвечает, можно
-// ли пользователю операцию вида kind; нельзя — операция отклоняется, остальные идут дальше.
-// nil — без проверки.
+// ApplyAllowed - Apply с проверкой права на вид операции (ADHOC-50): [allow] отвечает, можно
+// ли пользователю операцию вида kind; нельзя - операция отклоняется, остальные идут дальше.
+// nil - без проверки.
 func (s *OperationsService) ApplyAllowed(ctx context.Context, userID string, ops []Operation,
 	allow func(kind string) bool) ([]OperationResult, error) {
 	if len(ops) == 0 {
@@ -135,7 +135,7 @@ func (s *OperationsService) ApplyAllowed(ctx context.Context, userID string, ops
 		}
 		res, temporary := s.applyOne(ctx, userID, op)
 		if temporary != nil {
-			// Прерываем разбор: всё, что уже применено, возвращаем — эти операции устройство
+			// Прерываем разбор: всё, что уже применено, возвращаем - эти операции устройство
 			// снимет с очереди и не пришлёт повторно.
 			if len(results) == 0 {
 				return nil, temporary
@@ -147,7 +147,7 @@ func (s *OperationsService) ApplyAllowed(ctx context.Context, userID string, ops
 	return results, nil
 }
 
-// applyOne применяет одну операцию. Второе возвращаемое значение — ВРЕМЕННАЯ ошибка (повод
+// applyOne применяет одну операцию. Второе возвращаемое значение - ВРЕМЕННАЯ ошибка (повод
 // прервать батч); отказ по существу приходит в OperationResult со статусом rejected.
 func (s *OperationsService) applyOne(ctx context.Context, userID string, op Operation) (OperationResult, error) {
 	id := strings.TrimSpace(op.OperationID)
@@ -178,8 +178,8 @@ func (s *OperationsService) dispatch(ctx context.Context, userID, id string, op 
 			GoodID    string `json:"good_id"`
 			Barcode   string `json:"barcode"`
 			Symbology string `json:"symbology"`
-			// FromCZMark — ШК пришёл из марки ЧЗ (CZ-05): привязка заодно помечает товар
-			// маркируемым (долг 16, признак по факту). Старые клиенты поле не шлют — false.
+			// FromCZMark - ШК пришёл из марки ЧЗ (CZ-05): привязка заодно помечает товар
+			// маркируемым (долг 16, признак по факту). Старые клиенты поле не шлют - false.
 			FromCZMark bool `json:"from_cz_mark"`
 		}
 		if err := json.Unmarshal(op.Payload, &p); err != nil {
@@ -229,7 +229,7 @@ func (s *OperationsService) dispatch(ctx context.Context, userID, id string, op 
 		if _, err := uuid.Parse(sessionID); err != nil {
 			return repository.Applied{}, ErrInvalidSessionID
 		}
-		// Автор — из токена, а не из тела: иначе устройство могло бы записать проход на другого.
+		// Автор - из токена, а не из тела: иначе устройство могло бы записать проход на другого.
 		return s.repo.StockEntryStart(ctx, id, sessionID, warehouseID, userID)
 
 	case repository.KindStockEntryCheckpoint:
@@ -337,11 +337,11 @@ func (s *OperationsService) dispatch(ctx context.Context, userID, id string, op 
 // isRejection отличает отказ по существу от временной неудачи.
 //
 // Граница здесь не косметическая: отклонённая операция снимается с очереди и уходит человеку
-// на разбор, а временная — повторяется. Ошибись в сторону «временной», и очередь встанет
-// навсегда на неисполнимой операции; ошибись в другую — работа кладовщика молча пропадёт.
+// на разбор, а временная - повторяется. Ошибись в сторону «временной», и очередь встанет
+// навсегда на неисполнимой операции; ошибись в другую - работа кладовщика молча пропадёт.
 // Поэтому список закрытый: всё неопознанное считается временным.
 func isRejection(err error) bool {
-	// Документ со списком отклонённых строк (ADHOC-40) — отказ по существу целиком, какими бы
+	// Документ со списком отклонённых строк (ADHOC-40) - отказ по существу целиком, какими бы
 	// ни были причины строк.
 	var lines *repository.DocumentLinesError
 	if errors.As(err, &lines) {
@@ -354,7 +354,7 @@ func isRejection(err error) bool {
 	}
 	return errors.Is(err, repository.ErrBarcodeConflict) ||
 		// Привязки при марках ЧЗ на складе (ADHOC-53): отвязать ШК с марками, привязать ШК к
-		// товару, когда его марки числятся за другим, — нельзя, повтор этого не изменит.
+		// товару, когда его марки числятся за другим, - нельзя, повтор этого не изменит.
 		errors.Is(err, repository.ErrBarcodeHasCZStock) ||
 		errors.Is(err, repository.ErrBarcodeMarksOtherGood) ||
 		errors.Is(err, repository.ErrGoodNotFound) ||
@@ -385,8 +385,8 @@ func isRejection(err error) bool {
 		errors.Is(err, repository.ErrLoadUnitNotFound) ||
 		errors.Is(err, repository.ErrNoDefaultCell) ||
 		errors.Is(err, repository.ErrUnknownReference) ||
-		// Марки ЧЗ приёмки (CZ-05): марка или короб уже приняты, код не по форме, GTIN марки —
-		// не товар строки или незнаком, марок больше количества. Повтор этого не исправит — без
+		// Марки ЧЗ приёмки (CZ-05): марка или короб уже приняты, код не по форме, GTIN марки -
+		// не товар строки или незнаком, марок больше количества. Повтор этого не исправит - без
 		// записи здесь очередь ТСД повторяла бы такую приёмку бесконечно.
 		errors.Is(err, model.ErrCZMarkExists) ||
 		errors.Is(err, model.ErrCZAggregateExists) ||
@@ -404,7 +404,7 @@ func isRejection(err error) bool {
 		errors.Is(err, model.ErrCZReturnMarksIncomplete) ||
 		errors.Is(err, model.ErrCZReturnMarkForeign) ||
 		// Размещение (P5-02): сеанс уже проведён, пуст, противоречит складу или просит больше,
-		// чем лежит. Повтор этого не исправит — сеанс разбирает человек.
+		// чем лежит. Повтор этого не исправит - сеанс разбирает человек.
 		errors.Is(err, ErrInvalidPutawayID) ||
 		errors.Is(err, repository.ErrPutawayPosted) ||
 		errors.Is(err, repository.ErrEmptyPutaway) ||
@@ -422,7 +422,7 @@ func isRejection(err error) bool {
 		errors.Is(err, repository.ErrNotInTask) ||
 		errors.Is(err, repository.ErrExceedsTask) ||
 		// Движение (P6-03): документ уже проведён, пуст, противоречив или просит больше, чем
-		// лежит в источнике. Повтор этого не исправит — документ разбирает человек.
+		// лежит в источнике. Повтор этого не исправит - документ разбирает человек.
 		errors.Is(err, ErrInvalidMovementID) ||
 		errors.Is(err, repository.ErrMovementPosted) ||
 		errors.Is(err, repository.ErrEmptyMovement) ||
@@ -452,7 +452,7 @@ func isRejection(err error) bool {
 		errors.Is(err, repository.ErrProblemGoodsMissing) ||
 		// Подсчёт ячейки пересчёта (P10-03): ячейка не своя, не начата, уже подсчитана, сбита
 		// движением или пересчёт закрыт; в факте товар не области, неизвестный короб или марка,
-		// товар в проблеме, маркируемый без марок. Повтор не поможет — ячейку пересчитывают.
+		// товар в проблеме, маркируемый без марок. Повтор не поможет - ячейку пересчитывают.
 		errors.Is(err, model.ErrStocktakeCellNotFound) ||
 		errors.Is(err, model.ErrStocktakeCellNotYours) ||
 		errors.Is(err, model.ErrStocktakeCellNotCounting) ||

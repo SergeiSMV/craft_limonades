@@ -23,8 +23,8 @@ import '../../support/problem_photo_stubs.dart';
 
 class _MockRepo extends Mock implements ProblemRecordsRepository {}
 
-/// Эталон ответа ленты — общий с сервером (`problem_http_test.go`): сервер обязан отдавать
-/// ровно его, терминал — разбирать.
+/// Эталон ответа ленты - общий с сервером (`problem_http_test.go`): сервер обязан отдавать
+/// ровно его, терминал - разбирать.
 const _fixturePath =
     '../backend/internal/handler/testdata/problems_resolved.json';
 
@@ -53,7 +53,7 @@ ProblemRecord problem(String id, String resolvedAt, {String? box}) =>
       resolvedAt: resolvedAt,
     );
 
-/// ADHOC-34: «Завершённые» проблемы склада на ТСД — разбор эталона ответа, лента с подгрузкой
+/// ADHOC-34: «Завершённые» проблемы склада на ТСД - разбор эталона ответа, лента с подгрузкой
 /// и фильтром, подписи решения, карточка.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -104,9 +104,9 @@ void main() {
       expect(
         executedMeta(writeOff),
         contains('Петрова Анна'),
-        reason: 'списание исполняет «Провести» — решивший',
+        reason: 'списание исполняет «Провести» - решивший',
       );
-      // Название причины и варианта — из справочника сервера (ADHOC-55).
+      // Название причины и варианта - из справочника сервера (ADHOC-55).
       expect(reasonText(writeOff), 'Бой');
       expect(resolutionText(writeOff), 'Списать');
       expect(subjectLabel(writeOff), 'Кальмар');
@@ -116,7 +116,7 @@ void main() {
           t.problems.batchLine(date: '01.09.2026'),
           t.problems.qtyLine(qty: '2'),
         ],
-        reason: 'партия и количество — каждое своей строкой',
+        reason: 'партия и количество - каждое своей строкой',
       );
 
       final ret = problem(
@@ -135,7 +135,7 @@ void main() {
       expect(
         reasonLabelOf('новая'),
         'новая',
-        reason: 'незнакомая причина без справочника — как есть',
+        reason: 'незнакомая причина без справочника - как есть',
       );
     },
   );
@@ -149,7 +149,7 @@ void main() {
         ),
     ];
 
-    test('следующая страница — после последней показанной записи', () async {
+    test('следующая страница - после последней показанной записи', () async {
       final repo = _MockRepo();
       final first = page(ResolvedProblemsCubit.pageSize);
       when(
@@ -172,11 +172,11 @@ void main() {
       await cubit.loadMore();
 
       expect(cubit.state.items, hasLength(ResolvedProblemsCubit.pageSize + 2));
-      expect(cubit.state.hasMore, isFalse, reason: 'короткая страница — конец');
+      expect(cubit.state.hasMore, isFalse, reason: 'короткая страница - конец');
       await cubit.close();
     });
 
-    test('фильтр — период уходит в запрос, лента с первой страницы', () async {
+    test('фильтр - период уходит в запрос, лента с первой страницы', () async {
       final repo = _MockRepo();
       ResolvedProblemsQuery? asked;
       when(
@@ -205,7 +205,7 @@ void main() {
       await cubit.close();
     });
 
-    test('без связи — ошибка «только при связи»', () async {
+    test('без связи - ошибка «только при связи»', () async {
       final repo = _MockRepo();
       when(
         () => repo.resolved(
@@ -230,7 +230,7 @@ void main() {
     });
   });
 
-  testWidgets('лента: запись с решением; без связи — подсказка', (
+  testWidgets('лента: запись с решением; без связи - подсказка', (
     tester,
   ) async {
     final repo = _MockRepo();
@@ -259,7 +259,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text(t.problems.outcomeAwaiting), findsOneWidget);
     expect(find.text('Кальмар'), findsOneWidget);
-    // Без номера — своя неотправленная: номер выдаёт сервер (ADHOC-55).
+    // Без номера - своя неотправленная: номер выдаёт сервер (ADHOC-55).
     expect(find.text(t.problems.numberPending), findsOneWidget);
     expect(find.text(t.problems.placeLine(place: 'M1-1-1-1')), findsOneWidget);
 
@@ -270,7 +270,7 @@ void main() {
     await cubit.close();
   });
 
-  test('отгрузка возврата из ответа — исполнитель и время', () {
+  test('отгрузка возврата из ответа - исполнитель и время', () {
     final p = problemRecordFromJson({
       'id': 'p1',
       'created_at': '2026-10-21T09:00:00Z',
@@ -292,7 +292,7 @@ void main() {
   });
 
   testWidgets(
-    'карточка: проблема, решение, исполнение — по порядку, без «Товара»',
+    'карточка: проблема, решение, исполнение - по порядку, без «Товара»',
     (tester) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -346,7 +346,7 @@ void main() {
   );
 
   testWidgets(
-    'фото в карточке: у открытой — «Сфотографировать», у решённой — только просмотр',
+    'фото в карточке: у открытой - «Сфотографировать», у решённой - только просмотр',
     (tester) async {
       final open = ProblemRecord(
         id: 'p-open',
@@ -367,7 +367,7 @@ void main() {
       expect(find.text(t.problems.photos(count: 0, max: 3)), findsOneWidget);
       expect(find.text(t.problems.takePhoto), findsOneWidget);
 
-      // Карточки открываются своими маршрутами; в тесте — пустой кадр между ними, иначе
+      // Карточки открываются своими маршрутами; в тесте - пустой кадр между ними, иначе
       // Flutter переиспользовал бы элемент страницы вместе с cubit фото прежней карточки.
       await tester.pumpWidget(const SizedBox());
       await tester.pumpWidget(

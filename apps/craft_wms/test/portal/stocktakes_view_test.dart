@@ -13,7 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../support/fake_dio_adapter.dart';
 
-// ADHOC-56: «Пересчёты» в плоском стиле — список по фильтру, кнопки по праву, заведение
+// ADHOC-56: «Пересчёты» в плоском стиле - список по фильтру, кнопки по праву, заведение
 // (вид области, объекты галочками, отправка), подтверждение закрытия, узкое окно.
 void main() {
   setUp(LocaleSettings.useDeviceLocale);
@@ -97,7 +97,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('открытые строками, «Закрытые» — закрытые', (tester) async {
+  testWidgets('открытые строками, «Закрытые» - закрытые', (tester) async {
     await open(tester);
     expect(find.byType(StocktakeCard), findsNWidgets(2));
     expect(find.text(t.portal.stocktake.statusInProgress), findsOneWidget);
@@ -113,7 +113,7 @@ void main() {
     expect(find.text(t.portal.stocktake.close), findsNothing);
   });
 
-  testWidgets('без права заводить — ни «Завести», ни «Закрыть»', (
+  testWidgets('без права заводить - ни «Завести», ни «Закрыть»', (
     tester,
   ) async {
     await open(tester, canManage: false);
@@ -132,7 +132,7 @@ void main() {
 
     await tapAndWait(tester, find.text('A-01-1'));
     expect(find.text(t.portal.stocktake.picked(count: 1)), findsOneWidget);
-    // Выбранная — ещё и отметкой над списком.
+    // Выбранная - ещё и отметкой над списком.
     expect(find.text('A-01-1'), findsNWidgets(2));
 
     await tapAndWait(tester, find.text(t.portal.stocktake.createSubmit));
@@ -142,7 +142,7 @@ void main() {
     expect(find.text(t.portal.stocktake.createTitle), findsNothing);
   });
 
-  testWidgets('закрыть — с подтверждением, неподсчитанные досрочно', (
+  testWidgets('закрыть - с подтверждением, неподсчитанные досрочно', (
     tester,
   ) async {
     await open(tester);
@@ -157,7 +157,7 @@ void main() {
     expect((post.data as Map)['force'], isTrue);
   });
 
-  testWidgets('узко — без переполнения, кнопки в строке', (tester) async {
+  testWidgets('узко - без переполнения, кнопки в строке', (tester) async {
     await open(tester, width: 375);
     expect(tester.takeException(), isNull);
     expect(find.byType(StocktakeCard), findsNWidgets(2));

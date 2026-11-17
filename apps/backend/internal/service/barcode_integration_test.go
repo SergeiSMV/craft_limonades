@@ -30,7 +30,7 @@ func seedGood(t *testing.T, pool *pgxpool.Pool, name string) string {
 	return id
 }
 
-// TestBarcode_bindResolve — привязка и резолв: 200-путь, идемпотентность, мульти-ШК на товар.
+// TestBarcode_bindResolve - привязка и резолв: 200-путь, идемпотентность, мульти-ШК на товар.
 func TestBarcode_bindResolve(t *testing.T) {
 	pool := testutil.StartPostgres(t)
 	svc := newBarcodeSvc(pool)
@@ -50,12 +50,12 @@ func TestBarcode_bindResolve(t *testing.T) {
 		t.Fatalf("резолв ШК: ожидался товар %s, получен %s", goodA, got.ID)
 	}
 
-	// Идемпотентность: повторная привязка того же ШК к тому же товару — без ошибки.
+	// Идемпотентность: повторная привязка того же ШК к тому же товару - без ошибки.
 	if err := svc.Bind(ctx, goodA, "4600000000017", "ean13"); err != nil {
 		t.Fatalf("повторная привязка того же ШК должна быть идемпотентной, получено %v", err)
 	}
 
-	// Мульти-ШК: второй ШК тому же товару — норма (товар накапливает ШК).
+	// Мульти-ШК: второй ШК тому же товару - норма (товар накапливает ШК).
 	if err := svc.Bind(ctx, goodA, "4600000000024", ""); err != nil {
 		t.Fatalf("второй ШК тому же товару: %v", err)
 	}
@@ -74,7 +74,7 @@ func TestBarcode_bindResolve(t *testing.T) {
 	}
 }
 
-// TestBarcode_listByGood — секция «Штрихкоды» карточки: все ШК товара, сортировка, пустой список.
+// TestBarcode_listByGood - секция «Штрихкоды» карточки: все ШК товара, сортировка, пустой список.
 func TestBarcode_listByGood(t *testing.T) {
 	pool := testutil.StartPostgres(t)
 	svc := newBarcodeSvc(pool)
@@ -123,7 +123,7 @@ func TestBarcode_listByGood(t *testing.T) {
 	}
 }
 
-// TestBarcode_unbind — отвязка: резолв после отвязки 404; идемпотентность; перепривязка на другой
+// TestBarcode_unbind - отвязка: резолв после отвязки 404; идемпотентность; перепривязка на другой
 // товар после отвязки; отвязка одного ШК не трогает остальные.
 func TestBarcode_unbind(t *testing.T) {
 	pool := testutil.StartPostgres(t)
@@ -152,7 +152,7 @@ func TestBarcode_unbind(t *testing.T) {
 		t.Fatalf("второй ШК должен остаться за A: id=%s err=%v", got.ID, err)
 	}
 
-	// Идемпотентность: повторная отвязка того же (уже отсутствующего) ШК — не ошибка.
+	// Идемпотентность: повторная отвязка того же (уже отсутствующего) ШК - не ошибка.
 	if err := svc.Unbind(ctx, "4600000000017"); err != nil {
 		t.Fatalf("повторная отвязка должна быть идемпотентной, получено %v", err)
 	}
@@ -166,7 +166,7 @@ func TestBarcode_unbind(t *testing.T) {
 	}
 }
 
-// TestBarcode_unbind_validation — пустой ШК отклоняется (→400), репозиторий не трогается.
+// TestBarcode_unbind_validation - пустой ШК отклоняется (→400), репозиторий не трогается.
 func TestBarcode_unbind_validation(t *testing.T) {
 	svc := service.NewBarcodeService(nil) // валидация до репозитория, БД не нужна
 	if err := svc.Unbind(context.Background(), "   "); !errors.Is(err, service.ErrEmptyBarcode) {
@@ -177,7 +177,7 @@ func TestBarcode_unbind_validation(t *testing.T) {
 	}
 }
 
-// TestBarcode_resolveUnknown_notFound — 404-путь: ШК не привязан.
+// TestBarcode_resolveUnknown_notFound - 404-путь: ШК не привязан.
 func TestBarcode_resolveUnknown_notFound(t *testing.T) {
 	pool := testutil.StartPostgres(t)
 	svc := newBarcodeSvc(pool)
@@ -188,7 +188,7 @@ func TestBarcode_resolveUnknown_notFound(t *testing.T) {
 	}
 }
 
-// TestBarcode_conflict — 409-путь: занятый ШК другим товаром.
+// TestBarcode_conflict - 409-путь: занятый ШК другим товаром.
 func TestBarcode_conflict(t *testing.T) {
 	pool := testutil.StartPostgres(t)
 	svc := newBarcodeSvc(pool)
@@ -210,7 +210,7 @@ func TestBarcode_conflict(t *testing.T) {
 	}
 }
 
-// TestBarcode_bindMissingGood_notFound — привязка к несуществующему товару → ErrGoodNotFound (→404).
+// TestBarcode_bindMissingGood_notFound - привязка к несуществующему товару → ErrGoodNotFound (→404).
 func TestBarcode_bindMissingGood_notFound(t *testing.T) {
 	pool := testutil.StartPostgres(t)
 	svc := newBarcodeSvc(pool)
@@ -222,7 +222,7 @@ func TestBarcode_bindMissingGood_notFound(t *testing.T) {
 	}
 }
 
-// TestBarcode_validation — пустые good_id/barcode отклоняются (→400), репозиторий не трогается.
+// TestBarcode_validation - пустые good_id/barcode отклоняются (→400), репозиторий не трогается.
 func TestBarcode_validation(t *testing.T) {
 	svc := service.NewBarcodeService(nil) // валидация до репозитория, БД не нужна
 	ctx := context.Background()
@@ -238,7 +238,7 @@ func TestBarcode_validation(t *testing.T) {
 	}
 }
 
-// TestBarcode_listAll — выгрузка всех привязок ШК для офлайн-кэша устройства (P2-02).
+// TestBarcode_listAll - выгрузка всех привязок ШК для офлайн-кэша устройства (P2-02).
 //
 // Проверяет то, ради чего эндпоинт и появился: справочник забирается страницами, а не обходом
 // товаров по одному запросу; в каждой записи есть товар, иначе по коду нечего резолвить.
@@ -320,10 +320,10 @@ func TestBarcode_generateInternal(t *testing.T) {
 		t.Error("первая выдача обязана сообщить, что код создан")
 	}
 	if !barcode.IsInternalEAN13(code) {
-		t.Fatalf("выдан код %q — не внутренний EAN-13", code)
+		t.Fatalf("выдан код %q - не внутренний EAN-13", code)
 	}
 
-	// Критерий задачи: выданный код читается как товар — то есть резолвится обратно.
+	// Критерий задачи: выданный код читается как товар - то есть резолвится обратно.
 	resolved, err := svc.ResolveGood(ctx, code)
 	if err != nil {
 		t.Fatalf("ResolveGood(%s): %v", code, err)
@@ -336,7 +336,7 @@ func TestBarcode_generateInternal(t *testing.T) {
 // Повторный вызов отдаёт ТОТ ЖЕ код, а не заводит второй.
 //
 // Иначе повторное нажатие (связь мигнула, кладовщик не увидел ответа) дало бы товару два кода,
-// из которых на упаковке наклеен один, — и второй жил бы в справочнике мусором.
+// из которых на упаковке наклеен один, - и второй жил бы в справочнике мусором.
 func TestBarcode_generateInternalIsIdempotent(t *testing.T) {
 	pool := testutil.StartPostgres(t)
 	svc := newBarcodeSvc(pool)
@@ -416,7 +416,7 @@ func TestBarcode_generateInternalUniqueAndAdditive(t *testing.T) {
 
 // Код, уже занятый ВНЕШНЕЙ привязкой, не ломает выдачу: берётся следующий номер.
 //
-// Выгрузка 1С может принести внутренний код прежней системы с тем же префиксом — тогда наш
+// Выгрузка 1С может принести внутренний код прежней системы с тем же префиксом - тогда наш
 // генератор однажды дойдёт до него.
 func TestBarcode_generateInternalSkipsTakenCode(t *testing.T) {
 	pool := testutil.StartPostgres(t)
@@ -446,11 +446,11 @@ func TestBarcode_generateInternalSkipsTakenCode(t *testing.T) {
 		t.Fatalf("выдан уже занятый код %s", code)
 	}
 	if !barcode.IsInternalEAN13(code) {
-		t.Errorf("выдан код %q — не внутренний EAN-13", code)
+		t.Errorf("выдан код %q - не внутренний EAN-13", code)
 	}
 }
 
-// Несуществующий товар — отказ, а не битая привязка.
+// Несуществующий товар - отказ, а не битая привязка.
 func TestBarcode_generateInternalUnknownGood(t *testing.T) {
 	pool := testutil.StartPostgres(t)
 	svc := newBarcodeSvc(pool)

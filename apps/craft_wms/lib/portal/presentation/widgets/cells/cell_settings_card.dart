@@ -19,7 +19,7 @@ import 'floor_cell_block.dart';
 /// Карточка ячейки справа от списка (ADHOC-57): адрес и место, галочки этикетки на балку и
 /// строки на карточке стеллажа, образец этикетки, «Отменить» и «Сохранить».
 ///
-/// Отмечено несколько строк — карточка правит их разом: галочка у части выборки — с чертой.
+/// Отмечено несколько строк - карточка правит их разом: галочка у части выборки - с чертой.
 /// Без права «Ячейки: изменять настройки» галочки только показываются.
 class CellSettingsCard extends StatelessWidget {
   const CellSettingsCard({
@@ -32,7 +32,7 @@ class CellSettingsCard extends StatelessWidget {
   final CellsController c;
   final bool canEdit;
 
-  /// Сохранено — текст для уведомления.
+  /// Сохранено - текст для уведомления.
   final ValueChanged<String> onSaved;
 
   @override
@@ -57,7 +57,7 @@ class CellSettingsCard extends StatelessWidget {
 
 /// Разделы карточки под шапкой: галочки, образец (у одной ячейки) и ошибка сохранения.
 ///
-/// У одной напольной ячейки (ADHOC-61) вместо образца — блок «Напольное хранение»: на её
+/// У одной напольной ячейки (ADHOC-61) вместо образца - блок «Напольное хранение»: на её
 /// этикетке QR, которого образец не рисует, и действия «Изменить адрес» и «Удалить».
 List<Widget> cellSettingsBlocks(
   CellsController c,
@@ -74,7 +74,7 @@ List<Widget> cellSettingsBlocks(
     Padding(padding: AppInsets.cardRow, child: AccessError(c.saveError!)),
 ];
 
-/// Шапка: у одной ячейки — адрес, стеллаж, ярус и позиция; у нескольких — сколько и стеллажи.
+/// Шапка: у одной ячейки - адрес, стеллаж, ярус и позиция; у нескольких - сколько и стеллажи.
 class CellSettingsHead extends StatelessWidget {
   const CellSettingsHead({super.key, required this.targets, this.title = true});
 
@@ -140,7 +140,7 @@ class CellSettingsHead extends StatelessWidget {
   }
 }
 
-/// «Отменить» и «Сохранить» с пометкой о несохранённом; без права — пометка «только просмотр».
+/// «Отменить» и «Сохранить» с пометкой о несохранённом; без права - пометка «только просмотр».
 class CellSettingsActions extends StatelessWidget {
   const CellSettingsActions({
     super.key,
@@ -153,7 +153,7 @@ class CellSettingsActions extends StatelessWidget {
   final bool canEdit;
   final ValueChanged<String> onSaved;
 
-  /// Сохранить; удалось — сообщить владельцу текст уведомления.
+  /// Сохранить; удалось - сообщить владельцу текст уведомления.
   Future<void> save() async {
     final text = await c.save();
     if (text != null) onSaved(text);
@@ -197,7 +197,7 @@ class CellSettingsActions extends StatelessWidget {
   }
 }
 
-/// Ничего не выбрано — подсказка, как выбрать.
+/// Ничего не выбрано - подсказка, как выбрать.
 class _Placeholder extends StatelessWidget {
   const _Placeholder();
 

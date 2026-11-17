@@ -18,7 +18,7 @@ import '../ui/portal_button.dart';
 /// Разделы «Причины проблем» и «Варианты решения» в настройках портала (ADHOC-55).
 ///
 /// Что: причины, которыми кладовщик помечает товар на ТСД, с вариантами решения офиса при
-/// каждой, и сами варианты — название и действие программы. Удаления нет: причина и вариант
+/// каждой, и сами варианты - название и действие программы. Удаления нет: причина и вариант
 /// выключаются, старые проблемы подписаны ими как были. Системную причину не выключить.
 /// Справочник один на оба раздела: варианты причины подписываются названиями вариантов.
 class ProblemReasonsSection extends StatefulWidget {
@@ -34,7 +34,7 @@ class _ProblemReasonsSectionState extends State<ProblemReasonsSection> {
   ProblemReasonsDirectory? _dir;
   bool _loading = true;
 
-  /// Строка, с которой идёт действие; `reason:` / `variant:` и пусто — заводится новая.
+  /// Строка, с которой идёт действие; `reason:` / `variant:` и пусто - заводится новая.
   String? _busy;
   String? _error;
 
@@ -58,7 +58,7 @@ class _ProblemReasonsSectionState extends State<ProblemReasonsSection> {
     });
   }
 
-  /// Завести причину: название, флаг комментария и варианты — в диалоге.
+  /// Завести причину: название, флаг комментария и варианты - в диалоге.
   Future<void> createReason() async {
     final draft = await showProblemReasonDialog(
       context,
@@ -100,7 +100,7 @@ class _ProblemReasonsSectionState extends State<ProblemReasonsSection> {
     () => _repo.updateReason(r.code, isActive: !r.isActive),
   );
 
-  /// Завести вариант решения: название и действие — в диалоге.
+  /// Завести вариант решения: название и действие - в диалоге.
   Future<void> createVariant() async {
     final draft = await showResolutionVariantDialog(context);
     if (draft == null || !mounted) return;
@@ -126,7 +126,7 @@ class _ProblemReasonsSectionState extends State<ProblemReasonsSection> {
     () => _repo.updateResolution(v.id, isActive: !v.isActive),
   );
 
-  /// Выполнить действие и перечитать справочник; отказ сервера — текстом под списком.
+  /// Выполнить действие и перечитать справочник; отказ сервера - текстом под списком.
   Future<void> _run(
     String busy,
     Future<Either<Failure, Object?>> Function() action,
@@ -156,7 +156,7 @@ class _ProblemReasonsSectionState extends State<ProblemReasonsSection> {
   };
 
   /// Настройки изменились на сервере (ADHOC-60): перечитать список. Пока идёт своё действие,
-  /// не перечитывать — оно само перечитает список по завершении. Правка в открытом окне не
+  /// не перечитывать - оно само перечитает список по завершении. Правка в открытом окне не
   /// страдает: окно держит свою копию данных, а список под ним остаётся на экране до ответа.
   void onDataChanged() {
     if (_busy != null) return;

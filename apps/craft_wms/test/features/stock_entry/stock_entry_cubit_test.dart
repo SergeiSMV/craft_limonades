@@ -41,7 +41,7 @@ void main() {
       const LoadUnitIdGenerator(Uuid()),
       _MockPrinter(),
     );
-    // Привязка уходит операцией очереди (ADHOC-14) — репозиторий её принимает всегда.
+    // Привязка уходит операцией очереди (ADHOC-14) - репозиторий её принимает всегда.
     when(
       () => catalog.bindBarcode(
         goodId: any(named: 'goodId'),
@@ -81,7 +81,7 @@ void main() {
 
     // Привязка больше не копится в состоянии прохода, а уходит обычной операцией очереди
     // (ADHOC-14). Оттуда она сразу попадает в кэш с пометкой «ожидает», и повторный скан
-    // резолвится тем же кэш-first путём, что и везде, — своей дороги у прохода не осталось.
+    // резолвится тем же кэш-first путём, что и везде, - своей дороги у прохода не осталось.
     test('новый ШК уходит операцией очереди', () async {
       await cubit.addLine(
         good: goodA,
@@ -106,9 +106,9 @@ void main() {
     });
 
     test(
-      'несколько разных ШК на один товар — все узнаются (штука + короб)',
+      'несколько разных ШК на один товар - все узнаются (штука + короб)',
       () async {
-        // Штучный ШК и ШК короба ведут на один товar, одна партия — обе привязки должны жить.
+        // Штучный ШК и ШК короба ведут на один товar, одна партия - обе привязки должны жить.
         await cubit.addLine(
           good: goodA,
           date: '15.01.2026',
@@ -128,7 +128,7 @@ void main() {
           1,
         ); // грань (товар,дата) одна → строки слились: 10+120
         expect(cubit.state.lines.single.qty, 130);
-        // Обе привязки уцелели — старая модель второй ШК теряла (P-FS-11). Теперь это две
+        // Обе привязки уцелели - старая модель второй ШК теряла (P-FS-11). Теперь это две
         // независимые операции очереди, и слияние строк на них не влияет.
         verify(
           () => catalog.bindBarcode(goodId: 'gA', barcode: 'ITEM'),
@@ -157,13 +157,13 @@ void main() {
       await cubit.undo(); // отменить привязку BOX
 
       // Отменяем только то, что ещё не ушло (решение пользователя, ADHOC-14): cubit просит
-      // снять операцию из очереди. Ушедшую отзывать нечем — её убирают «неверным товаром».
+      // снять операцию из очереди. Ушедшую отзывать нечем - её убирают «неверным товаром».
       verify(() => catalog.cancelPendingBind('BOX')).called(1);
       verifyNever(() => catalog.cancelPendingBind('ITEM'));
       expect(cubit.state.lines.single.qty, 10);
     });
 
-    // «Неверный товар» (P-FS-12): успели снять из очереди — отвязку не шлём, она бессмысленна.
+    // «Неверный товар» (P-FS-12): успели снять из очереди - отвязку не шлём, она бессмысленна.
     test('неверный товар: неушедшую привязку снимаем из очереди', () async {
       when(
         () => catalog.cancelPendingBind('ITEM'),
@@ -180,7 +180,7 @@ void main() {
       );
     });
 
-    // Не успели — код уже на сервере или в пути, убрать его можно только отвязкой.
+    // Не успели - код уже на сервере или в пути, убрать его можно только отвязкой.
     test('неверный товар: ушедшую привязку отвязываем', () async {
       when(
         () => catalog.cancelPendingBind('ITEM'),
@@ -314,7 +314,7 @@ void main() {
       cubit.changeCell(cell2); // сливаем с пройденной c2
       expect(cubit.state.cell?.id, 'c2');
       expect(cubit.state.committedCells, isEmpty); // c2 вынута из пройденных
-      // goodA 15.01: 10 + 5 = 15 (слито по грани); goodB — отдельно.
+      // goodA 15.01: 10 + 5 = 15 (слито по грани); goodB - отдельно.
       final ga = cubit.state.lines.firstWhere(
         (l) => l.good.id == 'gA' && l.productionDate == '15.01.2026',
       );
@@ -322,7 +322,7 @@ void main() {
       expect(cubit.state.lines.length, 2);
     });
 
-    test('changeCell на ту же ячейку — no-op', () {
+    test('changeCell на ту же ячейку - no-op', () {
       cubit.selectCell(cell);
       cubit.addLine(good: goodA, date: '15.01.2026', qty: 10);
       cubit.changeCell(cell); // та же
@@ -368,7 +368,7 @@ void main() {
           newBarcode: '777',
         );
         cubit.finishCell();
-        // Ячейка 2 — товар без нового ШК.
+        // Ячейка 2 - товар без нового ШК.
         cubit.selectCell(cell2);
         cubit.addLine(good: goodA, date: '15.01.2026', qty: 5);
         cubit.finishCell();
@@ -384,7 +384,7 @@ void main() {
             body: captureAny(named: 'body'),
           ),
         ).captured;
-        // captured — плоский список по 2 на вызов (сессия, тело); 2 вызова = 4 элемента.
+        // captured - плоский список по 2 на вызов (сессия, тело); 2 вызова = 4 элемента.
         expect(captured.length, 4);
         expect(captured[0], 'sess-1'); // ячейка 1
         final body1 = captured[1] as Map<String, dynamic>;

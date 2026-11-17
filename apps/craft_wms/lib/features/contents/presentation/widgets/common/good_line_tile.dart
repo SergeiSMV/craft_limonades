@@ -12,7 +12,7 @@ import '../../../domain/contents_entities.dart';
 import '../common/pending_mark.dart';
 
 /// Товар в коробе или россыпью в ячейке (P5-05-1): выпуклая неоморфная плашка и шрифты, как
-/// у товара во вкладке «Товары»; касание — карточка остатков этого товара.
+/// у товара во вкладке «Товары»; касание - карточка остатков этого товара.
 class GoodLineTile extends StatelessWidget {
   const GoodLineTile({super.key, required this.line, required this.onTap});
 

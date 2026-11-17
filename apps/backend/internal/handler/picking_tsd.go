@@ -16,8 +16,8 @@ import (
 	"craftwms/internal/service"
 )
 
-// PickingTSDHandler — сборка на ТСД (P9-04): список «СБОРКА», заказ с подбором, взять,
-// отказаться, короб отгрузки, «не хватает». Всё — онлайн: взятие закрепляет заказ за одним
+// PickingTSDHandler - сборка на ТСД (P9-04): список «СБОРКА», заказ с подбором, взять,
+// отказаться, короб отгрузки, «не хватает». Всё - онлайн: взятие закрепляет заказ за одним
 // кладовщиком, а это решает сервер.
 type PickingTSDHandler struct {
 	svc *service.PickingTaskService
@@ -117,7 +117,7 @@ type pickingOrderDTO struct {
 	Picks         []pickingPickDTO `json:"picks"`
 }
 
-// Orders: GET /api/v1/picking/orders — список «СБОРКА»: несобранные заказы любой даты. 200.
+// Orders: GET /api/v1/picking/orders - список «СБОРКА»: несобранные заказы любой даты. 200.
 func (h *PickingTSDHandler) Orders(w http.ResponseWriter, r *http.Request) {
 	userID, _ := appmw.UserIDFromContext(r.Context())
 	items, err := h.svc.Orders(r.Context(), userID)
@@ -128,7 +128,7 @@ func (h *PickingTSDHandler) Orders(w http.ResponseWriter, r *http.Request) {
 	h.listOut(w, items)
 }
 
-// ShippedOrders: GET /api/v1/picking/orders/shipped?date=YYYY-MM-DD — отгруженные заказы с этой
+// ShippedOrders: GET /api/v1/picking/orders/shipped?date=YYYY-MM-DD - отгруженные заказы с этой
 // датой накладной (раздел «Завершённые» на ТСД). 200 / 400.
 func (h *PickingTSDHandler) ShippedOrders(w http.ResponseWriter, r *http.Request) {
 	date, err := time.Parse(time.DateOnly, r.URL.Query().Get("date"))
@@ -145,7 +145,7 @@ func (h *PickingTSDHandler) ShippedOrders(w http.ResponseWriter, r *http.Request
 	h.listOut(w, items)
 }
 
-// listOut — строки списка «СБОРКА» в ответ ТСД.
+// listOut - строки списка «СБОРКА» в ответ ТСД.
 func (h *PickingTSDHandler) listOut(w http.ResponseWriter, items []model.PickingOrderListItem) {
 	out := make([]pickingListItemDTO, 0, len(items))
 	for _, it := range items {
@@ -160,7 +160,7 @@ func (h *PickingTSDHandler) listOut(w http.ResponseWriter, items []model.Picking
 	writeJSON(w, http.StatusOK, out)
 }
 
-// Order: GET /api/v1/picking/orders/{id} — заказ с подбором по строкам и коробами отгрузки.
+// Order: GET /api/v1/picking/orders/{id} - заказ с подбором по строкам и коробами отгрузки.
 // 200 / 404 / 409 (удалён в 1С, нераспознанные позиции, собран).
 func (h *PickingTSDHandler) Order(w http.ResponseWriter, r *http.Request) {
 	userID, _ := appmw.UserIDFromContext(r.Context())
@@ -172,7 +172,7 @@ func (h *PickingTSDHandler) Order(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, pickingOrderOut(task, userID))
 }
 
-// Take: POST /api/v1/picking/orders/{id}/take — взять в работу. 204 / 404 / 409.
+// Take: POST /api/v1/picking/orders/{id}/take - взять в работу. 204 / 404 / 409.
 func (h *PickingTSDHandler) Take(w http.ResponseWriter, r *http.Request) {
 	userID, _ := appmw.UserIDFromContext(r.Context())
 	if err := h.svc.Take(r.Context(), chi.URLParam(r, "id"), userID); err != nil {
@@ -182,7 +182,7 @@ func (h *PickingTSDHandler) Take(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// Release: POST /api/v1/picking/orders/{id}/release — отказаться: заказ снова «новый». 204 / 404 / 409.
+// Release: POST /api/v1/picking/orders/{id}/release - отказаться: заказ снова «новый». 204 / 404 / 409.
 func (h *PickingTSDHandler) Release(w http.ResponseWriter, r *http.Request) {
 	userID, _ := appmw.UserIDFromContext(r.Context())
 	if err := h.svc.Release(r.Context(), chi.URLParam(r, "id"), userID); err != nil {
@@ -192,7 +192,7 @@ func (h *PickingTSDHandler) Release(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// AddBox: POST /api/v1/picking/orders/{id}/boxes {"load_unit_id": "<uuid ярлыка>"} — завести
+// AddBox: POST /api/v1/picking/orders/{id}/boxes {"load_unit_id": "<uuid ярлыка>"} - завести
 // короб отгрузки. 200 {"load_unit_id", "seq"} / 400 / 404 / 409.
 func (h *PickingTSDHandler) AddBox(w http.ResponseWriter, r *http.Request) {
 	var req struct {
@@ -211,7 +211,7 @@ func (h *PickingTSDHandler) AddBox(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, pickingBoxDTO{LoadUnitID: req.LoadUnitID, Seq: seq})
 }
 
-// DropBox: DELETE /api/v1/picking/orders/{id}/boxes/{boxId} — убрать пустой короб, заведённый по
+// DropBox: DELETE /api/v1/picking/orders/{id}/boxes/{boxId} - убрать пустой короб, заведённый по
 // ошибке. 204 / 400 / 404 / 409.
 func (h *PickingTSDHandler) DropBox(w http.ResponseWriter, r *http.Request) {
 	userID, _ := appmw.UserIDFromContext(r.Context())
@@ -222,7 +222,7 @@ func (h *PickingTSDHandler) DropBox(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// Shortage: POST /api/v1/picking/orders/{id}/lines/{lineId}/shortage {"shortage": true|false} —
+// Shortage: POST /api/v1/picking/orders/{id}/lines/{lineId}/shortage {"shortage": true|false} -
 // отметка «не хватает». 200 {"stocktake_number", "stocktake_created"} / 400 / 404 / 409.
 func (h *PickingTSDHandler) Shortage(w http.ResponseWriter, r *http.Request) {
 	var req struct {
@@ -269,29 +269,29 @@ type pickingShipmentDTO struct {
 	Boxes         []pickingShipmentBoxDTO `json:"boxes"`
 }
 
-// Shipment: GET /api/v1/picking/orders/{id}/shipment — собранный заказ с коробами «N из M» для
+// Shipment: GET /api/v1/picking/orders/{id}/shipment - собранный заказ с коробами «N из M» для
 // ярлыков и отгрузки (P9-07). 200 / 404.
 func (h *PickingTSDHandler) Shipment(w http.ResponseWriter, r *http.Request) {
 	s, err := h.svc.Shipment(r.Context(), chi.URLParam(r, "id"))
 	h.shipmentOut(w, r, s, err, "shipment")
 }
 
-// Complete: POST /api/v1/picking/orders/{id}/complete — «Завершить сборку»: остаток в короба
+// Complete: POST /api/v1/picking/orders/{id}/complete - «Завершить сборку»: остаток в короба
 // отгрузки, короба в `ОТГРУЗКУ`, заказ «собран». 200 (заказ с коробами) / 404 / 409 (не у вас,
-// строки не собраны или взято лишнее — текст со списком товаров).
+// строки не собраны или взято лишнее - текст со списком товаров).
 func (h *PickingTSDHandler) Complete(w http.ResponseWriter, r *http.Request) {
 	userID, _ := appmw.UserIDFromContext(r.Context())
 	s, err := h.svc.Complete(r.Context(), chi.URLParam(r, "id"), userID)
 	h.shipmentOut(w, r, s, err, "complete")
 }
 
-// boxIDsRequest — тело ярлыков и отгрузки: короба заказа.
+// boxIDsRequest - тело ярлыков и отгрузки: короба заказа.
 type boxIDsRequest struct {
 	BoxIDs []string `json:"box_ids"`
 }
 
-// Labels: POST /api/v1/picking/orders/{id}/labels {"box_ids": [...]} — отметить печать ярлыков и
-// получить данные для них. Уже печатавшийся ярлык — только с правом tsd.picking.reprint.
+// Labels: POST /api/v1/picking/orders/{id}/labels {"box_ids": [...]} - отметить печать ярлыков и
+// получить данные для них. Уже печатавшийся ярлык - только с правом tsd.picking.reprint.
 // 200 / 400 / 403 (повтор без права) / 404 / 409.
 func (h *PickingTSDHandler) Labels(w http.ResponseWriter, r *http.Request) {
 	var req boxIDsRequest
@@ -304,7 +304,7 @@ func (h *PickingTSDHandler) Labels(w http.ResponseWriter, r *http.Request) {
 	h.shipmentOut(w, r, s, err, "labels")
 }
 
-// Ship: POST /api/v1/picking/orders/{id}/ship {"box_ids": [...]} — «Отгрузить»: отсканированы
+// Ship: POST /api/v1/picking/orders/{id}/ship {"box_ids": [...]} - «Отгрузить»: отсканированы
 // ярлыки всех коробов, товар уходит со склада. 200 / 400 / 404 / 409.
 func (h *PickingTSDHandler) Ship(w http.ResponseWriter, r *http.Request) {
 	var req boxIDsRequest
@@ -355,7 +355,7 @@ type pickingReturnDTO struct {
 	Picks         []pickingReturnPickDTO `json:"picks"`
 }
 
-// Return: GET /api/v1/picking/orders/{id}/return — что вернуть на места по заказу после правки
+// Return: GET /api/v1/picking/orders/{id}/return - что вернуть на места по заказу после правки
 // реестра (P9-07-1): строки с остатком возврата и пики, из которых возвращают. 200 / 404.
 func (h *PickingTSDHandler) Return(w http.ResponseWriter, r *http.Request) {
 	v, err := h.svc.ReturnView(r.Context(), chi.URLParam(r, "id"))
@@ -387,7 +387,7 @@ func (h *PickingTSDHandler) Return(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// shipmentOut — заказ с коробами в ответ или отказ.
+// shipmentOut - заказ с коробами в ответ или отказ.
 func (h *PickingTSDHandler) shipmentOut(w http.ResponseWriter, r *http.Request, s model.PickingShipment, err error, action string) {
 	if err != nil {
 		h.fail(w, r, err, action)
@@ -408,7 +408,7 @@ func (h *PickingTSDHandler) shipmentOut(w http.ResponseWriter, r *http.Request, 
 	writeJSON(w, http.StatusOK, out)
 }
 
-// fail — отказ по состоянию заказа текстом для кладовщика, остальное — 500.
+// fail - отказ по состоянию заказа текстом для кладовщика, остальное - 500.
 func (h *PickingTSDHandler) fail(w http.ResponseWriter, r *http.Request, err error, action string) {
 	var lines *model.PickingLinesError
 	switch {
@@ -435,7 +435,7 @@ func (h *PickingTSDHandler) fail(w http.ResponseWriter, r *http.Request, err err
 	}
 }
 
-// pickingOrderOut — заказ с подбором в ответ ТСД.
+// pickingOrderOut - заказ с подбором в ответ ТСД.
 func pickingOrderOut(task service.PickingTask, userID string) pickingOrderDTO {
 	o := task.Order
 	out := pickingOrderDTO{

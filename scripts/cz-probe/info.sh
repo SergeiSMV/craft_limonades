@@ -2,12 +2,12 @@
 # CZ-01, разведка: информация о марках по токену из token.sh. Только чтение.
 #
 # Использование: ./info.sh '<код марки>' ['<код марки>' ...]
-# Код — КИ марки без криптохвоста (`01`+GTIN+`21`+серийный, часть до GS) или код агрегата
+# Код - КИ марки без криптохвоста (`01`+GTIN+`21`+серийный, часть до GS) или код агрегата
 # (`00`+SSCC у транспортной упаковки): с криптохвостом True API марку не находит.
 set -euo pipefail
 API="${API:-https://markirovka.crpt.ru/api/v3/true-api}"
 DIR="$(cd "$(dirname "$0")" && pwd)"
-[ -s "$DIR/.token" ] || { echo "Нет токена — сначала ./token.sh"; exit 1; }
+[ -s "$DIR/.token" ] || { echo "Нет токена - сначала ./token.sh"; exit 1; }
 [ $# -gt 0 ] || { echo "Укажите хотя бы один код марки"; exit 1; }
 body=$(python3 -c 'import json,sys; print(json.dumps([a.encode().decode("unicode_escape") for a in sys.argv[1:]]))' "$@")
 code=$(curl -sS -o /tmp/cz-info.$$ -w '%{http_code}' \

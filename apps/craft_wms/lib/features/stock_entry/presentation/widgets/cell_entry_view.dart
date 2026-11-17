@@ -48,15 +48,15 @@ class _CellEntryViewState extends State<CellEntryView>
   @override
   void onBoxScanned(String boxId) => unawaited(_openBox(boxId));
 
-  /// Открыть страницу короба. Cubit передаётся тот же: короб — часть этого прохода.
-  /// Марки, отсканированные россыпью, — до входа в короб (ADHOC-70).
+  /// Открыть страницу короба. Cubit передаётся тот же: короб - часть этого прохода.
+  /// Марки, отсканированные россыпью, - до входа в короб (ADHOC-70).
   Future<void> _openBox(String boxId) async {
     if (!await czSettle() || !mounted) return;
     await context.router.push(EntryBoxRoute(cubit: cubit, boxId: boxId));
     refocusScan();
   }
 
-  /// Новый короб: заводим и сразу открываем — следующие сканы пойдут в него. Ярлык кладовщик
+  /// Новый короб: заводим и сразу открываем - следующие сканы пойдут в него. Ярлык кладовщик
   /// печатает со страницы короба.
   Future<void> _newBox() => _openBox(cubit.newBox());
 
@@ -66,7 +66,7 @@ class _CellEntryViewState extends State<CellEntryView>
   }
 
   /// Сменить ячейку текущего буфера (ошиблись ячейкой, товары верны): лист выбора → `changeCell`
-  /// (строки и короба сохраняются, при слиянии с пройденной — суммируются), затем возврат
+  /// (строки и короба сохраняются, при слиянии с пройденной - суммируются), затем возврат
   /// фокуса скан-полю.
   Future<void> _changeCell() async {
     final cell = await showModalBottomSheet<Cell>(
@@ -86,8 +86,8 @@ class _CellEntryViewState extends State<CellEntryView>
   Widget build(BuildContext context) {
     final state = widget.state;
     final cell = state.cell!;
-    final boxes = state.boxes.reversed.toList(); // свежий короб — сверху
-    final loose = state.looseLines.reversed.toList(); // свежая строка — сверху
+    final boxes = state.boxes.reversed.toList(); // свежий короб - сверху
+    final loose = state.looseLines.reversed.toList(); // свежая строка - сверху
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -97,7 +97,7 @@ class _CellEntryViewState extends State<CellEntryView>
           padding: AppInsets.all8,
           child: Row(
             children: [
-              // Вся шапка с адресом (иконка + текст + иконка «сменить») — одна кнопка смены ячейки.
+              // Вся шапка с адресом (иконка + текст + иконка «сменить») - одна кнопка смены ячейки.
               Expanded(
                 child: NeumorphicButton(
                   onPressed: _changeCell,
@@ -135,7 +135,7 @@ class _CellEntryViewState extends State<CellEntryView>
                 ),
               ),
 
-              /// Новый свой короб в ячейке (ADHOC-46) — как «короб плюс» на приёмке.
+              /// Новый свой короб в ячейке (ADHOC-46) - как «короб плюс» на приёмке.
               AppBoxes.kWidth8,
               BarIconButton(
                 onPressed: _newBox,
@@ -143,7 +143,7 @@ class _CellEntryViewState extends State<CellEntryView>
               ),
 
               /// Кнопка отмены последнего действия (удаление/редактирование строки)
-              /// — только если есть что отменять.
+              /// - только если есть что отменять.
               if (state.undoStack.isNotEmpty) ...[
                 AppBoxes.kWidth8,
                 NeumorphicButton(
@@ -201,7 +201,7 @@ class _CellEntryViewState extends State<CellEntryView>
               : ListView(
                   padding: AppInsets.h8 + AppInsets.top8,
                   children: [
-                    // Короба сверху: их немного, и в них проваливаются; россыпь — ниже.
+                    // Короба сверху: их немного, и в них проваливаются; россыпь - ниже.
                     for (final b in boxes)
                       BoxTile(
                         title: t.stockEntry.boxTitle(code: b.code),

@@ -9,12 +9,12 @@ import (
 	"craftwms/internal/repository"
 )
 
-// ErrInvalidShipmentID — идентификатор сеанса отгрузки возврата не UUID (ADHOC-31).
+// ErrInvalidShipmentID - идентификатор сеанса отгрузки возврата не UUID (ADHOC-31).
 var ErrInvalidShipmentID = errors.New("shipment id must be a UUID")
 
-// returnSubmitPayload — тело операции return_submit, как его собирает устройство (ADHOC-31):
-// сеанс отгрузки по заданию возврата — какие позиции (проблемы) отгружены. Позиция — целиком,
-// поэтому ни количества, ни ячеек в теле нет. Марки ЧЗ (CZ-06, долг 30) — отсканированные
+// returnSubmitPayload - тело операции return_submit, как его собирает устройство (ADHOC-31):
+// сеанс отгрузки по заданию возврата - какие позиции (проблемы) отгружены. Позиция - целиком,
+// поэтому ни количества, ни ячеек в теле нет. Марки ЧЗ (CZ-06, долг 30) - отсканированные
 // экземпляры позиций россыпью; прежние клиенты их не шлют.
 type returnSubmitPayload struct {
 	ShipmentID  string   `json:"shipment_id"`
@@ -24,8 +24,8 @@ type returnSubmitPayload struct {
 	Marks       []string `json:"marks"`
 }
 
-// returnSubmit разбирает и проверяет сеанс отгрузки возврата из очереди устройства. Автор —
-// из токена; всё, что проверяется без базы, — здесь.
+// returnSubmit разбирает и проверяет сеанс отгрузки возврата из очереди устройства. Автор -
+// из токена; всё, что проверяется без базы, - здесь.
 func (s *OperationsService) returnSubmit(ctx context.Context, userID, id string, raw json.RawMessage) (repository.Applied, error) {
 	var p returnSubmitPayload
 	if err := json.Unmarshal(raw, &p); err != nil {

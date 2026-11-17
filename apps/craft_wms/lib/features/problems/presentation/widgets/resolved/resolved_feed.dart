@@ -14,8 +14,8 @@ import '../records/record_days.dart';
 import '../records/record_tile.dart';
 
 /// Лента «Завершённые» проблем склада (ADHOC-34): решённые офисом проблемы всего склада по
-/// дням решения, свежие сверху, подгрузка у конца ленты. Только со связью — офлайн лента не
-/// хранится. Вид — как у «Завершённых» заданий и перемещений.
+/// дням решения, свежие сверху, подгрузка у конца ленты. Только со связью - офлайн лента не
+/// хранится. Вид - как у «Завершённых» заданий и перемещений.
 class ResolvedFeed extends StatefulWidget {
   const ResolvedFeed({super.key});
 
@@ -35,7 +35,7 @@ class _ResolvedFeedState extends State<ResolvedFeed> {
     return false;
   }
 
-  /// Открыть карточку — проблема и решение офиса. Всё уже пришло в ленте, запроса нет.
+  /// Открыть карточку - проблема и решение офиса. Всё уже пришло в ленте, запроса нет.
   void openProblem(ProblemRecord problem) {
     context.router.push(ProblemRecordRoute(problem: problem));
   }

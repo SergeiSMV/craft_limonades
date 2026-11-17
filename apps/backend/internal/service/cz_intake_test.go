@@ -10,7 +10,7 @@ import (
 	"craftwms/internal/repository"
 )
 
-// Проверки формы данных ЧЗ приёмки (CZ-05) — до базы, отказом по существу.
+// Проверки формы данных ЧЗ приёмки (CZ-05) - до базы, отказом по существу.
 func TestReceiptCZ_formChecks(t *testing.T) {
 	const (
 		box   = "00146127282000000172"
@@ -48,7 +48,7 @@ func TestReceiptCZ_formChecks(t *testing.T) {
 			if err == nil {
 				_, err = cz.marks(tc.marks, tc.lineLU, two)
 			}
-			if !errors.Is(err, tc.want) { // errors.Is(nil, nil) — true
+			if !errors.Is(err, tc.want) { // errors.Is(nil, nil) - true
 				t.Fatalf("ошибка %v, ожидалась %v", err, tc.want)
 			}
 		})

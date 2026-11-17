@@ -9,7 +9,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-// ADHOC-26: таблица документов — статусы, действия по состоянию, пустой поиск, узкое окно.
+// ADHOC-26: таблица документов - статусы, действия по состоянию, пустой поиск, узкое окно.
 void main() {
   setUp(LocaleSettings.useDeviceLocale);
 
@@ -65,7 +65,7 @@ void main() {
     );
   }
 
-  testWidgets('ожидающий — «Провести» есть, проведённый — нет', (tester) async {
+  testWidgets('ожидающий - «Провести» есть, проведённый - нет', (tester) async {
     await pump(tester, [
       doc('1', DocStatus.downloaded, 'ИП Лапушкин'),
       doc('2', DocStatus.done, 'ИП Березин'),
@@ -82,7 +82,7 @@ void main() {
   });
 
   // «Нет исключения» мало: Table не сообщает о переполнении, а карточка молча обрезает всё,
-  // что шире неё. Поэтому кнопки действий должны лежать внутри своей карточки — таблицы или
+  // что шире неё. Поэтому кнопки действий должны лежать внутри своей карточки - таблицы или
   // узкого списка; иначе оператор их не видит (так было на ширине ноутбука).
   void expectActionsVisible(WidgetTester tester, [double? _]) {
     for (final icon in [Icons.schedule, Icons.download, Icons.check]) {
@@ -100,7 +100,7 @@ void main() {
     }
   }
 
-  testWidgets('широкое окно — кнопки с подписями и все в окне', (tester) async {
+  testWidgets('широкое окно - кнопки с подписями и все в окне', (tester) async {
     await pump(tester, [
       doc('1', DocStatus.isNew, 'ИП ЛАПУШКИН СЕРГЕЙ АНДРЕЕВИЧ'),
     ]);
@@ -109,7 +109,7 @@ void main() {
     expectActionsVisible(tester, 1100);
   });
 
-  testWidgets('окно ноутбука — кнопки иконками, без прокрутки, все в окне', (
+  testWidgets('окно ноутбука - кнопки иконками, без прокрутки, все в окне', (
     tester,
   ) async {
     await pump(tester, [
@@ -136,7 +136,7 @@ void main() {
     expectActionsVisible(tester, 800);
   });
 
-  // Бейдж статуса — целиком, без многоточия: колонка статуса берёт ширину по бейджу.
+  // Бейдж статуса - целиком, без многоточия: колонка статуса берёт ширину по бейджу.
   void expectStatusNotTruncated(WidgetTester tester) {
     for (final label in [
       t.portal.documents.statusPosted,
@@ -149,7 +149,7 @@ void main() {
     }
   }
 
-  testWidgets('бейдж статуса не обрезается — на широком окне и на ноутбуке', (
+  testWidgets('бейдж статуса не обрезается - на широком окне и на ноутбуке', (
     tester,
   ) async {
     final docs = [
@@ -163,7 +163,7 @@ void main() {
     }
   });
 
-  testWidgets('на любой ширине действия внутри карточки — таблица или строки', (
+  testWidgets('на любой ширине действия внутри карточки - таблица или строки', (
     tester,
   ) async {
     final docs = [
@@ -188,7 +188,7 @@ void main() {
   });
 
   testWidgets(
-    'кнопки строк — в одну колонку: «История» и «Скачать» на одних местах',
+    'кнопки строк - в одну колонку: «История» и «Скачать» на одних местах',
     (tester) async {
       await pump(tester, [
         doc('1', DocStatus.isNew, 'ИП Лапушкин'),
@@ -209,13 +209,13 @@ void main() {
     },
   );
 
-  testWidgets('пусто после поиска — «Ничего не найдено»', (tester) async {
+  testWidgets('пусто после поиска - «Ничего не найдено»', (tester) async {
     await pump(tester, const []);
     expect(find.text(t.portal.documents.notFound), findsOneWidget);
   });
 
   testWidgets(
-    'телефон — строки вместо таблицы, кнопки в экране, у каждого статус',
+    'телефон - строки вместо таблицы, кнопки в экране, у каждого статус',
     (tester) async {
       await pump(tester, [
         doc('1', DocStatus.isNew, 'ИП ЛАПУШКИН СЕРГЕЙ АНДРЕЕВИЧ'),

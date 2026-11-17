@@ -49,7 +49,7 @@ class ProbeSummaryCard extends StatelessWidget {
   }
 }
 
-/// Строка сводки «подпись — значение»; пустое значение показываем прочерком.
+/// Строка сводки «подпись - значение»; пустое значение показываем прочерком.
 class _Row extends StatelessWidget {
   const _Row({required this.label, required this.value});
 

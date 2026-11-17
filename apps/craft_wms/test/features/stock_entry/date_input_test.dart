@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  group('DateTextInputFormatter — авто-точки дд.мм.гггг', () {
+  group('DateTextInputFormatter - авто-точки дд.мм.гггг', () {
     final f = DateTextInputFormatter();
 
     String format(String raw) => f
@@ -23,7 +23,7 @@ void main() {
     });
 
     test('нецифры отбрасываются, лишние цифры режутся до 8', () {
-      expect(format('15.01.2026'), '15.01.2026'); // точки от повторного ввода — не двоятся
+      expect(format('15.01.2026'), '15.01.2026'); // точки от повторного ввода - не двоятся
       expect(format('15a01b2026'), '15.01.2026');
       expect(format('150120261234'), '15.01.2026');
     });
@@ -41,10 +41,10 @@ void main() {
     });
     test('валидные (2-значный год → 20YY)', () {
       expect(isValidEntryDate('15.01.26'), isTrue);
-      expect(isValidEntryDate('29.02.24'), isTrue); // 2024 — високосный
+      expect(isValidEntryDate('29.02.24'), isTrue); // 2024 - високосный
     });
     test('невалидные', () {
-      expect(isValidEntryDate('15-01-2026'), isFalse); // дефисы — не наш формат
+      expect(isValidEntryDate('15-01-2026'), isFalse); // дефисы - не наш формат
       expect(isValidEntryDate('31.02.2026'), isFalse); // нет такого дня
       expect(isValidEntryDate('29.02.26'), isFalse); // 2026 не високосный
       expect(isValidEntryDate('00.01.2026'), isFalse);
@@ -65,7 +65,7 @@ void main() {
     });
   });
 
-  group('isoToDisplayDate — ISO из API → дд.мм.гггг', () {
+  group('isoToDisplayDate - ISO из API → дд.мм.гггг', () {
     test('дата и дата со временем', () {
       expect(isoToDisplayDate('2026-08-03'), '03.08.2026');
       expect(isoToDisplayDate('2026-08-10T00:00:00Z'), '10.08.2026');

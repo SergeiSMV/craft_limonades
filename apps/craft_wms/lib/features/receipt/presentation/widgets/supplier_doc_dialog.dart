@@ -11,8 +11,8 @@ import '../../../../core/theme/semibold_text.dart';
 import '../../../../core/utils/date_input.dart';
 import '../bloc/receipt_models.dart';
 
-/// Спросить документ поставщика (ADHOC-23); [initial] — исправление уже указанного.
-/// `null` — кладовщик отменил.
+/// Спросить документ поставщика (ADHOC-23); [initial] - исправление уже указанного.
+/// `null` - кладовщик отменил.
 Future<ReceiptDoc?> showSupplierDocDialog(
   BuildContext context, {
   ReceiptDoc? initial,
@@ -23,7 +23,7 @@ Future<ReceiptDoc?> showSupplierDocDialog(
 
 /// Окно «Документ поставщика»: номер накладной (или «б/н» одним нажатием) и её дата.
 ///
-/// Вёрстка — как у окна даты и количества строки: те же вдавленные поля и тот же ввод даты
+/// Вёрстка - как у окна даты и количества строки: те же вдавленные поля и тот же ввод даты
 /// с авто-точками, чтобы кладовщик не переучивался между окнами одного потока.
 class SupplierDocDialog extends StatefulWidget {
   const SupplierDocDialog({super.key, this.initial});
@@ -46,7 +46,7 @@ class _SupplierDocDialogState extends State<SupplierDocDialog> {
     super.dispose();
   }
 
-  /// «б/н» — накладная без номера: вписать одним нажатием, а не набирать с клавиатуры.
+  /// «б/н» - накладная без номера: вписать одним нажатием, а не набирать с клавиатуры.
   void noNumber() => _number.text = t.receipt.docNoNumber;
 
   /// Проверить и закрыть окно с документом; дата приводится к дд.мм.гггг.
@@ -61,13 +61,13 @@ class _SupplierDocDialogState extends State<SupplierDocDialog> {
     );
   }
 
-  /// Номер: не пустой и не длиннее 50 знаков — тот же предел, что на сервере.
+  /// Номер: не пустой и не длиннее 50 знаков - тот же предел, что на сервере.
   String? validateNumber(String? v) {
     final s = (v ?? '').trim();
     return s.isEmpty || s.length > 50 ? t.receipt.docNumberRequired : null;
   }
 
-  /// Дата: настоящая и не позже сегодняшней — накладная из будущего значит опечатку.
+  /// Дата: настоящая и не позже сегодняшней - накладная из будущего значит опечатку.
   String? validateDate(String? v) {
     final s = (v ?? '').trim();
     if (!isValidEntryDate(s)) return t.receipt.docDateInvalid;
@@ -82,7 +82,7 @@ class _SupplierDocDialogState extends State<SupplierDocDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      // scrollable — чтобы текст ошибки под полем не переполнял окно при поднятой клавиатуре.
+      // scrollable - чтобы текст ошибки под полем не переполнял окно при поднятой клавиатуре.
       backgroundColor: Colors.white,
       scrollable: true,
       insetPadding: AppInsets.h8,
@@ -163,7 +163,7 @@ class _SupplierDocDialogState extends State<SupplierDocDialog> {
     ),
   );
 
-  /// Вдавленное поле — как в окне даты и количества.
+  /// Вдавленное поле - как в окне даты и количества.
   Widget _field({
     required TextEditingController controller,
     required String hint,

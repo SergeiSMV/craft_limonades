@@ -33,7 +33,7 @@ class CzMarkedCubit extends Cubit<CzMarkedState> {
   void start({required String goodId, required bool marked}) =>
       emit(CzMarkedState(goodId: goodId, marked: marked));
 
-  /// Сохранить новый признак. Тот же или правка ещё в пути — ничего не делаем; отказ —
+  /// Сохранить новый признак. Тот же или правка ещё в пути - ничего не делаем; отказ -
   /// признак прежний, причина в состоянии.
   Future<void> set(bool marked) async {
     if (state.saving || state.marked == marked) return;

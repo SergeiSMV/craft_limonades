@@ -14,13 +14,13 @@ import (
 	"craftwms/internal/repository"
 )
 
-// ErrInvalidReceiptID — идентификатор документа приёмки не UUID.
+// ErrInvalidReceiptID - идентификатор документа приёмки не UUID.
 //
-// Отдельно от ErrEmptyReceiptID: у прямой ручки пустой id — это пропущенное поле, а в операции
+// Отдельно от ErrEmptyReceiptID: у прямой ручки пустой id - это пропущенное поле, а в операции
 // очереди документ адресуется своим id офлайн, и id не по форме означает испорченную операцию.
 var ErrInvalidReceiptID = errors.New("receipt id must be a UUID")
 
-// receiptSubmitPayload — тело операции receipt_submit, как его собирает устройство.
+// receiptSubmitPayload - тело операции receipt_submit, как его собирает устройство.
 type receiptSubmitPayload struct {
 	ReceiptID   string `json:"receipt_id"`
 	WarehouseID string `json:"warehouse_id"`
@@ -30,10 +30,10 @@ type receiptSubmitPayload struct {
 	LoadUnits   []struct {
 		ID   string `json:"id"`
 		Kind string `json:"kind"`
-		// CZCode — короб ЧЗ (`00`+SSCC), которым является эта ГЕ (CZ-05); пусто — свой ярлык.
+		// CZCode - короб ЧЗ (`00`+SSCC), которым является эта ГЕ (CZ-05); пусто - свой ярлык.
 		CZCode string `json:"cz_code"`
 	} `json:"load_units"`
-	// CZGroups — групповые упаковки ЧЗ из состава коробов и сканов (CZ-05).
+	// CZGroups - групповые упаковки ЧЗ из состава коробов и сканов (CZ-05).
 	CZGroups []czGroupPayload `json:"cz_groups"`
 	Lines    []struct {
 		GoodID         string          `json:"good_id"`
@@ -48,10 +48,10 @@ type receiptSubmitPayload struct {
 // receiptSubmit разбирает и проверяет приёмку из очереди устройства (P4-09).
 //
 // Всё, что можно проверить без базы, проверяется здесь: идентификаторы по форме, количества,
-// даты. Ошибка формы — отказ по существу (повтор её не исправит), и лучше получить его до
+// даты. Ошибка формы - отказ по существу (повтор её не исправит), и лучше получить его до
 // открытия транзакции, чем нарушением типа на середине вставки.
 //
-// Автор — из токена, а не из тела: иначе устройство могло бы записать приёмку на другого.
+// Автор - из токена, а не из тела: иначе устройство могло бы записать приёмку на другого.
 func (s *OperationsService) receiptSubmit(ctx context.Context, userID, id string, raw json.RawMessage) (repository.Applied, error) {
 	var p receiptSubmitPayload
 	if err := json.Unmarshal(raw, &p); err != nil {
@@ -72,7 +72,7 @@ func (s *OperationsService) receiptSubmit(ctx context.Context, userID, id string
 	if !isUUID(in.WarehouseID) || !isOptionalUUID(in.SupplierID) {
 		return repository.Applied{}, ErrInvalidPayload
 	}
-	// Накладная обязательна (ADHOC-23): приёмку без неё сервер не проводит — нечего занести
+	// Накладная обязательна (ADHOC-23): приёмку без неё сервер не проводит - нечего занести
 	// в 1С основанием. Отказ по существу: повтор того же тела ничего не исправит.
 	doc, err := parseSupplierDoc(p.DocNumber, p.DocDate, time.Now())
 	if err != nil {
@@ -139,13 +139,13 @@ func (s *OperationsService) receiptSubmit(ctx context.Context, userID, id string
 	return s.repo.ReceiptSubmit(ctx, id, in)
 }
 
-// isUUID — строка по форме UUID.
+// isUUID - строка по форме UUID.
 func isUUID(s string) bool {
 	_, err := uuid.Parse(s)
 	return err == nil
 }
 
-// isOptionalUUID — пусто или UUID: необязательная ссылка.
+// isOptionalUUID - пусто или UUID: необязательная ссылка.
 func isOptionalUUID(s string) bool {
 	return s == "" || isUUID(s)
 }

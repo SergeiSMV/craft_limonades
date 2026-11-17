@@ -42,16 +42,16 @@ void main() {
     });
 
     test(
-      'первый ответ только запоминает, дальше — только выросшие области',
+      'первый ответ только запоминает, дальше - только выросшие области',
       () async {
         versions.observe('contents=1,goods=1,tasks=1');
         versions.observe('contents=2,goods=1,tasks=1');
         versions.observe(
           'contents=2,goods=1,tasks=1',
-        ); // ничего нового — события нет
+        ); // ничего нового - события нет
         versions.observe(
           'contents=1,goods=3,tasks=2',
-        ); // contents из старого ответа — не в счёт
+        ); // contents из старого ответа - не в счёт
         await pumpEventQueue();
         expect(events, [
           {'contents'},
@@ -103,7 +103,7 @@ void main() {
     });
   });
 
-  group('DataVersionsSync — кэши ТСД', () {
+  group('DataVersionsSync - кэши ТСД', () {
     late DataVersions versions;
     late _MockCatalogSync catalog;
     late FakeContentsSnapshotSync contents;
@@ -124,7 +124,7 @@ void main() {
     });
     tearDown(() => sync.stop());
 
-    test('остатки — снимок склада, задания — снимок заданий', () async {
+    test('остатки - снимок склада, задания - снимок заданий', () async {
       versions.observe('goods=1,cells=1,settings=1,contents=2,tasks=2');
       await pumpEventQueue();
       expect(contents.requests, 1);
@@ -132,14 +132,14 @@ void main() {
       verifyNever(() => catalog.refresh());
     });
 
-    test('справочник — полная загрузка, снимок она перечитает сама', () async {
+    test('справочник - полная загрузка, снимок она перечитает сама', () async {
       versions.observe('goods=2,cells=1,settings=1,contents=2,tasks=1');
       await pumpEventQueue();
       verify(() => catalog.refresh()).called(1);
       expect(contents.requests, 0);
     });
 
-    test('справочник уже грузится — второй загрузки нет', () async {
+    test('справочник уже грузится - второй загрузки нет', () async {
       when(() => catalog.isRunning).thenReturn(true);
       versions.observe('goods=2,cells=1,settings=1,contents=1,tasks=1');
       await pumpEventQueue();
@@ -155,7 +155,7 @@ void main() {
     });
   });
 
-  testWidgets('DataVersionsListener: пачка событий — одно перечитывание', (
+  testWidgets('DataVersionsListener: пачка событий - одно перечитывание', (
     tester,
   ) async {
     final versions = DataVersions()..observe('tasks=1,goods=1');
@@ -171,7 +171,7 @@ void main() {
     versions
       ..observe('tasks=2,goods=1')
       ..observe('tasks=3,goods=1')
-      ..observe('tasks=3,goods=2'); // чужая область — не в счёт
+      ..observe('tasks=3,goods=2'); // чужая область - не в счёт
     await tester.pump(DataVersionsListener.debounce);
     expect(calls, 1);
   });

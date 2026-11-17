@@ -2,7 +2,7 @@ package model
 
 import "testing"
 
-// ADHOC-65: уровень печати бейджей — самый широкий из отмеченных, «Администратор» — всех.
+// ADHOC-65: уровень печати бейджей - самый широкий из отмеченных, «Администратор» - всех.
 func TestBadgeScope(t *testing.T) {
 	cases := []struct {
 		access             Access

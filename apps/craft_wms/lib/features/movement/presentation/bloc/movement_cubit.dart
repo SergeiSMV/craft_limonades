@@ -13,11 +13,11 @@ import 'movement_state.dart';
 
 /// Cubit перемещения на ТСД (P6-04).
 ///
-/// Решения о потоке — здесь, без сети и базы: экран находит короб, ячейку и товар и передаёт
+/// Решения о потоке - здесь, без сети и базы: экран находит короб, ячейку и товар и передаёт
 /// найденное, cubit решает, что это значит в текущем шаге. Правила (решения 2026-10-13):
-/// - скан короба или ячейки с пустыми руками — это источник;
-/// - в руках короб: ячейка — короб едет целиком, товар — берётся из короба;
-/// - в руках товар: ячейка — кладём россыпью, короб — кладём в короб;
+/// - скан короба или ячейки с пустыми руками - это источник;
+/// - в руках короб: ячейка - короб едет целиком, товар - берётся из короба;
+/// - в руках товар: ячейка - кладём россыпью, короб - кладём в короб;
 /// - ячейка приёмки и ячейка другого склада не годятся ни источником, ни приёмником.
 @injectable
 class MovementCubit extends Cubit<MovementState> {
@@ -33,7 +33,7 @@ class MovementCubit extends Cubit<MovementState> {
   //* --- черновик --- *//
 
   /// Открыть сеанс: продолжить незавершённый или начать новый. Взятое в руки в черновик не
-  /// пишется: после перезапуска его берут заново — за это время оно могло и переехать.
+  /// пишется: после перезапуска его берут заново - за это время оно могло и переехать.
   Future<void> init() async {
     final draft = await _repo.loadDraft();
     if (draft == null) {
@@ -55,7 +55,7 @@ class MovementCubit extends Cubit<MovementState> {
 
   /// Сохранение черновика повешено на [emit]: метод, добавленный позже, про сохранение забыл
   /// бы, а один перехват на все изменения забыть невозможно. Пустой сеанс черновиком не
-  /// считается — иначе плитка помечалась бы от одного входа на экран.
+  /// считается - иначе плитка помечалась бы от одного входа на экран.
   @override
   void emit(MovementState state) {
     super.emit(state);
@@ -70,7 +70,7 @@ class MovementCubit extends Cubit<MovementState> {
         .catchError((_) {});
   }
 
-  /// Слепок сеанса — черновик и копия отправленного документа (ADHOC-41) в одном виде.
+  /// Слепок сеанса - черновик и копия отправленного документа (ADHOC-41) в одном виде.
   @visibleForTesting
   static Map<String, dynamic> session(MovementState s) => {
     'movement_id': s.movementId,
@@ -79,17 +79,17 @@ class MovementCubit extends Cubit<MovementState> {
     if (s.fixReason != null) 'fix_reason': s.fixReason,
   };
 
-  /// Дождаться записи черновика — нужно только тестам.
+  /// Дождаться записи черновика - нужно только тестам.
   @visibleForTesting
   Future<void> get draftWrites => _writes;
 
   //* --- скан короба и ячейки --- *//
 
-  /// Отсканирован или выбран вручную ([manual]) короб. [box] — его карточка (с сервера или
-  /// из снимка с очередью поверх), [cell] — ячейка, где он лежит сейчас с учётом этого
-  /// сеанса; `null` — не размещён.
+  /// Отсканирован или выбран вручную ([manual]) короб. [box] - его карточка (с сервера или
+  /// из снимка с очередью поверх), [cell] - ячейка, где он лежит сейчас с учётом этого
+  /// сеанса; `null` - не размещён.
   ///
-  /// В руках товар — короб становится приёмником. Иначе короб берётся в руки источником.
+  /// В руках товар - короб становится приёмником. Иначе короб берётся в руки источником.
   void onBox(LoadUnitView box, Cell? cell, {bool manual = false}) {
     if (cell == null || !box.live) {
       emit(state.copyWith(notice: const MoveNotice.boxEmpty()));
@@ -122,10 +122,10 @@ class MovementCubit extends Cubit<MovementState> {
     }
   }
 
-  /// Отсканирована ячейка. [loose] — её россыпь (нужна, только если ячейка становится
+  /// Отсканирована ячейка. [loose] - её россыпь (нужна, только если ячейка становится
   /// источником).
   ///
-  /// В руках короб — он едет сюда целиком. В руках товар — ложится сюда россыпью. Иначе
+  /// В руках короб - он едет сюда целиком. В руках товар - ложится сюда россыпью. Иначе
   /// россыпь ячейки становится источником.
   void onCell(Cell cell, {List<ContentLine> loose = const []}) {
     final asSource = switch (state.hold) {
@@ -141,7 +141,7 @@ class MovementCubit extends Cubit<MovementState> {
       case HoldSource(place: final held) when held.isBox:
         _moveBox(held, place, cell);
       default:
-        // Из ячейки приёмки — только россыпь с меткой (ADHOC-55): «Основной» разносит задание.
+        // Из ячейки приёмки - только россыпь с меткой (ADHOC-55): «Основной» разносит задание.
         final source = MoveHold.source(
           place: place,
           contents: cell.isDefault
@@ -172,7 +172,7 @@ class MovementCubit extends Cubit<MovementState> {
   }
 
   /// Ячейка годится в дело: не ячейка приёмки (из неё и в неё двигают заданием на
-  /// размещение) и того же склада, что сеанс. [labelledSource] — ячейка приёмки берётся
+  /// размещение) и того же склада, что сеанс. [labelledSource] - ячейка приёмки берётся
   /// источником россыпи с меткой склада: задание её не разносит (ADHOC-55), что именно
   /// из неё брать, решает вызывающий.
   bool _cellAllowed(Cell cell, {bool labelledSource = false}) {
@@ -188,7 +188,7 @@ class MovementCubit extends Cubit<MovementState> {
     return true;
   }
 
-  /// Короб целиком — в ячейку. Строка сеанса; руки свободны.
+  /// Короб целиком - в ячейку. Строка сеанса; руки свободны.
   void _moveBox(MovePlace box, MovePlace to, Cell cell) {
     if (box.cellId == to.cellId) {
       emit(state.copyWith(notice: const MoveNotice.sameCell()));
@@ -208,7 +208,7 @@ class MovementCubit extends Cubit<MovementState> {
 
   //* --- товар --- *//
 
-  /// Что можно взять из источника в руках; [goodId] — только этот товар. Пусто — источника
+  /// Что можно взять из источника в руках; [goodId] - только этот товар. Пусто - источника
   /// нет или брать нечего.
   List<(ContentLine, double)> candidates({String? goodId}) =>
       switch (state.hold) {
@@ -216,7 +216,7 @@ class MovementCubit extends Cubit<MovementState> {
         _ => const [],
       };
 
-  /// Отсканирован товар, а взять его неоткуда или он уже в руках — подсказка.
+  /// Отсканирован товар, а взять его неоткуда или он уже в руках - подсказка.
   void goodWithoutSource() => emit(
     state.copyWith(
       notice: state.hold is HoldGoods
@@ -229,7 +229,7 @@ class MovementCubit extends Cubit<MovementState> {
   void goodNotInSource() =>
       emit(state.copyWith(notice: const MoveNotice.notInSource()));
 
-  /// Взять товар партии [line] количеством [qty] — не больше, чем есть в источнике.
+  /// Взять товар партии [line] количеством [qty] - не больше, чем есть в источнике.
   void takeGoods(ContentLine line, double qty) {
     final hold = state.hold;
     if (hold is! HoldSource) return;
@@ -260,17 +260,17 @@ class MovementCubit extends Cubit<MovementState> {
     );
   }
 
-  /// Маркируемый товар взят не марками (штрихкодом или из списка) — подсказка (CZ-06).
+  /// Маркируемый товар взят не марками (штрихкодом или из списка) - подсказка (CZ-06).
   void markRequired() =>
       emit(state.copyWith(notice: const MoveNotice.scanMark()));
 
-  /// Отсканированы марки ЧЗ (CZ-06): марка — одна единица, групповая упаковка — её марки,
-  /// лежащие в одном месте. Товар и партия — марки, место [from] — где марки лежат с учётом
-  /// сеанса, [cell] — ячейка этого места.
+  /// Отсканированы марки ЧЗ (CZ-06): марка - одна единица, групповая упаковка - её марки,
+  /// лежащие в одном месте. Товар и партия - марки, место [from] - где марки лежат с учётом
+  /// сеанса, [cell] - ячейка этого места.
   ///
-  /// С пустыми руками или с источником, где марки лежат, — марки берутся в руки товаром без
-  /// диалога количества. С марками того же товара, партии, склада и места в руках — добавляются
-  /// к ним. Источник в руках другой — «нет в источнике»; в руках другое — «сначала положите».
+  /// С пустыми руками или с источником, где марки лежат, - марки берутся в руки товаром без
+  /// диалога количества. С марками того же товара, партии, склада и места в руках - добавляются
+  /// к ним. Источник в руках другой - «нет в источнике»; в руках другое - «сначала положите».
   void takeMarks({
     required List<String> marks,
     required MoveGood good,
@@ -333,7 +333,7 @@ class MovementCubit extends Cubit<MovementState> {
     }
   }
 
-  /// Положить взятый товар в [to]. Тот же товар той же партии тем же путём — одна строка
+  /// Положить взятый товар в [to]. Тот же товар той же партии тем же путём - одна строка
   /// с суммой.
   void _put(MovePlace to, Cell cell) {
     final g = state.hold;
@@ -387,7 +387,7 @@ class MovementCubit extends Cubit<MovementState> {
 
   //* --- прочее --- *//
 
-  /// Ярлык короба, которого нет: на сервере — недействителен; без связи и в снимке — не
+  /// Ярлык короба, которого нет: на сервере - недействителен; без связи и в снимке - не
   /// проверить.
   void boxNotFound({required bool offline}) => emit(
     state.copyWith(
@@ -397,10 +397,10 @@ class MovementCubit extends Cubit<MovementState> {
     ),
   );
 
-  /// Положить обратно — передумал.
+  /// Положить обратно - передумал.
   void dropHold() => emit(state.copyWith(hold: null, notice: null));
 
-  /// Убрать строку сеанса — перемещено не туда.
+  /// Убрать строку сеанса - перемещено не туда.
   void removeLine(MoveLine line) {
     final lines = List<MoveLine>.from(state.lines);
     if (!lines.remove(line)) return;
@@ -438,7 +438,7 @@ class MovementCubit extends Cubit<MovementState> {
   /// «Исправить» с экрана отказа: сеанс снова черновик с причиной отказа (ADHOC-41, долг 26).
   ///
   /// Черновик к этому моменту стёрт итогом, поэтому занятым он не бывает; сеанс открывается
-  /// заново тем же путём, что после перезапуска, — из черновика.
+  /// заново тем же путём, что после перезапуска, - из черновика.
   Future<void> fixRejected() async {
     final id = state.rejectedOperationId;
     if (id == null) return;
@@ -448,12 +448,12 @@ class MovementCubit extends Cubit<MovementState> {
     await init();
   }
 
-  /// Тело операции `movement_submit` — формат эталонов `testdata/movement_submit.json` и
+  /// Тело операции `movement_submit` - формат эталонов `testdata/movement_submit.json` и
   /// `movement_submit_cz.json` (марки ЧЗ строки, CZ-06).
   ///
-  /// У короба ячейку не шлём: сервер берёт её из места короба. Дата партии — в транспортном
+  /// У короба ячейку не шлём: сервер берёт её из места короба. Дата партии - в транспортном
   /// виде DD-MM-YYYY. Склад товара шлём только у россыпи не «Основного» склада (P6-07-2): из
-  /// короба склад — склад короба, а «Основной» сервер подставляет сам.
+  /// короба склад - склад короба, а «Основной» сервер подставляет сам.
   @visibleForTesting
   static Map<String, dynamic> payload(MovementState s) => {
     'movement_id': s.movementId,

@@ -10,16 +10,16 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// Типы токенов — кладём в claim typ, чтобы refresh нельзя было использовать как access и наоборот.
+// Типы токенов - кладём в claim typ, чтобы refresh нельзя было использовать как access и наоборот.
 const (
 	typeAccess  = "access"
 	typeRefresh = "refresh"
 )
 
-// ErrInvalidToken — токен не прошёл проверку (подпись/срок/тип).
+// ErrInvalidToken - токен не прошёл проверку (подпись/срок/тип).
 var ErrInvalidToken = errors.New("invalid token")
 
-// Claims — полезная нагрузка JWT: стандартные поля + роль и тип токена.
+// Claims - полезная нагрузка JWT: стандартные поля + роль и тип токена.
 type Claims struct {
 	Role string `json:"role,omitempty"`
 	Typ  string `json:"typ"`
@@ -43,7 +43,7 @@ func (m *TokenManager) IssueAccess(userID, role string) (string, error) {
 	return m.sign(userID, role, typeAccess, m.accessTTL)
 }
 
-// IssueRefresh выпускает долгоживущий refresh-токен (роль в него не кладём — она перечитывается из БД на refresh).
+// IssueRefresh выпускает долгоживущий refresh-токен (роль в него не кладём - она перечитывается из БД на refresh).
 func (m *TokenManager) IssueRefresh(userID string) (string, error) {
 	return m.sign(userID, "", typeRefresh, m.refreshTTL)
 }
@@ -65,7 +65,7 @@ func (m *TokenManager) sign(userID, role, typ string, ttl time.Duration) (string
 		Role: role,
 		Typ:  typ,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ID:        randID(), // jti — делает каждый токен уникальным даже в пределах секунды
+			ID:        randID(), // jti - делает каждый токен уникальным даже в пределах секунды
 			Subject:   userID,   // sub = id пользователя
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(now.Add(ttl)),

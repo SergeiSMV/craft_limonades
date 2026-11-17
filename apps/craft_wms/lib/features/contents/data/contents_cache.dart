@@ -7,10 +7,10 @@ import 'contents_dto.dart';
 
 /// Снимок содержимого склада в локальной базе (P5-05).
 ///
-/// Что: живые короба, их содержимое и россыпь по ячейкам — то, что пришло последним снимком.
-/// Как: запись — полная замена в одной транзакции, как у справочников: сервер отдаёт только
+/// Что: живые короба, их содержимое и россыпь по ячейкам - то, что пришло последним снимком.
+/// Как: запись - полная замена в одной транзакции, как у справочников: сервер отдаёт только
 /// живые короба, и выведенные из обращения иначе остались бы здесь навсегда; обрыв посреди
-/// записи оставляет прежний снимок целиком. Наименований товаров здесь нет — их даёт
+/// записи оставляет прежний снимок целиком. Наименований товаров здесь нет - их даёт
 /// справочник товаров терминала.
 @lazySingleton
 class ContentsCache {
@@ -22,7 +22,7 @@ class ContentsCache {
   /// не входит: готовность «Остатков» от снимка не зависит.
   static const markName = 'contents';
 
-  /// Заменить снимок целиком. Отметка — момент снимка на сервере, а не время загрузки:
+  /// Заменить снимок целиком. Отметка - момент снимка на сервере, а не время загрузки:
   /// кладовщику важно, на когда данные, а не когда их скачали.
   Future<void> replace(ContentsSnapshot snapshot) => _db.transaction(() async {
     await _db.delete(_db.cachedLoadUnits).go();
@@ -89,7 +89,7 @@ class ContentsCache {
         );
   });
 
-  /// На какой момент снимок; `null` — снимка ещё не было.
+  /// На какой момент снимок; `null` - снимка ещё не было.
   Future<DateTime?> asOf() async {
     final row = await (_db.select(
       _db.catalogSyncMarks,
@@ -97,7 +97,7 @@ class ContentsCache {
     return row?.syncedAt;
   }
 
-  /// Короба снимка по идентификаторам, с содержимым. Наименований и адресов нет — их
+  /// Короба снимка по идентификаторам, с содержимым. Наименований и адресов нет - их
   /// подставляет репозиторий из справочников.
   Future<Map<String, LoadUnitView>> loadUnits(Iterable<String> ids) async {
     final wanted = ids.toSet();
@@ -108,12 +108,12 @@ class ContentsCache {
     return _withLines(rows);
   }
 
-  /// Все короба снимка (P5-05-1) — для вкладки «Короба» и поиска без связи. Целиком, без
+  /// Все короба снимка (P5-05-1) - для вкладки «Короба» и поиска без связи. Целиком, без
   /// страниц: на масштабе пилота это сотни строк, а список на экране строится лениво.
   Future<Map<String, LoadUnitView>> allLoadUnits() async =>
       _withLines(await _db.select(_db.cachedLoadUnits).get());
 
-  /// Короб снимка с кодом короба ЧЗ [czCode] (`00`+SSCC, CZ-06); `null` — такого нет.
+  /// Короб снимка с кодом короба ЧЗ [czCode] (`00`+SSCC, CZ-06); `null` - такого нет.
   Future<String?> loadUnitIdByCzCode(String czCode) async {
     final row = await (_db.select(
       _db.cachedLoadUnits,
@@ -121,7 +121,7 @@ class ContentsCache {
     return row?.id;
   }
 
-  /// Марки снимка по коду (CZ-06): марка с этим КИ или марки упаковки с этим кодом. Склад —
+  /// Марки снимка по коду (CZ-06): марка с этим КИ или марки упаковки с этим кодом. Склад -
   /// как прислал сервер; к соглашению терминала его приводит репозиторий.
   Future<List<StockMark>> marksByCode(String code) async {
     final rows = await (_db.select(
@@ -151,7 +151,7 @@ class ContentsCache {
     return (await _withLines(rows)).values.toList();
   }
 
-  /// Россыпь снимка в ячейке. Строки разных внутренних складов — разные строки (P6-07-2):
+  /// Россыпь снимка в ячейке. Строки разных внутренних складов - разные строки (P6-07-2):
   /// брак рядом с основным товаром показывается и перемещается отдельно.
   Future<List<ContentLine>> looseInCell(String cellId) async {
     final rows = await (_db.select(
@@ -179,7 +179,7 @@ class ContentsCache {
     return out;
   }
 
-  /// Россыпь снимка по всем ячейкам (ADHOC-33) — для остатков по товарам.
+  /// Россыпь снимка по всем ячейкам (ADHOC-33) - для остатков по товарам.
   Future<Map<String, List<ContentLine>>> allLoose() async {
     final out = <String, List<ContentLine>>{};
     for (final r in await _db.select(_db.cachedLooseStock).get()) {
@@ -204,7 +204,7 @@ class ContentsCache {
     return out;
   }
 
-  /// Короба со строками содержимого; порядок — как у [rows].
+  /// Короба со строками содержимого; порядок - как у [rows].
   Future<Map<String, LoadUnitView>> _withLines(
     List<CachedLoadUnit> rows,
   ) async {

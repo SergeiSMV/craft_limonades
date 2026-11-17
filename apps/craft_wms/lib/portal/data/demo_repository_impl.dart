@@ -10,7 +10,7 @@ import '../domain/demo/demo_repository.dart';
 /// Демо-сервер поверх API ADHOC-67.
 ///
 /// Состояние читается «голым» Dio (`tokenDio`): его спрашивают при старте портала, до
-/// хранилища сессии, — а от ответа зависят ключи этой сессии (`SecureTokenStorage`).
+/// хранилища сессии, - а от ответа зависят ключи этой сессии (`SecureTokenStorage`).
 @LazySingleton(as: DemoRepository)
 class DemoRepositoryImpl implements DemoRepository {
   DemoRepositoryImpl(this._dio, @Named('tokenDio') this._plainDio);
@@ -30,7 +30,7 @@ class DemoRepositoryImpl implements DemoRepository {
       );
       return resp.data?['enabled'] == true;
     } catch (_) {
-      // 404 рабочего сервера, нет связи — рабочий режим.
+      // 404 рабочего сервера, нет связи - рабочий режим.
       return false;
     }
   }

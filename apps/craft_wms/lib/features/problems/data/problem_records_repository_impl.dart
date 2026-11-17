@@ -56,7 +56,7 @@ class ProblemRecordsRepositoryImpl implements ProblemRecordsRepository {
   Future<CurrentProblems> current() async {
     final res = await _list(ApiConst.problemsCurrent, null);
     final open = res.isRight ? res.right : const <ProblemRecord>[];
-    // Своя проблема, которую сервер уже провёл (ответ на отправку не дошёл), — серверной.
+    // Своя проблема, которую сервер уже провёл (ответ на отправку не дошёл), - серверной.
     final known = {for (final p in open) p.id};
     final pending = [
       for (final p in await _pending())
@@ -69,8 +69,8 @@ class ProblemRecordsRepositoryImpl implements ProblemRecordsRepository {
     );
   }
 
-  /// Свои неотправленные проблемы из очереди, свежие первыми. Подписи — из справочников
-  /// терминала, место короба — из снимка склада: в теле операции у короба ячейки нет.
+  /// Свои неотправленные проблемы из очереди, свежие первыми. Подписи - из справочников
+  /// терминала, место короба - из снимка склада: в теле операции у короба ячейки нет.
   Future<List<ProblemRecord>> _pending() async {
     final ops = [
       for (final op in await _outbox.pending(limit: _queueLimit))
@@ -137,7 +137,7 @@ class ProblemRecordsRepositoryImpl implements ProblemRecordsRepository {
           reasonName: reasons[p['reason']] ?? '',
           comment: p['comment'] as String? ?? '',
           mark: p['mark'] as String?,
-          // Склад, откуда помечено: у короба — его склад, у товара — склад строки.
+          // Склад, откуда помечено: у короба - его склад, у товара - склад строки.
           fromWarehouse: warehouseName(
             boxId != null
                 ? box?.internalWarehouseId
@@ -169,12 +169,12 @@ class ProblemRecordsRepositoryImpl implements ProblemRecordsRepository {
     }
   }
 
-  /// День фильтра в виде YYYY-MM-DD — сервер толкует его по времени склада.
+  /// День фильтра в виде YYYY-MM-DD - сервер толкует его по времени склада.
   static String _day(DateTime d) =>
       '${d.year.toString().padLeft(4, '0')}-'
       '${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
-  /// Дата партии из очереди (DD-MM-YYYY) — в вид сервера (YYYY-MM-DD): записи показываются
+  /// Дата партии из очереди (DD-MM-YYYY) - в вид сервера (YYYY-MM-DD): записи показываются
   /// одинаково, откуда бы ни пришли.
   static String _iso(String transport) {
     final p = transport.split('-');
@@ -184,7 +184,7 @@ class ProblemRecordsRepositoryImpl implements ProblemRecordsRepository {
   }
 }
 
-/// Проблема из ответа сервера — открытая или решённая. Пустые строки необязательных полей — `null`:
+/// Проблема из ответа сервера - открытая или решённая. Пустые строки необязательных полей - `null`:
 /// сервер опускает их или отдаёт пустыми.
 ProblemRecord problemRecordFromJson(Map<String, dynamic> j) {
   String? opt(String key) {

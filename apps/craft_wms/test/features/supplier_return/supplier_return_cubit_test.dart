@@ -14,7 +14,7 @@ class _MockRepo extends Mock implements SupplierReturnRepository {}
 
 class _FixedIds extends Mock implements LoadUnitIdGenerator {}
 
-/// Эталон формата — тот же файл, что применяет настоящий роутер сервера (ADHOC-31).
+/// Эталон формата - тот же файл, что применяет настоящий роутер сервера (ADHOC-31).
 const _fixturePath = '../backend/internal/handler/testdata/return_submit.json';
 
 /// ADHOC-31: сеанс отгрузки возврата поставщику на ТСД.
@@ -28,7 +28,7 @@ void main() {
   const box = '7f000000-0000-4000-8000-000000000004';
   const good = TaskGood(id: 'g1', code: '16121', name: 'Кальмар', uom: 'шт');
 
-  // Идентификатор задания выдаёт сервер — в эталоне на его месте `TASK`.
+  // Идентификатор задания выдаёт сервер - в эталоне на его месте `TASK`.
   final task = WarehouseTask(
     id: 'TASK',
     number: 7,
@@ -75,7 +75,7 @@ void main() {
             as Map<String, dynamic>)['payload'];
     final c = cubit();
 
-    // Тем же путём, что кладовщик: короб — сканом, товар — ячейка и штрихкод.
+    // Тем же путём, что кладовщик: короб - сканом, товар - ячейка и штрихкод.
     c.scanBox(box.toUpperCase()); // регистр со скана не важен
     c.scanCell('M1-1-1-1');
     c.scanGood(good.id);
@@ -90,7 +90,7 @@ void main() {
   });
 
   test(
-    'чужое не отмечается, повтор — подсказка, касание снимает отметку',
+    'чужое не отмечается, повтор - подсказка, касание снимает отметку',
     () async {
       final c = cubit();
       c.scanBox('ffffffff-0000-4000-8000-000000000000');
@@ -105,7 +105,7 @@ void main() {
     },
   );
 
-  test('короб ЧЗ — по коду с этикетки ЧЗ (CZ-06)', () async {
+  test('короб ЧЗ - по коду с этикетки ЧЗ (CZ-06)', () async {
     const czCode = '00046012345678901234';
     final c = SupplierReturnCubit(
       repo,
@@ -125,7 +125,7 @@ void main() {
   });
 
   test(
-    'позиция с марками — только сканом всех марок, марки в теле (CZ-06, долг 30)',
+    'позиция с марками - только сканом всех марок, марки в теле (CZ-06, долг 30)',
     () async {
       const m1 = '0104600000000017215R1';
       const m2 = '0104600000000017215R2';
@@ -171,7 +171,7 @@ void main() {
     },
   );
 
-  test('«Отгружено» — только целиком; итог по ответу отправки', () async {
+  test('«Отгружено» - только целиком; итог по ответу отправки', () async {
     when(
       () => repo.submit(
         payload: any(named: 'payload'),
@@ -216,7 +216,7 @@ void main() {
   });
 
   test(
-    'штрихкод без ячейки не отмечает: позиция серая, подсказка — какую ячейку',
+    'штрихкод без ячейки не отмечает: позиция серая, подсказка - какую ячейку',
     () async {
       final c = cubit();
       expect(c.state.isActive(task.items.last), isFalse);
@@ -227,7 +227,7 @@ void main() {
       expect(c.state.noticeCell, 'M1-1-1-1');
       c.clearNotice();
 
-      c.toggle(task.items.last); // касание серой — тоже подсказка
+      c.toggle(task.items.last); // касание серой - тоже подсказка
       expect(c.state.marked, isEmpty);
       expect(c.state.notice, ReturnNotice.needCell);
       c.clearNotice();

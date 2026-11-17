@@ -1,13 +1,13 @@
-// Package main — раннер миграций схемы БД (golang-migrate + встроенные .sql).
+// Package main - раннер миграций схемы БД (golang-migrate + встроенные .sql).
 //
 // Использование:  migrate up | down | pending
 // DSN берётся из переменной окружения DATABASE_URL.
 //
 // `pending` ничего не меняет и отвечает кодом выхода, есть ли что применять (ADHOC-37):
-// 0 — есть (или база пустая / «грязная» после упавшей миграции), 3 — схема актуальна,
-// 1 — ошибка. По нему deploy/update.sh решает, снимать ли дамп перед `up`.
+// 0 - есть (или база пустая / «грязная» после упавшей миграции), 3 - схема актуальна,
+// 1 - ошибка. По нему deploy/update.sh решает, снимать ли дамп перед `up`.
 // Миграции применяются явной командой (make migrate-up / migrate-down), а не на старте
-// сервиса — так безопаснее при нескольких инстансах.
+// сервиса - так безопаснее при нескольких инстансах.
 package main
 
 import (
@@ -36,11 +36,11 @@ func main() {
 	if dsn == "" {
 		log.Fatal("DATABASE_URL is required")
 	}
-	// golang-migrate ждёт схему pgx5://; приложение использует postgres:// — приводим.
+	// golang-migrate ждёт схему pgx5://; приложение использует postgres:// - приводим.
 	dsn = strings.Replace(dsn, "postgres://", "pgx5://", 1)
 	dsn = strings.Replace(dsn, "postgresql://", "pgx5://", 1)
 
-	// Источник миграций — встроенная файловая система.
+	// Источник миграций - встроенная файловая система.
 	src, err := iofs.New(migrations.FS, ".")
 	if err != nil {
 		log.Fatalf("источник миграций: %v", err)
@@ -78,18 +78,18 @@ func main() {
 	default:
 		log.Fatalf("неизвестная команда %q (используйте up|down|pending)", cmd)
 	}
-	// ErrNoChange — «нечего применять/откатывать», это не ошибка.
+	// ErrNoChange - «нечего применять/откатывать», это не ошибка.
 	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		log.Fatalf("migrate %s: %v", cmd, err)
 	}
 	log.Printf("migrate %s: ok", cmd)
 }
 
-// exitUpToDate — код выхода `pending`, когда применять нечего. Не 1: единицу отдаёт
+// exitUpToDate - код выхода `pending`, когда применять нечего. Не 1: единицу отдаёт
 // log.Fatal, и ошибку нельзя было бы отличить от «схема актуальна».
 const exitUpToDate = 3
 
-// latestVersion — номер последней миграции в источнике.
+// latestVersion - номер последней миграции в источнике.
 //
 // golang-migrate отдаёт версии только цепочкой First → Next, поэтому идём до конца.
 func latestVersion(src source.Driver) (uint, error) {
@@ -109,11 +109,11 @@ func latestVersion(src source.Driver) (uint, error) {
 	}
 }
 
-// pendingMigrations — есть ли что применять к базе: версия базы против [latest].
+// pendingMigrations - есть ли что применять к базе: версия базы против [latest].
 //
 // Пустая база и «грязная» (миграция упала на середине) считаются «есть»: перед `up` в обоих
 // случаях нужен дамп, а «грязную» `up` всё равно откажется трогать без ручного разбора.
-// Второе значение — причина для журнала обновления.
+// Второе значение - причина для журнала обновления.
 func pendingMigrations(m *migrate.Migrate, latest uint) (bool, string, error) {
 	v, dirty, err := m.Version()
 	switch {

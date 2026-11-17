@@ -12,7 +12,7 @@ import '../../../../../core/widgets/expandable_card.dart';
 /// Шапка карточки товара: наименование видно всегда, реквизиты (код, единица, группа,
 /// поставщик) раскрываются тапом по шапке.
 ///
-/// Зачем сворачивать: на экране ТСД важнее остатки по ячейкам — реквизиты нужны редко,
+/// Зачем сворачивать: на экране ТСД важнее остатки по ячейкам - реквизиты нужны редко,
 /// а в свёрнутом виде список мест хранения виден без прокрутки.
 class GoodInfoCard extends StatelessWidget {
   const GoodInfoCard({super.key, required this.good});
@@ -26,7 +26,7 @@ class GoodInfoCard extends StatelessWidget {
       headerBuilder: (expanded) => Text(
         good.name,
         // В свёрнутом виде длинное наименование из 1С обрезаем, чтобы оно не раздувало
-        // шапку; в раскрытом — показываем целиком.
+        // шапку; в раскрытом - показываем целиком.
         maxLines: expanded ? null : _collapsedNameLines,
         overflow: expanded ? TextOverflow.clip : TextOverflow.ellipsis,
         style: SemiboldTextStyles().semiboldInter14.copyWith(

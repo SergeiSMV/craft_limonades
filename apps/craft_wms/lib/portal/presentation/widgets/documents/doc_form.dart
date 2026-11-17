@@ -2,14 +2,14 @@ import '../../../../core/gen/strings.g.dart';
 import '../../../../core/utils/doc_number.dart';
 import '../../../data/documents_repository.dart';
 
-/// Две строки ячейки таблицы: основная и пояснение под ней (пусто — нет).
+/// Две строки ячейки таблицы: основная и пояснение под ней (пусто - нет).
 typedef CellText = ({String main, String sub});
 
 /// Что показывать в таблице документов для одной формы (ADHOC-26).
 ///
 /// Каркас вкладки общий: поиск, фильтры, колонки «Документ», «Статус», «Действия». Форма
 /// документа решает, что лежит в колонке документа, есть ли колонка контрагента и как она
-/// называется, по каким полям ищет поиск. Новая форма — новая ветка здесь, а не новая вкладка.
+/// называется, по каким полям ищет поиск. Новая форма - новая ветка здесь, а не новая вкладка.
 class DocForm {
   const DocForm._(this.kind);
 
@@ -25,7 +25,7 @@ class DocForm {
     _ => t.portal.inventory.search,
   };
 
-  /// Заголовок колонки контрагента; `null` — колонки нет (у ввода остатков контрагента нет).
+  /// Заголовок колонки контрагента; `null` - колонки нет (у ввода остатков контрагента нет).
   String? get partyTitle => switch (kind) {
     'receipt' => t.portal.receipt.colParty,
     'movement' => t.portal.movement.colParty,
@@ -39,11 +39,11 @@ class DocForm {
     _ => t.portal.inventory.colTime,
   };
 
-  /// Колонка «Документ» (ADHOC-55): номер документа и под ним операция с её номером —
+  /// Колонка «Документ» (ADHOC-55): номер документа и под ним операция с её номером -
   /// «ДД-000003», «Перемещение ПМ-000001». По обоим номерам документ находит поиск.
   CellText document(PortalDoc doc) => (main: docTitle(doc), sub: operation(doc));
 
-  /// Номер документа — счётчик своей формы.
+  /// Номер документа - счётчик своей формы.
   String docTitle(PortalDoc doc) => docNumber(switch (kind) {
     'receipt' => DocKind.receiptDoc,
     'movement' => DocKind.movementDoc,
@@ -51,7 +51,7 @@ class DocForm {
     _ => DocKind.stockEntryDoc,
   }, doc.number);
 
-  /// Операция-источник документа с её номером; номера нет — только вид операции.
+  /// Операция-источник документа с её номером; номера нет - только вид операции.
   String operation(PortalDoc doc) {
     final (name, docKind, number) = switch (kind) {
       'receipt' => (t.portal.receipt.op, DocKind.receipt, doc.sourceNumber),
@@ -77,9 +77,9 @@ class DocForm {
     );
   }
 
-  /// Колонка контрагента. Поступление — поставщик и его накладная; движение размещения —
+  /// Колонка контрагента. Поступление - поставщик и его накладная; движение размещения -
   /// задание и то, из чего оно родилось: поставщик и накладная приёмки или проблема склада
-  /// (ADHOC-55); у перемещения основания нет — под этим его исполнитель.
+  /// (ADHOC-55); у перемещения основания нет - под этим его исполнитель.
   CellText party(PortalDoc doc) {
     if (kind == 'movement' && doc.taskNumber == 0) {
       return (main: t.portal.movement.noBasis, sub: doc.executor);
@@ -117,7 +117,7 @@ class DocForm {
 
   /// Текст, по которому ищет поиск: всё, что видно в строке.
   ///
-  /// Номера — ещё и коротко, без ведущих нулей: «ПМ-1» и «ПМ1» находят «ПМ-000001».
+  /// Номера - ещё и коротко, без ведущих нулей: «ПМ-1» и «ПМ1» находят «ПМ-000001».
   String searchText(PortalDoc doc) {
     final d = document(doc), p = party(doc), tm = time(doc);
     return [

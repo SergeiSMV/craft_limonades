@@ -6,7 +6,7 @@ import '../../../../../core/printer/printer_device.dart';
 /// Карточка состояния: что с Bluetooth, какой принтер выбран и есть ли соединение.
 ///
 /// Признаки показываются раздельно, а не сводятся к «готов / не готов»: человеку на складе
-/// нужно знать, что именно чинить — включить Bluetooth, выбрать принтер или подойти ближе.
+/// нужно знать, что именно чинить - включить Bluetooth, выбрать принтер или подойти ближе.
 class PrinterStatusCard extends StatelessWidget {
   const PrinterStatusCard({
     required this.status,
