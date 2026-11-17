@@ -6,7 +6,7 @@ import '../../../../core/error/failure.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/sync/data_versions.dart';
 import '../../../../core/widgets/data_versions_listener.dart';
-import '../../../data/internal_warehouses_repository.dart';
+import '../../../domain/internal_warehouses/internal_warehouses_repository.dart';
 import 'warehouse_dialogs.dart';
 import 'warehouse_row.dart';
 import '../ui/portal_annotated_section.dart';

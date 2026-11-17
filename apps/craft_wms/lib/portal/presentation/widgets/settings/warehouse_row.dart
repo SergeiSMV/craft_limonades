@@ -7,7 +7,7 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/theme/semibold_text.dart';
-import '../../../data/internal_warehouses_repository.dart';
+import '../../../domain/internal_warehouses/internal_warehouses_repository.dart';
 import '../ui/portal_badge.dart';
 import '../ui/portal_button.dart';
 import '../ui/portal_checkbox.dart';

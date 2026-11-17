@@ -1,16 +1,16 @@
 import 'package:dio/dio.dart';
 import 'package:either_dart/either.dart';
 import 'package:injectable/injectable.dart';
-
 import '../../core/constants/api_constants.dart';
 import '../../core/error/failure.dart';
 import '../domain/import/import_report.dart';
+import '../domain/nomenclature/nomenclature_repository.dart';
 
 /// Репозиторий импорта справочников через веб-портал.
 /// Слой data: изолирует HTTP от UI, отдаёт `Either<Failure, ImportReport>`.
-@lazySingleton
-class NomenclatureRepository {
-  NomenclatureRepository(this._dio);
+@LazySingleton(as: NomenclatureRepository)
+class NomenclatureRepositoryImpl implements NomenclatureRepository {
+  NomenclatureRepositoryImpl(this._dio);
 
   final Dio _dio;
 
@@ -19,6 +19,7 @@ class NomenclatureRepository {
   /// Зачем: на вебе файла на диске нет - работаем с байтами из file_picker (`withData`).
   /// Как: MultipartFile.fromBytes с именем файла (бэкенд читает поле `file`); admin-only -
   ///      access подставит AuthInterceptor, 403 для не-admin приедет как ServerFailure.
+  @override
   Future<Either<Failure, ImportReport>> importGoods({
     required List<int> bytes,
     required String filename,

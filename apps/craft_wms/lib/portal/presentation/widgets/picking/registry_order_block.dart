@@ -11,7 +11,7 @@ import '../../../../core/theme/semibold_text.dart';
 import '../../../../core/utils/date_time_format.dart';
 import '../../../../core/utils/doc_number.dart';
 import '../../../../core/utils/qty_format.dart';
-import '../../../data/picking_repository.dart';
+import '../../../domain/picking/registry_repository.dart';
 import '../ui/portal_badge.dart';
 import 'picking_labels.dart';
 

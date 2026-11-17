@@ -8,7 +8,7 @@ import '../../../../core/error/failure.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/sync/data_versions.dart';
 import '../../../../core/widgets/data_versions_listener.dart';
-import '../../../../features/stock/data/catalog_api.dart';
+import '../../../domain/catalog/portal_catalog_repository.dart';
 import '../../../../features/stock/domain/catalog_models.dart';
 import '../nomenclature/good_card_dialog.dart';
 import '../nomenclature/goods_list_card.dart';
@@ -23,7 +23,7 @@ import '../ui/portal_list_page.dart';
 ///
 /// Что: поиск по наименованию и коду, фильтры по группе и поставщику, список страницами по 50
 /// с «Показать ещё»; загрузка из 1С - кнопкой на панели (по праву загрузки).
-/// Как: читает сервер напрямую (`CatalogApi`, без кэша ТСД). Поиск применяется после паузы в
+/// Как: читает сервер напрямую (`PortalCatalogRepository`, без кэша ТСД). Поиск применяется после паузы в
 /// наборе; ответ на устаревший запрос отбрасывается по номеру запроса - иначе медленный ответ
 /// на «ка» перекрыл бы уже пришедший ответ на «кальмар».
 class NomenclatureTab extends StatefulWidget {
@@ -44,7 +44,7 @@ class NomenclatureTab extends StatefulWidget {
 }
 
 class _NomenclatureTabState extends State<NomenclatureTab> {
-  final _api = getIt<CatalogApi>();
+  final _api = getIt<PortalCatalogRepository>();
   final _search = TextEditingController();
   Timer? _debounce;
 
@@ -53,7 +53,7 @@ class _NomenclatureTabState extends State<NomenclatureTab> {
   /// Наибольшая страница, которую отдаёт сервер (`maxLimit` каталога).
   static const _maxPage = 200;
 
-  /// Обычная страница списка - как у [CatalogApi.listGoods] по умолчанию.
+  /// Обычная страница списка - как у [PortalCatalogRepository.listGoods] по умолчанию.
   static const _firstPage = 50;
 
   List<NomenclatureGroup> _groups = const [];

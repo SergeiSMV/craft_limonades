@@ -11,10 +11,10 @@ import '../../../../core/utils/date_time_format.dart';
 import '../../../../core/utils/qty_format.dart';
 import '../../../../core/utils/search_text.dart';
 import '../../../../core/widgets/data_versions_listener.dart';
-import '../../../../features/stock/data/catalog_api.dart';
+import '../../../domain/catalog/portal_catalog_repository.dart';
 import '../../../../features/stock/domain/catalog_models.dart';
 import '../../../../features/stock/domain/group_tree.dart';
-import '../../../data/warehouse_stock_repository.dart';
+import '../../../domain/stock/warehouse_stock_repository.dart';
 import '../nomenclature/good_card_dialog.dart';
 import '../nomenclature/goods_list_card.dart';
 import '../nomenclature/goods_toolbar.dart';
@@ -40,7 +40,7 @@ class StockTab extends StatefulWidget {
 
 class _StockTabState extends State<StockTab> {
   final _repo = getIt<WarehouseStockRepository>();
-  final _catalog = getIt<CatalogApi>();
+  final _catalog = getIt<PortalCatalogRepository>();
   final _search = TextEditingController();
 
   static const _page = 50;

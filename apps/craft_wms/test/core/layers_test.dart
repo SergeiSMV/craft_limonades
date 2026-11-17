@@ -5,17 +5,16 @@ import 'package:flutter_test/flutter_test.dart';
 /// Тест-сторож слоёв Flutter (`dev.md §2`, ADHOC-71) - пара к `handler/layers_test.go` бэкенда.
 ///
 /// Что: разбирает импорты исходников `lib/` и падает, если
-/// - `presentation` фичи или общий виджет `core/widgets` импортирует `data/` - своей фичи или
-///   чужой: экраны знают только интерфейсы `domain`;
-/// - `domain` фичи импортирует `data/`: домен не знает, откуда берутся данные.
-/// Зачем: правило держалось на ревью и разошлось с кодом (долг 38); после уборки FE-1…FE-4
+/// - `presentation` фичи или портала, или общий виджет `core/widgets` импортирует `data/` -
+///   своей фичи или чужой: экраны знают только интерфейсы `domain`;
+/// - `domain` фичи или портала импортирует `data/`: домен не знает, откуда берутся данные.
+/// Зачем: правило держалось на ревью и разошлось с кодом (долг 38); после уборки FE-1…FE-5
 /// нарушение должно ронять `flutter test`, а не копиться снова.
 /// Как: читает файлы как текст, без анализатора - только строки `import '…';`. Относительный
 /// путь и `package:craft_wms/` сводятся к пути внутри `lib/`; сгенерированные файлы
 /// (`*.g.dart`, `*.freezed.dart`, `*.gr.dart`, `*.config.dart`) не проверяются.
 ///
-/// Портал (`lib/portal/`) пока вне проверки: его `presentation` ходит в `data/` и разбирается
-/// в FE-5, после неё исключение снимается.
+/// Портал (`lib/portal/`) проверяется наравне с фичами с FE-5 (до неё был исключением).
 void main() {
   final lib = Directory('lib');
   final importLine = RegExp(r'''^import\s+'([^']+)';''', multiLine: true);
@@ -62,7 +61,7 @@ void main() {
   test('presentation и core/widgets не импортируют data/', () {
     final found = violations(
       (path) =>
-          RegExp(r'^features/[^/]+/presentation/').hasMatch(path) ||
+          RegExp(r'^(features/[^/]+|portal)/presentation/').hasMatch(path) ||
           path.startsWith('core/widgets/'),
     );
     expect(found, isEmpty, reason: 'брать через интерфейс domain фичи');
@@ -70,7 +69,7 @@ void main() {
 
   test('domain не импортирует data/', () {
     final found = violations(
-      (path) => RegExp(r'^features/[^/]+/domain/').hasMatch(path),
+      (path) => RegExp(r'^(features/[^/]+|portal)/domain/').hasMatch(path),
     );
     expect(found, isEmpty, reason: 'домен не знает про источники данных');
   });

@@ -1,7 +1,7 @@
 import 'package:craft_wms/features/contents/data/contents_dto.dart';
 import 'package:craft_wms/features/stock/domain/catalog_models.dart';
-import 'package:craft_wms/portal/data/internal_warehouses_repository.dart';
-import 'package:craft_wms/portal/data/warehouse_stock_repository.dart';
+import 'package:craft_wms/portal/data/warehouse_stock_repository_impl.dart';
+import 'package:craft_wms/portal/domain/internal_warehouses/internal_warehouses_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 SnapshotLine line(String good, String date, double qty) =>
@@ -19,7 +19,7 @@ PortalWarehouse warehouse(String id, {bool isDefault = false}) =>
 
 /// ADHOC-56: сборка «Остатков склада» из снимка - суммы по складам, места вдоль стеллажа.
 void main() {
-  final stock = WarehouseStockRepository.build(
+  final stock = WarehouseStockRepositoryImpl.build(
     snapshot: ContentsSnapshot(
       asOf: DateTime.utc(2026, 10, 30),
       loadUnits: [

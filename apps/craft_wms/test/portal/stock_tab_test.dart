@@ -1,10 +1,10 @@
 import 'package:craft_wms/core/di/injection.dart';
 import 'package:craft_wms/core/sync/data_versions.dart';
 import 'package:craft_wms/core/gen/strings.g.dart';
-import 'package:craft_wms/features/stock/data/catalog_api.dart';
+import 'package:craft_wms/portal/domain/catalog/portal_catalog_repository.dart';
 import 'package:craft_wms/features/stock/domain/catalog_models.dart';
-import 'package:craft_wms/portal/data/internal_warehouses_repository.dart';
-import 'package:craft_wms/portal/data/warehouse_stock_repository.dart';
+import 'package:craft_wms/portal/domain/internal_warehouses/internal_warehouses_repository.dart';
+import 'package:craft_wms/portal/domain/stock/warehouse_stock_repository.dart';
 import 'package:craft_wms/portal/presentation/widgets/tabs/stock_tab.dart';
 import 'package:craft_wms/portal/presentation/widgets/ui/portal_input.dart';
 import 'package:either_dart/either.dart';
@@ -14,7 +14,7 @@ import 'package:mocktail/mocktail.dart';
 
 class _MockRepo extends Mock implements WarehouseStockRepository {}
 
-class _MockApi extends Mock implements CatalogApi {}
+class _MockApi extends Mock implements PortalCatalogRepository {}
 
 PortalWarehouse warehouse(String id) => PortalWarehouse(
   id: id,
@@ -46,7 +46,7 @@ void main() {
     final api = _MockApi();
     getIt
       ..registerSingleton<WarehouseStockRepository>(repo)
-      ..registerSingleton<CatalogApi>(api);
+      ..registerSingleton<PortalCatalogRepository>(api);
     when(
       () => api.listGoodBarcodes(any()),
     ).thenAnswer((_) async => const Right([]));

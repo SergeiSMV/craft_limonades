@@ -8,7 +8,7 @@ import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/theme/semibold_text.dart';
 import '../../../domain/import/import_report.dart';
-import '../../../data/nomenclature_repository.dart';
+import '../../../domain/nomenclature/nomenclature_repository.dart';
 import '../../../../core/web_files/web_file_picker.dart';
 import '../settings/access_common.dart';
 import '../ui/portal_button.dart';
