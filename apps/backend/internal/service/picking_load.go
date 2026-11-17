@@ -3,7 +3,6 @@ package service
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"time"
@@ -12,9 +11,9 @@ import (
 	"craftwms/internal/model"
 )
 
-// ErrRegistryFile - файл реестра не принят целиком (нет листа или колонки, нет принятых строк,
-// несколько дат): ошибка ввода оператора, а не сбой.
-var ErrRegistryFile = errors.New("реестр не принят")
+// Псевдоним ошибки из model на время ADHOC-71 (долг 38): старые ссылки работают, errors.Is
+// сравнивает тот же объект. Снимается, когда все ссылки переведены на model.
+var ErrRegistryFile = model.ErrRegistryFile
 
 // pickingLoadRepo - узкий интерфейс хранилища сборки для загрузки реестра (P8-02).
 type pickingLoadRepo interface {

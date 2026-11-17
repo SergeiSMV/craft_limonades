@@ -16,11 +16,11 @@ import (
 // «Ячейки» портала - в файле стеллажей rack_labels их обычно нет. Живут на CellRepository: это
 // те же строки cells, что и ячейки стеллажей.
 
+// Псевдонимы ошибок из model на время ADHOC-71 (долг 38): старые ссылки работают, errors.Is
+// сравнивает тот же объект. Снимаются, когда все ссылки переведены на model.
 var (
-	// ErrCellExists - на складе уже есть активная ячейка с таким адресом.
-	ErrCellExists = errors.New("ячейка с таким адресом уже есть на складе")
-	// ErrCellNotEmpty - в ячейке лежит товар или стоят короба: удалить её нельзя.
-	ErrCellNotEmpty = errors.New("в ячейке есть товар или короба - удалить нельзя")
+	ErrCellExists   = model.ErrCellExists
+	ErrCellNotEmpty = model.ErrCellNotEmpty
 )
 
 // IsFloorStorageAddress - адрес напольной ячейки: оканчивается на «-Н-П» (ADHOC-61).
