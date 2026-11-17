@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -10,13 +11,21 @@ import (
 	"craftwms/internal/service"
 )
 
+// authenticator - то, что обработчику входа нужно от сервиса аутентификации.
+type authenticator interface {
+	Login(ctx context.Context, badge string) (service.TokenPair, error)
+	LoginWithPassword(ctx context.Context, username, password string) (service.TokenPair, error)
+	Refresh(ctx context.Context, refreshToken string) (string, error)
+	Profile(ctx context.Context, userID string) (model.User, error)
+}
+
 // AuthHandler - HTTP-обработчики аутентификации.
 type AuthHandler struct {
-	svc *service.AuthService
+	svc authenticator
 }
 
 // NewAuthHandler создаёт обработчик аутентификации.
-func NewAuthHandler(svc *service.AuthService) *AuthHandler {
+func NewAuthHandler(svc authenticator) *AuthHandler {
 	return &AuthHandler{svc: svc}
 }
 

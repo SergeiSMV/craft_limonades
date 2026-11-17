@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -12,21 +13,29 @@ import (
 
 	appmw "craftwms/internal/middleware"
 	"craftwms/internal/model"
-	"craftwms/internal/service"
 )
 
 // xlsxContentType - MIME .xlsx (OOXML).
 const xlsxContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
+// operatorDocuments - то, что обработчику документов оператора нужно от сервиса.
+type operatorDocuments interface {
+	List(ctx context.Context, kind string) ([]model.DocumentListItem, error)
+	Kind(ctx context.Context, id string) (string, error)
+	File(ctx context.Context, id, userID string) ([]byte, string, error)
+	MarkDone(ctx context.Context, id, userID string) error
+	Events(ctx context.Context, id string) ([]model.DocumentEvent, error)
+}
+
 // DocumentHandler - рабочий список документов оператора (P3-02). Право - по виду документа и
 // действию (ADHOC-50): «Приход: скачивать», «Перемещение: проводить» и т. п.; маршрут пускает
 // любого с правом хоть на один вид, обработчик уточняет.
 type DocumentHandler struct {
-	svc *service.DocumentService
+	svc operatorDocuments
 }
 
 // NewDocumentHandler создаёт обработчик документов.
-func NewDocumentHandler(svc *service.DocumentService) *DocumentHandler {
+func NewDocumentHandler(svc operatorDocuments) *DocumentHandler {
 	return &DocumentHandler{svc: svc}
 }
 

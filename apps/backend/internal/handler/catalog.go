@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -13,13 +14,23 @@ import (
 	"craftwms/internal/service"
 )
 
+// catalogReader - то, что обработчику справочников нужно от сервиса чтения каталога.
+type catalogReader interface {
+	ListGoods(ctx context.Context, q service.GoodsQuery) (service.Page[model.Good], error)
+	GetGood(ctx context.Context, id string) (model.Good, error)
+	ListGroups(ctx context.Context) ([]model.NomenclatureGroup, error)
+	ListSuppliers(ctx context.Context, query string) ([]model.Supplier, error)
+	ListCells(ctx context.Context, q service.CellsQuery) (service.Page[model.Cell], error)
+	ListStock(ctx context.Context, q service.StockQuery) (service.Page[model.StockItem], error)
+}
+
 // CatalogHandler - HTTP-обработчики чтения справочников (P1-06): товары, группы, поставщики, ячейки, остатки.
 type CatalogHandler struct {
-	svc *service.CatalogService
+	svc catalogReader
 }
 
 // NewCatalogHandler создаёт обработчик каталога.
-func NewCatalogHandler(svc *service.CatalogService) *CatalogHandler {
+func NewCatalogHandler(svc catalogReader) *CatalogHandler {
 	return &CatalogHandler{svc: svc}
 }
 
