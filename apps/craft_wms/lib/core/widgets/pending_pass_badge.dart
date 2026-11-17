@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../features/stock_entry/data/entry_draft_store.dart';
+import '../../features/stock_entry/domain/stock_entry_drafts.dart';
 import '../constants/app_sizes.dart';
 import '../di/injection.dart';
 import '../gen/strings.g.dart';
@@ -37,7 +37,7 @@ class PendingPassBuilder extends StatefulWidget {
 
 class _PendingPassBuilderState extends State<PendingPassBuilder> {
   late final Stream<bool> _hasPass =
-      widget.watch?.call() ?? getIt<EntryDraftStore>().watchHasDraft();
+      widget.watch?.call() ?? getIt<StockEntryDrafts>().watchHasDraft();
 
   @override
   Widget build(BuildContext context) {

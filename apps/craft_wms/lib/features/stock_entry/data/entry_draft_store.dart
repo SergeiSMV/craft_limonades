@@ -2,6 +2,7 @@ import 'package:injectable/injectable.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/database/draft_slot.dart';
+import '../domain/stock_entry_drafts.dart';
 
 /// Хранилище незавершённого прохода «Ввода остатков» (P2-03).
 ///
@@ -11,7 +12,7 @@ import '../../../core/database/draft_slot.dart';
 ///
 /// Ключ `current` остался с тех пор, когда черновик на устройстве был один: уже сохранённые
 /// на терминалах проходы лежат под ним, и смена ключа их потеряла бы.
-@lazySingleton
-class EntryDraftStore extends DraftSlot {
+@LazySingleton(as: StockEntryDrafts)
+class EntryDraftStore extends DraftSlot implements StockEntryDrafts {
   EntryDraftStore(AppDatabase db) : super(db, 'current');
 }
