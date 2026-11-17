@@ -123,7 +123,6 @@ mixin CzIntakeScan<T extends StatefulWidget>
     _czResults = queue.results.listen(_onCzResults);
     return _czQueueOrNull = queue;
   }
-
   final _czApply = SerialLock();
   int _czApplying = 0;
 

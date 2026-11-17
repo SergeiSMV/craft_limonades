@@ -12,7 +12,7 @@ import 'package:craft_wms/core/printer/printer_service.dart';
 import 'package:craft_wms/core/sync/sync_engine.dart';
 import 'package:craft_wms/features/cz/domain/cz_intake.dart';
 import 'package:craft_wms/features/receipt/data/receipt_draft_store.dart';
-import 'package:craft_wms/features/receipt/data/receipt_repository.dart';
+import 'package:craft_wms/features/receipt/data/receipt_repository_impl.dart';
 import 'package:craft_wms/features/receipt/presentation/bloc/receipt_cubit.dart';
 import 'package:craft_wms/features/receipt/presentation/bloc/receipt_models.dart';
 import 'package:craft_wms/features/stock/data/catalog_api.dart';
@@ -119,7 +119,7 @@ void main() {
 
     final cubit = ReceiptCubit(
       catalog,
-      ReceiptRepository(outbox, engine),
+      ReceiptRepositoryImpl(outbox, engine),
       ReceiptDraftStore(db),
       LoadUnitIdGenerator(
         _SequenceUuid([p['receipt_id'] as String, lu['id'] as String]),

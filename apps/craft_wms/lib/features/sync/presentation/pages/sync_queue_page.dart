@@ -12,7 +12,7 @@ import '../../../../core/outbox/sent_sessions.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../movement/domain/movement_repository.dart';
 import '../../../problems/domain/problem_photos.dart';
-import '../../../putaway/data/putaway_repository.dart';
+import '../../../putaway/domain/putaway_repository.dart';
 import '../bloc/sync_status_cubit.dart';
 import '../widgets/operation_tile.dart';
 import '../widgets/sync_now_button.dart';

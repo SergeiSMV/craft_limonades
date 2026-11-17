@@ -6,7 +6,7 @@ import 'package:craft_wms/core/error/failure.dart';
 import 'package:craft_wms/core/load_unit/load_unit_id_generator.dart';
 import 'package:craft_wms/core/outbox/sent_sessions.dart';
 import 'package:craft_wms/features/putaway/data/putaway_draft_store.dart';
-import 'package:craft_wms/features/putaway/data/putaway_repository.dart';
+import 'package:craft_wms/features/putaway/domain/putaway_repository.dart';
 import 'package:craft_wms/features/putaway/presentation/bloc/putaway_cubit.dart';
 import 'package:craft_wms/features/putaway/presentation/bloc/putaway_models.dart';
 import 'package:craft_wms/features/stock/domain/catalog_models.dart';

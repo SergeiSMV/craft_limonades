@@ -208,9 +208,7 @@ class _SupplierReturnViewState extends State<_SupplierReturnView>
               child: Assets.images.featuredSnacks.image(fit: BoxFit.cover),
             ),
             title: PageHeader(
-              title: t.supplierReturn.title(
-                number: docNumber(DocKind.task, state.task.number),
-              ),
+              title: t.supplierReturn.title(number: docNumber(DocKind.task, state.task.number)),
               goBack: goBack,
             ),
           ),

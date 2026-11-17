@@ -63,9 +63,7 @@ class StockDetailBody extends StatelessWidget {
                 SliverPadding(
                   padding: AppInsets.h8,
                   sliver: SliverToBoxAdapter(
-                    child: UnboundBarcodeNotice(
-                      barcode: czMark!.unboundBarcode!,
-                    ),
+                    child: UnboundBarcodeNotice(barcode: czMark!.unboundBarcode!),
                   ),
                 ),
               const SliverToBoxAdapter(child: AppBoxes.kHeight8),

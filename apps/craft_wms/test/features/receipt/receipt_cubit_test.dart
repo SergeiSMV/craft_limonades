@@ -4,7 +4,7 @@ import 'package:craft_wms/core/load_unit/load_unit_id_generator.dart';
 import 'package:craft_wms/core/printer/printer_device.dart';
 import 'package:craft_wms/core/printer/printer_service.dart';
 import 'package:craft_wms/features/receipt/data/receipt_draft_store.dart';
-import 'package:craft_wms/features/receipt/data/receipt_repository.dart';
+import 'package:craft_wms/features/receipt/domain/receipt_repository.dart';
 import 'package:craft_wms/features/receipt/presentation/bloc/receipt_cubit.dart';
 import 'package:craft_wms/features/receipt/presentation/bloc/receipt_models.dart';
 import 'package:craft_wms/features/stock/domain/catalog_models.dart';

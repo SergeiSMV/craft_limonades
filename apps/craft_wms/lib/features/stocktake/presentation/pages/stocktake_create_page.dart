@@ -139,12 +139,7 @@ class _CreateViewState extends State<_CreateView> with HardwareScanListener {
   /// Итог: заведён - назад к заданиям; отказ - причина.
   void onState(BuildContext context, StocktakeCreateState state) {
     if (state.created case final c?) {
-      snack(
-        t.stocktake.createDone(
-          number: docNumber(DocKind.stocktake, c.number),
-          cells: c.cells,
-        ),
-      );
+      snack(t.stocktake.createDone(number: docNumber(DocKind.stocktake, c.number), cells: c.cells));
       goBack();
     } else if (state.failure case final f?) {
       snack(t.stocktake.createFailed(reason: failureReason(f)));
