@@ -4,7 +4,7 @@ import '../../../../../core/constants/app_boxes.dart';
 import '../../../../../core/constants/app_insets.dart';
 import '../../../../../core/constants/app_sizes.dart';
 import '../../../../../core/gen/strings.g.dart';
-import '../../../data/tasks_models.dart';
+import '../../../domain/tasks_models.dart';
 
 /// Действия карточки: новое задание - «Взять в работу»; своё взятое - «Выполнить»
 /// и «Отказаться». У выполненного действий нет. Пересчёт (ADHOC-58) целиком не берут -

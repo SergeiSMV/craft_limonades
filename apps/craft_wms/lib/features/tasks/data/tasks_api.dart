@@ -5,7 +5,7 @@ import 'package:injectable/injectable.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/error/dio_failure.dart';
 import '../../../core/error/failure.dart';
-import 'tasks_models.dart';
+import '../domain/tasks_models.dart';
 
 /// Сетевой источник заданий склада (P5-02-1): `GET /tasks…`, взятие и отказ.
 /// Экраны сюда не ходят - между ними и сетью стоит `TasksRepository` с кэшем текущих.

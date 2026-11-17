@@ -30,7 +30,7 @@ import '../../../cz/domain/cz_stock_marks.dart';
 import '../../../stock/domain/catalog_models.dart';
 import '../../../stock/domain/catalog_repository.dart';
 import '../../../stocktake/presentation/widgets/cell_count_warning.dart';
-import '../../../tasks/data/tasks_models.dart';
+import '../../../tasks/domain/tasks_models.dart';
 import '../../../tasks/presentation/widgets/common/task_format.dart';
 import '../bloc/putaway_cubit.dart';
 import '../bloc/putaway_models.dart';

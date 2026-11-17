@@ -4,7 +4,7 @@ import 'package:material_design_icons_flutter/material_design_icons_flutter.dart
 
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/constants/app_sizes.dart';
-import '../../../data/tasks_models.dart';
+import '../../../domain/tasks_models.dart';
 import '../../bloc/completed_tasks_cubit.dart';
 import '../../bloc/current_tasks_cubit.dart';
 import 'tasks_filter_sheet.dart';

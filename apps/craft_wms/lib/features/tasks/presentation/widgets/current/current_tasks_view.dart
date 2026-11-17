@@ -9,7 +9,7 @@ import '../../../../../core/error/failure.dart';
 import '../../../../../core/gen/strings.g.dart';
 import '../../../../../core/router/app_router.dart';
 import '../../../../../core/theme/regular_text.dart';
-import '../../../data/tasks_models.dart';
+import '../../../domain/tasks_models.dart';
 import '../../bloc/current_tasks_cubit.dart';
 import '../common/task_format.dart';
 import '../common/tasks_message.dart';

@@ -10,7 +10,7 @@ import '../../../../core/load_unit/box_code.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/theme/semibold_text.dart';
 import '../../../../core/utils/qty_format.dart';
-import '../../../tasks/data/tasks_models.dart';
+import '../../../tasks/domain/tasks_models.dart';
 import '../../../tasks/presentation/widgets/common/task_format.dart';
 import '../bloc/putaway_cubit.dart';
 import '../bloc/putaway_models.dart';

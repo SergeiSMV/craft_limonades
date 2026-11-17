@@ -41,7 +41,7 @@ import '../../features/stocktake/domain/stocktake_models.dart'; // StocktakeCell
 import '../../features/stocktake/presentation/pages/stocktake_count_page.dart';
 import '../../features/stocktake/presentation/pages/stocktake_create_page.dart';
 import '../../features/stocktake/presentation/pages/stocktake_page.dart';
-import '../../features/tasks/data/tasks_models.dart'; // WarehouseTask - аргумент TaskDetailRoute
+import '../../features/tasks/domain/tasks_models.dart'; // WarehouseTask - аргумент TaskDetailRoute
 import '../../features/tasks/presentation/pages/task_detail_page.dart';
 import '../../features/tasks/presentation/pages/tasks_page.dart';
 import 'guards.dart';

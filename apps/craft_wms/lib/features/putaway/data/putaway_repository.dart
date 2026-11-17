@@ -9,7 +9,7 @@ import '../../../core/outbox/sent_sessions.dart';
 import '../../../core/sync/sync_engine.dart';
 import '../../tasks/data/tasks_cache.dart';
 import 'putaway_draft_store.dart';
-import '../../tasks/data/tasks_repository.dart';
+import '../../tasks/domain/tasks_repository.dart';
 
 /// Отправка сеанса размещения (P5-03).
 ///

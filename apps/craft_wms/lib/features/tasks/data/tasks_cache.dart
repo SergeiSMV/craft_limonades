@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:injectable/injectable.dart';
 
 import '../../../core/database/app_database.dart';
-import 'tasks_models.dart';
+import '../domain/tasks_models.dart';
 
 /// Снимок текущих заданий в локальной базе (P5-02-1).
 ///

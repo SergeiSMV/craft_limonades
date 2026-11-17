@@ -5,7 +5,7 @@ import 'package:craft_wms/core/error/failure.dart';
 import 'package:craft_wms/core/load_unit/load_unit_id_generator.dart';
 import 'package:craft_wms/features/supplier_return/domain/supplier_return_repository.dart';
 import 'package:craft_wms/features/supplier_return/presentation/bloc/supplier_return_cubit.dart';
-import 'package:craft_wms/features/tasks/data/tasks_models.dart';
+import 'package:craft_wms/features/tasks/domain/tasks_models.dart';
 import 'package:either_dart/either.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';

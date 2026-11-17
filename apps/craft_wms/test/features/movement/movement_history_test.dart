@@ -6,7 +6,7 @@ import 'package:craft_wms/features/movement/domain/movement_models.dart';
 import 'package:craft_wms/features/movement/presentation/bloc/movement_history_cubit.dart';
 import 'package:craft_wms/features/movement/presentation/widgets/history/move_record_tile.dart';
 import 'package:craft_wms/features/movement/presentation/widgets/move_lines_list.dart';
-import 'package:craft_wms/features/tasks/data/tasks_models.dart';
+import 'package:craft_wms/features/tasks/domain/tasks_models.dart';
 import 'package:either_dart/either.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';

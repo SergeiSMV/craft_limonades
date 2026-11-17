@@ -2,8 +2,9 @@ import 'package:craft_wms/core/database/app_database.dart';
 import 'package:craft_wms/core/error/failure.dart';
 import 'package:craft_wms/features/tasks/data/tasks_api.dart';
 import 'package:craft_wms/features/tasks/data/tasks_cache.dart';
-import 'package:craft_wms/features/tasks/data/tasks_models.dart';
-import 'package:craft_wms/features/tasks/data/tasks_repository.dart';
+import 'package:craft_wms/features/tasks/data/tasks_repository_impl.dart';
+import 'package:craft_wms/features/tasks/domain/tasks_models.dart';
+import 'package:craft_wms/features/tasks/domain/tasks_repository.dart';
 import 'package:drift/native.dart';
 import 'package:either_dart/either.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -22,7 +23,7 @@ void main() {
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     api = _MockApi();
-    repo = TasksRepository(api, TasksCache(db));
+    repo = TasksRepositoryImpl(api, TasksCache(db));
   });
   tearDown(() => db.close());
 

@@ -2,29 +2,25 @@ import 'package:either_dart/either.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../../core/error/failure.dart';
+import '../domain/tasks_models.dart';
+import '../domain/tasks_repository.dart';
 import 'tasks_api.dart';
 import 'tasks_cache.dart';
-import 'tasks_models.dart';
-
-/// Текущие задания вместе с тем, откуда они взяты.
-typedef CurrentTasks = ({
-  List<WarehouseTask> tasks,
-  bool fromCache,
-  DateTime? syncedAt,
-});
 
 /// Задания склада для экранов (P5-02-1): сеть, а без связи - снимок текущих.
 ///
 /// Взятие, отказ и лента «Завершённые» - только со связью: кто держит задание, знает сервер,
-/// а ленту по решению 2026-10-07 офлайн не держим.
-@lazySingleton
-class TasksRepository {
-  TasksRepository(this._api, this._cache);
+/// а ленту по решению 2026-10-07 офлайн не держим. Контракт - интерфейс [TasksRepository]
+/// в `domain` (ADHOC-71): экраны и чужие фичи видят только его.
+@LazySingleton(as: TasksRepository)
+class TasksRepositoryImpl implements TasksRepository {
+  TasksRepositoryImpl(this._api, this._cache);
 
   final TasksApi _api;
   final TasksCache _cache;
 
   /// Текущие задания. Удачный ответ сервера обновляет снимок; без связи отдаётся снимок.
+  @override
   Future<Either<Failure, CurrentTasks>> current() async {
     final res = await _api.current();
     if (res.isRight) {
@@ -42,19 +38,24 @@ class TasksRepository {
 
   /// Число текущих заданий по снимку на терминале - для плитки главного меню; [allow] -
   /// только виды по правам должности (ADHOC-51).
+  @override
   Stream<int> watchCurrentCount({bool Function(String kind)? allow}) =>
       _cache.watchCount(allow: allow);
 
   /// Карточка задания с заходами и журналом - по сети.
+  @override
   Future<Either<Failure, TaskDetailData>> detail(String id) => _api.detail(id);
 
   /// Взять задание в работу.
+  @override
   Future<Either<Failure, void>> take(String id) => _api.take(id);
 
   /// Отказаться от задания.
+  @override
   Future<Either<Failure, void>> release(String id) => _api.release(id);
 
   /// Страница ленты «Завершённые».
+  @override
   Future<Either<Failure, List<CompletedTask>>> completed({
     required CompletedFilter filter,
     CompletedTask? after,
@@ -62,5 +63,6 @@ class TasksRepository {
   }) => _api.completed(filter: filter, after: after, limit: limit);
 
   /// Варианты фильтра по исполнителю.
+  @override
   Future<Either<Failure, List<TaskUser>>> executors() => _api.executors();
 }

@@ -8,7 +8,7 @@ import 'package:craft_wms/features/movement/data/movement_repository_impl.dart';
 import 'package:craft_wms/features/putaway/data/putaway_draft_store.dart';
 import 'package:craft_wms/features/putaway/data/putaway_repository.dart';
 import 'package:craft_wms/features/tasks/data/tasks_cache.dart';
-import 'package:craft_wms/features/tasks/data/tasks_repository.dart';
+import 'package:craft_wms/features/tasks/domain/tasks_repository.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';

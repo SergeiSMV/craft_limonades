@@ -6,7 +6,7 @@ import '../../../core/outbox/outbox_operation.dart';
 import '../../../core/outbox/outbox_repository.dart';
 import '../../../core/sync/sync_engine.dart';
 import '../../tasks/data/tasks_cache.dart';
-import '../../tasks/data/tasks_repository.dart';
+import '../../tasks/domain/tasks_repository.dart';
 import '../domain/supplier_return_repository.dart';
 
 /// Отправка сеанса отгрузки возврата (ADHOC-31) - тем же путём, что размещение: одна операция
