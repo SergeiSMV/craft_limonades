@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"craftwms/internal/barcode"
+	"craftwms/internal/model"
 	"craftwms/internal/repository"
 	"craftwms/internal/service"
 	"craftwms/internal/testutil"
@@ -145,7 +146,7 @@ func TestBarcode_unbind(t *testing.T) {
 	if err := svc.Unbind(ctx, "4600000000017"); err != nil {
 		t.Fatalf("Unbind: %v", err)
 	}
-	if _, err := svc.ResolveGood(ctx, "4600000000017"); !errors.Is(err, repository.ErrNotFound) {
+	if _, err := svc.ResolveGood(ctx, "4600000000017"); !errors.Is(err, model.ErrNotFound) {
 		t.Fatalf("после отвязки ожидался ErrNotFound, получено %v", err)
 	}
 	if got, err := svc.ResolveGood(ctx, "4600000000024"); err != nil || got.ID != goodA {
@@ -169,10 +170,10 @@ func TestBarcode_unbind(t *testing.T) {
 // TestBarcode_unbind_validation - пустой ШК отклоняется (→400), репозиторий не трогается.
 func TestBarcode_unbind_validation(t *testing.T) {
 	svc := service.NewBarcodeService(nil) // валидация до репозитория, БД не нужна
-	if err := svc.Unbind(context.Background(), "   "); !errors.Is(err, service.ErrEmptyBarcode) {
+	if err := svc.Unbind(context.Background(), "   "); !errors.Is(err, model.ErrEmptyBarcode) {
 		t.Fatalf("пустой ШК: ожидалась ErrEmptyBarcode, получено %v", err)
 	}
-	if _, err := svc.ListByGood(context.Background(), "  "); !errors.Is(err, service.ErrEmptyGoodID) {
+	if _, err := svc.ListByGood(context.Background(), "  "); !errors.Is(err, model.ErrEmptyGoodID) {
 		t.Fatalf("пустой good_id: ожидалась ErrEmptyGoodID, получено %v", err)
 	}
 }
@@ -183,8 +184,8 @@ func TestBarcode_resolveUnknown_notFound(t *testing.T) {
 	svc := newBarcodeSvc(pool)
 
 	_, err := svc.ResolveGood(context.Background(), "0000000000000")
-	if !errors.Is(err, repository.ErrNotFound) {
-		t.Fatalf("ожидалась repository.ErrNotFound (→404), получено %v", err)
+	if !errors.Is(err, model.ErrNotFound) {
+		t.Fatalf("ожидалась model.ErrNotFound (→404), получено %v", err)
 	}
 }
 
@@ -201,8 +202,8 @@ func TestBarcode_conflict(t *testing.T) {
 		t.Fatalf("Bind A: %v", err)
 	}
 	// Тот же ШК на другой товар → конфликт, привязка A не тронута.
-	if err := svc.Bind(ctx, goodB, "4600000000017", ""); !errors.Is(err, repository.ErrBarcodeConflict) {
-		t.Fatalf("ожидалась repository.ErrBarcodeConflict (→409), получено %v", err)
+	if err := svc.Bind(ctx, goodB, "4600000000017", ""); !errors.Is(err, model.ErrBarcodeConflict) {
+		t.Fatalf("ожидалась model.ErrBarcodeConflict (→409), получено %v", err)
 	}
 	got, err := svc.ResolveGood(ctx, "4600000000017")
 	if err != nil || got.ID != goodA {
@@ -217,8 +218,8 @@ func TestBarcode_bindMissingGood_notFound(t *testing.T) {
 
 	missing := "00000000-0000-0000-0000-0000000000ff"
 	err := svc.Bind(context.Background(), missing, "4600000000017", "")
-	if !errors.Is(err, repository.ErrGoodNotFound) {
-		t.Fatalf("ожидалась repository.ErrGoodNotFound (→404), получено %v", err)
+	if !errors.Is(err, model.ErrGoodNotFound) {
+		t.Fatalf("ожидалась model.ErrGoodNotFound (→404), получено %v", err)
 	}
 }
 
@@ -227,13 +228,13 @@ func TestBarcode_validation(t *testing.T) {
 	svc := service.NewBarcodeService(nil) // валидация до репозитория, БД не нужна
 	ctx := context.Background()
 
-	if err := svc.Bind(ctx, "", "123", ""); !errors.Is(err, service.ErrEmptyGoodID) {
+	if err := svc.Bind(ctx, "", "123", ""); !errors.Is(err, model.ErrEmptyGoodID) {
 		t.Fatalf("пустой good_id: ожидалась ErrEmptyGoodID, получено %v", err)
 	}
-	if err := svc.Bind(ctx, "g", "  ", ""); !errors.Is(err, service.ErrEmptyBarcode) {
+	if err := svc.Bind(ctx, "g", "  ", ""); !errors.Is(err, model.ErrEmptyBarcode) {
 		t.Fatalf("пустой barcode: ожидалась ErrEmptyBarcode, получено %v", err)
 	}
-	if _, err := svc.ResolveGood(ctx, "   "); !errors.Is(err, service.ErrEmptyBarcode) {
+	if _, err := svc.ResolveGood(ctx, "   "); !errors.Is(err, model.ErrEmptyBarcode) {
 		t.Fatalf("пустой код резолва: ожидалась ErrEmptyBarcode, получено %v", err)
 	}
 }
@@ -457,7 +458,7 @@ func TestBarcode_generateInternalUnknownGood(t *testing.T) {
 
 	_, _, err := svc.GenerateInternal(context.Background(),
 		"00000000-0000-4000-8000-000000000000")
-	if !errors.Is(err, repository.ErrGoodNotFound) {
+	if !errors.Is(err, model.ErrGoodNotFound) {
 		t.Errorf("неизвестный товар: ожидалась ErrGoodNotFound, получено %v", err)
 	}
 }

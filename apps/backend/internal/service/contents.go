@@ -2,23 +2,12 @@ package service
 
 import (
 	"context"
-	"errors"
 	"regexp"
 	"strings"
 
 	"github.com/google/uuid"
 
 	"craftwms/internal/model"
-)
-
-// Ошибки просмотра содержимого.
-var (
-	// ErrInvalidCellID - идентификатор ячейки не UUID.
-	ErrInvalidCellID = errors.New("cell id must be a UUID")
-	// ErrInvalidShortCode - короткий код не из 1…8 шестнадцатеричных знаков.
-	ErrInvalidShortCode = errors.New("short code must be 1 to 8 hex digits")
-	// ErrInvalidCZBoxCode - код короба ЧЗ не `00` + 18 цифр SSCC.
-	ErrInvalidCZBoxCode = errors.New("chestny znak box code must be 00 and 18 digits")
 )
 
 // czBoxCodePattern - код транспортного короба ЧЗ: `00` + SSCC (CZ-03).
@@ -67,7 +56,7 @@ func (s *ContentsService) Snapshot(ctx context.Context) (model.ContentsSnapshot,
 func (s *ContentsService) CellContents(ctx context.Context, cellID string) (model.CellContents, error) {
 	cellID = strings.TrimSpace(cellID)
 	if _, err := uuid.Parse(cellID); err != nil {
-		return model.CellContents{}, ErrInvalidCellID
+		return model.CellContents{}, model.ErrInvalidCellID
 	}
 	return s.repo.CellContents(ctx, cellID)
 }
@@ -76,7 +65,7 @@ func (s *ContentsService) CellContents(ctx context.Context, cellID string) (mode
 func (s *ContentsService) LoadUnitCard(ctx context.Context, id string) (model.LoadUnitCard, error) {
 	id = strings.TrimSpace(id)
 	if _, err := uuid.Parse(id); err != nil {
-		return model.LoadUnitCard{}, ErrInvalidLoadUnitID
+		return model.LoadUnitCard{}, model.ErrInvalidLoadUnitID
 	}
 	return s.repo.LoadUnitCard(ctx, id)
 }
@@ -88,7 +77,7 @@ func (s *ContentsService) LoadUnitCard(ctx context.Context, id string) (model.Lo
 func (s *ContentsService) SearchLoadUnits(ctx context.Context, raw string) ([]model.LoadUnitCard, error) {
 	code := strings.ToUpper(strings.NewReplacer(" ", "", "-", "", "\t", "").Replace(raw))
 	if !shortCodePattern.MatchString(code) {
-		return nil, ErrInvalidShortCode
+		return nil, model.ErrInvalidShortCode
 	}
 	return s.repo.SearchLoadUnits(ctx, code, shortCodeSearchLimit)
 }
@@ -99,7 +88,7 @@ func (s *ContentsService) SearchLoadUnits(ctx context.Context, raw string) ([]mo
 func (s *ContentsService) LoadUnitByCZCode(ctx context.Context, raw string) (model.LoadUnitCard, error) {
 	code := strings.TrimSpace(raw)
 	if !czBoxCodePattern.MatchString(code) {
-		return model.LoadUnitCard{}, ErrInvalidCZBoxCode
+		return model.LoadUnitCard{}, model.ErrInvalidCZBoxCode
 	}
 	return s.repo.LoadUnitByCZCode(ctx, code)
 }
@@ -108,7 +97,7 @@ func (s *ContentsService) LoadUnitByCZCode(ctx context.Context, raw string) (mod
 func (s *ContentsService) LoadUnitHistory(ctx context.Context, id string) (model.LoadUnitHistory, error) {
 	id = strings.TrimSpace(id)
 	if _, err := uuid.Parse(id); err != nil {
-		return model.LoadUnitHistory{}, ErrInvalidLoadUnitID
+		return model.LoadUnitHistory{}, model.ErrInvalidLoadUnitID
 	}
 	return s.repo.LoadUnitHistory(ctx, id)
 }

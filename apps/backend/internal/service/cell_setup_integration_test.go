@@ -244,10 +244,10 @@ func TestCellSetup_updateSettings(t *testing.T) {
 		p    model.CellSettingsPatch
 		want error
 	}{
-		"нет ячеек":    {model.CellSettingsPatch{LabelSmall: &yes}, service.ErrNoCellsSelected},
-		"нет галочек":  {model.CellSettingsPatch{CellIDs: []string{a.ID}}, service.ErrEmptyCellsPatch},
-		"не UUID":      {model.CellSettingsPatch{CellIDs: []string{"M1-7-1-2"}, LabelSmall: &yes}, service.ErrInvalidCellIDs},
-		"чужая ячейка": {model.CellSettingsPatch{CellIDs: []string{a.ID, "00000000-0000-0000-0000-000000000001"}, LabelSmall: &no}, repository.ErrForeignCells},
+		"нет ячеек":    {model.CellSettingsPatch{LabelSmall: &yes}, model.ErrNoCellsSelected},
+		"нет галочек":  {model.CellSettingsPatch{CellIDs: []string{a.ID}}, model.ErrEmptyCellsPatch},
+		"не UUID":      {model.CellSettingsPatch{CellIDs: []string{"M1-7-1-2"}, LabelSmall: &yes}, model.ErrInvalidCellIDs},
+		"чужая ячейка": {model.CellSettingsPatch{CellIDs: []string{a.ID, "00000000-0000-0000-0000-000000000001"}, LabelSmall: &no}, model.ErrForeignCells},
 	}
 	for name, c := range cases {
 		if _, err := svc.UpdateSettings(ctx, "SHB", c.p); !errors.Is(err, c.want) {
@@ -263,10 +263,10 @@ func TestCellSetup_updateSettings(t *testing.T) {
 	if err := pool.QueryRow(ctx, `SELECT id::text FROM cells WHERE is_default`).Scan(&dflt); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := svc.UpdateSettings(ctx, "SHB", model.CellSettingsPatch{CellIDs: []string{dflt}, IsFloor: &yes}); !errors.Is(err, repository.ErrForeignCells) {
+	if _, err := svc.UpdateSettings(ctx, "SHB", model.CellSettingsPatch{CellIDs: []string{dflt}, IsFloor: &yes}); !errors.Is(err, model.ErrForeignCells) {
 		t.Errorf("ячейка приёмки: %v, ждали ErrForeignCells", err)
 	}
-	if _, err := svc.Setup(ctx, "NOPE"); !errors.Is(err, repository.ErrNotFound) {
+	if _, err := svc.Setup(ctx, "NOPE"); !errors.Is(err, model.ErrNotFound) {
 		t.Errorf("неизвестный склад: %v", err)
 	}
 }

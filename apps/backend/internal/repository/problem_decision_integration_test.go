@@ -76,7 +76,7 @@ func TestProblemResolve_writeOffMovedGoods(t *testing.T) {
 	if rec != "resolved write_off СП-17 2026-10-21 A:1.000,C:1.000" {
 		t.Errorf("запись решения: %q", rec)
 	}
-	if err := mf.resolve(id, writeOff); !errors.Is(err, repository.ErrProblemResolved) {
+	if err := mf.resolve(id, writeOff); !errors.Is(err, model.ErrProblemResolved) {
 		t.Errorf("повторное решение: %v", err)
 	}
 }
@@ -103,7 +103,7 @@ func TestProblemResolve_placeBoxAndNotAllowed(t *testing.T) {
 	}
 
 	breakage := mf.openProblem(t, mf.iwhByCode(t, "DEFECT"), model.ProblemReasonBreakage, mf.goodsProblem(1, mf.cellA, ""))
-	if err := mf.resolve(breakage, model.ResolveProblemInput{Decision: model.ProblemDecisionPlace}); !errors.Is(err, repository.ErrDecisionNotAllowed) {
+	if err := mf.resolve(breakage, model.ResolveProblemInput{Decision: model.ProblemDecisionPlace}); !errors.Is(err, model.ErrDecisionNotAllowed) {
 		t.Errorf("бой - разместить: %v", err)
 	}
 }
@@ -241,15 +241,15 @@ func TestProblemResolve_supplierReturn(t *testing.T) {
 		t.Error("ТСД не видит задание возврата")
 	}
 
-	if err := mf.problem(t, ret, mf.goodsProblem(1, mf.cellA, "")); !errors.Is(err, repository.ErrSystemInternalWarehouse) {
+	if err := mf.problem(t, ret, mf.goodsProblem(1, mf.cellA, "")); !errors.Is(err, model.ErrSystemInternalWarehouse) {
 		t.Errorf("пометка на склад возврата: %v", err)
 	}
 	fromReturn := mf.goodsProblem(1, mf.cellA, "")
 	fromReturn.FromInternalWarehouseID = ret
-	if err := mf.problem(t, defect, fromReturn); !errors.Is(err, repository.ErrSystemInternalWarehouse) {
+	if err := mf.problem(t, defect, fromReturn); !errors.Is(err, model.ErrSystemInternalWarehouse) {
 		t.Errorf("пометка товара со склада возврата: %v", err)
 	}
-	if _, err := repository.NewInternalWarehouseRepository(mf.pool).Update(context.Background(), ret, nil, new(bool), nil); !errors.Is(err, repository.ErrSystemInternalWarehouse) {
+	if _, err := repository.NewInternalWarehouseRepository(mf.pool).Update(context.Background(), ret, nil, new(bool), nil); !errors.Is(err, model.ErrSystemInternalWarehouse) {
 		t.Errorf("скрыть склад возврата: %v", err)
 	}
 }
@@ -263,7 +263,7 @@ func TestProblemResolve_goodsMissing(t *testing.T) {
 	mf.openProblem(t, mf.iwhByCode(t, "ISOLATOR"), model.ProblemReasonForeignMark, repository.ProblemSubmitInput{LoadUnitID: lu})
 
 	err := mf.resolve(first, model.ResolveProblemInput{Decision: model.ProblemDecisionWriteOff, DocNumber: "1", DocDate: "2026-10-21"})
-	if !errors.Is(err, repository.ErrProblemGoodsMissing) {
+	if !errors.Is(err, model.ErrProblemGoodsMissing) {
 		t.Errorf("решение по перепомеченному коробу: %v", err)
 	}
 }

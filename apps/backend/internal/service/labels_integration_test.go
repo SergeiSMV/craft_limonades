@@ -86,16 +86,16 @@ func TestCellLabelsPDF(t *testing.T) {
 		ids  []string
 		want error
 	}{
-		"чужая ячейка":    {service.LabelKindLarge, []string{uuid.NewString()}, repository.ErrForeignCells},
-		"ячейка приёмки":  {service.LabelKindLarge, []string{defID}, repository.ErrForeignCells},
-		"не UUID":         {service.LabelKindLarge, []string{"x"}, service.ErrInvalidCellIDs},
-		"неизвестный вид": {"huge", nil, service.ErrUnknownLabelKind},
+		"чужая ячейка":    {service.LabelKindLarge, []string{uuid.NewString()}, model.ErrForeignCells},
+		"ячейка приёмки":  {service.LabelKindLarge, []string{defID}, model.ErrForeignCells},
+		"не UUID":         {service.LabelKindLarge, []string{"x"}, model.ErrInvalidCellIDs},
+		"неизвестный вид": {"huge", nil, model.ErrUnknownLabelKind},
 	} {
 		if _, _, err := svc.CellLabelsPDF(ctx, "SHB", c.kind, c.ids); !errors.Is(err, c.want) {
 			t.Errorf("%s: %v, ждали %v", name, err, c.want)
 		}
 	}
-	if _, _, err := svc.CellLabelsPDF(ctx, "NOPE", service.LabelKindLarge, nil); !errors.Is(err, repository.ErrNotFound) {
+	if _, _, err := svc.CellLabelsPDF(ctx, "NOPE", service.LabelKindLarge, nil); !errors.Is(err, model.ErrNotFound) {
 		t.Errorf("неизвестный склад: %v", err)
 	}
 }

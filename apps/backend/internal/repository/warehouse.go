@@ -7,6 +7,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"craftwms/internal/model"
 )
 
 // WarehouseRepository - доступ к таблице warehouses (физические/внешние склады, напр. «Шабулина»).
@@ -26,7 +28,7 @@ func (r *WarehouseRepository) IDByCode(ctx context.Context, code string) (string
 	var id string
 	err := r.pool.QueryRow(ctx, `SELECT id::text FROM warehouses WHERE code = $1`, code).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", ErrNotFound
+		return "", model.ErrNotFound
 	}
 	if err != nil {
 		return "", fmt.Errorf("warehouse by code %q: %w", code, err)

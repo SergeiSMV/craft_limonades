@@ -397,3 +397,7 @@ type PickingShipmentBox struct {
 	LabelsPrinted int
 	Shipped       bool
 }
+
+// ErrShippingCell - ячейка отгрузки в движении (P9-05): в ней числятся короба собранных заказов,
+// и уходят они оттуда только отгрузкой.
+var ErrShippingCell = errors.New("ячейка отгрузки - служебная: короба собранных заказов уходят из неё только отгрузкой")

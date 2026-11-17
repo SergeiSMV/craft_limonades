@@ -3,14 +3,11 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"strings"
 
+	"craftwms/internal/model"
 	"craftwms/internal/repository"
 )
-
-// ErrInvalidShipmentID - идентификатор сеанса отгрузки возврата не UUID (ADHOC-31).
-var ErrInvalidShipmentID = errors.New("shipment id must be a UUID")
 
 // returnSubmitPayload - тело операции return_submit, как его собирает устройство (ADHOC-31):
 // сеанс отгрузки по заданию возврата - какие позиции (проблемы) отгружены. Позиция - целиком,
@@ -29,7 +26,7 @@ type returnSubmitPayload struct {
 func (s *OperationsService) returnSubmit(ctx context.Context, userID, id string, raw json.RawMessage) (repository.Applied, error) {
 	var p returnSubmitPayload
 	if err := json.Unmarshal(raw, &p); err != nil {
-		return repository.Applied{}, ErrInvalidPayload
+		return repository.Applied{}, model.ErrInvalidPayload
 	}
 	in := repository.ReturnSubmitInput{
 		ShipmentID:  strings.TrimSpace(p.ShipmentID),
@@ -38,24 +35,24 @@ func (s *OperationsService) returnSubmit(ctx context.Context, userID, id string,
 		CreatedBy:   userID,
 	}
 	if !isUUID(in.ShipmentID) {
-		return repository.Applied{}, ErrInvalidShipmentID
+		return repository.Applied{}, model.ErrInvalidShipmentID
 	}
 	if in.WarehouseID == "" {
-		return repository.Applied{}, ErrEmptyWarehouse
+		return repository.Applied{}, model.ErrEmptyWarehouse
 	}
 	if !isUUID(in.TaskID) {
-		return repository.Applied{}, ErrInvalidTaskID
+		return repository.Applied{}, model.ErrInvalidTaskID
 	}
 	if !isUUID(in.WarehouseID) {
-		return repository.Applied{}, ErrInvalidPayload
+		return repository.Applied{}, model.ErrInvalidPayload
 	}
 	if len(p.ProblemIDs) == 0 {
-		return repository.Applied{}, repository.ErrEmptyShipment
+		return repository.Applied{}, model.ErrEmptyShipment
 	}
 	for _, pid := range p.ProblemIDs {
 		pid = strings.TrimSpace(pid)
 		if !isUUID(pid) {
-			return repository.Applied{}, ErrInvalidPayload
+			return repository.Applied{}, model.ErrInvalidPayload
 		}
 		in.ProblemIDs = append(in.ProblemIDs, pid)
 	}

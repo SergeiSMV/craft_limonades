@@ -191,7 +191,7 @@ func TestOperations_repeatDoesNotDoubleApply(t *testing.T) {
 // Отказ по существу не роняет батч и не мешает следующим операциям.
 func TestOperations_rejectionDoesNotStopBatch(t *testing.T) {
 	repo := newFakeOpsRepo()
-	repo.bindErr = repository.ErrBarcodeConflict
+	repo.bindErr = model.ErrBarcodeConflict
 	svc := NewOperationsService(repo)
 
 	results, err := svc.Apply(context.Background(), opUserID, []Operation{
@@ -275,16 +275,16 @@ func TestOperations_invalidOperationIDIsRejected(t *testing.T) {
 func TestOperations_batchBounds(t *testing.T) {
 	svc := NewOperationsService(newFakeOpsRepo())
 
-	if _, err := svc.Apply(context.Background(), opUserID, nil); !errors.Is(err, ErrEmptyBatch) {
-		t.Fatalf("пустой батч: ждали ErrEmptyBatch, получили %v", err)
+	if _, err := svc.Apply(context.Background(), opUserID, nil); !errors.Is(err, model.ErrEmptyBatch) {
+		t.Fatalf("пустой батч: ждали model.ErrEmptyBatch, получили %v", err)
 	}
 
 	tooMany := make([]Operation, MaxBatchOperations+1)
 	for i := range tooMany {
 		tooMany[i] = op(opID1, repository.KindBindBarcode, map[string]any{"good_id": "g", "barcode": "1"})
 	}
-	if _, err := svc.Apply(context.Background(), opUserID, tooMany); !errors.Is(err, ErrBatchTooLarge) {
-		t.Fatalf("переполненный батч: ждали ErrBatchTooLarge, получили %v", err)
+	if _, err := svc.Apply(context.Background(), opUserID, tooMany); !errors.Is(err, model.ErrBatchTooLarge) {
+		t.Fatalf("переполненный батч: ждали model.ErrBatchTooLarge, получили %v", err)
 	}
 }
 

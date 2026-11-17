@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"craftwms/internal/model"
-	"craftwms/internal/repository"
 	"craftwms/internal/service"
 	"craftwms/internal/testutil"
 )
@@ -28,7 +27,7 @@ func TestNormalizeFloorAddress(t *testing.T) {
 		}
 	}
 	for _, in := range []string{"", "Н-П", "D-1-1-1", "D Н-П", "D--Н-П", "ПРИЁМКА", "D-Н-П-1"} {
-		if _, err := service.NormalizeFloorAddress(in); !errors.Is(err, service.ErrInvalidFloorAddress) {
+		if _, err := service.NormalizeFloorAddress(in); !errors.Is(err, model.ErrInvalidFloorAddress) {
 			t.Errorf("NormalizeFloorAddress(%q): ждали ErrInvalidFloorAddress, получили %v", in, err)
 		}
 	}
@@ -50,7 +49,7 @@ func TestFloorCells_lifecycle(t *testing.T) {
 	if cell.Address != "D-Н-П" {
 		t.Fatalf("адрес %q, ждали D-Н-П", cell.Address)
 	}
-	if _, err := svc.CreateFloorCell(ctx, "SHB", model.FloorCellInput{Address: "D-Н-П"}); !errors.Is(err, repository.ErrCellExists) {
+	if _, err := svc.CreateFloorCell(ctx, "SHB", model.FloorCellInput{Address: "D-Н-П"}); !errors.Is(err, model.ErrCellExists) {
 		t.Fatalf("повтор адреса: ждали ErrCellExists, получили %v", err)
 	}
 
@@ -80,10 +79,10 @@ func TestFloorCells_lifecycle(t *testing.T) {
 	if err != nil || renamed.Address != "M1-Н-П" {
 		t.Fatalf("RenameFloorCell: %+v, %v", renamed, err)
 	}
-	if _, err := svc.RenameFloorCell(ctx, "SHB", rackCell, model.FloorCellInput{Address: "B-Н-П"}); !errors.Is(err, repository.ErrNotFound) {
+	if _, err := svc.RenameFloorCell(ctx, "SHB", rackCell, model.FloorCellInput{Address: "B-Н-П"}); !errors.Is(err, model.ErrNotFound) {
 		t.Fatalf("переименовать ячейку стеллажа: ждали ErrNotFound, получили %v", err)
 	}
-	if err := svc.DeleteFloorCell(ctx, "SHB", rackCell); !errors.Is(err, repository.ErrNotFound) {
+	if err := svc.DeleteFloorCell(ctx, "SHB", rackCell); !errors.Is(err, model.ErrNotFound) {
 		t.Fatalf("удалить ячейку стеллажа: ждали ErrNotFound, получили %v", err)
 	}
 
@@ -98,7 +97,7 @@ func TestFloorCells_lifecycle(t *testing.T) {
 	if _, err := pool.Exec(ctx, `INSERT INTO stock (cell_id, good_id, batch_id, qty, internal_warehouse_id) SELECT $1::uuid,$2::uuid,$3::uuid,2, id FROM internal_warehouses WHERE is_default`, cell.ID, good, batch); err != nil {
 		t.Fatalf("остаток: %v", err)
 	}
-	if err := svc.DeleteFloorCell(ctx, "SHB", cell.ID); !errors.Is(err, repository.ErrCellNotEmpty) {
+	if err := svc.DeleteFloorCell(ctx, "SHB", cell.ID); !errors.Is(err, model.ErrCellNotEmpty) {
 		t.Fatalf("удалить с товаром: ждали ErrCellNotEmpty, получили %v", err)
 	}
 	if _, err := pool.Exec(ctx, `UPDATE stock SET qty = 0 WHERE cell_id = $1::uuid`, cell.ID); err != nil {

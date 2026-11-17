@@ -126,7 +126,7 @@ func insertIntakeAggregates(ctx context.Context, q Querier, in CZIntakeInput) er
 			done[g.Code] = true
 		}
 		if len(rest) == len(pending) {
-			return ErrUnknownReference
+			return model.ErrUnknownReference
 		}
 		pending = rest
 	}
@@ -272,7 +272,7 @@ func isolatorWarehouse(ctx context.Context, q Querier) (string, error) {
 	var id string
 	err := q.QueryRow(ctx, `SELECT id::text FROM internal_warehouses WHERE code = $1`, isolatorCode).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", ErrUnknownInternalWarehouse
+		return "", model.ErrUnknownInternalWarehouse
 	}
 	if err != nil {
 		return "", fmt.Errorf("склад «Изолятор»: %w", err)

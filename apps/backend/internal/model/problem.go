@@ -238,3 +238,65 @@ var (
 	ErrResolutionNameTaken       = errors.New("вариант решения с таким названием уже есть")
 	ErrResolutionRegradeMismatch = errors.New("вариант «Провести пересорт» допустим только у причины «Пересорт», а у неё - только такие варианты")
 )
+
+// Ошибки пометки товара другим внутренним складом (P6-07-1). Все - отказ по существу.
+var (
+	// ErrProblemPosted - проблема с этим идентификатором уже зафиксирована.
+	ErrProblemPosted = errors.New("problem already posted")
+	// ErrEmptyProblem - в проблеме нет ни короба, ни товара с одним источником.
+	ErrEmptyProblem = errors.New("problem must have a load unit or goods from a cell or a load unit")
+	// ErrUnknownReason - причины нет в справочнике или её ставит только программа.
+	ErrUnknownReason = errors.New("неизвестная причина проблемы")
+	// ErrProblemCommentRequired - у причины с обязательным комментарием (ADHOC-55; так у
+	// «Прочее») комментария нет: без него офису нечего разбирать.
+	ErrProblemCommentRequired = errors.New("у этой причины нужен комментарий")
+	// ErrUnknownInternalWarehouse - склада назначения нет или он скрыт.
+	ErrUnknownInternalWarehouse = errors.New("unknown or inactive internal warehouse")
+	// ErrSystemInternalWarehouse - склад системный (возврат поставщику, P6-07-3): на него и с него
+	// переводит только решение офиса; скрыть и удалить его нельзя.
+	ErrSystemInternalWarehouse = errors.New("system internal warehouse is managed by the program")
+	// ErrSameInternalWarehouse - товар уже числится на складе назначения.
+	ErrSameInternalWarehouse = errors.New("goods already belong to the target internal warehouse")
+)
+
+// Ошибки справочника внутренних складов (ADHOC-29).
+var (
+	// ErrInternalWarehouseExists - склад с таким кодом уже есть.
+	ErrInternalWarehouseExists = errors.New("internal warehouse code already exists")
+	// ErrDefaultInternalWarehouse - склад по умолчанию нельзя скрыть или удалить: приходовать
+	// было бы некуда.
+	ErrDefaultInternalWarehouse = errors.New("default internal warehouse cannot be hidden or deleted")
+	// ErrInternalWarehouseInUse - на складе есть остаток или история: удалить нельзя, только
+	// скрыть.
+	ErrInternalWarehouseInUse = errors.New("internal warehouse has stock or history")
+)
+
+// Ошибки решения по проблеме склада (P6-07-3). Все - отказ по существу: повтор их не исправит.
+var (
+	// ErrProblemNotFound - проблемы нет.
+	ErrProblemNotFound = errors.New("problem not found")
+	// ErrProblemResolved - по проблеме уже принято решение.
+	ErrProblemResolved = errors.New("problem is already resolved")
+	// ErrDecisionNotAllowed - решение не допустимо при причине проблемы.
+	ErrDecisionNotAllowed = errors.New("decision is not allowed for the problem reason")
+	// ErrUnknownSupplier - поставщика нет в справочнике.
+	ErrUnknownSupplier = errors.New("unknown supplier")
+	// ErrProblemGoodsMissing - товара проблемы нет на складе-метке: короб перевели на другой
+	// склад или опустошили, россыпь разобрали или положили в короб.
+	ErrProblemGoodsMissing = errors.New("problem goods are no longer on the problem internal warehouse")
+	// ErrNoSupplierReturnWarehouse - в справочнике нет системного склада возврата.
+	ErrNoSupplierReturnWarehouse = errors.New("no supplier return internal warehouse")
+)
+
+// Ошибки формы проблемы склада (P6-07-1).
+var (
+	// ErrInvalidProblemID - идентификатор проблемы не UUID.
+	ErrInvalidProblemID = errors.New("problem id must be a UUID")
+)
+
+// ErrInvalidDecision - решение по проблеме составлено неверно: неизвестное решение, нет
+// документа списания или поставщика возврата, лишние поля другого решения.
+var ErrInvalidDecision = errors.New("invalid problem decision")
+
+// ErrInvalidProblemFilter - фильтр ленты решённых проблем неверен: дата не ISO, курсор без id.
+var ErrInvalidProblemFilter = errors.New("invalid resolved problems filter")

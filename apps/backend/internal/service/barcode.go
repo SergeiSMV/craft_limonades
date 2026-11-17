@@ -6,15 +6,6 @@ import (
 	"strings"
 
 	"craftwms/internal/model"
-	"craftwms/internal/repository"
-)
-
-// Ошибки валидации ввода привязки ШК.
-var (
-	// ErrEmptyBarcode - не передан штрихкод.
-	ErrEmptyBarcode = errors.New("barcode is required")
-	// ErrEmptyGoodID - не передан товар для привязки.
-	ErrEmptyGoodID = errors.New("good_id is required")
 )
 
 // barcodeRepo - зависимость сервиса от хранилища ШК (интерфейс ради тестируемости).
@@ -42,11 +33,11 @@ func NewBarcodeService(repo barcodeRepo) *BarcodeService {
 	return &BarcodeService{repo: repo}
 }
 
-// ResolveGood - товар по ШК; нет привязки → repository.ErrNotFound.
+// ResolveGood - товар по ШК; нет привязки → model.ErrNotFound.
 func (s *BarcodeService) ResolveGood(ctx context.Context, code string) (model.Good, error) {
 	code = strings.TrimSpace(code)
 	if code == "" {
-		return model.Good{}, ErrEmptyBarcode
+		return model.Good{}, model.ErrEmptyBarcode
 	}
 	return s.repo.GetGoodByBarcode(ctx, code)
 }
@@ -55,7 +46,7 @@ func (s *BarcodeService) ResolveGood(ctx context.Context, code string) (model.Go
 func (s *BarcodeService) ListByGood(ctx context.Context, goodID string) ([]model.Barcode, error) {
 	goodID = strings.TrimSpace(goodID)
 	if goodID == "" {
-		return nil, ErrEmptyGoodID
+		return nil, model.ErrEmptyGoodID
 	}
 	return s.repo.ListByGood(ctx, goodID)
 }
@@ -78,10 +69,10 @@ func (s *BarcodeService) Bind(ctx context.Context, goodID, barcode, symbology st
 	barcode = strings.TrimSpace(barcode)
 	symbology = strings.TrimSpace(symbology)
 	if goodID == "" {
-		return ErrEmptyGoodID
+		return model.ErrEmptyGoodID
 	}
 	if barcode == "" {
-		return ErrEmptyBarcode
+		return model.ErrEmptyBarcode
 	}
 	return s.repo.Bind(ctx, goodID, barcode, symbology)
 }
@@ -105,13 +96,13 @@ func (s *BarcodeService) Bind(ctx context.Context, goodID, barcode, symbology st
 func (s *BarcodeService) GenerateInternal(ctx context.Context, goodID string) (string, bool, error) {
 	goodID = strings.TrimSpace(goodID)
 	if goodID == "" {
-		return "", false, ErrEmptyGoodID
+		return "", false, model.ErrEmptyGoodID
 	}
 	code, err := s.repo.InternalByGood(ctx, goodID)
 	switch {
 	case err == nil:
 		return code, false, nil
-	case errors.Is(err, repository.ErrNotFound):
+	case errors.Is(err, model.ErrNotFound):
 		created, err := s.repo.CreateInternal(ctx, goodID)
 		if err != nil {
 			return "", false, err
@@ -127,7 +118,7 @@ func (s *BarcodeService) GenerateInternal(ctx context.Context, goodID string) (s
 func (s *BarcodeService) Unbind(ctx context.Context, barcode string) error {
 	barcode = strings.TrimSpace(barcode)
 	if barcode == "" {
-		return ErrEmptyBarcode
+		return model.ErrEmptyBarcode
 	}
 	return s.repo.Unbind(ctx, barcode)
 }
@@ -137,7 +128,7 @@ func (s *BarcodeService) Unbind(ctx context.Context, barcode string) error {
 func (s *BarcodeService) CZStock(ctx context.Context, barcode string) (int, error) {
 	barcode = strings.TrimSpace(barcode)
 	if barcode == "" {
-		return 0, ErrEmptyBarcode
+		return 0, model.ErrEmptyBarcode
 	}
 	return s.repo.CZStockOfBarcode(ctx, barcode)
 }
@@ -147,10 +138,10 @@ func (s *BarcodeService) Regrade(ctx context.Context, in model.RegradeInput) (mo
 	in.Barcode = strings.TrimSpace(in.Barcode)
 	in.GoodID = strings.TrimSpace(in.GoodID)
 	if in.Barcode == "" {
-		return model.RegradeResult{}, ErrEmptyBarcode
+		return model.RegradeResult{}, model.ErrEmptyBarcode
 	}
 	if !isUUID(in.GoodID) {
-		return model.RegradeResult{}, ErrEmptyGoodID
+		return model.RegradeResult{}, model.ErrEmptyGoodID
 	}
 	return s.repo.Regrade(ctx, in)
 }

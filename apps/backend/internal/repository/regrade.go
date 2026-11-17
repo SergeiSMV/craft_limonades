@@ -13,27 +13,6 @@ import (
 	"craftwms/internal/model"
 )
 
-// Отказы перепривязки ШК и правки привязок при марках ЧЗ на складе (ADHOC-53). Тексты -
-// по-русски: ТСД показывает их дословно, и в окне ответа ручки, и в отказе операции очереди.
-var (
-	// ErrBarcodeHasCZStock - у ШК на складе есть марки: отвязка оставила бы их без товара в
-	// справочнике, ШК можно только перепривязать.
-	ErrBarcodeHasCZStock = errors.New("на складе есть марки ЧЗ с этим ШК - отвязать нельзя, перепривяжите ШК к правильному товару")
-	// ErrBarcodeMarksOtherGood - привязка ШК к товару, хотя марки этого GTIN на складе числятся
-	// за другим: тихо разошлись бы ШК и учёт.
-	ErrBarcodeMarksOtherGood = errors.New("марки ЧЗ с этим ШК числятся на складе за другим товаром - перепривяжите ШК из карточки того товара")
-	// ErrRegradeNotBound - ШК не привязан: перепривязывать нечего.
-	ErrRegradeNotBound = errors.New("ШК не привязан к товару")
-	// ErrRegradeSameGood - ШК уже за этим товаром.
-	ErrRegradeSameGood = errors.New("ШК уже привязан к этому товару")
-	// ErrRegradeOpenProblem - часть марок в открытой проблеме склада или ждёт отгрузки возврата.
-	ErrRegradeOpenProblem = errors.New("часть марок - в открытой проблеме склада или ждёт отгрузки возврата поставщику: сначала завершите её")
-	// ErrRegradeCellCounting - ячейка с марками сейчас пересчитывается.
-	ErrRegradeCellCounting = errors.New("ячейка с марками сейчас на пересчёте - дождитесь конца подсчёта")
-	// ErrRegradeBoxNotPlaced - короб с марками не стоит в ячейке.
-	ErrRegradeBoxNotPlaced = errors.New("короб с марками не размещён в ячейке")
-)
-
 // czStockOfBarcode - сколько марок ЧЗ с GTIN этого ШК лежит на складе (ADHOC-53).
 //
 // GTIN-14 марки - это EAN-13 ШК с ведущим нулём (CZ-01), поэтому ШК сравнивается и как есть,
@@ -60,7 +39,7 @@ func guardBindMarks(ctx context.Context, q Querier, goodID, barcode string) erro
 		return fmt.Errorf("марки ЧЗ другого товара по ШК: %w", err)
 	}
 	if other {
-		return ErrBarcodeMarksOtherGood
+		return model.ErrBarcodeMarksOtherGood
 	}
 	return nil
 }
@@ -106,13 +85,13 @@ func (r *BarcodeRepository) Regrade(ctx context.Context, in model.RegradeInput) 
 		err := q.QueryRow(ctx, `SELECT good_id::text FROM barcodes WHERE barcode = $1 FOR UPDATE`,
 			in.Barcode).Scan(&from)
 		if errors.Is(err, pgx.ErrNoRows) {
-			return ErrRegradeNotBound
+			return model.ErrRegradeNotBound
 		}
 		if err != nil {
 			return fmt.Errorf("ШК под перепривязку: %w", err)
 		}
 		if from == in.GoodID {
-			return ErrRegradeSameGood
+			return model.ErrRegradeSameGood
 		}
 		// Новый товар - маркируемый: на нём теперь марки, как после привязки ШК из марки.
 		tag, err := q.Exec(ctx, `UPDATE goods SET cz_marked = true WHERE id = $1::uuid`, in.GoodID)
@@ -120,7 +99,7 @@ func (r *BarcodeRepository) Regrade(ctx context.Context, in model.RegradeInput) 
 			return fmt.Errorf("пометить товар маркируемым: %w", err)
 		}
 		if tag.RowsAffected() == 0 {
-			return ErrGoodNotFound
+			return model.ErrGoodNotFound
 		}
 
 		groups, err := regradeGroups(ctx, q, in.Barcode)
@@ -172,10 +151,10 @@ func regradeGroups(ctx context.Context, q Querier, barcode string) ([]regradeGro
 			return nil, fmt.Errorf("разобрать марку под перепривязку: %w", err)
 		}
 		if inProblem {
-			return nil, ErrRegradeOpenProblem
+			return nil, model.ErrRegradeOpenProblem
 		}
 		if cell == nil || iwh == nil {
-			return nil, ErrRegradeBoxNotPlaced
+			return nil, model.ErrRegradeBoxNotPlaced
 		}
 		g.cell, g.iwh = *cell, *iwh
 		cells[g.cell] = true
@@ -219,7 +198,7 @@ func guardRegradeCells(ctx context.Context, q Querier, cells map[string]bool) er
 	if err != nil {
 		return fmt.Errorf("пересчёт в ячейках марок: %w", err)
 	}
-	return fmt.Errorf("%w: ячейка %s, пересчёт № %d", ErrRegradeCellCounting, address, number)
+	return fmt.Errorf("%w: ячейка %s, пересчёт № %d", model.ErrRegradeCellCounting, address, number)
 }
 
 // regradeMarks переводит сведённые марки на новый товар, записывает проблему «Пересорт» с её
@@ -311,8 +290,8 @@ func regradeGroupStock(ctx context.Context, q Querier, g regradeGroup, good, bat
 
 // IsRegradeRefusal - отказ перепривязки по существу: его текст - для кладовщика.
 func IsRegradeRefusal(err error) bool {
-	for _, e := range []error{ErrRegradeNotBound, ErrRegradeSameGood, ErrRegradeOpenProblem,
-		ErrRegradeCellCounting, ErrRegradeBoxNotPlaced, ErrGoodNotFound} {
+	for _, e := range []error{model.ErrRegradeNotBound, model.ErrRegradeSameGood, model.ErrRegradeOpenProblem,
+		model.ErrRegradeCellCounting, model.ErrRegradeBoxNotPlaced, model.ErrGoodNotFound} {
 		if errors.Is(err, e) {
 			return true
 		}

@@ -277,7 +277,7 @@ func (sc *stocktakeCount) countLoose(ctx context.Context, f model.StocktakeLoose
 	var marked bool
 	err := sc.q.QueryRow(ctx, `SELECT cz_marked FROM goods WHERE id = $1::uuid`, f.GoodID).Scan(&marked)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return ErrUnknownReference
+		return model.ErrUnknownReference
 	}
 	if err != nil {
 		return fmt.Errorf("товар факта: %w", err)

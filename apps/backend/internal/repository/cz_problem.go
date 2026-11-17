@@ -56,7 +56,7 @@ func problemMarkLines(ctx context.Context, q Querier, p lockedProblem) ([]proble
 			return nil, fmt.Errorf("разобрать марку проблемы: %w", err)
 		}
 		if boxed || cell == nil || deref(iwh) != p.toIwh || good != p.good || batch != p.batch {
-			return nil, ErrProblemGoodsMissing
+			return nil, model.ErrProblemGoodsMissing
 		}
 		count++
 		if n := len(lines); n > 0 && lines[n-1].cell == *cell {
@@ -69,7 +69,7 @@ func problemMarkLines(ctx context.Context, q Querier, p lockedProblem) ([]proble
 		return nil, fmt.Errorf("марки проблемы: %w", err)
 	}
 	if count > 0 && !p.qty.Equal(decimal.NewFromInt(int64(count))) {
-		return nil, ErrProblemGoodsMissing
+		return nil, model.ErrProblemGoodsMissing
 	}
 	return lines, nil
 }

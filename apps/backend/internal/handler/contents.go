@@ -11,7 +11,6 @@ import (
 	"github.com/shopspring/decimal"
 
 	"craftwms/internal/model"
-	"craftwms/internal/service"
 )
 
 // contentsReader - то, что ручкам просмотра нужно от сервиса. Узкий интерфейс, а не
@@ -362,8 +361,8 @@ func toSnapshotLine(c model.ContentLine) snapshotLineResponse {
 // 404 - отсканированного нет, остальное - 500.
 func contentsError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
-	case errors.Is(err, service.ErrInvalidCellID), errors.Is(err, service.ErrInvalidLoadUnitID),
-		errors.Is(err, service.ErrInvalidShortCode), errors.Is(err, service.ErrInvalidCZBoxCode):
+	case errors.Is(err, model.ErrInvalidCellID), errors.Is(err, model.ErrInvalidLoadUnitID),
+		errors.Is(err, model.ErrInvalidShortCode), errors.Is(err, model.ErrInvalidCZBoxCode):
 		writeError(w, http.StatusBadRequest, err.Error())
 	case errors.Is(err, model.ErrCellNotFound), errors.Is(err, model.ErrLoadUnitNotFound):
 		writeError(w, http.StatusNotFound, err.Error())

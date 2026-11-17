@@ -11,10 +11,6 @@ import (
 	"craftwms/internal/model"
 )
 
-// Псевдоним ошибки из model на время ADHOC-71 (долг 38): старые ссылки работают, errors.Is
-// сравнивает тот же объект. Снимается, когда все ссылки переведены на model.
-var ErrRegistryFile = model.ErrRegistryFile
-
 // pickingLoadRepo - узкий интерфейс хранилища сборки для загрузки реестра (P8-02).
 type pickingLoadRepo interface {
 	ExistingOrders(ctx context.Context, warehouseID string, date time.Time) ([]model.PickingExistingOrder, error)

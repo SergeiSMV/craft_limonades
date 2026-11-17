@@ -2,15 +2,11 @@ package service
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 
 	"craftwms/internal/model"
 	"craftwms/internal/report"
 )
-
-// ErrEmptyDocumentID - обращение к документу без идентификатора.
-var ErrEmptyDocumentID = errors.New("document id is required")
 
 // documentRepo - зависимость сервиса от хранилища документов.
 type documentRepo interface {
@@ -83,7 +79,7 @@ func (s *DocumentService) File(ctx context.Context, id, userID string) ([]byte, 
 // MarkDone отмечает документ занесённым в 1С.
 func (s *DocumentService) MarkDone(ctx context.Context, id, userID string) error {
 	if id == "" {
-		return ErrEmptyDocumentID
+		return model.ErrEmptyDocumentID
 	}
 	if err := s.repo.MarkDone(ctx, id); err != nil {
 		return err
@@ -95,7 +91,7 @@ func (s *DocumentService) MarkDone(ctx context.Context, id, userID string) error
 // событие «сформирован» рождается вместе с ним, поэтому пустой ответ означает, что документа нет.
 func (s *DocumentService) Events(ctx context.Context, id string) ([]model.DocumentEvent, error) {
 	if id == "" {
-		return nil, ErrEmptyDocumentID
+		return nil, model.ErrEmptyDocumentID
 	}
 	if _, err := s.repo.ByID(ctx, id); err != nil {
 		return nil, err

@@ -105,9 +105,9 @@ func czErrorResponse(err error) (int, string) {
 	switch {
 	case errors.Is(err, model.ErrCZBadCode):
 		return http.StatusBadRequest, "это не марка Честного знака и не код короба"
-	case errors.Is(err, service.ErrCZNoCodes):
+	case errors.Is(err, model.ErrCZNoCodes):
 		return http.StatusBadRequest, "не передано ни одного кода"
-	case errors.Is(err, service.ErrCZTooManyCodes):
+	case errors.Is(err, model.ErrCZTooManyCodes):
 		return http.StatusBadRequest, "слишком много кодов за раз: " + err.Error()
 	case errors.Is(err, model.ErrCZGoodNotFound):
 		return http.StatusNotFound, "товар не найден"

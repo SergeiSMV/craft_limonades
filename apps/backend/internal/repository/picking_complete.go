@@ -344,7 +344,7 @@ func moveOpenPicks(ctx context.Context, q Querier, orderID, shippingCell string)
 // pickMoveErr - товара пика в источнике уже нет (пересчёт поправил остаток мимо «в сборке»):
 // отказ с понятным текстом, а не «недостаточно остатка».
 func pickMoveErr(err error) error {
-	if errors.Is(err, ErrGoodsShort) || errors.Is(err, ErrInsufficientStock) {
+	if errors.Is(err, model.ErrGoodsShort) || errors.Is(err, model.ErrInsufficientStock) {
 		return model.ErrPickingStockShort
 	}
 	return err

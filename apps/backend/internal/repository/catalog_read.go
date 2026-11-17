@@ -15,10 +15,6 @@ import (
 // Total считаем окном COUNT(*) OVER() в том же запросе - одна поездка в БД вместо двух.
 // Пустые списки возвращаем как непустой слайс (не nil) - чтобы в JSON был [], а не null.
 
-// Псевдоним ошибки из model на время ADHOC-71 (долг 38): старые ссылки работают, errors.Is
-// сравнивает тот же объект. Снимается, когда все ссылки переведены на model.
-var ErrNotFound = model.ErrNotFound
-
 // --- Товары (goods) ---
 
 // GoodsFilter - параметры выборки товаров. Пустые поля = без фильтра.
@@ -96,7 +92,7 @@ func (r *GoodsRepository) GetByID(ctx context.Context, id string) (model.Good, e
 		Scan(&g.ID, &g.Code, &g.Name, &g.FullName, &g.UOM,
 			&g.GroupID, &g.GroupName, &g.SupplierID, &g.SupplierName, &g.IsActive, &g.CZMarked)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return model.Good{}, ErrNotFound
+		return model.Good{}, model.ErrNotFound
 	}
 	if err != nil {
 		return model.Good{}, fmt.Errorf("get good %q: %w", id, err)

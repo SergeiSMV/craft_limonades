@@ -22,7 +22,7 @@ func TestLineMarks(t *testing.T) {
 	if _, err := lineMarks([]string{"0104600000000017215A1\x1d91EE"}); !errors.Is(err, model.ErrCZBadCode) {
 		t.Errorf("марка с криптохвостом: %v", err)
 	}
-	if _, err := lineMarks([]string{"0104600000000017215A1", "0104600000000017215A1"}); !errors.Is(err, ErrInvalidPayload) {
+	if _, err := lineMarks([]string{"0104600000000017215A1", "0104600000000017215A1"}); !errors.Is(err, model.ErrInvalidPayload) {
 		t.Errorf("повтор марки в строке: %v", err)
 	}
 }

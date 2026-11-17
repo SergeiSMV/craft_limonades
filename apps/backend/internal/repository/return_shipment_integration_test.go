@@ -67,10 +67,10 @@ func TestReturnShipment_movedGoodsAndSettle(t *testing.T) {
 	if status != "new" {
 		t.Errorf("задание с неотгруженной позицией: %s", status)
 	}
-	if _, err := mf.ship(task, first); !errors.Is(err, repository.ErrNotInTask) {
+	if _, err := mf.ship(task, first); !errors.Is(err, model.ErrNotInTask) {
 		t.Errorf("повторная отгрузка позиции: %v", err)
 	}
-	if _, err := mf.ship(task, uuid.NewString()); !errors.Is(err, repository.ErrNotInTask) {
+	if _, err := mf.ship(task, uuid.NewString()); !errors.Is(err, model.ErrNotInTask) {
 		t.Errorf("чужая позиция: %v", err)
 	}
 	if _, err := mf.ship(task, second); err != nil {
@@ -80,7 +80,7 @@ func TestReturnShipment_movedGoodsAndSettle(t *testing.T) {
 	if status != "done" {
 		t.Errorf("задание после последней позиции: %s", status)
 	}
-	if _, err := mf.ship(task, second); !errors.Is(err, repository.ErrTaskDone) {
+	if _, err := mf.ship(task, second); !errors.Is(err, model.ErrTaskDone) {
 		t.Errorf("сеанс по выполненному заданию: %v", err)
 	}
 }

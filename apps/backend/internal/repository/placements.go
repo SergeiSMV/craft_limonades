@@ -28,7 +28,7 @@ func placeLoadUnit(ctx context.Context, q Querier, in model.PlaceLoadUnitInput) 
 		SELECT cell_id::text FROM load_units WHERE id = $1::uuid FOR UPDATE`, in.LoadUnitID).
 		Scan(&from)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return ErrLoadUnitNotFound
+		return model.ErrLoadUnitNotFound
 	}
 	if err != nil {
 		return fmt.Errorf("прочитать место ГЕ: %w", err)

@@ -58,10 +58,10 @@ func TestScanMany(t *testing.T) {
 
 func TestScanMany_limits(t *testing.T) {
 	svc := NewCZService(&scanClient{}, nil)
-	if _, err := svc.ScanMany(context.Background(), nil); !errors.Is(err, ErrCZNoCodes) {
+	if _, err := svc.ScanMany(context.Background(), nil); !errors.Is(err, model.ErrCZNoCodes) {
 		t.Fatalf("пусто: %v", err)
 	}
-	if _, err := svc.ScanMany(context.Background(), make([]string, czMaxCodes+1)); !errors.Is(err, ErrCZTooManyCodes) {
+	if _, err := svc.ScanMany(context.Background(), make([]string, czMaxCodes+1)); !errors.Is(err, model.ErrCZTooManyCodes) {
 		t.Fatalf("сверх предела: %v", err)
 	}
 	if _, err := NewCZService(nil, nil).ScanMany(context.Background(), []string{beerMark}); !errors.Is(err, model.ErrCZNotConfigured) {

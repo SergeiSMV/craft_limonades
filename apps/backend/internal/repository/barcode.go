@@ -13,14 +13,6 @@ import (
 	"craftwms/internal/model"
 )
 
-// Ошибки привязки штрихкодов.
-var (
-	// ErrBarcodeConflict - ШК уже привязан к ДРУГОМУ товару (один ШК → один товар).
-	ErrBarcodeConflict = errors.New("barcode bound to another good")
-	// ErrGoodNotFound - привязка к несуществующему товару (FK).
-	ErrGoodNotFound = errors.New("good not found")
-)
-
 // BarcodeRepository - доступ к таблице barcodes: товар 1→N ШК, сам ШК глобально уникален.
 type BarcodeRepository struct {
 	pool *pgxpool.Pool
@@ -46,7 +38,7 @@ func (r *BarcodeRepository) GetGoodByBarcode(ctx context.Context, code string) (
 		Scan(&g.ID, &g.Code, &g.Name, &g.FullName, &g.UOM,
 			&g.GroupID, &g.GroupName, &g.SupplierID, &g.SupplierName, &g.IsActive, &g.CZMarked)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return model.Good{}, ErrNotFound
+		return model.Good{}, model.ErrNotFound
 	}
 	if err != nil {
 		return model.Good{}, fmt.Errorf("get good by barcode %q: %w", code, err)
@@ -130,7 +122,7 @@ func unbindBarcode(ctx context.Context, q Querier, barcode string) error {
 		return err
 	}
 	if n > 0 {
-		return ErrBarcodeHasCZStock
+		return model.ErrBarcodeHasCZStock
 	}
 	if _, err := q.Exec(ctx, `DELETE FROM barcodes WHERE barcode = $1`, barcode); err != nil {
 		return fmt.Errorf("unbind barcode %q: %w", barcode, err)
@@ -158,7 +150,7 @@ func (r *BarcodeRepository) InternalByGood(ctx context.Context, goodID string) (
 		ORDER BY created_at
 		LIMIT 1`, goodID).Scan(&code)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", ErrNotFound
+		return "", model.ErrNotFound
 	}
 	if err != nil {
 		return "", fmt.Errorf("внутренний ШК товара: %w", err)
@@ -194,7 +186,7 @@ func (r *BarcodeRepository) CreateInternal(ctx context.Context, goodID string) (
 		if err != nil {
 			var pgErr *pgconn.PgError
 			if errors.As(err, &pgErr) && pgErr.Code == "23503" { // нет такого товара
-				return "", ErrGoodNotFound
+				return "", model.ErrGoodNotFound
 			}
 			return "", fmt.Errorf("выдать внутренний ШК: %w", err)
 		}
@@ -221,7 +213,7 @@ func bindBarcode(ctx context.Context, q Querier, goodID, barcode, symbology stri
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23503" { // FK violation → нет такого товара
-			return ErrGoodNotFound
+			return model.ErrGoodNotFound
 		}
 		return fmt.Errorf("bind barcode: %w", err)
 	}
@@ -235,7 +227,7 @@ func bindBarcode(ctx context.Context, q Querier, goodID, barcode, symbology stri
 		return fmt.Errorf("check existing barcode: %w", err)
 	}
 	if existingGood != goodID {
-		return ErrBarcodeConflict
+		return model.ErrBarcodeConflict
 	}
 	return nil // тот же товар → идемпотентно
 }

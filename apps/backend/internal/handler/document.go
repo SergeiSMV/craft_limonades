@@ -12,7 +12,6 @@ import (
 
 	appmw "craftwms/internal/middleware"
 	"craftwms/internal/model"
-	"craftwms/internal/repository"
 	"craftwms/internal/service"
 )
 
@@ -120,7 +119,7 @@ func (h *DocumentHandler) File(w http.ResponseWriter, r *http.Request) {
 	userID, _ := appmw.UserIDFromContext(r.Context())
 	data, filename, err := h.svc.File(r.Context(), id, userID)
 	switch {
-	case errors.Is(err, repository.ErrDocumentNotFound):
+	case errors.Is(err, model.ErrDocumentNotFound):
 		writeError(w, http.StatusNotFound, "документ не найден")
 		return
 	case err != nil:
@@ -145,10 +144,10 @@ func (h *DocumentHandler) Done(w http.ResponseWriter, r *http.Request) {
 	userID, _ := appmw.UserIDFromContext(r.Context())
 	err := h.svc.MarkDone(r.Context(), id, userID)
 	switch {
-	case errors.Is(err, service.ErrEmptyDocumentID):
+	case errors.Is(err, model.ErrEmptyDocumentID):
 		writeError(w, http.StatusBadRequest, "не указан документ")
 		return
-	case errors.Is(err, repository.ErrDocumentNotFound):
+	case errors.Is(err, model.ErrDocumentNotFound):
 		writeError(w, http.StatusNotFound, "документ не найден")
 		return
 	case err != nil:
@@ -176,7 +175,7 @@ func (h *DocumentHandler) Events(w http.ResponseWriter, r *http.Request) {
 	}
 	events, err := h.svc.Events(r.Context(), id)
 	switch {
-	case errors.Is(err, repository.ErrDocumentNotFound):
+	case errors.Is(err, model.ErrDocumentNotFound):
 		writeError(w, http.StatusNotFound, "документ не найден")
 		return
 	case err != nil:
@@ -220,7 +219,7 @@ func isoToTransportDate(iso string) string {
 func (h *DocumentHandler) allowed(w http.ResponseWriter, r *http.Request, id string, a model.DocumentAction) bool {
 	kind, err := h.svc.Kind(r.Context(), id)
 	switch {
-	case errors.Is(err, repository.ErrDocumentNotFound):
+	case errors.Is(err, model.ErrDocumentNotFound):
 		writeError(w, http.StatusNotFound, "документ не найден")
 		return false
 	case err != nil:

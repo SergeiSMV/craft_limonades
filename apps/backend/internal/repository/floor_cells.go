@@ -16,13 +16,6 @@ import (
 // «Ячейки» портала - в файле стеллажей rack_labels их обычно нет. Живут на CellRepository: это
 // те же строки cells, что и ячейки стеллажей.
 
-// Псевдонимы ошибок из model на время ADHOC-71 (долг 38): старые ссылки работают, errors.Is
-// сравнивает тот же объект. Снимаются, когда все ссылки переведены на model.
-var (
-	ErrCellExists   = model.ErrCellExists
-	ErrCellNotEmpty = model.ErrCellNotEmpty
-)
-
 // IsFloorStorageAddress - адрес напольной ячейки: оканчивается на «-Н-П» (ADHOC-61).
 func IsFloorStorageAddress(address string) bool {
 	return strings.HasSuffix(address, model.FloorStorageSuffix)
@@ -43,7 +36,7 @@ func (r *CellRepository) CreateFloorCell(ctx context.Context, q Querier, warehou
 		   WHERE NOT cells.is_active
 		RETURNING id::text`, warehouseID, address).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", ErrCellExists
+		return "", model.ErrCellExists
 	}
 	if err != nil {
 		return "", fmt.Errorf("напольная ячейка %q: %w", address, err)
@@ -63,13 +56,13 @@ func (r *CellRepository) RenameFloorCell(ctx context.Context, q Querier, warehou
 		cellID, warehouseID, address)
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-		return ErrCellExists
+		return model.ErrCellExists
 	}
 	if err != nil {
 		return fmt.Errorf("переименовать ячейку: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return ErrNotFound
+		return model.ErrNotFound
 	}
 	return nil
 }
@@ -87,7 +80,7 @@ func (r *CellRepository) DeleteFloorCell(ctx context.Context, q Querier, warehou
 		WHERE id = $1::uuid AND warehouse_id = $2::uuid AND is_active AND is_floor_storage
 		FOR UPDATE`, cellID, warehouseID).Scan(&found)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return ErrNotFound
+		return model.ErrNotFound
 	}
 	if err != nil {
 		return fmt.Errorf("найти ячейку: %w", err)
@@ -99,7 +92,7 @@ func (r *CellRepository) DeleteFloorCell(ctx context.Context, q Querier, warehou
 		return fmt.Errorf("проверить содержимое ячейки: %w", err)
 	}
 	if busy {
-		return ErrCellNotEmpty
+		return model.ErrCellNotEmpty
 	}
 	if _, err := q.Exec(ctx, `UPDATE cells SET is_active = false WHERE id = $1::uuid`, cellID); err != nil {
 		return fmt.Errorf("удалить ячейку: %w", err)

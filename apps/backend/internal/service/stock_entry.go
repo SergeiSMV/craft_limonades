@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"strings"
 	"time"
 
@@ -17,18 +16,6 @@ import (
 const (
 	dateLayoutIn  = "02-01-2006" // DD-MM-YYYY - как приходит в API
 	dateLayoutISO = "2006-01-02" // YYYY-MM-DD - канон для Postgres/партий
-)
-
-// Ошибки ввода сессии остатков.
-var (
-	// ErrInvalidDate - дата выпуска не в формате DD-MM-YYYY либо несуществующая.
-	ErrInvalidDate = errors.New("invalid production date (expected DD-MM-YYYY)")
-	// ErrEmptyWarehouse - не передан склад для старта сессии.
-	ErrEmptyWarehouse = errors.New("warehouse_id is required")
-	// ErrEmptyCell - не передана ячейка в checkpoint.
-	ErrEmptyCell = errors.New("cell_id is required")
-	// ErrInvalidSessionID - клиент прислал session_id, не являющийся UUID.
-	ErrInvalidSessionID = errors.New("session_id must be a UUID")
 )
 
 // EntryLine - строка ввода (транспорт): дата в DD-MM-YYYY.
@@ -108,7 +95,7 @@ func NewStockEntryService(repo stockEntryRepo) *StockEntryService {
 func (s *StockEntryService) Start(ctx context.Context, sessionID, warehouseID, createdBy string) (string, error) {
 	warehouseID = strings.TrimSpace(warehouseID)
 	if warehouseID == "" {
-		return "", ErrEmptyWarehouse
+		return "", model.ErrEmptyWarehouse
 	}
 	sessionID = strings.TrimSpace(sessionID)
 	if sessionID == "" {
@@ -117,7 +104,7 @@ func (s *StockEntryService) Start(ctx context.Context, sessionID, warehouseID, c
 	// Проверяем формат до похода в БД: иначе кривой id уедет в приведение ::uuid и вернётся
 	// 500-й внутренней ошибкой вместо внятного «это не UUID».
 	if _, err := uuid.Parse(sessionID); err != nil {
-		return "", ErrInvalidSessionID
+		return "", model.ErrInvalidSessionID
 	}
 	return s.repo.CreateWithID(ctx, sessionID, warehouseID, createdBy)
 }
@@ -131,21 +118,21 @@ func (s *StockEntryService) Start(ctx context.Context, sessionID, warehouseID, c
 func (s *StockEntryService) Checkpoint(ctx context.Context, sessionID string, cell EntryCell) error {
 	in := repository.StockEntryCellInput{CellID: strings.TrimSpace(cell.CellID)}
 	if in.CellID == "" {
-		return ErrEmptyCell
+		return model.ErrEmptyCell
 	}
 
 	boxes := map[string]bool{}
 	for _, lu := range cell.LoadUnits {
 		id := strings.TrimSpace(lu.ID)
 		if !isUUID(id) {
-			return ErrInvalidLoadUnitID
+			return model.ErrInvalidLoadUnitID
 		}
 		kind := strings.TrimSpace(lu.Kind)
 		if kind == "" {
 			kind = model.LoadUnitBox
 		}
 		if kind != model.LoadUnitBox && kind != model.LoadUnitPallet {
-			return ErrInvalidLoadUnitKind
+			return model.ErrInvalidLoadUnitKind
 		}
 		boxes[id] = true
 		in.LoadUnits = append(in.LoadUnits, repository.LoadUnitInput{
@@ -165,15 +152,15 @@ func (s *StockEntryService) Checkpoint(ctx context.Context, sessionID string, ce
 	for _, ln := range cell.Lines {
 		goodID := strings.TrimSpace(ln.GoodID)
 		if goodID == "" {
-			return ErrEmptyGoodID
+			return model.ErrEmptyGoodID
 		}
 		luID := strings.TrimSpace(ln.LoadUnitID)
 		if luID != "" && !boxes[luID] {
-			return ErrInvalidLoadUnitID
+			return model.ErrInvalidLoadUnitID
 		}
 		// Ноль россыпью - «здесь этого нет» (SET грани), а пустая строка короба смысла не имеет.
 		if ln.Qty.IsNegative() || (luID != "" && !ln.Qty.IsPositive()) {
-			return ErrInvalidQuantity
+			return model.ErrInvalidQuantity
 		}
 		iso, err := parseEntryDate(ln.ProductionDate)
 		if err != nil {
@@ -196,10 +183,10 @@ func (s *StockEntryService) Checkpoint(ctx context.Context, sessionID string, ce
 		goodID := strings.TrimSpace(b.GoodID)
 		code := strings.TrimSpace(b.Barcode)
 		if goodID == "" {
-			return ErrEmptyGoodID
+			return model.ErrEmptyGoodID
 		}
 		if code == "" {
-			return ErrEmptyBarcode
+			return model.ErrEmptyBarcode
 		}
 		in.Barcodes = append(in.Barcodes, repository.BarcodeBindInput{GoodID: goodID, Barcode: code, Symbology: strings.TrimSpace(b.Symbology)})
 	}
@@ -216,7 +203,7 @@ func (s *StockEntryService) Finalize(ctx context.Context, sessionID string) (int
 func parseEntryDate(s string) (string, error) {
 	t, err := time.Parse(dateLayoutIn, strings.TrimSpace(s))
 	if err != nil {
-		return "", ErrInvalidDate
+		return "", model.ErrInvalidDate
 	}
 	return t.Format(dateLayoutISO), nil
 }

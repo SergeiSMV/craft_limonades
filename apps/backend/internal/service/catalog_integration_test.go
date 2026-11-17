@@ -132,7 +132,7 @@ func TestCatalog_goodsCellsSuppliers(t *testing.T) {
 	if got.ID != all.Items[0].ID {
 		t.Errorf("GetGood вернул не тот id: %s != %s", got.ID, all.Items[0].ID)
 	}
-	if _, err := cat.GetGood(ctx, "00000000-0000-0000-0000-000000000000"); !errors.Is(err, repository.ErrNotFound) {
+	if _, err := cat.GetGood(ctx, "00000000-0000-0000-0000-000000000000"); !errors.Is(err, model.ErrNotFound) {
 		t.Errorf("GetGood(случайный): ожидался ErrNotFound, получено %v", err)
 	}
 

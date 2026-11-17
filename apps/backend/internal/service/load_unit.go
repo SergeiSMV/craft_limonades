@@ -2,20 +2,11 @@ package service
 
 import (
 	"context"
-	"errors"
 	"strings"
 
 	"github.com/google/uuid"
 
 	"craftwms/internal/model"
-)
-
-// Ошибки грузовой единицы (P4-03).
-var (
-	// ErrInvalidLoadUnitID - идентификатор ГЕ не UUID.
-	ErrInvalidLoadUnitID = errors.New("load unit id must be a UUID")
-	// ErrInvalidLoadUnitKind - вид ГЕ не «короб» и не «паллета».
-	ErrInvalidLoadUnitKind = errors.New("load unit kind must be box or pallet")
 )
 
 // loadUnitRepo - зависимость сервиса от хранилища грузовых единиц.
@@ -42,14 +33,14 @@ func NewLoadUnitService(repo loadUnitRepo) *LoadUnitService {
 func (s *LoadUnitService) Create(ctx context.Context, id, kind string) error {
 	id = strings.TrimSpace(id)
 	if _, err := uuid.Parse(id); err != nil {
-		return ErrInvalidLoadUnitID
+		return model.ErrInvalidLoadUnitID
 	}
 	kind = strings.TrimSpace(kind)
 	if kind == "" {
 		kind = model.LoadUnitBox // приёмка собирает короба; паллета - явный выбор
 	}
 	if kind != model.LoadUnitBox && kind != model.LoadUnitPallet {
-		return ErrInvalidLoadUnitKind
+		return model.ErrInvalidLoadUnitKind
 	}
 	return s.repo.Create(ctx, id, kind)
 }
@@ -58,7 +49,7 @@ func (s *LoadUnitService) Create(ctx context.Context, id, kind string) error {
 func (s *LoadUnitService) Get(ctx context.Context, id string) (model.LoadUnit, error) {
 	id = strings.TrimSpace(id)
 	if _, err := uuid.Parse(id); err != nil {
-		return model.LoadUnit{}, ErrInvalidLoadUnitID
+		return model.LoadUnit{}, model.ErrInvalidLoadUnitID
 	}
 	return s.repo.ByID(ctx, id)
 }

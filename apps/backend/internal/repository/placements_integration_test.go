@@ -150,13 +150,13 @@ func TestPlacements_emptyAndUnknown(t *testing.T) {
 	}
 
 	unknown := uuid.NewString()
-	if _, err := repo.Placements(ctx, unknown); !errors.Is(err, repository.ErrLoadUnitNotFound) {
+	if _, err := repo.Placements(ctx, unknown); !errors.Is(err, model.ErrLoadUnitNotFound) {
 		t.Errorf("история неизвестной ГЕ: %v, ожидалась ErrLoadUnitNotFound", err)
 	}
 	err = repository.PlaceLoadUnitForTest(ctx, fx.pool, model.PlaceLoadUnitInput{
 		LoadUnitID: unknown, CellID: fx.cellA, Source: model.PlacementPutaway,
 	})
-	if !errors.Is(err, repository.ErrLoadUnitNotFound) {
+	if !errors.Is(err, model.ErrLoadUnitNotFound) {
 		t.Errorf("размещение неизвестной ГЕ: %v, ожидалась ErrLoadUnitNotFound", err)
 	}
 }

@@ -1,22 +1,11 @@
 package service
 
 import (
-	"errors"
 	"strings"
 	"time"
 	"unicode/utf8"
 
 	"craftwms/internal/model"
-)
-
-// Ошибки документа поставщика (ADHOC-23).
-var (
-	// ErrEmptyDocNumber - не указан номер накладной (без номера - «б/н»).
-	ErrEmptyDocNumber = errors.New("supplier document number is required")
-	// ErrDocNumberTooLong - номер накладной длиннее 50 знаков.
-	ErrDocNumberTooLong = errors.New("supplier document number must be at most 50 characters")
-	// ErrInvalidDocDate - дата накладной не указана, не в формате DD-MM-YYYY или в будущем.
-	ErrInvalidDocDate = errors.New("supplier document date must be DD-MM-YYYY and not in the future")
 )
 
 // docNumberMaxLen - предел длины номера; тот же CHECK стоит в базе.
@@ -34,17 +23,17 @@ const docNumberMaxLen = 50
 func parseSupplierDoc(number, date string, now time.Time) (model.SupplierDoc, error) {
 	number = strings.TrimSpace(number)
 	if number == "" {
-		return model.SupplierDoc{}, ErrEmptyDocNumber
+		return model.SupplierDoc{}, model.ErrEmptyDocNumber
 	}
 	if utf8.RuneCountInString(number) > docNumberMaxLen {
-		return model.SupplierDoc{}, ErrDocNumberTooLong
+		return model.SupplierDoc{}, model.ErrDocNumberTooLong
 	}
 	d, err := time.Parse(dateLayoutIn, strings.TrimSpace(date))
 	if err != nil {
-		return model.SupplierDoc{}, ErrInvalidDocDate
+		return model.SupplierDoc{}, model.ErrInvalidDocDate
 	}
 	if d.After(now.UTC().AddDate(0, 0, 1)) {
-		return model.SupplierDoc{}, ErrInvalidDocDate
+		return model.SupplierDoc{}, model.ErrInvalidDocDate
 	}
 	return model.SupplierDoc{Number: number, Date: d}, nil
 }

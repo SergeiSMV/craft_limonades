@@ -11,13 +11,6 @@ import (
 	"craftwms/internal/model"
 )
 
-// ErrInvalidDecision - решение по проблеме составлено неверно: неизвестное решение, нет
-// документа списания или поставщика возврата, лишние поля другого решения.
-var ErrInvalidDecision = errors.New("invalid problem decision")
-
-// ErrInvalidProblemFilter - фильтр ленты решённых проблем неверен: дата не ISO, курсор без id.
-var ErrInvalidProblemFilter = errors.New("invalid resolved problems filter")
-
 // problemDocNumberMax - предел номера документа 1С в символах.
 const problemDocNumberMax = 50
 
@@ -50,7 +43,7 @@ func NewProblemService(repo problemRepo) *ProblemService {
 // List - рабочий список: open / resolved / пусто - все.
 func (s *ProblemService) List(ctx context.Context, status string) ([]model.Problem, error) {
 	if status != "" && status != model.ProblemStatusOpen && status != model.ProblemStatusResolved {
-		return nil, ErrInvalidDecision
+		return nil, model.ErrInvalidDecision
 	}
 	return s.repo.List(ctx, model.ProblemFilter{Status: status})
 }
@@ -76,7 +69,7 @@ func (s *ProblemService) Resolved(ctx context.Context, q ResolvedQuery) ([]model
 	w, err := parseFeedWindow(q.From, q.To, q.BeforeResolvedAt, q.BeforeID, q.Limit,
 		resolvedProblemsDefaultLimit, resolvedProblemsMaxLimit)
 	if err != nil {
-		return nil, ErrInvalidProblemFilter
+		return nil, model.ErrInvalidProblemFilter
 	}
 	return s.repo.Resolved(ctx, model.ResolvedProblemsFilter{
 		From: w.From, To: w.To, BeforeResolvedAt: w.Before, BeforeID: w.BeforeID, Limit: w.Limit,
@@ -97,47 +90,47 @@ func (s *ProblemService) Resolve(ctx context.Context, in model.ResolveProblemInp
 	in.SupplierID = strings.TrimSpace(in.SupplierID)
 	in.ResolutionID = strings.TrimSpace(in.ResolutionID)
 	if !isUUID(in.ProblemID) {
-		return ErrInvalidProblemID
+		return model.ErrInvalidProblemID
 	}
 	if in.ResolutionID != "" {
 		if !isUUID(in.ResolutionID) {
-			return ErrInvalidDecision
+			return model.ErrInvalidDecision
 		}
 		res, err := s.repo.Resolution(ctx, in.ResolutionID)
 		if errors.Is(err, model.ErrResolutionNotFound) {
-			return ErrInvalidDecision
+			return model.ErrInvalidDecision
 		}
 		if err != nil {
 			return err
 		}
 		if in.Decision != "" && in.Decision != res.Action {
-			return ErrInvalidDecision
+			return model.ErrInvalidDecision
 		}
 		in.Decision = res.Action
 	}
 	if !slices.Contains(model.ProblemDecisions, in.Decision) {
-		return ErrInvalidDecision
+		return model.ErrInvalidDecision
 	}
 
 	// Документ 1С - у списания и у пересорта (ADHOC-53): документ пересортицы.
 	withDoc := in.Decision == model.ProblemDecisionWriteOff || in.Decision == model.ProblemDecisionRegrade
 	if withDoc {
 		if in.DocNumber == "" || utf8.RuneCountInString(in.DocNumber) > problemDocNumberMax {
-			return ErrInvalidDecision
+			return model.ErrInvalidDecision
 		}
 		if _, err := time.Parse(dateLayoutISO, in.DocDate); err != nil {
-			return ErrInvalidDecision
+			return model.ErrInvalidDecision
 		}
 	} else if in.DocNumber != "" || in.DocDate != "" {
-		return ErrInvalidDecision
+		return model.ErrInvalidDecision
 	}
 
 	if in.Decision == model.ProblemDecisionSupplierReturn {
 		if !isUUID(in.SupplierID) {
-			return ErrInvalidDecision
+			return model.ErrInvalidDecision
 		}
 	} else if in.SupplierID != "" {
-		return ErrInvalidDecision
+		return model.ErrInvalidDecision
 	}
 	return s.repo.Resolve(ctx, in)
 }

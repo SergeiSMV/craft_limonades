@@ -2,20 +2,11 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"craftwms/internal/model"
-)
-
-// Ошибки ввода чтения марок.
-var (
-	// ErrCZNoCodes - не передано ни одного кода.
-	ErrCZNoCodes = errors.New("no codes")
-	// ErrCZTooManyCodes - кодов больше, чем читаем за раз.
-	ErrCZTooManyCodes = errors.New("too many codes")
 )
 
 // czMaxCodes - сколько кодов читаем одним запросом. Транспортный короб - 24 марки (CZ-01);
@@ -134,9 +125,9 @@ func (s *CZService) CisesInfo(ctx context.Context, codes []string) ([]model.CisI
 	}
 	switch {
 	case len(keys) == 0:
-		return nil, ErrCZNoCodes
+		return nil, model.ErrCZNoCodes
 	case len(keys) > czMaxCodes:
-		return nil, fmt.Errorf("%w: max %d", ErrCZTooManyCodes, czMaxCodes)
+		return nil, fmt.Errorf("%w: max %d", model.ErrCZTooManyCodes, czMaxCodes)
 	}
 	return s.client.CisesInfo(ctx, keys)
 }

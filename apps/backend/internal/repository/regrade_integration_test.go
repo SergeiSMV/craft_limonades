@@ -67,10 +67,10 @@ func TestRegrade_marksAndStockMoveToNewGood(t *testing.T) {
 	rf := setupRegrade(t)
 	ctx := context.Background()
 
-	if err := rf.repo.Unbind(ctx, czBarcode); !errors.Is(err, repository.ErrBarcodeHasCZStock) {
+	if err := rf.repo.Unbind(ctx, czBarcode); !errors.Is(err, model.ErrBarcodeHasCZStock) {
 		t.Fatalf("отвязка ШК с марками на складе: %v", err)
 	}
-	if err := rf.repo.Bind(ctx, rf.other, "04600000000017", ""); !errors.Is(err, repository.ErrBarcodeMarksOtherGood) {
+	if err := rf.repo.Bind(ctx, rf.other, "04600000000017", ""); !errors.Is(err, model.ErrBarcodeMarksOtherGood) {
 		t.Fatalf("привязка GTIN марок к другому товару: %v", err)
 	}
 	if n, err := rf.repo.CZStockOfBarcode(ctx, czBarcode); err != nil || n != 8 {
@@ -103,7 +103,7 @@ func TestRegrade_marksAndStockMoveToNewGood(t *testing.T) {
 	if x, y := rf.boxOf(t, rf.good), rf.boxOf(t, rf.other); x != "9" || y != "3" {
 		t.Errorf("состав короба: прежний %s, новый %s - ожидалось 9 и 3", x, y)
 	}
-	if _, err := rf.regrade(); !errors.Is(err, repository.ErrRegradeSameGood) {
+	if _, err := rf.regrade(); !errors.Is(err, model.ErrRegradeSameGood) {
 		t.Errorf("повтор перепривязки: %v", err)
 	}
 
@@ -127,7 +127,7 @@ func TestRegrade_marksAndStockMoveToNewGood(t *testing.T) {
 	if err := problems.Resolve(ctx, model.ResolveProblemInput{
 		ProblemID: p.ID, Decision: model.ProblemDecisionWriteOff, DocNumber: "1", DocDate: "2026-10-28",
 		ResolvedBy: rf.user,
-	}); !errors.Is(err, repository.ErrDecisionNotAllowed) {
+	}); !errors.Is(err, model.ErrDecisionNotAllowed) {
 		t.Errorf("списание пересорта: %v", err)
 	}
 	if err := problems.Resolve(ctx, model.ResolveProblemInput{
@@ -147,7 +147,7 @@ func TestRegrade_refusals(t *testing.T) {
 		rf := setupRegrade(t)
 		rf.openProblem(t, rf.iwhByCode(t, "ISOLATOR"), model.ProblemReasonForeignMark,
 			rf.markProblem(rf.cellA, "", czLoose[0]))
-		if _, err := rf.regrade(); !errors.Is(err, repository.ErrRegradeOpenProblem) {
+		if _, err := rf.regrade(); !errors.Is(err, model.ErrRegradeOpenProblem) {
 			t.Fatalf("перепривязка: %v", err)
 		}
 		var bound string
@@ -167,7 +167,7 @@ func TestRegrade_refusals(t *testing.T) {
 			VALUES ($1::uuid, $2::uuid, 'counting', $3::uuid, now(), now())`, st, rf.cellA, rf.user); err != nil {
 			t.Fatalf("ячейка на пересчёте: %v", err)
 		}
-		if _, err := rf.regrade(); !errors.Is(err, repository.ErrRegradeCellCounting) {
+		if _, err := rf.regrade(); !errors.Is(err, model.ErrRegradeCellCounting) {
 			t.Fatalf("перепривязка: %v", err)
 		}
 		if got := rf.stockOf(t, rf.other); got != "0" {

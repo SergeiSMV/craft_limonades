@@ -13,14 +13,6 @@ import (
 	"craftwms/internal/model"
 )
 
-// Ошибки отгрузки возврата поставщику (ADHOC-31). Все - отказ по существу.
-var (
-	// ErrShipmentPosted - сеанс отгрузки с этим идентификатором уже проведён.
-	ErrShipmentPosted = errors.New("return shipment already posted")
-	// ErrEmptyShipment - в сеансе нет ни одной позиции.
-	ErrEmptyShipment = errors.New("return shipment has no positions")
-)
-
 // ReturnSubmitInput - сеанс отгрузки возврата, собранный устройством (ADHOC-31): какие позиции
 // задания (проблемы, решённые возвратом) отгружены. Позиция - только целиком, поэтому
 // количество и ячейку устройство не шлёт: сервер снимает с остатка всю позицию там, где она
@@ -54,7 +46,7 @@ func returnSubmit(ctx context.Context, q Querier, in ReturnSubmitInput) (int, er
 	slices.Sort(ids)
 	ids = slices.Compact(ids)
 	if len(ids) == 0 {
-		return 0, ErrEmptyShipment
+		return 0, model.ErrEmptyShipment
 	}
 	if err := lockTaskForReturn(ctx, q, in.TaskID, in.WarehouseID); err != nil {
 		return 0, err
@@ -65,7 +57,7 @@ func returnSubmit(ctx context.Context, q Querier, in ReturnSubmitInput) (int, er
 		in.ShipmentID, in.TaskID, in.WarehouseID, in.CreatedBy); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			return 0, ErrShipmentPosted
+			return 0, model.ErrShipmentPosted
 		}
 		return 0, fmt.Errorf("записать сеанс отгрузки: %w", err)
 	}
@@ -124,16 +116,16 @@ func lockTaskForReturn(ctx context.Context, q Querier, taskID, warehouseID strin
 		SELECT kind, status, warehouse_id::text FROM warehouse_tasks
 		WHERE id = $1::uuid FOR UPDATE`, taskID).Scan(&kind, &status, &wh)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return ErrTaskNotFound
+		return model.ErrTaskNotFound
 	}
 	if err != nil {
 		return fmt.Errorf("заблокировать задание: %w", err)
 	}
 	if status == model.TaskDone {
-		return ErrTaskDone
+		return model.ErrTaskDone
 	}
 	if kind != model.TaskSupplierReturn || wh != warehouseID {
-		return ErrTaskMismatch
+		return model.ErrTaskMismatch
 	}
 	return nil
 }
@@ -157,13 +149,13 @@ func lockReturnPosition(ctx context.Context, q Querier, problemID, taskID string
 		FOR UPDATE OF p`, problemID, model.InternalWarehouseRoleSupplierReturn).
 		Scan(&p.warehouse, &p.cell, &lu, &good, &batch, &qty, &p.toIwh, &task, &shipment)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return lockedProblem{}, ErrNotInTask
+		return lockedProblem{}, model.ErrNotInTask
 	}
 	if err != nil {
 		return lockedProblem{}, fmt.Errorf("прочитать позицию возврата: %w", err)
 	}
 	if task == nil || *task != taskID || shipment != nil {
-		return lockedProblem{}, ErrNotInTask
+		return lockedProblem{}, model.ErrNotInTask
 	}
 	p.id = problemID
 	p.loadUnit, p.good, p.batch = deref(lu), deref(good), deref(batch)

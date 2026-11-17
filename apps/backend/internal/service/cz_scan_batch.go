@@ -25,10 +25,10 @@ type CZScanItem struct {
 // пачки. Ответ - по одному на присланный код, в том же порядке; повтор кода читается один раз.
 func (s *CZService) ScanMany(ctx context.Context, raws []string) ([]CZScanItem, error) {
 	if len(raws) == 0 {
-		return nil, ErrCZNoCodes
+		return nil, model.ErrCZNoCodes
 	}
 	if len(raws) > czMaxCodes {
-		return nil, fmt.Errorf("%w: %d, не больше %d", ErrCZTooManyCodes, len(raws), czMaxCodes)
+		return nil, fmt.Errorf("%w: %d, не больше %d", model.ErrCZTooManyCodes, len(raws), czMaxCodes)
 	}
 	if s.client == nil {
 		return nil, s.notConfigured()

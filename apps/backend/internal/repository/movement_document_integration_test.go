@@ -85,7 +85,7 @@ func TestMove_zeroMovementNotPublished(t *testing.T) {
 	); err != nil {
 		t.Fatalf("движение внутри ячейки: %v", err)
 	}
-	if _, err := mf.movementDoc(t, inside); !errors.Is(err, repository.ErrDocumentNotFound) {
+	if _, err := mf.movementDoc(t, inside); !errors.Is(err, model.ErrDocumentNotFound) {
 		t.Errorf("документ по движению внутри ячейки: %v, ожидалось «нет»", err)
 	}
 	if mf.luQty(t, lu) != "10.000" {

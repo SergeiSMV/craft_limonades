@@ -11,13 +11,6 @@ import (
 	"craftwms/internal/model"
 )
 
-// ErrLoadUnitNotFound - нет грузовой единицы с таким идентификатором.
-//
-// Сама ошибка живёт в домене (model.ErrLoadUnitNotFound, P5-05): здесь - тот же объект под
-// прежним именем, чтобы существующие проверки errors.Is не разошлись, пока их переводят
-// на домен (долг 21).
-var ErrLoadUnitNotFound = model.ErrLoadUnitNotFound
-
 // LoadUnitRepository - грузовая единица: заведение короба и его чтение (P4-01, P4-03).
 type LoadUnitRepository struct {
 	pool *pgxpool.Pool
@@ -58,7 +51,7 @@ func (r *LoadUnitRepository) ByID(ctx context.Context, id string) (model.LoadUni
 		FROM load_units WHERE id = $1::uuid`, id).
 		Scan(&lu.ID, &lu.Kind, &lu.ParentID, &lu.CellID, &lu.Status, &lu.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return model.LoadUnit{}, ErrLoadUnitNotFound
+		return model.LoadUnit{}, model.ErrLoadUnitNotFound
 	}
 	if err != nil {
 		return model.LoadUnit{}, fmt.Errorf("прочитать ГЕ: %w", err)

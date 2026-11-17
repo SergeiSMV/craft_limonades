@@ -12,27 +12,6 @@ import (
 	"craftwms/internal/model"
 )
 
-// Ошибки проведения размещения (P5-02). Все - отказ по существу: повтор их не исправит.
-var (
-	// ErrPutawayPosted - сеанс с этим идентификатором уже проведён (другой операцией).
-	ErrPutawayPosted = errors.New("putaway already posted")
-	// ErrEmptyPutaway - в сеансе нет ни одной строки.
-	ErrEmptyPutaway = errors.New("putaway has no lines")
-	// ErrPutawaySameCell - строка кладёт товар туда же, откуда взяла.
-	ErrPutawaySameCell = errors.New("putaway line moves to the same cell")
-	// ErrForeignCell - ячейка принадлежит другому складу, не складу документа.
-	ErrForeignCell = errors.New("cell belongs to another warehouse")
-	// ErrLoadUnitNotPlaced - короб ещё не лежит на складе (не оприходован приёмкой).
-	ErrLoadUnitNotPlaced = errors.New("load unit is not placed")
-	// ErrLoadUnitNested - короб вложен в паллету или сам содержит короба. Паллетная логика вне
-	// объёма пилота, а частичный перенос дерева разорвал бы место коробов и их остаток.
-	ErrLoadUnitNested = errors.New("nested load units are not supported")
-	// ErrLooseStockShort - россыпи в ячейке приёмки меньше, чем просят разместить. Товар,
-	// лежащий там же в коробах, россыпью не считается: иначе остаток ушёл бы из-под короба,
-	// и его состав разошёлся бы с тем, что числится в ячейке.
-	ErrLooseStockShort = errors.New("not enough loose stock in the receiving cell")
-)
-
 // PutawayLineInput - строка размещения: короб целиком ЛИБО россыпь.
 type PutawayLineInput struct {
 	LoadUnitID string // короб; пусто - россыпь
@@ -76,7 +55,7 @@ type PutawaySubmitInput struct {
 //	документом упирается в первичный ключ и даёт ErrPutawayPosted.
 func putawaySubmit(ctx context.Context, q Querier, in PutawaySubmitInput) (int, error) {
 	if len(in.Lines) == 0 {
-		return 0, ErrEmptyPutaway
+		return 0, model.ErrEmptyPutaway
 	}
 	if err := lockTaskForPutaway(ctx, q, in.TaskID, in.WarehouseID); err != nil {
 		return 0, err
@@ -91,7 +70,7 @@ func putawaySubmit(ctx context.Context, q Querier, in PutawaySubmitInput) (int, 
 		in.PutawayID, in.TaskID, in.WarehouseID, in.CreatedBy); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			return 0, ErrPutawayPosted
+			return 0, model.ErrPutawayPosted
 		}
 		return 0, fmt.Errorf("открыть документ размещения: %w", err)
 	}
@@ -120,15 +99,15 @@ func putawaySubmit(ctx context.Context, q Querier, in PutawaySubmitInput) (int, 
 				// Короб задания, ещё не размещённый им. Отметка сразу: второй раз в том же
 				// сеансе тот же короб - уже не позиция задания.
 				if !rem.boxes[ln.LoadUnitID] {
-					return ErrNotInTask
+					return model.ErrNotInTask
 				}
 				rem.boxes[ln.LoadUnitID] = false
 				row, err = putawayLoadUnit(ctx, q, in, ln)
 			} else {
 				if receivingCell == "" {
 					receivingCell, err = defaultCellID(ctx, q, in.WarehouseID)
-					if errors.Is(err, ErrNotFound) {
-						return ErrNoDefaultCell
+					if errors.Is(err, model.ErrNotFound) {
+						return model.ErrNoDefaultCell
 					}
 					if err != nil {
 						return err
@@ -180,7 +159,7 @@ func taskBatch(ctx context.Context, q Querier, ln PutawayLineInput, rem taskRema
 		SELECT id::text FROM batches WHERE good_id = $1::uuid AND production_date = $2::date`,
 		ln.GoodID, ln.ProductionDate).Scan(&batchID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", ErrNotInTask
+		return "", model.ErrNotInTask
 	}
 	if err != nil {
 		return "", fmt.Errorf("найти партию: %w", err)
@@ -188,10 +167,10 @@ func taskBatch(ctx context.Context, q Querier, ln PutawayLineInput, rem taskRema
 	key := [2]string{ln.GoodID, batchID}
 	left, ok := rem.loose[key]
 	if !ok {
-		return "", ErrNotInTask
+		return "", model.ErrNotInTask
 	}
 	if left.LessThan(ln.Qty) {
-		return "", ErrExceedsTask
+		return "", model.ErrExceedsTask
 	}
 	rem.loose[key] = left.Sub(ln.Qty)
 	return batchID, nil
@@ -219,8 +198,8 @@ func putawayLoadUnit(ctx context.Context, q Querier, in PutawaySubmitInput, ln P
 		UserID:      in.CreatedBy,
 		PutawayID:   &in.PutawayID,
 	})
-	if errors.Is(err, ErrSameCell) {
-		return putawayLineRow{}, ErrPutawaySameCell
+	if errors.Is(err, model.ErrSameCell) {
+		return putawayLineRow{}, model.ErrPutawaySameCell
 	}
 	if err != nil {
 		return putawayLineRow{}, err
@@ -236,7 +215,7 @@ func putawayLoadUnit(ctx context.Context, q Querier, in PutawaySubmitInput, ln P
 // одновременно увидели бы одну и ту же россыпь и вместе забрали бы товар из-под короба.
 func putawayLoose(ctx context.Context, q Querier, ln PutawayLineInput, batchID, from, iwh string) (putawayLineRow, error) {
 	if from == ln.ToCellID {
-		return putawayLineRow{}, ErrPutawaySameCell
+		return putawayLineRow{}, model.ErrPutawaySameCell
 	}
 
 	loose, err := looseQty(ctx, q, from, ln.GoodID, batchID, iwh)
@@ -244,7 +223,7 @@ func putawayLoose(ctx context.Context, q Querier, ln PutawayLineInput, batchID, 
 		return putawayLineRow{}, err
 	}
 	if loose.LessThan(ln.Qty) {
-		return putawayLineRow{}, ErrLooseStockShort
+		return putawayLineRow{}, model.ErrLooseStockShort
 	}
 
 	if err := transferStock(ctx, q,
@@ -278,13 +257,13 @@ func guardCellOfWarehouse(ctx context.Context, q Querier, cellID, warehouseID st
 	var wh string
 	err := q.QueryRow(ctx, `SELECT warehouse_id::text FROM cells WHERE id = $1::uuid`, cellID).Scan(&wh)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return ErrUnknownReference
+		return model.ErrUnknownReference
 	}
 	if err != nil {
 		return fmt.Errorf("проверить ячейку: %w", err)
 	}
 	if wh != warehouseID {
-		return ErrForeignCell
+		return model.ErrForeignCell
 	}
 	return nil
 }

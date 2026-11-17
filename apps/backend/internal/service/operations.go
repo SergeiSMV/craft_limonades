@@ -30,23 +30,6 @@ const (
 	StatusRejected = "rejected"
 )
 
-// Ошибки батча операций.
-var (
-	// ErrEmptyBatch - прислан пустой список операций.
-	ErrEmptyBatch = errors.New("operations list is empty")
-	// ErrBatchTooLarge - операций больше MaxBatchOperations.
-	ErrBatchTooLarge = errors.New("too many operations in one batch")
-	// ErrInvalidOperationID - operation_id не UUID.
-	ErrInvalidOperationID = errors.New("operation_id must be a UUID")
-	// ErrNoOperationRight - у должности нет права на операцию этого вида (ADHOC-50). Текст -
-	// для экрана ТСД, он показывает отказ дословно.
-	ErrNoOperationRight = errors.New("нет права на эту операцию - обратитесь к администратору")
-	// ErrUnknownKind - сервер не знает такого типа операции.
-	ErrUnknownKind = errors.New("unknown operation kind")
-	// ErrInvalidPayload - тело операции не разбирается или неполно.
-	ErrInvalidPayload = errors.New("invalid operation payload")
-)
-
 // Operation - операция, пришедшая из очереди устройства.
 type Operation struct {
 	OperationID string          `json:"operation_id"`
@@ -121,16 +104,16 @@ func (s *OperationsService) Apply(ctx context.Context, userID string, ops []Oper
 func (s *OperationsService) ApplyAllowed(ctx context.Context, userID string, ops []Operation,
 	allow func(kind string) bool) ([]OperationResult, error) {
 	if len(ops) == 0 {
-		return nil, ErrEmptyBatch
+		return nil, model.ErrEmptyBatch
 	}
 	if len(ops) > MaxBatchOperations {
-		return nil, ErrBatchTooLarge
+		return nil, model.ErrBatchTooLarge
 	}
 
 	results := make([]OperationResult, 0, len(ops))
 	for _, op := range ops {
 		if allow != nil && !allow(op.Kind) {
-			results = append(results, rejected(op.OperationID, ErrNoOperationRight))
+			results = append(results, rejected(op.OperationID, model.ErrNoOperationRight))
 			continue
 		}
 		res, temporary := s.applyOne(ctx, userID, op)
@@ -152,7 +135,7 @@ func (s *OperationsService) ApplyAllowed(ctx context.Context, userID string, ops
 func (s *OperationsService) applyOne(ctx context.Context, userID string, op Operation) (OperationResult, error) {
 	id := strings.TrimSpace(op.OperationID)
 	if _, err := uuid.Parse(id); err != nil {
-		return rejected(op.OperationID, ErrInvalidOperationID), nil
+		return rejected(op.OperationID, model.ErrInvalidOperationID), nil
 	}
 
 	applied, err := s.dispatch(ctx, userID, id, op)
@@ -183,15 +166,15 @@ func (s *OperationsService) dispatch(ctx context.Context, userID, id string, op 
 			FromCZMark bool `json:"from_cz_mark"`
 		}
 		if err := json.Unmarshal(op.Payload, &p); err != nil {
-			return repository.Applied{}, ErrInvalidPayload
+			return repository.Applied{}, model.ErrInvalidPayload
 		}
 		goodID := strings.TrimSpace(p.GoodID)
 		code := strings.TrimSpace(p.Barcode)
 		if goodID == "" {
-			return repository.Applied{}, ErrEmptyGoodID
+			return repository.Applied{}, model.ErrEmptyGoodID
 		}
 		if code == "" {
-			return repository.Applied{}, ErrEmptyBarcode
+			return repository.Applied{}, model.ErrEmptyBarcode
 		}
 		return s.repo.BindBarcode(ctx, id, repository.BarcodeBindInput{
 			GoodID: goodID, Barcode: code, Symbology: strings.TrimSpace(p.Symbology),
@@ -203,11 +186,11 @@ func (s *OperationsService) dispatch(ctx context.Context, userID, id string, op 
 			Barcode string `json:"barcode"`
 		}
 		if err := json.Unmarshal(op.Payload, &p); err != nil {
-			return repository.Applied{}, ErrInvalidPayload
+			return repository.Applied{}, model.ErrInvalidPayload
 		}
 		code := strings.TrimSpace(p.Barcode)
 		if code == "" {
-			return repository.Applied{}, ErrEmptyBarcode
+			return repository.Applied{}, model.ErrEmptyBarcode
 		}
 		return s.repo.UnbindBarcode(ctx, id, code)
 
@@ -217,17 +200,17 @@ func (s *OperationsService) dispatch(ctx context.Context, userID, id string, op 
 			WarehouseID string `json:"warehouse_id"`
 		}
 		if err := json.Unmarshal(op.Payload, &p); err != nil {
-			return repository.Applied{}, ErrInvalidPayload
+			return repository.Applied{}, model.ErrInvalidPayload
 		}
 		sessionID := strings.TrimSpace(p.SessionID)
 		warehouseID := strings.TrimSpace(p.WarehouseID)
 		if warehouseID == "" {
-			return repository.Applied{}, ErrEmptyWarehouse
+			return repository.Applied{}, model.ErrEmptyWarehouse
 		}
 		// Идентификатор сессии здесь обязателен, в отличие от прямой ручки: операция очереди
 		// адресуется по нему офлайн, и «выдай сам» лишило бы смысла саму постановку в очередь.
 		if _, err := uuid.Parse(sessionID); err != nil {
-			return repository.Applied{}, ErrInvalidSessionID
+			return repository.Applied{}, model.ErrInvalidSessionID
 		}
 		// Автор - из токена, а не из тела: иначе устройство могло бы записать проход на другого.
 		return s.repo.StockEntryStart(ctx, id, sessionID, warehouseID, userID)
@@ -248,24 +231,24 @@ func (s *OperationsService) dispatch(ctx context.Context, userID, id string, op 
 			} `json:"new_barcodes"`
 		}
 		if err := json.Unmarshal(op.Payload, &p); err != nil {
-			return repository.Applied{}, ErrInvalidPayload
+			return repository.Applied{}, model.ErrInvalidPayload
 		}
 		sessionID := strings.TrimSpace(p.SessionID)
 		cellID := strings.TrimSpace(p.CellID)
 		if _, err := uuid.Parse(sessionID); err != nil {
-			return repository.Applied{}, ErrInvalidSessionID
+			return repository.Applied{}, model.ErrInvalidSessionID
 		}
 		if cellID == "" {
-			return repository.Applied{}, ErrEmptyCell
+			return repository.Applied{}, model.ErrEmptyCell
 		}
 		lines := make([]repository.StockEntryLineInput, 0, len(p.Lines))
 		for _, ln := range p.Lines {
 			goodID := strings.TrimSpace(ln.GoodID)
 			if goodID == "" {
-				return repository.Applied{}, ErrEmptyGoodID
+				return repository.Applied{}, model.ErrEmptyGoodID
 			}
 			if ln.Qty.IsNegative() {
-				return repository.Applied{}, ErrInvalidQuantity
+				return repository.Applied{}, model.ErrInvalidQuantity
 			}
 			iso, err := parseEntryDate(ln.ProductionDate)
 			if err != nil {
@@ -278,10 +261,10 @@ func (s *OperationsService) dispatch(ctx context.Context, userID, id string, op 
 			goodID := strings.TrimSpace(b.GoodID)
 			code := strings.TrimSpace(b.Barcode)
 			if goodID == "" {
-				return repository.Applied{}, ErrEmptyGoodID
+				return repository.Applied{}, model.ErrEmptyGoodID
 			}
 			if code == "" {
-				return repository.Applied{}, ErrEmptyBarcode
+				return repository.Applied{}, model.ErrEmptyBarcode
 			}
 			binds = append(binds, repository.BarcodeBindInput{GoodID: goodID, Barcode: code, Symbology: strings.TrimSpace(b.Symbology)})
 		}
@@ -294,11 +277,11 @@ func (s *OperationsService) dispatch(ctx context.Context, userID, id string, op 
 			SessionID string `json:"session_id"`
 		}
 		if err := json.Unmarshal(op.Payload, &p); err != nil {
-			return repository.Applied{}, ErrInvalidPayload
+			return repository.Applied{}, model.ErrInvalidPayload
 		}
 		sessionID := strings.TrimSpace(p.SessionID)
 		if _, err := uuid.Parse(sessionID); err != nil {
-			return repository.Applied{}, ErrInvalidSessionID
+			return repository.Applied{}, model.ErrInvalidSessionID
 		}
 		return s.repo.StockEntryFinalize(ctx, id, sessionID)
 
@@ -330,7 +313,7 @@ func (s *OperationsService) dispatch(ctx context.Context, userID, id string, op 
 		return s.pickingReturn(ctx, userID, id, op.Payload)
 
 	default:
-		return repository.Applied{}, ErrUnknownKind
+		return repository.Applied{}, model.ErrUnknownKind
 	}
 }
 
@@ -352,39 +335,39 @@ func isRejection(err error) bool {
 			return true
 		}
 	}
-	return errors.Is(err, repository.ErrBarcodeConflict) ||
+	return errors.Is(err, model.ErrBarcodeConflict) ||
 		// Привязки при марках ЧЗ на складе (ADHOC-53): отвязать ШК с марками, привязать ШК к
 		// товару, когда его марки числятся за другим, - нельзя, повтор этого не изменит.
-		errors.Is(err, repository.ErrBarcodeHasCZStock) ||
-		errors.Is(err, repository.ErrBarcodeMarksOtherGood) ||
-		errors.Is(err, repository.ErrGoodNotFound) ||
-		errors.Is(err, repository.ErrSessionNotFound) ||
-		errors.Is(err, repository.ErrSessionClosed) ||
-		errors.Is(err, ErrUnknownKind) ||
-		errors.Is(err, ErrInvalidPayload) ||
-		errors.Is(err, ErrInvalidOperationID) ||
-		errors.Is(err, ErrEmptyGoodID) ||
-		errors.Is(err, ErrEmptyBarcode) ||
-		errors.Is(err, ErrInvalidQuantity) ||
-		errors.Is(err, ErrInvalidDate) ||
-		errors.Is(err, ErrInvalidSessionID) ||
-		errors.Is(err, ErrEmptyWarehouse) ||
-		errors.Is(err, ErrEmptyCell) ||
+		errors.Is(err, model.ErrBarcodeHasCZStock) ||
+		errors.Is(err, model.ErrBarcodeMarksOtherGood) ||
+		errors.Is(err, model.ErrGoodNotFound) ||
+		errors.Is(err, model.ErrSessionNotFound) ||
+		errors.Is(err, model.ErrSessionClosed) ||
+		errors.Is(err, model.ErrUnknownKind) ||
+		errors.Is(err, model.ErrInvalidPayload) ||
+		errors.Is(err, model.ErrInvalidOperationID) ||
+		errors.Is(err, model.ErrEmptyGoodID) ||
+		errors.Is(err, model.ErrEmptyBarcode) ||
+		errors.Is(err, model.ErrInvalidQuantity) ||
+		errors.Is(err, model.ErrInvalidDate) ||
+		errors.Is(err, model.ErrInvalidSessionID) ||
+		errors.Is(err, model.ErrEmptyWarehouse) ||
+		errors.Is(err, model.ErrEmptyCell) ||
 		// Приёмка (P4-09): документ уже оприходован, пуст, противоречив или ссылается на то,
 		// чего нет. Ни одно из этого повтор не исправит.
-		errors.Is(err, ErrInvalidReceiptID) ||
-		errors.Is(err, ErrEmptyDocNumber) ||
-		errors.Is(err, ErrDocNumberTooLong) ||
-		errors.Is(err, ErrInvalidDocDate) ||
-		errors.Is(err, ErrInvalidLoadUnitID) ||
-		errors.Is(err, ErrInvalidLoadUnitKind) ||
-		errors.Is(err, repository.ErrReceiptNotFound) ||
-		errors.Is(err, repository.ErrReceiptPosted) ||
-		errors.Is(err, repository.ErrEmptyReceipt) ||
-		errors.Is(err, repository.ErrLoadUnitCellConflict) ||
-		errors.Is(err, repository.ErrLoadUnitNotFound) ||
-		errors.Is(err, repository.ErrNoDefaultCell) ||
-		errors.Is(err, repository.ErrUnknownReference) ||
+		errors.Is(err, model.ErrInvalidReceiptID) ||
+		errors.Is(err, model.ErrEmptyDocNumber) ||
+		errors.Is(err, model.ErrDocNumberTooLong) ||
+		errors.Is(err, model.ErrInvalidDocDate) ||
+		errors.Is(err, model.ErrInvalidLoadUnitID) ||
+		errors.Is(err, model.ErrInvalidLoadUnitKind) ||
+		errors.Is(err, model.ErrReceiptNotFound) ||
+		errors.Is(err, model.ErrReceiptPosted) ||
+		errors.Is(err, model.ErrEmptyReceipt) ||
+		errors.Is(err, model.ErrLoadUnitCellConflict) ||
+		errors.Is(err, model.ErrLoadUnitNotFound) ||
+		errors.Is(err, model.ErrNoDefaultCell) ||
+		errors.Is(err, model.ErrUnknownReference) ||
 		// Марки ЧЗ приёмки (CZ-05): марка или короб уже приняты, код не по форме, GTIN марки -
 		// не товар строки или незнаком, марок больше количества. Повтор этого не исправит - без
 		// записи здесь очередь ТСД повторяла бы такую приёмку бесконечно.
@@ -405,51 +388,51 @@ func isRejection(err error) bool {
 		errors.Is(err, model.ErrCZReturnMarkForeign) ||
 		// Размещение (P5-02): сеанс уже проведён, пуст, противоречит складу или просит больше,
 		// чем лежит. Повтор этого не исправит - сеанс разбирает человек.
-		errors.Is(err, ErrInvalidPutawayID) ||
-		errors.Is(err, repository.ErrPutawayPosted) ||
-		errors.Is(err, repository.ErrEmptyPutaway) ||
-		errors.Is(err, repository.ErrPutawaySameCell) ||
-		errors.Is(err, repository.ErrForeignCell) ||
-		errors.Is(err, repository.ErrLoadUnitNotPlaced) ||
-		errors.Is(err, repository.ErrLoadUnitNested) ||
-		errors.Is(err, repository.ErrLooseStockShort) ||
-		errors.Is(err, repository.ErrInsufficientStock) ||
+		errors.Is(err, model.ErrInvalidPutawayID) ||
+		errors.Is(err, model.ErrPutawayPosted) ||
+		errors.Is(err, model.ErrEmptyPutaway) ||
+		errors.Is(err, model.ErrPutawaySameCell) ||
+		errors.Is(err, model.ErrForeignCell) ||
+		errors.Is(err, model.ErrLoadUnitNotPlaced) ||
+		errors.Is(err, model.ErrLoadUnitNested) ||
+		errors.Is(err, model.ErrLooseStockShort) ||
+		errors.Is(err, model.ErrInsufficientStock) ||
 		// Задание сеанса (P5-02-1): нет, выполнено, не того склада или сеанс просит лишнего.
-		errors.Is(err, ErrInvalidTaskID) ||
-		errors.Is(err, repository.ErrTaskNotFound) ||
-		errors.Is(err, repository.ErrTaskDone) ||
-		errors.Is(err, repository.ErrTaskMismatch) ||
-		errors.Is(err, repository.ErrNotInTask) ||
-		errors.Is(err, repository.ErrExceedsTask) ||
+		errors.Is(err, model.ErrInvalidTaskID) ||
+		errors.Is(err, model.ErrTaskNotFound) ||
+		errors.Is(err, model.ErrTaskDone) ||
+		errors.Is(err, model.ErrTaskMismatch) ||
+		errors.Is(err, model.ErrNotInTask) ||
+		errors.Is(err, model.ErrExceedsTask) ||
 		// Движение (P6-03): документ уже проведён, пуст, противоречив или просит больше, чем
 		// лежит в источнике. Повтор этого не исправит - документ разбирает человек.
-		errors.Is(err, ErrInvalidMovementID) ||
-		errors.Is(err, repository.ErrMovementPosted) ||
-		errors.Is(err, repository.ErrEmptyMovement) ||
-		errors.Is(err, repository.ErrUnknownMovementKind) ||
-		errors.Is(err, repository.ErrReceivingCell) ||
-		errors.Is(err, repository.ErrWarehouseMismatch) ||
-		errors.Is(err, repository.ErrEmptyMovementLine) ||
-		errors.Is(err, repository.ErrSameCell) ||
-		errors.Is(err, repository.ErrSamePlace) ||
-		errors.Is(err, repository.ErrGoodsShort) ||
-		errors.Is(err, repository.ErrMovementQty) ||
+		errors.Is(err, model.ErrInvalidMovementID) ||
+		errors.Is(err, model.ErrMovementPosted) ||
+		errors.Is(err, model.ErrEmptyMovement) ||
+		errors.Is(err, model.ErrUnknownMovementKind) ||
+		errors.Is(err, model.ErrReceivingCell) ||
+		errors.Is(err, model.ErrWarehouseMismatch) ||
+		errors.Is(err, model.ErrEmptyMovementLine) ||
+		errors.Is(err, model.ErrSameCell) ||
+		errors.Is(err, model.ErrSamePlace) ||
+		errors.Is(err, model.ErrGoodsShort) ||
+		errors.Is(err, model.ErrMovementQty) ||
 		// Проблемы склада (P6-07-1): уже зафиксирована, пуста, причина или склад не те, товар
 		// уже на складе назначения или склад системный (P6-07-3). Повтор этого не исправит.
-		errors.Is(err, ErrInvalidProblemID) ||
-		errors.Is(err, ErrProblemCommentRequired) ||
-		errors.Is(err, repository.ErrProblemPosted) ||
-		errors.Is(err, repository.ErrEmptyProblem) ||
-		errors.Is(err, repository.ErrUnknownReason) ||
-		errors.Is(err, repository.ErrUnknownInternalWarehouse) ||
-		errors.Is(err, repository.ErrSameInternalWarehouse) ||
-		errors.Is(err, repository.ErrSystemInternalWarehouse) ||
+		errors.Is(err, model.ErrInvalidProblemID) ||
+		errors.Is(err, model.ErrProblemCommentRequired) ||
+		errors.Is(err, model.ErrProblemPosted) ||
+		errors.Is(err, model.ErrEmptyProblem) ||
+		errors.Is(err, model.ErrUnknownReason) ||
+		errors.Is(err, model.ErrUnknownInternalWarehouse) ||
+		errors.Is(err, model.ErrSameInternalWarehouse) ||
+		errors.Is(err, model.ErrSystemInternalWarehouse) ||
 		// Отгрузка возврата (ADHOC-31): сеанс уже проведён, пуст, позиция не из задания или уже
 		// отгружена, товара позиции нет на складе возврата.
-		errors.Is(err, ErrInvalidShipmentID) ||
-		errors.Is(err, repository.ErrShipmentPosted) ||
-		errors.Is(err, repository.ErrEmptyShipment) ||
-		errors.Is(err, repository.ErrProblemGoodsMissing) ||
+		errors.Is(err, model.ErrInvalidShipmentID) ||
+		errors.Is(err, model.ErrShipmentPosted) ||
+		errors.Is(err, model.ErrEmptyShipment) ||
+		errors.Is(err, model.ErrProblemGoodsMissing) ||
 		// Подсчёт ячейки пересчёта (P10-03): ячейка не своя, не начата, уже подсчитана, сбита
 		// движением или пересчёт закрыт; в факте товар не области, неизвестный короб или марка,
 		// товар в проблеме, маркируемый без марок. Повтор не поможет - ячейку пересчитывают.

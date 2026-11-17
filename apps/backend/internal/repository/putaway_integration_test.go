@@ -126,7 +126,7 @@ func TestPutaway_looseExcludesBoxedStock(t *testing.T) {
 		CellID: pf.cellA, GoodID: pf.good, BatchID: pf.batch, InternalWarehouseID: pf.iwh,
 	}, decimal.NewFromInt(2)))
 
-	if _, err := pf.submit(t, task, uuid.NewString(), looseTo(pf.good, 4, pf.cellB)); !errors.Is(err, repository.ErrLooseStockShort) {
+	if _, err := pf.submit(t, task, uuid.NewString(), looseTo(pf.good, 4, pf.cellB)); !errors.Is(err, model.ErrLooseStockShort) {
 		t.Fatalf("россыпь сверх лежащей: %v, ожидалась ErrLooseStockShort", err)
 	}
 	if _, err := pf.submit(t, task, uuid.NewString(), looseTo(pf.good, 3, pf.cellB)); err != nil {
@@ -145,7 +145,7 @@ func TestPutaway_sessionIsAtomic(t *testing.T) {
 
 	putaway := uuid.NewString()
 	_, err := pf.submit(t, task, putaway, boxTo(lu, pf.cellB), looseTo(pf.good, 6, pf.cellB))
-	if !errors.Is(err, repository.ErrExceedsTask) {
+	if !errors.Is(err, model.ErrExceedsTask) {
 		t.Fatalf("вторая строка: %v, ожидалась ErrExceedsTask", err)
 	}
 	if currentCell(t, pf.stockFixture, lu) != pf.cellA || pf.qtyIn(t, pf.cellB) != "0" {
@@ -176,7 +176,7 @@ func TestPutaway_repeats(t *testing.T) {
 		t.Fatalf("повтор операции: err=%v duplicate=%v", err, again.Duplicate)
 	}
 	in.Lines = []repository.PutawayLineInput{boxTo(lu2, pf.cellB)}
-	if _, err := pf.ops.PutawaySubmit(ctx, uuid.NewString(), in); !errors.Is(err, repository.ErrPutawayPosted) {
+	if _, err := pf.ops.PutawaySubmit(ctx, uuid.NewString(), in); !errors.Is(err, model.ErrPutawayPosted) {
 		t.Fatalf("тот же сеанс новой операцией: %v, ожидалась ErrPutawayPosted", err)
 	}
 	if pf.qtyIn(t, pf.cellB) != "12" {
@@ -202,15 +202,15 @@ func TestPutaway_rejections(t *testing.T) {
 		line repository.PutawayLineInput
 		want error
 	}{
-		{"короб другого задания", task, boxTo(stranger, pf.cellB), repository.ErrNotInTask},
-		{"неизвестное задание", uuid.NewString(), boxTo(placed, pf.cellB), repository.ErrTaskNotFound},
+		{"короб другого задания", task, boxTo(stranger, pf.cellB), model.ErrNotInTask},
+		{"неизвестное задание", uuid.NewString(), boxTo(placed, pf.cellB), model.ErrTaskNotFound},
 		{"россыпь не той партии", task, repository.PutawayLineInput{GoodID: pf.good, ProductionDate: "2025-01-01",
-			Qty: decimal.NewFromInt(1), ToCellID: pf.cellB}, repository.ErrNotInTask},
-		{"россыпи больше, чем в задании", task, looseTo(pf.good, 6, pf.cellB), repository.ErrExceedsTask},
-		{"короб на то же место", task, boxTo(placed, pf.cellA), repository.ErrPutawaySameCell},
-		{"россыпь в ячейку приёмки", task, looseTo(pf.good, 1, pf.cellA), repository.ErrPutawaySameCell},
-		{"ячейка чужого склада", task, boxTo(placed, foreign), repository.ErrForeignCell},
-		{"неизвестная ячейка", task, boxTo(placed, uuid.NewString()), repository.ErrUnknownReference},
+			Qty: decimal.NewFromInt(1), ToCellID: pf.cellB}, model.ErrNotInTask},
+		{"россыпи больше, чем в задании", task, looseTo(pf.good, 6, pf.cellB), model.ErrExceedsTask},
+		{"короб на то же место", task, boxTo(placed, pf.cellA), model.ErrPutawaySameCell},
+		{"россыпь в ячейку приёмки", task, looseTo(pf.good, 1, pf.cellA), model.ErrPutawaySameCell},
+		{"ячейка чужого склада", task, boxTo(placed, foreign), model.ErrForeignCell},
+		{"неизвестная ячейка", task, boxTo(placed, uuid.NewString()), model.ErrUnknownReference},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

@@ -13,23 +13,6 @@ import (
 	"craftwms/internal/model"
 )
 
-// Ошибки решения по проблеме склада (P6-07-3). Все - отказ по существу: повтор их не исправит.
-var (
-	// ErrProblemNotFound - проблемы нет.
-	ErrProblemNotFound = errors.New("problem not found")
-	// ErrProblemResolved - по проблеме уже принято решение.
-	ErrProblemResolved = errors.New("problem is already resolved")
-	// ErrDecisionNotAllowed - решение не допустимо при причине проблемы.
-	ErrDecisionNotAllowed = errors.New("decision is not allowed for the problem reason")
-	// ErrUnknownSupplier - поставщика нет в справочнике.
-	ErrUnknownSupplier = errors.New("unknown supplier")
-	// ErrProblemGoodsMissing - товара проблемы нет на складе-метке: короб перевели на другой
-	// склад или опустошили, россыпь разобрали или положили в короб.
-	ErrProblemGoodsMissing = errors.New("problem goods are no longer on the problem internal warehouse")
-	// ErrNoSupplierReturnWarehouse - в справочнике нет системного склада возврата.
-	ErrNoSupplierReturnWarehouse = errors.New("no supplier return internal warehouse")
-)
-
 // problemListLimit - потолок рабочего списка: открытые всегда сверху, решённые - свежие.
 // Сотни записей - незаметно; когда решённых станут тысячи, понадобится подгрузка курсором.
 const problemListLimit = 500
@@ -282,7 +265,7 @@ func (r *ProblemRepository) Resolve(ctx context.Context, in model.ResolveProblem
 			return err
 		}
 		if p.status != model.ProblemStatusOpen {
-			return ErrProblemResolved
+			return model.ErrProblemResolved
 		}
 		if in.ResolutionID, err = allowedResolution(ctx, q, p.reason, in.ResolutionID, in.Decision); err != nil {
 			return err
@@ -315,7 +298,7 @@ func (r *ProblemRepository) Resolve(ctx context.Context, in model.ResolveProblem
 		case model.ProblemDecisionSupplierReturn:
 			taskID, err = returnProblem(ctx, q, p, lines, in)
 		default:
-			err = ErrDecisionNotAllowed
+			err = model.ErrDecisionNotAllowed
 		}
 		if err != nil {
 			return err
@@ -350,7 +333,7 @@ func allowedResolution(ctx context.Context, q Querier, reason, resolutionID, dec
 		ORDER BY x.ord
 		LIMIT 1`, reason, resolutionID, decision).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", ErrDecisionNotAllowed
+		return "", model.ErrDecisionNotAllowed
 	}
 	if err != nil {
 		return "", fmt.Errorf("вариант решения причины: %w", err)
@@ -390,7 +373,7 @@ func lockProblem(ctx context.Context, q Querier, id string) (lockedProblem, erro
 		FROM warehouse_problems WHERE id = $1::uuid FOR UPDATE`, id).
 		Scan(&p.warehouse, &p.cell, &lu, &good, &batch, &qty, &p.toIwh, &p.reason, &p.status)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return lockedProblem{}, ErrProblemNotFound
+		return lockedProblem{}, model.ErrProblemNotFound
 	}
 	if err != nil {
 		return lockedProblem{}, fmt.Errorf("прочитать проблему: %w", err)
@@ -409,22 +392,22 @@ func lockProblem(ctx context.Context, q Querier, id string) (lockedProblem, erro
 // принадлежать складу-метке и быть непустым: иначе решать уже нечего.
 func problemBoxLines(ctx context.Context, q Querier, p lockedProblem) ([]problemLine, error) {
 	boxes, err := lockPlacedLoadUnits(ctx, q, p.loadUnit)
-	if errors.Is(err, ErrLoadUnitNotPlaced) {
-		return nil, ErrProblemGoodsMissing
+	if errors.Is(err, model.ErrLoadUnitNotPlaced) {
+		return nil, model.ErrProblemGoodsMissing
 	}
 	if err != nil {
 		return nil, err
 	}
 	box := boxes[p.loadUnit]
 	if box.iwh != p.toIwh {
-		return nil, ErrProblemGoodsMissing
+		return nil, model.ErrProblemGoodsMissing
 	}
 	items, err := loadUnitStock(ctx, q, p.loadUnit)
 	if err != nil {
 		return nil, err
 	}
 	if len(items) == 0 {
-		return nil, ErrProblemGoodsMissing
+		return nil, model.ErrProblemGoodsMissing
 	}
 	lines := make([]problemLine, 0, len(items))
 	for _, it := range items {
@@ -471,7 +454,7 @@ func problemGoodsLines(ctx context.Context, q Querier, p lockedProblem) ([]probl
 		need = need.Sub(take)
 	}
 	if need.IsPositive() {
-		return nil, ErrProblemGoodsMissing
+		return nil, model.ErrProblemGoodsMissing
 	}
 	return lines, nil
 }
@@ -525,13 +508,13 @@ func returnProblem(ctx context.Context, q Querier, p lockedProblem, lines []prob
 		return "", fmt.Errorf("проверить поставщика: %w", err)
 	}
 	if !exists {
-		return "", ErrUnknownSupplier
+		return "", model.ErrUnknownSupplier
 	}
 	var to string
 	err := q.QueryRow(ctx, `SELECT id::text FROM internal_warehouses WHERE system_role = $1`,
 		model.InternalWarehouseRoleSupplierReturn).Scan(&to)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", ErrNoSupplierReturnWarehouse
+		return "", model.ErrNoSupplierReturnWarehouse
 	}
 	if err != nil {
 		return "", fmt.Errorf("склад возврата: %w", err)

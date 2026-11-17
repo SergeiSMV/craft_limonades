@@ -59,7 +59,7 @@ func (h *OperationsHandler) Apply(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		switch {
-		case errors.Is(err, service.ErrEmptyBatch), errors.Is(err, service.ErrBatchTooLarge):
+		case errors.Is(err, model.ErrEmptyBatch), errors.Is(err, model.ErrBatchTooLarge):
 			writeError(w, http.StatusBadRequest, err.Error())
 		default:
 			// Временная неудача на ПЕРВОЙ же операции: применить не удалось ничего, и честнее

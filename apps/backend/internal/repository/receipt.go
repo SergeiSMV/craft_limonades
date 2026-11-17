@@ -12,18 +12,6 @@ import (
 	"craftwms/internal/model"
 )
 
-// Ошибки документа приёмки (P4-02).
-var (
-	// ErrReceiptNotFound - нет документа с таким id.
-	ErrReceiptNotFound = errors.New("receipt not found")
-	// ErrReceiptPosted - документ уже оприходован: строки не меняются, повтор запрещён.
-	ErrReceiptPosted = errors.New("receipt already posted")
-	// ErrEmptyReceipt - оприходовать нечего: в документе нет строк.
-	ErrEmptyReceipt = errors.New("receipt has no lines")
-	// ErrLoadUnitCellConflict - строки одной ГЕ указывают разные ячейки.
-	ErrLoadUnitCellConflict = errors.New("load unit lines point to different cells")
-)
-
 // ReceiptRepository - документ приёмки: набор строк и оприходование.
 // Оприходование владеет транзакцией (приём из StockRepository.Transfer и финала сессии).
 type ReceiptRepository struct {
@@ -150,7 +138,7 @@ func postReceipt(ctx context.Context, q Querier, receiptID string) (int, error) 
 		return 0, err
 	}
 	if len(lines) == 0 {
-		return 0, ErrEmptyReceipt
+		return 0, model.ErrEmptyReceipt
 	}
 
 	// Приёмка приходует в склад по умолчанию: выбор учётной принадлежности сделан для
@@ -168,7 +156,7 @@ func postReceipt(ctx context.Context, q Querier, receiptID string) (int, error) 
 			continue
 		}
 		if prev, ok := luCell[*ln.LoadUnitID]; ok && prev != ln.CellID {
-			return 0, ErrLoadUnitCellConflict
+			return 0, model.ErrLoadUnitCellConflict
 		}
 		luCell[*ln.LoadUnitID] = ln.CellID
 	}
@@ -246,7 +234,7 @@ func guardLoadUnitExists(ctx context.Context, q Querier, luID string) error {
 	var exists bool
 	err := q.QueryRow(ctx, `SELECT true FROM load_units WHERE id = $1::uuid`, luID).Scan(&exists)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return ErrLoadUnitNotFound
+		return model.ErrLoadUnitNotFound
 	}
 	if err != nil {
 		return fmt.Errorf("проверить ГЕ: %w", err)
@@ -259,13 +247,13 @@ func guardReceiptDraft(ctx context.Context, q Querier, receiptID string) error {
 	var status string
 	err := q.QueryRow(ctx, `SELECT status FROM receipts WHERE id = $1::uuid`, receiptID).Scan(&status)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return ErrReceiptNotFound
+		return model.ErrReceiptNotFound
 	}
 	if err != nil {
 		return fmt.Errorf("статус приёмки: %w", err)
 	}
 	if status != model.ReceiptDraft {
-		return ErrReceiptPosted
+		return model.ErrReceiptPosted
 	}
 	return nil
 }
@@ -307,7 +295,7 @@ func (r *ReceiptRepository) ByID(ctx context.Context, receiptID string) (model.R
 		Scan(&rc.ID, &rc.WarehouseID, &rc.SupplierID, &rc.Status, &rc.CreatedBy, &rc.PostedAt, &rc.CreatedAt,
 			&rc.Doc.Number, &rc.Doc.Date)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return model.Receipt{}, ErrReceiptNotFound
+		return model.Receipt{}, model.ErrReceiptNotFound
 	}
 	if err != nil {
 		return model.Receipt{}, fmt.Errorf("прочитать приёмку: %w", err)
