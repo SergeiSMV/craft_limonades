@@ -1,6 +1,6 @@
 import 'package:craft_wms/core/error/failure.dart';
-import 'package:craft_wms/features/tasks/data/tasks_models.dart';
-import 'package:craft_wms/features/tasks/data/tasks_repository.dart';
+import 'package:craft_wms/features/tasks/domain/tasks_models.dart';
+import 'package:craft_wms/features/tasks/domain/tasks_repository.dart';
 import 'package:craft_wms/features/tasks/presentation/bloc/completed_tasks_cubit.dart';
 import 'package:either_dart/either.dart';
 import 'package:flutter_test/flutter_test.dart';

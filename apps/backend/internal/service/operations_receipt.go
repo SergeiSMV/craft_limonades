@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"strings"
 	"time"
 
@@ -13,12 +12,6 @@ import (
 	"craftwms/internal/model"
 	"craftwms/internal/repository"
 )
-
-// ErrInvalidReceiptID - идентификатор документа приёмки не UUID.
-//
-// Отдельно от ErrEmptyReceiptID: у прямой ручки пустой id - это пропущенное поле, а в операции
-// очереди документ адресуется своим id офлайн, и id не по форме означает испорченную операцию.
-var ErrInvalidReceiptID = errors.New("receipt id must be a UUID")
 
 // receiptSubmitPayload - тело операции receipt_submit, как его собирает устройство.
 type receiptSubmitPayload struct {
@@ -55,7 +48,7 @@ type receiptSubmitPayload struct {
 func (s *OperationsService) receiptSubmit(ctx context.Context, userID, id string, raw json.RawMessage) (repository.Applied, error) {
 	var p receiptSubmitPayload
 	if err := json.Unmarshal(raw, &p); err != nil {
-		return repository.Applied{}, ErrInvalidPayload
+		return repository.Applied{}, model.ErrInvalidPayload
 	}
 	in := repository.ReceiptSubmitInput{
 		ReceiptID:   strings.TrimSpace(p.ReceiptID),
@@ -64,13 +57,13 @@ func (s *OperationsService) receiptSubmit(ctx context.Context, userID, id string
 		CreatedBy:   userID,
 	}
 	if !isUUID(in.ReceiptID) {
-		return repository.Applied{}, ErrInvalidReceiptID
+		return repository.Applied{}, model.ErrInvalidReceiptID
 	}
 	if in.WarehouseID == "" {
-		return repository.Applied{}, ErrEmptyWarehouse
+		return repository.Applied{}, model.ErrEmptyWarehouse
 	}
 	if !isUUID(in.WarehouseID) || !isOptionalUUID(in.SupplierID) {
-		return repository.Applied{}, ErrInvalidPayload
+		return repository.Applied{}, model.ErrInvalidPayload
 	}
 	// Накладная обязательна (ADHOC-23): приёмку без неё сервер не проводит - нечего занести
 	// в 1С основанием. Отказ по существу: повтор того же тела ничего не исправит.
@@ -82,20 +75,20 @@ func (s *OperationsService) receiptSubmit(ctx context.Context, userID, id string
 	// Пустую приёмку отсекаем до базы: оприходовать нечего, а открытый ради отказа документ
 	// откатился бы вместе с транзакцией и всё равно ничего не дал.
 	if len(p.Lines) == 0 {
-		return repository.Applied{}, repository.ErrEmptyReceipt
+		return repository.Applied{}, model.ErrEmptyReceipt
 	}
 
 	for _, lu := range p.LoadUnits {
 		luID := strings.TrimSpace(lu.ID)
 		if !isUUID(luID) {
-			return repository.Applied{}, ErrInvalidLoadUnitID
+			return repository.Applied{}, model.ErrInvalidLoadUnitID
 		}
 		kind := strings.TrimSpace(lu.Kind)
 		if kind == "" {
 			kind = model.LoadUnitBox // тот же умолчательный вид, что у прямой ручки
 		}
 		if kind != model.LoadUnitBox && kind != model.LoadUnitPallet {
-			return repository.Applied{}, ErrInvalidLoadUnitKind
+			return repository.Applied{}, model.ErrInvalidLoadUnitKind
 		}
 		in.LoadUnits = append(in.LoadUnits, repository.LoadUnitInput{
 			ID: luID, Kind: kind, CZCode: strings.TrimSpace(lu.CZCode),
@@ -112,16 +105,16 @@ func (s *OperationsService) receiptSubmit(ctx context.Context, userID, id string
 		cellID := strings.TrimSpace(ln.CellID)
 		luID := strings.TrimSpace(ln.LoadUnitID)
 		if goodID == "" {
-			return repository.Applied{}, ErrEmptyGoodID
+			return repository.Applied{}, model.ErrEmptyGoodID
 		}
 		if !isUUID(goodID) || !isOptionalUUID(cellID) {
-			return repository.Applied{}, ErrInvalidPayload
+			return repository.Applied{}, model.ErrInvalidPayload
 		}
 		if !isOptionalUUID(luID) {
-			return repository.Applied{}, ErrInvalidLoadUnitID
+			return repository.Applied{}, model.ErrInvalidLoadUnitID
 		}
 		if !ln.Qty.IsPositive() {
-			return repository.Applied{}, ErrInvalidQuantity
+			return repository.Applied{}, model.ErrInvalidQuantity
 		}
 		iso, err := parseEntryDate(ln.ProductionDate)
 		if err != nil {

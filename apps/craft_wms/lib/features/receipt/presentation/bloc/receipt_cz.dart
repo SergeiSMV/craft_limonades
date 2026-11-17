@@ -1,5 +1,5 @@
 import '../../../cz/domain/cz_intake.dart';
-import '../../../stock/data/catalog_models.dart';
+import '../../../stock/domain/catalog_models.dart';
 import 'receipt_models.dart';
 
 /// Марки «Честного знака» в приёмке (CZ-05): раскладка марок по строкам приёмки. Чтение ответа

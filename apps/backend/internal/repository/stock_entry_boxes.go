@@ -11,19 +11,6 @@ import (
 	"craftwms/internal/model"
 )
 
-// Отказы строк ввода остатков с коробами и марками (ADHOC-46).
-var (
-	// ErrLoadUnitExists - короб с этим QR уже заведён на складе: проход его не пересчитывает.
-	ErrLoadUnitExists = errors.New("load unit already exists")
-	// ErrEntryDuplicate - короб, упаковка или марка уже введены в другой ячейке этого прохода.
-	ErrEntryDuplicate = errors.New("already entered in another cell of the session")
-	// ErrEntryCellHasMarks - в ячейке лежат марки россыпью того же товара и партии: SET россыпи
-	// разошёлся бы с числом марок.
-	ErrEntryCellHasMarks = errors.New("cell already has loose marks of this good and batch")
-	// ErrEntryEmptyBox - короб прохода без товара.
-	ErrEntryEmptyBox = errors.New("stock entry box has no goods")
-)
-
 //* --- Содержимое ячейки в сессии --- *//
 
 // clearSessionCell удаляет содержимое ячейки в сессии: короба (с ними - строки в коробах и их
@@ -209,14 +196,14 @@ func guardEntryCell(ctx context.Context, q Querier, sessionID string, in StockEn
 		return err
 	}
 	if len(bad) > 0 {
-		return &DocumentLinesError{Total: total, Lines: bad}
+		return &model.DocumentLinesError{Total: total, Lines: bad}
 	}
 	return nil
 }
 
 // guardSessionCells - отказы строк всех ячеек сессии (финал), одним списком.
 func guardSessionCells(ctx context.Context, q Querier, sessionID string, cells []StockEntryCellInput) error {
-	var bad []LineRejection
+	var bad []model.LineRejection
 	total := 0
 	for _, c := range cells {
 		b, n, err := entryCellRejections(ctx, q, sessionID, c, false)
@@ -230,7 +217,7 @@ func guardSessionCells(ctx context.Context, q Querier, sessionID string, cells [
 		total += n
 	}
 	if len(bad) > 0 {
-		return &DocumentLinesError{Total: total, Lines: bad}
+		return &model.DocumentLinesError{Total: total, Lines: bad}
 	}
 	return nil
 }
@@ -241,11 +228,11 @@ func guardSessionCells(ctx context.Context, q Querier, sessionID string, cells [
 // целиком, чтобы назвать все плохие сразу (ADHOC-40).
 // [inSession] - проверять и повторы с другими ячейками прохода: на checkpoint ячейка ещё не
 // в сессии, на финале она уже там, и сравнивать её с ней самой нельзя.
-func entryCellRejections(ctx context.Context, q Querier, sessionID string, in StockEntryCellInput, inSession bool) ([]LineRejection, int, error) {
-	var bad []LineRejection
+func entryCellRejections(ctx context.Context, q Querier, sessionID string, in StockEntryCellInput, inSession bool) ([]model.LineRejection, int, error) {
+	var bad []model.LineRejection
 	n := 0
 	reject := func(label string, err error) {
-		bad = append(bad, LineRejection{Line: n, Label: label, Err: err})
+		bad = append(bad, model.LineRejection{Line: n, Label: label, Err: err})
 	}
 	cellAddr := cellText(ctx, q, in.CellID)
 
@@ -260,7 +247,7 @@ func entryCellRejections(ctx context.Context, q Querier, sessionID string, in St
 		label := cellAddr + " · " + entryBoxText(lu)
 		err := guardEntryBox(ctx, q, sessionID, lu, inSession)
 		if err == nil && !boxGoods[lu.ID] {
-			err = ErrEntryEmptyBox
+			err = model.ErrEntryEmptyBox
 		}
 		if err != nil {
 			if !isEntryRejection(err) {
@@ -315,7 +302,7 @@ func guardEntryBox(ctx context.Context, q Querier, sessionID string, lu LoadUnit
 		return fmt.Errorf("проверить короб: %w", err)
 	}
 	if exists {
-		return ErrLoadUnitExists
+		return model.ErrLoadUnitExists
 	}
 	if lu.CZCode != "" {
 		if err := q.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM cz_aggregates WHERE code = $1)`,
@@ -336,7 +323,7 @@ func guardEntryBox(ctx context.Context, q Querier, sessionID string, lu LoadUnit
 		return fmt.Errorf("проверить короб в сессии: %w", err)
 	}
 	if exists {
-		return ErrEntryDuplicate
+		return model.ErrEntryDuplicate
 	}
 	return nil
 }
@@ -360,7 +347,7 @@ func guardEntryGroup(ctx context.Context, q Querier, sessionID, code string, inS
 		return fmt.Errorf("проверить упаковку ЧЗ в сессии: %w", err)
 	}
 	if exists {
-		return ErrEntryDuplicate
+		return model.ErrEntryDuplicate
 	}
 	return nil
 }
@@ -398,7 +385,7 @@ func guardEntryLine(ctx context.Context, q Querier, sessionID, cellID, iwh strin
 				return fmt.Errorf("проверить марки в сессии: %w", err)
 			}
 			if exists {
-				return ErrEntryDuplicate
+				return model.ErrEntryDuplicate
 			}
 		}
 	}
@@ -412,7 +399,7 @@ func guardEntryLine(ctx context.Context, q Querier, sessionID, cellID, iwh strin
 		return fmt.Errorf("проверить марки в ячейке: %w", err)
 	}
 	if hasMarks {
-		return ErrEntryCellHasMarks
+		return model.ErrEntryCellHasMarks
 	}
 	return nil
 }
@@ -449,7 +436,7 @@ func entryMarkedGoods(ctx context.Context, q Querier, lines []StockEntryLineInpu
 // entryRejections - ошибки, которыми отказывает строка ввода остатков. Ссылка в никуда
 // (несуществующий товар) - тоже отказ строки, а не сбой.
 var entryRejections = []error{
-	ErrLoadUnitExists, ErrEntryDuplicate, ErrEntryCellHasMarks, ErrEntryEmptyBox,
+	model.ErrLoadUnitExists, model.ErrEntryDuplicate, model.ErrEntryCellHasMarks, model.ErrEntryEmptyBox,
 	model.ErrCZAggregateExists, model.ErrCZMarkExists,
 	model.ErrCZMarksRequired, model.ErrCZMarksQtyMismatch,
 }

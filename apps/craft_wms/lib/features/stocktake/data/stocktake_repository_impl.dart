@@ -10,7 +10,7 @@ import '../../../core/outbox/outbox_operation.dart';
 import '../../../core/outbox/outbox_repository.dart';
 import '../../../core/sync/sync_engine.dart';
 import '../../../core/warehouse/internal_warehouses.dart';
-import '../../tasks/data/tasks_repository.dart';
+import '../../tasks/domain/tasks_repository.dart';
 import '../domain/stocktake_models.dart';
 import '../domain/stocktake_repository.dart';
 import 'stocktake_api.dart';

@@ -1,8 +1,8 @@
 import 'package:craft_wms/core/error/failure.dart';
 import 'package:craft_wms/features/contents/domain/contents_entities.dart';
 import 'package:craft_wms/features/contents/domain/stock_entities.dart';
-import 'package:craft_wms/features/stock/data/catalog_models.dart';
-import 'package:craft_wms/features/stock/data/catalog_repository.dart';
+import 'package:craft_wms/features/stock/domain/catalog_models.dart';
+import 'package:craft_wms/features/stock/domain/catalog_repository.dart';
 import 'package:craft_wms/features/stock/presentation/bloc/stock_detail_cubit.dart';
 import 'package:either_dart/either.dart';
 import 'package:flutter_test/flutter_test.dart';

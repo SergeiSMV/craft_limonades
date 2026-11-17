@@ -4,7 +4,7 @@ import 'package:craft_wms/core/constants/api_constants.dart';
 import 'package:craft_wms/core/di/injection.dart';
 import 'package:craft_wms/core/sync/data_versions.dart';
 import 'package:craft_wms/core/gen/strings.g.dart';
-import 'package:craft_wms/portal/data/documents_repository.dart';
+import 'package:craft_wms/portal/domain/documents/documents_repository.dart';
 import 'package:craft_wms/portal/presentation/widgets/documents/doc_card.dart';
 import 'package:craft_wms/portal/presentation/widgets/documents/doc_table.dart';
 import 'package:craft_wms/portal/presentation/widgets/documents/doc_toolbar.dart';
@@ -14,6 +14,7 @@ import 'package:craft_wms/portal/presentation/widgets/ui/portal_choice.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:craft_wms/portal/data/documents_repository_impl.dart';
 
 import '../support/fake_dio_adapter.dart';
 
@@ -52,7 +53,7 @@ void main() {
     if (getIt.isRegistered<DocumentsRepository>()) {
       getIt.unregister<DocumentsRepository>();
     }
-    getIt.registerSingleton<DocumentsRepository>(DocumentsRepository(dio));
+    getIt.registerSingleton<DocumentsRepository>(DocumentsRepositoryImpl(dio));
     // ADHOC-60: вкладки слушают версии данных сервера.
     if (!getIt.isRegistered<DataVersions>()) {
       getIt.registerSingleton(DataVersions());

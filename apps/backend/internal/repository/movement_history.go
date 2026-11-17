@@ -12,9 +12,6 @@ import (
 	"craftwms/internal/model"
 )
 
-// ErrMovementNotFound - документа движения с таким идентификатором нет.
-var ErrMovementNotFound = errors.New("movement not found")
-
 // MovementHistoryRepository - чтение истории перемещений для ТСД (ADHOC-28). Только чтение
 // журнала P6-01: проводит движение operations, здесь его показывают.
 type MovementHistoryRepository struct {
@@ -98,7 +95,7 @@ func (r *MovementHistoryRepository) Executors(ctx context.Context) ([]model.Task
 func (r *MovementHistoryRepository) Get(ctx context.Context, id string) (model.MovementRecordDetail, error) {
 	rec, err := scanMovementRecord(r.pool.QueryRow(ctx, movementRecordSelect+` WHERE m.id = $1::uuid`, id))
 	if errors.Is(err, pgx.ErrNoRows) {
-		return model.MovementRecordDetail{}, ErrMovementNotFound
+		return model.MovementRecordDetail{}, model.ErrMovementNotFound
 	}
 	if err != nil {
 		return model.MovementRecordDetail{}, fmt.Errorf("запись истории: %w", err)

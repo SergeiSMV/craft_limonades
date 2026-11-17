@@ -1,6 +1,9 @@
 package model
 
-import "time"
+import (
+	"errors"
+	"time"
+)
 
 // Виды документов и источников (P3-01). Значения попадают в БД как есть, поэтому меняться
 // не могут: строка kind - часть формата хранения, а не деталь реализации.
@@ -182,3 +185,10 @@ type DocumentEvent struct {
 	Details   string
 	CreatedAt time.Time
 }
+
+// ErrDocumentNotFound - документа по такой операции нет: она не завершена либо завершена до
+// появления снимков и не попала в бэкофилл.
+var ErrDocumentNotFound = errors.New("report document not found")
+
+// ErrEmptyDocumentID - обращение к документу без идентификатора.
+var ErrEmptyDocumentID = errors.New("document id is required")

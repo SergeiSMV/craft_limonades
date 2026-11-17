@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -13,17 +14,24 @@ import (
 
 	appmw "craftwms/internal/middleware"
 	"craftwms/internal/model"
-	"craftwms/internal/repository"
 	"craftwms/internal/service"
 )
 
+// problems - то, что обработчику «Проблем склада» нужно от сервиса.
+type problems interface {
+	List(ctx context.Context, status string) ([]model.Problem, error)
+	Current(ctx context.Context) ([]model.Problem, error)
+	Resolved(ctx context.Context, q service.ResolvedQuery) ([]model.Problem, error)
+	Resolve(ctx context.Context, in model.ResolveProblemInput) error
+}
+
 // ProblemHandler - «Проблемы склада» в портале (P6-07-3): список и решение офиса.
 type ProblemHandler struct {
-	svc *service.ProblemService
+	svc problems
 }
 
 // NewProblemHandler создаёт обработчик проблем склада.
-func NewProblemHandler(svc *service.ProblemService) *ProblemHandler {
+func NewProblemHandler(svc problems) *ProblemHandler {
 	return &ProblemHandler{svc: svc}
 }
 
@@ -120,7 +128,7 @@ func orEmpty(ids []string) []string {
 // List: GET /api/v1/problems?status=open|resolved - рабочий список: открытые сверху.
 func (h *ProblemHandler) List(w http.ResponseWriter, r *http.Request) {
 	items, err := h.svc.List(r.Context(), r.URL.Query().Get("status"))
-	if errors.Is(err, service.ErrInvalidDecision) {
+	if errors.Is(err, model.ErrInvalidDecision) {
 		writeError(w, http.StatusBadRequest, "статус - open или resolved")
 		return
 	}
@@ -161,7 +169,7 @@ func (h *ProblemHandler) Resolved(w http.ResponseWriter, r *http.Request) {
 		From: q.Get("from"), To: q.Get("to"), BeforeResolvedAt: q.Get("before_resolved_at"),
 		BeforeID: q.Get("before_id"), Limit: limit,
 	})
-	if errors.Is(err, service.ErrInvalidProblemFilter) {
+	if errors.Is(err, model.ErrInvalidProblemFilter) {
 		writeError(w, http.StatusBadRequest, "неверный фильтр")
 		return
 	}
@@ -207,17 +215,17 @@ func (h *ProblemHandler) Resolve(w http.ResponseWriter, r *http.Request) {
 // problemError - ответ на ошибку решения; текст - для оператора портала.
 func problemError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
-	case errors.Is(err, service.ErrInvalidProblemID), errors.Is(err, repository.ErrProblemNotFound):
+	case errors.Is(err, model.ErrInvalidProblemID), errors.Is(err, model.ErrProblemNotFound):
 		writeError(w, http.StatusNotFound, "проблема не найдена")
-	case errors.Is(err, service.ErrInvalidDecision):
+	case errors.Is(err, model.ErrInvalidDecision):
 		writeError(w, http.StatusBadRequest, "для списания нужны номер и дата документа 1С, для возврата - поставщик")
-	case errors.Is(err, repository.ErrDecisionNotAllowed):
+	case errors.Is(err, model.ErrDecisionNotAllowed):
 		writeError(w, http.StatusBadRequest, "этот вариант решения недоступен при такой причине")
-	case errors.Is(err, repository.ErrUnknownSupplier):
+	case errors.Is(err, model.ErrUnknownSupplier):
 		writeError(w, http.StatusBadRequest, "поставщик не найден")
-	case errors.Is(err, repository.ErrProblemResolved):
+	case errors.Is(err, model.ErrProblemResolved):
 		writeError(w, http.StatusConflict, "по проблеме уже принято решение")
-	case errors.Is(err, repository.ErrProblemGoodsMissing):
+	case errors.Is(err, model.ErrProblemGoodsMissing):
 		writeError(w, http.StatusConflict,
 			"товара проблемы нет на складе-метке: короб перевели или опустошили, россыпь разобрали или убрали в короб")
 	default:

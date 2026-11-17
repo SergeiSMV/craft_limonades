@@ -113,7 +113,7 @@ func TestContents_loadUnitCard(t *testing.T) {
 	}
 
 	_, err = repo.LoadUnitCard(ctx, uuid.NewString())
-	if !errors.Is(err, model.ErrLoadUnitNotFound) || !errors.Is(err, repository.ErrLoadUnitNotFound) {
+	if !errors.Is(err, model.ErrLoadUnitNotFound) {
 		t.Errorf("неизвестный короб: %v", err)
 	}
 }

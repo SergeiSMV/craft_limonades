@@ -1,11 +1,8 @@
 import 'dart:typed_data';
 
-import 'package:dio/dio.dart';
 import 'package:either_dart/either.dart';
-import 'package:injectable/injectable.dart';
 
-import '../../core/constants/api_constants.dart';
-import '../../core/error/failure.dart';
+import '../../../core/error/failure.dart';
 
 /// Состояние документа в работе оператора (P3-02).
 /// Порядок значений - порядок жизни документа: опубликован → скачан → занесён в 1С.
@@ -22,10 +19,10 @@ enum DocStatus {
   /// Разбор значения с сервера. Незнакомое трактуем как «новый»: документ лучше показать
   /// требующим внимания, чем спрятать в выполненных из-за расхождения версий.
   static DocStatus parse(String? raw) => switch (raw) {
-        'downloaded' => DocStatus.downloaded,
-        'done' => DocStatus.done,
-        _ => DocStatus.isNew,
-      };
+    'downloaded' => DocStatus.downloaded,
+    'done' => DocStatus.done,
+    _ => DocStatus.isNew,
+  };
 }
 
 /// Запись журнала документа (P3-03): что произошло, когда и по чьей воле.
@@ -49,11 +46,11 @@ class DocEvent {
   final DateTime createdAt;
 
   factory DocEvent.fromJson(Map<String, dynamic> j) => DocEvent(
-        event: j['event'] as String? ?? '',
-        userName: j['user_name'] as String? ?? '',
-        details: j['details'] as String? ?? '',
-        createdAt: DateTime.parse(j['created_at'] as String),
-      );
+    event: j['event'] as String? ?? '',
+    userName: j['user_name'] as String? ?? '',
+    details: j['details'] as String? ?? '',
+    createdAt: DateTime.parse(j['created_at'] as String),
+  );
 }
 
 /// Документ оператора: что сформировано, по какому складу и в каком состоянии.
@@ -123,24 +120,24 @@ class PortalDoc {
   final DocStatus status;
 
   factory PortalDoc.fromJson(Map<String, dynamic> j) => PortalDoc(
-        id: j['id'] as String,
-        kind: j['kind'] as String? ?? '',
-        supplier: j['supplier'] as String? ?? '',
-        docNumber: j['doc_number'] as String? ?? '',
-        docDate: j['doc_date'] as String? ?? '',
-        operation: j['operation'] as String? ?? '',
-        taskNumber: (j['task_number'] as num?)?.toInt() ?? 0,
-        problemNumber: (j['problem_number'] as num?)?.toInt() ?? 0,
-        number: (j['number'] as num?)?.toInt() ?? 0,
-        sourceNumber: (j['source_number'] as num?)?.toInt() ?? 0,
-        stocktakeNumber: (j['stocktake_number'] as num?)?.toInt() ?? 0,
-        executor: j['executor'] as String? ?? '',
-        warehouseCode: j['warehouse_code'] as String? ?? '',
-        warehouseName: j['warehouse_name'] as String? ?? '',
-        createdAt: DateTime.parse(j['created_at'] as String),
-        linesCount: (j['lines_count'] as num?)?.toInt() ?? 0,
-        status: DocStatus.parse(j['status'] as String?),
-      );
+    id: j['id'] as String,
+    kind: j['kind'] as String? ?? '',
+    supplier: j['supplier'] as String? ?? '',
+    docNumber: j['doc_number'] as String? ?? '',
+    docDate: j['doc_date'] as String? ?? '',
+    operation: j['operation'] as String? ?? '',
+    taskNumber: (j['task_number'] as num?)?.toInt() ?? 0,
+    problemNumber: (j['problem_number'] as num?)?.toInt() ?? 0,
+    number: (j['number'] as num?)?.toInt() ?? 0,
+    sourceNumber: (j['source_number'] as num?)?.toInt() ?? 0,
+    stocktakeNumber: (j['stocktake_number'] as num?)?.toInt() ?? 0,
+    executor: j['executor'] as String? ?? '',
+    warehouseCode: j['warehouse_code'] as String? ?? '',
+    warehouseName: j['warehouse_name'] as String? ?? '',
+    createdAt: DateTime.parse(j['created_at'] as String),
+    linesCount: (j['lines_count'] as num?)?.toInt() ?? 0,
+    status: DocStatus.parse(j['status'] as String?),
+  );
 }
 
 /// Скачанный документ: содержимое и имя файла, под которым его сохранить.
@@ -161,88 +158,28 @@ String filenameFromDisposition(String? header) {
 }
 
 /// Репозиторий документов оператора: рабочий список, скачивание .xlsx и отметка «Выполнено».
-/// Общий для вкладок «Инвентаризация», «Приход» (P4-10) и «Движение» (P5-04) - они различаются только формой. Слой data - изолирует HTTP; access-токен подставит AuthInterceptor.
+/// Общий для вкладок «Инвентаризация», «Приход» (P4-10) и «Движение» (P5-04) - они
+/// различаются только формой.
 /// Всё admin-only на бэке.
-@lazySingleton
-class DocumentsRepository {
-  DocumentsRepository(this._dio);
-
-  final Dio _dio;
-
+///
+/// Контракт для экранов портала (`dev.md §2`, ADHOC-71); реализация - `DocumentsRepositoryImpl` в `data`.
+abstract interface class DocumentsRepository {
   /// Список документов одной формы ([kind]): необработанные сверху, выполненные - в конце.
   ///
   /// Форма фильтруется на сервере: без фильтра «Поступление» попадало бы во вкладку
   /// инвентаризации, и оператор искал бы свои документы среди чужих.
-  Future<Either<Failure, List<PortalDoc>>> listDocuments({String? kind}) async {
-    try {
-      final resp = await _dio.get<List<dynamic>>(
-        ApiConst.documents,
-        queryParameters: kind == null ? null : {'kind': kind},
-      );
-      final items = (resp.data ?? const [])
-          .map((e) => PortalDoc.fromJson(e as Map<String, dynamic>))
-          .toList();
-      return Right(items);
-    } on DioException catch (e) {
-      return Left(_mapError(e));
-    } catch (_) {
-      return const Left(Failure.unknown());
-    }
-  }
+  Future<Either<Failure, List<PortalDoc>>> listDocuments({String? kind});
 
   /// Скачать .xlsx документа: байты и имя файла. Сервер попутно отмечает документ скачанным.
   ///
   /// Имя берётся из `Content-Disposition`: его собирает сервер по форме документа
   /// («postuplenie-…», «dvizhenie-…»), и портал не должен знать формы, чтобы назвать файл
   /// правильно (ADHOC-24 - до этого имя было зашито под ввод остатков у всех форм).
-  Future<Either<Failure, DownloadedDoc>> downloadReport(String id) async {
-    try {
-      final resp = await _dio.get<List<int>>(
-        ApiConst.documentFile(id),
-        options: Options(responseType: ResponseType.bytes),
-      );
-      return Right((
-        bytes: Uint8List.fromList(resp.data!),
-        filename: filenameFromDisposition(resp.headers.value('content-disposition')),
-      ));
-    } on DioException catch (e) {
-      return Left(_mapError(e));
-    } catch (_) {
-      return const Left(Failure.unknown());
-    }
-  }
+  Future<Either<Failure, DownloadedDoc>> downloadReport(String id);
 
   /// Отметить документ занесённым в 1С. Идемпотентно: повтор сервер тоже принимает.
-  Future<Either<Failure, void>> markDone(String id) async {
-    try {
-      await _dio.post<void>(ApiConst.documentDone(id));
-      return const Right(null);
-    } on DioException catch (e) {
-      return Left(_mapError(e));
-    } catch (_) {
-      return const Left(Failure.unknown());
-    }
-  }
+  Future<Either<Failure, void>> markDone(String id);
 
   /// История документа: сформирован → скачан → выполнен, с авторами.
-  Future<Either<Failure, List<DocEvent>>> events(String id) async {
-    try {
-      final resp = await _dio.get<List<dynamic>>(ApiConst.documentEvents(id));
-      final items = (resp.data ?? const [])
-          .map((e) => DocEvent.fromJson(e as Map<String, dynamic>))
-          .toList();
-      return Right(items);
-    } on DioException catch (e) {
-      return Left(_mapError(e));
-    } catch (_) {
-      return const Left(Failure.unknown());
-    }
-  }
-
-  /// Маппинг ошибки dio в доменную Failure: есть код ответа → серверная, иначе → сетевая.
-  Failure _mapError(DioException e) {
-    final code = e.response?.statusCode;
-    if (code != null) return Failure.server(code);
-    return const Failure.network();
-  }
+  Future<Either<Failure, List<DocEvent>>> events(String id);
 }

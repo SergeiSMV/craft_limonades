@@ -183,13 +183,13 @@ func TestStockEntry_rejections(t *testing.T) {
 			entryLine(ef.good, 2, "", "0104600000000017215N2"), // марок меньше единиц
 		},
 	})
-	var lines *repository.DocumentLinesError
+	var lines *model.DocumentLinesError
 	if !errors.As(err, &lines) {
 		t.Fatalf("ждали отказ строк, получили %v", err)
 	}
 	want := []error{
-		repository.ErrLoadUnitExists, repository.ErrEntryEmptyBox,
-		repository.ErrEntryCellHasMarks, model.ErrCZMarksRequired, model.ErrCZMarkExists,
+		model.ErrLoadUnitExists, model.ErrEntryEmptyBox,
+		model.ErrEntryCellHasMarks, model.ErrCZMarksRequired, model.ErrCZMarkExists,
 		model.ErrCZMarksQtyMismatch,
 	}
 	for _, w := range want {
@@ -219,7 +219,7 @@ func TestStockEntry_cellReplacedAndDuplicates(t *testing.T) {
 
 	dup := withBox
 	dup.CellID = ef.cellC
-	if err := ef.checkpoint(t, dup); !errors.Is(err, repository.ErrEntryDuplicate) {
+	if err := ef.checkpoint(t, dup); !errors.Is(err, model.ErrEntryDuplicate) {
 		t.Fatalf("короб в двух ячейках: %v", err)
 	}
 
@@ -256,7 +256,7 @@ func TestStockEntry_finalizeRechecks(t *testing.T) {
 	}
 
 	_, err := ef.repo.Finalize(context.Background(), ef.session)
-	if !errors.Is(err, repository.ErrLoadUnitExists) {
+	if !errors.Is(err, model.ErrLoadUnitExists) {
 		t.Fatalf("финал: %v", err)
 	}
 	if got := ef.count(t, `SELECT status FROM stock_entry_sessions WHERE id = $1::uuid`, ef.session); got != "draft" {

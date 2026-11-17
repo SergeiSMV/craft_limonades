@@ -1,6 +1,7 @@
 package model
 
 import (
+	"errors"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -63,3 +64,29 @@ type SupplierDoc struct {
 	Number string
 	Date   time.Time
 }
+
+// Ошибки документа приёмки (P4-02).
+var (
+	// ErrReceiptNotFound - нет документа с таким id.
+	ErrReceiptNotFound = errors.New("receipt not found")
+	// ErrReceiptPosted - документ уже оприходован: строки не меняются, повтор запрещён.
+	ErrReceiptPosted = errors.New("receipt already posted")
+	// ErrEmptyReceipt - оприходовать нечего: в документе нет строк.
+	ErrEmptyReceipt = errors.New("receipt has no lines")
+	// ErrLoadUnitCellConflict - строки одной ГЕ указывают разные ячейки.
+	ErrLoadUnitCellConflict = errors.New("load unit lines point to different cells")
+)
+
+// ErrInvalidReceiptID - идентификатор документа приёмки не UUID.
+//
+// Отдельно от ErrEmptyReceiptID: у прямой ручки пустой id - это пропущенное поле, а в операции
+// очереди документ адресуется своим id офлайн, и id не по форме означает испорченную операцию.
+var ErrInvalidReceiptID = errors.New("receipt id must be a UUID")
+
+// ErrEmptyReceiptID - не указан документ приёмки.
+//
+// Остальные проверки переиспользуют ошибки, уже заведённые соседними сервисами
+// (ErrEmptyWarehouse, ErrEmptyGoodID, ErrInvalidQuantity, ErrInvalidDate): заводить синонимы
+// значило бы, что хендлеру придётся сопоставлять две ошибки на один смысл. ErrEmptyCell приёмке
+// не нужна - пустая ячейка здесь не ошибка, а просьба подставить умолчание (P4-03).
+var ErrEmptyReceiptID = errors.New("receipt id is required")

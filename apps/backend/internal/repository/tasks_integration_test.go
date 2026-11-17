@@ -98,10 +98,10 @@ func TestTasks_takeReleaseAndStale(t *testing.T) {
 	if _, ok := visibleTo(t, repo, other, task); ok {
 		t.Error("взятое задание видно другому")
 	}
-	if err := repo.Take(ctx, task, other, stale); !errors.Is(err, repository.ErrTaskTaken) {
+	if err := repo.Take(ctx, task, other, stale); !errors.Is(err, model.ErrTaskTaken) {
 		t.Errorf("взять чужое: %v, ожидалась ErrTaskTaken", err)
 	}
-	if err := repo.Release(ctx, task, other); !errors.Is(err, repository.ErrTaskTaken) {
+	if err := repo.Release(ctx, task, other); !errors.Is(err, model.ErrTaskTaken) {
 		t.Errorf("отказаться за другого: %v, ожидалась ErrTaskTaken", err)
 	}
 
@@ -171,7 +171,7 @@ func TestTasks_partialThenDone(t *testing.T) {
 	}
 
 	// Выполненное задание больше не размещается.
-	if _, err := pf.submit(t, task, uuid.NewString(), looseTo(pf.good, 1, pf.cellB)); !errors.Is(err, repository.ErrTaskDone) {
+	if _, err := pf.submit(t, task, uuid.NewString(), looseTo(pf.good, 1, pf.cellB)); !errors.Is(err, model.ErrTaskDone) {
 		t.Errorf("размещение по выполненному: %v, ожидалась ErrTaskDone", err)
 	}
 }

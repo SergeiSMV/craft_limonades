@@ -11,13 +11,13 @@ import 'package:craft_wms/core/outbox/outbox_sender.dart';
 import 'package:craft_wms/core/printer/printer_service.dart';
 import 'package:craft_wms/core/sync/sync_engine.dart';
 import 'package:craft_wms/features/receipt/data/receipt_draft_store.dart';
-import 'package:craft_wms/features/receipt/data/receipt_repository.dart';
+import 'package:craft_wms/features/receipt/data/receipt_repository_impl.dart';
 import 'package:craft_wms/features/receipt/presentation/bloc/receipt_cubit.dart';
 import 'package:craft_wms/features/receipt/presentation/bloc/receipt_models.dart';
 import 'package:craft_wms/features/stock/data/catalog_api.dart';
 import 'package:craft_wms/features/stock/data/catalog_cache.dart';
-import 'package:craft_wms/features/stock/data/catalog_models.dart';
-import 'package:craft_wms/features/stock/data/catalog_repository.dart';
+import 'package:craft_wms/features/stock/domain/catalog_models.dart';
+import 'package:craft_wms/features/stock/data/catalog_repository_impl.dart';
 import 'package:dio/dio.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -93,7 +93,7 @@ void main() {
       Talker(),
       _MockConnectivity(),
     );
-    final catalog = CatalogRepository(
+    final catalog = CatalogRepositoryImpl(
       CatalogApi(dio),
       cache,
       outbox,
@@ -127,7 +127,7 @@ void main() {
 
     final cubit = ReceiptCubit(
       catalog,
-      ReceiptRepository(outbox, engine),
+      ReceiptRepositoryImpl(outbox, engine),
       ReceiptDraftStore(db),
       LoadUnitIdGenerator(
         _SequenceUuid([

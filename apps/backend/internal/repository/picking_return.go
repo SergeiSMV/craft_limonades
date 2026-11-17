@@ -341,7 +341,7 @@ func guardReturnCell(ctx context.Context, q Querier, warehouseID, cellID string)
 		SELECT warehouse_id = $1::uuid AND is_active AND NOT is_default AND NOT is_shipping
 		FROM cells WHERE id = $2::uuid`, warehouseID, cellID).Scan(&ok)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return ErrUnknownReference
+		return model.ErrUnknownReference
 	}
 	if err != nil {
 		return fmt.Errorf("ячейка возврата: %w", err)

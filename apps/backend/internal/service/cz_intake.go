@@ -85,7 +85,7 @@ func (c *czIntake) rootBox(code string) (string, error) {
 	for range czMaxNesting {
 		parent, ok := c.parent[code]
 		if !ok {
-			return "", ErrInvalidPayload
+			return "", model.ErrInvalidPayload
 		}
 		if parent == "" {
 			if _, box := c.boxLU[code]; box {
@@ -95,7 +95,7 @@ func (c *czIntake) rootBox(code string) (string, error) {
 		}
 		code = parent
 	}
-	return "", ErrInvalidPayload
+	return "", model.ErrInvalidPayload
 }
 
 // marks проверяет марки строки: форма КИ, расхождение из списка, упаковка - того же прихода,
@@ -124,7 +124,7 @@ func (c *czIntake) marks(in []czMarkPayload, lineLU string, qty decimal.Decimal)
 		switch mark.Discrepancy {
 		case "", model.CZDiscrepancyForeignMark, model.CZDiscrepancyRetired:
 		default:
-			return nil, ErrInvalidPayload
+			return nil, model.ErrInvalidPayload
 		}
 		if mark.AggregateCode != "" {
 			box, err := c.rootBox(mark.AggregateCode)
@@ -133,7 +133,7 @@ func (c *czIntake) marks(in []czMarkPayload, lineLU string, qty decimal.Decimal)
 			}
 			// Короб ЧЗ - это ГЕ: его марка не может лежать россыпью или в чужом коробе.
 			if box != "" && c.boxLU[box] != lineLU {
-				return nil, ErrInvalidPayload
+				return nil, model.ErrInvalidPayload
 			}
 		}
 		out = append(out, mark)

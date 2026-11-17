@@ -9,8 +9,8 @@ import '../../../../core/utils/qty_format.dart';
 import '../../../contents/domain/contents_entities.dart';
 import '../../../contents/domain/contents_repository.dart';
 import '../../../contents/domain/stock_entities.dart';
-import '../../data/catalog_models.dart';
-import '../../data/catalog_repository.dart';
+import '../../domain/catalog_models.dart';
+import '../../domain/catalog_repository.dart';
 
 part 'stock_detail_cubit.freezed.dart';
 

@@ -12,9 +12,9 @@ import '../../../../core/printer/load_unit_label.dart';
 import '../../../../core/theme/semibold_text.dart';
 import '../../../../core/utils/date_time_format.dart';
 import '../../../../core/utils/qty_format.dart';
-import '../../../../features/stock/data/catalog_api.dart';
-import '../../../../features/stock/data/catalog_models.dart';
-import '../../../data/warehouse_stock_repository.dart';
+import '../../../domain/catalog/portal_catalog_repository.dart';
+import '../../../../features/stock/domain/catalog_models.dart';
+import '../../../domain/stock/warehouse_stock_repository.dart';
 import '../settings/access_common.dart';
 import '../ui/portal_badge.dart';
 import '../ui/portal_button.dart';
@@ -48,7 +48,7 @@ class _GoodCardDialog extends StatefulWidget {
 }
 
 class _GoodCardDialogState extends State<_GoodCardDialog> {
-  final _api = getIt<CatalogApi>();
+  final _api = getIt<PortalCatalogRepository>();
 
   List<Barcode>? _barcodes;
   String? _error;

@@ -13,7 +13,7 @@ import '../../../../core/utils/serial_lock.dart';
 import '../../../../core/widgets/qty_dialog.dart';
 import '../../../contents/domain/contents_entities.dart';
 import '../../../contents/domain/contents_repository.dart';
-import '../../../stock/data/catalog_cache.dart';
+import '../../../stock/domain/catalog_repository.dart';
 import '../../domain/picking_repository.dart';
 import '../../domain/picking_sources.dart';
 import '../../domain/picking_view.dart';
@@ -224,8 +224,10 @@ mixin PickingScanActions<T extends StatefulWidget>
     if (m.loadUnitId != null) {
       return await _contents.cachedLoadUnitCell(m.loadUnitId!) ?? '';
     }
-    final cells = await getIt<CatalogCache>().cells();
-    return cells.where((c) => c.id == m.cellId).firstOrNull?.address ?? '';
+    final cellId = m.cellId;
+    if (cellId == null) return '';
+    final cell = await getIt<CatalogRepository>().cachedCellById(cellId);
+    return cell?.address ?? '';
   }
 
   PickRequest _request(

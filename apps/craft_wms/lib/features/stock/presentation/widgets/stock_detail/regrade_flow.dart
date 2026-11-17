@@ -8,8 +8,8 @@ import '../../../../../core/error/failure.dart';
 import '../../../../../core/gen/strings.g.dart';
 import '../../../../../core/widgets/good_picker_sheet.dart';
 import '../../../../cz/domain/cz_regrade_repository.dart';
-import '../../../data/catalog_models.dart';
-import '../../../data/catalog_repository.dart';
+import '../../../domain/catalog_models.dart';
+import '../../../domain/catalog_repository.dart';
 
 /// Отвязка ШК маркируемого товара (ADHOC-53, решение 2026-10-28).
 ///

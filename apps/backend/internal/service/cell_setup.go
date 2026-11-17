@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"regexp"
 	"sort"
@@ -14,16 +13,6 @@ import (
 	"craftwms/internal/importer"
 	"craftwms/internal/model"
 	"craftwms/internal/repository"
-)
-
-// Ошибки изменения настроек ячеек - 400 у хендлера.
-var (
-	ErrNoCellsSelected = errors.New("не выбраны ячейки")
-	ErrEmptyCellsPatch = errors.New("нечего менять: не задана ни одна галочка")
-	ErrTooManyCells    = errors.New("слишком много ячеек за один раз")
-	ErrInvalidCellIDs  = errors.New("id ячейки должен быть UUID")
-	// ErrInvalidFloorAddress - адрес напольной ячейки не вида «D-Н-П» (ADHOC-61).
-	ErrInvalidFloorAddress = errors.New("адрес напольной ячейки - стеллаж и «-Н-П», например «D-Н-П»")
 )
 
 // floorAddressRe - адрес напольной ячейки после нормализации: сегменты букв и цифр через дефис,
@@ -56,7 +45,7 @@ func NewCellSetupService(pool *pgxpool.Pool, warehouses warehouseCodeRepo, cells
 	return &CellSetupService{pool: pool, warehouses: warehouses, cells: cells}
 }
 
-// Setup возвращает ячейки склада и его стеллажи. Неизвестный склад - repository.ErrNotFound.
+// Setup возвращает ячейки склада и его стеллажи. Неизвестный склад - model.ErrNotFound.
 // Ячейки - в натуральном порядке адреса (B-1-2-1 раньше B-1-10-1), стеллажи - по коду так же.
 func (s *CellSetupService) Setup(ctx context.Context, warehouseCode string) (*model.CellsSetup, error) {
 	whID, err := s.warehouses.IDByCode(ctx, warehouseCode)
@@ -76,20 +65,20 @@ func (s *CellSetupService) Setup(ctx context.Context, warehouseCode string) (*mo
 //
 // Проверки до записи: есть ячейки и хоть одна галочка, id - UUID, не больше maxCellsPatch.
 // Повторы id схлопываются: портал может прислать ячейку дважды, а репозиторий сверяет число
-// найденных с числом присланных. Чужие или несуществующие ячейки - repository.ErrForeignCells.
+// найденных с числом присланных. Чужие или несуществующие ячейки - model.ErrForeignCells.
 func (s *CellSetupService) UpdateSettings(ctx context.Context, warehouseCode string, p model.CellSettingsPatch) (model.CellSettingsResult, error) {
 	var res model.CellSettingsResult
 	if len(p.CellIDs) == 0 {
-		return res, ErrNoCellsSelected
+		return res, model.ErrNoCellsSelected
 	}
 	if p.Empty() {
-		return res, ErrEmptyCellsPatch
+		return res, model.ErrEmptyCellsPatch
 	}
 	ids := make([]string, 0, len(p.CellIDs))
 	seen := map[string]bool{}
 	for _, id := range p.CellIDs {
 		if _, err := uuid.Parse(id); err != nil {
-			return res, ErrInvalidCellIDs
+			return res, model.ErrInvalidCellIDs
 		}
 		if !seen[id] {
 			seen[id] = true
@@ -97,7 +86,7 @@ func (s *CellSetupService) UpdateSettings(ctx context.Context, warehouseCode str
 		}
 	}
 	if len(ids) > maxCellsPatch {
-		return res, ErrTooManyCells
+		return res, model.ErrTooManyCells
 	}
 	p.CellIDs = ids
 
@@ -158,13 +147,13 @@ func NormalizeFloorAddress(raw string) (string, error) {
 		a = strings.TrimSuffix(a, "-H-П") + model.FloorStorageSuffix
 	}
 	if !floorAddressRe.MatchString(a) {
-		return "", ErrInvalidFloorAddress
+		return "", model.ErrInvalidFloorAddress
 	}
 	return a, nil
 }
 
 // CreateFloorCell заводит напольную ячейку склада (ADHOC-61). Адрес занят активной ячейкой -
-// repository.ErrCellExists; удалённая с тем же адресом возвращается в работу.
+// model.ErrCellExists; удалённая с тем же адресом возвращается в работу.
 func (s *CellSetupService) CreateFloorCell(ctx context.Context, warehouseCode string, in model.FloorCellInput) (model.FloorCell, error) {
 	address, err := NormalizeFloorAddress(in.Address)
 	if err != nil {
@@ -187,10 +176,10 @@ func (s *CellSetupService) CreateFloorCell(ctx context.Context, warehouseCode st
 }
 
 // RenameFloorCell меняет адрес напольной ячейки. Ячейку стеллажа или приёмки так не
-// переименовать - repository.ErrNotFound.
+// переименовать - model.ErrNotFound.
 func (s *CellSetupService) RenameFloorCell(ctx context.Context, warehouseCode, cellID string, in model.FloorCellInput) (model.FloorCell, error) {
 	if _, err := uuid.Parse(cellID); err != nil {
-		return model.FloorCell{}, ErrInvalidCellIDs
+		return model.FloorCell{}, model.ErrInvalidCellIDs
 	}
 	address, err := NormalizeFloorAddress(in.Address)
 	if err != nil {
@@ -210,10 +199,10 @@ func (s *CellSetupService) RenameFloorCell(ctx context.Context, warehouseCode, c
 }
 
 // DeleteFloorCell убирает пустую напольную ячейку. Есть товар или короба -
-// repository.ErrCellNotEmpty.
+// model.ErrCellNotEmpty.
 func (s *CellSetupService) DeleteFloorCell(ctx context.Context, warehouseCode, cellID string) error {
 	if _, err := uuid.Parse(cellID); err != nil {
-		return ErrInvalidCellIDs
+		return model.ErrInvalidCellIDs
 	}
 	whID, err := s.warehouses.IDByCode(ctx, warehouseCode)
 	if err != nil {

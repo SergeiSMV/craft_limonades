@@ -7,7 +7,7 @@ import 'package:injectable/injectable.dart';
 import '../../core/constants/api_constants.dart';
 import '../../core/error/failure.dart';
 import '../domain/picking/picking_order.dart';
-import 'documents_repository.dart';
+import '../domain/documents/documents_repository.dart';
 
 /// Раздел «Сборка-отгрузка» портала поверх API P8-03. Слой data: HTTP и разбор ответа в
 /// сущности домена; отказ по существу сервер объясняет текстом в поле `error` - он приезжает в

@@ -3,8 +3,8 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../../../core/error/failure.dart';
-import '../../data/tasks_models.dart';
-import '../../data/tasks_repository.dart';
+import '../../domain/tasks_models.dart';
+import '../../domain/tasks_repository.dart';
 
 part 'completed_tasks_cubit.freezed.dart';
 

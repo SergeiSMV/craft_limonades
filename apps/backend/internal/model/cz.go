@@ -226,3 +226,11 @@ const (
 	CZDiscrepancyForeignMark = ProblemReasonForeignMark // владелец марки - не наша организация
 	CZDiscrepancyRetired     = ProblemReasonRetired     // марка не в обороте
 )
+
+// Ошибки ввода чтения марок.
+var (
+	// ErrCZNoCodes - не передано ни одного кода.
+	ErrCZNoCodes = errors.New("no codes")
+	// ErrCZTooManyCodes - кодов больше, чем читаем за раз.
+	ErrCZTooManyCodes = errors.New("too many codes")
+)

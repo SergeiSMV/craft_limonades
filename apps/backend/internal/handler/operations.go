@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -11,14 +12,20 @@ import (
 	"craftwms/internal/service"
 )
 
+// operationsApplier - то, что обработчику батча нужно от сервиса операций.
+type operationsApplier interface {
+	ApplyAllowed(ctx context.Context, userID string, ops []service.Operation,
+		allow func(kind string) bool) ([]service.OperationResult, error)
+}
+
 // OperationsHandler - приём батча операций из очереди устройства (P2-05).
 // Доступ - любой аутентифицированный сотрудник: очередь копится на ТСД кладовщика.
 type OperationsHandler struct {
-	svc *service.OperationsService
+	svc operationsApplier
 }
 
 // NewOperationsHandler создаёт обработчик батча операций.
-func NewOperationsHandler(svc *service.OperationsService) *OperationsHandler {
+func NewOperationsHandler(svc operationsApplier) *OperationsHandler {
 	return &OperationsHandler{svc: svc}
 }
 
@@ -59,7 +66,7 @@ func (h *OperationsHandler) Apply(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		switch {
-		case errors.Is(err, service.ErrEmptyBatch), errors.Is(err, service.ErrBatchTooLarge):
+		case errors.Is(err, model.ErrEmptyBatch), errors.Is(err, model.ErrBatchTooLarge):
 			writeError(w, http.StatusBadRequest, err.Error())
 		default:
 			// Временная неудача на ПЕРВОЙ же операции: применить не удалось ничего, и честнее

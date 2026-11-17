@@ -4,7 +4,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_insets.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
-import '../../../data/documents_repository.dart';
+import '../../../domain/documents/documents_repository.dart';
 import '../ui/portal_button.dart';
 import '../ui/portal_modal.dart';
 

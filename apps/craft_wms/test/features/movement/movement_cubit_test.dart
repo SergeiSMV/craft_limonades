@@ -9,7 +9,7 @@ import 'package:craft_wms/features/movement/domain/movement_models.dart';
 import 'package:craft_wms/features/movement/domain/movement_repository.dart';
 import 'package:craft_wms/features/movement/presentation/bloc/movement_cubit.dart';
 import 'package:craft_wms/features/movement/presentation/bloc/movement_state.dart';
-import 'package:craft_wms/features/stock/data/catalog_models.dart';
+import 'package:craft_wms/features/stock/domain/catalog_models.dart';
 import 'package:either_dart/either.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';

@@ -11,7 +11,7 @@ import '../../../../core/di/injection.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
-import '../../../data/problems_repository.dart';
+import '../../../domain/problems/problems_repository.dart';
 
 /// Фото проблемы со склада в карточке портала (ADHOC-45): миниатюры, по нажатию - снимок
 /// целиком. Снимки грузятся по одному, когда карточку показали: список проблем от них не ждёт.

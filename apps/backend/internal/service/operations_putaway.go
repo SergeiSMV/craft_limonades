@@ -3,19 +3,13 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"strings"
 
 	"github.com/shopspring/decimal"
 
+	"craftwms/internal/model"
 	"craftwms/internal/repository"
 )
-
-// ErrInvalidPutawayID - идентификатор документа размещения не UUID.
-var ErrInvalidPutawayID = errors.New("putaway id must be a UUID")
-
-// ErrInvalidTaskID - задание сеанса не указано или не UUID: размещения без задания нет (P5-02-1).
-var ErrInvalidTaskID = errors.New("task id must be a UUID")
 
 // putawaySubmitPayload - тело операции putaway_submit, как его собирает устройство (P5-02).
 //
@@ -45,7 +39,7 @@ type putawaySubmitPayload struct {
 func (s *OperationsService) putawaySubmit(ctx context.Context, userID, id string, raw json.RawMessage) (repository.Applied, error) {
 	var p putawaySubmitPayload
 	if err := json.Unmarshal(raw, &p); err != nil {
-		return repository.Applied{}, ErrInvalidPayload
+		return repository.Applied{}, model.ErrInvalidPayload
 	}
 	in := repository.PutawaySubmitInput{
 		PutawayID:   strings.TrimSpace(p.PutawayID),
@@ -54,19 +48,19 @@ func (s *OperationsService) putawaySubmit(ctx context.Context, userID, id string
 		CreatedBy:   userID,
 	}
 	if !isUUID(in.PutawayID) {
-		return repository.Applied{}, ErrInvalidPutawayID
+		return repository.Applied{}, model.ErrInvalidPutawayID
 	}
 	if !isUUID(in.TaskID) {
-		return repository.Applied{}, ErrInvalidTaskID
+		return repository.Applied{}, model.ErrInvalidTaskID
 	}
 	if in.WarehouseID == "" {
-		return repository.Applied{}, ErrEmptyWarehouse
+		return repository.Applied{}, model.ErrEmptyWarehouse
 	}
 	if !isUUID(in.WarehouseID) {
-		return repository.Applied{}, ErrInvalidPayload
+		return repository.Applied{}, model.ErrInvalidPayload
 	}
 	if len(p.Lines) == 0 {
-		return repository.Applied{}, repository.ErrEmptyPutaway
+		return repository.Applied{}, model.ErrEmptyPutaway
 	}
 
 	for _, ln := range p.Lines {
@@ -74,32 +68,32 @@ func (s *OperationsService) putawaySubmit(ctx context.Context, userID, id string
 		luID := strings.TrimSpace(ln.LoadUnitID)
 		goodID := strings.TrimSpace(ln.GoodID)
 		if toCell == "" {
-			return repository.Applied{}, ErrEmptyCell
+			return repository.Applied{}, model.ErrEmptyCell
 		}
 		if !isUUID(toCell) {
-			return repository.Applied{}, ErrInvalidPayload
+			return repository.Applied{}, model.ErrInvalidPayload
 		}
 
 		if luID != "" {
 			// Короб: товарные поля у строки-короба - противоречие, а не подсказка.
 			if !isUUID(luID) {
-				return repository.Applied{}, ErrInvalidLoadUnitID
+				return repository.Applied{}, model.ErrInvalidLoadUnitID
 			}
 			if goodID != "" || ln.ProductionDate != "" || !ln.Qty.IsZero() || len(ln.Marks) > 0 {
-				return repository.Applied{}, ErrInvalidPayload
+				return repository.Applied{}, model.ErrInvalidPayload
 			}
 			in.Lines = append(in.Lines, repository.PutawayLineInput{LoadUnitID: luID, ToCellID: toCell})
 			continue
 		}
 
 		if goodID == "" {
-			return repository.Applied{}, ErrEmptyGoodID
+			return repository.Applied{}, model.ErrEmptyGoodID
 		}
 		if !isUUID(goodID) {
-			return repository.Applied{}, ErrInvalidPayload
+			return repository.Applied{}, model.ErrInvalidPayload
 		}
 		if !ln.Qty.IsPositive() {
-			return repository.Applied{}, ErrInvalidQuantity
+			return repository.Applied{}, model.ErrInvalidQuantity
 		}
 		iso, err := parseEntryDate(ln.ProductionDate)
 		if err != nil {

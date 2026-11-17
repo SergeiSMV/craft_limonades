@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -12,22 +13,29 @@ import (
 
 	appmw "craftwms/internal/middleware"
 	"craftwms/internal/model"
-	"craftwms/internal/repository"
-	"craftwms/internal/service"
 )
 
 // xlsxContentType - MIME .xlsx (OOXML).
 const xlsxContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
+// operatorDocuments - то, что обработчику документов оператора нужно от сервиса.
+type operatorDocuments interface {
+	List(ctx context.Context, kind string) ([]model.DocumentListItem, error)
+	Kind(ctx context.Context, id string) (string, error)
+	File(ctx context.Context, id, userID string) ([]byte, string, error)
+	MarkDone(ctx context.Context, id, userID string) error
+	Events(ctx context.Context, id string) ([]model.DocumentEvent, error)
+}
+
 // DocumentHandler - рабочий список документов оператора (P3-02). Право - по виду документа и
 // действию (ADHOC-50): «Приход: скачивать», «Перемещение: проводить» и т. п.; маршрут пускает
 // любого с правом хоть на один вид, обработчик уточняет.
 type DocumentHandler struct {
-	svc *service.DocumentService
+	svc operatorDocuments
 }
 
 // NewDocumentHandler создаёт обработчик документов.
-func NewDocumentHandler(svc *service.DocumentService) *DocumentHandler {
+func NewDocumentHandler(svc operatorDocuments) *DocumentHandler {
 	return &DocumentHandler{svc: svc}
 }
 
@@ -120,7 +128,7 @@ func (h *DocumentHandler) File(w http.ResponseWriter, r *http.Request) {
 	userID, _ := appmw.UserIDFromContext(r.Context())
 	data, filename, err := h.svc.File(r.Context(), id, userID)
 	switch {
-	case errors.Is(err, repository.ErrDocumentNotFound):
+	case errors.Is(err, model.ErrDocumentNotFound):
 		writeError(w, http.StatusNotFound, "документ не найден")
 		return
 	case err != nil:
@@ -145,10 +153,10 @@ func (h *DocumentHandler) Done(w http.ResponseWriter, r *http.Request) {
 	userID, _ := appmw.UserIDFromContext(r.Context())
 	err := h.svc.MarkDone(r.Context(), id, userID)
 	switch {
-	case errors.Is(err, service.ErrEmptyDocumentID):
+	case errors.Is(err, model.ErrEmptyDocumentID):
 		writeError(w, http.StatusBadRequest, "не указан документ")
 		return
-	case errors.Is(err, repository.ErrDocumentNotFound):
+	case errors.Is(err, model.ErrDocumentNotFound):
 		writeError(w, http.StatusNotFound, "документ не найден")
 		return
 	case err != nil:
@@ -176,7 +184,7 @@ func (h *DocumentHandler) Events(w http.ResponseWriter, r *http.Request) {
 	}
 	events, err := h.svc.Events(r.Context(), id)
 	switch {
-	case errors.Is(err, repository.ErrDocumentNotFound):
+	case errors.Is(err, model.ErrDocumentNotFound):
 		writeError(w, http.StatusNotFound, "документ не найден")
 		return
 	case err != nil:
@@ -220,7 +228,7 @@ func isoToTransportDate(iso string) string {
 func (h *DocumentHandler) allowed(w http.ResponseWriter, r *http.Request, id string, a model.DocumentAction) bool {
 	kind, err := h.svc.Kind(r.Context(), id)
 	switch {
-	case errors.Is(err, repository.ErrDocumentNotFound):
+	case errors.Is(err, model.ErrDocumentNotFound):
 		writeError(w, http.StatusNotFound, "документ не найден")
 		return false
 	case err != nil:

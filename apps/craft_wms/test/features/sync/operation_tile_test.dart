@@ -1,13 +1,14 @@
-import 'package:craft_wms/core/database/app_database.dart';
 import 'package:craft_wms/core/di/injection.dart';
 import 'package:craft_wms/core/gen/strings.g.dart';
 import 'package:craft_wms/core/outbox/outbox_operation.dart';
-import 'package:craft_wms/features/stock/data/catalog_cache.dart';
-import 'package:craft_wms/features/stock/data/catalog_models.dart';
+import 'package:craft_wms/features/stock/domain/catalog_models.dart';
+import 'package:craft_wms/features/stock/domain/catalog_repository.dart';
 import 'package:craft_wms/features/sync/presentation/widgets/operation_tile.dart';
-import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
+
+class _MockCatalog extends Mock implements CatalogRepository {}
 
 /// Строка операции в списке несинхронизированного (P2-06).
 ///
@@ -16,20 +17,20 @@ import 'package:flutter_test/flutter_test.dart';
 /// Виджет-тест самого экрана дрался бы с таймером, который drift заводит при отмене подписки
 /// на запрос, и стоил бы десяти минут на прогон, ничего не проверяя сверх этого.
 void main() {
-  late AppDatabase db;
-
   const good = Good(id: 'g1', name: 'Арахис жареный', uom: 'шт');
 
-  setUp(() async {
+  setUp(() {
     LocaleSettings.useDeviceLocale();
-    db = AppDatabase.forTesting(NativeDatabase.memory());
-    final cache = CatalogCache(db);
-    await cache.putGoods(const [good]);
-    if (getIt.isRegistered<CatalogCache>()) getIt.unregister<CatalogCache>();
-    getIt.registerSingleton<CatalogCache>(cache);
+    // Плитка берёт название товара из каталога терминала через интерфейс `domain`
+    // (ADHOC-71); откуда каталог его читает - забота реализации, здесь не проверяется.
+    final catalog = _MockCatalog();
+    when(() => catalog.goodById(any())).thenAnswer((_) async => null);
+    when(() => catalog.goodById(good.id)).thenAnswer((_) async => good);
+    if (getIt.isRegistered<CatalogRepository>()) {
+      getIt.unregister<CatalogRepository>();
+    }
+    getIt.registerSingleton<CatalogRepository>(catalog);
   });
-
-  tearDown(() => db.close());
 
   /// Операция очереди для показа.
   OutboxOperation operation({
@@ -51,7 +52,8 @@ void main() {
 
   Future<void> pump(WidgetTester tester, Widget tile) async {
     await tester.pumpWidget(MaterialApp(home: Scaffold(body: tile)));
-    await tester.pump(); // название товара подтягивается из базы отдельным кадром
+    await tester
+        .pump(); // название товара подтягивается из базы отдельным кадром
   }
 
   testWidgets('операция описана по-человечески, с товаром и причиной', (
@@ -84,7 +86,10 @@ void main() {
       OperationTile(operation: operation(kind: OutboxKind.unbindBarcode)),
     );
 
-    expect(find.text(t.syncQueue.opUnbind(barcode: '48513883')), findsOneWidget);
+    expect(
+      find.text(t.syncQueue.opUnbind(barcode: '48513883')),
+      findsOneWidget,
+    );
   });
 
   // Ожидающая операция уйдёт сама - разбирать её нечего, и кнопок у неё быть не должно.

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,20 +10,24 @@ import (
 	"strings"
 
 	"craftwms/internal/labels"
-	"craftwms/internal/repository"
-	"craftwms/internal/service"
+	"craftwms/internal/model"
 )
 
 // defaultLabelsWarehouse - склад по умолчанию для этикеток (на пилоте один - «Шабулина»).
 const defaultLabelsWarehouse = "SHB"
 
+// cellLabels - то, что обработчику этикеток нужно от сервиса.
+type cellLabels interface {
+	CellLabelsPDF(ctx context.Context, warehouseCode, kind string, cellIDs []string) ([]byte, string, error)
+}
+
 // LabelHandler - PDF этикеток ячеек и карточек на стойку (ADHOC-57, геометрия rack_labels).
 type LabelHandler struct {
-	svc *service.LabelService
+	svc cellLabels
 }
 
 // NewLabelHandler создаёт обработчик этикеток.
-func NewLabelHandler(svc *service.LabelService) *LabelHandler {
+func NewLabelHandler(svc cellLabels) *LabelHandler {
 	return &LabelHandler{svc: svc}
 }
 
@@ -51,13 +56,13 @@ func (h *LabelHandler) CellLabelsPDF(w http.ResponseWriter, r *http.Request) {
 	var fit *labels.FitError
 	switch {
 	case err == nil:
-	case errors.Is(err, repository.ErrNotFound):
+	case errors.Is(err, model.ErrNotFound):
 		writeError(w, http.StatusNotFound, "склад не найден")
 		return
-	case errors.Is(err, service.ErrUnknownLabelKind), errors.Is(err, service.ErrInvalidCellIDs):
+	case errors.Is(err, model.ErrUnknownLabelKind), errors.Is(err, model.ErrInvalidCellIDs):
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
-	case errors.Is(err, repository.ErrForeignCells):
+	case errors.Is(err, model.ErrForeignCells):
 		writeError(w, http.StatusConflict, "часть ячеек не найдена на складе - обновите страницу")
 		return
 	case errors.Is(err, labels.ErrNothingToPrint):

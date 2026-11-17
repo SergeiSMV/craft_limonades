@@ -1,5 +1,9 @@
 package model
 
+import (
+	"errors"
+)
+
 // Дефолты физического склада и его ячейки приёмки.
 //
 // Зачем константы, а не значения по месту: их спрашивают трое - импорт ячеек (склад из файла
@@ -27,3 +31,7 @@ const (
 	// Так пол адресует 1С в реестре на сборку.
 	FloorStorageSuffix = "-Н-П"
 )
+
+// ErrInvalidInternalWarehouse - код или имя склада не годятся: код - латиница в верхнем
+// регистре, цифры и «_» до 20 знаков, имя - непустое, до 100 символов.
+var ErrInvalidInternalWarehouse = errors.New("invalid internal warehouse code or name")

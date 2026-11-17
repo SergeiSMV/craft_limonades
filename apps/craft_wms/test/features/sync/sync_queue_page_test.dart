@@ -2,8 +2,8 @@ import 'package:craft_wms/core/di/injection.dart';
 import 'package:craft_wms/core/gen/strings.g.dart';
 import 'package:craft_wms/core/outbox/outbox_operation.dart';
 import 'package:craft_wms/core/outbox/outbox_repository.dart';
-import 'package:craft_wms/features/stock/data/catalog_cache.dart';
-import 'package:craft_wms/features/stock/data/catalog_models.dart';
+import 'package:craft_wms/features/stock/domain/catalog_models.dart';
+import 'package:craft_wms/features/stock/domain/catalog_repository.dart';
 import 'package:craft_wms/core/sync/link_state.dart';
 import 'package:craft_wms/core/sync/sync_engine.dart';
 import 'package:craft_wms/features/sync/presentation/bloc/sync_status_cubit.dart';
@@ -17,7 +17,7 @@ import '../../support/problem_photo_stubs.dart';
 
 class _MockOutbox extends Mock implements OutboxRepository {}
 
-class _MockCache extends Mock implements CatalogCache {}
+class _MockCatalog extends Mock implements CatalogRepository {}
 
 class _MockEngine extends Mock implements SyncEngine {}
 
@@ -65,13 +65,15 @@ void main() {
     when(() => outbox.retry(any())).thenAnswer((_) async {});
     when(() => outbox.discard(any())).thenAnswer((_) async {});
 
-    final cache = _MockCache();
-    when(() => cache.goodById(any())).thenAnswer((_) async => good);
+    final catalog = _MockCatalog();
+    when(() => catalog.goodById(any())).thenAnswer((_) async => good);
 
     if (getIt.isRegistered<OutboxRepository>()) {
       getIt.unregister<OutboxRepository>();
     }
-    if (getIt.isRegistered<CatalogCache>()) getIt.unregister<CatalogCache>();
+    if (getIt.isRegistered<CatalogRepository>()) {
+      getIt.unregister<CatalogRepository>();
+    }
     // Движок подменён: экрану от него нужны только наблюдаемые связь и признак отправки,
     // а настоящий завёл бы подписку на сеть и таймеры повтора.
     engine = _MockEngine();
@@ -82,7 +84,7 @@ void main() {
     );
 
     getIt.registerSingleton<OutboxRepository>(outbox);
-    getIt.registerSingleton<CatalogCache>(cache);
+    getIt.registerSingleton<CatalogRepository>(catalog);
     if (getIt.isRegistered<SyncStatusCubit>()) {
       getIt.unregister<SyncStatusCubit>();
     }

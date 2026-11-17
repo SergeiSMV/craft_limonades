@@ -12,10 +12,6 @@ import (
 	"craftwms/internal/model"
 )
 
-// ErrDocumentNotFound - документа по такой операции нет: она не завершена либо завершена до
-// появления снимков и не попала в бэкофилл.
-var ErrDocumentNotFound = errors.New("report document not found")
-
 // ReportDocumentRepository - доступ к документам отчётов (P3-01).
 type ReportDocumentRepository struct {
 	pool *pgxpool.Pool
@@ -73,7 +69,7 @@ func documentBySource(ctx context.Context, q Querier, sourceType, sourceID strin
 		WHERE source_type = $1 AND source_id = $2::uuid`, sourceType, sourceID).
 		Scan(&doc.ID, &doc.Kind, &doc.SourceType, &doc.SourceID, &raw, &doc.CreatedAt, &number)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return model.ReportDocument{}, ErrDocumentNotFound
+		return model.ReportDocument{}, model.ErrDocumentNotFound
 	}
 	if err != nil {
 		return model.ReportDocument{}, fmt.Errorf("прочитать документ отчёта: %w", err)
@@ -136,7 +132,7 @@ func (r *ReportDocumentRepository) KindByID(ctx context.Context, id string) (str
 	err := r.pool.QueryRow(ctx, `SELECT kind FROM report_documents
 		WHERE id::text = $1`, id).Scan(&kind)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", ErrDocumentNotFound
+		return "", model.ErrDocumentNotFound
 	}
 	if err != nil {
 		return "", fmt.Errorf("вид документа: %w", err)
@@ -153,7 +149,7 @@ func (r *ReportDocumentRepository) ByID(ctx context.Context, id string) (model.R
 		FROM report_documents WHERE id = $1::uuid`, id).
 		Scan(&doc.ID, &doc.Kind, &doc.SourceType, &doc.SourceID, &raw, &doc.CreatedAt, &number)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return model.ReportDocument{}, ErrDocumentNotFound
+		return model.ReportDocument{}, model.ErrDocumentNotFound
 	}
 	if err != nil {
 		return model.ReportDocument{}, fmt.Errorf("прочитать документ: %w", err)
@@ -180,7 +176,7 @@ func (r *ReportDocumentRepository) MarkDownloaded(ctx context.Context, id string
 		return fmt.Errorf("отметить скачивание: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return ErrDocumentNotFound
+		return model.ErrDocumentNotFound
 	}
 	return nil
 }
@@ -196,7 +192,7 @@ func (r *ReportDocumentRepository) MarkDone(ctx context.Context, id string) erro
 		return fmt.Errorf("отметить выполнение: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return ErrDocumentNotFound
+		return model.ErrDocumentNotFound
 	}
 	return nil
 }

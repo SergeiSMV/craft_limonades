@@ -3,16 +3,13 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"strings"
 
 	"github.com/shopspring/decimal"
 
+	"craftwms/internal/model"
 	"craftwms/internal/repository"
 )
-
-// ErrInvalidMovementID - идентификатор документа движения не UUID.
-var ErrInvalidMovementID = errors.New("movement id must be a UUID")
 
 // movementSubmitPayload - тело операции movement_submit, как его собирает устройство (P6-03).
 //
@@ -48,7 +45,7 @@ type movementSubmitPayload struct {
 func (s *OperationsService) movementSubmit(ctx context.Context, userID, id string, raw json.RawMessage) (repository.Applied, error) {
 	var p movementSubmitPayload
 	if err := json.Unmarshal(raw, &p); err != nil {
-		return repository.Applied{}, ErrInvalidPayload
+		return repository.Applied{}, model.ErrInvalidPayload
 	}
 	in := repository.MovementSubmitInput{
 		MovementID:  strings.TrimSpace(p.MovementID),
@@ -57,16 +54,16 @@ func (s *OperationsService) movementSubmit(ctx context.Context, userID, id strin
 		CreatedBy:   userID,
 	}
 	if !isUUID(in.MovementID) {
-		return repository.Applied{}, ErrInvalidMovementID
+		return repository.Applied{}, model.ErrInvalidMovementID
 	}
 	if in.WarehouseID == "" {
-		return repository.Applied{}, ErrEmptyWarehouse
+		return repository.Applied{}, model.ErrEmptyWarehouse
 	}
 	if !isUUID(in.WarehouseID) {
-		return repository.Applied{}, ErrInvalidPayload
+		return repository.Applied{}, model.ErrInvalidPayload
 	}
 	if len(p.Lines) == 0 {
-		return repository.Applied{}, repository.ErrEmptyMovement
+		return repository.Applied{}, model.ErrEmptyMovement
 	}
 
 	for _, ln := range p.Lines {
@@ -84,37 +81,37 @@ func (s *OperationsService) movementSubmit(ctx context.Context, userID, id strin
 		// Все идентификаторы строки - UUID или пусто: мусор в них - ошибка формы.
 		for _, v := range []string{line.FromCellID, line.FromLoadUnitID, line.ToCellID, line.ToLoadUnitID, line.GoodID, line.InternalWarehouseID} {
 			if v != "" && !isUUID(v) {
-				return repository.Applied{}, ErrInvalidPayload
+				return repository.Applied{}, model.ErrInvalidPayload
 			}
 		}
 
 		if line.LoadUnitID != "" {
 			// ГЕ целиком: товарные поля и источник у такой строки - противоречие, а не подсказка.
 			if !isUUID(line.LoadUnitID) {
-				return repository.Applied{}, ErrInvalidLoadUnitID
+				return repository.Applied{}, model.ErrInvalidLoadUnitID
 			}
 			// Склад у короба свой (P6-07-1): из строки его не берём.
 			if line.GoodID != "" || ln.ProductionDate != "" || !ln.Qty.IsZero() ||
 				line.FromCellID != "" || line.FromLoadUnitID != "" || line.ToLoadUnitID != "" ||
 				line.InternalWarehouseID != "" || len(ln.Marks) > 0 {
-				return repository.Applied{}, ErrInvalidPayload
+				return repository.Applied{}, model.ErrInvalidPayload
 			}
 			if line.ToCellID == "" {
-				return repository.Applied{}, ErrEmptyCell
+				return repository.Applied{}, model.ErrEmptyCell
 			}
 			in.Lines = append(in.Lines, line)
 			continue
 		}
 
 		if line.GoodID == "" {
-			return repository.Applied{}, ErrEmptyGoodID
+			return repository.Applied{}, model.ErrEmptyGoodID
 		}
 		if (line.FromCellID == "") == (line.FromLoadUnitID == "") ||
 			(line.ToCellID == "") == (line.ToLoadUnitID == "") {
-			return repository.Applied{}, repository.ErrEmptyMovementLine
+			return repository.Applied{}, model.ErrEmptyMovementLine
 		}
 		if !ln.Qty.IsPositive() {
-			return repository.Applied{}, ErrInvalidQuantity
+			return repository.Applied{}, model.ErrInvalidQuantity
 		}
 		iso, err := parseEntryDate(ln.ProductionDate)
 		if err != nil {

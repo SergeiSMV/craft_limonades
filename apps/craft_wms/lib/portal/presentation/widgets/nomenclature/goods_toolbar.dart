@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/gen/strings.g.dart';
-import '../../../../features/stock/data/catalog_models.dart';
+import '../../../../features/stock/domain/catalog_models.dart';
 import '../ui/portal_input.dart';
 import '../ui/portal_select.dart';
 

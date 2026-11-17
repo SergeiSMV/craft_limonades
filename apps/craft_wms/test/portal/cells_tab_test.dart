@@ -4,7 +4,7 @@ import 'package:craft_wms/core/di/injection.dart';
 import 'package:craft_wms/core/sync/data_versions.dart';
 import 'package:craft_wms/core/error/failure.dart';
 import 'package:craft_wms/core/gen/strings.g.dart';
-import 'package:craft_wms/portal/data/cells_repository.dart';
+import 'package:craft_wms/portal/domain/cells/cells_repository.dart';
 import 'package:craft_wms/portal/domain/cells/cell_setup.dart';
 import 'package:craft_wms/portal/presentation/widgets/cells/label_preview.dart';
 import 'package:craft_wms/portal/presentation/widgets/tabs/cells_tab.dart';

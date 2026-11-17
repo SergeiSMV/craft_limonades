@@ -15,7 +15,7 @@ import 'package:craft_wms/features/problems/presentation/bloc/current_problems_c
 import 'package:craft_wms/features/problems/presentation/widgets/current/current_problems_view.dart';
 import 'package:craft_wms/features/problems/presentation/widgets/records/record_format.dart';
 import 'package:craft_wms/features/stock/data/catalog_cache.dart';
-import 'package:craft_wms/features/stock/data/catalog_models.dart';
+import 'package:craft_wms/features/stock/domain/catalog_models.dart';
 import 'package:dio/dio.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';

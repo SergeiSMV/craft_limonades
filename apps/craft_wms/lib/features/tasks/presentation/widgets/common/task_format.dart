@@ -2,7 +2,7 @@ import '../../../../../core/gen/strings.g.dart';
 import '../../../../../core/utils/date_time_format.dart';
 import '../../../../../core/utils/doc_number.dart';
 import '../../../../../core/utils/qty_format.dart';
-import '../../../data/tasks_models.dart';
+import '../../../domain/tasks_models.dart';
 
 export '../../../../../core/utils/date_time_format.dart'
     show batchDate, fullDate, fullDateTime, shortDateTime, timeOfDay;

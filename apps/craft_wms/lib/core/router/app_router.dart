@@ -30,7 +30,7 @@ import '../../features/stock_entry/presentation/bloc/stock_entry_cubit.dart'; //
 import '../../features/receipt/presentation/pages/receipt_box_page.dart';
 import '../../features/receipt/presentation/pages/receipt_page.dart';
 import '../../features/splash/presentation/pages/splash_page.dart';
-import '../../features/stock/data/catalog_models.dart'; // Good - аргумент StockDetailRoute
+import '../../features/stock/domain/catalog_models.dart'; // Good - аргумент StockDetailRoute
 import '../../features/stock/presentation/pages/goods_list_page.dart';
 import '../../features/stock/presentation/pages/nomenclature_page.dart';
 import '../../features/stock/presentation/pages/stock_detail_page.dart';
@@ -41,7 +41,7 @@ import '../../features/stocktake/domain/stocktake_models.dart'; // StocktakeCell
 import '../../features/stocktake/presentation/pages/stocktake_count_page.dart';
 import '../../features/stocktake/presentation/pages/stocktake_create_page.dart';
 import '../../features/stocktake/presentation/pages/stocktake_page.dart';
-import '../../features/tasks/data/tasks_models.dart'; // WarehouseTask - аргумент TaskDetailRoute
+import '../../features/tasks/domain/tasks_models.dart'; // WarehouseTask - аргумент TaskDetailRoute
 import '../../features/tasks/presentation/pages/task_detail_page.dart';
 import '../../features/tasks/presentation/pages/tasks_page.dart';
 import 'guards.dart';

@@ -43,7 +43,7 @@ func TestProblemReasons_customReason(t *testing.T) {
 
 	in := mf.goodsProblem(1, mf.cellA, "")
 	in.Reason = code
-	if err := mf.problem(t, defect, in); !errors.Is(err, repository.ErrProblemCommentRequired) {
+	if err := mf.problem(t, defect, in); !errors.Is(err, model.ErrProblemCommentRequired) {
 		t.Errorf("без комментария: %v, ожидалась ErrProblemCommentRequired", err)
 	}
 	// Офис выключил причину, пока операция ждала в очереди ТСД, - пометка всё равно проходит.
@@ -55,7 +55,7 @@ func TestProblemReasons_customReason(t *testing.T) {
 
 	if err := mf.resolve(id, model.ResolveProblemInput{
 		ResolutionID: resolutionWriteOff, Decision: model.ProblemDecisionWriteOff, DocNumber: "СП-1", DocDate: "2026-10-29",
-	}); !errors.Is(err, repository.ErrDecisionNotAllowed) {
+	}); !errors.Is(err, model.ErrDecisionNotAllowed) {
 		t.Errorf("вариант не причины: %v, ожидалась ErrDecisionNotAllowed", err)
 	}
 	if err := mf.resolve(id, model.ResolveProblemInput{
@@ -83,7 +83,7 @@ func TestProblemReasons_decisionWithoutResolution(t *testing.T) {
 	if _, err := repo.SaveResolution(ctx, model.ProblemResolutionInput{ID: resolutionPlace, IsActive: ptr(false), By: mf.user}); err != nil {
 		t.Fatalf("выключить вариант: %v", err)
 	}
-	if err := mf.resolve(id, model.ResolveProblemInput{Decision: model.ProblemDecisionPlace}); !errors.Is(err, repository.ErrDecisionNotAllowed) {
+	if err := mf.resolve(id, model.ResolveProblemInput{Decision: model.ProblemDecisionPlace}); !errors.Is(err, model.ErrDecisionNotAllowed) {
 		t.Errorf("выключенный вариант действием: %v", err)
 	}
 	if err := mf.resolve(id, model.ResolveProblemInput{
@@ -153,7 +153,7 @@ func TestProblemReasons_rules(t *testing.T) {
 	mf.receive(t, nil, 5)
 	in := mf.goodsProblem(1, mf.cellA, "")
 	in.Reason = model.ProblemReasonRetired
-	if err := mf.problem(t, defect, in); !errors.Is(err, repository.ErrUnknownReason) {
+	if err := mf.problem(t, defect, in); !errors.Is(err, model.ErrUnknownReason) {
 		t.Errorf("выбытие марки с ТСД: %v, ожидалась ErrUnknownReason", err)
 	}
 }

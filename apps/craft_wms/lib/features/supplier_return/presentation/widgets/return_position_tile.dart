@@ -4,7 +4,7 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/load_unit/box_code.dart';
 import '../../../../core/widgets/neumorphic_line_tile.dart';
-import '../../../tasks/data/tasks_models.dart';
+import '../../../tasks/domain/tasks_models.dart';
 import '../../../tasks/presentation/widgets/common/task_format.dart';
 
 /// Позиция возврата в сеансе отгрузки (ADHOC-31): короб или товар, построчно - состав или

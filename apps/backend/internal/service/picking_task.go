@@ -10,7 +10,6 @@ import (
 
 	"craftwms/internal/model"
 	"craftwms/internal/picking"
-	"craftwms/internal/repository"
 )
 
 // pickingTaskRepo - узкий интерфейс хранилища сборки для подбора.
@@ -69,7 +68,7 @@ func (s *PickingTaskService) Task(ctx context.Context, orderID string) (PickingT
 		return PickingTask{}, model.ErrPickingOrderNotFound
 	}
 	o, err := s.repo.TaskOrder(ctx, orderID)
-	if errors.Is(err, repository.ErrNotFound) {
+	if errors.Is(err, model.ErrNotFound) {
 		return PickingTask{}, model.ErrPickingOrderNotFound
 	}
 	if err != nil {

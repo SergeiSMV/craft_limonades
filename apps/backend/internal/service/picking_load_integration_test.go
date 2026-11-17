@@ -114,7 +114,7 @@ func TestPickingLoad_flow(t *testing.T) {
 		t.Error("повтор того же файла добавил правки")
 	}
 
-	if _, err := svc.Preview(ctx, "SHB", bytes.NewReader([]byte("не xlsx"))); !errors.Is(err, ErrRegistryFile) {
+	if _, err := svc.Preview(ctx, "SHB", bytes.NewReader([]byte("не xlsx"))); !errors.Is(err, model.ErrRegistryFile) {
 		t.Errorf("испорченный файл: %v", err)
 	}
 }

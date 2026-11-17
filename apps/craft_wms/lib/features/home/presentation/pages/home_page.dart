@@ -26,8 +26,8 @@ import '../../../../core/widgets/system_ui_wrapper.dart';
 import '../../../tasks/presentation/widgets/common/current_tasks_count_builder.dart';
 import '../../../picking/presentation/widgets/picking_count_builder.dart';
 import '../widgets/menu_tile.dart';
-import '../../../movement/data/movement_repository_impl.dart';
-import '../../../receipt/data/receipt_draft_store.dart';
+import '../../../movement/domain/movement_drafts.dart';
+import '../../../receipt/domain/receipt_drafts.dart';
 import '../../../sync/presentation/bloc/sync_status_cubit.dart';
 import '../../../sync/presentation/widgets/sync_status_chip.dart';
 import '../widgets/sync_indicator.dart';
@@ -302,7 +302,7 @@ class HomePage extends StatelessWidget {
                       // и индикатор синхронизации её не видит (тот же урок, что ADHOC-13).
                       if (can(Rights.tsdReceipt))
                       PendingPassBuilder(
-                        watch: getIt<ReceiptDraftStore>().watchHasDraft,
+                        watch: getIt<ReceiptDrafts>().watchHasDraft,
                         builder: (context, hasDraft) => MenuTile(
                           title: t.homeScreen.tiles.receiptTitle,
                           subtitle: t.homeScreen.tiles.receiptSubtitle,
@@ -315,7 +315,7 @@ class HomePage extends StatelessWidget {
                       // Пометка незавершённого перемещения - та же, что у приёмки (P6-04).
                       if (can(Rights.tsdMovement))
                       PendingPassBuilder(
-                        watch: getIt<MovementDraftStore>().watchHasDraft,
+                        watch: getIt<MovementDrafts>().watchHasDraft,
                         builder: (context, hasDraft) => MenuTile(
                           title: t.homeScreen.tiles.movementTitle,
                           subtitle: t.homeScreen.tiles.movementSubtitle,

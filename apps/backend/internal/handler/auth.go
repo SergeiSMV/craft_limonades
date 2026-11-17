@@ -1,21 +1,31 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
 
 	"craftwms/internal/middleware"
+	"craftwms/internal/model"
 	"craftwms/internal/service"
 )
 
+// authenticator - то, что обработчику входа нужно от сервиса аутентификации.
+type authenticator interface {
+	Login(ctx context.Context, badge string) (service.TokenPair, error)
+	LoginWithPassword(ctx context.Context, username, password string) (service.TokenPair, error)
+	Refresh(ctx context.Context, refreshToken string) (string, error)
+	Profile(ctx context.Context, userID string) (model.User, error)
+}
+
 // AuthHandler - HTTP-обработчики аутентификации.
 type AuthHandler struct {
-	svc *service.AuthService
+	svc authenticator
 }
 
 // NewAuthHandler создаёт обработчик аутентификации.
-func NewAuthHandler(svc *service.AuthService) *AuthHandler {
+func NewAuthHandler(svc authenticator) *AuthHandler {
 	return &AuthHandler{svc: svc}
 }
 
@@ -37,7 +47,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 	pair, err := h.svc.Login(r.Context(), req.Badge)
 	switch {
-	case errors.Is(err, service.ErrBadBadge):
+	case errors.Is(err, model.ErrBadBadge):
 		writeError(w, http.StatusBadRequest, "badge must be 16 digits")
 		return
 	case err != nil:

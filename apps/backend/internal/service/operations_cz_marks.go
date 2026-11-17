@@ -22,7 +22,7 @@ func lineMarks(in []string) ([]string, error) {
 			return nil, fmt.Errorf("%w: %q", model.ErrCZBadCode, raw)
 		}
 		if seen[cis] {
-			return nil, ErrInvalidPayload
+			return nil, model.ErrInvalidPayload
 		}
 		seen[cis] = true
 		out = append(out, cis)

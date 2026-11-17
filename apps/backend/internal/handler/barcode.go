@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -10,18 +11,29 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"craftwms/internal/model"
-	"craftwms/internal/repository"
 	"craftwms/internal/service"
 )
+
+// barcodes - то, что обработчику штрихкодов нужно от сервиса.
+type barcodes interface {
+	ResolveGood(ctx context.Context, code string) (model.Good, error)
+	Bind(ctx context.Context, goodID, barcode, symbology string) error
+	Unbind(ctx context.Context, barcode string) error
+	List(ctx context.Context, limit, offset int) (service.Page[model.BarcodeLink], error)
+	ListByGood(ctx context.Context, goodID string) ([]model.Barcode, error)
+	GenerateInternal(ctx context.Context, goodID string) (string, bool, error)
+	CZStock(ctx context.Context, barcode string) (int, error)
+	Regrade(ctx context.Context, in model.RegradeInput) (model.RegradeResult, error)
+}
 
 // BarcodeHandler - HTTP-обработчики привязки ШК к товару и резолва товара по ШК
 // (ввод остатков P-FastStart). Доступ - любой аутентифицированный сотрудник (кладовщик на проходе).
 type BarcodeHandler struct {
-	svc *service.BarcodeService
+	svc barcodes
 }
 
 // NewBarcodeHandler создаёт обработчик штрихкодов.
-func NewBarcodeHandler(svc *service.BarcodeService) *BarcodeHandler {
+func NewBarcodeHandler(svc barcodes) *BarcodeHandler {
 	return &BarcodeHandler{svc: svc}
 }
 
@@ -30,10 +42,10 @@ func (h *BarcodeHandler) GetByCode(w http.ResponseWriter, r *http.Request) {
 	code := strings.TrimSpace(chi.URLParam(r, "code"))
 	good, err := h.svc.ResolveGood(r.Context(), code)
 	switch {
-	case errors.Is(err, service.ErrEmptyBarcode):
+	case errors.Is(err, model.ErrEmptyBarcode):
 		writeError(w, http.StatusBadRequest, "пустой штрихкод")
 		return
-	case errors.Is(err, repository.ErrNotFound):
+	case errors.Is(err, model.ErrNotFound):
 		writeError(w, http.StatusNotFound, "штрихкод не привязан")
 		return
 	case err != nil:
@@ -50,7 +62,7 @@ func (h *BarcodeHandler) ListByGood(w http.ResponseWriter, r *http.Request) {
 	goodID := strings.TrimSpace(chi.URLParam(r, "id"))
 	list, err := h.svc.ListByGood(r.Context(), goodID)
 	switch {
-	case errors.Is(err, service.ErrEmptyGoodID):
+	case errors.Is(err, model.ErrEmptyGoodID):
 		writeError(w, http.StatusBadRequest, "пустой идентификатор товара")
 		return
 	case err != nil:
@@ -73,10 +85,10 @@ func (h *BarcodeHandler) GenerateInternal(w http.ResponseWriter, r *http.Request
 	goodID := strings.TrimSpace(chi.URLParam(r, "id"))
 	code, created, err := h.svc.GenerateInternal(r.Context(), goodID)
 	switch {
-	case errors.Is(err, service.ErrEmptyGoodID):
+	case errors.Is(err, model.ErrEmptyGoodID):
 		writeError(w, http.StatusBadRequest, "пустой идентификатор товара")
 		return
-	case errors.Is(err, repository.ErrGoodNotFound):
+	case errors.Is(err, model.ErrGoodNotFound):
 		writeError(w, http.StatusNotFound, "товар не найден")
 		return
 	case err != nil:
@@ -107,10 +119,10 @@ func (h *BarcodeHandler) Unbind(w http.ResponseWriter, r *http.Request) {
 	code := strings.TrimSpace(chi.URLParam(r, "code"))
 	err := h.svc.Unbind(r.Context(), code)
 	switch {
-	case errors.Is(err, service.ErrEmptyBarcode):
+	case errors.Is(err, model.ErrEmptyBarcode):
 		writeError(w, http.StatusBadRequest, "пустой штрихкод")
 		return
-	case errors.Is(err, repository.ErrBarcodeHasCZStock):
+	case errors.Is(err, model.ErrBarcodeHasCZStock):
 		writeError(w, http.StatusConflict, err.Error())
 		return
 	case err != nil:
@@ -139,16 +151,16 @@ func (h *BarcodeHandler) Bind(w http.ResponseWriter, r *http.Request) {
 	}
 	err := h.svc.Bind(r.Context(), req.GoodID, req.Barcode, req.Symbology)
 	switch {
-	case errors.Is(err, service.ErrEmptyGoodID), errors.Is(err, service.ErrEmptyBarcode):
+	case errors.Is(err, model.ErrEmptyGoodID), errors.Is(err, model.ErrEmptyBarcode):
 		writeError(w, http.StatusBadRequest, "нужны good_id и barcode")
 		return
-	case errors.Is(err, repository.ErrGoodNotFound):
+	case errors.Is(err, model.ErrGoodNotFound):
 		writeError(w, http.StatusNotFound, "товар не найден")
 		return
-	case errors.Is(err, repository.ErrBarcodeConflict):
+	case errors.Is(err, model.ErrBarcodeConflict):
 		writeError(w, http.StatusConflict, "штрихкод уже привязан к другому товару")
 		return
-	case errors.Is(err, repository.ErrBarcodeMarksOtherGood):
+	case errors.Is(err, model.ErrBarcodeMarksOtherGood):
 		writeError(w, http.StatusConflict, err.Error())
 		return
 	case err != nil:
@@ -164,7 +176,7 @@ func (h *BarcodeHandler) Bind(w http.ResponseWriter, r *http.Request) {
 func (h *BarcodeHandler) CZStock(w http.ResponseWriter, r *http.Request) {
 	n, err := h.svc.CZStock(r.Context(), chi.URLParam(r, "code"))
 	switch {
-	case errors.Is(err, service.ErrEmptyBarcode):
+	case errors.Is(err, model.ErrEmptyBarcode):
 		writeError(w, http.StatusBadRequest, "пустой штрихкод")
 		return
 	case err != nil:
@@ -193,13 +205,13 @@ func (h *BarcodeHandler) Regrade(w http.ResponseWriter, r *http.Request) {
 		Barcode: chi.URLParam(r, "code"), GoodID: req.GoodID, UserID: currentUser(r),
 	})
 	switch {
-	case errors.Is(err, service.ErrEmptyBarcode), errors.Is(err, service.ErrEmptyGoodID):
+	case errors.Is(err, model.ErrEmptyBarcode), errors.Is(err, model.ErrEmptyGoodID):
 		writeError(w, http.StatusBadRequest, "нужны штрихкод и товар")
 		return
-	case errors.Is(err, repository.ErrGoodNotFound):
+	case errors.Is(err, model.ErrGoodNotFound):
 		writeError(w, http.StatusNotFound, "товар не найден")
 		return
-	case repository.IsRegradeRefusal(err):
+	case model.IsRegradeRefusal(err):
 		writeError(w, http.StatusConflict, err.Error())
 		return
 	case err != nil:

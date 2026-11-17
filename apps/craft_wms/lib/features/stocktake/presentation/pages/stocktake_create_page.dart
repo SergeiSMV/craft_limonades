@@ -24,7 +24,7 @@ import '../../../../core/widgets/page_header.dart';
 import '../../../../core/widgets/scan_field.dart';
 import '../../../../core/widgets/section_title.dart';
 import '../../../../core/widgets/system_ui_wrapper.dart';
-import '../../../stock/data/catalog_repository.dart';
+import '../../../stock/domain/catalog_repository.dart';
 import '../../domain/stocktake_models.dart';
 import '../bloc/stocktake_create_cubit.dart';
 import '../widgets/stocktake_format.dart';

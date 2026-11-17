@@ -2,7 +2,7 @@ import 'package:craft_wms/core/di/injection.dart';
 import 'package:craft_wms/core/sync/data_versions.dart';
 import 'package:craft_wms/core/error/failure.dart';
 import 'package:craft_wms/core/gen/strings.g.dart';
-import 'package:craft_wms/portal/data/internal_warehouses_repository.dart';
+import 'package:craft_wms/portal/domain/internal_warehouses/internal_warehouses_repository.dart';
 import 'package:craft_wms/portal/presentation/widgets/ui/portal_button.dart';
 import 'package:craft_wms/portal/presentation/widgets/settings/warehouses_section.dart';
 import 'package:either_dart/either.dart';

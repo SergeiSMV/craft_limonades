@@ -6,8 +6,8 @@ import '../../../../core/gen/strings.g.dart';
 import '../../../../core/warehouse/internal_warehouses.dart';
 import '../../../contents/domain/contents_entities.dart';
 import '../../../contents/domain/contents_repository.dart';
-import '../../../stock/data/catalog_models.dart';
-import '../../../stock/data/catalog_repository.dart';
+import '../../../stock/domain/catalog_models.dart';
+import '../../../stock/domain/catalog_repository.dart';
 import '../bloc/problem_cubit.dart';
 
 /// Скан марки или групповой упаковки «Честного знака» в «Проблемах склада» (CZ-06).

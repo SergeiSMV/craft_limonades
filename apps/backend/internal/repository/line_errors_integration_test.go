@@ -8,15 +8,16 @@ import (
 
 	"github.com/google/uuid"
 
+	"craftwms/internal/model"
 	"craftwms/internal/repository"
 )
 
 // Тесты ADHOC-40 (долг 26): документ называет все плохие строки сразу, а не первую.
 
 // linesError достаёт список отклонённых строк из отказа документа.
-func linesError(t *testing.T, err error) *repository.DocumentLinesError {
+func linesError(t *testing.T, err error) *model.DocumentLinesError {
 	t.Helper()
-	var lines *repository.DocumentLinesError
+	var lines *model.DocumentLinesError
 	if !errors.As(err, &lines) {
 		t.Fatalf("ожидался отказ со списком строк, получено: %v", err)
 	}
@@ -40,7 +41,7 @@ func TestMove_allBadLinesNamed(t *testing.T) {
 	if lines.Total != 3 || len(lines.Lines) != 2 || lines.Lines[0].Line != 1 || lines.Lines[1].Line != 3 {
 		t.Fatalf("отклонены строки %+v из %d, ожидались 1 и 3 из 3", lines.Lines, lines.Total)
 	}
-	if !errors.Is(err, repository.ErrGoodsShort) || !errors.Is(err, repository.ErrLoadUnitNotFound) {
+	if !errors.Is(err, model.ErrGoodsShort) || !errors.Is(err, model.ErrLoadUnitNotFound) {
 		t.Errorf("причины строк не видны через errors.Is: %v", err)
 	}
 	msg := err.Error()
@@ -83,7 +84,7 @@ func TestMove_rejectedLineRolledBackBeforeNext(t *testing.T) {
 		t.Fatalf("отклонены %+v, ожидались обе строки: короб после отката первой - снова в A", lines.Lines)
 	}
 	for _, l := range lines.Lines {
-		if !errors.Is(l.Err, repository.ErrReceivingCell) {
+		if !errors.Is(l.Err, model.ErrReceivingCell) {
 			t.Errorf("строка %d: %v, ожидалась ErrReceivingCell", l.Line, l.Err)
 		}
 	}
@@ -99,7 +100,7 @@ func TestTryLine_sqlErrorDoesNotAbortTransaction(t *testing.T) {
 	if fatal != nil {
 		t.Fatalf("ошибка ссылки оборвала проверку: %v", fatal)
 	}
-	if !errors.Is(rejected, repository.ErrUnknownReference) {
+	if !errors.Is(rejected, model.ErrUnknownReference) {
 		t.Errorf("отказ строки: %v, ожидалась ErrUnknownReference", rejected)
 	}
 	if after != nil {
@@ -119,7 +120,7 @@ func TestPutaway_rejectedLineKeepsTaskRemainder(t *testing.T) {
 		looseTo(pf.good, 10, pf.cellB),
 	)
 	lines := linesError(t, err)
-	if len(lines.Lines) != 1 || lines.Lines[0].Line != 1 || !errors.Is(err, repository.ErrPutawaySameCell) {
+	if len(lines.Lines) != 1 || lines.Lines[0].Line != 1 || !errors.Is(err, model.ErrPutawaySameCell) {
 		t.Fatalf("отклонены %+v, ожидалась только строка 1 (ErrPutawaySameCell)", lines.Lines)
 	}
 	if !strings.Contains(err.Error(), "Товар · партия 01.01.2026 · 6 шт → A: уже лежит в этой ячейке") {
@@ -138,8 +139,8 @@ func TestMove_documentLevelErrorUnchanged(t *testing.T) {
 		MovementID: uuid.NewString(), Kind: "teleport", WarehouseID: mf.wh, CreatedBy: mf.user,
 		Lines: []repository.MovementLineInput{mf.goodsLine(1, mf.cellA, "", mf.cellB, "")},
 	})
-	var lines *repository.DocumentLinesError
-	if errors.As(err, &lines) || !errors.Is(err, repository.ErrUnknownMovementKind) {
+	var lines *model.DocumentLinesError
+	if errors.As(err, &lines) || !errors.Is(err, model.ErrUnknownMovementKind) {
 		t.Errorf("вид документа: %v, ожидалась ErrUnknownMovementKind без списка строк", err)
 	}
 }

@@ -1,6 +1,6 @@
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/utils/doc_number.dart';
-import '../../../data/documents_repository.dart';
+import '../../../domain/documents/documents_repository.dart';
 
 /// Две строки ячейки таблицы: основная и пояснение под ней (пусто - нет).
 typedef CellText = ({String main, String sub});

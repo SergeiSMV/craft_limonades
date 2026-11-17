@@ -1,7 +1,7 @@
 import 'package:flutter_neumorphic_plus/flutter_neumorphic.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 
-import '../../features/stock/data/catalog_models.dart';
+import '../../features/stock/domain/catalog_models.dart';
 import '../constants/app_borders.dart';
 import '../constants/app_boxes.dart';
 import '../constants/app_colors.dart';

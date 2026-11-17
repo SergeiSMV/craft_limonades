@@ -1,5 +1,5 @@
 import '../../cz/domain/cz_intake.dart';
-import '../../stock/data/catalog_models.dart';
+import '../../stock/domain/catalog_models.dart';
 import 'entry_models.dart';
 
 /// Правила буфера ячейки прохода - чистые функции без состояния, чтобы проверяться без cubit.

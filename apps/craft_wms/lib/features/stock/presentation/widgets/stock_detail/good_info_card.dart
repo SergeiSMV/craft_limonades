@@ -6,7 +6,7 @@ import '../../../../../core/constants/app_insets.dart';
 import '../../../../../core/gen/strings.g.dart';
 import '../../../../../core/theme/regular_text.dart';
 import '../../../../../core/theme/semibold_text.dart';
-import '../../../data/catalog_models.dart';
+import '../../../domain/catalog_models.dart';
 import '../../../../../core/widgets/expandable_card.dart';
 
 /// Шапка карточки товара: наименование видно всегда, реквизиты (код, единица, группа,

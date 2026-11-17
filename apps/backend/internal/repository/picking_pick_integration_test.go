@@ -134,7 +134,7 @@ func TestPickingPick(t *testing.T) {
 		return repository.MovementLineInput{GoodID: good, ProductionDate: "2026-10-01", Qty: decimal.NewFromInt(qty),
 			FromCellID: from, ToCellID: to}
 	}
-	if err := move(goods(cellA, cellC, 16)); !errors.Is(err, repository.ErrGoodsShort) {
+	if err := move(goods(cellA, cellC, 16)); !errors.Is(err, model.ErrGoodsShort) {
 		t.Fatalf("перемещение сверх доступного: %v", err)
 	}
 	if err := move(goods(cellA, cellC, 15)); err != nil {
@@ -154,7 +154,7 @@ func TestPickingPick(t *testing.T) {
 	// Из короба 6 шт., 3 в сборке: вынуть 4 перемещением нельзя.
 	fromBox := repository.MovementLineInput{GoodID: good, ProductionDate: "2026-10-01", Qty: decimal.NewFromInt(4),
 		FromLoadUnitID: storage, ToCellID: cellC}
-	if err := move(fromBox); !errors.Is(err, repository.ErrGoodsShort) {
+	if err := move(fromBox); !errors.Is(err, model.ErrGoodsShort) {
 		t.Fatalf("вынуть из короба сверх доступного: %v", err)
 	}
 
@@ -225,7 +225,7 @@ func TestPickingPick(t *testing.T) {
 	if _, err := pick(uuid.NewString(), repository.PickingPickInput{SourceCellID: shipping, Qty: one}); !errors.Is(err, model.ErrPickingSourceDenied) {
 		t.Fatalf("пик из ОТГРУЗКИ: %v", err)
 	}
-	if err := move(goods(cellA, shipping, 1)); !errors.Is(err, repository.ErrShippingCell) {
+	if err := move(goods(cellA, shipping, 1)); !errors.Is(err, model.ErrShippingCell) {
 		t.Fatalf("перемещение в ОТГРУЗКУ: %v", err)
 	}
 

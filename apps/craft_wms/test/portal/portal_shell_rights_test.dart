@@ -2,7 +2,7 @@ import 'package:craft_wms/core/auth/profile.dart';
 import 'package:craft_wms/core/di/injection.dart';
 import 'package:craft_wms/core/sync/data_versions.dart';
 import 'package:craft_wms/core/gen/strings.g.dart';
-import 'package:craft_wms/portal/data/problems_repository.dart';
+import 'package:craft_wms/portal/domain/problems/problems_repository.dart';
 import 'package:craft_wms/portal/presentation/pages/portal_shell.dart';
 import 'package:either_dart/either.dart';
 import 'package:flutter/material.dart';

@@ -144,7 +144,7 @@ func TestReportDocument_noDocumentForUnfinishedWork(t *testing.T) {
 	docs := repository.NewReportDocumentRepository(fx.pool)
 
 	_, err := docs.BySource(ctx, model.SourceTypeStockEntrySession, "00000000-0000-0000-0000-000000000000")
-	if !errors.Is(err, repository.ErrDocumentNotFound) {
+	if !errors.Is(err, model.ErrDocumentNotFound) {
 		t.Errorf("нет сессии: ожидал ErrDocumentNotFound, получил %v", err)
 	}
 
@@ -155,7 +155,7 @@ func TestReportDocument_noDocumentForUnfinishedWork(t *testing.T) {
 	if err != nil {
 		t.Fatalf("создать сессию: %v", err)
 	}
-	if _, err := docs.BySource(ctx, model.SourceTypeStockEntrySession, draft); !errors.Is(err, repository.ErrDocumentNotFound) {
+	if _, err := docs.BySource(ctx, model.SourceTypeStockEntrySession, draft); !errors.Is(err, model.ErrDocumentNotFound) {
 		t.Errorf("сессия в работе: ожидал ErrDocumentNotFound, получил %v", err)
 	}
 }

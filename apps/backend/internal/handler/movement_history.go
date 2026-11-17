@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -11,18 +12,24 @@ import (
 	"github.com/shopspring/decimal"
 
 	"craftwms/internal/model"
-	"craftwms/internal/repository"
 	"craftwms/internal/service"
 )
+
+// movementHistory - то, что обработчику истории перемещений нужно от сервиса.
+type movementHistory interface {
+	List(ctx context.Context, q service.MovementHistoryQuery) ([]model.MovementRecord, error)
+	Get(ctx context.Context, id string) (model.MovementRecordDetail, error)
+	Executors(ctx context.Context) ([]model.TaskUser, error)
+}
 
 // MovementHistoryHandler - история перемещений на ТСД (ADHOC-28): лента «Завершённые» в разделе
 // «Перемещение» и запись со строками. Сотруднику: кладовщик видит перемещения всего склада.
 type MovementHistoryHandler struct {
-	svc *service.MovementHistoryService
+	svc movementHistory
 }
 
 // NewMovementHistoryHandler создаёт обработчик истории перемещений.
-func NewMovementHistoryHandler(svc *service.MovementHistoryService) *MovementHistoryHandler {
+func NewMovementHistoryHandler(svc movementHistory) *MovementHistoryHandler {
 	return &MovementHistoryHandler{svc: svc}
 }
 
@@ -78,7 +85,7 @@ func (h *MovementHistoryHandler) List(w http.ResponseWriter, r *http.Request) {
 		From: q.Get("from"), To: q.Get("to"), ExecutorID: q.Get("executor"),
 		BeforePostedAt: q.Get("before_posted_at"), BeforeID: q.Get("before_id"), Limit: limit,
 	})
-	if errors.Is(err, service.ErrInvalidMovementFilter) {
+	if errors.Is(err, model.ErrInvalidMovementFilter) {
 		writeError(w, http.StatusBadRequest, "неверный фильтр")
 		return
 	}
@@ -112,7 +119,7 @@ func (h *MovementHistoryHandler) Executors(w http.ResponseWriter, r *http.Reques
 // Get: GET /api/v1/movements/{id} - запись со строками по порядку проведения. 200 / 404.
 func (h *MovementHistoryHandler) Get(w http.ResponseWriter, r *http.Request) {
 	d, err := h.svc.Get(r.Context(), chi.URLParam(r, "id"))
-	if errors.Is(err, repository.ErrMovementNotFound) {
+	if errors.Is(err, model.ErrMovementNotFound) {
 		writeError(w, http.StatusNotFound, "перемещение не найдено")
 		return
 	}

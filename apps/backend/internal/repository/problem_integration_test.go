@@ -75,7 +75,7 @@ func TestProblem_looseToDefectAndMove(t *testing.T) {
 	}
 
 	// «Основной» россыпи - 3: короб основной, 2 помечены.
-	if _, err := mf.move(t, uuid.NewString(), mf.goodsLine(4, mf.cellA, "", mf.cellC, "")); !errors.Is(err, repository.ErrGoodsShort) {
+	if _, err := mf.move(t, uuid.NewString(), mf.goodsLine(4, mf.cellA, "", mf.cellC, "")); !errors.Is(err, model.ErrGoodsShort) {
 		t.Errorf("основной россыпи больше, чем есть: %v", err)
 	}
 	defLine := mf.goodsLine(2, mf.cellA, "", mf.cellC, "")
@@ -100,14 +100,14 @@ func TestProblem_labelledLeavesReceivingCell(t *testing.T) {
 	// Ячейкой приёмки становится A - так выглядит брак, заведённый проводкой приёмки.
 	mf.setReceiving(t, mf.cellA)
 
-	if _, err := mf.move(t, uuid.NewString(), mf.goodsLine(1, mf.cellA, "", mf.cellC, "")); !errors.Is(err, repository.ErrReceivingCell) {
+	if _, err := mf.move(t, uuid.NewString(), mf.goodsLine(1, mf.cellA, "", mf.cellC, "")); !errors.Is(err, model.ErrReceivingCell) {
 		t.Errorf("«Основной» из ячейки приёмки: %v, ожидалась ErrReceivingCell", err)
 	}
 	intoReceiving := mf.goodsLine(1, mf.cellA, "", mf.cellR, "")
 	intoReceiving.InternalWarehouseID = defect
 	mf.setReceiving(t, mf.cellR)
 	mustNoErr(t, mf.problem(t, defect, mf.goodsProblem(1, mf.cellA, "")))
-	if _, err := mf.move(t, uuid.NewString(), intoReceiving); !errors.Is(err, repository.ErrReceivingCell) {
+	if _, err := mf.move(t, uuid.NewString(), intoReceiving); !errors.Is(err, model.ErrReceivingCell) {
 		t.Errorf("брак в ячейку приёмки: %v, ожидалась ErrReceivingCell", err)
 	}
 	mf.setReceiving(t, mf.cellA)
@@ -154,7 +154,7 @@ func TestProblem_wholeBox(t *testing.T) {
 	if def, main := mf.qtyIn(t, mf.cellB, defect), mf.qtyIn(t, mf.cellB, mf.iwh); def != "12" || main != "0" {
 		t.Errorf("B: брак %s основной %s, ожидалось 12 и 0", def, main)
 	}
-	if _, err := mf.move(t, uuid.NewString(), mf.goodsLine(1, mf.cellC, "", "", lu)); !errors.Is(err, repository.ErrWarehouseMismatch) {
+	if _, err := mf.move(t, uuid.NewString(), mf.goodsLine(1, mf.cellC, "", "", lu)); !errors.Is(err, model.ErrWarehouseMismatch) {
 		t.Errorf("основной товар в бракованный короб: %v", err)
 	}
 }
@@ -198,14 +198,14 @@ func TestProblem_rejections(t *testing.T) {
 		in   repository.ProblemSubmitInput
 		want error
 	}{
-		{"на тот же склад", mf.iwh, mf.goodsProblem(1, mf.cellA, ""), repository.ErrSameInternalWarehouse},
-		{"склад скрыт", hidden, mf.goodsProblem(1, mf.cellA, ""), repository.ErrUnknownInternalWarehouse},
-		{"склада нет", uuid.NewString(), mf.goodsProblem(1, mf.cellA, ""), repository.ErrUnknownInternalWarehouse},
-		{"причины нет", defect, other, repository.ErrUnknownReason},
-		{"россыпи меньше", defect, mf.goodsProblem(6, mf.cellA, ""), repository.ErrGoodsShort},
-		{"из короба больше состава", defect, mf.goodsProblem(13, "", lu), repository.ErrGoodsShort},
-		{"ячейка приёмки", defect, mf.goodsProblem(1, mf.cellR, ""), repository.ErrReceivingCell},
-		{"ни короба, ни товара", defect, repository.ProblemSubmitInput{}, repository.ErrEmptyProblem},
+		{"на тот же склад", mf.iwh, mf.goodsProblem(1, mf.cellA, ""), model.ErrSameInternalWarehouse},
+		{"склад скрыт", hidden, mf.goodsProblem(1, mf.cellA, ""), model.ErrUnknownInternalWarehouse},
+		{"склада нет", uuid.NewString(), mf.goodsProblem(1, mf.cellA, ""), model.ErrUnknownInternalWarehouse},
+		{"причины нет", defect, other, model.ErrUnknownReason},
+		{"россыпи меньше", defect, mf.goodsProblem(6, mf.cellA, ""), model.ErrGoodsShort},
+		{"из короба больше состава", defect, mf.goodsProblem(13, "", lu), model.ErrGoodsShort},
+		{"ячейка приёмки", defect, mf.goodsProblem(1, mf.cellR, ""), model.ErrReceivingCell},
+		{"ни короба, ни товара", defect, repository.ProblemSubmitInput{}, model.ErrEmptyProblem},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -220,7 +220,7 @@ func TestProblem_rejections(t *testing.T) {
 	in.ProblemID, in.WarehouseID, in.CreatedBy, in.ToInternalWarehouseID, in.Reason =
 		uuid.NewString(), mf.wh, mf.user, defect, model.ProblemReasonExpired
 	mustNoErr(t, repository.ProblemSubmitForTest(ctx, mf.pool, in))
-	if err := repository.ProblemSubmitForTest(ctx, mf.pool, in); !errors.Is(err, repository.ErrProblemPosted) {
+	if err := repository.ProblemSubmitForTest(ctx, mf.pool, in); !errors.Is(err, model.ErrProblemPosted) {
 		t.Errorf("повтор: %v", err)
 	}
 	if main, def, box := mf.qtyIn(t, mf.cellA, mf.iwh), mf.qtyIn(t, mf.cellA, defect), mf.luQty(t, lu); main != "16" || def != "1" || box != "12.000" {

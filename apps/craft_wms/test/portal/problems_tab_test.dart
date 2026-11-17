@@ -2,7 +2,7 @@ import 'package:craft_wms/core/di/injection.dart';
 import 'package:craft_wms/core/sync/data_versions.dart';
 import 'package:craft_wms/core/gen/strings.g.dart';
 import 'package:craft_wms/core/problems/problem_reasons.dart';
-import 'package:craft_wms/portal/data/problems_repository.dart';
+import 'package:craft_wms/portal/domain/problems/problems_repository.dart';
 import 'package:craft_wms/portal/presentation/widgets/problems/problem_labels.dart';
 import 'package:craft_wms/portal/presentation/widgets/problems/problem_toolbar.dart';
 import 'package:craft_wms/portal/presentation/widgets/tabs/problems_tab.dart';

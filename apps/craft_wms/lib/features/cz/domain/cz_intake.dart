@@ -1,6 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-import '../../stock/data/catalog_models.dart';
+import '../../stock/domain/catalog_models.dart';
 import 'cz_scan.dart';
 
 part 'cz_intake.freezed.dart';

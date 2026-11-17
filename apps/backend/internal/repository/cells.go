@@ -34,7 +34,7 @@ func NewCellRepository(pool *pgxpool.Pool) *CellRepository {
 func (r *CellRepository) EnsureDefault(ctx context.Context, q Querier, warehouseID string) (string, error) {
 	// Ячейка приёмки уже есть - какой бы ни был её адрес, вторую не заводим: частичный
 	// уникальный индекс допускает одну на склад, а переименованную искать по адресу нельзя.
-	if id, err := defaultCellID(ctx, q, warehouseID); err == nil || !errors.Is(err, ErrNotFound) {
+	if id, err := defaultCellID(ctx, q, warehouseID); err == nil || !errors.Is(err, model.ErrNotFound) {
 		return id, err
 	}
 	var id string
@@ -85,7 +85,7 @@ func defaultCellID(ctx context.Context, q Querier, warehouseID string) (string, 
 	err := q.QueryRow(ctx, `
 		SELECT id::text FROM cells WHERE warehouse_id = $1::uuid AND is_default`, warehouseID).Scan(&id)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return "", ErrNotFound
+		return "", model.ErrNotFound
 	}
 	if err != nil {
 		return "", fmt.Errorf("дефолтная ячейка склада %s: %w", warehouseID, err)

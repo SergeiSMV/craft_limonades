@@ -1,6 +1,7 @@
 package model
 
 import (
+	"errors"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -65,3 +66,9 @@ type MovementRecordDetail struct {
 	MovementRecord
 	Lines []MovementRecordLine
 }
+
+// ErrMovementNotFound - документа движения с таким идентификатором нет.
+var ErrMovementNotFound = errors.New("movement not found")
+
+// ErrInvalidMovementFilter - фильтр ленты истории не разобран (дата, курсор, исполнитель).
+var ErrInvalidMovementFilter = errors.New("invalid movement history filter")

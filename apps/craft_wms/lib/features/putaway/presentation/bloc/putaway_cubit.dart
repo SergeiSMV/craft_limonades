@@ -5,10 +5,10 @@ import 'package:injectable/injectable.dart';
 import '../../../../core/error/failure.dart';
 import '../../../../core/load_unit/load_unit_id_generator.dart';
 import '../../../../core/outbox/sent_sessions.dart';
-import '../../../stock/data/catalog_models.dart';
-import '../../../tasks/data/tasks_models.dart';
-import '../../data/putaway_draft_store.dart';
-import '../../data/putaway_repository.dart';
+import '../../../stock/domain/catalog_models.dart';
+import '../../../tasks/domain/tasks_models.dart';
+import '../../domain/putaway_drafts.dart';
+import '../../domain/putaway_repository.dart';
 import 'putaway_models.dart';
 
 part 'putaway_cubit.freezed.dart';
@@ -94,7 +94,7 @@ class PutawayCubit extends Cubit<PutawayState> {
   ) : super(PutawayState(task: task));
 
   final PutawayRepository _repo;
-  final PutawayDraftStore _drafts;
+  final PutawayDrafts _drafts;
   final LoadUnitIdGenerator _ids;
 
   /// Очередь записей черновика - тот же приём, что у приёмки: два быстрых изменения подряд

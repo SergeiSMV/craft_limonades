@@ -7,7 +7,7 @@ import '../../../../../core/constants/app_sizes.dart';
 import '../../../../../core/gen/strings.g.dart';
 import '../../../../../core/theme/regular_text.dart';
 import '../../../../../core/theme/semibold_text.dart';
-import '../../../data/tasks_models.dart';
+import '../../../domain/tasks_models.dart';
 import 'task_format.dart';
 
 /// Открыть лист фильтра заданий. Возвращает выбранный фильтр или null, если лист закрыли.

@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"regexp"
 	"sort"
 	"strconv"
@@ -11,7 +10,6 @@ import (
 
 	"craftwms/internal/labels"
 	"craftwms/internal/model"
-	"craftwms/internal/repository"
 )
 
 // warehouseCodeRepo - резолв склада по коду (для ?warehouse=SHB).
@@ -30,9 +28,6 @@ const (
 	LabelKindSmall = "small" // этикетки на малую балку, 6 на лист
 	LabelKindCards = "cards" // карточки на боковую опору стеллажа, 2 на лист
 )
-
-// ErrUnknownLabelKind - вид PDF не large, small или cards.
-var ErrUnknownLabelKind = errors.New("вид этикеток: large, small или cards")
 
 // LabelService - PDF этикеток ячеек и карточек на стойку по геометрии rack_labels (ADHOC-57).
 type LabelService struct {
@@ -53,16 +48,16 @@ func NewLabelService(warehouses warehouseCodeRepo, cells cellLabelRepo) *LabelSe
 // Кегль считается по всему складу, а не по выборке: перепечатанная этикетка обязана совпасть
 // с соседними на стеллаже.
 //
-// Ошибки: repository.ErrNotFound - нет склада; ErrUnknownLabelKind, ErrInvalidCellIDs;
-// repository.ErrForeignCells - среди id есть ячейка не этого склада (или приёмки);
+// Ошибки: model.ErrNotFound - нет склада; ErrUnknownLabelKind, ErrInvalidCellIDs;
+// model.ErrForeignCells - среди id есть ячейка не этого склада (или приёмки);
 // labels.ErrNothingToPrint - в выборке нет этикеток этого вида; *labels.FitError - не влезает.
 func (s *LabelService) CellLabelsPDF(ctx context.Context, warehouseCode, kind string, cellIDs []string) ([]byte, string, error) {
 	if kind != LabelKindLarge && kind != LabelKindSmall && kind != LabelKindCards {
-		return nil, "", ErrUnknownLabelKind
+		return nil, "", model.ErrUnknownLabelKind
 	}
 	for _, id := range cellIDs {
 		if _, err := uuid.Parse(id); err != nil {
-			return nil, "", ErrInvalidCellIDs
+			return nil, "", model.ErrInvalidCellIDs
 		}
 	}
 	whID, err := s.warehouses.IDByCode(ctx, warehouseCode)
@@ -90,7 +85,7 @@ func (s *LabelService) CellLabelsPDF(ctx context.Context, warehouseCode, kind st
 			}
 		}
 		if len(want) > 0 {
-			return nil, "", repository.ErrForeignCells
+			return nil, "", model.ErrForeignCells
 		}
 	}
 

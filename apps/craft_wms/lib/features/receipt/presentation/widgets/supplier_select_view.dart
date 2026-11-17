@@ -11,8 +11,8 @@ import '../../../../core/di/injection.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/utils/keyboard.dart';
-import '../../../stock/data/catalog_models.dart';
-import '../../../stock/data/catalog_repository.dart';
+import '../../../stock/domain/catalog_models.dart';
+import '../../../stock/domain/catalog_repository.dart';
 import '../bloc/receipt_cubit.dart';
 import 'supplier_doc_dialog.dart';
 

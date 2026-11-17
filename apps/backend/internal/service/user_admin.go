@@ -109,7 +109,7 @@ func (s *UserAdminService) CreateUser(ctx context.Context, in model.UserCreateIn
 	switch {
 	case in.Badge != "" && username == "" && in.Password == "":
 		if !isBadge(in.Badge) {
-			return "", ErrBadBadge
+			return "", model.ErrBadBadge
 		}
 		hash, err := auth.HashPassword(in.Badge[8:])
 		if err != nil {
@@ -162,7 +162,7 @@ func (s *UserAdminService) UpdateUser(ctx context.Context, in model.UserUpdateIn
 		switch {
 		case in.Badge != nil && in.Password == nil && badgeUser:
 			if !isBadge(*in.Badge) {
-				return ErrBadBadge
+				return model.ErrBadBadge
 			}
 			hash, err := auth.HashPassword((*in.Badge)[8:])
 			if err != nil {

@@ -89,7 +89,7 @@ func TestPickingPortal_live(t *testing.T) {
 		o.Lines != 1 || o.PlanQty != 3 || o.FactQty.IntPart() != 1 || o.Boxes != 1 {
 		t.Fatalf("заказ в списке: %+v", o)
 	}
-	if _, err := svc.Orders(ctx, "NOPE", date); !errors.Is(err, repository.ErrNotFound) {
+	if _, err := svc.Orders(ctx, "NOPE", date); !errors.Is(err, model.ErrNotFound) {
 		t.Fatalf("неизвестный склад: %v", err)
 	}
 

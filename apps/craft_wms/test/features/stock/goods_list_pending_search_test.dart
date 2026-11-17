@@ -1,5 +1,5 @@
-import 'package:craft_wms/features/stock/data/catalog_models.dart';
-import 'package:craft_wms/features/stock/data/catalog_repository.dart';
+import 'package:craft_wms/features/stock/domain/catalog_models.dart';
+import 'package:craft_wms/features/stock/domain/catalog_repository.dart';
 import 'package:craft_wms/features/stock/presentation/bloc/goods_list_cubit.dart';
 import 'package:either_dart/either.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -61,10 +61,15 @@ void main() {
     queries.clear();
 
     cubit.setQueryDebounced('арахис');
-    cubit.cancelPendingSearch(); // уход с экрана: карточка товара, «Ввод остатков», назад
+    cubit
+        .cancelPendingSearch(); // уход с экрана: карточка товара, «Ввод остатков», назад
 
     await Future<void>.delayed(const Duration(milliseconds: 500));
-    expect(queries, isEmpty, reason: 'запрос не должен уйти из-под открытого поверх экрана');
+    expect(
+      queries,
+      isEmpty,
+      reason: 'запрос не должен уйти из-под открытого поверх экрана',
+    );
     expect(cubit.state.query, isNull, reason: 'применённый запрос не менялся');
   });
 
@@ -90,17 +95,22 @@ void main() {
     expect(queries, ['арахис'], reason: 'промежуточный ввод перебит следующим');
   });
 
-  test('setQuery гасит отложенный поиск: старый текст не применится следом', () async {
-    await cubit.init();
-    queries.clear();
+  test(
+    'setQuery гасит отложенный поиск: старый текст не применится следом',
+    () async {
+      await cubit.init();
+      queries.clear();
 
-    cubit.setQueryDebounced('арахис');
-    await cubit.setQuery(''); // очистка крестиком, пока таймер ещё тикает
-    await Future<void>.delayed(const Duration(milliseconds: 500));
+      cubit.setQueryDebounced('арахис');
+      await cubit.setQuery(''); // очистка крестиком, пока таймер ещё тикает
+      await Future<void>.delayed(const Duration(milliseconds: 500));
 
-    expect(queries, [null], reason: 'ушла только очистка, отложенный текст не применился');
-    expect(cubit.state.query, isNull);
-  });
+      expect(queries, [
+        null,
+      ], reason: 'ушла только очистка, отложенный текст не применился');
+      expect(cubit.state.query, isNull);
+    },
+  );
 
   test('ошибка отменённого запроса не подменяет список', () async {
     await cubit.init();
@@ -124,7 +134,11 @@ void main() {
       GoodsListStatus.loaded,
       reason: 'возврат из карточки не должен приводить на экран ошибки',
     );
-    expect(cubit.state.goods, isNotEmpty, reason: 'список остался тем же, что и был');
+    expect(
+      cubit.state.goods,
+      isNotEmpty,
+      reason: 'список остался тем же, что и был',
+    );
   });
 
   test('close() гасит таймер: запрос не уходит после закрытия cubit', () async {

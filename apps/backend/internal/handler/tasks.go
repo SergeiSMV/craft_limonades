@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -12,18 +13,27 @@ import (
 
 	appmw "craftwms/internal/middleware"
 	"craftwms/internal/model"
-	"craftwms/internal/repository"
 	"craftwms/internal/service"
 )
+
+// warehouseTasks - то, что обработчику заданий нужно от сервиса заданий.
+type warehouseTasks interface {
+	Current(ctx context.Context, userID string) ([]model.Task, error)
+	Detail(ctx context.Context, id, userID string) (service.TaskDetail, error)
+	Take(ctx context.Context, id, userID string) error
+	Release(ctx context.Context, id, userID string) error
+	Completed(ctx context.Context, q service.CompletedQuery) ([]model.CompletedTask, error)
+	Executors(ctx context.Context) ([]model.TaskUser, error)
+}
 
 // TaskHandler - задания для склада на ТСД (P5-02-1): текущие, карточка, взятие и отказ,
 // лента «Завершённые». Сотруднику: задания выполняет кладовщик.
 type TaskHandler struct {
-	svc *service.TaskService
+	svc warehouseTasks
 }
 
 // NewTaskHandler создаёт обработчик заданий.
-func NewTaskHandler(svc *service.TaskService) *TaskHandler {
+func NewTaskHandler(svc warehouseTasks) *TaskHandler {
 	return &TaskHandler{svc: svc}
 }
 
@@ -205,7 +215,7 @@ func (h *TaskHandler) Current(w http.ResponseWriter, r *http.Request) {
 func (h *TaskHandler) Get(w http.ResponseWriter, r *http.Request) {
 	userID, _ := appmw.UserIDFromContext(r.Context())
 	d, err := h.svc.Detail(r.Context(), chi.URLParam(r, "id"), userID)
-	if errors.Is(err, repository.ErrTaskNotFound) {
+	if errors.Is(err, model.ErrTaskNotFound) {
 		writeError(w, http.StatusNotFound, "задание не найдено")
 		return
 	}
@@ -263,11 +273,11 @@ func (h *TaskHandler) writeTaskResult(w http.ResponseWriter, r *http.Request, er
 	switch {
 	case err == nil:
 		w.WriteHeader(http.StatusNoContent)
-	case errors.Is(err, repository.ErrTaskNotFound):
+	case errors.Is(err, model.ErrTaskNotFound):
 		writeError(w, http.StatusNotFound, "задание не найдено")
-	case errors.Is(err, repository.ErrTaskTaken):
+	case errors.Is(err, model.ErrTaskTaken):
 		writeError(w, http.StatusConflict, "задание уже взял другой сотрудник")
-	case errors.Is(err, repository.ErrTaskDone):
+	case errors.Is(err, model.ErrTaskDone):
 		writeError(w, http.StatusConflict, "задание уже выполнено")
 	default:
 		slog.ErrorContext(r.Context(), "task action failed", "action", action, "error", err)
@@ -286,7 +296,7 @@ func (h *TaskHandler) Completed(w http.ResponseWriter, r *http.Request) {
 		From: q.Get("from"), To: q.Get("to"), ExecutorID: q.Get("executor"), Kind: q.Get("kind"),
 		BeforeCompletedAt: q.Get("before_completed_at"), BeforeID: q.Get("before_id"), Limit: limit,
 	})
-	if errors.Is(err, service.ErrInvalidTaskFilter) {
+	if errors.Is(err, model.ErrInvalidTaskFilter) {
 		writeError(w, http.StatusBadRequest, "неверный фильтр")
 		return
 	}

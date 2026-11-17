@@ -2,7 +2,7 @@ import '../../../../../core/auth/session_rights.dart';
 import 'package:flutter/widgets.dart';
 
 import '../../../../../core/di/injection.dart';
-import '../../../data/tasks_repository.dart';
+import '../../../domain/tasks_repository.dart';
 
 /// Число текущих заданий для плитки «ЗАДАНИЯ» на главном экране (P5-02-1).
 ///

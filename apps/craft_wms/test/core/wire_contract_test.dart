@@ -10,8 +10,8 @@ import 'package:craft_wms/core/outbox/outbox_sender.dart';
 import 'package:craft_wms/core/sync/sync_engine.dart';
 import 'package:craft_wms/features/stock/data/catalog_api.dart';
 import 'package:craft_wms/features/stock/data/catalog_cache.dart';
-import 'package:craft_wms/features/stock/data/catalog_models.dart';
-import 'package:craft_wms/features/stock/data/catalog_repository.dart';
+import 'package:craft_wms/features/stock/domain/catalog_models.dart';
+import 'package:craft_wms/features/stock/data/catalog_repository_impl.dart';
 import 'package:dio/dio.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -69,7 +69,7 @@ void main() {
       Talker(),
       _MockConnectivity(),
     );
-    final repo = CatalogRepository(
+    final repo = CatalogRepositoryImpl(
       CatalogApi(dio),
       cache,
       outbox,

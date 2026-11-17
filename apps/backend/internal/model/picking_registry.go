@@ -1,9 +1,14 @@
 package model
 
 import (
+	"errors"
 	"strings"
 	"unicode"
 )
+
+// ErrRegistryFile - файл реестра не принят целиком (нет листа или колонки, нет принятых строк,
+// несколько дат): ошибка ввода оператора, а не сбой.
+var ErrRegistryFile = errors.New("реестр не принят")
 
 // GoodCodeLen - длина кода товара в справочнике номенклатуры 1С («00000016147»).
 const GoodCodeLen = 11

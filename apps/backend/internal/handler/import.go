@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"context"
+	"io"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -19,13 +21,19 @@ const (
 	defaultWarehouseName = "Шабулина"
 )
 
+// directoryImporter - то, что обработчику импорта нужно от сервиса импорта справочников.
+type directoryImporter interface {
+	ImportGoods(ctx context.Context, r io.ReadSeeker) (*service.ImportReport, error)
+	ImportCells(ctx context.Context, r io.Reader, warehouseCode, warehouseName string) (*service.CellsImportReport, error)
+}
+
 // ImportHandler - HTTP-обработчики импорта справочников из файлов.
 type ImportHandler struct {
-	svc *service.ImportService
+	svc directoryImporter
 }
 
 // NewImportHandler создаёт обработчик импорта.
-func NewImportHandler(svc *service.ImportService) *ImportHandler {
+func NewImportHandler(svc directoryImporter) *ImportHandler {
 	return &ImportHandler{svc: svc}
 }
 

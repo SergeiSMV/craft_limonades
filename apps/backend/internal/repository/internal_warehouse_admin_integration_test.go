@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"craftwms/internal/model"
 	"craftwms/internal/repository"
 )
 
@@ -24,7 +25,7 @@ func TestInternalWarehouses_createUpdate(t *testing.T) {
 	if created.Code != "RECALL" || !created.IsActive || created.IsDefault || created.InUse {
 		t.Fatalf("заведённый склад: %+v", created)
 	}
-	if _, err := repo.Create(ctx, "RECALL", "Ещё возврат"); !errors.Is(err, repository.ErrInternalWarehouseExists) {
+	if _, err := repo.Create(ctx, "RECALL", "Ещё возврат"); !errors.Is(err, model.ErrInternalWarehouseExists) {
 		t.Errorf("повтор кода: %v", err)
 	}
 
@@ -50,14 +51,14 @@ func TestInternalWarehouses_createUpdate(t *testing.T) {
 	}
 	var system string
 	mustScan(t, mf.pool, `SELECT id::text FROM internal_warehouses WHERE system_role IS NOT NULL LIMIT 1`, &system)
-	if _, err := repo.Update(ctx, system, nil, nil, &allow); !errors.Is(err, repository.ErrSystemInternalWarehouse) {
+	if _, err := repo.Update(ctx, system, nil, nil, &allow); !errors.Is(err, model.ErrSystemInternalWarehouse) {
 		t.Errorf("сборка из системного склада: %v", err)
 	}
 
-	if _, err := repo.Update(ctx, mf.iwh, nil, &hidden, nil); !errors.Is(err, repository.ErrDefaultInternalWarehouse) {
+	if _, err := repo.Update(ctx, mf.iwh, nil, &hidden, nil); !errors.Is(err, model.ErrDefaultInternalWarehouse) {
 		t.Errorf("скрыть склад по умолчанию: %v", err)
 	}
-	if _, err := repo.Update(ctx, uuid.NewString(), &name, nil, nil); !errors.Is(err, repository.ErrUnknownInternalWarehouse) {
+	if _, err := repo.Update(ctx, uuid.NewString(), &name, nil, nil); !errors.Is(err, model.ErrUnknownInternalWarehouse) {
 		t.Errorf("несуществующий склад: %v", err)
 	}
 
@@ -78,7 +79,7 @@ func TestInternalWarehouses_delete(t *testing.T) {
 	unused, err := repo.Create(ctx, "TEMP", "Временный")
 	mustNoErr(t, err)
 	mustNoErr(t, repo.Delete(ctx, unused.ID))
-	if err := repo.Delete(ctx, unused.ID); !errors.Is(err, repository.ErrUnknownInternalWarehouse) {
+	if err := repo.Delete(ctx, unused.ID); !errors.Is(err, model.ErrUnknownInternalWarehouse) {
 		t.Errorf("повторное удаление: %v", err)
 	}
 
@@ -95,10 +96,10 @@ func TestInternalWarehouses_delete(t *testing.T) {
 	if !inUse["DEFECT"] || !inUse["MAIN"] || inUse["ISOLATOR"] {
 		t.Errorf("признак «в деле»: %v", inUse)
 	}
-	if err := repo.Delete(ctx, defect); !errors.Is(err, repository.ErrInternalWarehouseInUse) {
+	if err := repo.Delete(ctx, defect); !errors.Is(err, model.ErrInternalWarehouseInUse) {
 		t.Errorf("удалить склад с остатком: %v", err)
 	}
-	if err := repo.Delete(ctx, mf.iwh); !errors.Is(err, repository.ErrDefaultInternalWarehouse) {
+	if err := repo.Delete(ctx, mf.iwh); !errors.Is(err, model.ErrDefaultInternalWarehouse) {
 		t.Errorf("удалить склад по умолчанию: %v", err)
 	}
 	mustNoErr(t, repo.Delete(ctx, mf.iwhByCode(t, "ISOLATOR")))

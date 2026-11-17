@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"craftwms/internal/model"
@@ -10,10 +9,6 @@ import (
 
 // Стеллажи и настройки этикеток ячеек (ADHOC-57). Живут на CellRepository: стеллаж - часть
 // раскладки ячеек склада, отдельный репозиторий дробил бы одну транзакцию импорта на два.
-
-// ErrForeignCells - в патче есть ячейки не этого склада, неактивные, ячейка приёмки или
-// несуществующие: менять такие нельзя, и тихо пропускать их тоже нельзя.
-var ErrForeignCells = errors.New("ячейки не найдены на складе")
 
 // UpsertRack заводит или находит стеллаж склада по коду и возвращает его id и признак «создан».
 // Стеллаж - только группировка ячеек: своих настроек у него нет (галочка карточки - у ячейки).
@@ -128,7 +123,7 @@ func (r *CellRepository) UpdateSettings(ctx context.Context, q Querier, warehous
 		return res, fmt.Errorf("проверка ячеек: %w", err)
 	}
 	if found != len(p.CellIDs) {
-		return res, ErrForeignCells
+		return res, model.ErrForeignCells
 	}
 
 	tag, err := q.Exec(ctx, `

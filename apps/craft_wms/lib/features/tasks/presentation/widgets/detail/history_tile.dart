@@ -5,7 +5,7 @@ import '../../../../../core/constants/app_insets.dart';
 import '../../../../../core/gen/strings.g.dart';
 import '../../../../../core/printer/load_unit_label.dart';
 import '../../../../../core/theme/regular_text.dart';
-import '../../../data/tasks_models.dart';
+import '../../../domain/tasks_models.dart';
 import '../common/task_format.dart';
 
 /// Запись «Истории выполнения»: событие журнала задания - что, кто и когда. У захода под

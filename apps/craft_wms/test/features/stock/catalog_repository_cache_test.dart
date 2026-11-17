@@ -9,8 +9,9 @@ import 'package:craft_wms/core/outbox/outbox_sender.dart';
 import 'package:craft_wms/core/sync/sync_engine.dart';
 import 'package:craft_wms/features/stock/data/catalog_api.dart';
 import 'package:craft_wms/features/stock/data/catalog_cache.dart';
-import 'package:craft_wms/features/stock/data/catalog_models.dart';
-import 'package:craft_wms/features/stock/data/catalog_repository.dart';
+import 'package:craft_wms/features/stock/domain/catalog_models.dart';
+import 'package:craft_wms/features/stock/data/catalog_repository_impl.dart';
+import 'package:craft_wms/features/stock/domain/catalog_repository.dart';
 import 'package:drift/native.dart';
 import 'package:either_dart/either.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -59,7 +60,7 @@ void main() {
       Talker(),
       _MockConnectivity(),
     );
-    repo = CatalogRepository(api, cache, outbox, effects, engine);
+    repo = CatalogRepositoryImpl(api, cache, outbox, effects, engine);
   });
 
   tearDown(() => db.close());

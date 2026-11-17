@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -11,18 +12,24 @@ import (
 
 	appmw "craftwms/internal/middleware"
 	"craftwms/internal/model"
-	"craftwms/internal/repository"
 	"craftwms/internal/service"
 )
+
+// stockEntry - то, что обработчику ввода остатков нужно от сервиса.
+type stockEntry interface {
+	Start(ctx context.Context, sessionID, warehouseID, createdBy string) (string, error)
+	Checkpoint(ctx context.Context, sessionID string, cell service.EntryCell) error
+	Finalize(ctx context.Context, sessionID string) (int, error)
+}
 
 // StockEntryHandler - HTTP-обработчики сессии ввода остатков (P-FastStart): старт, checkpoint ячейки,
 // финал. Доступ - любой аутентифицированный сотрудник (кладовщик проходит склад).
 type StockEntryHandler struct {
-	svc *service.StockEntryService
+	svc stockEntry
 }
 
 // NewStockEntryHandler создаёт обработчик сессии ввода остатков.
-func NewStockEntryHandler(svc *service.StockEntryService) *StockEntryHandler {
+func NewStockEntryHandler(svc stockEntry) *StockEntryHandler {
 	return &StockEntryHandler{svc: svc}
 }
 
@@ -157,32 +164,32 @@ func (h *StockEntryHandler) Finalize(w http.ResponseWriter, r *http.Request) {
 // Отказ строк (ADHOC-46) - первым: его Unwrap отдаёт причины строк, и errors.Is ниже принял бы
 // его за ошибку формы. Текст - по-русски со списком строк, ТСД показывает его как есть.
 func stockEntryError(w http.ResponseWriter, r *http.Request, err error) {
-	var lines *repository.DocumentLinesError
+	var lines *model.DocumentLinesError
 	if errors.As(err, &lines) {
 		writeError(w, http.StatusUnprocessableEntity, lines.Error())
 		return
 	}
 	switch {
-	case errors.Is(err, service.ErrEmptyWarehouse),
-		errors.Is(err, service.ErrEmptyCell),
-		errors.Is(err, service.ErrEmptyGoodID),
-		errors.Is(err, service.ErrEmptyBarcode),
-		errors.Is(err, service.ErrInvalidQuantity),
-		errors.Is(err, service.ErrInvalidSessionID),
-		errors.Is(err, service.ErrInvalidDate),
-		errors.Is(err, service.ErrInvalidPayload),
-		errors.Is(err, service.ErrInvalidLoadUnitID),
-		errors.Is(err, service.ErrInvalidLoadUnitKind),
+	case errors.Is(err, model.ErrEmptyWarehouse),
+		errors.Is(err, model.ErrEmptyCell),
+		errors.Is(err, model.ErrEmptyGoodID),
+		errors.Is(err, model.ErrEmptyBarcode),
+		errors.Is(err, model.ErrInvalidQuantity),
+		errors.Is(err, model.ErrInvalidSessionID),
+		errors.Is(err, model.ErrInvalidDate),
+		errors.Is(err, model.ErrInvalidPayload),
+		errors.Is(err, model.ErrInvalidLoadUnitID),
+		errors.Is(err, model.ErrInvalidLoadUnitKind),
 		errors.Is(err, model.ErrCZBadCode),
 		errors.Is(err, model.ErrCZMarksExceedQty),
 		errors.Is(err, model.ErrCZMarkExists),
 		errors.Is(err, model.ErrCZAggregateExists):
 		writeError(w, http.StatusBadRequest, err.Error())
-	case errors.Is(err, repository.ErrSessionNotFound),
-		errors.Is(err, repository.ErrGoodNotFound):
+	case errors.Is(err, model.ErrSessionNotFound),
+		errors.Is(err, model.ErrGoodNotFound):
 		writeError(w, http.StatusNotFound, err.Error())
-	case errors.Is(err, repository.ErrSessionClosed),
-		errors.Is(err, repository.ErrBarcodeConflict):
+	case errors.Is(err, model.ErrSessionClosed),
+		errors.Is(err, model.ErrBarcodeConflict):
 		writeError(w, http.StatusConflict, err.Error())
 	// GTIN марки на финале не нашёлся у товара строки (ADHOC-46): привязка ШК из марки ещё
 	// не дошла из очереди или ушла к другому товару. Повтор после отправки очереди поможет -

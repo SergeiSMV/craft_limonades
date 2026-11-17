@@ -35,7 +35,7 @@ type pickingPickPayload struct {
 func (s *OperationsService) pickingPick(ctx context.Context, userID, id string, raw json.RawMessage) (repository.Applied, error) {
 	var p pickingPickPayload
 	if err := json.Unmarshal(raw, &p); err != nil {
-		return repository.Applied{}, ErrInvalidPayload
+		return repository.Applied{}, model.ErrInvalidPayload
 	}
 	in := repository.PickingPickInput{
 		PickID:              strings.TrimSpace(p.PickID),
@@ -50,19 +50,19 @@ func (s *OperationsService) pickingPick(ctx context.Context, userID, id string, 
 	}
 	for _, v := range []string{in.PickID, in.OrderID, in.LineID, in.BoxID} {
 		if !isUUID(v) {
-			return repository.Applied{}, ErrInvalidPayload
+			return repository.Applied{}, model.ErrInvalidPayload
 		}
 	}
 	if (in.SourceCellID == "") == (in.SourceLoadUnitID == "") {
-		return repository.Applied{}, ErrInvalidPayload
+		return repository.Applied{}, model.ErrInvalidPayload
 	}
 	for _, v := range []string{in.SourceCellID, in.SourceLoadUnitID, in.InternalWarehouseID} {
 		if v != "" && !isUUID(v) {
-			return repository.Applied{}, ErrInvalidPayload
+			return repository.Applied{}, model.ErrInvalidPayload
 		}
 	}
 	if !in.Qty.IsPositive() {
-		return repository.Applied{}, ErrInvalidQuantity
+		return repository.Applied{}, model.ErrInvalidQuantity
 	}
 	iso, err := parseEntryDate(p.ProductionDate)
 	if err != nil {
@@ -81,7 +81,7 @@ func (s *OperationsService) pickingUnpick(ctx context.Context, id string, raw js
 		PickID string `json:"pick_id"`
 	}
 	if err := json.Unmarshal(raw, &p); err != nil || !isUUID(strings.TrimSpace(p.PickID)) {
-		return repository.Applied{}, ErrInvalidPayload
+		return repository.Applied{}, model.ErrInvalidPayload
 	}
 	return s.repo.PickingUnpick(ctx, id, strings.TrimSpace(p.PickID))
 }
@@ -97,7 +97,7 @@ func (s *OperationsService) pickingReturn(ctx context.Context, userID, id string
 		Marks    []string        `json:"marks"`
 	}
 	if err := json.Unmarshal(raw, &p); err != nil {
-		return repository.Applied{}, ErrInvalidPayload
+		return repository.Applied{}, model.ErrInvalidPayload
 	}
 	in := repository.PickingReturnInput{
 		ReturnID: strings.TrimSpace(p.ReturnID),
@@ -108,11 +108,11 @@ func (s *OperationsService) pickingReturn(ctx context.Context, userID, id string
 	}
 	for _, v := range []string{in.ReturnID, in.PickID, in.CellID} {
 		if !isUUID(v) {
-			return repository.Applied{}, ErrInvalidPayload
+			return repository.Applied{}, model.ErrInvalidPayload
 		}
 	}
 	if !in.Qty.IsPositive() {
-		return repository.Applied{}, ErrInvalidQuantity
+		return repository.Applied{}, model.ErrInvalidQuantity
 	}
 	var err error
 	if in.Marks, err = lineMarks(p.Marks); err != nil {
@@ -127,7 +127,7 @@ var pickingRejections = []error{
 	model.ErrPickingLineNotFound, model.ErrPickingOverPlan, model.ErrPickingSourceDenied,
 	model.ErrPickingBoxNotInOrder, model.ErrPickingSourceIsBox, model.ErrPickingPickExists,
 	model.ErrPickingPickNotFound, model.ErrPickingPickMoved, model.ErrPickingStockShort,
-	model.ErrPickingLoadUnitBusy, model.ErrPickingMarkInPicking, repository.ErrShippingCell,
+	model.ErrPickingLoadUnitBusy, model.ErrPickingMarkInPicking, model.ErrShippingCell,
 	// Возврат на места (P9-07-1).
 	model.ErrPickingReturnOverLeft, model.ErrPickingReturnCell, model.ErrPickingReturnMarks,
 	model.ErrPickingReturnNotMoved, model.ErrPickingReturnExists,

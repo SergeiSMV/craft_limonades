@@ -6,12 +6,12 @@ import 'package:craft_wms/core/gen/assets.gen.dart';
 import 'package:craft_wms/core/widgets/notification_badge.dart';
 import 'package:craft_wms/core/widgets/pending_pass_badge.dart';
 import 'package:craft_wms/features/home/presentation/widgets/menu_tile.dart';
-import 'package:craft_wms/features/stock_entry/data/entry_draft_store.dart';
+import 'package:craft_wms/features/stock_entry/domain/stock_entry_drafts.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
-class _MockDrafts extends Mock implements EntryDraftStore {}
+class _MockDrafts extends Mock implements StockEntryDrafts {}
 
 /// Пометка незавершённого прохода на входах в раздел (ADHOC-13).
 ///
@@ -30,10 +30,10 @@ void main() {
     drafts = _MockDrafts();
     hasDraft = StreamController<bool>.broadcast();
     when(() => drafts.watchHasDraft()).thenAnswer((_) => hasDraft.stream);
-    if (getIt.isRegistered<EntryDraftStore>()) {
-      getIt.unregister<EntryDraftStore>();
+    if (getIt.isRegistered<StockEntryDrafts>()) {
+      getIt.unregister<StockEntryDrafts>();
     }
-    getIt.registerSingleton<EntryDraftStore>(drafts);
+    getIt.registerSingleton<StockEntryDrafts>(drafts);
   });
 
   tearDown(() => hasDraft.close());

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart';
 
+import '../drafts/drafts.dart';
 import 'app_database.dart';
 
 /// Ячейка для черновика незавершённой работы кладовщика - одна строка таблицы `entry_drafts`.
@@ -18,7 +19,7 @@ import 'app_database.dart';
 ///
 /// Общий класс, а не копия на каждый поток (P4-09): правила у черновиков одни, и две копии
 /// разошлись бы на первой же правке - например, на обработке битого слепка.
-abstract class DraftSlot {
+abstract class DraftSlot implements Drafts {
   DraftSlot(this._db, this.key);
 
   final AppDatabase _db;
@@ -27,6 +28,7 @@ abstract class DraftSlot {
   final String key;
 
   /// Сохранить слепок (перезаписывает предыдущий).
+  @override
   Future<void> save(Map<String, dynamic> draft) => _db
       .into(_db.entryDrafts)
       .insertOnConflictUpdate(
@@ -42,6 +44,7 @@ abstract class DraftSlot {
   /// Битый JSON тоже даёт `null`: слепок пишется целиком, и если он не разбирается, значит
   /// запись оборвалась или формат сменился. Уронить экран из-за этого нельзя - лучше начать
   /// с чистого листа, чем не дать работать вовсе.
+  @override
   Future<Map<String, dynamic>?> load() async {
     final query = _db.select(_db.entryDrafts)..where((t) => t.id.equals(key));
     final row = await query.getSingleOrNull();
@@ -62,6 +65,7 @@ abstract class DraftSlot {
   ///
   /// Смотрим только НАЛИЧИЕ строки: содержимое слепка пометке не нужно, а разбирать JSON на
   /// каждое изменение базы - лишняя работа на каждый скан.
+  @override
   Stream<bool> watchHasDraft() {
     final query = _db.selectOnly(_db.entryDrafts)
       ..addColumns([_db.entryDrafts.id])
@@ -70,6 +74,7 @@ abstract class DraftSlot {
   }
 
   /// Убрать слепок - работа завершена или брошена осознанно.
+  @override
   Future<void> clear() =>
       (_db.delete(_db.entryDrafts)..where((t) => t.id.equals(key))).go();
 }

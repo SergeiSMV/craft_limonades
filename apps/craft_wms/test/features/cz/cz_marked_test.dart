@@ -6,7 +6,7 @@ import 'package:craft_wms/core/outbox/outbox_operation.dart';
 import 'package:craft_wms/features/cz/data/cz_good_repository_impl.dart';
 import 'package:craft_wms/features/cz/presentation/bloc/cz_marked_cubit.dart';
 import 'package:craft_wms/features/stock/data/catalog_cache.dart';
-import 'package:craft_wms/features/stock/data/catalog_models.dart';
+import 'package:craft_wms/features/stock/domain/catalog_models.dart';
 import 'package:dio/dio.dart';
 // Только Migrator: полный экспорт drift переопределяет матчеры теста.
 import 'package:drift/drift.dart' show Migrator;

@@ -1,22 +1,32 @@
 package handler
 
 import (
+	"context"
 	"errors"
+	"io"
 	"log/slog"
 	"net/http"
 	"strings"
 
 	appmw "craftwms/internal/middleware"
+	"craftwms/internal/model"
 	"craftwms/internal/service"
 )
 
+// registryLoader - то, что обработчику нужно от сервиса загрузки «Реестра». Тип предпросмотра
+// живёт в service: он собирает строки ошибок разбора importer, которым в model не место.
+type registryLoader interface {
+	Preview(ctx context.Context, warehouseCode string, r io.Reader) (*service.RegistryPreview, error)
+	Load(ctx context.Context, warehouseCode, fileName, userID string, r io.Reader) (*service.RegistryPreview, error)
+}
+
 // PickingHandler - «Сборка-отгрузка» в портале (P8-02): загрузка «Реестра» 1С.
 type PickingHandler struct {
-	load *service.PickingLoadService
+	load registryLoader
 }
 
 // NewPickingHandler создаёт обработчик сборки.
-func NewPickingHandler(load *service.PickingLoadService) *PickingHandler {
+func NewPickingHandler(load registryLoader) *PickingHandler {
 	return &PickingHandler{load: load}
 }
 
@@ -54,7 +64,7 @@ func (h *PickingHandler) registry(w http.ResponseWriter, r *http.Request, write 
 		out, err = h.load.Preview(r.Context(), code, file)
 	}
 	if err != nil {
-		if errors.Is(err, service.ErrRegistryFile) {
+		if errors.Is(err, model.ErrRegistryFile) {
 			writeError(w, http.StatusUnprocessableEntity, err.Error())
 			return
 		}

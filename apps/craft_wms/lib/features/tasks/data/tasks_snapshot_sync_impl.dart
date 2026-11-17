@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:injectable/injectable.dart';
 
 import '../domain/tasks_snapshot_sync.dart';
-import 'tasks_repository.dart';
+import '../domain/tasks_repository.dart';
 
 /// Обновление снимка текущих заданий по подтверждению операций очереди (ADHOC-24).
 ///

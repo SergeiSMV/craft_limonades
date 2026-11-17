@@ -13,26 +13,6 @@ import (
 	"craftwms/internal/model"
 )
 
-// Ошибки пометки товара другим внутренним складом (P6-07-1). Все - отказ по существу.
-var (
-	// ErrProblemPosted - проблема с этим идентификатором уже зафиксирована.
-	ErrProblemPosted = errors.New("problem already posted")
-	// ErrEmptyProblem - в проблеме нет ни короба, ни товара с одним источником.
-	ErrEmptyProblem = errors.New("problem must have a load unit or goods from a cell or a load unit")
-	// ErrUnknownReason - причины нет в справочнике или её ставит только программа.
-	ErrUnknownReason = errors.New("неизвестная причина проблемы")
-	// ErrProblemCommentRequired - у причины с обязательным комментарием (ADHOC-55; так у
-	// «Прочее») комментария нет: без него офису нечего разбирать.
-	ErrProblemCommentRequired = errors.New("у этой причины нужен комментарий")
-	// ErrUnknownInternalWarehouse - склада назначения нет или он скрыт.
-	ErrUnknownInternalWarehouse = errors.New("unknown or inactive internal warehouse")
-	// ErrSystemInternalWarehouse - склад системный (возврат поставщику, P6-07-3): на него и с него
-	// переводит только решение офиса; скрыть и удалить его нельзя.
-	ErrSystemInternalWarehouse = errors.New("system internal warehouse is managed by the program")
-	// ErrSameInternalWarehouse - товар уже числится на складе назначения.
-	ErrSameInternalWarehouse = errors.New("goods already belong to the target internal warehouse")
-)
-
 // ProblemSubmitInput - проблема склада, собранная устройством (P6-07-1).
 //
 // Что помечено - ровно одно: короб целиком (LoadUnitID) ЛИБО товар партии с количеством -
@@ -84,7 +64,7 @@ func checkProblemReason(ctx context.Context, q Querier, in ProblemSubmitInput) e
 		SELECT manual, comment_required FROM problem_reasons WHERE code = $1`, in.Reason).
 		Scan(&manual, &commentRequired)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return ErrUnknownReason
+		return model.ErrUnknownReason
 	}
 	if err != nil {
 		return fmt.Errorf("причина проблемы: %w", err)
@@ -92,10 +72,10 @@ func checkProblemReason(ctx context.Context, q Querier, in ProblemSubmitInput) e
 	if in.fromStocktake != (in.Reason == model.ProblemReasonNotFound) ||
 		in.Reason == model.ProblemReasonRegrade ||
 		(!manual && !in.fromIntake && !in.fromStocktake) {
-		return ErrUnknownReason
+		return model.ErrUnknownReason
 	}
 	if commentRequired && in.Comment == "" {
-		return ErrProblemCommentRequired
+		return model.ErrProblemCommentRequired
 	}
 	return nil
 }
@@ -120,10 +100,10 @@ func problemSubmit(ctx context.Context, q Querier, in ProblemSubmitInput) error 
 	isBox := in.LoadUnitID != ""
 	isGoods := in.GoodID != ""
 	if isBox == isGoods || (isGoods && (in.CellID == "") == (in.FromLoadUnitID == "")) {
-		return ErrEmptyProblem
+		return model.ErrEmptyProblem
 	}
 	if isGoods && !in.Qty.IsPositive() {
-		return ErrMovementQty
+		return model.ErrMovementQty
 	}
 	if !in.fromStocktake {
 		if err := guardActiveInternalWarehouse(ctx, q, in.ToInternalWarehouseID); err != nil {
@@ -157,7 +137,7 @@ func problemSubmit(ctx context.Context, q Querier, in ProblemSubmitInput) error 
 		in.CreatedBy); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			return ErrProblemPosted
+			return model.ErrProblemPosted
 		}
 		return fmt.Errorf("записать проблему склада: %w", err)
 	}
@@ -279,7 +259,7 @@ func problemLoose(ctx context.Context, q Querier, in ProblemSubmitInput) (proble
 		return problemRow{}, err
 	}
 	if loose.LessThan(in.Qty) {
-		return problemRow{}, ErrGoodsShort
+		return problemRow{}, model.ErrGoodsShort
 	}
 	return problemGoods(ctx, q, in, in.CellID, from, batchID)
 }
@@ -301,7 +281,7 @@ func problemGoods(ctx context.Context, q Querier, in ProblemSubmitInput, cell, f
 // системном складе.
 func guardProblemPlace(ctx context.Context, q Querier, cell, fromIwh string, in ProblemSubmitInput) error {
 	if fromIwh == in.ToInternalWarehouseID {
-		return ErrSameInternalWarehouse
+		return model.ErrSameInternalWarehouse
 	}
 	// Не найденное пересчётом уходит в «Не найдено» откуда угодно, и с системного склада тоже:
 	// товара на полке нет, где бы он ни числился.
@@ -327,13 +307,13 @@ func guardActiveInternalWarehouse(ctx context.Context, q Querier, id string) err
 		SELECT is_active, system_role IS NOT NULL FROM internal_warehouses WHERE id = $1::uuid`,
 		id).Scan(&active, &system)
 	if errors.Is(err, pgx.ErrNoRows) || (err == nil && !active) {
-		return ErrUnknownInternalWarehouse
+		return model.ErrUnknownInternalWarehouse
 	}
 	if err != nil {
 		return fmt.Errorf("проверить внутренний склад: %w", err)
 	}
 	if system {
-		return ErrSystemInternalWarehouse
+		return model.ErrSystemInternalWarehouse
 	}
 	return nil
 }
@@ -348,22 +328,10 @@ func guardNotSystemSource(ctx context.Context, q Querier, iwh string) error {
 		return fmt.Errorf("проверить склад-источник: %w", err)
 	}
 	if system {
-		return ErrSystemInternalWarehouse
+		return model.ErrSystemInternalWarehouse
 	}
 	return nil
 }
-
-// Ошибки справочника внутренних складов (ADHOC-29).
-var (
-	// ErrInternalWarehouseExists - склад с таким кодом уже есть.
-	ErrInternalWarehouseExists = errors.New("internal warehouse code already exists")
-	// ErrDefaultInternalWarehouse - склад по умолчанию нельзя скрыть или удалить: приходовать
-	// было бы некуда.
-	ErrDefaultInternalWarehouse = errors.New("default internal warehouse cannot be hidden or deleted")
-	// ErrInternalWarehouseInUse - на складе есть остаток или история: удалить нельзя, только
-	// скрыть.
-	ErrInternalWarehouseInUse = errors.New("internal warehouse has stock or history")
-)
 
 // InternalWarehouseRepository - справочник внутренних складов (P6-07-1, ADHOC-29): чтение для
 // ТСД и портала, ведение - из портала.
@@ -422,7 +390,7 @@ func (r *InternalWarehouseRepository) Create(ctx context.Context, code, name str
 		code, name).Scan(&id)
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-		return model.InternalWarehouse{}, ErrInternalWarehouseExists
+		return model.InternalWarehouse{}, model.ErrInternalWarehouseExists
 	}
 	if err != nil {
 		return model.InternalWarehouse{}, fmt.Errorf("завести внутренний склад: %w", err)
@@ -439,10 +407,10 @@ func (r *InternalWarehouseRepository) Update(ctx context.Context, id string, nam
 		return model.InternalWarehouse{}, err
 	}
 	if current.IsDefault && active != nil && !*active {
-		return model.InternalWarehouse{}, ErrDefaultInternalWarehouse
+		return model.InternalWarehouse{}, model.ErrDefaultInternalWarehouse
 	}
 	if current.SystemRole != "" && (active != nil && !*active || allowPicking != nil && *allowPicking) {
-		return model.InternalWarehouse{}, ErrSystemInternalWarehouse
+		return model.InternalWarehouse{}, model.ErrSystemInternalWarehouse
 	}
 	if _, err := r.pool.Exec(ctx, `
 		UPDATE internal_warehouses
@@ -462,19 +430,19 @@ func (r *InternalWarehouseRepository) Delete(ctx context.Context, id string) err
 		return err
 	}
 	if current.IsDefault {
-		return ErrDefaultInternalWarehouse
+		return model.ErrDefaultInternalWarehouse
 	}
 	if current.SystemRole != "" {
-		return ErrSystemInternalWarehouse
+		return model.ErrSystemInternalWarehouse
 	}
 	if current.InUse {
-		return ErrInternalWarehouseInUse
+		return model.ErrInternalWarehouseInUse
 	}
 	_, err = r.pool.Exec(ctx, `DELETE FROM internal_warehouses WHERE id = $1::uuid`, id)
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == "23503" {
 		// Ссылка появилась между проверкой и удалением - тот же отказ.
-		return ErrInternalWarehouseInUse
+		return model.ErrInternalWarehouseInUse
 	}
 	if err != nil {
 		return fmt.Errorf("удалить внутренний склад: %w", err)
@@ -485,7 +453,7 @@ func (r *InternalWarehouseRepository) Delete(ctx context.Context, id string) err
 func (r *InternalWarehouseRepository) byID(ctx context.Context, id string) (model.InternalWarehouse, error) {
 	w, err := scanInternalWarehouse(r.pool.QueryRow(ctx, internalWarehouseSelect+` WHERE w.id = $1::uuid`, id))
 	if errors.Is(err, pgx.ErrNoRows) {
-		return model.InternalWarehouse{}, ErrUnknownInternalWarehouse
+		return model.InternalWarehouse{}, model.ErrUnknownInternalWarehouse
 	}
 	if err != nil {
 		return model.InternalWarehouse{}, fmt.Errorf("внутренний склад: %w", err)

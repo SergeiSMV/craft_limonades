@@ -8,7 +8,7 @@ import '../../../../core/constants/app_sizes.dart';
 import '../../../../core/di/injection.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
-import '../../../data/cells_repository.dart';
+import '../../../domain/cells/cells_repository.dart';
 import '../../../domain/cells/cell_setup.dart';
 import '../../../domain/labels/beam_label.dart';
 import '../settings/access_common.dart';

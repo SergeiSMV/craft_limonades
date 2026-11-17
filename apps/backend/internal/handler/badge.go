@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -8,17 +9,22 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"craftwms/internal/model"
-	"craftwms/internal/service"
 )
+
+// badgePrinter - то, что обработчику «Бейджей» нужно от сервиса.
+type badgePrinter interface {
+	Holders(ctx context.Context, by string) ([]model.BadgeListItem, error)
+	Badge(ctx context.Context, by, id string) (model.Badge, error)
+}
 
 // BadgeHandler - «Бейджи» на ТСД (ADHOC-65): кого пользователь вправе печатать и номер к печати.
 // Онлайн: номер раскрывает только сервер, и каждое раскрытие пишется в журнал.
 type BadgeHandler struct {
-	svc *service.BadgeService
+	svc badgePrinter
 }
 
 // NewBadgeHandler создаёт обработчик бейджей.
-func NewBadgeHandler(svc *service.BadgeService) *BadgeHandler {
+func NewBadgeHandler(svc badgePrinter) *BadgeHandler {
 	return &BadgeHandler{svc: svc}
 }
 

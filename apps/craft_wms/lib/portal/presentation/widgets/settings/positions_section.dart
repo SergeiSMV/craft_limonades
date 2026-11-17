@@ -6,7 +6,7 @@ import '../../../../core/error/failure.dart';
 import '../../../../core/gen/strings.g.dart';
 import '../../../../core/sync/data_versions.dart';
 import '../../../../core/widgets/data_versions_listener.dart';
-import '../../../data/users_repository.dart';
+import '../../../domain/users/users_repository.dart';
 import 'access_common.dart';
 import 'position_dialogs.dart';
 import 'position_row.dart';

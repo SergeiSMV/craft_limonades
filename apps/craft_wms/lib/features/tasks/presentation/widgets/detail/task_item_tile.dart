@@ -8,7 +8,7 @@ import '../../../../../core/constants/app_sizes.dart';
 import '../../../../../core/gen/strings.g.dart';
 import '../../../../../core/load_unit/box_code.dart';
 import '../../../../../core/theme/regular_text.dart';
-import '../../../data/tasks_models.dart';
+import '../../../domain/tasks_models.dart';
 import '../common/task_format.dart';
 
 /// Позиция задания: короб с составом либо россыпь с партией и остатком (P5-02-1).

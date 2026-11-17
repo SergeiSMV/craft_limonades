@@ -19,7 +19,7 @@ import '../../../../core/widgets/bar_buttons.dart';
 import '../../../../core/widgets/box_tile.dart';
 import '../../../../core/widgets/cell_change_sheet.dart';
 import '../../../cz/presentation/widgets/cz_intake_scan.dart';
-import '../../../stock/data/catalog_models.dart';
+import '../../../stock/domain/catalog_models.dart';
 import '../bloc/stock_entry_cubit.dart';
 import 'entry_scan_actions.dart';
 import 'entry_scan_field.dart';

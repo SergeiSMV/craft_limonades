@@ -14,7 +14,6 @@ import (
 
 	appmw "craftwms/internal/middleware"
 	"craftwms/internal/model"
-	"craftwms/internal/repository"
 )
 
 // pickingPortal - узкий интерфейс сервиса раздела «Сборка-отгрузка» (P8-03).
@@ -206,7 +205,7 @@ func pickingWarehouse(r *http.Request) string {
 // fail - отказы по состоянию заказа текстом для оператора, остальное - 500.
 func (h *PickingPortalHandler) fail(w http.ResponseWriter, r *http.Request, err error, action string) {
 	switch {
-	case errors.Is(err, repository.ErrNotFound):
+	case errors.Is(err, model.ErrNotFound):
 		writeError(w, http.StatusNotFound, "склад не найден")
 	case errors.Is(err, model.ErrPickingOrderNotFound):
 		writeError(w, http.StatusNotFound, err.Error())

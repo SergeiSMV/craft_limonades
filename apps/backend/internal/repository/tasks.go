@@ -14,22 +14,6 @@ import (
 	"craftwms/internal/model"
 )
 
-// Ошибки заданий для склада (P5-02-1).
-var (
-	// ErrTaskNotFound - задания нет.
-	ErrTaskNotFound = errors.New("task not found")
-	// ErrTaskTaken - задание держит другой исполнитель, и оно не зависло.
-	ErrTaskTaken = errors.New("task is taken by another user")
-	// ErrTaskDone - задание уже выполнено.
-	ErrTaskDone = errors.New("task is already done")
-	// ErrTaskMismatch - сеанс не подходит заданию: другой вид или другой склад.
-	ErrTaskMismatch = errors.New("putaway does not match the task")
-	// ErrNotInTask - строка сеанса размещает то, чего нет в задании (или уже размещено им).
-	ErrNotInTask = errors.New("putaway line is not part of the task")
-	// ErrExceedsTask - россыпи размещают больше, чем осталось по заданию.
-	ErrExceedsTask = errors.New("putaway line exceeds the task remainder")
-)
-
 // createPutawayTaskForReceipt заводит задание на размещение по оприходованной приёмке.
 //
 // Что: позиции задания - то, что приёмка положила в ячейку приёмки склада: короба (каждый
@@ -116,7 +100,7 @@ func createPutawayTaskForReceipt(ctx context.Context, q Querier, receiptID strin
 // ячейке приёмки ничего нет, задания нет.
 func createPutawayTaskForProblem(ctx context.Context, q Querier, problemID, warehouseID string, lines []problemLine) error {
 	receiving, err := defaultCellID(ctx, q, warehouseID)
-	if errors.Is(err, ErrNotFound) {
+	if errors.Is(err, model.ErrNotFound) {
 		return nil
 	}
 	if err != nil {
@@ -293,16 +277,16 @@ func lockTaskForPutaway(ctx context.Context, q Querier, taskID, warehouseID stri
 		SELECT kind, status, warehouse_id::text FROM warehouse_tasks
 		WHERE id = $1::uuid FOR UPDATE`, taskID).Scan(&kind, &status, &wh)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return ErrTaskNotFound
+		return model.ErrTaskNotFound
 	}
 	if err != nil {
 		return fmt.Errorf("заблокировать задание: %w", err)
 	}
 	if status == model.TaskDone {
-		return ErrTaskDone
+		return model.ErrTaskDone
 	}
 	if kind != model.TaskPutaway || wh != warehouseID {
-		return ErrTaskMismatch
+		return model.ErrTaskMismatch
 	}
 	return nil
 }
@@ -405,7 +389,7 @@ func (r *TaskRepository) ByID(ctx context.Context, id, userID string) (model.Tas
 		return model.Task{}, err
 	}
 	if len(tasks) == 0 {
-		return model.Task{}, ErrTaskNotFound
+		return model.Task{}, model.ErrTaskNotFound
 	}
 	if err := r.attachItems(ctx, tasks); err != nil {
 		return model.Task{}, err
@@ -824,11 +808,11 @@ func (r *TaskRepository) Take(ctx context.Context, id, userID string, staleAfter
 			Scan(&status, &holder, &stale)
 		switch {
 		case errors.Is(err, pgx.ErrNoRows):
-			return ErrTaskNotFound
+			return model.ErrTaskNotFound
 		case err != nil:
 			return fmt.Errorf("взять задание: %w", err)
 		case status == model.TaskDone:
-			return ErrTaskDone
+			return model.ErrTaskDone
 		}
 
 		event, prev := model.TaskEventTaken, ""
@@ -837,7 +821,7 @@ func (r *TaskRepository) Take(ctx context.Context, id, userID string, staleAfter
 			case holder != nil && *holder == userID:
 				return nil
 			case !stale:
-				return ErrTaskTaken
+				return model.ErrTaskTaken
 			}
 			event, prev = model.TaskEventIntercepted, deref(holder)
 		}
@@ -875,15 +859,15 @@ func (r *TaskRepository) Release(ctx context.Context, id, userID string) error {
 	err = r.pool.QueryRow(ctx, `SELECT status FROM warehouse_tasks WHERE id = $1::uuid`, id).Scan(&status)
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):
-		return ErrTaskNotFound
+		return model.ErrTaskNotFound
 	case err != nil:
 		return fmt.Errorf("отказаться от задания: %w", err)
 	case status == model.TaskNew:
 		return nil
 	case status == model.TaskDone:
-		return ErrTaskDone
+		return model.ErrTaskDone
 	default:
-		return ErrTaskTaken
+		return model.ErrTaskTaken
 	}
 }
 

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -12,19 +13,31 @@ import (
 
 	appmw "craftwms/internal/middleware"
 	"craftwms/internal/model"
-	"craftwms/internal/repository"
-	"craftwms/internal/service"
 )
+
+// receipts - то, что обработчику приёмки нужно от сервиса приёмки.
+type receipts interface {
+	Start(ctx context.Context, id, warehouseID, supplierID, createdBy, docNumber, docDate string) error
+	Get(ctx context.Context, receiptID string) (model.Receipt, []model.ReceiptLine, error)
+	AddLine(ctx context.Context, receiptID, goodID, productionDate, cellID, loadUnitID string, qty decimal.Decimal) (string, error)
+	Post(ctx context.Context, receiptID string) (int, error)
+}
+
+// loadUnits - то, что обработчику приёмки нужно от сервиса грузовых единиц.
+type loadUnits interface {
+	Create(ctx context.Context, id, kind string) error
+	Get(ctx context.Context, id string) (model.LoadUnit, error)
+}
 
 // ReceiptHandler - HTTP-обработчики приёмки (P4-03): документ, строка сканом, оприходование.
 // Доступ - любой аутентифицированный сотрудник: приёмку ведёт кладовщик на ТСД.
 type ReceiptHandler struct {
-	svc *service.ReceiptService
-	lu  *service.LoadUnitService
+	svc receipts
+	lu  loadUnits
 }
 
 // NewReceiptHandler создаёт обработчик приёмки.
-func NewReceiptHandler(svc *service.ReceiptService, lu *service.LoadUnitService) *ReceiptHandler {
+func NewReceiptHandler(svc receipts, lu loadUnits) *ReceiptHandler {
 	return &ReceiptHandler{svc: svc, lu: lu}
 }
 
@@ -212,26 +225,26 @@ func (h *ReceiptHandler) GetLoadUnit(w http.ResponseWriter, r *http.Request) {
 // 500: это незавершённое развёртывание, а не ошибка человека, и чинится не на терминале.
 func receiptError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
-	case errors.Is(err, service.ErrEmptyReceiptID),
-		errors.Is(err, service.ErrEmptyWarehouse),
-		errors.Is(err, service.ErrEmptyGoodID),
-		errors.Is(err, service.ErrInvalidQuantity),
-		errors.Is(err, service.ErrInvalidDate),
-		errors.Is(err, service.ErrInvalidLoadUnitID),
-		errors.Is(err, service.ErrInvalidLoadUnitKind),
-		errors.Is(err, service.ErrEmptyDocNumber),
-		errors.Is(err, service.ErrDocNumberTooLong),
-		errors.Is(err, service.ErrInvalidDocDate):
+	case errors.Is(err, model.ErrEmptyReceiptID),
+		errors.Is(err, model.ErrEmptyWarehouse),
+		errors.Is(err, model.ErrEmptyGoodID),
+		errors.Is(err, model.ErrInvalidQuantity),
+		errors.Is(err, model.ErrInvalidDate),
+		errors.Is(err, model.ErrInvalidLoadUnitID),
+		errors.Is(err, model.ErrInvalidLoadUnitKind),
+		errors.Is(err, model.ErrEmptyDocNumber),
+		errors.Is(err, model.ErrDocNumberTooLong),
+		errors.Is(err, model.ErrInvalidDocDate):
 		writeError(w, http.StatusBadRequest, err.Error())
-	case errors.Is(err, repository.ErrReceiptNotFound),
-		errors.Is(err, repository.ErrGoodNotFound),
-		errors.Is(err, repository.ErrLoadUnitNotFound):
+	case errors.Is(err, model.ErrReceiptNotFound),
+		errors.Is(err, model.ErrGoodNotFound),
+		errors.Is(err, model.ErrLoadUnitNotFound):
 		writeError(w, http.StatusNotFound, err.Error())
-	case errors.Is(err, repository.ErrReceiptPosted),
-		errors.Is(err, repository.ErrEmptyReceipt),
-		errors.Is(err, repository.ErrLoadUnitCellConflict):
+	case errors.Is(err, model.ErrReceiptPosted),
+		errors.Is(err, model.ErrEmptyReceipt),
+		errors.Is(err, model.ErrLoadUnitCellConflict):
 		writeError(w, http.StatusConflict, err.Error())
-	case errors.Is(err, service.ErrNoDefaultCell):
+	case errors.Is(err, model.ErrNoDefaultCell):
 		slog.ErrorContext(r.Context(), "receiving without default cell", "error", err)
 		writeError(w, http.StatusInternalServerError, err.Error())
 	default:

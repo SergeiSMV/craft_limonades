@@ -8,7 +8,7 @@ import '../../../../core/gen/strings.g.dart';
 import '../../../../core/theme/regular_text.dart';
 import '../../../../core/theme/semibold_text.dart';
 import '../../../../core/utils/doc_number.dart';
-import '../../../data/stocktakes_repository.dart';
+import '../../../domain/stocktakes/stocktakes_repository.dart';
 import '../ui/portal_badge.dart';
 import '../ui/portal_button.dart';
 import 'stocktake_labels.dart';
