@@ -2,7 +2,10 @@
 # Разовый бэкап БД Craft WMS: pg_dump из контейнера → gzip в BACKUP_DIR, ротация старых.
 # Запускается таймером craft-wms-backup.timer. __REPO_ROOT__ подставляет deploy/install.sh.
 Description=Craft WMS database backup (pg_dump + rotation)
-After=docker.service
+# Сеть нужна для сигнала мониторинга и выгрузки копии (OFFSITE_DEST): после включения
+# сервера Persistent-таймер запускает бэкап сразу, и без ожидания сети они не проходят.
+After=docker.service network-online.target
+Wants=network-online.target
 Requires=docker.service
 
 [Service]
