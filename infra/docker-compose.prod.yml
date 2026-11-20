@@ -52,8 +52,8 @@ services:
       # Пусто - берутся значения по умолчанию из кода (SHB / Шабулина).
       WAREHOUSE_CODE: ${WAREHOUSE_CODE:-}
       WAREHOUSE_NAME: ${WAREHOUSE_NAME:-}
-      # Отправка ошибок в Bugsink (ADHOC-42). Пусто - выключена. DSN - внутренний адрес
-      # сети compose (http://<ключ>@bugsink:8000/<проект>): события наружу не выходят.
+      # Отправка ошибок в общий Bugsink сервера (ADHOC-42, ADHOC-73). Пусто - выключена.
+      # DSN - внешний https-адрес Bugsink, его пишет deploy/monitoring-setup.sh.
       SENTRY_DSN: ${SENTRY_DSN:-}
       SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-prod}
       SENTRY_RELEASE: ${SENTRY_RELEASE:-}
@@ -66,6 +66,11 @@ services:
       CZ_TOKEN_REFRESH_BEFORE: ${CZ_TOKEN_REFRESH_BEFORE:-1h}
       # ИНН нашей организации в ЧЗ (CZ-05): марка другого владельца на приёмке - расхождение.
       CZ_OWNER_INN: ${CZ_OWNER_INN:-}
+    # Хост Bugsink (SENTRY_HOST, пишет deploy/monitoring-setup.sh) - адрес самого сервера:
+    # общий Bugsink открывает хостовый nginx этой же машины, события не выходят наружу.
+    # Пусто - запись-заглушка, ни на что не влияет.
+    extra_hosts:
+      - "${SENTRY_HOST:-sentry.invalid}:host-gateway"
     # Группа сокета подписанта: GID группы cz-signer хоста (пишет deploy/_lib.sh). Без
     # подписанта - nogroup (65534), не дающая ничего.
     group_add:
@@ -88,65 +93,5 @@ services:
       retries: 10
     mem_limit: ${BACKEND_MEM_LIMIT:-256m}
 
-  # --- Bugsink: сбор ошибок бэкенда (ADHOC-42) ---
-  # Профиль monitoring: поднимается, только когда в .env.prod задан BUGSINK_SECRET_KEY
-  # (обёртка compose() в deploy/_lib.sh включает профиль сама). Без него стек - как раньше.
-  # Своя база: SQLite в томе Docker Bugsink не рекомендует, а рабочий Postgres (его дамп
-  # и проверку восстановления) история ошибок не задевает. Её не бэкапим - потерять не страшно.
-  bugsink-db:
-    image: postgres:16-alpine
-    profiles: [monitoring]
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: bugsink
-      POSTGRES_PASSWORD: ${BUGSINK_DB_PASSWORD:-}
-      POSTGRES_DB: bugsink
-    volumes:
-      - bugsink_db_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U bugsink -d bugsink"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    mem_limit: ${BUGSINK_DB_MEM_LIMIT:-256m}
-
-  bugsink:
-    image: ${BUGSINK_IMAGE:-bugsink/bugsink:2}
-    profiles: [monitoring]
-    restart: unless-stopped
-    environment:
-      SECRET_KEY: ${BUGSINK_SECRET_KEY:-}
-      # Первый вход: «почта:пароль». Учётка заводится один раз, при пустой базе.
-      CREATE_SUPERUSER: ${BUGSINK_ADMIN:-}
-      DATABASE_URL: postgresql://bugsink:${BUGSINK_DB_PASSWORD:-}@bugsink-db:5432/bugsink
-      BASE_URL: https://${BUGSINK_DOMAIN:-localhost}
-      # Кому Bugsink отвечает. Без списка он берёт только хост из BASE_URL (+ localhost), и
-      # backend, который шлёт события по сети compose на `bugsink:8000`, получал 400
-      # DisallowedHost (найдено при проверке ADHOC-43).
-      ALLOWED_HOSTS: ${BUGSINK_DOMAIN:-localhost},bugsink,localhost,127.0.0.1
-      BEHIND_HTTPS_PROXY: "True"
-      USE_X_FORWARDED_HOST: "True"
-      # Название в шапке интерфейса. Один Bugsink может собирать ошибки нескольких проектов
-      # (у каждого своя команда), поэтому название задаётся в .env.prod, а не в образе проекта.
-      SITE_TITLE: ${BUGSINK_SITE_TITLE:-Ошибки}
-      # Регистрации нет: входит только админ (и кого он заведёт сам).
-      USER_REGISTRATION: CB_ADMINS
-      # Письма об ошибках - через SMTP-ящик для алертов.
-      EMAIL_HOST: ${BUGSINK_EMAIL_HOST:-}
-      EMAIL_PORT: ${BUGSINK_EMAIL_PORT:-587}
-      EMAIL_HOST_USER: ${BUGSINK_EMAIL_USER:-}
-      EMAIL_HOST_PASSWORD: ${BUGSINK_EMAIL_PASSWORD:-}
-      EMAIL_USE_TLS: ${BUGSINK_EMAIL_USE_TLS:-True}
-      EMAIL_USE_SSL: ${BUGSINK_EMAIL_USE_SSL:-False}
-      DEFAULT_FROM_EMAIL: ${BUGSINK_EMAIL_FROM:-}
-    depends_on:
-      bugsink-db:
-        condition: service_healthy
-    ports:
-      # Только loopback: снаружи интерфейс открывает хостовый nginx на поддомене с TLS.
-      - "${BUGSINK_BIND:-127.0.0.1:8001}:8000"
-    mem_limit: ${BUGSINK_MEM_LIMIT:-512m}
-
 volumes:
   db_data:
-  bugsink_db_data:

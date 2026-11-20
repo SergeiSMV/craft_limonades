@@ -66,13 +66,10 @@ set_env() {
 }
 
 # compose ... - docker compose с нашим env-файлом и prod-compose.
-#
-# Bugsink (ADHOC-42) живёт в профиле monitoring и включается сам, когда в .env.prod задан
-# BUGSINK_SECRET_KEY: тогда его поднимают и обновляют те же `up -d` и `ps`, что и стек.
+# Bugsink в этом стеке больше не живёт (ADHOC-73): общий Bugsink сервера - отдельный стек
+# /opt/bugsink, его ставит и подключает deploy/bugsink.sh.
 compose() {
-  local -a profile=()
-  [[ -n "$(get_env BUGSINK_SECRET_KEY)" ]] && profile=(--profile monitoring)
-  docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" ${profile[@]+"${profile[@]}"} "$@"
+  docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
 }
 
 # preflight_net - проверка прямого выхода к реестру GHCR (иначе pull/деплой не пройдут).
@@ -529,34 +526,8 @@ offsite_push() {
 }
 
 # =====================================================================
-#  Мониторинг (ADHOC-42): поддомен Bugsink и сигналы таймеров (Cronitor / Healthchecks.io)
+#  Мониторинг (ADHOC-42): сигналы таймеров (Cronitor / Healthchecks.io)
 # =====================================================================
-
-# setup_bugsink_vhost - vhost хостового nginx и сертификат для интерфейса Bugsink.
-# Ничего не делает, если BUGSINK_DOMAIN пуст. Идемпотентна: повторный запуск перегенерирует
-# vhost (прежний - в .bak) и не перевыпускает живой сертификат (--keep-until-expiring).
-setup_bugsink_vhost() {
-  local domain bind email template avail
-  domain="$(get_env BUGSINK_DOMAIN)"
-  [[ -n "$domain" ]] || { log "BUGSINK_DOMAIN не задан - поддомен Bugsink не настраиваю."; return 0; }
-  bind="$(get_env BUGSINK_BIND)"; bind="${bind:-127.0.0.1:8001}"
-  email="$(get_env CERTBOT_EMAIL)"
-  [[ -n "$email" ]] || die "CERTBOT_EMAIL не задан - сертификат для $domain не выпустить."
-  template="$REPO_ROOT/infra/nginx/bugsink.conf.template"
-  avail="/etc/nginx/sites-available/$domain"
-  if command -v getent >/dev/null 2>&1 && ! getent hosts "$domain" >/dev/null; then
-    warn "$domain пока не резолвится в IP - certbot не выпустит сертификат. Нужна DNS-запись."
-  fi
-  log "Генерирую vhost $avail"
-  [[ -f "$avail" ]] && cp -a "$avail" "$avail.bak-$(date +%Y%m%d-%H%M%S)"
-  BUGSINK_DOMAIN="$domain" BUGSINK_BIND="$bind" \
-    envsubst '${BUGSINK_DOMAIN} ${BUGSINK_BIND}' < "$template" > "$avail"
-  ln -sfn "$avail" "/etc/nginx/sites-enabled/$domain"
-  nginx -t
-  systemctl reload nginx
-  log "certbot --nginx для $domain…"
-  certbot --nginx -d "$domain" --non-interactive --agree-tos -m "$email" --redirect --keep-until-expiring
-}
 
 # job_ping ИМЯ [КОД] [ТЕКСТ] - сигнал внешнему сервису: таймер отработал (КОД 0) или упал.
 #
@@ -663,8 +634,8 @@ demo_reset_now() {
   log "Демо: бэкенд заполняет базу заново."
 }
 
-# setup_demo_vhost - vhost хостового nginx и сертификат для домена демо. Идемпотентна, как
-# setup_bugsink_vhost: прежний vhost - в .bak, живой сертификат не перевыпускается.
+# setup_demo_vhost - vhost хостового nginx и сертификат для домена демо. Идемпотентна:
+# прежний vhost - в .bak, живой сертификат не перевыпускается.
 setup_demo_vhost() {
   local domain bind email avail
   domain="$(demo_get DEMO_DOMAIN)"
