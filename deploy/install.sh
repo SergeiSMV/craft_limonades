@@ -108,8 +108,6 @@ systemctl reload nginx
 log "certbot --nginx для $DOMAIN…"
 certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos -m "$EMAIL" --redirect --keep-until-expiring
 
-# --- 3c. Поддомен Bugsink (ADHOC-42): только если задан BUGSINK_DOMAIN ---
-setup_bugsink_vhost
 
 # --- 4. Стек: pull → миграции → up → админ ---
 log "Тяну образ и поднимаю стек…"
