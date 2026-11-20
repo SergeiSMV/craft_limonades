@@ -126,7 +126,9 @@ services:
       ALLOWED_HOSTS: ${BUGSINK_DOMAIN:-localhost},bugsink,localhost,127.0.0.1
       BEHIND_HTTPS_PROXY: "True"
       USE_X_FORWARDED_HOST: "True"
-      SITE_TITLE: Craft WMS · ошибки
+      # Название в шапке интерфейса. Один Bugsink может собирать ошибки нескольких проектов
+      # (у каждого своя команда), поэтому название задаётся в .env.prod, а не в образе проекта.
+      SITE_TITLE: ${BUGSINK_SITE_TITLE:-Ошибки}
       # Регистрации нет: входит только админ (и кого он заведёт сам).
       USER_REGISTRATION: CB_ADMINS
       # Письма об ошибках - через SMTP-ящик для алертов.
