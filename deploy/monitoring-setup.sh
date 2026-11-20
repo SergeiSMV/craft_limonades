@@ -27,9 +27,12 @@ require_env_file
 command -v docker >/dev/null 2>&1 || die "docker не установлен."
 
 # Команда Bugsink и проекты: backend - ошибки сервера, app - ТСД и портала (ADHOC-47).
+# Имена с префиксом команды (ADHOC-72): в общем Bugsink у других команд свои backend и app,
+# и в списке проектов одинаковые имена не различить. Проекты со старыми именами
+# (backend, app) скрипт переименовывает сам - DSN при этом не меняется.
 BUGSINK_TEAM="craft"
-BUGSINK_PROJECT="backend"
-BUGSINK_APP_PROJECT="app"
+BUGSINK_PROJECT="craft-backend"
+BUGSINK_APP_PROJECT="craft-app"
 # Сообщение проверочной ошибки backend (handler.MonitoringTestMessage) - по нему её ищем.
 TEST_MESSAGE="проверка мониторинга"
 
@@ -172,7 +175,8 @@ log "Поднимаю Bugsink (первый раз - скачивание обр
 compose up -d bugsink-db bugsink
 wait_bugsink
 
-# project_dsn ИМЯ - завести проект команды (если нет), включить письма и вывести его DSN.
+# project_dsn ИМЯ [СТАРОЕ_ИМЯ] - завести проект команды (если нет), включить письма и вывести
+# его DSN. Проект со СТАРЫМ_ИМЕНЕМ, если нового ещё нет, переименовывается, а не задваивается.
 project_dsn() {
   bugsink_shell "
 from django.contrib.auth import get_user_model
@@ -182,19 +186,23 @@ User = get_user_model()
 u = User.objects.filter(is_superuser=True).order_by('id').first()
 t, _ = Team.objects.get_or_create(name='$BUGSINK_TEAM')
 TeamMembership.objects.update_or_create(team=t, user=u, defaults=dict(role=1, accepted=True, send_email_alerts=True))
-p = Project.objects.filter(team=t, name='$1').first() or Project.objects.create(team=t, name='$1')
+p = Project.objects.filter(team=t, name='$1').first()
+old = Project.objects.filter(team=t, name='${2:-}').first() if '${2:-}' else None
+if p is None and old is not None:
+    old.name = '$1'; old.save(); p = old
+p = p or Project.objects.create(team=t, name='$1')
 p.alert_on_new_issue = True; p.alert_on_regression = True; p.alert_on_unmute = True; p.save()
 ProjectMembership.objects.update_or_create(project=p, user=u, defaults=dict(role=1, accepted=True, send_email_alerts=True))
 print('DSN=' + p.dsn)
 " | sed -n 's/^DSN=//p' | tail -1
 }
 
-# internal_dsn КЛЮЧ ИМЯ - DSN проекта ИМЯ на внутреннем адресе сети compose - в .env.prod.
+# internal_dsn КЛЮЧ ИМЯ [СТАРОЕ_ИМЯ] - DSN проекта ИМЯ на внутреннем адресе сети compose - в .env.prod.
 # События от backend (и пересланные им события приложений) наружу не выходят и не зависят
 # от nginx.
 internal_dsn() {
   local key="$1" name="$2" dsn
-  dsn="$(project_dsn "$name")"
+  dsn="$(project_dsn "$name" "${3:-}")"
   [[ "$dsn" =~ ^https?://([0-9a-f]+)@[^/]+/([0-9]+)$ ]] \
     || die "не удалось получить DSN проекта Bugsink «$name» (получено: «$dsn»)."
   set_env "$key" "http://${BASH_REMATCH[1]}@bugsink:8000/${BASH_REMATCH[2]}"
@@ -202,8 +210,8 @@ internal_dsn() {
 }
 
 log "Команда «$BUGSINK_TEAM», проекты «$BUGSINK_PROJECT» и «$BUGSINK_APP_PROJECT», письма о новых ошибках…"
-internal_dsn SENTRY_DSN "$BUGSINK_PROJECT"
-internal_dsn CLIENT_SENTRY_DSN "$BUGSINK_APP_PROJECT"
+internal_dsn SENTRY_DSN "$BUGSINK_PROJECT" backend
+internal_dsn CLIENT_SENTRY_DSN "$BUGSINK_APP_PROJECT" app
 [[ -n "$(get_env SENTRY_ENVIRONMENT)" ]] || set_env SENTRY_ENVIRONMENT prod
 
 # --- 5. Backend с новым окружением -----------------------------------------------------
